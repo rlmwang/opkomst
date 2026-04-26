@@ -49,6 +49,19 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     # because supplying an email is opt-in. Hard-deleted (set to NULL)
     # after the feedback worker runs — successful or failed-after-retry.
     encrypted_email: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    # Per-signup feedback-email lifecycle. Values:
+    #   not_applicable  — no email was supplied (or questionnaire was off)
+    #   pending         — email supplied, worker hasn't processed yet
+    #   sent            — worker handed the message off to SMTP successfully
+    #   bounced         — provider reported a hard bounce via webhook
+    #   failed          — worker couldn't decrypt or SMTP threw after retry
+    feedback_email_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="not_applicable", index=True
+    )
     # When the feedback worker processed this row. Set even on send
     # failures (after one retry) so we don't keep the ciphertext around.
     feedback_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Provider message id (Scaleway TEM returns one on send). Stored so
+    # we can correlate webhook bounce events back to the specific signup.
+    # Null when send failed, when no provider returned an id, or before send.
+    feedback_message_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)

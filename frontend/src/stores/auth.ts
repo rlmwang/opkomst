@@ -26,7 +26,15 @@ export const useAuthStore = defineStore("auth", () => {
   const isApproved = computed(
     () => user.value?.is_approved === true && user.value?.email_verified_at != null,
   );
-  const isAdmin = computed(() => user.value?.role === "admin");
+  // Admin must clear the same two gates the backend's require_admin
+  // dependency enforces (verified + approved). Keeping the frontend
+  // computed in lock-step avoids a nav link that would 403 when clicked.
+  const isAdmin = computed(
+    () =>
+      user.value?.role === "admin" &&
+      user.value?.is_approved === true &&
+      user.value?.email_verified_at != null,
+  );
 
   async function fetchMe(): Promise<void> {
     if (!getToken()) {

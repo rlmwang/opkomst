@@ -5,18 +5,23 @@ signup whose parent event ended ≥24h ago, that has an encrypted email
 and hasn't been processed yet:
 
   1. Mint a one-time URL-safe token, store the token row.
-  2. Decrypt the email.
-  3. Render the localised subject + body (services.email_templates).
-  4. Send the feedback form (one retry on failure).
+  2. Generate a stable Message-ID for SMTP correlation.
+  3. Decrypt the email.
+  4. Render the localised body and hand it to SMTP with the
+     Message-ID header (one retry on failure).
   5. **Always** null the encrypted blob and stamp ``feedback_sent_at``,
      whether the send succeeded or failed-after-retry. We do not keep
      ciphertext around "just in case" — see CLAUDE.md.
-  6. If sending failed, also delete the token (no point keeping it
-     around when it can never be redeemed).
+  6. Update ``feedback_email_status`` to "sent" or "failed".
+  7. If sending failed, drop both the token (no point keeping it
+     when it can never be redeemed) and the message id (no provider
+     ever heard about it). The Scaleway TEM bounce webhook can later
+     flip a "sent" status to "bounced".
 
 This is the only legitimate caller of ``services.encryption.decrypt``.
 """
 
+import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -33,6 +38,14 @@ logger = structlog.get_logger()
 # How long the feedback link in the email stays valid. Long enough that
 # someone who finds the email a couple of weeks later can still respond.
 TOKEN_TTL = timedelta(days=30)
+
+
+def _message_id_domain() -> str:
+    return os.environ.get("MESSAGE_ID_DOMAIN", "opkomst.nu")
+
+
+def _new_message_id() -> str:
+    return f"<{secrets.token_hex(16)}@{_message_id_domain()}>"
 
 
 def _mint_token(db: Session, signup: Signup, event: Event) -> str:
@@ -58,8 +71,10 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
 
     sent = False
     token: str | None = None
+    message_id: str | None = None
     if plaintext is not None:
         token = _mint_token(db, signup, event)
+        message_id = _new_message_id()
         feedback_url = build_url(f"e/{event.slug}/feedback", t=token)
         for attempt in range(2):
             try:
@@ -68,6 +83,7 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
                     template_name="feedback.html",
                     context={"event_name": event.name, "feedback_url": feedback_url},
                     locale="nl",
+                    message_id=message_id,
                 )
                 sent = True
                 break
@@ -77,13 +93,15 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
     # Always wipe the ciphertext — privacy invariant.
     signup.encrypted_email = None
     signup.feedback_sent_at = datetime.now(UTC)
+    if sent:
+        signup.feedback_email_status = "sent"
+        signup.feedback_message_id = message_id
+    else:
+        signup.feedback_email_status = "failed"
+        if token:
+            db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
+        signup.feedback_message_id = None
     db.add(signup)
-
-    # If the send ultimately failed, the token can never be redeemed
-    # (the recipient never got the link). Drop it so the table doesn't
-    # accumulate orphans.
-    if not sent and token:
-        db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
 
     logger.info("feedback_processed", signup_id=signup.id, sent=sent)
 

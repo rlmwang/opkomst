@@ -13,6 +13,7 @@ from .routers import auth as auth_router
 from .routers import events as events_router
 from .routers import feedback as feedback_router
 from .routers import signups as signups_router
+from .routers import webhooks as webhooks_router
 from .services import feedback_worker
 
 logger = structlog.get_logger()
@@ -53,6 +54,7 @@ app.include_router(admin_router.router)
 app.include_router(events_router.router)
 app.include_router(signups_router.router)
 app.include_router(feedback_router.router)
+app.include_router(webhooks_router.router)
 
 
 @app.get("/health")

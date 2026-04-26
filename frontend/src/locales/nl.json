@@ -178,6 +178,15 @@
       "responses": "{n} reacties",
       "noTextResponses": "Geen vrije-tekst antwoorden."
     },
+    "email": {
+      "title": "Aflevering feedbackmail",
+      "sent": "verstuurd",
+      "pending": "wacht",
+      "bounced": "gebounced",
+      "complaint": "spamklacht",
+      "failed": "mislukt",
+      "not_applicable": "geen e-mail"
+    },
     "preview": {
       "title": "Vragenlijst",
       "intro": "Dit is wat aanmelders te zien krijgen als ze de feedbacklink in hun mail aanklikken. De vragen zijn vast voor elk evenement — gestandaardiseerd zodat resultaten vergelijkbaar zijn.",

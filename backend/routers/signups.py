@@ -20,13 +20,18 @@ def create_signup(slug: str, data: SignupCreate, db: Session = Depends(get_db)) 
     if data.source_choice not in event.source_options:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
 
-    encrypted = encryption.encrypt(data.email) if data.email else None
+    # When the questionnaire is off (or no email was provided) the
+    # signup is "not_applicable" — feedback worker will never look at
+    # it. Otherwise it's "pending" until the worker runs.
+    has_email = bool(data.email) and event.questionnaire_enabled
+    encrypted = encryption.encrypt(data.email) if has_email and data.email else None
     signup = Signup(
         event_id=event.id,
         display_name=data.display_name,
         party_size=data.party_size,
         source_choice=data.source_choice,
         encrypted_email=encrypted,
+        feedback_email_status="pending" if has_email else "not_applicable",
     )
     db.add(signup)
     db.commit()

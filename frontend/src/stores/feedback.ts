@@ -32,10 +32,20 @@ export interface FeedbackQuestionSummary {
   texts: string[] | null;
 }
 
+export interface EmailHealth {
+  not_applicable: number;
+  pending: number;
+  sent: number;
+  bounced: number;
+  complaint: number;
+  failed: number;
+}
+
 export interface FeedbackSummary {
   submission_count: number;
   signup_count: number;
   response_rate: number;
+  email_health: EmailHealth;
   questions: FeedbackQuestionSummary[];
 }
 

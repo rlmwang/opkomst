@@ -147,10 +147,11 @@ def run_local_demo() -> None:
             source_options=sources,
         )
 
-        # One signup on each event, the past one with an encrypted email
-        # so the feedback worker has something real to process on the
-        # next hourly tick. Idempotent: only insert if the event has no
-        # signups yet.
+        # Idempotent demo signups. Upcoming event gets a single
+        # not-applicable signup. Past event gets one signup in every
+        # feedback-email lifecycle state, so the details page shows
+        # the full UX without needing to set up SMTP / wait for the
+        # worker.
         if not db.query(Signup).filter(Signup.event_id == upcoming.id).first():
             db.add(
                 Signup(
@@ -159,16 +160,85 @@ def run_local_demo() -> None:
                     party_size=2,
                     source_choice="Flyer",
                     encrypted_email=None,
+                    feedback_email_status="not_applicable",
                 )
             )
         if not db.query(Signup).filter(Signup.event_id == past.id).first():
+            # not_applicable: someone signed up without an email.
             db.add(
                 Signup(
                     event_id=past.id,
                     display_name="Demo Anon",
                     party_size=1,
                     source_choice="Social media",
-                    encrypted_email=encryption.encrypt("feedback-target@local.dev"),
+                    encrypted_email=None,
+                    feedback_email_status="not_applicable",
+                )
+            )
+            # pending: still ciphertext on disk, worker hasn't run yet
+            # (in real life this lasts until the next hourly tick).
+            db.add(
+                Signup(
+                    event_id=past.id,
+                    display_name="Pim",
+                    party_size=1,
+                    source_choice="Flyer",
+                    encrypted_email=encryption.encrypt("pim@local.dev"),
+                    feedback_email_status="pending",
+                )
+            )
+            # sent: worker successfully handed the message to SMTP.
+            db.add(
+                Signup(
+                    event_id=past.id,
+                    display_name="Sien",
+                    party_size=2,
+                    source_choice="Mond-tot-mond",
+                    encrypted_email=None,
+                    feedback_email_status="sent",
+                    feedback_sent_at=now - timedelta(days=1, hours=23),
+                    feedback_message_id="<demo-sent@local.dev>",
+                )
+            )
+            # bounced: TEM webhook reported the address as
+            # undeliverable after a successful send.
+            db.add(
+                Signup(
+                    event_id=past.id,
+                    display_name="Robin",
+                    party_size=1,
+                    source_choice="Social media",
+                    encrypted_email=None,
+                    feedback_email_status="bounced",
+                    feedback_sent_at=now - timedelta(days=1, hours=22),
+                    feedback_message_id="<demo-bounced@local.dev>",
+                )
+            )
+            # complaint: recipient flagged it as spam. Rare but the UI
+            # should distinguish it from a bounce.
+            db.add(
+                Signup(
+                    event_id=past.id,
+                    display_name="Kees",
+                    party_size=1,
+                    source_choice="Flyer",
+                    encrypted_email=None,
+                    feedback_email_status="complaint",
+                    feedback_sent_at=now - timedelta(days=1, hours=21),
+                    feedback_message_id="<demo-complaint@local.dev>",
+                )
+            )
+            # failed: SMTP send threw after retry, or decrypt failed.
+            db.add(
+                Signup(
+                    event_id=past.id,
+                    display_name="Mira",
+                    party_size=3,
+                    source_choice="Mond-tot-mond",
+                    encrypted_email=None,
+                    feedback_email_status="failed",
+                    feedback_sent_at=now - timedelta(days=1, hours=20),
+                    feedback_message_id=None,
                 )
             )
 

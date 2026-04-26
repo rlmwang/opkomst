@@ -56,6 +56,11 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
   const max = Math.max(...distribution, 1);
   return { width: `${Math.round((distribution[idx] / max) * 100)}%`, count: distribution[idx] };
 }
+
+// Display order for the email-status pills. Keep "sent" prominent
+// (the success state organisers care about) and degrade through the
+// failure modes; not_applicable trails as the no-action bucket.
+const HEALTH_KEYS = ["sent", "pending", "bounced", "complaint", "failed", "not_applicable"] as const;
 </script>
 
 <template>
@@ -80,6 +85,16 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
             {{ src }}: {{ count }}
           </li>
         </ul>
+      </div>
+
+      <div v-if="summary" class="card stack">
+        <h2>{{ t("feedback.email.title") }}</h2>
+        <div class="email-health">
+          <div v-for="key in HEALTH_KEYS" :key="key" class="health-pill" :class="`health-${key}`">
+            <span class="count">{{ summary.email_health[key] }}</span>
+            <span class="label">{{ t(`feedback.email.${key}`) }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="card stack">
@@ -215,4 +230,43 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
 .texts li {
   line-height: 1.45;
 }
+
+.email-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.health-pill {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.875rem;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-bg);
+  min-width: 4.5rem;
+}
+.health-pill .count {
+  font-weight: 700;
+  font-size: 1.0625rem;
+  line-height: 1;
+}
+.health-pill .label {
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+}
+.health-sent { background: #e6f4e6; border-color: #b7d8b7; }
+.health-sent .count { color: #2d6a2d; }
+.health-pending { background: #fdf3d8; border-color: #ead9b3; }
+.health-pending .count { color: #8a6915; }
+.health-bounced, .health-failed, .health-complaint {
+  background: #fbdadc;
+  border-color: #f5b0b4;
+}
+.health-bounced .count, .health-failed .count, .health-complaint .count {
+  color: #9f000b;
+}
+.health-not_applicable .count { color: var(--brand-text-muted); }
 </style>

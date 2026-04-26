@@ -49,10 +49,23 @@ class FeedbackQuestionSummary(BaseModel):
     texts: list[str] | None = None
 
 
+class EmailHealthOut(BaseModel):
+    """Aggregate of feedback-email delivery status across an event's
+    signups. Counts always sum to ``signup_count``."""
+
+    not_applicable: int  # no email supplied / questionnaire disabled
+    pending: int  # email collected, worker hasn't run yet
+    sent: int  # SMTP accepted; no bounce reported
+    bounced: int  # provider reported a hard bounce
+    complaint: int  # recipient flagged as spam
+    failed: int  # decrypt / SMTP send failure
+
+
 class FeedbackSummaryOut(BaseModel):
     """Organiser-only feedback summary for an event."""
 
     submission_count: int
     signup_count: int
     response_rate: float  # submission_count / signup_count, 0 if no signups
+    email_health: EmailHealthOut
     questions: list[FeedbackQuestionSummary]

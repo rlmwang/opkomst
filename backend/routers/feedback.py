@@ -19,6 +19,7 @@ from ..auth import require_approved
 from ..database import get_db
 from ..models import Event, FeedbackQuestion, FeedbackResponse, FeedbackToken, Signup, User
 from ..schemas.feedback import (
+    EmailHealthOut,
     FeedbackFormOut,
     FeedbackQuestionOut,
     FeedbackQuestionSummary,
@@ -161,6 +162,22 @@ def feedback_summary(
     )
     rate = (submission_count / signup_count) if signup_count else 0.0
 
+    health_rows = (
+        db.query(Signup.feedback_email_status, func.count(Signup.id))
+        .filter(Signup.event_id == event_id)
+        .group_by(Signup.feedback_email_status)
+        .all()
+    )
+    health_counts: dict[str, int] = {status: int(count) for status, count in health_rows}
+    email_health = EmailHealthOut(
+        not_applicable=health_counts.get("not_applicable", 0),
+        pending=health_counts.get("pending", 0),
+        sent=health_counts.get("sent", 0),
+        bounced=health_counts.get("bounced", 0),
+        complaint=health_counts.get("complaint", 0),
+        failed=health_counts.get("failed", 0),
+    )
+
     questions = _ordered_questions(db)
     summaries: list[FeedbackQuestionSummary] = []
     for q in questions:
@@ -220,5 +237,6 @@ def feedback_summary(
         submission_count=submission_count,
         signup_count=signup_count,
         response_rate=rate,
+        email_health=email_health,
         questions=summaries,
     )

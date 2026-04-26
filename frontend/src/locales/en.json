@@ -178,6 +178,15 @@
       "responses": "{n} responses",
       "noTextResponses": "No free-text responses."
     },
+    "email": {
+      "title": "Feedback email delivery",
+      "sent": "sent",
+      "pending": "pending",
+      "bounced": "bounced",
+      "complaint": "spam report",
+      "failed": "failed",
+      "not_applicable": "no email"
+    },
     "preview": {
       "title": "Questionnaire",
       "intro": "This is what attendees see when they click the feedback link in their email. The questions are fixed across every event — standardised so results stay comparable.",

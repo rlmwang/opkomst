@@ -27,7 +27,14 @@ logger = structlog.get_logger()
 
 
 class EmailBackend(Protocol):
-    def send(self, to: str, subject: str, html_body: str, from_addr: str) -> None: ...
+    def send(
+        self,
+        to: str,
+        subject: str,
+        html_body: str,
+        from_addr: str,
+        message_id: str | None = None,
+    ) -> None: ...
 
 
 _backend: EmailBackend | None = None
@@ -93,13 +100,29 @@ def _send_sync(to: str, template_name: str, context: dict[str, Any], locale: str
         logger.exception("email_send_failed", to=to, template=template_name, locale=locale)
 
 
-def send_email_sync(to: str, template_name: str, context: dict[str, Any], locale: str = "nl") -> None:
+def send_email_sync(
+    to: str,
+    template_name: str,
+    context: dict[str, Any],
+    locale: str = "nl",
+    message_id: str | None = None,
+) -> None:
     """Synchronous variant — used by the feedback worker, which already
     runs off the request thread and needs to know whether the send
-    succeeded so it can decide whether to wipe the token."""
+    succeeded so it can decide whether to wipe the token. ``message_id``
+    is set as the SMTP ``Message-ID:`` header; Scaleway TEM webhooks
+    quote it back when they fire delivery / bounce / complaint events
+    so we can correlate them to the originating signup."""
     from .templates import render
 
     subject, html_body = render(template_name, context, locale=locale)
     from_addr = get_from_address()
-    get_backend().send(to, subject, html_body, from_addr)
-    logger.info("email_sent", to=to, subject=subject, template=template_name, locale=locale)
+    get_backend().send(to, subject, html_body, from_addr, message_id=message_id)
+    logger.info(
+        "email_sent",
+        to=to,
+        subject=subject,
+        template=template_name,
+        locale=locale,
+        message_id=message_id,
+    )
