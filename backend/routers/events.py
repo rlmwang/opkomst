@@ -69,12 +69,13 @@ def create_event(
     return _to_out(db, event)
 
 
-@router.get("/mine", response_model=list[EventOut])
-def list_my_events(
+@router.get("", response_model=list[EventOut])
+def list_events(
     db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
+    _user: User = Depends(require_approved),
 ) -> list[EventOut]:
-    rows = db.query(Event).filter(Event.created_by == user.id).order_by(Event.starts_at.desc()).all()
+    """Every approved organiser sees every event — small-org trust model."""
+    rows = db.query(Event).order_by(Event.starts_at.desc()).all()
     return [_to_out(db, e) for e in rows]
 
 
@@ -102,13 +103,11 @@ def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
 def event_stats(
     event_id: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
+    _user: User = Depends(require_approved),
 ) -> EventStatsOut:
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.created_by != user.id and user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not your event")
     rows = db.query(Signup.source_choice, func.count(Signup.id), func.sum(Signup.party_size)).filter(
         Signup.event_id == event_id
     ).group_by(Signup.source_choice).all()

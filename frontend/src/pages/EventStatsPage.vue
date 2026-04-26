@@ -10,10 +10,10 @@ const event = ref<EventOut | null>(null);
 const stats = ref<EventStats | null>(null);
 
 onMounted(async () => {
-  // Fetch the event from the organiser's list — keeps stats endpoint
-  // tightly scoped (org-only) without exposing a GET-by-id endpoint.
-  if (events.mine.length === 0) await events.fetchMine();
-  event.value = events.mine.find((e) => e.id === props.eventId) ?? null;
+  // Pull the event details from the cached list. List is loaded on
+  // demand if the user landed straight on this URL.
+  if (events.all.length === 0) await events.fetchAll();
+  event.value = events.all.find((e: EventOut) => e.id === props.eventId) ?? null;
   stats.value = await events.getStats(props.eventId);
 });
 

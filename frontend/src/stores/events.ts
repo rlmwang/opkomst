@@ -34,15 +34,15 @@ export interface EventCreate {
 }
 
 export const useEventsStore = defineStore("events", () => {
-  const mine = ref<EventOut[]>([]);
+  const all = ref<EventOut[]>([]);
 
-  async function fetchMine(): Promise<void> {
-    mine.value = await get<EventOut[]>("/api/v1/events/mine");
+  async function fetchAll(): Promise<void> {
+    all.value = await get<EventOut[]>("/api/v1/events");
   }
 
   async function create(payload: EventCreate): Promise<EventOut> {
     const created = await post<EventOut>("/api/v1/events", payload);
-    mine.value = [created, ...mine.value];
+    all.value = [created, ...all.value];
     return created;
   }
 
@@ -63,5 +63,5 @@ export const useEventsStore = defineStore("events", () => {
     await post(`/api/v1/events/by-slug/${slug}/signups`, payload);
   }
 
-  return { mine, fetchMine, create, getBySlug, getStats, signUp };
+  return { all, fetchAll, create, getBySlug, getStats, signUp };
 });

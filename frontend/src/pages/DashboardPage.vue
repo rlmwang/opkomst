@@ -11,13 +11,13 @@ const events = useEventsStore();
 const toast = useToast();
 
 const sortedEvents = computed(() =>
-  [...events.mine].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+  [...events.all].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
 );
 
 onMounted(async () => {
   if (!auth.isApproved) return;
   try {
-    await events.fetchMine();
+    await events.fetchAll();
   } catch {
     toast.add({ severity: "error", summary: "Kon evenementen niet laden", life: 3000 });
   }

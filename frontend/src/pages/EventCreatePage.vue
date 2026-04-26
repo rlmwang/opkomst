@@ -96,6 +96,7 @@ async function submit() {
             v-model="startTime"
             time-only
             hour-format="24"
+            :step-minute="15"
             placeholder="Starttijd"
             fluid
           />
@@ -103,6 +104,7 @@ async function submit() {
             v-model="endTime"
             time-only
             hour-format="24"
+            :step-minute="15"
             placeholder="Eindtijd"
             fluid
           />
