@@ -188,13 +188,16 @@ async function submit() {
 }
 .event-title h1 {
   margin: 0;
-  line-height: 1.2;
+  font-size: 1.5rem;
+  line-height: 1.25;
 }
 .event-topic {
-  margin: 0.25rem 0 0;
+  margin: 0.75rem 0 0;
+  padding: 0.25rem 0;
   color: var(--brand-text-muted);
   font-style: italic;
-  font-size: 0.95rem;
+  font-size: 1.0625rem;
+  line-height: 1.5;
 }
 .event-meta {
   display: grid;
