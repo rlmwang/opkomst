@@ -1,0 +1,48 @@
+@layer primevue, app;
+
+@layer app {
+  :root {
+    --brand-red: #c62828;
+    --brand-bg: #fafaf7;
+    --brand-surface: #ffffff;
+    --brand-text: #1a1a1a;
+    --brand-text-muted: #5b5b5b;
+    --brand-border: #e6e6e0;
+  }
+
+  html, body, #app {
+    margin: 0;
+    padding: 0;
+    background: var(--brand-bg);
+    color: var(--brand-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  a { color: var(--brand-red); }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+  }
+
+  .card {
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
+  .stack > * + * { margin-top: 0.75rem; }
+
+  .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+
+  .privacy-notice {
+    font-size: 0.875rem;
+    color: var(--brand-text-muted);
+    background: #fff8f0;
+    border: 1px solid #f0e0c8;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+}
