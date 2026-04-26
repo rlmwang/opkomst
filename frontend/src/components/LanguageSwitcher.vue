@@ -50,18 +50,25 @@ function pick(l: Locale) {
 }
 .flag {
   background: none;
-  border: 0;
+  border: 2px solid transparent;
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   border-radius: 999px;
   font-size: 1.1rem;
   line-height: 1;
-  opacity: 0.55;
-  transition: opacity 120ms ease, background 120ms ease;
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  transition: opacity 120ms ease, filter 120ms ease, border-color 120ms ease, background 120ms ease;
 }
-.flag:hover { opacity: 1; }
+.flag:hover {
+  opacity: 0.85;
+  filter: grayscale(0.2);
+}
 .flag.active {
   opacity: 1;
+  filter: none;
   background: var(--brand-bg);
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 1px var(--brand-red);
 }
 </style>

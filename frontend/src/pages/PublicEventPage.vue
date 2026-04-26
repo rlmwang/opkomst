@@ -6,6 +6,7 @@ import Select from "primevue/select";
 import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import BrandMark from "@/components/BrandMark.vue";
 import EventMap from "@/components/EventMap.vue";
 import { ApiError } from "@/api/client";
 import { type EventOut, useEventsStore } from "@/stores/events";
@@ -79,7 +80,7 @@ async function submit() {
 <template>
   <div class="container stack">
     <header class="public-header">
-      <span class="brand">opkomst</span>
+      <BrandMark />
     </header>
 
     <div v-if="error" class="card">
@@ -163,12 +164,6 @@ async function submit() {
 <style scoped>
 .public-header {
   padding: 1rem 0;
-}
-.brand {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--brand-red);
-  letter-spacing: 0.5px;
 }
 .field-with-help {
   display: flex;

@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
+import BrandMark from "@/components/BrandMark.vue";
 import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
@@ -16,7 +17,7 @@ function logout() {
 
 <template>
   <header class="app-header">
-    <router-link to="/" class="brand">opkomst</router-link>
+    <BrandMark to="/" />
     <nav v-if="auth.isAuthenticated">
       <router-link to="/dashboard">{{ t("header.events") }}</router-link>
       <router-link v-if="auth.isAdmin" to="/admin">{{ t("header.admin") }}</router-link>
@@ -33,13 +34,6 @@ function logout() {
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--brand-border);
   background: var(--brand-surface);
-}
-.brand {
-  font-weight: 700;
-  font-size: 1.25rem;
-  color: var(--brand-red);
-  text-decoration: none;
-  letter-spacing: 0.5px;
 }
 nav {
   display: flex;
