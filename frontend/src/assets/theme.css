@@ -6,11 +6,11 @@
      * comfortably next to the deep brand red without the sterile feel
      * of pure white. */
     --brand-red: #9f000b;
-    --brand-bg: #fbf7ed;
-    --brand-surface: #fefcf6;
+    --brand-bg: #faf8f3;
+    --brand-surface: #fffdf8;
     --brand-text: #1a1a1a;
     --brand-text-muted: #5e5a52;
-    --brand-border: #ece4d0;
+    --brand-border: #ebe6da;
   }
 
   html, body, #app {
