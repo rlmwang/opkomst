@@ -8,6 +8,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
+import EditableList from "@/components/EditableList.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { ApiError } from "@/api/client";
 import { useEventsStore } from "@/stores/events";
@@ -155,14 +156,22 @@ async function submit() {
 
         <div class="stack">
           <label class="muted">{{ t("event.sourcesLabel") }}</label>
-          <div v-for="(src, i) in sources" :key="i" class="source-row">
-            <span>{{ src }}</span>
-            <Button icon="pi pi-times" size="small" severity="secondary" text @click="removeSource(i)" />
-          </div>
-          <div class="source-row">
-            <InputText v-model="newSource" :placeholder="t('event.newSource')" fluid @keydown.enter.prevent="addSource" />
-            <Button icon="pi pi-plus" size="small" severity="secondary" @click="addSource" />
-          </div>
+          <EditableList
+            :items="sources"
+            :item-label="(s: string) => s"
+            :item-key="(s: string) => s"
+            @remove="(s: string) => removeSource(sources.indexOf(s))"
+          >
+            <template #add>
+              <InputText
+                v-model="newSource"
+                :placeholder="t('event.newSource')"
+                fluid
+                @keydown.enter.prevent="addSource"
+              />
+              <Button icon="pi pi-plus" size="small" severity="secondary" @click="addSource" />
+            </template>
+          </EditableList>
         </div>
 
         <Button type="submit" :label="isEdit ? t('event.save') : t('event.create')" :loading="submitting" />

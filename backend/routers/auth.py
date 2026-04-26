@@ -16,6 +16,7 @@ from ..auth import (
 from ..database import get_db
 from ..models import User
 from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut, VerifyEmailRequest
+from ..services import afdelingen as afdelingen_svc
 from ..services.email import build_url, send_email
 
 logger = structlog.get_logger()
@@ -24,6 +25,24 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "").lower()
 VERIFY_TOKEN_TTL_HOURS = 24
+
+
+def _user_out(db, user: User) -> UserOut:
+    """Materialise UserOut with the afdeling_name resolved. Plain
+    model_validate misses afdeling_name because it lives in a separate
+    table; a small helper keeps every endpoint that returns UserOut
+    consistent."""
+    return UserOut(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        email_verified_at=user.email_verified_at,
+        is_approved=user.is_approved,
+        afdeling_id=user.afdeling_id,
+        afdeling_name=afdelingen_svc.name_for_entity(db, user.afdeling_id),
+        created_at=user.created_at,
+    )
 
 
 def _send_verification(user: User) -> None:
@@ -70,7 +89,7 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)) -> AuthRespon
         _send_verification(user)
 
     logger.info("user_registered", user_id=user.id, bootstrap=is_bootstrap)
-    return AuthResponse(token=create_token(user.id), user=UserOut.model_validate(user))
+    return AuthResponse(token=create_token(user.id), user=_user_out(db, user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -81,12 +100,12 @@ def login(data: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
     # Login itself succeeds even without verification + approval — the
     # client uses /me to render the appropriate awaiting-... empty
     # state. Real action paths are gated by require_approved.
-    return AuthResponse(token=create_token(user.id), user=UserOut.model_validate(user))
+    return AuthResponse(token=create_token(user.id), user=_user_out(db, user))
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)) -> UserOut:
-    return UserOut.model_validate(user)
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
+    return _user_out(db, user)
 
 
 @router.post("/verify-email", response_model=UserOut)
@@ -104,7 +123,7 @@ def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)) -> Use
         db.commit()
         logger.info("email_verified", user_id=user.id)
     db.refresh(user)
-    return UserOut.model_validate(user)
+    return _user_out(db, user)
 
 
 @router.post("/resend-verification", status_code=204)

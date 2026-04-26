@@ -145,9 +145,16 @@ def submit_feedback(
 def feedback_summary(
     event_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_approved),
+    user: User = Depends(require_approved),
 ) -> FeedbackSummaryOut:
-    event = db.query(Event).filter(Event.id == event_id).first()
+    # Mirror the events router's afdeling scoping — events outside the
+    # user's afdeling 404 (don't leak existence).
+    afdeling_match = (
+        Event.afdeling_id == user.afdeling_id
+        if user.afdeling_id is not None
+        else Event.afdeling_id == "__no_match__"
+    )
+    event = db.query(Event).filter(Event.id == event_id, afdeling_match).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
 

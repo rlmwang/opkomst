@@ -12,6 +12,7 @@ from ..auth import require_approved
 from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut
+from ..services import afdelingen as afdelingen_svc
 from ..services.slug import new_slug
 
 logger = structlog.get_logger()
@@ -39,8 +40,33 @@ def _to_out(db: Session, event: Event) -> EventOut:
         ends_at=event.ends_at,
         source_options=event.source_options,
         questionnaire_enabled=event.questionnaire_enabled,
+        afdeling_id=event.afdeling_id,
+        afdeling_name=afdelingen_svc.name_for_entity(db, event.afdeling_id),
         signup_count=_attendees_for(db, event.id),
     )
+
+
+def _scope_filter(user: User):
+    """Restrict an Event query to events visible to ``user``. Same
+    rule for organisers and admins (small-org trust model): you only
+    see your own afdeling's events. Admins move themselves into other
+    afdelingen via the assign-afdeling endpoint when they need to."""
+    if user.afdeling_id is None:
+        # Approved users without an afdeling shouldn't exist (the
+        # approve endpoint refuses), but defend against the case
+        # anyway — they see nothing rather than everything.
+        return Event.afdeling_id == "__no_match__"
+    return Event.afdeling_id == user.afdeling_id
+
+
+def _get_event_scoped(db: Session, event_id: str, user: User) -> Event:
+    """Fetch an event by id, refusing if it's outside the user's
+    afdeling. 404 (not 403) so we don't leak the existence of events
+    in other afdelingen."""
+    event = db.query(Event).filter(Event.id == event_id, _scope_filter(user)).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
 
 
 @router.post("", response_model=EventOut, status_code=201)
@@ -51,6 +77,11 @@ def create_event(
 ) -> EventOut:
     if data.ends_at <= data.starts_at:
         raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
+    if user.afdeling_id is None:
+        # require_approved already prevents this in practice (approve
+        # endpoint refuses without an afdeling), but explicit beats
+        # implicit for an FK assignment.
+        raise HTTPException(status_code=409, detail="No afdeling assigned")
     event = Event(
         slug=new_slug(),
         name=data.name,
@@ -62,6 +93,7 @@ def create_event(
         ends_at=data.ends_at,
         source_options=data.source_options,
         questionnaire_enabled=data.questionnaire_enabled,
+        afdeling_id=user.afdeling_id,
         created_by=user.id,
     )
     db.add(event)
@@ -74,12 +106,15 @@ def create_event(
 @router.get("", response_model=list[EventOut])
 def list_events(
     db: Session = Depends(get_db),
-    _user: User = Depends(require_approved),
+    user: User = Depends(require_approved),
 ) -> list[EventOut]:
-    """Every approved organiser sees every active event — small-org trust model."""
+    """Every approved organiser in the afdeling sees every active
+    event in that afdeling. Cross-afdeling visibility is by design
+    not a thing (admins switch their own afdeling to see another
+    chapter's events)."""
     rows = (
         db.query(Event)
-        .filter(Event.archived_at.is_(None))
+        .filter(_scope_filter(user), Event.archived_at.is_(None))
         .order_by(Event.starts_at.desc())
         .all()
     )
@@ -89,13 +124,13 @@ def list_events(
 @router.get("/archived", response_model=list[EventOut])
 def list_archived_events(
     db: Session = Depends(get_db),
-    _user: User = Depends(require_approved),
+    user: User = Depends(require_approved),
 ) -> list[EventOut]:
-    """Archived events — only visible to approved organisers. Restore
-    flips them back to active."""
+    """Archived events for the user's afdeling. Restore flips them
+    back to active."""
     rows = (
         db.query(Event)
-        .filter(Event.archived_at.is_not(None))
+        .filter(_scope_filter(user), Event.archived_at.is_not(None))
         .order_by(Event.created_at.desc())
         .all()
     )
@@ -110,9 +145,7 @@ def archive_event(
 ) -> EventOut:
     from datetime import UTC, datetime
 
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = _get_event_scoped(db, event_id, user)
     if event.archived_at is not None:
         raise HTTPException(status_code=409, detail="Already archived")
     event.archived_at = datetime.now(UTC)
@@ -138,9 +171,7 @@ def send_feedback_emails_now(
     """
     from ..services import feedback_worker
 
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = _get_event_scoped(db, event_id, user)
     if not event.questionnaire_enabled:
         raise HTTPException(status_code=409, detail="Questionnaire is disabled for this event")
     processed = feedback_worker.run_for_event(event_id)
@@ -154,9 +185,7 @@ def restore_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = _get_event_scoped(db, event_id, user)
     if event.archived_at is None:
         raise HTTPException(status_code=409, detail="Not archived")
     event.archived_at = None
@@ -173,12 +202,11 @@ def update_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    """Any approved organiser can edit any event — small-org trust model."""
+    """Any approved organiser in the afdeling can edit any event in
+    that afdeling — small-org trust model, scoped to the chapter."""
     if data.ends_at <= data.starts_at:
         raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = _get_event_scoped(db, event_id, user)
     event.name = data.name
     event.topic = data.topic
     event.location = data.location
@@ -242,11 +270,9 @@ def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
 def event_stats(
     event_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_approved),
+    user: User = Depends(require_approved),
 ) -> EventStatsOut:
-    event = db.query(Event).filter(Event.id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    event = _get_event_scoped(db, event_id, user)
     rows = db.query(Signup.source_choice, func.count(Signup.id), func.sum(Signup.party_size)).filter(
         Signup.event_id == event_id
     ).group_by(Signup.source_choice).all()

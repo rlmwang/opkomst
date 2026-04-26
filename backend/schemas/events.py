@@ -39,6 +39,8 @@ class EventOut(BaseModel):
     ends_at: datetime
     source_options: list[str]
     questionnaire_enabled: bool
+    afdeling_id: str | None
+    afdeling_name: str | None
     signup_count: int  # aggregate party_size sum, not row count
     model_config = {"from_attributes": True}
 

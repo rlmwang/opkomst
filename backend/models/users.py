@@ -21,3 +21,8 @@ class User(UUIDMixin, TimestampMixin, Base):
     # must hold; require_approved enforces the conjunction.
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Afdeling assignment (entity_id, stable across afdeling versions).
+    # Required after admin approval — the approve endpoint refuses to
+    # flip is_approved=true without one. Nullable in the schema only
+    # for the pre-approval state.
+    afdeling_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)

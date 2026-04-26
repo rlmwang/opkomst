@@ -14,6 +14,8 @@ export interface EventOut {
   ends_at: string;
   source_options: string[];
   questionnaire_enabled: boolean;
+  afdeling_id: string | null;
+  afdeling_name: string | null;
   signup_count: number;
 }
 

@@ -29,6 +29,11 @@ class Event(UUIDMixin, TimestampMixin, Base):
     # so feedback collection is the path of least resistance.
     questionnaire_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_by: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False, index=True)
+    # The afdeling that owns this event. Points at Afdeling.entity_id
+    # (not row id) so the link survives edits / restores. Nullable in
+    # the schema only because pre-feature events predate the column;
+    # every newly-created event must have one.
+    afdeling_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     # Soft-archive: organisers can hide events from the dashboard +
     # public page without deleting any signups / feedback. Restore
     # flips this back to NULL.
