@@ -79,6 +79,33 @@ def list_events(
     return [_to_out(db, e) for e in rows]
 
 
+@router.put("/{event_id}", response_model=EventOut)
+def update_event(
+    event_id: str,
+    data: EventCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    """Any approved organiser can edit any event — small-org trust model."""
+    if data.ends_at <= data.starts_at:
+        raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.name = data.name
+    event.topic = data.topic
+    event.location = data.location
+    event.latitude = data.latitude
+    event.longitude = data.longitude
+    event.starts_at = data.starts_at
+    event.ends_at = data.ends_at
+    event.source_options = data.source_options
+    db.commit()
+    db.refresh(event)
+    logger.info("event_updated", event_id=event.id, actor_id=user.id)
+    return _to_out(db, event)
+
+
 @router.get("/by-slug/{slug}", response_model=EventOut)
 def get_event_by_slug(slug: str, db: Session = Depends(get_db)) -> EventOut:
     event = db.query(Event).filter(Event.slug == slug).first()

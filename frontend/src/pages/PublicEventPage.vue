@@ -8,6 +8,7 @@ import { onMounted, ref } from "vue";
 import EventMap from "@/components/EventMap.vue";
 import { ApiError } from "@/api/client";
 import { type EventOut, useEventsStore } from "@/stores/events";
+import { mapLink } from "@/lib/map-link";
 
 const props = defineProps<{ slug: string }>();
 
@@ -67,7 +68,18 @@ async function submit() {
         <h1>{{ event.name }}</h1>
         <p v-if="event.topic" class="muted">{{ event.topic }}</p>
         <p>
-          <strong>{{ event.location }}</strong><br />
+          <a
+            :href="mapLink({
+              location: event.location,
+              latitude: event.latitude,
+              longitude: event.longitude,
+            })"
+            target="_blank"
+            rel="noopener"
+          >
+            <strong>{{ event.location }}</strong>
+          </a>
+          <br />
           {{ new Date(event.starts_at).toLocaleString("nl-NL") }}
         </p>
         <EventMap
@@ -86,16 +98,22 @@ async function submit() {
 
       <form v-else class="card stack" @submit.prevent="submit">
         <h2>Aanmelden</h2>
-        <p class="privacy-notice">
-          We vragen alleen wat we nodig hebben. Je naam mag een schuilnaam zijn —
-          die helpt ons alleen bij de hoofdtelling. Je e-mailadres is optioneel,
-          wordt versleuteld bewaard en éénmalig gebruikt voor een feedbackmail
-          na afloop. Daarna wissen we het permanent. De volledige broncode van
-          deze app staat
-          <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">openbaar online</a>.
-        </p>
-        <InputText v-model="displayName" placeholder="Naam (mag een schuilnaam zijn)" required fluid />
-        <InputNumber v-model="partySize" :min="1" :max="50" placeholder="Aantal personen (incl. jezelf)" show-buttons fluid />
+        <details class="privacy-notice">
+          <summary>Toelichting</summary>
+          <p>
+            We vragen alleen wat we nodig hebben. Je naam mag een schuilnaam zijn —
+            die helpt ons alleen bij de hoofdtelling. Je e-mailadres is optioneel,
+            wordt versleuteld bewaard en éénmalig gebruikt voor een feedbackmail
+            na afloop. Daarna wissen we het permanent. De volledige broncode van
+            deze app staat
+            <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">openbaar online</a>.
+          </p>
+        </details>
+        <InputText v-model="displayName" placeholder="(schuil)naam" required fluid />
+        <div class="field-with-help">
+          <InputNumber v-model="partySize" :min="1" :max="50" placeholder="Aantal personen" show-buttons fluid />
+          <p class="field-help">Inclusief jezelf — dus jij + eventuele mensen die met je meekomen.</p>
+        </div>
         <Select
           v-model="sourceChoice"
           :options="event.source_options"
@@ -119,5 +137,15 @@ async function submit() {
   font-size: 1.25rem;
   color: var(--brand-red);
   letter-spacing: 0.5px;
+}
+.field-with-help {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.field-help {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
 }
 </style>

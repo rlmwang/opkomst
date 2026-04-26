@@ -3,16 +3,20 @@ import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { ApiError } from "@/api/client";
 import { useEventsStore } from "@/stores/events";
 
+const props = defineProps<{ eventId?: string }>();
+
 const router = useRouter();
 const events = useEventsStore();
 const toast = useToast();
+
+const isEdit = computed(() => Boolean(props.eventId));
 
 const name = ref("");
 const topic = ref("");
@@ -22,15 +26,15 @@ const longitude = ref<number | null>(null);
 const eventDate = ref<Date | null>(null);
 const startTime = ref<Date | null>(null);
 const endTime = ref<Date | null>(null);
+const sources = ref<string[]>(["Flyer", "Mond-tot-mond", "Social media"]);
+const newSource = ref("");
+const submitting = ref(false);
 
 function combine(date: Date, time: Date): Date {
   const d = new Date(date);
   d.setHours(time.getHours(), time.getMinutes(), 0, 0);
   return d;
 }
-const sources = ref<string[]>(["Flyer", "Mond-tot-mond", "Social media"]);
-const newSource = ref("");
-const submitting = ref(false);
 
 function addSource() {
   const v = newSource.value.trim();
@@ -42,6 +46,27 @@ function addSource() {
 function removeSource(i: number) {
   sources.value.splice(i, 1);
 }
+
+onMounted(async () => {
+  if (!isEdit.value) return;
+  if (events.all.length === 0) await events.fetchAll();
+  const existing = events.all.find((e) => e.id === props.eventId);
+  if (!existing) {
+    toast.add({ severity: "error", summary: "Evenement niet gevonden", life: 3000 });
+    return;
+  }
+  name.value = existing.name;
+  topic.value = existing.topic ?? "";
+  location.value = existing.location;
+  latitude.value = existing.latitude;
+  longitude.value = existing.longitude;
+  const start = new Date(existing.starts_at);
+  const end = new Date(existing.ends_at);
+  eventDate.value = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  startTime.value = new Date(start);
+  endTime.value = new Date(end);
+  sources.value = [...existing.source_options];
+});
 
 async function submit() {
   if (!eventDate.value || !startTime.value || !endTime.value) {
@@ -56,7 +81,7 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const created = await events.create({
+    const payload = {
       name: name.value,
       topic: topic.value || null,
       location: location.value,
@@ -65,10 +90,14 @@ async function submit() {
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       source_options: sources.value,
-    });
-    void router.push(`/events/${created.id}/stats`);
+    };
+    const result =
+      isEdit.value && props.eventId
+        ? await events.update(props.eventId, payload)
+        : await events.create(payload);
+    void router.push(`/events/${result.id}/stats`);
   } catch (e) {
-    const msg = e instanceof ApiError ? e.message : "Aanmaken mislukt";
+    const msg = e instanceof ApiError ? e.message : "Opslaan mislukt";
     toast.add({ severity: "error", summary: msg, life: 3000 });
   } finally {
     submitting.value = false;
@@ -80,7 +109,7 @@ async function submit() {
   <AppHeader />
   <div class="container">
     <div class="card stack">
-      <h1>Nieuw evenement</h1>
+      <h1>{{ isEdit ? "Evenement bewerken" : "Nieuw evenement" }}</h1>
       <form class="stack" @submit.prevent="submit">
         <InputText v-model="name" placeholder="Naam van het evenement" required fluid />
         <InputText v-model="topic" placeholder="Onderwerp (optioneel)" fluid />
@@ -122,7 +151,7 @@ async function submit() {
           </div>
         </div>
 
-        <Button type="submit" label="Evenement aanmaken" :loading="submitting" />
+        <Button type="submit" :label="isEdit ? 'Opslaan' : 'Evenement aanmaken'" :loading="submitting" />
       </form>
     </div>
   </div>

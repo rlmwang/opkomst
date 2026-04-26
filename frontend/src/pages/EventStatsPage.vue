@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Button from "primevue/button";
 import { onMounted, ref } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import { type EventOut, type EventStats, useEventsStore } from "@/stores/events";
@@ -30,8 +31,15 @@ function qrUrl(slug: string): string {
   <AppHeader />
   <div class="container stack">
     <template v-if="event && stats">
-      <h1>{{ event.name }}</h1>
-      <p class="muted">{{ event.location }} · {{ new Date(event.starts_at).toLocaleString("nl-NL") }}</p>
+      <div class="title-row">
+        <div>
+          <h1>{{ event.name }}</h1>
+          <p class="muted">{{ event.location }} · {{ new Date(event.starts_at).toLocaleString("nl-NL") }}</p>
+        </div>
+        <router-link :to="`/events/${event.id}/edit`">
+          <Button label="Bewerken" icon="pi pi-pencil" size="small" severity="secondary" />
+        </router-link>
+      </div>
 
       <div class="card stack">
         <h2>Aanmeldingen</h2>
@@ -55,6 +63,13 @@ function qrUrl(slug: string): string {
 </template>
 
 <style scoped>
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.title-row h1 { margin: 0 0 0.25rem; }
 .qr {
   width: 200px;
   height: 200px;

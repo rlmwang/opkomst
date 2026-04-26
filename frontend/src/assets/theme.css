@@ -48,4 +48,29 @@
     border-radius: 8px;
     padding: 0.75rem 1rem;
   }
+
+  .privacy-notice > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--brand-text);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .privacy-notice > summary::-webkit-details-marker { display: none; }
+  /* PrimeIcons chevron — rotated 90° when the details element is open. */
+  .privacy-notice > summary::before {
+    content: "\e932"; /* pi-chevron-right */
+    font-family: "primeicons";
+    font-size: 0.75rem;
+    line-height: 1;
+    transition: transform 150ms ease;
+  }
+  .privacy-notice[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .privacy-notice > p {
+    margin: 0.5rem 0 0;
+  }
 }

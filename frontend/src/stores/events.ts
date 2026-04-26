@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { get, post } from "@/api/client";
+import { get, post, put } from "@/api/client";
 
 export interface EventOut {
   id: string;
@@ -46,6 +46,12 @@ export const useEventsStore = defineStore("events", () => {
     return created;
   }
 
+  async function update(eventId: string, payload: EventCreate): Promise<EventOut> {
+    const updated = await put<EventOut>(`/api/v1/events/${eventId}`, payload);
+    all.value = all.value.map((e) => (e.id === eventId ? updated : e));
+    return updated;
+  }
+
   async function getBySlug(slug: string): Promise<EventOut> {
     return get<EventOut>(`/api/v1/events/by-slug/${slug}`);
   }
@@ -63,5 +69,5 @@ export const useEventsStore = defineStore("events", () => {
     await post(`/api/v1/events/by-slug/${slug}/signups`, payload);
   }
 
-  return { all, fetchAll, create, getBySlug, getStats, signUp };
+  return { all, fetchAll, create, update, getBySlug, getStats, signUp };
 });
