@@ -48,8 +48,26 @@
     "newEvent": "Nieuw evenement",
     "empty": "Nog geen evenementen aangemaakt.",
     "signupCount": "{n} aanmeldingen",
-    "stats": "Statistieken",
+    "details": "Details",
+    "copyLink": "Kopieer link",
+    "linkCopied": "Link gekopieerd",
+    "viewArchived": "Archief",
+    "archive": "Archiveren",
+    "archived": "Gearchiveerd",
+    "archiveFail": "Archiveren mislukt",
+    "archiveConfirmTitle": "Evenement archiveren?",
+    "archiveConfirmBody": "Het evenement \"{name}\" wordt verborgen uit de lijst. De openbare link werkt niet meer. Aanmeldingen en feedback blijven bewaard. Je kunt het later herstellen vanaf het archief.",
     "loadFailed": "Kon evenementen niet laden"
+  },
+  "archived": {
+    "title": "Archief",
+    "intro": "Gearchiveerde evenementen. Open een evenement door het te herstellen.",
+    "back": "Terug naar evenementen",
+    "empty": "Geen gearchiveerde evenementen.",
+    "restore": "Herstellen",
+    "restored": "{name} hersteld",
+    "restoreFail": "Herstellen mislukt",
+    "loadFailed": "Kon archief niet laden"
   },
   "admin": {
     "title": "Admin — gebruikers",

@@ -74,9 +74,68 @@ def list_events(
     db: Session = Depends(get_db),
     _user: User = Depends(require_approved),
 ) -> list[EventOut]:
-    """Every approved organiser sees every event — small-org trust model."""
-    rows = db.query(Event).order_by(Event.starts_at.desc()).all()
+    """Every approved organiser sees every active event — small-org trust model."""
+    rows = (
+        db.query(Event)
+        .filter(Event.archived_at.is_(None))
+        .order_by(Event.starts_at.desc())
+        .all()
+    )
     return [_to_out(db, e) for e in rows]
+
+
+@router.get("/archived", response_model=list[EventOut])
+def list_archived_events(
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_approved),
+) -> list[EventOut]:
+    """Archived events — only visible to approved organisers. Restore
+    flips them back to active."""
+    rows = (
+        db.query(Event)
+        .filter(Event.archived_at.is_not(None))
+        .order_by(Event.created_at.desc())
+        .all()
+    )
+    return [_to_out(db, e) for e in rows]
+
+
+@router.post("/{event_id}/archive", response_model=EventOut)
+def archive_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    from datetime import UTC, datetime
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Already archived")
+    event.archived_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(event)
+    logger.info("event_archived", event_id=event.id, actor_id=user.id)
+    return _to_out(db, event)
+
+
+@router.post("/{event_id}/restore", response_model=EventOut)
+def restore_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.archived_at is None:
+        raise HTTPException(status_code=409, detail="Not archived")
+    event.archived_at = None
+    db.commit()
+    db.refresh(event)
+    logger.info("event_restored", event_id=event.id, actor_id=user.id)
+    return _to_out(db, event)
 
 
 @router.put("/{event_id}", response_model=EventOut)
@@ -108,7 +167,11 @@ def update_event(
 
 @router.get("/by-slug/{slug}", response_model=EventOut)
 def get_event_by_slug(slug: str, db: Session = Depends(get_db)) -> EventOut:
-    event = db.query(Event).filter(Event.slug == slug).first()
+    event = (
+        db.query(Event)
+        .filter(Event.slug == slug, Event.archived_at.is_(None))
+        .first()
+    )
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return _to_out(db, event)
@@ -116,7 +179,11 @@ def get_event_by_slug(slug: str, db: Session = Depends(get_db)) -> EventOut:
 
 @router.get("/by-slug/{slug}/qr.png")
 def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
-    event = db.query(Event).filter(Event.slug == slug).first()
+    event = (
+        db.query(Event)
+        .filter(Event.slug == slug, Event.archived_at.is_(None))
+        .first()
+    )
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     target = f"{PUBLIC_BASE_URL}/e/{event.slug}"

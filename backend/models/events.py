@@ -25,6 +25,10 @@ class Event(UUIDMixin, TimestampMixin, Base):
     # JSON array of strings, e.g. ["Flyer", "Word of mouth", "Social media"].
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     created_by: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False, index=True)
+    # Soft-archive: organisers can hide events from the dashboard +
+    # public page without deleting any signups / feedback. Restore
+    # flips this back to NULL.
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
 
 
 class Signup(UUIDMixin, TimestampMixin, Base):

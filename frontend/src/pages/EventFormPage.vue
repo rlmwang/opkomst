@@ -97,7 +97,7 @@ async function submit() {
       isEdit.value && props.eventId
         ? await events.update(props.eventId, payload)
         : await events.create(payload);
-    void router.push(`/events/${result.id}/stats`);
+    void router.push(`/events/${result.id}/details`);
   } catch (e) {
     const msg = e instanceof ApiError ? e.message : t("event.saveFailed");
     toast.add({ severity: "error", summary: msg, life: 3000 });

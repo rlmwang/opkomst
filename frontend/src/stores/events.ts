@@ -35,9 +35,14 @@ export interface EventCreate {
 
 export const useEventsStore = defineStore("events", () => {
   const all = ref<EventOut[]>([]);
+  const archived = ref<EventOut[]>([]);
 
   async function fetchAll(): Promise<void> {
     all.value = await get<EventOut[]>("/api/v1/events");
+  }
+
+  async function fetchArchived(): Promise<void> {
+    archived.value = await get<EventOut[]>("/api/v1/events/archived");
   }
 
   async function create(payload: EventCreate): Promise<EventOut> {
@@ -50,6 +55,17 @@ export const useEventsStore = defineStore("events", () => {
     const updated = await put<EventOut>(`/api/v1/events/${eventId}`, payload);
     all.value = all.value.map((e) => (e.id === eventId ? updated : e));
     return updated;
+  }
+
+  async function archive(eventId: string): Promise<void> {
+    await post(`/api/v1/events/${eventId}/archive`);
+    all.value = all.value.filter((e) => e.id !== eventId);
+  }
+
+  async function restore(eventId: string): Promise<void> {
+    const restored = await post<EventOut>(`/api/v1/events/${eventId}/restore`);
+    archived.value = archived.value.filter((e) => e.id !== eventId);
+    all.value = [restored, ...all.value];
   }
 
   async function getBySlug(slug: string): Promise<EventOut> {
@@ -69,5 +85,17 @@ export const useEventsStore = defineStore("events", () => {
     await post(`/api/v1/events/by-slug/${slug}/signups`, payload);
   }
 
-  return { all, fetchAll, create, update, getBySlug, getStats, signUp };
+  return {
+    all,
+    archived,
+    fetchAll,
+    fetchArchived,
+    create,
+    update,
+    archive,
+    restore,
+    getBySlug,
+    getStats,
+    signUp,
+  };
 });

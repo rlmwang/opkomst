@@ -48,8 +48,26 @@
     "newEvent": "New event",
     "empty": "No events yet.",
     "signupCount": "{n} sign-ups",
-    "stats": "Stats",
+    "details": "Details",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "viewArchived": "Archive",
+    "archive": "Archive",
+    "archived": "Archived",
+    "archiveFail": "Archive failed",
+    "archiveConfirmTitle": "Archive this event?",
+    "archiveConfirmBody": "\"{name}\" will be hidden from the list. The public link will stop working. Sign-ups and feedback are kept. You can restore it later from the archive.",
     "loadFailed": "Could not load events"
+  },
+  "archived": {
+    "title": "Archive",
+    "intro": "Archived events. Open an event by restoring it.",
+    "back": "Back to events",
+    "empty": "No archived events.",
+    "restore": "Restore",
+    "restored": "{name} restored",
+    "restoreFail": "Restore failed",
+    "loadFailed": "Could not load archive"
   },
   "admin": {
     "title": "Admin — users",
