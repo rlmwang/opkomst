@@ -63,3 +63,26 @@ def promote_user(
     db.refresh(target)
     logger.info("user_promoted", actor_id=admin.id, target_id=target.id)
     return AdminUserOut.model_validate(target)
+
+
+@router.post("/users/{user_id}/demote", response_model=AdminUserOut)
+def demote_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+) -> AdminUserOut:
+    """Demote an admin back to organiser. Self-demotion is blocked so the
+    venue can never end up with zero admins via a single click."""
+    if user_id == admin.id:
+        raise HTTPException(status_code=409, detail="You cannot demote yourself")
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.role != "admin":
+        raise HTTPException(status_code=409, detail="Not an admin")
+    target.role = "organiser"
+    db.add(AuditLog(actor_id=admin.id, action="demote", target_id=target.id))
+    db.commit()
+    db.refresh(target)
+    logger.info("user_demoted", actor_id=admin.id, target_id=target.id)
+    return AdminUserOut.model_validate(target)

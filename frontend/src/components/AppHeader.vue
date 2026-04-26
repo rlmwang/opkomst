@@ -16,9 +16,8 @@ function logout() {
   <header class="app-header">
     <router-link to="/" class="brand">opkomst</router-link>
     <nav v-if="auth.isAuthenticated">
-      <router-link to="/dashboard">Mijn evenementen</router-link>
+      <router-link to="/dashboard">Evenementen</router-link>
       <router-link v-if="auth.isAdmin" to="/admin">Admin</router-link>
-      <span class="muted">{{ auth.user?.name }}</span>
       <Button label="Uitloggen" size="small" severity="secondary" text @click="logout" />
     </nav>
   </header>

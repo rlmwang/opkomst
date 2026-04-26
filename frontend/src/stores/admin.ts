@@ -21,5 +21,10 @@ export const useAdminStore = defineStore("admin", () => {
     users.value = users.value.map((u) => (u.id === userId ? updated : u));
   }
 
-  return { users, fetchUsers, approve, promote };
+  async function demote(userId: string): Promise<void> {
+    const updated = await post<User>(`/api/v1/admin/users/${userId}/demote`);
+    users.value = users.value.map((u) => (u.id === userId ? updated : u));
+  }
+
+  return { users, fetchUsers, approve, promote, demote };
 });

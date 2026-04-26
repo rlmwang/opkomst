@@ -31,7 +31,7 @@ function publicUrl(slug: string): string {
 <template>
   <AppHeader />
   <div class="container stack">
-    <h1>Mijn evenementen</h1>
+    <h1>Evenementen</h1>
 
     <div v-if="!auth.isApproved" class="card stack">
       <h2>Account in afwachting</h2>

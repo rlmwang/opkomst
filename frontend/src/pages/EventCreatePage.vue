@@ -19,8 +19,15 @@ const topic = ref("");
 const location = ref("");
 const latitude = ref<number | null>(null);
 const longitude = ref<number | null>(null);
-const startsAt = ref<Date | null>(null);
-const endsAt = ref<Date | null>(null);
+const eventDate = ref<Date | null>(null);
+const startTime = ref<Date | null>(null);
+const endTime = ref<Date | null>(null);
+
+function combine(date: Date, time: Date): Date {
+  const d = new Date(date);
+  d.setHours(time.getHours(), time.getMinutes(), 0, 0);
+  return d;
+}
 const sources = ref<string[]>(["Flyer", "Mond-tot-mond", "Social media"]);
 const newSource = ref("");
 const submitting = ref(false);
@@ -37,8 +44,14 @@ function removeSource(i: number) {
 }
 
 async function submit() {
-  if (!startsAt.value || !endsAt.value) {
-    toast.add({ severity: "warn", summary: "Vul start- en eindtijd in", life: 3000 });
+  if (!eventDate.value || !startTime.value || !endTime.value) {
+    toast.add({ severity: "warn", summary: "Vul datum, starttijd en eindtijd in", life: 3000 });
+    return;
+  }
+  const startsAt = combine(eventDate.value, startTime.value);
+  const endsAt = combine(eventDate.value, endTime.value);
+  if (endsAt <= startsAt) {
+    toast.add({ severity: "warn", summary: "Eindtijd moet na de starttijd liggen", life: 3000 });
     return;
   }
   submitting.value = true;
@@ -49,8 +62,8 @@ async function submit() {
       location: location.value,
       latitude: latitude.value,
       longitude: longitude.value,
-      starts_at: startsAt.value.toISOString(),
-      ends_at: endsAt.value.toISOString(),
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
       source_options: sources.value,
     });
     void router.push(`/events/${created.id}/stats`);
@@ -77,8 +90,23 @@ async function submit() {
           :longitude="longitude"
           @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
         />
-        <DatePicker v-model="startsAt" show-time hour-format="24" placeholder="Starttijd" fluid />
-        <DatePicker v-model="endsAt" show-time hour-format="24" placeholder="Eindtijd" fluid />
+        <DatePicker v-model="eventDate" date-format="dd-mm-yy" placeholder="Datum" fluid />
+        <div class="time-row">
+          <DatePicker
+            v-model="startTime"
+            time-only
+            hour-format="24"
+            placeholder="Starttijd"
+            fluid
+          />
+          <DatePicker
+            v-model="endTime"
+            time-only
+            hour-format="24"
+            placeholder="Eindtijd"
+            fluid
+          />
+        </div>
 
         <div class="stack">
           <label class="muted">Hoe heb je ons gevonden? — opties voor de aanmeldformulier:</label>
@@ -104,5 +132,12 @@ async function submit() {
   align-items: center;
   gap: 0.5rem;
   justify-content: space-between;
+}
+.time-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.time-row > * {
+  flex: 1;
 }
 </style>

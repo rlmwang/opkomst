@@ -5,8 +5,10 @@ import { useToast } from "primevue/usetoast";
 import { onMounted } from "vue";
 import AppHeader from "@/components/AppHeader.vue";
 import { useAdminStore } from "@/stores/admin";
+import { useAuthStore } from "@/stores/auth";
 
 const admin = useAdminStore();
+const auth = useAuthStore();
 const toast = useToast();
 
 onMounted(async () => {
@@ -32,6 +34,15 @@ async function promote(userId: string) {
     toast.add({ severity: "success", summary: "Tot admin gepromoveerd", life: 2000 });
   } catch {
     toast.add({ severity: "error", summary: "Promoveren mislukt", life: 3000 });
+  }
+}
+
+async function demote(userId: string) {
+  try {
+    await admin.demote(userId);
+    toast.add({ severity: "success", summary: "Teruggezet naar organiser", life: 2000 });
+  } catch {
+    toast.add({ severity: "error", summary: "Terugzetten mislukt", life: 3000 });
   }
 }
 </script>
@@ -60,6 +71,14 @@ async function promote(userId: string) {
           size="small"
           severity="secondary"
           @click="promote(u.id)"
+        />
+        <Button
+          v-if="u.role === 'admin' && u.id !== auth.user?.id"
+          label="Zet terug naar organiser"
+          size="small"
+          severity="secondary"
+          text
+          @click="demote(u.id)"
         />
       </div>
     </div>
