@@ -122,6 +122,32 @@ def archive_event(
     return _to_out(db, event)
 
 
+@router.post("/{event_id}/send-feedback-emails", status_code=200)
+def send_feedback_emails_now(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> dict[str, int]:
+    """Manually trigger the feedback worker for a single event.
+
+    Bypasses the worker's "ended ≥24h ago" cutoff so the organiser can
+    send right after the event closes (or whenever they decide). Skips
+    signups that have already been processed (anything with
+    feedback_sent_at set) — repeated clicks are no-ops once everything
+    has been mailed.
+    """
+    from ..services import feedback_worker
+
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if not event.questionnaire_enabled:
+        raise HTTPException(status_code=409, detail="Questionnaire is disabled for this event")
+    processed = feedback_worker.run_for_event(event_id)
+    logger.info("feedback_emails_triggered", event_id=event_id, actor_id=user.id, processed=processed)
+    return {"processed": processed}
+
+
 @router.post("/{event_id}/restore", response_model=EventOut)
 def restore_event(
     event_id: str,

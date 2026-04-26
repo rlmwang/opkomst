@@ -110,7 +110,20 @@
     "notFound": "Event not found",
     "shareTitle": "Share link & QR",
     "signupsTitle": "Sign-ups",
-    "signupsTotals": "{signups} sign-ups, {attendees} attendees in total."
+    "signupsTotals": "{signups} sign-ups, {attendees} attendees in total.",
+    "sendNow": {
+      "title": "Send feedback emails early",
+      "explainer": "Opkomst normally sends the feedback email one day after the event ends. This button sends it now to every sign-up that's still waiting. Once sent, emails can't be sent again.",
+      "button": "Send feedback emails now",
+      "disabledOff": "The questionnaire is turned off for this event, so no emails are sent.",
+      "disabledNothingPending": "All emails have already been sent, or there are no sign-ups with an email address.",
+      "confirmTitle": "Send now?",
+      "confirmBody": "Send the feedback email to {n} sign-up(s)? This can't be undone.",
+      "confirm": "Send",
+      "successTitle": "Sent",
+      "successBody": "{n} message(s) handed off to the mail server.",
+      "failed": "Sending failed"
+    }
   },
   "public": {
     "signup": "Sign up",

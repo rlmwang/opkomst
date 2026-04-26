@@ -110,7 +110,20 @@
     "notFound": "Evenement niet gevonden",
     "shareTitle": "Deelnamelink & QR",
     "signupsTitle": "Aanmeldingen",
-    "signupsTotals": "{signups} aanmeldingen, totaal {attendees} deelnemers."
+    "signupsTotals": "{signups} aanmeldingen, totaal {attendees} deelnemers.",
+    "sendNow": {
+      "title": "Feedbackmail eerder versturen",
+      "explainer": "Normaal verstuurt opkomst de feedbackmail één dag na afloop van het evenement. Met deze knop verstuur je 'm direct naar alle aanmelders die nog op verzending wachten. Eenmaal verstuurd kunnen e-mails niet opnieuw worden verstuurd.",
+      "button": "Verstuur feedbackmails nu",
+      "disabledOff": "De vragenlijst staat uit voor dit evenement, dus er worden geen e-mails verstuurd.",
+      "disabledNothingPending": "Alle e-mails zijn al verstuurd of er zijn geen aanmelders met een e-mailadres.",
+      "confirmTitle": "Verstuur nu?",
+      "confirmBody": "Stuur de feedbackmail naar {n} aanmelder(s)? Deze actie kun je niet ongedaan maken.",
+      "confirm": "Verstuur",
+      "successTitle": "Verstuurd",
+      "successBody": "{n} mail(s) afgegeven aan de mailserver.",
+      "failed": "Versturen mislukt"
+    }
   },
   "public": {
     "signup": "Aanmelden",

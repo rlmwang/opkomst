@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import Button from "primevue/button";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppHeader from "@/components/AppHeader.vue";
+import { ApiError } from "@/api/client";
 import { type EventOut, type EventStats, useEventsStore } from "@/stores/events";
 import { type FeedbackSummary, useFeedbackStore } from "@/stores/feedback";
 
@@ -11,9 +14,12 @@ const props = defineProps<{ eventId: string }>();
 const { t, locale } = useI18n();
 const events = useEventsStore();
 const feedback = useFeedbackStore();
+const confirm = useConfirm();
+const toast = useToast();
 const event = ref<EventOut | null>(null);
 const stats = ref<EventStats | null>(null);
 const summary = ref<FeedbackSummary | null>(null);
+const triggering = ref(false);
 
 function localeTag(): string {
   return locale.value === "en" ? "en-GB" : "nl-NL";
@@ -55,6 +61,61 @@ function questionPrompt(key: string): string {
 function bar(distribution: number[], idx: number): { width: string; count: number } {
   const max = Math.max(...distribution, 1);
   return { width: `${Math.round((distribution[idx] / max) * 100)}%`, count: distribution[idx] };
+}
+
+// "Send feedback emails now" is only available when the questionnaire
+// is enabled AND there's at least one signup still in the "pending"
+// state to send to. Once everything has been processed, the button
+// has nothing to do; once the toggle is off, sending would violate
+// the "no email if questionnaire is off" promise.
+const canTriggerNow = computed(() => {
+  if (!event.value || !summary.value) return false;
+  if (!event.value.questionnaire_enabled) return false;
+  return summary.value.email_health.pending > 0;
+});
+
+const triggerDisabledReason = computed(() => {
+  if (!event.value) return "";
+  if (!event.value.questionnaire_enabled) return t("event.sendNow.disabledOff");
+  if (summary.value && summary.value.email_health.pending === 0) {
+    return t("event.sendNow.disabledNothingPending");
+  }
+  return "";
+});
+
+async function refreshSummary() {
+  summary.value = await feedback.getSummary(props.eventId).catch(() => summary.value);
+}
+
+function askTriggerNow() {
+  if (!event.value) return;
+  confirm.require({
+    message: t("event.sendNow.confirmBody", {
+      n: summary.value?.email_health.pending ?? 0,
+    }),
+    header: t("event.sendNow.confirmTitle"),
+    icon: "pi pi-send",
+    rejectLabel: t("common.cancel"),
+    acceptLabel: t("event.sendNow.confirm"),
+    accept: async () => {
+      triggering.value = true;
+      try {
+        const r = await events.sendFeedbackEmailsNow(props.eventId);
+        toast.add({
+          severity: "success",
+          summary: t("event.sendNow.successTitle"),
+          detail: t("event.sendNow.successBody", { n: r.processed }),
+          life: 3500,
+        });
+        await refreshSummary();
+      } catch (e) {
+        const msg = e instanceof ApiError ? e.message : t("event.sendNow.failed");
+        toast.add({ severity: "error", summary: msg, life: 3500 });
+      } finally {
+        triggering.value = false;
+      }
+    },
+  });
 }
 
 // Display order for the email-status pills. Keep "sent" prominent
@@ -146,6 +207,21 @@ const HEALTH_KEYS = ["sent", "pending", "bounced", "complaint", "failed", "not_a
           <a :href="publicUrl(event.slug)" target="_blank" rel="noopener">{{ publicUrl(event.slug) }}</a>
         </p>
         <img :src="qrUrl(event.slug)" alt="QR" class="qr" />
+      </div>
+
+      <div class="card stack">
+        <h2>{{ t("event.sendNow.title") }}</h2>
+        <p>{{ t("event.sendNow.explainer") }}</p>
+        <p v-if="triggerDisabledReason" class="muted small">{{ triggerDisabledReason }}</p>
+        <div>
+          <Button
+            :label="t('event.sendNow.button')"
+            icon="pi pi-send"
+            :disabled="!canTriggerNow || triggering"
+            :loading="triggering"
+            @click="askTriggerNow"
+          />
+        </div>
       </div>
     </template>
   </div>
@@ -269,4 +345,8 @@ const HEALTH_KEYS = ["sent", "pending", "bounced", "complaint", "failed", "not_a
   color: #9f000b;
 }
 .health-not_applicable .count { color: var(--brand-text-muted); }
+
+.small {
+  font-size: 0.875rem;
+}
 </style>

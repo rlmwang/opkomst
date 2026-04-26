@@ -128,3 +128,30 @@ def run_once() -> int:
         return len(rows)
     finally:
         db.close()
+
+
+def run_for_event(event_id: str) -> int:
+    """Process every still-pending signup on a single event, ignoring
+    the 24h cutoff. Used by the organiser-triggered "send now" button
+    on the details page. Caller is responsible for verifying the
+    event's questionnaire is enabled. Returns the number processed."""
+    db = SessionLocal()
+    try:
+        event = db.query(Event).filter(Event.id == event_id).first()
+        if not event:
+            return 0
+        rows = (
+            db.query(Signup)
+            .filter(
+                Signup.event_id == event_id,
+                Signup.encrypted_email.is_not(None),
+                Signup.feedback_sent_at.is_(None),
+            )
+            .all()
+        )
+        for signup in rows:
+            _process_one(db, signup, event)
+        db.commit()
+        return len(rows)
+    finally:
+        db.close()

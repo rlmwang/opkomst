@@ -32,9 +32,14 @@ def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LO
 
     env = _get_env()
     template = env.get_template(f"{resolved_locale}/{template_name}")
-    module = template.module  # type: ignore[reportUnknownMemberType]
+    # ``make_module(context)`` evaluates the template's module-level
+    # ``{% set %}`` statements with the render context. ``template.module``
+    # skips context — fine for static subjects, breaks templates whose
+    # subject interpolates a variable (e.g. ``{% set subject = "Hoe was "
+    # + event_name + "?" %}``).
+    rendered_module = template.make_module(context)  # type: ignore[reportUnknownMemberType]
 
     html_body: str = template.render(**context)
-    subject: str = getattr(module, "subject", template_name)
+    subject: str = getattr(rendered_module, "subject", template_name)
 
     return subject, html_body
