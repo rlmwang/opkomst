@@ -86,7 +86,7 @@ async function submit() {
           wordt versleuteld bewaard en éénmalig gebruikt voor een feedbackmail
           na afloop. Daarna wissen we het permanent. De volledige broncode van
           deze app staat
-          <a href="https://github.com/" target="_blank" rel="noopener">openbaar online</a>.
+          <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">openbaar online</a>.
         </p>
         <InputText v-model="displayName" placeholder="Naam (mag een schuilnaam zijn)" required fluid />
         <InputNumber v-model="partySize" :min="1" :max="50" placeholder="Aantal personen (incl. jezelf)" show-buttons fluid />
