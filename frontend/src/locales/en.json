@@ -63,6 +63,8 @@
     "promoteFail": "Promotion failed",
     "demote": "Demote to organiser",
     "demoteOk": "Demoted to organiser",
+    "roleAdmin": "admin",
+    "roleOrganiser": "organiser",
     "demoteFail": "Demotion failed",
     "loadFailed": "Could not load users"
   },

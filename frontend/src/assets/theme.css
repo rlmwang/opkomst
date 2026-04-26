@@ -6,11 +6,11 @@
      * comfortably next to the deep brand red without the sterile feel
      * of pure white. */
     --brand-red: #9f000b;
-    --brand-bg: #f6f1e7;
-    --brand-surface: #fbf7ee;
+    --brand-bg: #fbf7ed;
+    --brand-surface: #fefcf6;
     --brand-text: #1a1a1a;
     --brand-text-muted: #5e5a52;
-    --brand-border: #e6dec9;
+    --brand-border: #ece4d0;
   }
 
   html, body, #app {
@@ -39,6 +39,38 @@
   .stack > * + * { margin-top: 0.75rem; }
 
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+
+  /* Secondary buttons in the brand-red family at low saturation:
+   * soft-pink fill, red border, red text. Stand out clearly against
+   * the cream surfaces without competing with primary buttons. Targets
+   * both the solid and outlined variants from PrimeVue. */
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link) {
+    background: #fbdadc;
+    color: #9f000b;
+    border: 1px solid #f5b0b4;
+  }
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover {
+    background: #f5b0b4;
+    color: #5e0007;
+    border-color: #9f000b;
+  }
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
+    background: #ec7e85;
+    color: #440005;
+    border-color: #9f000b;
+  }
+  /* Text-variant secondary: red text, soft-pink hover wash. */
+  .p-button.p-button-secondary.p-button-text {
+    color: #9f000b;
+  }
+  .p-button.p-button-secondary.p-button-text:hover {
+    background: #fbdadc;
+    color: #5e0007;
+  }
+  .p-button.p-button-secondary.p-button-text:active {
+    background: #f5b0b4;
+    color: #440005;
+  }
 
   .privacy-notice {
     font-size: 0.875rem;

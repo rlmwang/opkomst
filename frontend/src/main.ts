@@ -29,6 +29,8 @@ const OpkomstPreset = definePreset(Aura, {
       950: "#2b0003",
     },
   },
+  // Secondary button tones live in theme.css (CSS overrides — the
+  // PrimeVue TS types don't expose the secondary tokens at this level).
 });
 
 const app = createApp(App);

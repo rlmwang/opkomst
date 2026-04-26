@@ -61,10 +61,12 @@
     "promote": "Maak admin",
     "promoteOk": "Tot admin gepromoveerd",
     "promoteFail": "Promoveren mislukt",
-    "demote": "Zet terug naar organiser",
-    "demoteOk": "Teruggezet naar organiser",
+    "demote": "Zet terug naar organisator",
+    "demoteOk": "Teruggezet naar organisator",
     "demoteFail": "Terugzetten mislukt",
-    "loadFailed": "Kon gebruikers niet laden"
+    "loadFailed": "Kon gebruikers niet laden",
+    "roleAdmin": "admin",
+    "roleOrganiser": "organisator"
   },
   "event": {
     "newTitle": "Nieuw evenement",

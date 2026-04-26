@@ -61,7 +61,10 @@ async function demote(userId: string) {
         <strong>{{ u.name }}</strong>
         <span class="muted"> · {{ u.email }}</span>
         <div class="tags">
-          <Tag :value="u.role" :severity="u.role === 'admin' ? 'danger' : 'secondary'" />
+          <Tag
+            :value="u.role === 'admin' ? t('admin.roleAdmin') : t('admin.roleOrganiser')"
+            :severity="u.role === 'admin' ? 'danger' : 'secondary'"
+          />
           <Tag v-if="!u.is_approved" :value="t('admin.pending')" severity="warn" />
         </div>
       </div>
