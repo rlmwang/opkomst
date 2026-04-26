@@ -14,6 +14,7 @@ class EventCreate(BaseModel):
     starts_at: datetime
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
+    questionnaire_enabled: bool = True
 
     @field_validator("source_options")
     @classmethod
@@ -37,6 +38,7 @@ class EventOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
     source_options: list[str]
+    questionnaire_enabled: bool
     signup_count: int  # aggregate party_size sum, not row count
     model_config = {"from_attributes": True}
 

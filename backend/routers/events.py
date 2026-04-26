@@ -38,6 +38,7 @@ def _to_out(db: Session, event: Event) -> EventOut:
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         source_options=event.source_options,
+        questionnaire_enabled=event.questionnaire_enabled,
         signup_count=_attendees_for(db, event.id),
     )
 
@@ -60,6 +61,7 @@ def create_event(
         starts_at=data.starts_at,
         ends_at=data.ends_at,
         source_options=data.source_options,
+        questionnaire_enabled=data.questionnaire_enabled,
         created_by=user.id,
     )
     db.add(event)
@@ -159,6 +161,7 @@ def update_event(
     event.starts_at = data.starts_at
     event.ends_at = data.ends_at
     event.source_options = data.source_options
+    event.questionnaire_enabled = data.questionnaire_enabled
     db.commit()
     db.refresh(event)
     logger.info("event_updated", event_id=event.id, actor_id=user.id)
@@ -186,8 +189,24 @@ def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
     )
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    from qrcode.image.pil import PilImage
+
     target = f"{PUBLIC_BASE_URL}/e/{event.slug}"
-    img = qrcode.make(target, box_size=10, border=2)
+    qr = qrcode.QRCode(box_size=10, border=2)
+    qr.add_data(target)
+    qr.make(fit=True)
+    # Black-on-white render via PIL, then re-mode to RGBA and turn
+    # every white pixel transparent so the QR drops into posters and
+    # flyers without a white box around it.
+    pil_img = qr.make_image(image_factory=PilImage, fill_color="black", back_color="white")
+    img = pil_img.get_image().convert("RGBA")
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(img.height):
+            for x in range(img.width):
+                px = pixels[x, y]  # type: ignore[index]
+                if isinstance(px, tuple) and px[0] == 255 and px[1] == 255 and px[2] == 255:
+                    pixels[x, y] = (255, 255, 255, 0)  # type: ignore[index]
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return Response(content=buf.getvalue(), media_type="image/png")

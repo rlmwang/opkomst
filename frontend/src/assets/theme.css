@@ -40,6 +40,35 @@
 
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
 
+  /* Confirm dialog: cream surface, brand-red title, warm border —
+   * matches the rest of the app instead of the default neutral grey. */
+  .p-confirmdialog {
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  }
+  .p-confirmdialog .p-dialog-header {
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    border-bottom: 1px solid var(--brand-border);
+  }
+  .p-confirmdialog .p-dialog-title {
+    color: var(--brand-red);
+    font-weight: 600;
+  }
+  .p-confirmdialog .p-dialog-content,
+  .p-confirmdialog .p-confirmdialog-message {
+    background: var(--brand-surface);
+    color: var(--brand-text);
+  }
+  .p-confirmdialog .p-confirmdialog-icon {
+    color: var(--brand-red);
+  }
+  .p-confirmdialog .p-dialog-footer {
+    background: var(--brand-surface);
+    border-top: 1px solid var(--brand-border);
+  }
+
   /* Secondary buttons in the brand-red family at low saturation:
    * soft-pink fill, red border, red text. Stand out clearly against
    * the cream surfaces without competing with primary buttons. Targets

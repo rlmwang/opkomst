@@ -100,6 +100,7 @@ def run_once() -> int:
                 Signup.encrypted_email.is_not(None),
                 Signup.feedback_sent_at.is_(None),
                 Event.ends_at <= cutoff,
+                Event.questionnaire_enabled.is_(True),
             )
             .all()
         )

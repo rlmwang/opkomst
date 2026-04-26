@@ -124,22 +124,21 @@ function askArchive(e: EventOut) {
 
       <div v-for="e in sortedEvents" :key="e.id" class="card event-card">
         <div class="event-main">
-          <div>
+          <div class="event-summary">
             <h3>{{ e.name }}</h3>
             <p class="muted">{{ e.location }} · {{ new Date(e.starts_at).toLocaleString(localeTag()) }}</p>
-          </div>
-
-          <div class="link-row">
-            <a :href="publicUrl(e.slug)" target="_blank" rel="noopener">{{ publicUrl(e.slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              :aria-label="t('dashboard.copyLink')"
-              v-tooltip.top="t('dashboard.copyLink')"
-              @click="copyLink(e.slug)"
-            />
+            <div class="link-row">
+              <a :href="publicUrl(e.slug)" target="_blank" rel="noopener">{{ publicUrl(e.slug) }}</a>
+              <Button
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                text
+                :aria-label="t('dashboard.copyLink')"
+                v-tooltip.top="t('dashboard.copyLink')"
+                @click="copyLink(e.slug)"
+              />
+            </div>
           </div>
 
           <div class="actions">
@@ -191,10 +190,12 @@ function askArchive(e: EventOut) {
 .event-main {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.875rem;
   min-width: 0;
 }
-.event-main h3 { margin: 0 0 0.25rem; }
+.event-summary h3 { margin: 0 0 0.25rem; }
+.event-summary > .muted { margin: 0; }
+.event-summary .link-row { margin-top: 0.25rem; }
 
 .event-side {
   display: flex;

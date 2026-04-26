@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, LargeBinary, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, LargeBinary, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -24,6 +24,10 @@ class Event(UUIDMixin, TimestampMixin, Base):
     # Organiser-defined options for the "How did you find us?" dropdown.
     # JSON array of strings, e.g. ["Flyer", "Word of mouth", "Social media"].
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # When false, the public signup form omits the email field and the
+    # post-event feedback mail is never sent for this event. Default on
+    # so feedback collection is the path of least resistance.
+    questionnaire_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_by: Mapped[str] = mapped_column(Text, ForeignKey("users.id"), nullable=False, index=True)
     # Soft-archive: organisers can hide events from the dashboard +
     # public page without deleting any signups / feedback. Restore

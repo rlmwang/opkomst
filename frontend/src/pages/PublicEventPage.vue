@@ -130,7 +130,9 @@ async function submit() {
 
       <div v-if="submitted" class="card stack">
         <h2>{{ t("public.thanks") }}</h2>
-        <p class="muted">{{ t("public.thanksBody") }}</p>
+        <p class="muted">
+          {{ event.questionnaire_enabled ? t("public.thanksBody") : t("public.thanksBodyNoEmail") }}
+        </p>
       </div>
 
       <form v-else class="card stack" @submit.prevent="submit">
@@ -138,7 +140,7 @@ async function submit() {
         <details class="privacy-notice">
           <summary>{{ t("public.explainerTitle") }}</summary>
           <p>
-            {{ t("public.explainerBody") }}
+            {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
@@ -154,7 +156,14 @@ async function submit() {
           required
           fluid
         />
-        <InputText v-model="email" type="email" :placeholder="t('public.emailOptional')" autocomplete="email" fluid />
+        <InputText
+          v-if="event.questionnaire_enabled"
+          v-model="email"
+          type="email"
+          :placeholder="t('public.emailOptional')"
+          autocomplete="email"
+          fluid
+        />
         <Button type="submit" :label="t('public.submit')" :loading="submitting" />
       </form>
     </template>

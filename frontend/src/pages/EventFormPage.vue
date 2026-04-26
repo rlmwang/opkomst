@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
+import ToggleSwitch from "primevue/toggleswitch";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -30,6 +31,7 @@ const startTime = ref<Date | null>(null);
 const endTime = ref<Date | null>(null);
 const sources = ref<string[]>(["Flyer", "Mond-tot-mond", "Social media"]);
 const newSource = ref("");
+const questionnaireEnabled = ref(true);
 const submitting = ref(false);
 
 function combine(date: Date, time: Date): Date {
@@ -68,6 +70,7 @@ onMounted(async () => {
   startTime.value = new Date(start);
   endTime.value = new Date(end);
   sources.value = [...existing.source_options];
+  questionnaireEnabled.value = existing.questionnaire_enabled;
 });
 
 async function submit() {
@@ -92,6 +95,7 @@ async function submit() {
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       source_options: sources.value,
+      questionnaire_enabled: questionnaireEnabled.value,
     };
     const result =
       isEdit.value && props.eventId
@@ -141,6 +145,14 @@ async function submit() {
           />
         </div>
 
+        <div class="toggle-row">
+          <ToggleSwitch v-model="questionnaireEnabled" inputId="questionnaireToggle" />
+          <label for="questionnaireToggle">
+            <strong>{{ t("event.questionnaireToggle") }}</strong>
+            <span class="muted toggle-help">{{ t("event.questionnaireHelp") }}</span>
+          </label>
+        </div>
+
         <div class="stack">
           <label class="muted">{{ t("event.sourcesLabel") }}</label>
           <div v-for="(src, i) in sources" :key="i" class="source-row">
@@ -172,5 +184,20 @@ async function submit() {
 }
 .time-row > * {
   flex: 1;
+}
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+.toggle-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  cursor: pointer;
+}
+.toggle-help {
+  font-size: 0.8125rem;
 }
 </style>

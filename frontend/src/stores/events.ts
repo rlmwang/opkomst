@@ -13,6 +13,7 @@ export interface EventOut {
   starts_at: string;
   ends_at: string;
   source_options: string[];
+  questionnaire_enabled: boolean;
   signup_count: number;
 }
 
@@ -31,6 +32,7 @@ export interface EventCreate {
   starts_at: string;
   ends_at: string;
   source_options: string[];
+  questionnaire_enabled: boolean;
 }
 
 export const useEventsStore = defineStore("events", () => {
