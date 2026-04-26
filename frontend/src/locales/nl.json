@@ -56,7 +56,10 @@
     "archived": "Gearchiveerd",
     "archiveFail": "Archiveren mislukt",
     "archiveConfirmTitle": "Evenement archiveren?",
-    "archiveConfirmBody": "Het evenement \"{name}\" wordt verborgen uit de lijst. De openbare link werkt niet meer. Aanmeldingen en feedback blijven bewaard. Je kunt het later herstellen vanaf het archief.",
+    "archiveConfirmBody": "\"{name}\" verdwijnt uit de lijst en de openbare link werkt niet meer. Te herstellen vanaf het archief.",
+    "copyQr": "Kopieer QR",
+    "qrCopied": "QR gekopieerd",
+    "qrCopyFail": "Kopiëren niet mogelijk",
     "loadFailed": "Kon evenementen niet laden"
   },
   "archived": {

@@ -57,6 +57,17 @@ async function copyLink(slug: string) {
   }
 }
 
+async function copyQr(slug: string) {
+  try {
+    const resp = await fetch(qrUrl(slug));
+    const blob = await resp.blob();
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    toast.add({ severity: "success", summary: t("dashboard.qrCopied"), life: 1800 });
+  } catch {
+    toast.add({ severity: "warn", summary: t("dashboard.qrCopyFail"), life: 2500 });
+  }
+}
+
 function askArchive(e: EventOut) {
   confirm.require({
     message: t("dashboard.archiveConfirmBody", { name: e.name }),
@@ -113,12 +124,9 @@ function askArchive(e: EventOut) {
 
       <div v-for="e in sortedEvents" :key="e.id" class="card event-card">
         <div class="event-main">
-          <div class="event-header">
-            <div>
-              <h3>{{ e.name }}</h3>
-              <p class="muted">{{ e.location }} · {{ new Date(e.starts_at).toLocaleString(localeTag()) }}</p>
-            </div>
-            <div class="muted signup-count">{{ t("dashboard.signupCount", { n: e.signup_count }) }}</div>
+          <div>
+            <h3>{{ e.name }}</h3>
+            <p class="muted">{{ e.location }} · {{ new Date(e.starts_at).toLocaleString(localeTag()) }}</p>
           </div>
 
           <div class="link-row">
@@ -149,9 +157,18 @@ function askArchive(e: EventOut) {
           </div>
         </div>
 
-        <a :href="publicUrl(e.slug)" target="_blank" rel="noopener" class="qr-link">
-          <img :src="qrUrl(e.slug)" alt="QR" class="qr" />
-        </a>
+        <div class="event-side">
+          <div class="muted signup-count">{{ t("dashboard.signupCount", { n: e.signup_count }) }}</div>
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('dashboard.copyQr')"
+            :aria-label="t('dashboard.copyQr')"
+            @click="copyQr(e.slug)"
+          >
+            <img :src="qrUrl(e.slug)" alt="QR" class="qr" />
+          </button>
+        </div>
       </div>
     </template>
   </div>
@@ -177,13 +194,15 @@ function askArchive(e: EventOut) {
   gap: 0.625rem;
   min-width: 0;
 }
-.event-header {
+.event-main h3 { margin: 0 0 0.25rem; }
+
+.event-side {
   display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: flex-end;
+  gap: 0.5rem;
 }
-.event-header h3 { margin: 0 0 0.25rem; }
 .signup-count { white-space: nowrap; }
 
 .link-row {
@@ -206,9 +225,19 @@ function askArchive(e: EventOut) {
   margin-top: auto;
 }
 
-.qr-link {
+.qr-button {
   align-self: center;
   line-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.qr-button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .qr {
   width: 96px;
@@ -224,8 +253,10 @@ function askArchive(e: EventOut) {
   .event-card {
     grid-template-columns: 1fr;
   }
-  .qr-link {
-    align-self: flex-start;
+  .event-side {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
   }
 }
 </style>

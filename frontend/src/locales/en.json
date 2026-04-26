@@ -56,7 +56,10 @@
     "archived": "Archived",
     "archiveFail": "Archive failed",
     "archiveConfirmTitle": "Archive this event?",
-    "archiveConfirmBody": "\"{name}\" will be hidden from the list. The public link will stop working. Sign-ups and feedback are kept. You can restore it later from the archive.",
+    "archiveConfirmBody": "\"{name}\" will disappear from the list and the public link will stop working. Restore it from the archive at any time.",
+    "copyQr": "Copy QR",
+    "qrCopied": "QR copied",
+    "qrCopyFail": "Could not copy",
     "loadFailed": "Could not load events"
   },
   "archived": {
