@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .migrate import run_migrations
+from .seed import run as run_seed
 from .routers import admin as admin_router
 from .routers import auth as auth_router
 from .routers import events as events_router
@@ -16,6 +17,7 @@ from .services import feedback_worker
 logger = structlog.get_logger()
 
 run_migrations()
+run_seed()
 
 _scheduler = BackgroundScheduler()
 

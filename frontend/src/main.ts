@@ -15,7 +15,13 @@ app.use(router);
 app.use(PrimeVue, {
   theme: {
     preset: Aura,
-    options: { cssLayer: { name: "primevue", order: "primevue, app" } },
+    options: {
+      // Disable automatic dark mode — the app's own surface colors are
+      // hard-coded light, so following the OS preference produces an
+      // inconsistent half-dark / half-light render.
+      darkModeSelector: ".app-dark-never-applied",
+      cssLayer: { name: "primevue", order: "primevue, app" },
+    },
   },
 });
 app.use(ToastService);
