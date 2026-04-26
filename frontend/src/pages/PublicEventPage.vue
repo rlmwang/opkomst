@@ -21,6 +21,22 @@ function localeTag(): string {
   return locale.value === "en" ? "en-GB" : "nl-NL";
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(localeTag(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatTimeRange(startIso: string, endIso: string): string {
+  const opts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
+  const start = new Date(startIso).toLocaleTimeString(localeTag(), opts);
+  const end = new Date(endIso).toLocaleTimeString(localeTag(), opts);
+  return `${start} — ${end}`;
+}
+
 const event = ref<EventOut | null>(null);
 const error = ref<string | null>(null);
 
@@ -71,24 +87,39 @@ async function submit() {
     </div>
 
     <template v-else-if="event">
-      <div class="card stack">
-        <h1>{{ event.name }}</h1>
-        <p v-if="event.topic" class="muted">{{ event.topic }}</p>
-        <p>
-          <a
-            :href="mapLink({
-              location: event.location,
-              latitude: event.latitude,
-              longitude: event.longitude,
-            })"
-            target="_blank"
-            rel="noopener"
-          >
-            <strong>{{ event.location }}</strong>
-          </a>
-          <br />
-          {{ new Date(event.starts_at).toLocaleString(localeTag()) }}
-        </p>
+      <div class="card event-header">
+        <div class="event-title">
+          <h1>{{ event.name }}</h1>
+          <p v-if="event.topic" class="event-topic">{{ event.topic }}</p>
+        </div>
+
+        <dl class="event-meta">
+          <div class="meta-row">
+            <i class="pi pi-calendar" aria-hidden="true" />
+            <span>{{ formatDate(event.starts_at) }}</span>
+          </div>
+          <div class="meta-row">
+            <i class="pi pi-clock" aria-hidden="true" />
+            <span>{{ formatTimeRange(event.starts_at, event.ends_at) }}</span>
+          </div>
+          <div class="meta-row">
+            <i class="pi pi-map-marker" aria-hidden="true" />
+            <a
+              :href="mapLink({
+                location: event.location,
+                latitude: event.latitude,
+                longitude: event.longitude,
+              })"
+              target="_blank"
+              rel="noopener"
+              class="meta-link"
+            >
+              {{ event.location }}
+              <i class="pi pi-external-link external" aria-hidden="true" />
+            </a>
+          </div>
+        </dl>
+
         <EventMap
           v-if="event.latitude !== null && event.longitude !== null"
           :latitude="event.latitude"
@@ -148,5 +179,57 @@ async function submit() {
   margin: 0;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
+}
+
+.event-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.event-title h1 {
+  margin: 0;
+  line-height: 1.2;
+}
+.event-topic {
+  margin: 0.25rem 0 0;
+  color: var(--brand-text-muted);
+  font-style: italic;
+  font-size: 0.95rem;
+}
+.event-meta {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+.meta-row > i {
+  color: var(--brand-red);
+  font-size: 1rem;
+  width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.meta-link {
+  color: var(--brand-text);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--brand-border);
+  padding-bottom: 1px;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.meta-link:hover {
+  color: var(--brand-red);
+  border-bottom-color: var(--brand-red);
+}
+.meta-link .external {
+  font-size: 0.7rem;
+  color: var(--brand-text-muted);
+  margin-left: 0.3rem;
 }
 </style>
