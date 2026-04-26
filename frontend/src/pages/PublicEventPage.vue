@@ -5,6 +5,7 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
+import EventMap from "@/components/EventMap.vue";
 import { ApiError } from "@/api/client";
 import { type EventOut, useEventsStore } from "@/stores/events";
 
@@ -69,6 +70,11 @@ async function submit() {
           <strong>{{ event.location }}</strong><br />
           {{ new Date(event.starts_at).toLocaleString("nl-NL") }}
         </p>
+        <EventMap
+          v-if="event.latitude !== null && event.longitude !== null"
+          :latitude="event.latitude"
+          :longitude="event.longitude"
+        />
       </div>
 
       <div v-if="submitted" class="card stack">

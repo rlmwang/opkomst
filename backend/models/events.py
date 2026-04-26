@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, LargeBinary, Text
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, LargeBinary, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -15,6 +15,10 @@ class Event(UUIDMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     topic: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional coordinates from Nominatim. Both null = free-text location only;
+    # both set = render a Leaflet pin on the public page.
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     # Organiser-defined options for the "How did you find us?" dropdown.

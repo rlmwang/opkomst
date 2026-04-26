@@ -6,6 +6,7 @@ import { useToast } from "primevue/usetoast";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
+import LocationPicker from "@/components/LocationPicker.vue";
 import { ApiError } from "@/api/client";
 import { useEventsStore } from "@/stores/events";
 
@@ -16,6 +17,8 @@ const toast = useToast();
 const name = ref("");
 const topic = ref("");
 const location = ref("");
+const latitude = ref<number | null>(null);
+const longitude = ref<number | null>(null);
 const startsAt = ref<Date | null>(null);
 const endsAt = ref<Date | null>(null);
 const sources = ref<string[]>(["Flyer", "Mond-tot-mond", "Social media"]);
@@ -44,6 +47,8 @@ async function submit() {
       name: name.value,
       topic: topic.value || null,
       location: location.value,
+      latitude: latitude.value,
+      longitude: longitude.value,
       starts_at: startsAt.value.toISOString(),
       ends_at: endsAt.value.toISOString(),
       source_options: sources.value,
@@ -66,7 +71,12 @@ async function submit() {
       <form class="stack" @submit.prevent="submit">
         <InputText v-model="name" placeholder="Naam van het evenement" required fluid />
         <InputText v-model="topic" placeholder="Onderwerp (optioneel)" fluid />
-        <InputText v-model="location" placeholder="Locatie" required fluid />
+        <LocationPicker
+          v-model="location"
+          :latitude="latitude"
+          :longitude="longitude"
+          @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
+        />
         <DatePicker v-model="startsAt" show-time hour-format="24" placeholder="Starttijd" fluid />
         <DatePicker v-model="endsAt" show-time hour-format="24" placeholder="Eindtijd" fluid />
 

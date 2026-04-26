@@ -9,6 +9,8 @@ class EventCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     topic: str | None = Field(default=None, max_length=200)
     location: str = Field(min_length=1, max_length=200)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
     starts_at: datetime
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
@@ -30,6 +32,8 @@ class EventOut(BaseModel):
     name: str
     topic: str | None
     location: str
+    latitude: float | None
+    longitude: float | None
     starts_at: datetime
     ends_at: datetime
     source_options: list[str]

@@ -8,6 +8,8 @@ export interface EventOut {
   name: string;
   topic: string | null;
   location: string;
+  latitude: number | null;
+  longitude: number | null;
   starts_at: string;
   ends_at: string;
   source_options: string[];
@@ -24,6 +26,8 @@ export interface EventCreate {
   name: string;
   topic: string | null;
   location: string;
+  latitude: number | null;
+  longitude: number | null;
   starts_at: string;
   ends_at: string;
   source_options: string[];
