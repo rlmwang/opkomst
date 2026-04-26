@@ -1,5 +1,6 @@
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import bcrypt
 from fastapi import Depends, HTTPException, Header
@@ -33,6 +34,33 @@ def create_token(user_id: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
+# --- Purpose tokens (email verification, password reset) ---
+
+
+def create_purpose_token(user_id: str, email: str, purpose: str, expires_hours: int) -> str:
+    """A signed, short-lived token tied to one user + purpose. Used in
+    email links so the link itself proves the user controls the address."""
+    now = datetime.now(UTC)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "purpose": purpose,
+        "iat": now,
+        "exp": now + timedelta(hours=expires_hours),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def decode_purpose_token(token: str, expected_purpose: str) -> dict[str, Any]:
+    try:
+        payload: dict[str, Any] = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except JWTError as exc:
+        raise HTTPException(status_code=400, detail="Invalid or expired token") from exc
+    if payload.get("purpose") != expected_purpose:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    return payload
+
+
 def _decode_token(token: str) -> str:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -59,8 +87,11 @@ def get_current_user(
 
 
 def require_approved(user: User = Depends(get_current_user)) -> User:
-    """Logged-in users who are still pending approval can fetch /me but
-    nothing else. This guard is the gate."""
+    """Two gates: the user must have confirmed their email AND an admin
+    must have approved their account. Both have to hold before an
+    organiser can do anything beyond fetching /me."""
+    if user.email_verified_at is None:
+        raise HTTPException(status_code=403, detail="Email not verified")
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="Account is awaiting admin approval")
     return user
@@ -69,6 +100,8 @@ def require_approved(user: User = Depends(get_current_user)) -> User:
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
+    if user.email_verified_at is None:
+        raise HTTPException(status_code=403, detail="Email not verified")
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="Account is awaiting admin approval")
     return user

@@ -24,13 +24,27 @@
     "registerHere": "Registreer hier",
     "loginFailed": "Inloggen mislukt",
     "registerFailed": "Registratie mislukt",
-    "registerHint": "Een account is alleen voor organisatoren. Na registratie moet een admin je goedkeuren voordat je evenementen kunt aanmaken.",
-    "loginHint": "een admin moet je nog goedkeuren voordat je evenementen kunt aanmaken."
+    "registerHint": "Een account is alleen voor organisatoren. Na registratie krijg je een bevestigingsmail; daarna moet een admin je nog goedkeuren voordat je evenementen kunt aanmaken.",
+    "loginHint": "bevestig eerst je e-mail en wacht op admin-goedkeuring voordat je evenementen kunt aanmaken."
+  },
+  "verify": {
+    "verifying": "Bezig met bevestigen…",
+    "pleaseWait": "Een moment.",
+    "success": "E-mailadres bevestigd",
+    "successBody": "Je e-mailadres is bevestigd. Een admin moet je account nog goedkeuren voordat je evenementen kunt aanmaken.",
+    "failed": "Bevestigen mislukt",
+    "invalid": "Geen of ongeldige bevestigingslink.",
+    "toDashboard": "Naar dashboard",
+    "resend": "Stuur nieuwe bevestigingsmail",
+    "resentOk": "Mail verstuurd",
+    "resentFail": "Versturen mislukt"
   },
   "dashboard": {
     "title": "Evenementen",
+    "unverifiedTitle": "Bevestig je e-mailadres",
+    "unverifiedBody": "We hebben je een bevestigingsmail gestuurd. Klik de link in die mail om door te gaan. Daarna moet een admin je account nog goedkeuren.",
     "pendingTitle": "Account in afwachting",
-    "pendingBody": "Je account is aangemaakt, maar moet nog door een admin worden goedgekeurd voordat je evenementen kunt aanmaken. Neem contact op met een bestaande admin als dat nog even duurt.",
+    "pendingBody": "Je e-mailadres is bevestigd. Een admin moet je account nog goedkeuren voordat je evenementen kunt aanmaken. Neem contact op met een bestaande admin als dat nog even duurt.",
     "newEvent": "Nieuw evenement",
     "empty": "Nog geen evenementen aangemaakt.",
     "signupCount": "{n} aanmeldingen",
@@ -122,11 +136,11 @@
       },
       "q4_better": {
         "prompt": "Wat had beter gekund?",
-        "placeholder": "Optioneel — max. 1000 tekens"
+        "placeholder": "Optioneel"
       },
       "q5_anything_else": {
         "prompt": "Iets anders dat je ons wilt meegeven?",
-        "placeholder": "Optioneel — max. 1000 tekens"
+        "placeholder": "Optioneel"
       }
     },
     "summary": {

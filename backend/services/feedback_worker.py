@@ -17,7 +17,6 @@ and hasn't been processed yet:
 This is the only legitimate caller of ``services.encryption.decrypt``.
 """
 
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -27,12 +26,9 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
 from . import encryption
-from .email import send_email
-from .email_templates import feedback_invite
+from .email import build_url, send_email_sync
 
 logger = structlog.get_logger()
-
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
 
 # How long the feedback link in the email stays valid. Long enough that
 # someone who finds the email a couple of weeks later can still respond.
@@ -64,11 +60,15 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
     token: str | None = None
     if plaintext is not None:
         token = _mint_token(db, signup, event)
-        feedback_url = f"{PUBLIC_BASE_URL}/e/{event.slug}/feedback?t={token}"
-        subject, body = feedback_invite(event_name=event.name, feedback_url=feedback_url, locale="nl")
+        feedback_url = build_url(f"e/{event.slug}/feedback", t=token)
         for attempt in range(2):
             try:
-                send_email(to=plaintext, subject=subject, body=body)
+                send_email_sync(
+                    to=plaintext,
+                    template_name="feedback.html",
+                    context={"event_name": event.name, "feedback_url": feedback_url},
+                    locale="nl",
+                )
                 sent = True
                 break
             except Exception:

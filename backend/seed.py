@@ -11,6 +11,7 @@ the env var, not a row count.
 """
 
 import os
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import structlog
@@ -18,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .database import SessionLocal
-from .models import Event, FeedbackQuestion, Signup, User
+from .models import Event, FeedbackQuestion, FeedbackResponse, Signup, User
 from .services import encryption
 from .services.slug import new_slug
 
@@ -55,6 +56,9 @@ def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str
         name=name,
         role=role,
         is_approved=True,
+        # Local seed accounts are pre-verified — both gates pass so the
+        # account can act immediately.
+        email_verified_at=datetime.now(UTC),
     )
     db.add(user)
     db.flush()
@@ -168,10 +172,66 @@ def run_local_demo() -> None:
                 )
             )
 
+        # Sample filled-in questionnaires on the past event so the stats
+        # page has something to render. Idempotent: only seed if there
+        # are no responses yet for this event.
+        existing_resp = (
+            db.query(FeedbackResponse).filter(FeedbackResponse.event_id == past.id).first()
+        )
+        if existing_resp is None:
+            _seed_demo_responses(db, past.id)
+
         db.commit()
         logger.info("seed_complete")
     finally:
         db.close()
+
+
+# Six fictional responses on the past event. Mix of ratings and
+# texts so every chart on the stats page lights up. The submission
+# ids are random so they look like real ones.
+_DEMO_SUBMISSIONS = [
+    {"q1_overall": 5, "q2_recommend": 5, "q3_welcome": 5,
+     "q4_better": "Ietsje meer ruimte vooraan voor mensen die slecht horen.",
+     "q5_anything_else": "Bedankt voor het organiseren!"},
+    {"q1_overall": 4, "q2_recommend": 5, "q3_welcome": 4,
+     "q4_better": "De aankondiging mocht een week eerder.",
+     "q5_anything_else": None},
+    {"q1_overall": 4, "q2_recommend": 4, "q3_welcome": 5,
+     "q4_better": None,
+     "q5_anything_else": "Volgende keer graag een vegan optie bij de soep."},
+    {"q1_overall": 3, "q2_recommend": 3, "q3_welcome": 4,
+     "q4_better": "De zaal was warm. Ramen open zou helpen.",
+     "q5_anything_else": None},
+    {"q1_overall": 5, "q2_recommend": 5, "q3_welcome": None,
+     "q4_better": None,
+     "q5_anything_else": None},
+    {"q1_overall": 2, "q2_recommend": 3, "q3_welcome": 2,
+     "q4_better": "Het hoofdverhaal duurde te lang. Korter en feller volgende keer.",
+     "q5_anything_else": "Geluid was af en toe niet goed te volgen."},
+]
+
+
+def _seed_demo_responses(db: Session, event_id: str) -> None:
+    questions = {q.key: q for q in db.query(FeedbackQuestion).all()}
+    for submission in _DEMO_SUBMISSIONS:
+        sub_id = secrets.token_urlsafe(16)
+        for key, value in submission.items():
+            if value is None:
+                continue
+            q = questions.get(key)
+            if not q:
+                continue
+            db.add(
+                FeedbackResponse(
+                    event_id=event_id,
+                    question_id=q.id,
+                    submission_id=sub_id,
+                    answer_int=value if isinstance(value, int) else None,
+                    answer_text=value if isinstance(value, str) else None,
+                )
+            )
+    logger.info("seed_demo_feedback", event_id=event_id, count=len(_DEMO_SUBMISSIONS))
 
 
 def run() -> None:

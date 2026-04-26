@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set subject = "How was " + event_name + "?" %}
+{% block content %}
+<p>Thanks for coming to <strong>{{ event_name }}</strong>.</p>
+<p>Two minutes of your time helps us make the next one better:</p>
+<a href="{{ feedback_url }}" class="cta">Fill in the short questionnaire</a>
+<p class="muted">This is the only email you'll get from us; your address is deleted right after we send this one. You can read the full source of this app <a href="https://github.com/rlmwang/opkomst">openly online</a>.</p>
+{% endblock %}
+{% block footer %}opkomst — for organising RSP events{% endblock %}

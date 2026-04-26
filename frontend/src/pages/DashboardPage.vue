@@ -12,6 +12,15 @@ const auth = useAuthStore();
 const events = useEventsStore();
 const toast = useToast();
 
+async function resend() {
+  try {
+    await auth.resendVerification();
+    toast.add({ severity: "success", summary: t("verify.resentOk"), life: 3000 });
+  } catch {
+    toast.add({ severity: "error", summary: t("verify.resentFail"), life: 3000 });
+  }
+}
+
 const sortedEvents = computed(() =>
   [...events.all].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
 );
@@ -39,7 +48,15 @@ function publicUrl(slug: string): string {
   <div class="container stack">
     <h1>{{ t("dashboard.title") }}</h1>
 
-    <div v-if="!auth.isApproved" class="card stack">
+    <div v-if="!auth.isVerified" class="card stack">
+      <h2>{{ t("dashboard.unverifiedTitle") }}</h2>
+      <p>{{ t("dashboard.unverifiedBody") }}</p>
+      <div>
+        <Button :label="t('verify.resend')" size="small" severity="secondary" @click="resend" />
+      </div>
+    </div>
+
+    <div v-else-if="!auth.isApproved" class="card stack">
       <h2>{{ t("dashboard.pendingTitle") }}</h2>
       <p>{{ t("dashboard.pendingBody") }}</p>
     </div>

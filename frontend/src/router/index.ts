@@ -5,6 +5,7 @@ const routes = [
   { path: "/", redirect: "/dashboard" },
   { path: "/login", component: () => import("@/pages/LoginPage.vue") },
   { path: "/register", component: () => import("@/pages/RegisterPage.vue") },
+  { path: "/verify-email", component: () => import("@/pages/VerifyEmailPage.vue") },
   { path: "/dashboard", component: () => import("@/pages/DashboardPage.vue"), meta: { requiresAuth: true } },
   { path: "/admin", component: () => import("@/pages/AdminPage.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/events/new", component: () => import("@/pages/EventFormPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },

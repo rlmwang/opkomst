@@ -24,13 +24,27 @@
     "registerHere": "Register here",
     "loginFailed": "Login failed",
     "registerFailed": "Registration failed",
-    "registerHint": "Accounts are for organisers only. After registering, an admin needs to approve you before you can create events.",
-    "loginHint": "an admin still needs to approve you before you can create events."
+    "registerHint": "Accounts are for organisers only. After registering you'll get a confirmation email; then an admin needs to approve you before you can create events.",
+    "loginHint": "confirm your email first, then wait for admin approval before you can create events."
+  },
+  "verify": {
+    "verifying": "Verifying…",
+    "pleaseWait": "One moment.",
+    "success": "Email confirmed",
+    "successBody": "Your email is confirmed. An admin still needs to approve your account before you can create events.",
+    "failed": "Verification failed",
+    "invalid": "Missing or invalid verification link.",
+    "toDashboard": "Go to dashboard",
+    "resend": "Send a new verification email",
+    "resentOk": "Email sent",
+    "resentFail": "Sending failed"
   },
   "dashboard": {
     "title": "Events",
+    "unverifiedTitle": "Confirm your email",
+    "unverifiedBody": "We sent a confirmation email. Click the link to continue. After that, an admin still needs to approve your account.",
     "pendingTitle": "Awaiting approval",
-    "pendingBody": "Your account has been created, but an admin needs to approve it before you can create events. Reach out to an existing admin if it's taking a while.",
+    "pendingBody": "Your email is confirmed. An admin still needs to approve your account before you can create events. Reach out to an existing admin if it's taking a while.",
     "newEvent": "New event",
     "empty": "No events yet.",
     "signupCount": "{n} sign-ups",
@@ -122,11 +136,11 @@
       },
       "q4_better": {
         "prompt": "What could have been better?",
-        "placeholder": "Optional — max. 1000 characters"
+        "placeholder": "Optional"
       },
       "q5_anything_else": {
         "prompt": "Anything else you'd like us to know?",
-        "placeholder": "Optional — max. 1000 characters"
+        "placeholder": "Optional"
       }
     },
     "summary": {

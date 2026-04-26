@@ -28,7 +28,7 @@ class FeedbackAnswerIn(BaseModel):
     # Either an int (rating questions) or a string (text questions);
     # the server validates the value matches the question's kind.
     answer_int: int | None = Field(default=None, ge=1, le=5)
-    answer_text: str | None = Field(default=None, max_length=1000)
+    answer_text: str | None = Field(default=None, max_length=500)
 
 
 class FeedbackSubmitIn(BaseModel):

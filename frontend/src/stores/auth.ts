@@ -7,6 +7,7 @@ export interface User {
   email: string;
   name: string;
   role: "admin" | "organiser";
+  email_verified_at: string | null;
   is_approved: boolean;
   created_at: string;
 }
@@ -21,7 +22,10 @@ export const useAuthStore = defineStore("auth", () => {
   const loaded = ref(false);
 
   const isAuthenticated = computed(() => user.value !== null);
-  const isApproved = computed(() => user.value?.is_approved === true);
+  const isVerified = computed(() => user.value?.email_verified_at != null);
+  const isApproved = computed(
+    () => user.value?.is_approved === true && user.value?.email_verified_at != null,
+  );
   const isAdmin = computed(() => user.value?.role === "admin");
 
   async function fetchMe(): Promise<void> {
@@ -55,5 +59,26 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
   }
 
-  return { user, loaded, isAuthenticated, isApproved, isAdmin, fetchMe, login, register, logout };
+  async function verifyEmail(token: string): Promise<void> {
+    user.value = await post<User>("/api/v1/auth/verify-email", { token });
+  }
+
+  async function resendVerification(): Promise<void> {
+    await post("/api/v1/auth/resend-verification");
+  }
+
+  return {
+    user,
+    loaded,
+    isAuthenticated,
+    isVerified,
+    isApproved,
+    isAdmin,
+    fetchMe,
+    login,
+    register,
+    logout,
+    verifyEmail,
+    resendVerification,
+  };
 });

@@ -139,7 +139,7 @@ async function submit() {
             v-else
             v-model="texts[q.id]"
             :placeholder="textPlaceholder(q)"
-            :maxlength="1000"
+            :maxlength="500"
             rows="3"
             auto-resize
             fluid
