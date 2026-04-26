@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import AppHeader from "@/components/AppHeader.vue";
 import { type EventOut, type EventStats, useEventsStore } from "@/stores/events";
 
 const props = defineProps<{ eventId: string }>();
 
+const { t, locale } = useI18n();
 const events = useEventsStore();
 const event = ref<EventOut | null>(null);
 const stats = ref<EventStats | null>(null);
+
+function localeTag(): string {
+  return locale.value === "en" ? "en-GB" : "nl-NL";
+}
 
 onMounted(async () => {
   // Pull the event details from the cached list. List is loaded on
@@ -34,16 +40,16 @@ function qrUrl(slug: string): string {
       <div class="title-row">
         <div>
           <h1>{{ event.name }}</h1>
-          <p class="muted">{{ event.location }} · {{ new Date(event.starts_at).toLocaleString("nl-NL") }}</p>
+          <p class="muted">{{ event.location }} · {{ new Date(event.starts_at).toLocaleString(localeTag()) }}</p>
         </div>
         <router-link :to="`/events/${event.id}/edit`">
-          <Button label="Bewerken" icon="pi pi-pencil" size="small" severity="secondary" />
+          <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
         </router-link>
       </div>
 
       <div class="card stack">
-        <h2>Aanmeldingen</h2>
-        <p><strong>{{ stats.total_signups }}</strong> aanmeldingen, totaal <strong>{{ stats.total_attendees }}</strong> bezoekers.</p>
+        <h2>{{ t("event.signupsTitle") }}</h2>
+        <p>{{ t("event.signupsTotals", { signups: stats.total_signups, attendees: stats.total_attendees }) }}</p>
         <ul v-if="Object.keys(stats.by_source).length > 0">
           <li v-for="(count, src) in stats.by_source" :key="src">
             {{ src }}: {{ count }}
@@ -52,7 +58,7 @@ function qrUrl(slug: string): string {
       </div>
 
       <div class="card stack">
-        <h2>Deelnamelink &amp; QR</h2>
+        <h2>{{ t("event.shareTitle") }}</h2>
         <p>
           <a :href="publicUrl(event.slug)" target="_blank" rel="noopener">{{ publicUrl(event.slug) }}</a>
         </p>

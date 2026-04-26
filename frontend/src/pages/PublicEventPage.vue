@@ -5,6 +5,7 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import EventMap from "@/components/EventMap.vue";
 import { ApiError } from "@/api/client";
 import { type EventOut, useEventsStore } from "@/stores/events";
@@ -12,8 +13,13 @@ import { mapLink } from "@/lib/map-link";
 
 const props = defineProps<{ slug: string }>();
 
+const { t, locale } = useI18n();
 const events = useEventsStore();
 const toast = useToast();
+
+function localeTag(): string {
+  return locale.value === "en" ? "en-GB" : "nl-NL";
+}
 
 const event = ref<EventOut | null>(null);
 const error = ref<string | null>(null);
@@ -29,7 +35,8 @@ onMounted(async () => {
   try {
     event.value = await events.getBySlug(props.slug);
   } catch (e) {
-    error.value = e instanceof ApiError && e.status === 404 ? "Evenement niet gevonden" : "Kon evenement niet laden";
+    error.value =
+      e instanceof ApiError && e.status === 404 ? t("public.notFound") : t("public.loadFailed");
   }
 });
 
@@ -45,7 +52,7 @@ async function submit() {
     });
     submitted.value = true;
   } catch (e) {
-    const msg = e instanceof ApiError ? e.message : "Aanmelden mislukt";
+    const msg = e instanceof ApiError ? e.message : t("public.submitFail");
     toast.add({ severity: "error", summary: msg, life: 3000 });
   } finally {
     submitting.value = false;
@@ -80,7 +87,7 @@ async function submit() {
             <strong>{{ event.location }}</strong>
           </a>
           <br />
-          {{ new Date(event.starts_at).toLocaleString("nl-NL") }}
+          {{ new Date(event.starts_at).toLocaleString(localeTag()) }}
         </p>
         <EventMap
           v-if="event.latitude !== null && event.longitude !== null"
@@ -90,39 +97,33 @@ async function submit() {
       </div>
 
       <div v-if="submitted" class="card stack">
-        <h2>Bedankt — je aanmelding is binnen.</h2>
-        <p class="muted">
-          Tot dan! Als je een e-mailadres hebt achtergelaten ontvang je de dag na het evenement één korte feedbackvraag. Daarna verwijderen we je adres.
-        </p>
+        <h2>{{ t("public.thanks") }}</h2>
+        <p class="muted">{{ t("public.thanksBody") }}</p>
       </div>
 
       <form v-else class="card stack" @submit.prevent="submit">
-        <h2>Aanmelden</h2>
+        <h2>{{ t("public.signup") }}</h2>
         <details class="privacy-notice">
-          <summary>Toelichting</summary>
+          <summary>{{ t("public.explainerTitle") }}</summary>
           <p>
-            We vragen alleen wat we nodig hebben. Je naam mag een schuilnaam zijn —
-            die helpt ons alleen bij de hoofdtelling. Je e-mailadres is optioneel,
-            wordt versleuteld bewaard en éénmalig gebruikt voor een feedbackmail
-            na afloop. Daarna wissen we het permanent. De volledige broncode van
-            deze app staat
-            <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">openbaar online</a>.
+            {{ t("public.explainerBody") }}
+            <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
-        <InputText v-model="displayName" placeholder="(schuil)naam" required fluid />
+        <InputText v-model="displayName" :placeholder="t('public.displayName')" required fluid />
         <div class="field-with-help">
-          <InputNumber v-model="partySize" :min="1" :max="50" placeholder="Aantal personen" show-buttons fluid />
-          <p class="field-help">Inclusief jezelf — dus jij + eventuele mensen die met je meekomen.</p>
+          <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
+          <p class="field-help">{{ t("public.partySizeHelp") }}</p>
         </div>
         <Select
           v-model="sourceChoice"
           :options="event.source_options"
-          placeholder="Hoe heb je ons gevonden?"
+          :placeholder="t('public.sourcePlaceholder')"
           required
           fluid
         />
-        <InputText v-model="email" type="email" placeholder="E-mailadres (optioneel, voor één feedbackmail)" autocomplete="email" fluid />
-        <Button type="submit" label="Aanmelden" :loading="submitting" />
+        <InputText v-model="email" type="email" :placeholder="t('public.emailOptional')" autocomplete="email" fluid />
+        <Button type="submit" :label="t('public.submit')" :loading="submitting" />
       </form>
     </template>
   </div>

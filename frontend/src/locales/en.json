@@ -1,0 +1,98 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  },
+  "header": {
+    "events": "Events",
+    "admin": "Admin",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login": "Log in",
+    "register": "Register",
+    "email": "Email address",
+    "password": "Password",
+    "passwordHint": "Password (min. 8 characters)",
+    "name": "Name",
+    "createAccount": "Create account",
+    "noAccount": "No account yet?",
+    "hasAccount": "Already have an account?",
+    "registerHere": "Register here",
+    "loginFailed": "Login failed",
+    "registerFailed": "Registration failed",
+    "registerHint": "Accounts are for organisers only. After registering, an admin needs to approve you before you can create events.",
+    "loginHint": "an admin still needs to approve you before you can create events."
+  },
+  "dashboard": {
+    "title": "Events",
+    "pendingTitle": "Awaiting approval",
+    "pendingBody": "Your account has been created, but an admin needs to approve it before you can create events. Reach out to an existing admin if it's taking a while.",
+    "newEvent": "New event",
+    "empty": "No events yet.",
+    "signupCount": "{n} sign-ups",
+    "stats": "Stats",
+    "loadFailed": "Could not load events"
+  },
+  "admin": {
+    "title": "Admin — users",
+    "empty": "No users.",
+    "pending": "pending",
+    "approve": "Approve",
+    "approveOk": "Approved",
+    "approveFail": "Approval failed",
+    "promote": "Make admin",
+    "promoteOk": "Promoted to admin",
+    "promoteFail": "Promotion failed",
+    "demote": "Demote to organiser",
+    "demoteOk": "Demoted to organiser",
+    "demoteFail": "Demotion failed",
+    "loadFailed": "Could not load users"
+  },
+  "event": {
+    "newTitle": "New event",
+    "editTitle": "Edit event",
+    "name": "Event name",
+    "topic": "Topic (optional)",
+    "location": "Location — type to search OpenStreetMap",
+    "date": "Date",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "sourcesLabel": "How did you find us? — options for the sign-up form:",
+    "newSource": "Add new option",
+    "create": "Create event",
+    "save": "Save",
+    "saveFailed": "Save failed",
+    "fillTimes": "Fill in date, start time, and end time",
+    "endAfterStart": "End time must be after the start time",
+    "notFound": "Event not found",
+    "shareTitle": "Share link & QR",
+    "signupsTitle": "Sign-ups",
+    "signupsTotals": "{signups} sign-ups, {attendees} attendees in total."
+  },
+  "public": {
+    "signup": "Sign up",
+    "thanks": "Thanks — we got your sign-up.",
+    "thanksBody": "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
+    "explainerTitle": "Explainer",
+    "explainerBody": "We only ask for what we need. Your name can be a pseudonym — it just helps us with the head count. Your email is optional, encrypted at rest, and used once for a feedback message after the event. We then permanently delete it. The full source code of this app is",
+    "explainerLink": "openly available",
+    "displayName": "(pseudo)name",
+    "partySize": "Number of people",
+    "partySizeHelp": "Including yourself — so you + anyone coming with you.",
+    "sourcePlaceholder": "How did you find us?",
+    "emailOptional": "Email (optional, for one feedback message)",
+    "submit": "Sign up",
+    "submitFail": "Sign-up failed",
+    "loadFailed": "Could not load event",
+    "notFound": "Event not found"
+  },
+  "notFound": {
+    "title": "404",
+    "body": "This page doesn't exist.",
+    "back": "Back to the start"
+  }
+}

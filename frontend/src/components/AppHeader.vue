@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import Button from "primevue/button";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
+const { t } = useI18n();
 const router = useRouter();
 const auth = useAuthStore();
 
@@ -16,9 +18,9 @@ function logout() {
   <header class="app-header">
     <router-link to="/" class="brand">opkomst</router-link>
     <nav v-if="auth.isAuthenticated">
-      <router-link to="/dashboard">Evenementen</router-link>
-      <router-link v-if="auth.isAdmin" to="/admin">Admin</router-link>
-      <Button label="Uitloggen" size="small" severity="secondary" text @click="logout" />
+      <router-link to="/dashboard">{{ t("header.events") }}</router-link>
+      <router-link v-if="auth.isAdmin" to="/admin">{{ t("header.admin") }}</router-link>
+      <Button :label="t('header.logout')" size="small" severity="secondary" text @click="logout" />
     </nav>
   </header>
 </template>

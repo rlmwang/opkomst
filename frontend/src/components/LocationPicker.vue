@@ -4,7 +4,10 @@ import AutoComplete, {
   type AutoCompleteOptionSelectEvent,
 } from "primevue/autocomplete";
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { type LocationPick, type NominatimResult, useNominatim } from "@/composables/useNominatim";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   modelValue: string;
@@ -57,7 +60,7 @@ function onBlur() {
     v-model="local"
     :suggestions="results"
     option-label="display_name"
-    placeholder="Locatie — typ om te zoeken op OpenStreetMap"
+    :placeholder="t('event.location')"
     :delay="300"
     :min-length="3"
     fluid

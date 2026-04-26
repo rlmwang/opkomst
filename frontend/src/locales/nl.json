@@ -1,0 +1,98 @@
+{
+  "common": {
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "edit": "Bewerken",
+    "loading": "Laden…",
+    "error": "Er ging iets mis"
+  },
+  "header": {
+    "events": "Evenementen",
+    "admin": "Admin",
+    "logout": "Uitloggen"
+  },
+  "auth": {
+    "login": "Inloggen",
+    "register": "Registreren",
+    "email": "E-mailadres",
+    "password": "Wachtwoord",
+    "passwordHint": "Wachtwoord (min. 8 tekens)",
+    "name": "Naam",
+    "createAccount": "Account aanmaken",
+    "noAccount": "Nog geen account?",
+    "hasAccount": "Al een account?",
+    "registerHere": "Registreer hier",
+    "loginFailed": "Inloggen mislukt",
+    "registerFailed": "Registratie mislukt",
+    "registerHint": "Een account is alleen voor organisatoren. Na registratie moet een admin je goedkeuren voordat je evenementen kunt aanmaken.",
+    "loginHint": "een admin moet je nog goedkeuren voordat je evenementen kunt aanmaken."
+  },
+  "dashboard": {
+    "title": "Evenementen",
+    "pendingTitle": "Account in afwachting",
+    "pendingBody": "Je account is aangemaakt, maar moet nog door een admin worden goedgekeurd voordat je evenementen kunt aanmaken. Neem contact op met een bestaande admin als dat nog even duurt.",
+    "newEvent": "Nieuw evenement",
+    "empty": "Nog geen evenementen aangemaakt.",
+    "signupCount": "{n} aanmeldingen",
+    "stats": "Statistieken",
+    "loadFailed": "Kon evenementen niet laden"
+  },
+  "admin": {
+    "title": "Admin — gebruikers",
+    "empty": "Geen gebruikers.",
+    "pending": "in afwachting",
+    "approve": "Goedkeuren",
+    "approveOk": "Goedgekeurd",
+    "approveFail": "Goedkeuren mislukt",
+    "promote": "Maak admin",
+    "promoteOk": "Tot admin gepromoveerd",
+    "promoteFail": "Promoveren mislukt",
+    "demote": "Zet terug naar organiser",
+    "demoteOk": "Teruggezet naar organiser",
+    "demoteFail": "Terugzetten mislukt",
+    "loadFailed": "Kon gebruikers niet laden"
+  },
+  "event": {
+    "newTitle": "Nieuw evenement",
+    "editTitle": "Evenement bewerken",
+    "name": "Naam van het evenement",
+    "topic": "Onderwerp (optioneel)",
+    "location": "Locatie — typ om te zoeken op OpenStreetMap",
+    "date": "Datum",
+    "startTime": "Starttijd",
+    "endTime": "Eindtijd",
+    "sourcesLabel": "Hoe heb je ons gevonden? — opties voor de aanmeldformulier:",
+    "newSource": "Nieuwe optie toevoegen",
+    "create": "Evenement aanmaken",
+    "save": "Opslaan",
+    "saveFailed": "Opslaan mislukt",
+    "fillTimes": "Vul datum, starttijd en eindtijd in",
+    "endAfterStart": "Eindtijd moet na de starttijd liggen",
+    "notFound": "Evenement niet gevonden",
+    "shareTitle": "Deelnamelink & QR",
+    "signupsTitle": "Aanmeldingen",
+    "signupsTotals": "{signups} aanmeldingen, totaal {attendees} deelnemers."
+  },
+  "public": {
+    "signup": "Aanmelden",
+    "thanks": "Bedankt — je aanmelding is binnen.",
+    "thanksBody": "Tot dan! Als je een e-mailadres hebt achtergelaten ontvang je de dag na het evenement één korte feedbackvraag. Daarna verwijderen we je adres.",
+    "explainerTitle": "Toelichting",
+    "explainerBody": "We vragen alleen wat we nodig hebben. Je naam mag een schuilnaam zijn — die helpt ons alleen bij de hoofdtelling. Je e-mailadres is optioneel, wordt versleuteld bewaard en éénmalig gebruikt voor een feedbackmail na afloop. Daarna wissen we het permanent. De volledige broncode van deze app staat",
+    "explainerLink": "openbaar online",
+    "displayName": "(schuil)naam",
+    "partySize": "Aantal personen",
+    "partySizeHelp": "Inclusief jezelf — dus jij + eventuele mensen die met je meekomen.",
+    "sourcePlaceholder": "Hoe heb je ons gevonden?",
+    "emailOptional": "E-mailadres (optioneel, voor één feedbackmail)",
+    "submit": "Aanmelden",
+    "submitFail": "Aanmelden mislukt",
+    "loadFailed": "Kon evenement niet laden",
+    "notFound": "Evenement niet gevonden"
+  },
+  "notFound": {
+    "title": "404",
+    "body": "Deze pagina bestaat niet.",
+    "back": "Terug naar het begin"
+  }
+}

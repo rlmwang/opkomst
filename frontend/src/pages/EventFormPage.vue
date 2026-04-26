@@ -4,6 +4,7 @@ import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
@@ -12,6 +13,7 @@ import { useEventsStore } from "@/stores/events";
 
 const props = defineProps<{ eventId?: string }>();
 
+const { t } = useI18n();
 const router = useRouter();
 const events = useEventsStore();
 const toast = useToast();
@@ -52,7 +54,7 @@ onMounted(async () => {
   if (events.all.length === 0) await events.fetchAll();
   const existing = events.all.find((e) => e.id === props.eventId);
   if (!existing) {
-    toast.add({ severity: "error", summary: "Evenement niet gevonden", life: 3000 });
+    toast.add({ severity: "error", summary: t("event.notFound"), life: 3000 });
     return;
   }
   name.value = existing.name;
@@ -70,13 +72,13 @@ onMounted(async () => {
 
 async function submit() {
   if (!eventDate.value || !startTime.value || !endTime.value) {
-    toast.add({ severity: "warn", summary: "Vul datum, starttijd en eindtijd in", life: 3000 });
+    toast.add({ severity: "warn", summary: t("event.fillTimes"), life: 3000 });
     return;
   }
   const startsAt = combine(eventDate.value, startTime.value);
   const endsAt = combine(eventDate.value, endTime.value);
   if (endsAt <= startsAt) {
-    toast.add({ severity: "warn", summary: "Eindtijd moet na de starttijd liggen", life: 3000 });
+    toast.add({ severity: "warn", summary: t("event.endAfterStart"), life: 3000 });
     return;
   }
   submitting.value = true;
@@ -97,7 +99,7 @@ async function submit() {
         : await events.create(payload);
     void router.push(`/events/${result.id}/stats`);
   } catch (e) {
-    const msg = e instanceof ApiError ? e.message : "Opslaan mislukt";
+    const msg = e instanceof ApiError ? e.message : t("event.saveFailed");
     toast.add({ severity: "error", summary: msg, life: 3000 });
   } finally {
     submitting.value = false;
@@ -109,24 +111,24 @@ async function submit() {
   <AppHeader />
   <div class="container">
     <div class="card stack">
-      <h1>{{ isEdit ? "Evenement bewerken" : "Nieuw evenement" }}</h1>
+      <h1>{{ isEdit ? t("event.editTitle") : t("event.newTitle") }}</h1>
       <form class="stack" @submit.prevent="submit">
-        <InputText v-model="name" placeholder="Naam van het evenement" required fluid />
-        <InputText v-model="topic" placeholder="Onderwerp (optioneel)" fluid />
+        <InputText v-model="name" :placeholder="t('event.name')" required fluid />
+        <InputText v-model="topic" :placeholder="t('event.topic')" fluid />
         <LocationPicker
           v-model="location"
           :latitude="latitude"
           :longitude="longitude"
           @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
         />
-        <DatePicker v-model="eventDate" date-format="dd-mm-yy" placeholder="Datum" fluid />
+        <DatePicker v-model="eventDate" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
         <div class="time-row">
           <DatePicker
             v-model="startTime"
             time-only
             hour-format="24"
             :step-minute="15"
-            placeholder="Starttijd"
+            :placeholder="t('event.startTime')"
             fluid
           />
           <DatePicker
@@ -134,24 +136,24 @@ async function submit() {
             time-only
             hour-format="24"
             :step-minute="15"
-            placeholder="Eindtijd"
+            :placeholder="t('event.endTime')"
             fluid
           />
         </div>
 
         <div class="stack">
-          <label class="muted">Hoe heb je ons gevonden? — opties voor de aanmeldformulier:</label>
+          <label class="muted">{{ t("event.sourcesLabel") }}</label>
           <div v-for="(src, i) in sources" :key="i" class="source-row">
             <span>{{ src }}</span>
             <Button icon="pi pi-times" size="small" severity="secondary" text @click="removeSource(i)" />
           </div>
           <div class="source-row">
-            <InputText v-model="newSource" placeholder="Nieuwe optie toevoegen" fluid @keydown.enter.prevent="addSource" />
+            <InputText v-model="newSource" :placeholder="t('event.newSource')" fluid @keydown.enter.prevent="addSource" />
             <Button icon="pi pi-plus" size="small" severity="secondary" @click="addSource" />
           </div>
         </div>
 
-        <Button type="submit" :label="isEdit ? 'Opslaan' : 'Evenement aanmaken'" :loading="submitting" />
+        <Button type="submit" :label="isEdit ? t('event.save') : t('event.create')" :loading="submitting" />
       </form>
     </div>
   </div>
