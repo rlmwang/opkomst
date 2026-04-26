@@ -94,5 +94,53 @@
     "title": "404",
     "body": "This page doesn't exist.",
     "back": "Back to the start"
+  },
+  "feedback": {
+    "title": "How was {name}?",
+    "intro": "Five quick questions — two minutes of your time helps us make the next one better. Only the first two are required.",
+    "submit": "Submit",
+    "submitFail": "Submission failed",
+    "thanks": "Thanks — we got your feedback.",
+    "thanksBody": "We use your answers to make the next event better. Your email address was deleted right after we sent this message.",
+    "expired": "This feedback link is no longer valid.",
+    "loadFailed": "Could not load the questionnaire",
+    "questions": {
+      "q1_overall": {
+        "prompt": "How was the event for you?",
+        "labelLow": "bad",
+        "labelHigh": "great"
+      },
+      "q2_recommend": {
+        "prompt": "Would you recommend a comrade come to the next RSP event?",
+        "labelLow": "definitely not",
+        "labelHigh": "definitely"
+      },
+      "q3_welcome": {
+        "prompt": "Did you feel welcome?",
+        "labelLow": "not at all",
+        "labelHigh": "very much"
+      },
+      "q4_better": {
+        "prompt": "What could have been better?",
+        "placeholder": "Optional — max. 1000 characters"
+      },
+      "q5_anything_else": {
+        "prompt": "Anything else you'd like us to know?",
+        "placeholder": "Optional — max. 1000 characters"
+      }
+    },
+    "summary": {
+      "title": "Feedback",
+      "noResponsesYet": "No responses yet.",
+      "responsesOf": "{responses} responses out of {signups} sign-ups ({rate})",
+      "average": "average {avg} / 5",
+      "responses": "{n} responses",
+      "noTextResponses": "No free-text responses."
+    },
+    "preview": {
+      "title": "Questionnaire",
+      "intro": "This is what attendees see when they click the feedback link in their email. The questions are fixed across every event — standardised so results stay comparable.",
+      "open": "View questionnaire"
+    }
   }
 }

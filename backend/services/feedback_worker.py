@@ -4,42 +4,56 @@ Runs hourly (wired from ``backend/main.py`` via APScheduler). For every
 signup whose parent event ended ≥24h ago, that has an encrypted email
 and hasn't been processed yet:
 
-  1. Decrypt the email.
-  2. Send the feedback form (one retry on failure).
-  3. **Always** null the encrypted blob and stamp ``feedback_sent_at``,
+  1. Mint a one-time URL-safe token, store the token row.
+  2. Decrypt the email.
+  3. Render the localised subject + body (services.email_templates).
+  4. Send the feedback form (one retry on failure).
+  5. **Always** null the encrypted blob and stamp ``feedback_sent_at``,
      whether the send succeeded or failed-after-retry. We do not keep
      ciphertext around "just in case" — see CLAUDE.md.
+  6. If sending failed, also delete the token (no point keeping it
+     around when it can never be redeemed).
 
 This is the only legitimate caller of ``services.encryption.decrypt``.
 """
 
 import os
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import Event, Signup
+from ..models import Event, FeedbackToken, Signup
 from . import encryption
 from .email import send_email
+from .email_templates import feedback_invite
 
 logger = structlog.get_logger()
 
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
 
+# How long the feedback link in the email stays valid. Long enough that
+# someone who finds the email a couple of weeks later can still respond.
+TOKEN_TTL = timedelta(days=30)
 
-def _build_body(event: Event) -> str:
-    feedback_url = f"{PUBLIC_BASE_URL}/e/{event.slug}/feedback"
-    return (
-        f"Bedankt voor je komst naar {event.name}.\n\n"
-        f"Wil je ons in twee minuten laten weten hoe het was? {feedback_url}\n\n"
-        "Dit is de enige mail die je van ons krijgt; je adres is na verzending verwijderd."
+
+def _mint_token(db: Session, signup: Signup, event: Event) -> str:
+    token = secrets.token_urlsafe(32)
+    db.add(
+        FeedbackToken(
+            token=token,
+            signup_id=signup.id,
+            event_id=event.id,
+            expires_at=datetime.now(UTC) + TOKEN_TTL,
+        )
     )
+    db.flush()
+    return token
 
 
 def _process_one(db: Session, signup: Signup, event: Event) -> None:
-    # Default to "processed" so we always clear the ciphertext, even on failure.
     plaintext: str | None = None
     try:
         plaintext = encryption.decrypt(signup.encrypted_email or b"")
@@ -47,14 +61,14 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
         logger.exception("feedback_decrypt_failed", signup_id=signup.id)
 
     sent = False
+    token: str | None = None
     if plaintext is not None:
+        token = _mint_token(db, signup, event)
+        feedback_url = f"{PUBLIC_BASE_URL}/e/{event.slug}/feedback?t={token}"
+        subject, body = feedback_invite(event_name=event.name, feedback_url=feedback_url, locale="nl")
         for attempt in range(2):
             try:
-                send_email(
-                    to=plaintext,
-                    subject=f"Feedback: {event.name}",
-                    body=_build_body(event),
-                )
+                send_email(to=plaintext, subject=subject, body=body)
                 sent = True
                 break
             except Exception:
@@ -64,6 +78,13 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
     signup.encrypted_email = None
     signup.feedback_sent_at = datetime.now(UTC)
     db.add(signup)
+
+    # If the send ultimately failed, the token can never be redeemed
+    # (the recipient never got the link). Drop it so the table doesn't
+    # accumulate orphans.
+    if not sent and token:
+        db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
+
     logger.info("feedback_processed", signup_id=signup.id, sent=sent)
 
 

@@ -94,5 +94,53 @@
     "title": "404",
     "body": "Deze pagina bestaat niet.",
     "back": "Terug naar het begin"
+  },
+  "feedback": {
+    "title": "Hoe was {name}?",
+    "intro": "Vijf korte vragen — twee minuten van je tijd helpt ons het volgende beter te maken. Alleen de eerste twee vragen zijn verplicht.",
+    "submit": "Verstuur",
+    "submitFail": "Versturen mislukt",
+    "thanks": "Bedankt — je feedback is binnen.",
+    "thanksBody": "We gebruiken je antwoorden om het volgende evenement beter te maken. Je e-mailadres is na het versturen van deze mail al verwijderd.",
+    "expired": "Deze feedbacklink is niet meer geldig.",
+    "loadFailed": "Kon de vragenlijst niet laden",
+    "questions": {
+      "q1_overall": {
+        "prompt": "Hoe was het evenement voor jou?",
+        "labelLow": "slecht",
+        "labelHigh": "geweldig"
+      },
+      "q2_recommend": {
+        "prompt": "Zou je een kameraad aanraden om naar een volgend RSP-evenement te komen?",
+        "labelLow": "zeker niet",
+        "labelHigh": "zeker"
+      },
+      "q3_welcome": {
+        "prompt": "Voelde je je welkom?",
+        "labelLow": "helemaal niet",
+        "labelHigh": "heel erg"
+      },
+      "q4_better": {
+        "prompt": "Wat had beter gekund?",
+        "placeholder": "Optioneel — max. 1000 tekens"
+      },
+      "q5_anything_else": {
+        "prompt": "Iets anders dat je ons wilt meegeven?",
+        "placeholder": "Optioneel — max. 1000 tekens"
+      }
+    },
+    "summary": {
+      "title": "Feedback",
+      "noResponsesYet": "Nog geen reacties.",
+      "responsesOf": "{responses} reacties van {signups} aanmeldingen ({rate})",
+      "average": "gemiddeld {avg} / 5",
+      "responses": "{n} reacties",
+      "noTextResponses": "Geen vrije-tekst antwoorden."
+    },
+    "preview": {
+      "title": "Vragenlijst",
+      "intro": "Dit is wat aanmelders te zien krijgen als ze de feedbacklink in hun mail aanklikken. De vragen zijn vast voor elk evenement — gestandaardiseerd zodat resultaten vergelijkbaar zijn.",
+      "open": "Bekijk vragenlijst"
+    }
   }
 }

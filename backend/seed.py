@@ -1,11 +1,13 @@
-"""Local-mode seed data.
+"""Startup seeding.
 
-Runs on startup when ``LOCAL_MODE=1``. Idempotent: if a seed user or
-event already exists, it's left alone. Never touches real data — the
-guard is the env var, not a row count.
+``run_questions()`` always executes — the five fixed questionnaire
+questions are global config every install needs, not demo data. It's
+idempotent: existing rows are left alone, missing ones are inserted.
 
-Credentials and emails are deliberately obvious (`*.local.dev`) so they
-can never be confused with anything real.
+``run_local_demo()`` only fires when ``LOCAL_MODE=1`` and seeds the two
+test accounts (`admin@local.dev`, `organiser@local.dev`) plus an
+upcoming and a past demo event. Never touches real data — the guard is
+the env var, not a row count.
 """
 
 import os
@@ -16,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .database import SessionLocal
-from .models import Event, Signup, User
+from .models import Event, FeedbackQuestion, Signup, User
 from .services import encryption
 from .services.slug import new_slug
 
@@ -26,6 +28,21 @@ ADMIN_EMAIL = "admin@local.dev"
 ADMIN_PASSWORD = "admin1234"
 ORGANISER_EMAIL = "organiser@local.dev"
 ORGANISER_PASSWORD = "organiser1234"
+
+
+# Single source of truth for the post-event questionnaire. Five
+# questions, ~60–90s — designed to land in the 80%+ completion bracket
+# (1–3 questions = 83% completion per NIH / SurveyMonkey research).
+# Q1 anchors a comparable CSAT across events, Q2 is the
+# recommendation question, Q3 is the welcoming-specific check, Q4–Q5
+# are diagnostic open boxes.
+SEED_QUESTIONS = [
+    {"ordinal": 1, "kind": "rating", "key": "q1_overall", "required": True},
+    {"ordinal": 2, "kind": "rating", "key": "q2_recommend", "required": True},
+    {"ordinal": 3, "kind": "rating", "key": "q3_welcome", "required": False},
+    {"ordinal": 4, "kind": "text", "key": "q4_better", "required": False},
+    {"ordinal": 5, "kind": "text", "key": "q5_anything_else", "required": False},
+]
 
 
 def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str) -> User:
@@ -74,7 +91,21 @@ def _ensure_event(
     return event
 
 
-def run() -> None:
+def run_questions() -> None:
+    """Always-on seed. Inserts the five fixed feedback questions if missing."""
+    db = SessionLocal()
+    try:
+        for spec in SEED_QUESTIONS:
+            existing = db.query(FeedbackQuestion).filter(FeedbackQuestion.key == spec["key"]).first()
+            if existing:
+                continue
+            db.add(FeedbackQuestion(**spec))
+        db.commit()
+    finally:
+        db.close()
+
+
+def run_local_demo() -> None:
     if os.environ.get("LOCAL_MODE") != "1":
         return
 
@@ -141,3 +172,9 @@ def run() -> None:
         logger.info("seed_complete")
     finally:
         db.close()
+
+
+def run() -> None:
+    """Run all seed steps. Called from main.py at startup."""
+    run_questions()
+    run_local_demo()
