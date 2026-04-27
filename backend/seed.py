@@ -48,10 +48,15 @@ SEED_QUESTIONS = [
 
 
 def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str) -> User:
-    user = db.query(User).filter(User.email == email).first()
+    from .services import scd2
+
+    user = scd2.current(db.query(User)).filter(User.email == email).first()
     if user:
         return user
-    user = User(
+    user = scd2.scd2_create(
+        db,
+        User,
+        changed_by="seed",
         email=email,
         password_hash=hash_password(password),
         name=name,
@@ -60,8 +65,9 @@ def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str
         # Local seed accounts are pre-verified — both gates pass so the
         # account can act immediately.
         email_verified_at=datetime.now(UTC),
+        afdeling_id=None,
     )
-    db.add(user)
+    user.changed_by = user.entity_id  # self-reference once entity_id is known
     db.flush()
     logger.info("seed_user_created", email=email, role=role)
     return user
@@ -78,10 +84,19 @@ def _ensure_event(
     source_options: list[str],
     afdeling_id: str | None,
 ) -> Event:
-    existing = db.query(Event).filter(Event.name == name, Event.created_by == created_by).first()
+    existing = (
+        db.query(Event)
+        .filter(Event.name == name, Event.created_by == created_by, Event.valid_until.is_(None))
+        .first()
+    )
     if existing:
         return existing
+    from uuid_utils import uuid7
+    new_id = str(uuid7())
+    now = datetime.now(UTC)
     event = Event(
+        id=new_id,
+        entity_id=new_id,
         slug=new_slug(),
         name=name,
         topic="Demo",
@@ -91,10 +106,15 @@ def _ensure_event(
         source_options=source_options,
         afdeling_id=afdeling_id,
         created_by=created_by,
+        locale="nl",
+        valid_from=now,
+        valid_until=None,
+        changed_by=created_by,
+        change_kind="created",
     )
     db.add(event)
     db.flush()
-    logger.info("seed_event_created", event_id=event.id, slug=event.slug, name=name)
+    logger.info("seed_event_created", event_id=event.entity_id, slug=event.slug, name=name)
     return event
 
 
@@ -129,34 +149,34 @@ def run_local_demo() -> None:
 
         # Two demo afdelingen + one soft-deleted one so the admin
         # autocomplete demonstrates the restore flow on first boot.
+        from .services import scd2
+
         amsterdam = afdelingen_svc.all_active(db)
         if not any(a.name == "Amsterdam" for a in amsterdam):
-            afdelingen_svc.create(db, name="Amsterdam", changed_by=admin.id)
+            afdelingen_svc.create(db, name="Amsterdam", changed_by=admin.entity_id)
         if not any(a.name == "Utrecht" for a in afdelingen_svc.all_active(db)):
-            afdelingen_svc.create(db, name="Utrecht", changed_by=admin.id)
-        # The "Den Haag" afdeling demos the restore path: created and
-        # then immediately archived. Idempotent: only seed if it
-        # doesn't exist in any version.
+            afdelingen_svc.create(db, name="Utrecht", changed_by=admin.entity_id)
         if not afdelingen_svc.latest_versions(db, include_archived=True) or not any(
             a.name == "Den Haag"
             for a in afdelingen_svc.latest_versions(db, include_archived=True)
         ):
-            den_haag = afdelingen_svc.create(db, name="Den Haag", changed_by=admin.id)
-            afdelingen_svc.archive(db, entity_id=den_haag.entity_id, changed_by=admin.id)
+            den_haag = afdelingen_svc.create(db, name="Den Haag", changed_by=admin.entity_id)
+            afdelingen_svc.archive(db, entity_id=den_haag.entity_id, changed_by=admin.entity_id)
 
         amsterdam_row = next(
             (a for a in afdelingen_svc.all_active(db) if a.name == "Amsterdam"), None
         )
         amsterdam_id = amsterdam_row.entity_id if amsterdam_row else None
 
-        # Assign the seed admin and organiser to Amsterdam so they can
-        # immediately create + edit events.
+        # Assign the seed admin and organiser to Amsterdam via SCD2-update.
         if admin.afdeling_id is None and amsterdam_id:
-            admin.afdeling_id = amsterdam_id
-            db.add(admin)
+            admin = scd2.scd2_update(
+                db, admin, changed_by=admin.entity_id, afdeling_id=amsterdam_id
+            )
         if organiser.afdeling_id is None and amsterdam_id:
-            organiser.afdeling_id = amsterdam_id
-            db.add(organiser)
+            organiser = scd2.scd2_update(
+                db, organiser, changed_by=admin.entity_id, afdeling_id=amsterdam_id
+            )
         db.flush()
 
         now = datetime.now(UTC)
@@ -168,7 +188,7 @@ def run_local_demo() -> None:
             location="Buurthuis Centrum",
             starts_at=now + timedelta(days=3),
             ends_at=now + timedelta(days=3, hours=2),
-            created_by=organiser.id,
+            created_by=organiser.entity_id,
             source_options=sources,
             afdeling_id=amsterdam_id,
         )
@@ -179,7 +199,7 @@ def run_local_demo() -> None:
             location="Dam, Amsterdam",
             starts_at=now - timedelta(days=2, hours=2),
             ends_at=now - timedelta(days=2),
-            created_by=organiser.id,
+            created_by=organiser.entity_id,
             source_options=sources,
             afdeling_id=amsterdam_id,
         )
@@ -189,10 +209,10 @@ def run_local_demo() -> None:
         # feedback-email lifecycle state, so the details page shows
         # the full UX without needing to set up SMTP / wait for the
         # worker.
-        if not db.query(Signup).filter(Signup.event_id == upcoming.id).first():
+        if not db.query(Signup).filter(Signup.event_id == upcoming.entity_id).first():
             db.add(
                 Signup(
-                    event_id=upcoming.id,
+                    event_id=upcoming.entity_id,
                     display_name="Anon Buur",
                     party_size=2,
                     source_choice="Flyer",
@@ -200,11 +220,11 @@ def run_local_demo() -> None:
                     feedback_email_status="not_applicable",
                 )
             )
-        if not db.query(Signup).filter(Signup.event_id == past.id).first():
+        if not db.query(Signup).filter(Signup.event_id == past.entity_id).first():
             # not_applicable: someone signed up without an email.
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Demo Anon",
                     party_size=1,
                     source_choice="Social media",
@@ -216,7 +236,7 @@ def run_local_demo() -> None:
             # (in real life this lasts until the next hourly tick).
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Pim",
                     party_size=1,
                     source_choice="Flyer",
@@ -227,7 +247,7 @@ def run_local_demo() -> None:
             # sent: worker successfully handed the message to SMTP.
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Sien",
                     party_size=2,
                     source_choice="Mond-tot-mond",
@@ -241,7 +261,7 @@ def run_local_demo() -> None:
             # undeliverable after a successful send.
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Robin",
                     party_size=1,
                     source_choice="Social media",
@@ -255,7 +275,7 @@ def run_local_demo() -> None:
             # should distinguish it from a bounce.
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Kees",
                     party_size=1,
                     source_choice="Flyer",
@@ -268,7 +288,7 @@ def run_local_demo() -> None:
             # failed: SMTP send threw after retry, or decrypt failed.
             db.add(
                 Signup(
-                    event_id=past.id,
+                    event_id=past.entity_id,
                     display_name="Mira",
                     party_size=3,
                     source_choice="Mond-tot-mond",
@@ -283,10 +303,10 @@ def run_local_demo() -> None:
         # page has something to render. Idempotent: only seed if there
         # are no responses yet for this event.
         existing_resp = (
-            db.query(FeedbackResponse).filter(FeedbackResponse.event_id == past.id).first()
+            db.query(FeedbackResponse).filter(FeedbackResponse.event_id == past.entity_id).first()
         )
         if existing_resp is None:
-            _seed_demo_responses(db, past.id)
+            _seed_demo_responses(db, past.entity_id)
 
         db.commit()
         logger.info("seed_complete")

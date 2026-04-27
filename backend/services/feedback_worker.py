@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
-from . import encryption
+from . import encryption, scd2
 from .email import build_url, send_email_sync
 
 logger = structlog.get_logger()
@@ -54,7 +54,8 @@ def _mint_token(db: Session, signup: Signup, event: Event) -> str:
         FeedbackToken(
             token=token,
             signup_id=signup.id,
-            event_id=event.id,
+            # Stable logical id, so the token survives event edits.
+            event_id=event.entity_id,
             expires_at=datetime.now(UTC) + TOKEN_TTL,
         )
     )
@@ -82,7 +83,7 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
                     to=plaintext,
                     template_name="feedback.html",
                     context={"event_name": event.name, "feedback_url": feedback_url},
-                    locale="nl",
+                    locale=event.locale,
                     message_id=message_id,
                 )
                 sent = True
@@ -111,9 +112,12 @@ def run_once() -> int:
     cutoff = datetime.now(UTC) - timedelta(hours=24)
     db = SessionLocal()
     try:
+        # Join via entity_id (the stable logical id) and only the
+        # current Event version. Past versions are history; we never
+        # send feedback emails on behalf of an old revision.
         rows = (
-            db.query(Signup, Event)
-            .join(Event, Signup.event_id == Event.id)
+            scd2.current(db.query(Signup, Event))
+            .join(Event, Signup.event_id == Event.entity_id)
             .filter(
                 Signup.encrypted_email.is_not(None),
                 Signup.feedback_sent_at.is_(None),
@@ -130,20 +134,20 @@ def run_once() -> int:
         db.close()
 
 
-def run_for_event(event_id: str) -> int:
+def run_for_event(entity_id: str) -> int:
     """Process every still-pending signup on a single event, ignoring
-    the 24h cutoff. Used by the organiser-triggered "send now" button
-    on the details page. Caller is responsible for verifying the
-    event's questionnaire is enabled. Returns the number processed."""
+    the 24h cutoff. Used by the organiser-triggered "send now" button.
+    ``entity_id`` is the stable logical id (``EventOut.id``).
+    Returns the number processed."""
     db = SessionLocal()
     try:
-        event = db.query(Event).filter(Event.id == event_id).first()
+        event = scd2.current_by_entity(db, entity_id)
         if not event:
             return 0
         rows = (
             db.query(Signup)
             .filter(
-                Signup.event_id == event_id,
+                Signup.event_id == entity_id,
                 Signup.encrypted_email.is_not(None),
                 Signup.feedback_sent_at.is_(None),
             )

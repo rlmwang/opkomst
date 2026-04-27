@@ -42,7 +42,9 @@ class FeedbackToken(UUIDMixin, TimestampMixin, Base):
     # directly from the link in the email.
     token: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     signup_id: Mapped[str] = mapped_column(Text, ForeignKey("signups.id"), nullable=False)
-    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id"), nullable=False, index=True)
+    # Points at Event.entity_id; see models.events.Signup for the
+    # rationale on why this isn't a real FK constraint.
+    event_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
@@ -54,7 +56,9 @@ class FeedbackResponse(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "feedback_responses"
 
-    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id"), nullable=False, index=True)
+    # Points at Event.entity_id; see models.events.Signup for the
+    # rationale on why this isn't a real FK constraint.
+    event_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     question_id: Mapped[str] = mapped_column(Text, ForeignKey("feedback_questions.id"), nullable=False)
     # Random per-submission id (not linked to anything else). Lets us
     # count distinct submissions ("12 people responded") without

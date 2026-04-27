@@ -20,6 +20,7 @@ class FeedbackFormOut(BaseModel):
 
     event_name: str
     event_slug: str
+    event_locale: str
     questions: list[FeedbackQuestionOut]
 
 
@@ -69,3 +70,15 @@ class FeedbackSummaryOut(BaseModel):
     response_rate: float  # submission_count / signup_count, 0 if no signups
     email_health: EmailHealthOut
     questions: list[FeedbackQuestionSummary]
+
+
+class FeedbackSubmissionOut(BaseModel):
+    """One submission as a flat record — keyed by ``question.key`` so
+    a CSV consumer can map columns by question identifier without
+    needing the questions table. Rating values surface as the int;
+    text answers as the string. Missing answers are absent from
+    ``answers``. ``submission_id`` is the random per-submission id
+    that has no link back to a signup (privacy contract)."""
+
+    submission_id: str
+    answers: dict[str, int | str]

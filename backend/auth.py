@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .database import get_db
 from .models import User
+from .services import scd2
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGORITHM = "HS256"
@@ -28,21 +29,24 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8")[:72], hashed.encode("utf-8"))
 
 
-def create_token(user_id: str) -> str:
+def create_token(user_entity_id: str) -> str:
+    """Sign a JWT against the user's stable ``entity_id`` so the token
+    survives every edit (rename, role change, approval, afdeling
+    reassignment)."""
     now = datetime.now(UTC)
-    payload = {"sub": user_id, "iat": now, "exp": now + timedelta(hours=JWT_TTL_HOURS)}
+    payload = {"sub": user_entity_id, "iat": now, "exp": now + timedelta(hours=JWT_TTL_HOURS)}
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 # --- Purpose tokens (email verification, password reset) ---
 
 
-def create_purpose_token(user_id: str, email: str, purpose: str, expires_hours: int) -> str:
-    """A signed, short-lived token tied to one user + purpose. Used in
-    email links so the link itself proves the user controls the address."""
+def create_purpose_token(user_entity_id: str, email: str, purpose: str, expires_hours: int) -> str:
+    """Signed, short-lived token tied to one user + purpose. ``sub`` is
+    the user's ``entity_id`` so the link survives user edits."""
     now = datetime.now(UTC)
     payload = {
-        "sub": user_id,
+        "sub": user_entity_id,
         "email": email,
         "purpose": purpose,
         "iat": now,
@@ -79,8 +83,8 @@ def get_current_user(
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
-    user_id = _decode_token(token)
-    user = db.query(User).filter(User.id == user_id).first()
+    entity_id = _decode_token(token)
+    user = scd2.current_by_entity(db, User, entity_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User no longer exists")
     return user

@@ -1,28 +1,36 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Text
+from sqlalchemy import Boolean, DateTime, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import SCD2Mixin, TimestampMixin, UUIDMixin
 
 
-class User(UUIDMixin, TimestampMixin, Base):
+class User(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
+    """SCD2 dimension. JWT ``sub`` is ``user.entity_id`` so tokens
+    survive every edit (rename, role change, approval, afdeling
+    reassignment). Email uniqueness is enforced via a partial unique
+    index over current versions — multiple history rows can share
+    the same email for one logical account."""
+
     __tablename__ = "users"
 
-    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    # Two roles: "organiser" (default on register) and "admin" (granted by another admin).
     role: Mapped[str] = mapped_column(Text, nullable=False, default="organiser")
-    # Two gates before an account can act: email verification (the user
-    # confirmed they own the address by clicking the link) AND admin
-    # approval (someone we trust said this person belongs here). Both
-    # must hold; require_approved enforces the conjunction.
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    # Afdeling assignment (entity_id, stable across afdeling versions).
-    # Required after admin approval — the approve endpoint refuses to
-    # flip is_approved=true without one. Nullable in the schema only
-    # for the pre-approval state.
+    # Points at Afdeling.entity_id; no FK because Afdeling is SCD2.
     afdeling_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+
+    __table_args__ = (
+        Index(
+            "uq_users_email_current",
+            "email",
+            unique=True,
+            sqlite_where=text("valid_until IS NULL"),
+            postgresql_where=text("valid_until IS NULL"),
+        ),
+    )

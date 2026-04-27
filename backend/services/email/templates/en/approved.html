@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set subject = "Your account has been approved — opkomst" %}
+{% block content %}
+<p>Hi {{ name }},</p>
+<p>Your account has been approved for chapter <strong>{{ afdeling_name }}</strong>. You can now create and share events.</p>
+<a href="{{ dashboard_url }}" class="cta">Open opkomst</a>
+{% endblock %}
+{% block footer %}opkomst — for organising RSP events{% endblock %}

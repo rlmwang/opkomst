@@ -15,6 +15,10 @@ class EventCreate(BaseModel):
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
     questionnaire_enabled: bool = True
+    # Two-letter ISO language tag. Drives both the public sign-up
+    # page's UI language and the locale of the feedback email sent
+    # afterwards. Defaults to Dutch — the org's primary audience.
+    locale: str = Field(default="nl", pattern="^(nl|en)$")
 
     @field_validator("source_options")
     @classmethod
@@ -39,6 +43,7 @@ class EventOut(BaseModel):
     ends_at: datetime
     source_options: list[str]
     questionnaire_enabled: bool
+    locale: str
     afdeling_id: str | None
     afdeling_name: str | None
     signup_count: int  # aggregate party_size sum, not row count
@@ -51,6 +56,16 @@ class EventStatsOut(BaseModel):
     total_signups: int
     total_attendees: int  # sum of party_size
     by_source: dict[str, int]
+
+
+class SignupSummaryOut(BaseModel):
+    """A single signup as seen on the organiser's details page.
+    Deliberately minimal — name and headcount only. Never email,
+    source, or feedback-email status; those exist on the model but
+    are private to the worker."""
+
+    display_name: str
+    party_size: int
 
 
 class SignupCreate(BaseModel):

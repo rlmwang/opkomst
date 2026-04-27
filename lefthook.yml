@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  commands:
+    scd2-safety:
+      glob: "backend/**/*.py"
+      run: bash scripts/check_scd2_safety.sh {staged_files}
+    ruff:
+      glob: "backend/**/*.py"
+      run: uv run ruff check {staged_files}
+    ruff-format:
+      glob: "backend/**/*.py"
+      run: uv run ruff format --check {staged_files}
+    pyright:
+      glob: "backend/**/*.py"
+      # Pyright takes the whole project rather than per-file; the
+      # glob just gates whether to run at all.
+      run: uv run pyright

@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set subject = "Je account is goedgekeurd — opkomst" %}
+{% block content %}
+<p>Hoi {{ name }},</p>
+<p>Je account is goedgekeurd voor afdeling <strong>{{ afdeling_name }}</strong>. Je kunt nu evenementen aanmaken en delen.</p>
+<a href="{{ dashboard_url }}" class="cta">Naar opkomst</a>
+{% endblock %}
+{% block footer %}opkomst — voor het organiseren van RSP-evenementen{% endblock %}

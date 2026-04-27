@@ -16,9 +16,11 @@ from ..schemas.afdelingen import (
     AfdelingArchiveRequest,
     AfdelingCreate,
     AfdelingOut,
+    AfdelingPatch,
     AfdelingUsageOut,
 )
 from ..services import afdelingen as svc
+from ..services import scd2
 
 logger = structlog.get_logger()
 
@@ -26,7 +28,14 @@ router = APIRouter(prefix="/api/v1/afdelingen", tags=["afdelingen"])
 
 
 def _to_out(row: Afdeling) -> AfdelingOut:
-    return AfdelingOut(id=row.entity_id, name=row.name, archived=row.valid_until is not None)
+    return AfdelingOut(
+        id=row.entity_id,
+        name=row.name,
+        archived=row.valid_until is not None,
+        city=row.city,
+        city_lat=row.city_lat,
+        city_lon=row.city_lon,
+    )
 
 
 @router.get("", response_model=list[AfdelingOut])
@@ -53,33 +62,45 @@ def create_afdeling(
         raise HTTPException(status_code=400, detail="Name is required")
     if svc.name_exists_active(db, name):
         raise HTTPException(status_code=409, detail="An afdeling with that name already exists")
-    row = svc.create(db, name=name, changed_by=admin.id)
+    row = svc.create(db, name=name, changed_by=admin.entity_id)
     db.commit()
-    logger.info("afdeling_created", entity_id=row.entity_id, actor_id=admin.id)
+    logger.info("afdeling_created", entity_id=row.entity_id, actor_id=admin.entity_id)
     return _to_out(row)
 
 
 @router.patch("/{entity_id}", response_model=AfdelingOut)
-def rename_afdeling(
+def patch_afdeling(
     entity_id: str,
-    data: AfdelingCreate,  # reuses the {name: str} shape
+    data: AfdelingPatch,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ) -> AfdelingOut:
-    """SCD2-update the chapter's name. Closes the current version and
-    inserts a new row with the new name (same entity_id), so events /
-    users tracking it follow automatically."""
-    name = svc.normalise_name(data.name)
-    if not name:
-        raise HTTPException(status_code=400, detail="Name is required")
+    """Partial SCD2 update for the chapter — name and/or city. The
+    city tuple is set together (display name + lat + lon); leaving
+    all three at ``None`` in the payload clears a previously-set
+    city. Pass nothing for ``city*`` keys to leave the current city
+    untouched."""
+    # Detect "city tuple supplied" — explicit None for all three is
+    # the "clear it" signal, so we use the model's ``model_fields_set``
+    # introspection rather than ``is None`` checks.
+    set_city = any(field in data.model_fields_set for field in ("city", "city_lat", "city_lon"))
     try:
-        row = svc.rename(db, entity_id=entity_id, name=name, changed_by=admin.id)
+        row = svc.update(
+            db,
+            entity_id=entity_id,
+            changed_by=admin.entity_id,
+            name=data.name,
+            city=data.city,
+            city_lat=data.city_lat,
+            city_lon=data.city_lon,
+            set_city=set_city,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Afdeling not found")
     db.commit()
-    logger.info("afdeling_renamed", entity_id=entity_id, name=name, actor_id=admin.id)
+    logger.info("afdeling_patched", entity_id=entity_id, actor_id=admin.entity_id)
     return _to_out(row)
 
 
@@ -92,8 +113,8 @@ def afdeling_usage(
     """How many users + events are currently linked to this chapter.
     The frontend calls this before opening the delete dialog so it
     can offer reassignment dropdowns when there's something at stake."""
-    users = db.query(User).filter(User.afdeling_id == entity_id).count()
-    events = db.query(Event).filter(Event.afdeling_id == entity_id).count()
+    users = scd2.current(db.query(User)).filter(User.afdeling_id == entity_id).count()
+    events = scd2.current(db.query(Event)).filter(Event.afdeling_id == entity_id).count()
     return AfdelingUsageOut(users=users, events=events)
 
 
@@ -113,25 +134,29 @@ def archive_afdeling(
             target = svc.find_current_by_entity(db, data.reassign_users_to)
             if target is None or target.entity_id == entity_id:
                 raise HTTPException(status_code=400, detail="Invalid reassign_users_to target")
-            db.query(User).filter(User.afdeling_id == entity_id).update(
-                {User.afdeling_id: data.reassign_users_to}, synchronize_session=False
-            )
+            # SCD2-update every affected user — each gets a new version
+            # recording the reassignment with the admin as ``changed_by``.
+            for u in scd2.current(db.query(User)).filter(User.afdeling_id == entity_id).all():
+                scd2.scd2_update(
+                    db, u, changed_by=admin.entity_id, afdeling_id=data.reassign_users_to
+                )
         if data.reassign_events_to:
             target = svc.find_current_by_entity(db, data.reassign_events_to)
             if target is None or target.entity_id == entity_id:
                 raise HTTPException(status_code=400, detail="Invalid reassign_events_to target")
-            db.query(Event).filter(Event.afdeling_id == entity_id).update(
-                {Event.afdeling_id: data.reassign_events_to}, synchronize_session=False
-            )
+            for e in scd2.current(db.query(Event)).filter(Event.afdeling_id == entity_id).all():
+                scd2.scd2_update(
+                    db, e, changed_by=admin.entity_id, afdeling_id=data.reassign_events_to
+                )
 
-    row = svc.archive(db, entity_id=entity_id, changed_by=admin.id)
+    row = svc.archive(db, entity_id=entity_id, changed_by=admin.entity_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Afdeling not found")
     db.commit()
     logger.info(
         "afdeling_archived",
         entity_id=entity_id,
-        actor_id=admin.id,
+        actor_id=admin.entity_id,
         reassign_users_to=data.reassign_users_to if data else None,
         reassign_events_to=data.reassign_events_to if data else None,
     )
@@ -145,9 +170,9 @@ def restore_afdeling(
     admin: User = Depends(require_admin),
 ) -> AfdelingOut:
     try:
-        row = svc.restore(db, entity_id=entity_id, changed_by=admin.id)
+        row = svc.restore(db, entity_id=entity_id, changed_by=admin.entity_id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     db.commit()
-    logger.info("afdeling_restored", entity_id=entity_id, actor_id=admin.id)
+    logger.info("afdeling_restored", entity_id=entity_id, actor_id=admin.entity_id)
     return _to_out(row)

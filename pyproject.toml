@@ -20,6 +20,8 @@ dependencies = [
     "apscheduler>=3.10",
     "uuid-utils>=0.10",
     "jinja2>=3.1",
+    "slowapi>=0.1.9",
+    "sentry-sdk>=2.58.0",
 ]
 
 [dependency-groups]
@@ -42,5 +44,8 @@ typeCheckingMode = "basic"
 pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
-addopts = "-n auto"
+# Tests share a per-process tempfile DB; xdist's process-per-worker
+# split would each create their own DB and race the conftest setup.
+# Stay in-band until we wire a per-worker DB fixture.
+addopts = ""
 testpaths = ["tests"]
