@@ -8,9 +8,10 @@
 #   curl http://localhost:8000/health
 #
 # The worker container shares the same image and DB but runs the
-# email-sweep scheduler instead of uvicorn. ``DISABLE_SCHEDULER``
-# is unset on the worker so it actually fires; on the API
-# container it's inherited from the Dockerfile (always =1).
+# email-sweep scheduler instead of uvicorn. The scheduler code
+# only exists in ``backend/worker.py``; the API binary
+# (``backend/main.py``) doesn't import APScheduler at all, so
+# there's no env-var gate to keep it out of API replicas.
 
 services:
   api:
@@ -34,10 +35,6 @@ services:
       - api
     env_file:
       - .env
-    # Override DISABLE_SCHEDULER from the image default so the
-    # scheduler is allowed to start in this single replica.
-    environment:
-      DISABLE_SCHEDULER: "0"
     volumes:
       - ./data:/app/data
     command: ["uv", "run", "--no-dev", "python", "-m", "backend.worker"]

@@ -33,7 +33,6 @@ os.environ.setdefault("EMAIL_ENCRYPTION_KEY", "19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGy
 os.environ.setdefault("EMAIL_BACKEND", "console")
 os.environ.setdefault("MESSAGE_ID_DOMAIN", "test.opkomst.nu")
 os.environ.setdefault("PUBLIC_BASE_URL", "http://localhost:5173")
-os.environ.setdefault("DISABLE_SCHEDULER", "1")
 # Bootstrap email is read at module-import time in
 # ``routers/auth.py``; setting it after imports would be a no-op.
 # Override (not setdefault) because ``.env`` ships with an empty

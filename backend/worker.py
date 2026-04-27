@@ -1,20 +1,19 @@
 """Background-worker entrypoint.
 
 Runs the scheduled email sweeps (reminder + feedback) in a
-process separate from the user-facing API. The API container
-runs with ``DISABLE_SCHEDULER=1`` so its uvicorn workers don't
-all fire the same sweep concurrently — that's how we'd send each
-reminder four times on a four-worker deploy. This entrypoint
-owns the sweeps; runs as a single replica.
+process separate from the user-facing API. The API binary
+(``backend/main.py``) does NOT import APScheduler at all — that
+removes the historical class of bug where every uvicorn replica
+booted its own scheduler and fired each scheduled email N times.
+``backend/worker.py`` is the only place the scheduler exists; run
+it as a single replica.
 
 Local:
-    DISABLE_SCHEDULER=0 uv run python -m backend.worker
+    uv run python -m backend.worker
 
 Container:
-    same image as the API; override CMD to
+    same image as the API, override CMD to
     ``["uv", "run", "--no-dev", "python", "-m", "backend.worker"]``.
-    Set ``DISABLE_SCHEDULER`` to anything *except* ``1`` (or unset
-    it) so the scheduler is allowed to start in this process.
 """
 
 import os
@@ -76,12 +75,13 @@ def main() -> None:
     except Exception:
         logger.exception("worker_boot_reap_expired_failed")
 
-    # BackgroundScheduler runs the sweeps in a worker thread, which
-    # leaves the main thread free to block on a signal-aware
-    # event. (BlockingScheduler.start() uses an internal
-    # threading.Event whose wait() in CPython doesn't reliably
-    # surface SIGTERM until the wakeup interval — could mean the
-    # process ignores ``docker stop`` until the next hourly tick.)
+    # BackgroundScheduler runs the sweeps in a worker thread,
+    # which leaves the main thread free to block on a
+    # signal-aware event. (BlockingScheduler.start() uses an
+    # internal threading.Event whose wait() in CPython doesn't
+    # reliably surface SIGTERM until the wakeup interval — that
+    # would mean the process ignores ``docker stop`` until the
+    # next hourly tick.)
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         feedback_worker.run_once, "interval", hours=1, id="feedback_sweep"
@@ -90,10 +90,6 @@ def main() -> None:
         reminder_worker.run_once, "interval", hours=1, id="reminder_sweep"
     )
 
-    # Recovery sweeps. Both run in addition to the boot-time
-    # ``reap_partial_sends`` call below so a long-running
-    # container that never gets restarted still self-heals from
-    # stuck rows.
     def _reap_partial() -> None:
         # Wrapper so APScheduler doesn't try to schedule a
         # closure-bound DB session. Each tick gets a fresh one.
@@ -142,14 +138,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # The DISABLE_SCHEDULER guard is a defence in depth: if the
-    # operator accidentally points the worker entrypoint at an
-    # environment where DISABLE_SCHEDULER=1 is set (typical for
-    # the API container), we crash loudly instead of silently
-    # doing nothing.
-    if os.environ.get("DISABLE_SCHEDULER") == "1":
-        raise SystemExit(
-            "DISABLE_SCHEDULER=1 is set but the worker entrypoint "
-            "needs the scheduler enabled. Unset it on this container."
-        )
     main()

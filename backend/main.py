@@ -1,9 +1,7 @@
 import os
-from contextlib import asynccontextmanager
 
 import sentry_sdk
 import structlog
-from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.fastapi import FastApiIntegration
@@ -20,7 +18,6 @@ from .routers import feedback as feedback_router
 from .routers import signups as signups_router
 from .routers import webhooks as webhooks_router
 from .seed import run as run_seed
-from .services import feedback_worker, reminder_worker
 from .services.rate_limit import limiter
 from .services.security_headers import SecurityHeadersMiddleware
 
@@ -29,7 +26,9 @@ logger = structlog.get_logger()
 # Sentry — opt-in via env. ``SENTRY_DSN`` unset (dev / local) is a
 # no-op. PII is OFF: ``send_default_pii=False`` keeps usernames /
 # IPs out of events. The FastAPI / Starlette integrations capture
-# 500s automatically.
+# 500s automatically. The worker container has its own Sentry
+# init in ``backend/worker.py`` — this module never touches the
+# scheduler, so no Sentry-on-scheduler concerns here.
 _sentry_dsn = os.environ.get("SENTRY_DSN")
 if _sentry_dsn:
     sentry_sdk.init(
@@ -44,29 +43,8 @@ if _sentry_dsn:
 run_migrations()
 run_seed()
 
-_scheduler = BackgroundScheduler()
 
-
-@asynccontextmanager
-async def _lifespan(_app: FastAPI):
-    if os.environ.get("DISABLE_SCHEDULER") != "1":
-        _scheduler.add_job(feedback_worker.run_once, "interval", hours=1, id="feedback_sweep")
-        _scheduler.add_job(reminder_worker.run_once, "interval", hours=1, id="reminder_sweep")
-        _scheduler.start()
-        logger.info("scheduler_started")
-    try:
-        yield
-    finally:
-        if _scheduler.running:
-            # ``wait=True`` blocks until any in-flight feedback-send
-            # finishes. Without it, a SIGTERM mid-SMTP can leave a
-            # signup half-processed (``encrypted_email`` wiped,
-            # status still "pending") since ``_process_one`` writes
-            # in steps and only commits at the end.
-            _scheduler.shutdown(wait=True)
-
-
-app = FastAPI(title="Opkomst", version="0.1.0", lifespan=_lifespan)
+app = FastAPI(title="Opkomst", version="0.1.0")
 
 # Rate limiting — installed before any router is included so the
 # decorators on individual endpoints are honoured.

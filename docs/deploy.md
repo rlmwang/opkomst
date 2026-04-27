@@ -5,17 +5,15 @@
 opkomst runs as **two processes** sharing one image:
 
 * **`api`** — uvicorn behind whatever proxy Coolify gives you.
-  Multiple replicas are fine. The Dockerfile bakes
-  `DISABLE_SCHEDULER=1` so APScheduler stays off in every
-  replica.
+  Multiple replicas are fine. `backend/main.py` doesn't import
+  APScheduler at all, so there's no scheduler to boot here.
 * **`worker`** — single replica, runs `python -m backend.worker`.
-  Owns the reminder + feedback email sweeps. Override
-  `DISABLE_SCHEDULER` to anything except `1` (or unset) on
-  this container so the scheduler is allowed to boot.
+  Owns the reminder + feedback email sweeps.
 
 Running the scheduler inside multiple replicas would fire each
 scheduled email N times (one per replica), so the split is
-not optional — it's a correctness requirement.
+not optional — it's a correctness requirement, enforced by the
+fact that the API binary literally has no scheduler code.
 
 ## Coolify (recommended)
 
@@ -47,7 +45,6 @@ not optional — it's a correctness requirement.
    image, with these overrides:
    - **Custom start command:**
      `uv run --no-dev python -m backend.worker`
-   - **Environment variable:** `DISABLE_SCHEDULER=0`
    - **Replicas:** 1 (single replica is required — see
      "Architecture" above).
    - **No exposed ports** — this service has no HTTP surface.
