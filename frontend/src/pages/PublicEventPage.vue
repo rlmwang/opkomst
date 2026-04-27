@@ -250,8 +250,8 @@ async function submit() {
         </section>
 
         <div class="submit-row">
-          <Button type="submit" :label="t('public.submit')" :loading="submitting" />
           <p class="required-key">{{ t("public.requiredKey") }}</p>
+          <Button type="submit" :label="t('public.submit')" :loading="submitting" />
         </div>
       </AppCard>
     </template>
@@ -271,15 +271,15 @@ async function submit() {
 .form-section + .form-section {
   margin-top: 2rem;
 }
-/* Submit button anchors the bottom-right of the card; the
- * "* required" key sits underneath it, also right-aligned, so the
- * asterisk convention is visible right where the user is about to
- * commit instead of dangling above the first field. */
+/* Bottom row of the card: the "* required" key sits on the left,
+ * muted; submit button on the right. Pairs the asterisk legend
+ * with the action it qualifies without dangling above the first
+ * field. */
 .submit-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.375rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin-top: 2rem;
 }
 .required-key {
