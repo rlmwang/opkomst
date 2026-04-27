@@ -12,9 +12,12 @@ import router from "./router";
 import "primeicons/primeicons.css";
 import "./assets/theme.css";
 
-// Brand red — anchored at primary.500 (#9f000b). The lighter shades are
-// the natural pink tints of the same hue; the darker shades are used
-// for hover/active states on buttons and other interactive elements.
+// Brand palette anchored at primary.500 (#9f000b) and a warm-cream
+// surface scale that matches the app's hand-rolled --brand-bg /
+// --brand-surface / --brand-border tokens. Because every PrimeVue
+// component (Dialog, Select, AutoComplete, Card, etc.) reads from
+// these same surface shades, the dialogs end up exactly the same
+// cream as the rest of the app — no separate CSS overrides needed.
 const OpkomstPreset = definePreset(Aura, {
   semantic: {
     primary: {
@@ -30,9 +33,39 @@ const OpkomstPreset = definePreset(Aura, {
       900: "#440005",
       950: "#2b0003",
     },
+    colorScheme: {
+      light: {
+        // Surface scale — drives card / dialog / dropdown / input
+        // backgrounds, borders, and muted text. 0 + 50 are the lightest
+        // (card / dialog body), 200 is the warm border, 600 is muted
+        // text, 900 is the body text. Kept warm-but-restrained so the
+        // brand red stays the only saturated colour on screen.
+        surface: {
+          0: "#fbf7ee",
+          50: "#f6f1e7",
+          100: "#ece4d0",
+          200: "#dcd2b9",
+          300: "#c4b89b",
+          400: "#a59882",
+          500: "#7e7466",
+          600: "#5e5a52",
+          700: "#403d39",
+          800: "#28261f",
+          900: "#1a1a1a",
+          950: "#0d0d0a",
+        },
+        formField: {
+          // Form fields render on the card surface; bumping their
+          // own background to surface.0 keeps them visually flush
+          // with the card behind them.
+          background: "{surface.0}",
+          borderColor: "{surface.200}",
+          color: "{surface.900}",
+          placeholderColor: "{surface.500}",
+        },
+      },
+    },
   },
-  // Secondary button tones live in theme.css (CSS overrides — the
-  // PrimeVue TS types don't expose the secondary tokens at this level).
 });
 
 const app = createApp(App);

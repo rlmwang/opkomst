@@ -77,6 +77,14 @@ def is_archived(db: Session, entity_id: str) -> bool:
     return find_current_by_entity(db, entity_id) is None and find_any_by_entity(db, entity_id) is not None
 
 
+def normalise_name(name: str) -> str:
+    """Strip surrounding whitespace + collapse internal runs to a
+    single space. ``" Den   Haag  "`` → ``"Den Haag"``. Applied
+    uniformly on every write and every case-insensitive match so
+    duplicate detection isn't fooled by trailing or doubled spaces."""
+    return " ".join(name.split())
+
+
 def name_for_entity(db: Session, entity_id: str | None) -> str | None:
     """Resolve an entity_id to a display name. Falls back to the most
     recent archived version when the current one is gone (so users
@@ -88,16 +96,18 @@ def name_for_entity(db: Session, entity_id: str | None) -> str | None:
 
 
 def name_exists_active(db: Session, name: str, *, exclude_entity_id: str | None = None) -> bool:
-    """True if an active afdeling already has this name (case-insensitive).
-    The optional ``exclude_entity_id`` lets the rename flow skip its own
-    row — otherwise renaming to its existing name would always conflict."""
-    q = current(db.query(Afdeling)).filter(func.lower(Afdeling.name) == name.strip().lower())
+    """True if an active afdeling already has this name (whitespace-
+    normalised + case-insensitive). The optional ``exclude_entity_id``
+    lets the rename flow skip its own row."""
+    needle = normalise_name(name).lower()
+    q = current(db.query(Afdeling)).filter(func.lower(Afdeling.name) == needle)
     if exclude_entity_id is not None:
         q = q.filter(Afdeling.entity_id != exclude_entity_id)
     return q.first() is not None
 
 
 def create(db: Session, *, name: str, changed_by: str) -> Afdeling:
+    name = normalise_name(name)
     now = datetime.now(UTC)
     new_id = str(uuid7())
     row = Afdeling(
@@ -122,6 +132,7 @@ def rename(db: Session, *, entity_id: str, name: str, changed_by: str) -> Afdeli
     Refuses with ValueError when the new name collides (case-
     insensitive) with another active chapter.
     """
+    name = normalise_name(name)
     current_row = find_current_by_entity(db, entity_id)
     if current_row is None:
         return None

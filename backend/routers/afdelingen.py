@@ -48,7 +48,9 @@ def create_afdeling(
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
 ) -> AfdelingOut:
-    name = data.name.strip()
+    name = svc.normalise_name(data.name)
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
     if svc.name_exists_active(db, name):
         raise HTTPException(status_code=409, detail="An afdeling with that name already exists")
     row = svc.create(db, name=name, changed_by=admin.id)
@@ -67,7 +69,9 @@ def rename_afdeling(
     """SCD2-update the chapter's name. Closes the current version and
     inserts a new row with the new name (same entity_id), so events /
     users tracking it follow automatically."""
-    name = data.name.strip()
+    name = svc.normalise_name(data.name)
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
     try:
         row = svc.rename(db, entity_id=entity_id, name=name, changed_by=admin.id)
     except ValueError as exc:

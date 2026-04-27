@@ -115,7 +115,7 @@
     "archiveConfirmTitle": "Delete chapter?",
     "archiveConfirmBody": "{name} will be hidden. Events stay linked; restoring brings them back into view.",
     "deleteDialogTitle": "Delete {name}",
-    "deleteDialogBody": "Optional — reassign users or events first.",
+    "deleteDialogBody": "Optionally reassign users or events to another chapter.",
     "deleteUsersLabel": "{n} user(s) — reassign to",
     "deleteEventsLabel": "{n} event(s) — reassign to",
     "deleteLeaveOrphaned": "Don't reassign",

@@ -40,33 +40,16 @@
 
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
 
-  /* Dialogs match the page surfaces (cream, warm border) — no internal
-   * separator lines between header / body / footer. The PrimeVue
-   * defaults paint a colder, brighter card that clashes with the rest
-   * of the app on the cream background. */
-  .p-dialog {
-    background: var(--brand-surface);
-    border: 1px solid var(--brand-border);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    border-radius: 10px;
-  }
-  .p-dialog .p-dialog-header,
-  .p-dialog .p-dialog-content,
-  .p-dialog .p-dialog-footer {
-    background: var(--brand-surface);
-    color: var(--brand-text);
-    border: none;
-  }
+  /* Brand-red dialog title + icon. Backgrounds and borders all flow
+   * from the PrimeVue preset's surface palette — no per-component
+   * overrides needed (every dialog, dropdown, and form field shares
+   * the same cream tokens). */
   .p-dialog .p-dialog-title {
     color: var(--brand-red);
     font-weight: 600;
-    font-size: 1.0625rem;
   }
   .p-dialog .p-confirmdialog-icon {
     color: var(--brand-red);
-  }
-  .p-dialog .p-dialog-footer {
-    gap: 0.5rem;
   }
   .p-dialog-mask {
     background: rgba(26, 26, 26, 0.4);

@@ -115,7 +115,7 @@
     "archiveConfirmTitle": "Afdeling verwijderen?",
     "archiveConfirmBody": "{name} wordt verborgen. Evenementen blijven gekoppeld; bij herstel zijn ze weer zichtbaar.",
     "deleteDialogTitle": "{name} verwijderen",
-    "deleteDialogBody": "Optioneel — draag eerst gebruikers of evenementen over.",
+    "deleteDialogBody": "Optioneel: draag gebruikers of evenementen over naar een andere afdeling.",
     "deleteUsersLabel": "{n} gebruiker(s) — overdragen aan",
     "deleteEventsLabel": "{n} evenement(en) — overdragen aan",
     "deleteLeaveOrphaned": "Niet overdragen",

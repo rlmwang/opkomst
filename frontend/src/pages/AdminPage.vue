@@ -172,12 +172,38 @@ async function onPickedAfdelingFromAddBar(a: Afdeling) {
   }
 }
 
+function normaliseChapterName(name: string): string {
+  // Mirror backend services.afdelingen.normalise_name — strip + collapse
+  // internal whitespace so " Den   Haag " matches "Den Haag" exactly.
+  return name.trim().split(/\s+/).join(" ");
+}
+
 async function onCreateFromAddBar(name: string) {
+  // If the typed name exactly matches a soft-deleted chapter
+  // (whitespace-normalised + case-insensitive), Enter restores that
+  // one rather than creating a duplicate. Without this branch the
+  // dupe-name guard would block the create, and the archived chapter
+  // would be permanently unreachable from the keyboard.
   try {
-    await afdelingen.create(name);
+    const normalised = normaliseChapterName(name);
+    const matches = await afdelingen.search(normalised, true);
+    const lower = normalised.toLowerCase();
+    const archivedMatch = matches.find(
+      (a) => a.archived && a.name.toLowerCase() === lower,
+    );
+    if (archivedMatch) {
+      await afdelingen.restore(archivedMatch.id);
+      toast.add({
+        severity: "success",
+        summary: t("afdelingen.restoredToast", { name: archivedMatch.name }),
+        life: 2000,
+      });
+      return;
+    }
+    await afdelingen.create(normalised);
     toast.add({
       severity: "success",
-      summary: t("afdelingen.createdToast", { name }),
+      summary: t("afdelingen.createdToast", { name: normalised }),
       life: 2000,
     });
   } catch {
@@ -369,6 +395,7 @@ async function submitDelete() {
       modal
       :style="{ width: '480px' }"
     >
+      <p class="dialog-body muted">{{ t("afdelingen.deleteDialogBody") }}</p>
       <div v-if="deleteUsage.users > 0" class="reassign-row">
         <label>
           {{ t("afdelingen.deleteUsersLabel", { n: deleteUsage.users }) }}
