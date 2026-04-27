@@ -40,33 +40,36 @@
 
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
 
-  /* Confirm dialog: cream surface, brand-red title, warm border —
-   * matches the rest of the app instead of the default neutral grey. */
-  .p-confirmdialog {
+  /* Dialogs match the page surfaces (cream, warm border) — no internal
+   * separator lines between header / body / footer. The PrimeVue
+   * defaults paint a colder, brighter card that clashes with the rest
+   * of the app on the cream background. */
+  .p-dialog {
     background: var(--brand-surface);
     border: 1px solid var(--brand-border);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
   }
-  .p-confirmdialog .p-dialog-header {
+  .p-dialog .p-dialog-header,
+  .p-dialog .p-dialog-content,
+  .p-dialog .p-dialog-footer {
     background: var(--brand-surface);
     color: var(--brand-text);
-    border-bottom: 1px solid var(--brand-border);
+    border: none;
   }
-  .p-confirmdialog .p-dialog-title {
+  .p-dialog .p-dialog-title {
     color: var(--brand-red);
     font-weight: 600;
+    font-size: 1.0625rem;
   }
-  .p-confirmdialog .p-dialog-content,
-  .p-confirmdialog .p-confirmdialog-message {
-    background: var(--brand-surface);
-    color: var(--brand-text);
-  }
-  .p-confirmdialog .p-confirmdialog-icon {
+  .p-dialog .p-confirmdialog-icon {
     color: var(--brand-red);
   }
-  .p-confirmdialog .p-dialog-footer {
-    background: var(--brand-surface);
-    border-top: 1px solid var(--brand-border);
+  .p-dialog .p-dialog-footer {
+    gap: 0.5rem;
+  }
+  .p-dialog-mask {
+    background: rgba(26, 26, 26, 0.4);
   }
 
   /* Secondary buttons in the brand-red family at low saturation:

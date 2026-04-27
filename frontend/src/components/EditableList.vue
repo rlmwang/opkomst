@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T">
 import Button from "primevue/button";
+import { useI18n } from "vue-i18n";
 
 defineProps<{
   /** The current items. */
@@ -8,12 +9,13 @@ defineProps<{
   itemLabel: (item: T) => string;
   /** Stable per-item key for the v-for. */
   itemKey: (item: T) => string;
-  /** Slot for a custom add control (typically an InputText with a + button). */
 }>();
 
 const emit = defineEmits<{
   remove: [item: T];
 }>();
+
+const { t } = useI18n();
 
 function ask(item: T) {
   emit("remove", item);
@@ -33,7 +35,7 @@ function ask(item: T) {
         size="small"
         severity="secondary"
         text
-        :aria-label="'Verwijder'"
+        :aria-label="t('common.remove')"
         @click="ask(item)"
       />
     </div>
@@ -54,6 +56,12 @@ function ask(item: T) {
   align-items: center;
   gap: 0.5rem;
   justify-content: space-between;
+  padding: 0.375rem 0.5rem;
+  border-radius: 6px;
+  transition: background 120ms ease;
+}
+.row:hover {
+  background: var(--brand-bg);
 }
 .row-label {
   flex: 1;
@@ -61,11 +69,17 @@ function ask(item: T) {
 }
 .add-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.5rem;
-  margin-top: 0.25rem;
+  margin-top: 0.5rem;
+  padding: 0 0.5rem;
 }
-.add-row :deep(.p-inputtext) {
+.add-row > * {
   flex: 1;
+  min-width: 0;
+}
+.add-row :deep(.p-autocomplete),
+.add-row :deep(.p-inputtext) {
+  width: 100%;
 }
 </style>

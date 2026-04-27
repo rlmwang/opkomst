@@ -14,7 +14,7 @@ External references (Event.afdeling_id, User.afdeling_id) point at
 
 from datetime import UTC, datetime
 
-from sqlalchemy import or_
+from sqlalchemy import func
 from sqlalchemy.orm import Query, Session
 from uuid_utils import uuid7
 
@@ -87,16 +87,14 @@ def name_for_entity(db: Session, entity_id: str | None) -> str | None:
     return row.name if row else None
 
 
-def name_exists_active(db: Session, name: str) -> bool:
-    """True if an active afdeling with this name (case-insensitive) already
-    exists. Used to keep the create flow idempotent — typing an existing
-    name shouldn't mint a duplicate."""
-    return (
-        current(db.query(Afdeling))
-        .filter(or_(Afdeling.name == name, Afdeling.name.ilike(name)))
-        .first()
-        is not None
-    )
+def name_exists_active(db: Session, name: str, *, exclude_entity_id: str | None = None) -> bool:
+    """True if an active afdeling already has this name (case-insensitive).
+    The optional ``exclude_entity_id`` lets the rename flow skip its own
+    row — otherwise renaming to its existing name would always conflict."""
+    q = current(db.query(Afdeling)).filter(func.lower(Afdeling.name) == name.strip().lower())
+    if exclude_entity_id is not None:
+        q = q.filter(Afdeling.entity_id != exclude_entity_id)
+    return q.first() is not None
 
 
 def create(db: Session, *, name: str, changed_by: str) -> Afdeling:
@@ -114,6 +112,35 @@ def create(db: Session, *, name: str, changed_by: str) -> Afdeling:
     db.add(row)
     db.flush()
     return row
+
+
+def rename(db: Session, *, entity_id: str, name: str, changed_by: str) -> Afdeling | None:
+    """SCD2 update: close the current version, insert a new one with
+    the new name. Same entity_id, so every row in events / users
+    pointing at this chapter follows the rename automatically.
+
+    Refuses with ValueError when the new name collides (case-
+    insensitive) with another active chapter.
+    """
+    current_row = find_current_by_entity(db, entity_id)
+    if current_row is None:
+        return None
+    if name_exists_active(db, name, exclude_entity_id=entity_id):
+        raise ValueError("Name already in use")
+    now = datetime.now(UTC)
+    new_row = Afdeling(
+        id=str(uuid7()),
+        name=name,
+        entity_id=entity_id,
+        valid_from=now,
+        valid_until=None,
+        changed_by=changed_by,
+        change_kind="updated",
+    )
+    current_row.valid_until = now
+    db.add(new_row)
+    db.flush()
+    return new_row
 
 
 def archive(db: Session, *, entity_id: str, changed_by: str) -> Afdeling | None:
@@ -139,12 +166,22 @@ def archive(db: Session, *, entity_id: str, changed_by: str) -> Afdeling | None:
 def restore(db: Session, *, entity_id: str, changed_by: str) -> Afdeling:
     """Insert a new current version for a previously-archived entity.
     Copies the most recent name forward; the admin can rename via a
-    separate update."""
+    separate update.
+
+    Refuses if the archived name now collides (case-insensitive) with
+    another active chapter — this prevents the "delete X → create new
+    X → restore old X" duplicate-name footgun.
+    """
     last = find_any_by_entity(db, entity_id)
     if last is None:
         raise ValueError(f"No afdeling history for entity_id={entity_id}")
     if last.valid_until is None:
         raise ValueError("Afdeling is already current")
+    if name_exists_active(db, last.name):
+        raise ValueError(
+            f"Name '{last.name}' is already in use by another chapter — "
+            "rename or delete that one first."
+        )
     now = datetime.now(UTC)
     new_row = Afdeling(
         id=str(uuid7()),
