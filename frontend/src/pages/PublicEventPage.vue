@@ -195,6 +195,16 @@ async function submit() {
         />
       </AppCard>
 
+      <AppCard v-if="!submitted" :stack="false" class="privacy-card">
+        <details>
+          <summary>{{ t("public.explainerTitle") }}</summary>
+          <p class="privacy-body">
+            {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
+            <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
+          </p>
+        </details>
+      </AppCard>
+
       <AppCard v-if="submitted">
         <h2>{{ t("public.thanks") }}</h2>
         <p class="muted">
@@ -256,13 +266,6 @@ async function submit() {
         </AppCard>
       </form>
 
-      <details v-if="!submitted" class="privacy-footer">
-        <summary>{{ t("public.explainerTitle") }}</summary>
-        <p>
-          {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
-          <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
-        </p>
-      </details>
     </template>
   </div>
 </template>
@@ -286,21 +289,20 @@ async function submit() {
   margin: -0.5rem 0 0.5rem;
   font-size: 0.9375rem;
 }
-/* Privacy explainer at the bottom of the page — small print
- * pattern. Open by click; closed by default so it doesn't compete
- * with the form for attention. */
-.privacy-footer {
-  font-size: 0.875rem;
-  color: var(--brand-text-muted);
-  padding: 0 0.5rem;
-}
-.privacy-footer summary {
+/* Privacy explainer between the event header and the sign-up form.
+ * A normal-looking card, but the contents are a foldable
+ * ``<details>`` so the section is one click away rather than
+ * always-on; closed by default so it doesn't dominate the page. */
+.privacy-card summary {
   cursor: pointer;
   user-select: none;
-  padding: 0.25rem 0;
+  font-weight: 600;
+  padding: 0.125rem 0;
 }
-.privacy-footer p {
-  margin: 0.5rem 0 0;
+.privacy-card .privacy-body {
+  margin: 0.75rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--brand-text-muted);
   line-height: 1.5;
 }
 /* Bottom row of the card: the "* required" key sits on the left,
