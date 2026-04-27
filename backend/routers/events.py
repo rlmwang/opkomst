@@ -49,10 +49,16 @@ def _retire_disabled_channels(
     attribute writes would have lost that race."""
     if not (questionnaire_disabled or reminder_disabled):
         return
+    # ``message_id IS NULL`` excludes rows currently mid-send by a
+    # worker (which has pre-minted the message_id but hasn't
+    # finalised yet). Without that filter, a worker can SMTP-ack
+    # the email while we flip the channel to not_applicable —
+    # the email goes out but the row says it didn't.
     if questionnaire_disabled:
         db.query(Signup).filter(
             Signup.event_id == event_entity_id,
             Signup.feedback_email_status == "pending",
+            Signup.feedback_message_id.is_(None),
         ).update(
             {Signup.feedback_email_status: "not_applicable"},
             synchronize_session=False,
@@ -61,6 +67,7 @@ def _retire_disabled_channels(
         db.query(Signup).filter(
             Signup.event_id == event_entity_id,
             Signup.reminder_email_status == "pending",
+            Signup.reminder_message_id.is_(None),
         ).update(
             {Signup.reminder_email_status: "not_applicable"},
             synchronize_session=False,

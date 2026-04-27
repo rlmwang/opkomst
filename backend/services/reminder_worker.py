@@ -152,28 +152,27 @@ def reap_expired() -> int:
     now = datetime.now(UTC)
     db = SessionLocal()
     try:
-        # Subquery: which signups belong to an event that's
-        # already started? We can't ``join`` an UPDATE against
-        # SQLAlchemy core in a way that's both portable and
-        # readable, so resolve the entity_ids in a separate
-        # SELECT and use them in an IN-list.
-        expired_event_ids = [
-            row[0]
-            for row in db.query(Event.entity_id)
+        # Correlated subquery — works on both SQLite and Postgres,
+        # and unlike the previous "load entity_ids into a Python
+        # list and IN-clause" approach has no upper bound on the
+        # row count: a long-lived DB with thousands of past events
+        # would otherwise drag every entity_id through the worker
+        # process every 24h.
+        expired_event_exists = (
+            db.query(Event.entity_id)
             .filter(
                 Event.valid_until.is_(None),
                 Event.starts_at <= now,
+                Event.entity_id == Signup.event_id,
             )
-            .all()
-        ]
-        if not expired_event_ids:
-            return 0
+            .exists()
+        )
 
         reaped = (
             db.query(Signup)
             .filter(
-                Signup.event_id.in_(expired_event_ids),
                 Signup.reminder_email_status == "pending",
+                expired_event_exists,
             )
             .update(
                 {
@@ -186,10 +185,11 @@ def reap_expired() -> int:
                 synchronize_session=False,
             )
         )
-        # Wipe ciphertext on rows whose channels are now both
-        # settled — same DB-side rule the per-row workers use.
+        # Wipe ciphertext on rows of expired events whose channels
+        # are now both settled — same DB-side rule the per-row
+        # workers use.
         db.query(Signup).filter(
-            Signup.event_id.in_(expired_event_ids),
+            expired_event_exists,
             Signup.feedback_email_status != "pending",
             Signup.reminder_email_status != "pending",
         ).update({Signup.encrypted_email: None}, synchronize_session=False)

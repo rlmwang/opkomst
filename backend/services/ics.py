@@ -83,7 +83,7 @@ def _fmt_utc(dt: datetime) -> str:
 
 def build_event_ics(event: Event, *, public_base_url: str) -> str:
     """Render a single-event ``text/calendar`` payload."""
-    domain = os.environ.get("MESSAGE_ID_DOMAIN", "opkomst.nu")
+    domain = os.environ["MESSAGE_ID_DOMAIN"]
     public_url = f"{public_base_url.rstrip('/')}/e/{event.slug}"
     now = datetime.now(UTC)
 

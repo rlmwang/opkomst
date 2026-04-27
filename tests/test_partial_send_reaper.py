@@ -126,8 +126,15 @@ def test_reaper_stamps_sent_at_so_row_isnt_re_fetched(
 ) -> None:
     """The reaper must stamp ``*_sent_at`` along with the status
     flip, otherwise the regular sweep's ``sent_at IS NULL`` filter
-    keeps re-fetching the row every tick. Verifies the invariant
-    "settled ⇒ sent_at IS NOT NULL" is upheld by the reaper."""
+    keeps re-fetching the row every tick.
+
+    Two-step assertion: (a) the row is left at ``failed`` with a
+    ``sent_at`` stamp; (b) the next ``feedback_worker.run_once``
+    finds zero rows to process, confirming the reaper actually
+    breaks the hot loop.
+    """
+    from backend.services import feedback_worker
+
     e = make_event(db, starts_in=timedelta(hours=-26), duration=timedelta(hours=1))
     s = make_signup(db, e, email="alice@example.test")
     s.feedback_message_id = "<stuck@opkomst.nu>"
@@ -144,3 +151,9 @@ def test_reaper_stamps_sent_at_so_row_isnt_re_fetched(
         assert row.feedback_sent_at is not None
     finally:
         fresh.close()
+
+    # And the next sweep finds nothing to do — the row is
+    # excluded by both the status filter (now 'failed') and (as
+    # belt-and-braces) the sent_at filter.
+    assert feedback_worker.run_once() == 0
+    assert fake_email.sent == []

@@ -50,6 +50,16 @@ def main() -> None:
     finally:
         db.close()
 
+    # Also catch up on any reminder rows whose 72h pre-event
+    # window passed during a prior outage. APScheduler's
+    # ``interval`` trigger doesn't fire at boot — only after the
+    # first interval elapses — so without this initial call a
+    # multi-hour gap would never get cleaned up if the worker
+    # restarts more often than the daily reaper would run.
+    boot_reaped = reminder_worker.reap_expired()
+    if boot_reaped:
+        logger.info("worker_boot_reap_expired", count=boot_reaped)
+
     # BackgroundScheduler runs the sweeps in a worker thread, which
     # leaves the main thread free to block on a signal-aware
     # event. (BlockingScheduler.start() uses an internal

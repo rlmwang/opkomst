@@ -1,6 +1,7 @@
 """Privacy invariants — verified against the live code path:
 
-1. Email decryption only legitimate caller is the feedback worker.
+1. Email decryption is only called by the email worker code paths
+   (feedback + reminder). No router, no schema, no SCD2 helper.
 2. Encrypted email is wiped after the worker processes a signup.
 3. Signups list endpoint returns only ``display_name`` + ``party_size`` —
    never email, source, or feedback status.
@@ -8,9 +9,11 @@
 """
 
 
-def test_decrypt_only_called_from_feedback_worker():
-    """Static check: the only call site of ``encryption.decrypt``
-    in the backend should be ``feedback_worker._process_one``."""
+def test_decrypt_only_called_from_email_workers():
+    """Static check: the only call sites of ``encryption.decrypt``
+    in the backend are the two email workers. Adding a third
+    caller is a privacy red flag and must be a deliberate code
+    review, not a casual change."""
     import pathlib
 
     backend_dir = pathlib.Path(__file__).resolve().parent.parent / "backend"
@@ -22,7 +25,10 @@ def test_decrypt_only_called_from_feedback_worker():
             continue
         if "encryption.decrypt" in text or "from .encryption import decrypt" in text:
             callers.append(str(path.relative_to(backend_dir.parent)))
-    assert callers == ["backend/services/feedback_worker.py"], callers
+    assert sorted(callers) == [
+        "backend/services/feedback_worker.py",
+        "backend/services/reminder_worker.py",
+    ], callers
 
 
 def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
