@@ -28,7 +28,7 @@ import structlog
 
 from ..database import SessionLocal
 from ..models import Event, Signup
-from . import email_lifecycle, encryption
+from . import encryption
 from .email import build_url, send_email_sync
 
 logger = structlog.get_logger()
@@ -77,15 +77,40 @@ def _process_one(db, signup: Signup, event: Event) -> None:
             except Exception:
                 logger.exception("reminder_send_failed", signup_id=signup.id, attempt=attempt)
 
-    signup.reminder_sent_at = datetime.now(UTC)
-    if sent:
-        signup.reminder_email_status = "sent"
-        signup.reminder_message_id = message_id
-    else:
-        signup.reminder_email_status = "failed"
-        signup.reminder_message_id = None
-    email_lifecycle.wipe_if_done(signup)
-    db.add(signup)
+    # Conditional UPDATE — same defence-in-depth pattern as the
+    # feedback worker. If the row's status moved under us, bail
+    # without overwriting whatever the other process / toggle-off
+    # cleanup decided.
+    new_status = "sent" if sent else "failed"
+    new_msg_id = message_id if sent else None
+    updated = (
+        db.query(Signup)
+        .filter(
+            Signup.id == signup.id,
+            Signup.reminder_email_status == "pending",
+        )
+        .update(
+            {
+                Signup.reminder_sent_at: datetime.now(UTC),
+                Signup.reminder_email_status: new_status,
+                Signup.reminder_message_id: new_msg_id,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated == 0:
+        logger.info("reminder_skipped_status_changed", signup_id=signup.id)
+        return
+
+    # Wipe the ciphertext only when no channel still has pending
+    # activity. Conditional UPDATE re-reads from the DB, so a
+    # concurrent feedback-worker commit is visible without
+    # depending on the (stale) in-memory ORM state on ``signup``.
+    db.query(Signup).filter(
+        Signup.id == signup.id,
+        Signup.feedback_email_status != "pending",
+        Signup.reminder_email_status != "pending",
+    ).update({Signup.encrypted_email: None}, synchronize_session=False)
 
     logger.info("reminder_processed", signup_id=signup.id, sent=sent)
 

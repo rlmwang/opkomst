@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
-from . import email_lifecycle, encryption, scd2
+from . import encryption, scd2
 from .email import build_url, send_email_sync
 
 logger = structlog.get_logger()
@@ -91,20 +91,51 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
             except Exception:
                 logger.exception("feedback_send_failed", signup_id=signup.id, attempt=attempt)
 
-    signup.feedback_sent_at = datetime.now(UTC)
-    if sent:
-        signup.feedback_email_status = "sent"
-        signup.feedback_message_id = message_id
-    else:
-        signup.feedback_email_status = "failed"
+    # Flip the status with a WHERE clause that asserts the row is
+    # still ``pending``. If a parallel worker already finished it
+    # (Phase 1.1 makes the parallel case impossible today, but the
+    # filter is cheap defence in depth), the UPDATE is a no-op and
+    # we don't stomp the other worker's result.
+    new_status = "sent" if sent else "failed"
+    new_msg_id = message_id if sent else None
+    updated = (
+        db.query(Signup)
+        .filter(
+            Signup.id == signup.id,
+            Signup.feedback_email_status == "pending",
+        )
+        .update(
+            {
+                Signup.feedback_sent_at: datetime.now(UTC),
+                Signup.feedback_email_status: new_status,
+                Signup.feedback_message_id: new_msg_id,
+            },
+            synchronize_session=False,
+        )
+    )
+    if updated == 0:
+        # Someone else (a stale parallel worker, or a toggle-off
+        # cleanup) flipped the status from under us. Drop our token
+        # since the row no longer expects a feedback link, and
+        # bail. The email may still have gone out — that's the
+        # double-send window Phase 2.1 closes.
         if token:
             db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
-        signup.feedback_message_id = None
-    # Wipe the ciphertext only when no other pending email activity
-    # remains (e.g. a reminder that hasn't fired yet); see
-    # ``email_lifecycle`` for the rule.
-    email_lifecycle.wipe_if_done(signup)
-    db.add(signup)
+        logger.info("feedback_skipped_status_changed", signup_id=signup.id)
+        return
+    if not sent and token:
+        # Failed sends shouldn't leave a redeemable token behind.
+        db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
+
+    # Wipe the ciphertext only when no channel still has pending
+    # activity. Conditional UPDATE re-reads from the DB, so a
+    # concurrent reminder-worker commit is visible without
+    # depending on the (stale) in-memory ORM state on ``signup``.
+    db.query(Signup).filter(
+        Signup.id == signup.id,
+        Signup.feedback_email_status != "pending",
+        Signup.reminder_email_status != "pending",
+    ).update({Signup.encrypted_email: None}, synchronize_session=False)
 
     logger.info("feedback_processed", signup_id=signup.id, sent=sent)
 
