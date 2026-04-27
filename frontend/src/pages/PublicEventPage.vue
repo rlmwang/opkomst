@@ -279,6 +279,11 @@ async function submit() {
 .form-section + .form-section {
   margin-top: 2rem;
 }
+/* Card heading sits a bit further from the first field — the
+ * default 0.75rem stack gap glues the h2 to the input. */
+.signup-form :deep(.card) > h2 {
+  margin-bottom: 0.5rem;
+}
 /* Privacy explainer between the event header and the sign-up form.
  * A normal-looking card, but the contents are a foldable
  * ``<details>`` so the section is one click away rather than
