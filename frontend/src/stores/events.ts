@@ -13,6 +13,7 @@ export interface EventOut {
   starts_at: string;
   ends_at: string;
   source_options: string[];
+  help_options: string[];
   questionnaire_enabled: boolean;
   locale: "nl" | "en";
   chapter_id: string | null;
@@ -40,6 +41,7 @@ export interface EventCreate {
   starts_at: string;
   ends_at: string;
   source_options: string[];
+  help_options: string[];
   questionnaire_enabled: boolean;
   locale: "nl" | "en";
 }
@@ -99,6 +101,7 @@ export const useEventsStore = defineStore("events", () => {
     display_name: string;
     party_size: number;
     source_choice: string;
+    help_choices: string[];
     email: string | null;
   }): Promise<void> {
     await post(`/api/v1/events/by-slug/${slug}/signups`, payload);

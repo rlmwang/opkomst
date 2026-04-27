@@ -26,6 +26,9 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # Optional list of "I can help with" tasks (e.g. opbouwen / afbreken).
+    # Empty list means the question isn't shown on the public form.
+    help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     questionnaire_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # ISO language tag — drives the public-page UI language and the
     # locale of the post-event feedback email. Two-letter codes
@@ -58,6 +61,10 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     party_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     source_choice: Mapped[str] = mapped_column(Text, nullable=False)
+    # Subset of the parent event's ``help_options`` the attendee opted
+    # into (e.g. ["opbouwen"]). Empty when the event has no help_options
+    # configured or the attendee skipped the question.
+    help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     encrypted_email: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     feedback_email_status: Mapped[str] = mapped_column(
         Text, nullable=False, default="not_applicable", index=True

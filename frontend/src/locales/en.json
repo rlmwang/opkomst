@@ -164,6 +164,13 @@
       "flyer": "Flyer",
       "poster": "Poster"
     },
+    "helpHeading": "I can help with",
+    "helpExplainer": "Optional. Sign-ups can tick the tasks they want to help with. Leave the list empty to hide the question.",
+    "newHelp": "Add new option",
+    "helpDefaults": {
+      "setup": "Setup",
+      "teardown": "Teardown"
+    },
     "create": "Create event",
     "save": "Save",
     "saveFailed": "Save failed",
@@ -215,6 +222,7 @@
     "partySize": "Number of people",
     "partySizeHelp": "Including yourself — so you + anyone coming with you.",
     "sourcePlaceholder": "How did you find us?",
+    "helpHeading": "I can help with",
     "emailOptional": "Email (optional, for one feedback message)",
     "submit": "Sign up",
     "submitFail": "Sign-up failed",

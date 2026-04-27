@@ -47,6 +47,7 @@ def _to_out(db: Session, event: Event) -> EventOut:
         starts_at=event.starts_at,
         ends_at=event.ends_at,
         source_options=event.source_options,
+        help_options=event.help_options,
         questionnaire_enabled=event.questionnaire_enabled,
         locale=event.locale,
         chapter_id=event.chapter_id,
@@ -99,6 +100,7 @@ def create_event(
         starts_at=data.starts_at,
         ends_at=data.ends_at,
         source_options=data.source_options,
+        help_options=data.help_options,
         questionnaire_enabled=data.questionnaire_enabled,
         locale=data.locale,
         chapter_id=user.chapter_id,
@@ -229,6 +231,7 @@ def update_event(
         starts_at=data.starts_at,
         ends_at=data.ends_at,
         source_options=data.source_options,
+        help_options=data.help_options,
         questionnaire_enabled=data.questionnaire_enabled,
         locale=data.locale,
     )

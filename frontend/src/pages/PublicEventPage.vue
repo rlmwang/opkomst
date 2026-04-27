@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from "primevue/button";
+import Checkbox from "primevue/checkbox";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
@@ -27,6 +28,7 @@ const error = ref<string | null>(null);
 const displayName = ref("");
 const partySize = ref(1);
 const sourceChoice = ref<string | null>(null);
+const helpChoices = ref<string[]>([]);
 const email = ref("");
 const submitting = ref(false);
 const submitted = ref(false);
@@ -42,6 +44,7 @@ interface SignupDraft {
   displayName: string;
   partySize: number;
   sourceChoice: string | null;
+  helpChoices: string[];
   email: string;
 }
 
@@ -50,6 +53,7 @@ function snapshot(): SignupDraft {
     displayName: displayName.value,
     partySize: partySize.value,
     sourceChoice: sourceChoice.value,
+    helpChoices: [...helpChoices.value],
     email: email.value,
   };
 }
@@ -58,6 +62,7 @@ function applyDraft(d: SignupDraft) {
   displayName.value = d.displayName;
   partySize.value = d.partySize;
   sourceChoice.value = d.sourceChoice;
+  helpChoices.value = [...(d.helpChoices ?? [])];
   email.value = d.email;
 }
 
@@ -70,7 +75,7 @@ function clearDraft() {
 }
 
 let _saveTimer: number | null = null;
-watch([displayName, partySize, sourceChoice, email], () => {
+watch([displayName, partySize, sourceChoice, helpChoices, email], () => {
   if (_saveTimer !== null) clearTimeout(_saveTimer);
   _saveTimer = window.setTimeout(() => {
     try {
@@ -126,6 +131,7 @@ async function submit() {
       display_name: name,
       party_size: partySize.value,
       source_choice: sourceChoice.value,
+      help_choices: helpChoices.value,
       email: trimmedEmail || null,
     });
     submitted.value = true;
@@ -216,6 +222,13 @@ async function submit() {
           :placeholder="t('public.sourcePlaceholder')"
           fluid
         />
+        <fieldset v-if="event.help_options.length > 0" class="help-choices">
+          <legend>{{ t("public.helpHeading") }}</legend>
+          <label v-for="opt in event.help_options" :key="opt" class="help-row">
+            <Checkbox v-model="helpChoices" :value="opt" />
+            <span>{{ opt }}</span>
+          </label>
+        </fieldset>
         <InputText
           v-if="event.questionnaire_enabled"
           v-model="email"
@@ -240,6 +253,30 @@ async function submit() {
   margin: 0;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
+}
+/* "I can help with" — multi-select rendered as a vertical stack of
+ * checkboxes. Fieldset reset because PrimeVue doesn't ship a
+ * checkbox group component that styles legends consistently. */
+.help-choices {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.help-choices legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.help-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-size: 0.95rem;
 }
 
 .event-header {

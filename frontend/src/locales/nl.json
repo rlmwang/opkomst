@@ -164,6 +164,13 @@
       "flyer": "Flyer",
       "poster": "Poster"
     },
+    "helpHeading": "Ik kan helpen met",
+    "helpExplainer": "Optioneel. Aanmelders kunnen aanvinken waarmee ze willen helpen. Laat de lijst leeg om de vraag niet te tonen.",
+    "newHelp": "Nieuwe optie toevoegen",
+    "helpDefaults": {
+      "setup": "Opbouwen",
+      "teardown": "Afbreken"
+    },
     "create": "Evenement aanmaken",
     "save": "Opslaan",
     "saveFailed": "Opslaan mislukt",
@@ -215,6 +222,7 @@
     "partySize": "Aantal personen",
     "partySizeHelp": "Inclusief jezelf — dus jij plus de mensen die met je meekomen.",
     "sourcePlaceholder": "Hoe heb je ons gevonden?",
+    "helpHeading": "Ik kan helpen met",
     "emailOptional": "E-mailadres (optioneel, voor één feedbackmail)",
     "submit": "Aanmelden",
     "submitFail": "Aanmelden mislukt",

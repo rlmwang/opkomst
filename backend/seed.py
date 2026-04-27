@@ -82,6 +82,7 @@ def _ensure_event(
     ends_at: datetime,
     created_by: str,
     source_options: list[str],
+    help_options: list[str],
     chapter_id: str | None,
 ) -> Event:
     existing = (
@@ -104,6 +105,7 @@ def _ensure_event(
         starts_at=starts_at,
         ends_at=ends_at,
         source_options=source_options,
+        help_options=help_options,
         chapter_id=chapter_id,
         created_by=created_by,
         locale="nl",
@@ -181,6 +183,7 @@ def run_local_demo() -> None:
 
         now = datetime.now(UTC)
         sources = ["Flyer", "Mond-tot-mond", "Social media"]
+        help_options = ["Opbouwen", "Afbreken"]
 
         upcoming = _ensure_event(
             db,
@@ -190,6 +193,7 @@ def run_local_demo() -> None:
             ends_at=now + timedelta(days=3, hours=2),
             created_by=organiser.entity_id,
             source_options=sources,
+            help_options=help_options,
             chapter_id=amsterdam_id,
         )
 
@@ -201,6 +205,7 @@ def run_local_demo() -> None:
             ends_at=now - timedelta(days=2),
             created_by=organiser.entity_id,
             source_options=sources,
+            help_options=help_options,
             chapter_id=amsterdam_id,
         )
 

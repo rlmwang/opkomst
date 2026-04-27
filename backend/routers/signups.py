@@ -27,6 +27,12 @@ def create_signup(
         raise HTTPException(status_code=404, detail="Event not found")
     if data.source_choice not in event.source_options:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
+    invalid_help = [c for c in data.help_choices if c not in event.help_options]
+    if invalid_help:
+        raise HTTPException(
+            status_code=400,
+            detail=f"help_choices must be a subset of the event's help_options: {invalid_help}",
+        )
 
     has_email = bool(data.email) and event.questionnaire_enabled
     encrypted = encryption.encrypt(data.email) if has_email and data.email else None
@@ -36,6 +42,7 @@ def create_signup(
         display_name=data.display_name,
         party_size=data.party_size,
         source_choice=data.source_choice,
+        help_choices=data.help_choices,
         encrypted_email=encrypted,
         feedback_email_status="pending" if has_email else "not_applicable",
     )

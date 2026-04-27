@@ -64,6 +64,14 @@ const sources = ref<string[]>([
   t("event.sourceDefaults.poster"),
 ]);
 const newSource = ref("");
+// Default "I can help with" tasks. Optional — leave empty to hide
+// the question on the public form. Seeded in the organiser's locale;
+// once saved the strings are static (no auto-translate).
+const helpOptions = ref<string[]>([
+  t("event.helpDefaults.setup"),
+  t("event.helpDefaults.teardown"),
+]);
+const newHelp = ref("");
 const questionnaireEnabled = ref(true);
 // Default to the organiser's UI locale — they can override per-event
 // (e.g. an English-language event in NL).
@@ -87,6 +95,8 @@ interface FormDraft {
   endTime: string | null;
   sources: string[];
   newSource: string;
+  helpOptions: string[];
+  newHelp: string;
   questionnaireEnabled: boolean;
   eventLocale: "nl" | "en";
 }
@@ -103,6 +113,8 @@ function snapshot(): FormDraft {
     endTime: endTime.value?.toISOString() ?? null,
     sources: [...sources.value],
     newSource: newSource.value,
+    helpOptions: [...helpOptions.value],
+    newHelp: newHelp.value,
     questionnaireEnabled: questionnaireEnabled.value,
     eventLocale: eventLocale.value,
   };
@@ -119,6 +131,8 @@ function applyDraft(d: FormDraft) {
   endTime.value = d.endTime ? new Date(d.endTime) : null;
   sources.value = [...d.sources];
   newSource.value = d.newSource;
+  helpOptions.value = [...(d.helpOptions ?? [])];
+  newHelp.value = d.newHelp ?? "";
   questionnaireEnabled.value = d.questionnaireEnabled;
   eventLocale.value = d.eventLocale ?? "nl";
 }
@@ -142,7 +156,7 @@ function clearDraft() {
 
 let _saveTimer: number | null = null;
 watch(
-  [name, topic, location, latitude, longitude, eventDate, startTime, endTime, sources, newSource, questionnaireEnabled, eventLocale],
+  [name, topic, location, latitude, longitude, eventDate, startTime, endTime, sources, newSource, helpOptions, newHelp, questionnaireEnabled, eventLocale],
   () => {
     if (_saveTimer !== null) clearTimeout(_saveTimer);
     _saveTimer = window.setTimeout(() => {
@@ -179,6 +193,17 @@ function removeSource(i: number) {
   sources.value.splice(i, 1);
 }
 
+function addHelp() {
+  const v = newHelp.value.trim();
+  if (!v || helpOptions.value.includes(v)) return;
+  helpOptions.value.push(v);
+  newHelp.value = "";
+}
+
+function removeHelp(i: number) {
+  helpOptions.value.splice(i, 1);
+}
+
 function cancel() {
   clearDraft();
   // Edit-mode bails back to the details view; create-mode bails to
@@ -213,6 +238,7 @@ onMounted(async () => {
     startTime.value = new Date(start);
     endTime.value = new Date(end);
     sources.value = [...existing.source_options];
+    helpOptions.value = [...existing.help_options];
     questionnaireEnabled.value = existing.questionnaire_enabled;
     eventLocale.value = existing.locale;
   }
@@ -266,6 +292,7 @@ async function submit() {
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       source_options: sources.value,
+      help_options: helpOptions.value,
       questionnaire_enabled: questionnaireEnabled.value,
       locale: eventLocale.value,
     };
@@ -291,79 +318,115 @@ async function submit() {
   <div class="container">
     <AppCard tag="form" novalidate @submit.prevent="submit">
       <h1>{{ isEdit ? t("event.editTitle") : t("event.newTitle") }}</h1>
-      <InputText v-model="name" :placeholder="t('event.name')" fluid />
-      <InputText v-model="topic" :placeholder="t('event.topic')" fluid />
-      <LocationPicker
-        v-model="location"
-        :latitude="latitude"
-        :longitude="longitude"
-        :bias-lat="chapterBias.lat"
-        :bias-lon="chapterBias.lon"
-        @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
-      />
-      <DatePicker v-model="eventDate" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
-      <div class="time-row">
-        <DatePicker
-          v-model="startTime"
-          time-only
-          hour-format="24"
-          :step-minute="15"
-          :placeholder="t('event.startTime')"
-          fluid
-        />
-        <DatePicker
-          v-model="endTime"
-          time-only
-          hour-format="24"
-          :step-minute="15"
-          :placeholder="t('event.endTime')"
-          fluid
-        />
-      </div>
 
-      <label class="toggle-row" for="questionnaireToggle">
-        <ToggleSwitch v-model="questionnaireEnabled" inputId="questionnaireToggle" />
-        <strong>{{ t("event.questionnaireToggle") }}</strong>
-      </label>
-      <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
-
-      <h2 class="sources-heading">{{ t("event.sourcesHeading") }}</h2>
-      <p class="muted sources-explainer">{{ t("event.sourcesExplainer") }}</p>
-      <EditableList
-        :items="sources"
-        :item-label="(s: string) => s"
-        :item-key="(s: string) => s"
-        @remove="(s: string) => removeSource(sources.indexOf(s))"
-      >
-        <template #add>
-          <InputText
-            v-model="newSource"
-            :placeholder="t('event.newSource')"
+      <section class="form-section">
+        <InputText v-model="name" :placeholder="t('event.name')" fluid />
+        <InputText v-model="topic" :placeholder="t('event.topic')" fluid />
+        <LocationPicker
+          v-model="location"
+          :latitude="latitude"
+          :longitude="longitude"
+          :bias-lat="chapterBias.lat"
+          :bias-lon="chapterBias.lon"
+          @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
+        />
+        <DatePicker v-model="eventDate" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
+        <div class="time-row">
+          <DatePicker
+            v-model="startTime"
+            time-only
+            hour-format="24"
+            :step-minute="15"
+            :placeholder="t('event.startTime')"
             fluid
-            @keydown.enter.prevent="addSource"
           />
-          <Button
-            icon="pi pi-plus"
-            size="small"
-            severity="secondary"
-            :aria-label="t('event.newSource')"
-            @click="addSource"
+          <DatePicker
+            v-model="endTime"
+            time-only
+            hour-format="24"
+            :step-minute="15"
+            :placeholder="t('event.endTime')"
+            fluid
           />
-        </template>
-      </EditableList>
+        </div>
+      </section>
 
-      <h2 class="sources-heading">{{ t("event.localeHeading") }}</h2>
-      <p class="muted sources-explainer">{{ t("event.localeExplainer") }}</p>
-      <Select
-        v-model="eventLocale"
-        :options="[
-          { value: 'nl', label: t('event.localeNl') },
-          { value: 'en', label: t('event.localeEn') },
-        ]"
-        option-label="label"
-        option-value="value"
-        fluid
-      />
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
+        <p class="muted section-explainer">{{ t("event.sourcesExplainer") }}</p>
+        <EditableList
+          :items="sources"
+          :item-label="(s: string) => s"
+          :item-key="(s: string) => s"
+          @remove="(s: string) => removeSource(sources.indexOf(s))"
+        >
+          <template #add>
+            <InputText
+              v-model="newSource"
+              :placeholder="t('event.newSource')"
+              fluid
+              @keydown.enter.prevent="addSource"
+            />
+            <Button
+              icon="pi pi-plus"
+              size="small"
+              severity="secondary"
+              :aria-label="t('event.newSource')"
+              @click="addSource"
+            />
+          </template>
+        </EditableList>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("event.helpHeading") }}</h2>
+        <p class="muted section-explainer">{{ t("event.helpExplainer") }}</p>
+        <EditableList
+          :items="helpOptions"
+          :item-label="(s: string) => s"
+          :item-key="(s: string) => s"
+          @remove="(s: string) => removeHelp(helpOptions.indexOf(s))"
+        >
+          <template #add>
+            <InputText
+              v-model="newHelp"
+              :placeholder="t('event.newHelp')"
+              fluid
+              @keydown.enter.prevent="addHelp"
+            />
+            <Button
+              icon="pi pi-plus"
+              size="small"
+              severity="secondary"
+              :aria-label="t('event.newHelp')"
+              @click="addHelp"
+            />
+          </template>
+        </EditableList>
+      </section>
+
+      <section class="form-section">
+        <label class="toggle-row" for="questionnaireToggle">
+          <ToggleSwitch v-model="questionnaireEnabled" inputId="questionnaireToggle" />
+          <strong>{{ t("event.questionnaireToggle") }}</strong>
+        </label>
+        <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("event.localeHeading") }}</h2>
+        <p class="muted section-explainer">{{ t("event.localeExplainer") }}</p>
+        <Select
+          v-model="eventLocale"
+          :options="[
+            { value: 'nl', label: t('event.localeNl') },
+            { value: 'en', label: t('event.localeEn') },
+          ]"
+          option-label="label"
+          option-value="value"
+          fluid
+        />
+      </section>
 
       <div class="form-footer">
         <Button
@@ -380,6 +443,19 @@ async function submit() {
 </template>
 
 <style scoped>
+/* Each labelled block (basics / sources / help / questionnaire /
+ * locale) is a ``form-section``. Inside the section, fields stack
+ * with the standard 0.75rem gap; between sections we widen the gap
+ * to 1.75rem so the form reads as visibly grouped instead of one
+ * dense column. */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.form-section + .form-section {
+  margin-top: 1rem;
+}
 .time-row {
   display: flex;
   gap: 0.5rem;
@@ -396,15 +472,15 @@ async function submit() {
 .toggle-help {
   font-size: 0.8125rem;
 }
-.sources-heading {
+.section-heading {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
 }
-/* Tight under the heading rather than the standard card-stack
- * gap, so the heading + intro read as one block. */
-.sources-explainer {
-  margin: 0.25rem 0 0;
+/* Tight under the heading rather than the section's standard gap,
+ * so the heading + intro read as one block. */
+.section-explainer {
+  margin: -0.5rem 0 0;
 }
 /* Same shape as AppDialog's footer — Cancel + primary action,
  * right-aligned, matched gap. Keeps form-page submit ergonomics
