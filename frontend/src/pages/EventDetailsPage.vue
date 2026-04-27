@@ -35,6 +35,16 @@ const signups = ref<SignupSummary[]>([]);
 const summary = ref<FeedbackSummary | null>(null);
 const triggering = ref(false);
 
+// Tabular layout for the signup-list foldable: name in column 1,
+// one column per configured help_option (so chips of the same kind
+// stack vertically), party_size in the last column.
+const signupGridTemplate = computed(() => {
+  const n = event.value?.help_options.length ?? 0;
+  return n > 0
+    ? `minmax(0, 1fr) repeat(${n}, auto) auto`
+    : "minmax(0, 1fr) auto";
+});
+
 onMounted(async () => {
   if (events.all.length === 0) await events.fetchAll();
   event.value = events.all.find((e: EventOut) => e.id === props.eventId) ?? null;
@@ -235,15 +245,9 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
       <AppCard>
         <div class="signups-header">
           <h2>{{ t("event.signupsTitle") }}</h2>
-          <div class="totals">
-            <div class="total-pill">
-              <span class="count">{{ stats.total_signups }}</span>
-              <span class="label">{{ t("event.totalSignups") }}</span>
-            </div>
-            <div class="total-pill">
-              <span class="count">{{ stats.total_attendees }}</span>
-              <span class="label">{{ t("event.totalAttendees") }}</span>
-            </div>
+          <div class="total-pill">
+            <span class="count">{{ stats.total_attendees }}</span>
+            <span class="label">{{ t("event.totalAttendees") }}</span>
           </div>
         </div>
 
@@ -265,16 +269,21 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
 
         <details v-if="signups.length > 0" class="subgroup signup-list">
           <summary class="subhead">{{ t("event.signupList") }}</summary>
-          <div v-for="(s, i) in signups" :key="i" class="list-row signup-row">
-            <span class="list-row-label">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
-            <span v-if="s.help_choices.length > 0" class="help-chips">
+          <div
+            class="signup-grid"
+            :style="{ gridTemplateColumns: signupGridTemplate }"
+          >
+            <template v-for="(s, i) in signups" :key="i">
+              <span class="signup-name">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
               <span
-                v-for="opt in s.help_choices"
+                v-for="opt in event.help_options"
                 :key="opt"
-                class="help-chip"
-              >{{ opt }}</span>
-            </span>
-            <span class="row-count">{{ s.party_size }}</span>
+                class="help-cell"
+              >
+                <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
+              </span>
+              <span class="row-count signup-count">{{ s.party_size }}</span>
+            </template>
           </div>
         </details>
       </AppCard>
@@ -439,19 +448,17 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
 }
 
 /* --- Signups card -------------------------------------------------- */
-/* Signups card header: title left, totals chips top-right. The
- * chips re-flow below the title on narrow viewports via flex-wrap. */
+/* Signups card header: title left, single attendee-count pill on
+ * the right. ``margin-bottom`` is negative so the pill drifts down
+ * a bit and overlaps the row below — the next 'Per bron' subhead
+ * sits to its left, taking advantage of unused vertical space. */
 .signups-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-}
-.totals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  margin-bottom: -2.25rem;
 }
 .total-pill {
   display: inline-flex;
@@ -520,16 +527,31 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
 .signup-list[open] > summary::before {
   transform: rotate(90deg);
 }
-/* Each row of the signup list: name on the left, optional
- * help-chips next to the name, party_size right-aligned. */
-.signup-row {
+/* Tabular signup list — name | one column per help_option | count.
+ * Using a single grid container with ``display: contents`` rows
+ * keeps every chip vertically aligned with the same option above
+ * and below it. Empty cells are rendered as zero-width slots so
+ * the column stays in place. */
+.signup-grid {
+  display: grid;
   align-items: center;
+  column-gap: 0.5rem;
+  row-gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
 }
-.help-chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-left: 0.5rem;
+.signup-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.help-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* Min-width keeps a column open even when nobody picked the
+   * option — otherwise an unused column would collapse and pull
+   * neighbouring chips out of vertical alignment. */
+  min-width: 0;
 }
 .help-chip {
   font-size: 0.75rem;
@@ -538,6 +560,9 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   background: var(--brand-surface-muted, rgba(0, 0, 0, 0.05));
   color: var(--brand-text-muted);
   white-space: nowrap;
+}
+.signup-count {
+  text-align: right;
 }
 
 /* --- Feedback card ------------------------------------------------- */
