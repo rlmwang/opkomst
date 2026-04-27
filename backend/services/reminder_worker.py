@@ -33,7 +33,7 @@ import structlog
 from ..database import SessionLocal
 from ..models import Event, Signup
 from . import encryption
-from .email import build_url, email_batch_size, new_message_id, send_with_retry
+from .email import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 
 logger = structlog.get_logger()
 
@@ -131,6 +131,7 @@ def _finalise(
     ).update({Signup.encrypted_email: None}, synchronize_session=False)
 
     logger.info("reminder_processed", signup_id=signup.id, sent=sent)
+    emit_metric(channel="reminder", outcome="sent" if sent else "failed")
 
 
 def reap_expired() -> int:
@@ -216,6 +217,10 @@ def run_once() -> int:
                 Signup.encrypted_email.is_not(None),
                 Signup.reminder_email_status == "pending",
             )
+            # FIFO ordering by signup id (uuid7 is time-sortable)
+            # so the batch limit doesn't starve later signups
+            # across ticks.
+            .order_by(Signup.id)
             .limit(batch_size)
             .all()
         )

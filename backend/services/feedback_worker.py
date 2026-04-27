@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
 from . import encryption, scd2
-from .email import build_url, email_batch_size, new_message_id, send_with_retry
+from .email import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 
 logger = structlog.get_logger()
 
@@ -163,6 +163,7 @@ def _finalise(
     ).update({Signup.encrypted_email: None}, synchronize_session=False)
 
     logger.info("feedback_processed", signup_id=signup.id, sent=sent)
+    emit_metric(channel="feedback", outcome="sent" if sent else "failed")
 
 
 def run_once() -> int:
@@ -190,6 +191,11 @@ def run_once() -> int:
                 Event.ends_at <= cutoff,
                 Event.questionnaire_enabled.is_(True),
             )
+            # FIFO ordering by signup id (uuid7 is time-sortable)
+            # so when the batch limit truncates, later ticks pick
+            # up the next chunk in arrival order — no late-row
+            # starvation.
+            .order_by(Signup.id)
             .limit(batch_size)
             .all()
         )
@@ -218,6 +224,7 @@ def run_for_event(entity_id: str) -> int:
                 Signup.encrypted_email.is_not(None),
                 Signup.feedback_email_status == "pending",
             )
+            .order_by(Signup.id)  # FIFO across batches
             .limit(email_batch_size())
             .all()
         )

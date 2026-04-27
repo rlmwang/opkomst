@@ -83,6 +83,18 @@ def new_message_id() -> str:
     return f"<{secrets.token_hex(16)}@{domain}>"
 
 
+def emit_metric(*, channel: str, outcome: str) -> None:
+    """Per-channel counter for log-aggregation pipelines. One log
+    line per state transition, greppable as
+    ``event=email_metric channel=feedback outcome=sent`` (etc.).
+
+    Channels: ``feedback``, ``reminder``.
+    Outcomes: ``sent``, ``failed``, ``bounced``, ``complaint``.
+
+    Phase 6.1 of the email robustness plan."""
+    logger.info("email_metric", channel=channel, outcome=outcome)
+
+
 def email_batch_size() -> int:
     """Per-tick cap on the number of signups one worker sweep
     will process. Without it a single event with thousands of
@@ -92,10 +104,12 @@ def email_batch_size() -> int:
     return int(os.environ.get("EMAIL_BATCH_SIZE", "200"))
 
 
-# Sleep between retry attempts. A flat 1s — exponential is overkill
-# for two attempts but the call site can override via env if a
-# specific deploy needs it.
-_RETRY_SLEEP_SECONDS = float(os.environ.get("EMAIL_RETRY_SLEEP_SECONDS", "1"))
+def _retry_sleep_seconds() -> float:
+    """Sleep between SMTP retry attempts. Looked up per-call (not
+    captured at module import) so tests can ``monkeypatch.setenv``
+    to a near-zero value without restarting the process. A flat
+    1 s default — exponential is overkill for two attempts."""
+    return float(os.environ.get("EMAIL_RETRY_SLEEP_SECONDS", "1"))
 
 
 def send_with_retry(
@@ -112,7 +126,13 @@ def send_with_retry(
     on first success, False if every attempt raised. Sleeps
     ``_RETRY_SLEEP_SECONDS`` between attempts so a transient SMTP
     flap has a chance to clear; both workers (reminder + feedback)
-    use this so the retry policy stays in one place."""
+    use this so the retry policy stays in one place.
+
+    On final failure, captures the last exception to Sentry so a
+    burst of worker-thread send failures actually surfaces in
+    alerting (the FastAPI / Starlette Sentry integrations only
+    capture HTTP-served exceptions, not background-thread ones)."""
+    last_exc: BaseException | None = None
     for attempt in range(attempts):
         try:
             send_email_sync(
@@ -123,10 +143,22 @@ def send_with_retry(
                 message_id=message_id,
             )
             return True
-        except Exception:
+        except Exception as exc:
+            last_exc = exc
             logger.exception(log_event, attempt=attempt, to=to)
             if attempt < attempts - 1:
-                time.sleep(_RETRY_SLEEP_SECONDS)
+                time.sleep(_retry_sleep_seconds())
+    # All attempts exhausted. Push the last exception to Sentry
+    # explicitly — a no-op if SENTRY_DSN isn't set, so safe in dev.
+    try:
+        import sentry_sdk
+
+        if last_exc is not None:
+            sentry_sdk.capture_exception(last_exc)
+    except Exception:
+        # If Sentry itself misbehaves we don't want it to take
+        # down the worker. Log and move on.
+        logger.exception("sentry_capture_failed")
     return False
 
 

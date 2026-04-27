@@ -108,8 +108,17 @@ app.include_router(webhooks_router.router)
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, object]:
+    """Liveness probe + a few introspection knobs for ops.
+    Includes the email-executor's bounded worker count so a
+    deploy / config-change that accidentally lifted the cap is
+    visible at a glance (Phase 4.3)."""
+    from .services.email import _get_executor
+
+    return {
+        "status": "ok",
+        "email_executor_max_workers": _get_executor()._max_workers,
+    }
 
 
 # --- SPA serving ------------------------------------------------------

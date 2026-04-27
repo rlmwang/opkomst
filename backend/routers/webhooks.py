@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Signup
+from ..services.email import emit_metric
 
 logger = structlog.get_logger()
 
@@ -104,12 +105,14 @@ async def scaleway_email_event(
             logger.info(
                 "email_bounced", channel=channel, signup_id=signup.id, event_type=event_type
             )
+            emit_metric(channel=channel, outcome="bounced")
         elif event_type in _COMPLAINT_EVENTS:
             setattr(signup, status_attr, "complaint")
             db.add(signup)
             logger.info(
                 "email_complaint", channel=channel, signup_id=signup.id, event_type=event_type
             )
+            emit_metric(channel=channel, outcome="complaint")
         # email_delivered / email_open / email_click / soft bounces:
         # leave "sent" alone. Soft bounces in particular often resolve
         # on their own and would mislead organisers if we surfaced them.
