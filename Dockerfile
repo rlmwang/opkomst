@@ -76,4 +76,14 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # ``WEB_CONCURRENCY`` env if needed.
 ENV WEB_CONCURRENCY=4
 
+# The scheduler must run in exactly one process — the dedicated
+# worker sidecar (``python -m backend.worker``). On the API
+# container every uvicorn replica would otherwise boot
+# APScheduler too, so each scheduled email would go out N times.
+# Set this in the image so ``CMD = uvicorn`` containers always
+# inherit the safe default; the worker's entrypoint refuses to
+# start if this is still set, so the operator must clear it on
+# the worker container.
+ENV DISABLE_SCHEDULER=1
+
 CMD ["uv", "run", "--no-dev", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

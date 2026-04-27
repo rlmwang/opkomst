@@ -1,0 +1,91 @@
+"""Background-worker entrypoint.
+
+Runs the scheduled email sweeps (reminder + feedback) in a
+process separate from the user-facing API. The API container
+runs with ``DISABLE_SCHEDULER=1`` so its uvicorn workers don't
+all fire the same sweep concurrently — that's how we'd send each
+reminder four times on a four-worker deploy. This entrypoint
+owns the sweeps; runs as a single replica.
+
+Local:
+    DISABLE_SCHEDULER=0 uv run python -m backend.worker
+
+Container:
+    same image as the API; override CMD to
+    ``["uv", "run", "--no-dev", "python", "-m", "backend.worker"]``.
+    Set ``DISABLE_SCHEDULER`` to anything *except* ``1`` (or unset
+    it) so the scheduler is allowed to start in this process.
+"""
+
+import os
+import signal
+import threading
+
+import structlog
+from apscheduler.schedulers.background import BackgroundScheduler
+
+from .migrate import run_migrations
+from .services import feedback_worker, reminder_worker
+
+logger = structlog.get_logger()
+
+
+def main() -> None:
+    # Migrations are idempotent. Running them here as well as in
+    # the API container is safe — alembic skips already-applied
+    # revisions — and means the worker can boot cleanly on its
+    # own if we deploy it before the API.
+    run_migrations()
+
+    # BackgroundScheduler runs the sweeps in a worker thread, which
+    # leaves the main thread free to block on a signal-aware
+    # event. (BlockingScheduler.start() uses an internal
+    # threading.Event whose wait() in CPython doesn't reliably
+    # surface SIGTERM until the wakeup interval — could mean the
+    # process ignores ``docker stop`` until the next hourly tick.)
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        feedback_worker.run_once, "interval", hours=1, id="feedback_sweep"
+    )
+    scheduler.add_job(
+        reminder_worker.run_once, "interval", hours=1, id="reminder_sweep"
+    )
+
+    stop_event = threading.Event()
+
+    def _shutdown(signum: int, _frame: object) -> None:  # noqa: ARG001
+        logger.info("worker_shutdown_requested", signal=signum)
+        stop_event.set()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
+    scheduler.start()
+    logger.info("worker_started", interval_hours=1)
+
+    # Block the main thread on a plain Event — interruptible by
+    # SIGTERM/SIGINT via the handler above, no APScheduler-internal
+    # locking in the way. ``wait()`` with no timeout polls
+    # responsively for signals on every interpreter check
+    # interval.
+    stop_event.wait()
+
+    # ``wait=True`` on shutdown blocks until any in-flight sweep
+    # tick finishes its work, so SIGTERM mid-SMTP doesn't strand
+    # a signup with ciphertext wiped but status still ``pending``.
+    scheduler.shutdown(wait=True)
+    logger.info("worker_stopped")
+
+
+if __name__ == "__main__":
+    # The DISABLE_SCHEDULER guard is a defence in depth: if the
+    # operator accidentally points the worker entrypoint at an
+    # environment where DISABLE_SCHEDULER=1 is set (typical for
+    # the API container), we crash loudly instead of silently
+    # doing nothing.
+    if os.environ.get("DISABLE_SCHEDULER") == "1":
+        raise SystemExit(
+            "DISABLE_SCHEDULER=1 is set but the worker entrypoint "
+            "needs the scheduler enabled. Unset it on this container."
+        )
+    main()

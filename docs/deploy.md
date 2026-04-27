@@ -1,5 +1,22 @@
 # Deploying opkomst
 
+## Architecture
+
+opkomst runs as **two processes** sharing one image:
+
+* **`api`** — uvicorn behind whatever proxy Coolify gives you.
+  Multiple replicas are fine. The Dockerfile bakes
+  `DISABLE_SCHEDULER=1` so APScheduler stays off in every
+  replica.
+* **`worker`** — single replica, runs `python -m backend.worker`.
+  Owns the reminder + feedback email sweeps. Override
+  `DISABLE_SCHEDULER` to anything except `1` (or unset) on
+  this container so the scheduler is allowed to boot.
+
+Running the scheduler inside multiple replicas would fire each
+scheduled email N times (one per replica), so the split is
+not optional — it's a correctness requirement.
+
 ## Coolify (recommended)
 
 1. Point Coolify at this repo. Build pack: **Dockerfile** (Coolify
@@ -26,8 +43,29 @@
 6. Webhook URL for Scaleway TEM:
    `https://opkomst.nu/api/v1/webhooks/scaleway-email`. Paste the
    webhook secret into `SCALEWAY_WEBHOOK_SECRET`.
+7. Add a **second service** in Coolify, same git repo + same
+   image, with these overrides:
+   - **Custom start command:**
+     `uv run --no-dev python -m backend.worker`
+   - **Environment variable:** `DISABLE_SCHEDULER=0`
+   - **Replicas:** 1 (single replica is required — see
+     "Architecture" above).
+   - **No exposed ports** — this service has no HTTP surface.
+   - **Healthcheck:** disable; the worker has no /health endpoint.
+   Mount the same `/app/data` volume if you're on SQLite. Both
+   services share the same DB.
 
 ## Local production smoke
+
+```bash
+docker compose up --build
+```
+
+Brings up `api` (port 8000) + `worker` (background) using the
+same image. Open `http://localhost:8000` for the SPA; the
+worker's stdout shows `worker_started` and per-tick sweeps.
+
+Or, single-container API only (no email sweeps):
 
 ```bash
 docker build -t opkomst:latest .
@@ -36,9 +74,6 @@ docker run --rm -p 8000:8000 \
     -v $(pwd)/data:/app/data \
     opkomst:latest
 ```
-
-Open `http://localhost:8000` — you should hit the SPA. The API is at
-`/api/v1/*` and the health check at `/health`.
 
 ## Operations
 

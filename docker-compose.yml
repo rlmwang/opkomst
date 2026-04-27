@@ -1,0 +1,45 @@
+# Local prod-like setup for testing the API + worker split.
+# Production deploys (Coolify) configure each service separately;
+# this file is purely for local "does the multi-process model
+# behave?" smoke tests.
+#
+# Usage:
+#   docker compose up --build
+#   curl http://localhost:8000/health
+#
+# The worker container shares the same image and DB but runs the
+# email-sweep scheduler instead of uvicorn. ``DISABLE_SCHEDULER``
+# is unset on the worker so it actually fires; on the API
+# container it's inherited from the Dockerfile (always =1).
+
+services:
+  api:
+    build: .
+    image: opkomst:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    image: opkomst:latest
+    depends_on:
+      - api
+    env_file:
+      - .env
+    # Override DISABLE_SCHEDULER from the image default so the
+    # scheduler is allowed to start in this single replica.
+    environment:
+      DISABLE_SCHEDULER: "0"
+    volumes:
+      - ./data:/app/data
+    command: ["uv", "run", "--no-dev", "python", "-m", "backend.worker"]
+    # No exposed ports — this is a background-only service.
+    restart: unless-stopped
