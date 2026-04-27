@@ -445,16 +445,16 @@ async function submit() {
 <style scoped>
 /* Each labelled block (basics / sources / help / questionnaire /
  * locale) is a ``form-section``. Inside the section, fields stack
- * with the standard 0.75rem gap; between sections we widen the gap
- * to 1.75rem so the form reads as visibly grouped instead of one
- * dense column. */
+ * with the standard 0.75rem gap; between sections we open up
+ * 2.5rem of breathing room so a glance can pick out the groups
+ * without reading every line. */
 .form-section {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 .form-section + .form-section {
-  margin-top: 1rem;
+  margin-top: 2.5rem;
 }
 .time-row {
   display: flex;
@@ -474,20 +474,22 @@ async function submit() {
 }
 .section-heading {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.0625rem;
   font-weight: 600;
 }
-/* Tight under the heading rather than the section's standard gap,
- * so the heading + intro read as one block. */
+/* Tight under the heading so heading + intro read as a single
+ * unit, then the section's normal 0.75rem gap kicks in below. */
 .section-explainer {
-  margin: -0.5rem 0 0;
+  margin: -0.25rem 0 0.25rem;
 }
 /* Same shape as AppDialog's footer — Cancel + primary action,
- * right-aligned, matched gap. Keeps form-page submit ergonomics
- * identical to dialog ergonomics. */
+ * right-aligned, matched gap. The ``margin-top`` separates the
+ * footer from the last section so Cancel / Submit don't feel
+ * glued to the locale picker. */
 .form-footer {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  margin-top: 1.5rem;
 }
 </style>
