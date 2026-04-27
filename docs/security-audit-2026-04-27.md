@@ -6,168 +6,125 @@ glue. Scoring is informal: **HIGH** = exploitable as-shipped, **MEDIUM**
 = exploitable under a plausible deploy mistake, **LOW** = hardening
 opportunity.
 
+All findings flagged as actionable were fixed in commit **61ba2a6**.
+
 ## Findings
 
-### 1. SPA fallback is a path-traversal sink — HIGH
+### 1. SPA fallback path traversal — HIGH — fixed
 
-`backend/main.py:130-143`:
+`backend/main.py:_spa_fallback` built `target = _DIST / full_path`
+without normalising. A request like `GET /../../../../etc/passwd`
+resolved to a path outside the dist directory; `target.is_file()` then
+served the file. Whether the ASGI server pre-normalises is
+implementation-defined and we should not depend on it.
 
-```python
-@app.get("/{full_path:path}", include_in_schema=False)
-def _spa_fallback(full_path: str) -> FileResponse:
-    if full_path.startswith("api/") or full_path == "health":
-        raise HTTPException(status_code=404, detail="Not found")
-    target = _DIST / full_path
-    if target.is_file():
-        return FileResponse(target)
-    return FileResponse(_DIST / "index.html")
-```
+**Fix**: resolve the candidate path and require it to live under
+`_DIST_RESOLVED` (`relative_to` raises `ValueError` otherwise). Anything
+that fails the check falls back to `index.html` rather than 404 — a 404
+would leak the existence check.
 
-`_DIST / full_path` is *not* normalised. A request like
-`GET /..%2f..%2f..%2f..%2fetc%2fpasswd` (or, depending on the front
-proxy, `GET /../../../../etc/passwd`) resolves to a path *outside*
-`_DIST`. `target.is_file()` then returns the file's contents.
+### 2. Scaleway webhook failed open without a configured secret — MEDIUM — fixed
 
-Whether ASGI / Uvicorn pre-normalises is implementation-defined — we
-must not depend on it. Starlette's `:path` converter is a literal
-match.
-
-**Fix**: resolve both paths and require the resolved target to live
-under `_DIST`. Reject otherwise (return `index.html`, *not* a 404 — a
-404 leaks the existence check).
-
-### 2. Scaleway webhook fails open without a configured secret — MEDIUM
-
-`backend/routers/webhooks.py:39-48`:
-
-```python
-def _verify_signature(raw_body: bytes, header_value: str | None) -> None:
-    secret = os.environ.get("SCALEWAY_WEBHOOK_SECRET", "")
-    if not secret:
-        # Dev mode — no secret configured, accept everything.
-        return
-    ...
-```
-
-If `SCALEWAY_WEBHOOK_SECRET` is missing in production (env-vars are
-copy-pasted from `.env.example`, deploys are routine), the endpoint
-accepts unsigned bodies. The blast radius is bounded — webhook only
-flips a `feedback_email_status` from `sent` to `bounced`/`complaint` —
-but an attacker who finds the URL can mark every signup's email as
+`_verify_signature` returned silently when `SCALEWAY_WEBHOOK_SECRET`
+was unset. The blast radius was bounded — the webhook only flips a
+`feedback_email_status` between `sent`, `bounced`, and `complaint` —
+but an attacker who found the URL could mark every signup's email as
 bounced for the entire venue, which is exactly the metric organisers
 look at on the summary page.
 
-**Fix**: fail closed. Read the secret at module import; if it isn't set
-*and* `ENV != "dev"` (some other gate), refuse to register the route —
-or, simpler, raise on every request. The current dev-friendliness can
-move into an explicit `OPKOMST_ALLOW_UNSIGNED_WEBHOOKS=1` opt-in for
-local testing.
+**Fix**: fail closed — missing secret returns 503. Local development
+that wants to fire unsigned posts sets `OPKOMST_ALLOW_UNSIGNED_WEBHOOKS=1`
+as an explicit opt-in.
 
-### 3. `send-feedback-emails` endpoint is unrate-limited — MEDIUM
+### 3. `send-feedback-emails` was unrate-limited — MEDIUM — fixed
 
-`backend/routers/events.py:167-181`. An approved organiser can hit
-`POST /api/v1/events/{id}/send-feedback-emails` arbitrarily often. Each
-call decrypts the still-pending blobs, mints SMTP traffic, and on
-failure re-tries twice per signup. A bored or compromised organiser
-could push the venue's outbound email reputation off a cliff in
-minutes.
+`POST /api/v1/events/{id}/send-feedback-emails` could be hit
+arbitrarily often. Each call decrypted the still-pending blobs, minted
+SMTP traffic, and on failure retried twice per signup. A bored or
+compromised organiser could push the venue's outbound email reputation
+off a cliff in minutes.
 
-**Fix**: `@limiter.limit("5/hour")` (the action is idempotent for
-already-sent signups, so a low cap doesn't break the feature).
+**Fix**: `@limiter.limit("5/hour")`. The action is idempotent for
+already-sent signups, so a low cap doesn't break the feature.
 
-### 4. CSP `connect-src` lists three geocoders — LOW
+### 4. CSP `connect-src` listed unused geocoders — LOW — fixed
 
-`backend/services/security_headers.py:33-48` allows
-`https://photon.komoot.io`, `https://api.pdok.nl`, and
-`https://nominatim.openstreetmap.org`. Only PDOK is used today; Photon
-and Nominatim are leftover from earlier address-picker iterations.
+The policy still allowed `https://photon.komoot.io` and
+`https://nominatim.openstreetmap.org` from earlier address-picker
+iterations. Only PDOK is in use today.
 
-**Fix**: drop the two unused origins. CSP narrowing is free.
+**Fix**: dropped both. CSP narrowing is free.
 
-### 5. CORS defaults to localhost — LOW (deploy footgun)
+### 5. CORS defaulted to localhost — LOW (deploy footgun) — fixed
 
-`backend/main.py:94`:
+`allow_origins` defaulted to `http://localhost:5173`. In production the
+frontend is same-origin so the policy doesn't engage; the danger was a
+future deploy on a separate API subdomain forgetting the env var and
+having prod browsers silently rejected while the dev origin stayed
+trusted.
 
-```python
-allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
-```
+**Fix**: dropped the default. Unset `CORS_ORIGINS` now fails the
+process at boot, matching how `JWT_SECRET` and `EMAIL_ENCRYPTION_KEY`
+already behave. Added to `.env`.
 
-In production the frontend is same-origin so the policy doesn't
-actually engage, but the *default* is a localhost CORS allowance — if
-a deploy ever serves the API on its own subdomain (`api.opkomst.nu`)
-and the env var is forgotten, the prod browser fetches will be
-silently rejected and the dev origin still trusted. A boring failure
-mode but easy to prevent.
+### Incidental: structlog `event` keyword collision — fixed
 
-**Fix**: drop the default; require the env var to be set explicitly
-(`os.environ["CORS_ORIGINS"]`). Same shape as `JWT_SECRET`.
+`logger.info("scaleway_event_unmatched", event=event_type, ...)`
+shadowed structlog's reserved `event` message-name kwarg and would have
+crashed any unmatched-event log line. Renamed every webhook log key
+from `event=` to `event_type=`.
+
+## Findings — accepted, not fixed
 
 ### 6. JWT TTL = 7 days, no revocation — LOW
 
-`backend/auth.py:16` (`JWT_TTL_HOURS = 24 * 7`). A leaked JWT remains
-valid for a week. There is no allowlist / revocation list, no
-`token_version` on the user, and no logout-all-devices flow.
+A leaked JWT remains valid for a week. There is no allowlist /
+revocation list, no `token_version` on the user, and no
+logout-all-devices flow.
 
 For a non-financial volunteer-org tool with bounded blast radius
-(create events, view signup tallies) this is acceptable; flagged for
-posterity. If we add a "log out everywhere" feature it should bump a
-`token_version` claim that we then validate inside `_decode_token`.
+(create events, view signup tallies) this is acceptable. If we add a
+"log out everywhere" feature it should bump a `token_version` claim
+that we then validate inside `_decode_token`.
 
-### 7. `register` rate-limit is per-IP, not per-email — LOW
+### 7. `register` rate limit is per-IP, not per-email — LOW
 
-`backend/routers/auth.py:77` (`@limiter.limit("5/hour")`). Five
-registrations per IP per hour is fine for the global limit but doesn't
+Five registrations per IP per hour is a fine global limit but doesn't
 prevent an attacker from churning thousands of throwaway emails through
-one IP across days, exhausting the SCD2 chain space and burning through
+one IP across days, exhausting SCD2 chain space and burning through
 SMTP quota for verification emails.
 
-**Fix (optional)**: add a per-email lock — once `_user_by_email` returns
-non-None or `_last_closed_user_by_email` returns non-None, refuse for
-24h on that email regardless of IP. The current code already 409s
-after the first registration so the abuse case is "register a new
-email each time", which is mostly an SMTP-quota concern.
+The current code already 409s after the first registration so the
+abuse case is "register a new email each time", which is an SMTP-quota
+concern more than a security concern. Revisit if abuse appears.
 
-## Non-findings (verified safe)
+## Verified safe
 
-- **Password hashing**: bcrypt with 72-byte truncation, documented
-  rationale. ✅
+- **Password hashing**: bcrypt with 72-byte truncation, documented.
 - **JWT decoding**: `jose.jwt.decode` is called with an
   `algorithms=[JWT_ALGORITHM]` whitelist on every path — alg=none is
-  not accepted. ✅
+  not accepted.
 - **Email encryption**: AES-GCM with 12-byte random nonce, key
-  validated to be 32 bytes at import. Decrypt is only called from
+  validated to 32 bytes at import. Decrypt is only called from
   `feedback_worker._process_one`, which always wipes the ciphertext
-  after the call (privacy invariant — also documented in CLAUDE.md). ✅
+  after the call (privacy invariant — also documented in CLAUDE.md).
 - **Feedback privacy contract**: `FeedbackToken` row is deleted on
-  submit (`backend/routers/feedback.py:141`); `submission_id` is a
-  fresh `secrets.token_urlsafe(16)` per submission. After redemption
-  no row in the system can map a response back to a signup. ✅
+  submit; `submission_id` is a fresh `secrets.token_urlsafe(16)` per
+  submission. After redemption no row in the system can map a response
+  back to a signup.
 - **Chapter scoping**: `_scope_filter` and the `chapter_match` filter
   are applied uniformly to every organiser-side event read; events
-  outside the user's chapter return 404 (not 403) so existence doesn't
-  leak. ✅
-- **Self-deletion / self-demotion guards**: `admin.py:164` and
-  `admin.py:184` block both. ✅
+  outside the user's chapter return 404 (not 403) so existence
+  doesn't leak.
+- **Self-deletion / self-demotion guards**: blocked at the admin
+  router level.
 - **SQL injection**: every query uses SQLAlchemy parameter binding;
-  no `f"..."` SQL anywhere. ✅
-- **Sentry PII**: `send_default_pii=False` (`main.py:38`). ✅
-- **HSTS**: only set when the request was actually served over HTTPS
-  (`security_headers.py:64`). ✅
-- **bcrypt + JWT secret**: `JWT_SECRET` and `EMAIL_ENCRYPTION_KEY` are
-  read with `os.environ[...]` (no defaults), so a missing key
-  fails-closed at process start. ✅
+  no `f"..."` SQL anywhere.
+- **Sentry PII**: `send_default_pii=False`.
+- **HSTS**: only set when the request was actually served over HTTPS.
+- **Required secrets**: `JWT_SECRET`, `EMAIL_ENCRYPTION_KEY`, and
+  (post-audit) `CORS_ORIGINS` are read with `os.environ[...]`, so a
+  missing key fails-closed at process start.
 - **PII in logs**: structlog calls log `user_id`, `entity_id`, and
   status enums but never email addresses, passwords, or token
-  contents. ✅
-
-## Suggested fix order
-
-1. **#1 (path traversal)** — one-line resolve-and-check in
-   `_spa_fallback`. Five minutes.
-2. **#2 (webhook fail-open)** — flip the default; add an explicit
-   opt-in for dev. Ten minutes.
-3. **#3 (send-feedback rate limit)** — one decorator. Two minutes.
-4. **#4 (CSP narrowing)** — drop two origins. One minute.
-5. **#5 (CORS default)** — drop the default. One minute.
-
-#6 and #7 are opportunistic; revisit if the threat model changes.
+  contents.
