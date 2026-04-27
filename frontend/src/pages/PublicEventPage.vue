@@ -211,39 +211,72 @@ async function submit() {
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
-        <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
-        <div class="field-with-help">
-          <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
-          <p class="field-help">{{ t("public.partySizeHelp") }}</p>
-        </div>
-        <Select
-          v-model="sourceChoice"
-          :options="event.source_options"
-          :placeholder="t('public.sourcePlaceholder')"
-          fluid
-        />
-        <fieldset v-if="event.help_options.length > 0" class="help-choices">
-          <legend>{{ t("public.helpHeading") }}</legend>
-          <label v-for="opt in event.help_options" :key="opt" class="help-row">
-            <Checkbox v-model="helpChoices" :value="opt" />
-            <span>{{ opt }}</span>
-          </label>
-        </fieldset>
-        <InputText
-          v-if="event.questionnaire_enabled"
-          v-model="email"
-          type="email"
-          :placeholder="t('public.emailOptional')"
-          autocomplete="email"
-          fluid
-        />
-        <Button type="submit" :label="t('public.submit')" :loading="submitting" />
+        <p class="required-key">{{ t("public.requiredKey") }}</p>
+
+        <section class="form-section">
+          <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
+          <div class="field-with-help">
+            <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
+            <p class="field-help">{{ t("public.partySizeHelp") }}</p>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <Select
+            v-model="sourceChoice"
+            :options="event.source_options"
+            :placeholder="t('public.sourcePlaceholder')"
+            fluid
+          />
+        </section>
+
+        <section v-if="event.questionnaire_enabled" class="form-section">
+          <InputText
+            v-model="email"
+            type="email"
+            :placeholder="t('public.emailOptional')"
+            autocomplete="email"
+            fluid
+          />
+        </section>
+
+        <section v-if="event.help_options.length > 0" class="form-section">
+          <fieldset class="help-choices">
+            <legend>{{ t("public.helpHeading") }}</legend>
+            <label v-for="opt in event.help_options" :key="opt" class="help-row">
+              <Checkbox v-model="helpChoices" :value="opt" />
+              <span>{{ opt }}</span>
+            </label>
+          </fieldset>
+        </section>
+
+        <Button class="submit-button" type="submit" :label="t('public.submit')" :loading="submitting" />
       </AppCard>
     </template>
   </div>
 </template>
 
 <style scoped>
+/* Each labelled block on the public sign-up form is a
+ * ``form-section``; inside the section, fields stack at the
+ * standard 0.75rem; between sections we open up 2rem so a
+ * mobile-first form doesn't feel like one dense column. */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.form-section + .form-section {
+  margin-top: 2rem;
+}
+.required-key {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
+}
+.submit-button {
+  margin-top: 2rem;
+}
 .field-with-help {
   display: flex;
   flex-direction: column;
