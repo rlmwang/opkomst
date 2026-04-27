@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set subject = event_name + " — coming up in a few days" %}
+{% block content %}
+<p>Just a quick reminder: you signed up for <strong>{{ event_name }}</strong>.</p>
+<p>The event is coming up soon. Take a look at the details or update your sign-up:</p>
+<a href="{{ event_url }}" class="cta">View event</a>
+<p class="muted">You're getting this reminder because you left your email when you signed up. It's stored encrypted and deleted as soon as every email related to this event has been sent.</p>
+{% endblock %}
+{% block footer %}opkomst — for organising RSP events{% endblock %}

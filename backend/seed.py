@@ -106,6 +106,8 @@ def _ensure_event(
         ends_at=ends_at,
         source_options=source_options,
         help_options=help_options,
+        questionnaire_enabled=True,
+        reminder_enabled=True,
         chapter_id=chapter_id,
         created_by=created_by,
         locale="nl",

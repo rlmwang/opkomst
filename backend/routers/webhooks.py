@@ -75,21 +75,41 @@ async def scaleway_email_event(
         if not message_id:
             continue
 
-        signup = db.query(Signup).filter(Signup.feedback_message_id == message_id).first()
+        # The webhook can be reporting on either the feedback or
+        # the reminder send; look the message_id up in both columns
+        # and update whichever channel matches.
+        signup = (
+            db.query(Signup)
+            .filter(Signup.feedback_message_id == message_id)
+            .first()
+        )
+        channel = "feedback"
+        if signup is None:
+            signup = (
+                db.query(Signup)
+                .filter(Signup.reminder_message_id == message_id)
+                .first()
+            )
+            channel = "reminder"
         if not signup:
             # Could be from a previous deployment, or a message we never
             # tracked. Log and move on — webhooks are fire-and-forget.
             logger.info("scaleway_event_unmatched", event_type=event_type, message_id=message_id)
             continue
 
+        status_attr = f"{channel}_email_status"
         if event_type in _BOUNCE_EVENTS:
-            signup.feedback_email_status = "bounced"
+            setattr(signup, status_attr, "bounced")
             db.add(signup)
-            logger.info("feedback_email_bounced", signup_id=signup.id, event_type=event_type)
+            logger.info(
+                "email_bounced", channel=channel, signup_id=signup.id, event_type=event_type
+            )
         elif event_type in _COMPLAINT_EVENTS:
-            signup.feedback_email_status = "complaint"
+            setattr(signup, status_attr, "complaint")
             db.add(signup)
-            logger.info("feedback_email_complaint", signup_id=signup.id, event_type=event_type)
+            logger.info(
+                "email_complaint", channel=channel, signup_id=signup.id, event_type=event_type
+            )
         # email_delivered / email_open / email_click / soft bounces:
         # leave "sent" alone. Soft bounces in particular often resolve
         # on their own and would mislead organisers if we surfaced them.

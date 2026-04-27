@@ -86,6 +86,7 @@ const newSource = ref("");
 const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
 const questionnaireEnabled = ref(true);
+const reminderEnabled = ref(false);
 // Default to the organiser's UI locale — they can override per-event
 // (e.g. an English-language event in NL).
 const eventLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
@@ -111,6 +112,7 @@ interface FormDraft {
   helpOptions: string[];
   newHelp: string;
   questionnaireEnabled: boolean;
+  reminderEnabled: boolean;
   eventLocale: "nl" | "en";
 }
 
@@ -129,6 +131,7 @@ function snapshot(): FormDraft {
     helpOptions: [...helpOptions.value],
     newHelp: newHelp.value,
     questionnaireEnabled: questionnaireEnabled.value,
+    reminderEnabled: reminderEnabled.value,
     eventLocale: eventLocale.value,
   };
 }
@@ -147,6 +150,7 @@ function applyDraft(d: FormDraft) {
   helpOptions.value = [...(d.helpOptions ?? [])];
   newHelp.value = d.newHelp ?? "";
   questionnaireEnabled.value = d.questionnaireEnabled;
+  reminderEnabled.value = d.reminderEnabled ?? false;
   eventLocale.value = d.eventLocale ?? "nl";
 }
 
@@ -169,7 +173,7 @@ function clearDraft() {
 
 let _saveTimer: number | null = null;
 watch(
-  [name, topic, location, latitude, longitude, eventDate, startTime, endTime, sources, newSource, helpOptions, newHelp, questionnaireEnabled, eventLocale],
+  [name, topic, location, latitude, longitude, eventDate, startTime, endTime, sources, newSource, helpOptions, newHelp, questionnaireEnabled, reminderEnabled, eventLocale],
   () => {
     if (_saveTimer !== null) clearTimeout(_saveTimer);
     _saveTimer = window.setTimeout(() => {
@@ -267,6 +271,7 @@ onMounted(async () => {
     sources.value = [...existing.source_options];
     helpOptions.value = [...existing.help_options];
     questionnaireEnabled.value = existing.questionnaire_enabled;
+    reminderEnabled.value = existing.reminder_enabled;
     eventLocale.value = existing.locale;
   }
   // Restore mid-edit draft last so it overrides fetched values: the
@@ -321,6 +326,7 @@ async function submit() {
       source_options: sources.value,
       help_options: helpOptions.value,
       questionnaire_enabled: questionnaireEnabled.value,
+      reminder_enabled: reminderEnabled.value,
       locale: eventLocale.value,
     };
     const result =
@@ -433,6 +439,12 @@ async function submit() {
       </section>
 
       <section class="form-section">
+        <label class="toggle-row" for="reminderToggle">
+          <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+          <strong>{{ t("event.reminderToggle") }}</strong>
+        </label>
+        <p class="muted toggle-help">{{ t("event.reminderHelp") }}</p>
+
         <label class="toggle-row" for="questionnaireToggle">
           <ToggleSwitch v-model="questionnaireEnabled" inputId="questionnaireToggle" />
           <strong>{{ t("event.questionnaireToggle") }}</strong>

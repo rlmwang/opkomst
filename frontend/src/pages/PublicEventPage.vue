@@ -74,6 +74,33 @@ function openCalMenu(ev: Event) {
   calMenu.value?.toggle(ev);
 }
 
+// Email field is shown iff at least one of the email features is
+// active on this event — otherwise asking for the address would
+// just silently discard it. The placeholder narrates what the
+// address will be used for; the privacy explainer below lists
+// every active use as bullet points.
+const emailFieldShown = computed(
+  () => Boolean(event.value && (event.value.questionnaire_enabled || event.value.reminder_enabled)),
+);
+const emailPlaceholder = computed(() => {
+  const e = event.value;
+  if (!e) return "";
+  const r = e.reminder_enabled;
+  const q = e.questionnaire_enabled;
+  if (r && q) return t("public.emailFor.reminderAndFeedback");
+  if (r) return t("public.emailFor.reminderOnly");
+  return t("public.emailFor.feedbackOnly");
+});
+
+const emailUseBullets = computed<string[]>(() => {
+  const e = event.value;
+  if (!e) return [];
+  const bullets: string[] = [];
+  if (e.reminder_enabled) bullets.push(t("public.emailUses.reminder"));
+  if (e.questionnaire_enabled) bullets.push(t("public.emailUses.feedback"));
+  return bullets;
+});
+
 // --- Draft persistence ---------------------------------------------
 // The signup form survives a page refresh — important for visitors
 // on flaky mobile connections who half-fill the form, lose
@@ -245,8 +272,17 @@ async function submit() {
       <AppCard v-if="!submitted" :stack="false" class="privacy-card">
         <details>
           <summary>{{ t("public.explainerTitle") }}</summary>
+          <p class="privacy-body">{{ t("public.explainerIntro") }}</p>
+          <template v-if="emailFieldShown">
+            <p class="privacy-body">{{ t("public.explainerEmailIntro") }}</p>
+            <ul class="privacy-bullets">
+              <li v-for="b in emailUseBullets" :key="b">{{ b }}</li>
+            </ul>
+            <p class="privacy-body">{{ t("public.explainerEmailOutro") }}</p>
+          </template>
+          <p v-else class="privacy-body">{{ t("public.explainerNoEmail") }}</p>
           <p class="privacy-body">
-            {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
+            {{ t("public.explainerSource") }}
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
@@ -289,10 +325,10 @@ async function submit() {
             fluid
           />
           <InputText
-            v-if="event.questionnaire_enabled"
+            v-if="emailFieldShown"
             v-model="email"
             type="email"
-            :placeholder="t('public.emailOptional')"
+            :placeholder="emailPlaceholder"
             autocomplete="email"
             fluid
           />
@@ -361,6 +397,16 @@ async function submit() {
   font-size: 0.9375rem;
   color: var(--brand-text-muted);
   line-height: 1.5;
+}
+.privacy-card .privacy-bullets {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  color: var(--brand-text-muted);
+  line-height: 1.5;
+}
+.privacy-card .privacy-bullets li + li {
+  margin-top: 0.25rem;
 }
 /* Bottom row of the card: submit button right-aligned. */
 .submit-row {

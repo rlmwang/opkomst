@@ -15,6 +15,7 @@ export interface EventOut {
   source_options: string[];
   help_options: string[];
   questionnaire_enabled: boolean;
+  reminder_enabled: boolean;
   locale: "nl" | "en";
   chapter_id: string | null;
   chapter_name: string | null;
@@ -45,6 +46,7 @@ export interface EventCreate {
   source_options: string[];
   help_options: string[];
   questionnaire_enabled: boolean;
+  reminder_enabled: boolean;
   locale: "nl" | "en";
 }
 

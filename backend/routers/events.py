@@ -15,6 +15,7 @@ from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
 from ..services import chapters as chapters_svc
+from ..services import email_lifecycle
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
 from ..services.ics import build_event_ics
@@ -26,6 +27,35 @@ logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
+
+
+def _retire_disabled_channels(
+    db: Session,
+    *,
+    event_entity_id: str,
+    questionnaire_disabled: bool,
+    reminder_disabled: bool,
+) -> None:
+    """When an organiser flips an email toggle off mid-flight, the
+    signups that were waiting on that channel stop being eligible.
+    Mark their pending status to ``not_applicable`` and, if no
+    other channel still has pending activity for that signup, wipe
+    the encrypted email — privacy invariant from
+    ``services.email_lifecycle``."""
+    if not (questionnaire_disabled or reminder_disabled):
+        return
+    affected = (
+        db.query(Signup)
+        .filter(Signup.event_id == event_entity_id)
+        .all()
+    )
+    for s in affected:
+        if questionnaire_disabled and s.feedback_email_status == "pending":
+            s.feedback_email_status = "not_applicable"
+        if reminder_disabled and s.reminder_email_status == "pending":
+            s.reminder_email_status = "not_applicable"
+        email_lifecycle.wipe_if_done(s)
+        db.add(s)
 
 
 def _attendees_for(db: Session, entity_id: str) -> int:
@@ -50,6 +80,7 @@ def _to_out(db: Session, event: Event) -> EventOut:
         source_options=event.source_options,
         help_options=event.help_options,
         questionnaire_enabled=event.questionnaire_enabled,
+        reminder_enabled=event.reminder_enabled,
         locale=event.locale,
         chapter_id=event.chapter_id,
         chapter_name=chapters_svc.name_for_entity(db, event.chapter_id),
@@ -103,6 +134,7 @@ def create_event(
         source_options=data.source_options,
         help_options=data.help_options,
         questionnaire_enabled=data.questionnaire_enabled,
+        reminder_enabled=data.reminder_enabled,
         locale=data.locale,
         chapter_id=user.chapter_id,
         created_by=user.id,
@@ -219,6 +251,8 @@ def update_event(
     if data.ends_at <= data.starts_at:
         raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
     event = _get_event_scoped(db, entity_id, user)
+    was_questionnaire = event.questionnaire_enabled
+    was_reminder = event.reminder_enabled
     new_row = scd2_svc.scd2_update(
         db,
         event,
@@ -234,7 +268,18 @@ def update_event(
         source_options=data.source_options,
         help_options=data.help_options,
         questionnaire_enabled=data.questionnaire_enabled,
+        reminder_enabled=data.reminder_enabled,
         locale=data.locale,
+    )
+    # Toggle-off cleanup: when an organiser disables a channel, the
+    # signups that were waiting on it stop being eligible. Mark
+    # those pending statuses as not_applicable and wipe the
+    # ciphertext if no other channel still has pending activity.
+    _retire_disabled_channels(
+        db,
+        event_entity_id=new_row.entity_id,
+        questionnaire_disabled=was_questionnaire and not data.questionnaire_enabled,
+        reminder_disabled=was_reminder and not data.reminder_enabled,
     )
     db.commit()
     db.refresh(new_row)

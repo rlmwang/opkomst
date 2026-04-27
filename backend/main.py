@@ -20,7 +20,7 @@ from .routers import feedback as feedback_router
 from .routers import signups as signups_router
 from .routers import webhooks as webhooks_router
 from .seed import run as run_seed
-from .services import feedback_worker
+from .services import feedback_worker, reminder_worker
 from .services.rate_limit import limiter
 from .services.security_headers import SecurityHeadersMiddleware
 
@@ -51,6 +51,7 @@ _scheduler = BackgroundScheduler()
 async def _lifespan(_app: FastAPI):
     if os.environ.get("DISABLE_SCHEDULER") != "1":
         _scheduler.add_job(feedback_worker.run_once, "interval", hours=1, id="feedback_sweep")
+        _scheduler.add_job(reminder_worker.run_once, "interval", hours=1, id="reminder_sweep")
         _scheduler.start()
         logger.info("scheduler_started")
     try:

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -34,8 +36,27 @@ def create_signup(
             detail=f"help_choices must be a subset of the event's help_options: {invalid_help}",
         )
 
-    has_email = bool(data.email) and event.questionnaire_enabled
-    encrypted = encryption.encrypt(data.email) if has_email and data.email else None
+    # Decide which channels apply for this signup. Reminders apply
+    # whenever the event hasn't started yet — the worker's own
+    # window check (``REMINDER_WINDOW``) handles "fire now vs.
+    # wait" once we're inside the 3-day pre-event period.
+    now = datetime.now(UTC)
+    starts_at = event.starts_at
+    if starts_at.tzinfo is None:
+        # SQLite returns naive datetimes; we wrote them as UTC.
+        starts_at = starts_at.replace(tzinfo=UTC)
+    event_in_future = starts_at > now
+
+    will_send_feedback = bool(data.email) and event.questionnaire_enabled
+    will_send_reminder = (
+        bool(data.email) and event.reminder_enabled and event_in_future
+    )
+    will_send_anything = will_send_feedback or will_send_reminder
+    encrypted = (
+        encryption.encrypt(data.email)
+        if will_send_anything and data.email
+        else None
+    )
     signup = Signup(
         # Point at the stable logical id so signups survive every edit.
         event_id=event.entity_id,
@@ -44,7 +65,8 @@ def create_signup(
         source_choice=data.source_choice,
         help_choices=data.help_choices,
         encrypted_email=encrypted,
-        feedback_email_status="pending" if has_email else "not_applicable",
+        feedback_email_status="pending" if will_send_feedback else "not_applicable",
+        reminder_email_status="pending" if will_send_reminder else "not_applicable",
     )
     db.add(signup)
     db.commit()

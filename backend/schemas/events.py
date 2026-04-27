@@ -19,6 +19,7 @@ class EventCreate(BaseModel):
     # the public form.
     help_options: list[str] = Field(default_factory=list)
     questionnaire_enabled: bool = True
+    reminder_enabled: bool = False
     # Two-letter ISO language tag. Drives both the public sign-up
     # page's UI language and the locale of the feedback email sent
     # afterwards. Defaults to Dutch — the org's primary audience.
@@ -56,6 +57,7 @@ class EventOut(BaseModel):
     source_options: list[str]
     help_options: list[str]
     questionnaire_enabled: bool
+    reminder_enabled: bool
     locale: str
     chapter_id: str | None
     chapter_name: str | None

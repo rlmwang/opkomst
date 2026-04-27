@@ -30,6 +30,11 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     # Empty list means the question isn't shown on the public form.
     help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     questionnaire_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # When True, signups who leave an email get a single reminder
+    # email roughly 3 days before the event starts (see
+    # ``services.reminder_worker``). Independent of the
+    # questionnaire toggle — both can be on, both can be off.
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # ISO language tag — drives the public-page UI language and the
     # locale of the post-event feedback email. Two-letter codes
     # only ('nl' / 'en') today; widen to a code/region pair if we
@@ -76,3 +81,14 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     )
     feedback_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     feedback_message_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    # Parallel set of fields tracking the 3-days-before reminder.
+    # ``reminder_email_status`` mirrors the lifecycle of the
+    # feedback status (not_applicable / pending / sent / bounced /
+    # complaint / failed). ``encrypted_email`` is wiped only after
+    # *every* pending email activity finishes (see
+    # ``services.email_lifecycle._wipe_if_done``).
+    reminder_email_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="not_applicable", index=True
+    )
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reminder_message_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)

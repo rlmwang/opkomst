@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
-from . import encryption, scd2
+from . import email_lifecycle, encryption, scd2
 from .email import build_url, send_email_sync
 
 logger = structlog.get_logger()
@@ -91,8 +91,6 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
             except Exception:
                 logger.exception("feedback_send_failed", signup_id=signup.id, attempt=attempt)
 
-    # Always wipe the ciphertext — privacy invariant.
-    signup.encrypted_email = None
     signup.feedback_sent_at = datetime.now(UTC)
     if sent:
         signup.feedback_email_status = "sent"
@@ -102,6 +100,10 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
         if token:
             db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
         signup.feedback_message_id = None
+    # Wipe the ciphertext only when no other pending email activity
+    # remains (e.g. a reminder that hasn't fired yet); see
+    # ``email_lifecycle`` for the rule.
+    email_lifecycle.wipe_if_done(signup)
     db.add(signup)
 
     logger.info("feedback_processed", signup_id=signup.id, sent=sent)
