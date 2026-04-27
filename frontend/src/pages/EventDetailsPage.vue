@@ -476,15 +476,12 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   color: var(--brand-text-muted);
 }
 .subhead {
-  /* Breathing room above the section title. The card's ``stack``
-   * already provides 0.75rem between siblings; add 0.25rem on top
-   * for an extra rest stop before the new sub-section. */
-  margin: 0.25rem 0 0.25rem;
-  font-size: 0.875rem;
+  /* Calm h3 — same family/weight/colour as the card's h2, just a
+   * step smaller. Keeps the card to one heading style instead of
+   * mixing an h2 with an uppercase muted small-caps label. */
+  margin: 0.5rem 0 0.25rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: var(--brand-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 /* Group a subhead with its rows so they sit tight together (the
  * card's stack would put a 0.75rem gap between them otherwise). */
