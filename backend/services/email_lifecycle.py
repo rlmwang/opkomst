@@ -25,6 +25,8 @@ Centralising the rule here keeps the worker code free of
 call site.
 """
 
+from datetime import UTC, datetime
+
 import structlog
 from sqlalchemy.orm import Session
 
@@ -58,6 +60,12 @@ def reap_partial_sends(db: Session) -> int:
 
     Called on worker boot, before the first sweep. Returns the
     total number of rows reaped across both channels."""
+    now = datetime.now(UTC)
+    # Stamp ``*_sent_at`` along with the status flip so the row
+    # honours the same "settled rows have a sent_at timestamp"
+    # invariant ``_finalise`` maintains. Without it, the regular
+    # sweep query (which can fall back to ``sent_at IS NULL``)
+    # would still re-fetch reaped rows.
     feedback_count = (
         db.query(Signup)
         .filter(
@@ -65,7 +73,10 @@ def reap_partial_sends(db: Session) -> int:
             Signup.feedback_message_id.is_not(None),
         )
         .update(
-            {Signup.feedback_email_status: "failed"},
+            {
+                Signup.feedback_email_status: "failed",
+                Signup.feedback_sent_at: now,
+            },
             synchronize_session=False,
         )
     )
@@ -76,7 +87,10 @@ def reap_partial_sends(db: Session) -> int:
             Signup.reminder_message_id.is_not(None),
         )
         .update(
-            {Signup.reminder_email_status: "failed"},
+            {
+                Signup.reminder_email_status: "failed",
+                Signup.reminder_sent_at: now,
+            },
             synchronize_session=False,
         )
     )

@@ -21,7 +21,6 @@ and hasn't been processed yet:
 This is the only legitimate caller of ``services.encryption.decrypt``.
 """
 
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -31,7 +30,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
 from . import encryption, scd2
-from .email import build_url, send_email_sync
+from .email import build_url, new_message_id, send_email_sync
 
 logger = structlog.get_logger()
 
@@ -40,12 +39,6 @@ logger = structlog.get_logger()
 TOKEN_TTL = timedelta(days=30)
 
 
-def _message_id_domain() -> str:
-    return os.environ.get("MESSAGE_ID_DOMAIN", "opkomst.nu")
-
-
-def _new_message_id() -> str:
-    return f"<{secrets.token_hex(16)}@{_message_id_domain()}>"
 
 
 def _mint_token(db: Session, signup: Signup, event: Event) -> str:
@@ -72,7 +65,7 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
     # the row recoverable by the boot-time reaper
     # (``email_lifecycle.reap_partial_sends``) which flips stuck
     # ``pending`` rows with a message_id to ``failed``.
-    message_id = _new_message_id()
+    message_id = new_message_id()
     claimed = (
         db.query(Signup)
         .filter(
@@ -192,7 +185,13 @@ def run_once() -> int:
             .filter(
                 Event.valid_until.is_(None),
                 Signup.encrypted_email.is_not(None),
-                Signup.feedback_sent_at.is_(None),
+                # Status gate is the source of truth for "should
+                # we process this row?" — relying on
+                # ``feedback_sent_at IS NULL`` alone re-fetches
+                # rows that the reaper has retired but never
+                # stamped, which produces a hot loop where the
+                # claim no-ops every tick.
+                Signup.feedback_email_status == "pending",
                 Event.ends_at <= cutoff,
                 Event.questionnaire_enabled.is_(True),
             )

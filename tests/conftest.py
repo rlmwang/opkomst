@@ -26,6 +26,7 @@ os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMP_DB}")
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-not-for-real-use")
 os.environ.setdefault("EMAIL_ENCRYPTION_KEY", "19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=")
 os.environ.setdefault("EMAIL_BACKEND", "console")
+os.environ.setdefault("MESSAGE_ID_DOMAIN", "test.opkomst.nu")
 os.environ.setdefault("PUBLIC_BASE_URL", "http://localhost:5173")
 os.environ.setdefault("DISABLE_SCHEDULER", "1")
 # Bootstrap email is read at module-import time in

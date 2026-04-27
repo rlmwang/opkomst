@@ -17,6 +17,7 @@ Adapted from horeca-backend's email service.
 """
 
 import os
+import secrets
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Protocol
 from urllib.parse import urlencode
@@ -69,6 +70,16 @@ def _get_executor() -> ThreadPoolExecutor:
 
 def get_from_address() -> str:
     return os.environ.get("SMTP_FROM", "noreply@opkomst.nu")
+
+
+def new_message_id() -> str:
+    """Mint a fresh, RFC-5322-shaped Message-ID that we can quote
+    on outbound mail and look up when Scaleway's bounce/complaint
+    webhook fires. The domain is required: a missing
+    ``MESSAGE_ID_DOMAIN`` is a deploy bug, not something to paper
+    over with a localhost fallback."""
+    domain = os.environ["MESSAGE_ID_DOMAIN"]
+    return f"<{secrets.token_hex(16)}@{domain}>"
 
 
 def build_url(path: str, **params: str) -> str:

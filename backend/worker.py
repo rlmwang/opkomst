@@ -64,6 +64,31 @@ def main() -> None:
         reminder_worker.run_once, "interval", hours=1, id="reminder_sweep"
     )
 
+    # Recovery sweeps. Both run in addition to the boot-time
+    # ``reap_partial_sends`` call below so a long-running
+    # container that never gets restarted still self-heals from
+    # stuck rows.
+    def _reap_partial() -> None:
+        # Wrapper so APScheduler doesn't try to schedule a
+        # closure-bound DB session. Each tick gets a fresh one.
+        db = SessionLocal()
+        try:
+            email_lifecycle.reap_partial_sends(db)
+        finally:
+            db.close()
+
+    scheduler.add_job(
+        _reap_partial, "interval", hours=1, id="reap_partial_sends"
+    )
+    # Daily catch-up: reminders pending for events that have
+    # already started (72h window passed without a successful
+    # tick — typical cause: the worker was down across the
+    # window). Flip those to not_applicable so the ciphertext
+    # eventually gets wiped.
+    scheduler.add_job(
+        reminder_worker.reap_expired, "interval", hours=24, id="reminder_reap_expired"
+    )
+
     stop_event = threading.Event()
 
     def _shutdown(signum: int, _frame: object) -> None:  # noqa: ARG001

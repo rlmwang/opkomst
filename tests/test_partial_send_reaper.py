@@ -119,3 +119,28 @@ def test_reaper_wipes_ciphertext_when_both_channels_settled(
         assert row.encrypted_email is None  # both channels settled → wiped
     finally:
         fresh.close()
+
+
+def test_reaper_stamps_sent_at_so_row_isnt_re_fetched(
+    db: Any, fake_email: Any
+) -> None:
+    """The reaper must stamp ``*_sent_at`` along with the status
+    flip, otherwise the regular sweep's ``sent_at IS NULL`` filter
+    keeps re-fetching the row every tick. Verifies the invariant
+    "settled ⇒ sent_at IS NOT NULL" is upheld by the reaper."""
+    e = make_event(db, starts_in=timedelta(hours=-26), duration=timedelta(hours=1))
+    s = make_signup(db, e, email="alice@example.test")
+    s.feedback_message_id = "<stuck@opkomst.nu>"
+    db.add(s)
+    commit(db)
+
+    email_lifecycle.reap_partial_sends(SessionLocal())
+
+    fresh = SessionLocal()
+    try:
+        row = fresh.query(Signup).filter(Signup.id == s.id).first()
+        assert row is not None
+        assert row.feedback_email_status == "failed"
+        assert row.feedback_sent_at is not None
+    finally:
+        fresh.close()
