@@ -113,14 +113,6 @@ async function submit() {
   if (!event.value) return;
   const name = displayName.value.trim();
   const trimmedEmail = email.value.trim();
-  if (!name) {
-    toasts.warn(t("public.fillName"));
-    return;
-  }
-  if (!sourceChoice.value) {
-    toasts.warn(t("public.fillSource"));
-    return;
-  }
   if (trimmedEmail && !isValidEmail(trimmedEmail)) {
     toasts.warn(t("common.invalidEmail"));
     return;
@@ -128,7 +120,7 @@ async function submit() {
   submitting.value = true;
   try {
     await events.signUp(props.slug, {
-      display_name: name,
+      display_name: name || null,
       party_size: partySize.value,
       source_choice: sourceChoice.value,
       help_choices: helpChoices.value,
@@ -212,55 +204,49 @@ async function submit() {
         </p>
       </AppCard>
 
-      <form v-else class="signup-form stack" novalidate @submit.prevent="submit">
-        <AppCard>
-          <h2>{{ t("public.essentialsTitle") }}</h2>
+      <AppCard v-else tag="form" class="signup-form" novalidate @submit.prevent="submit">
+        <h2>{{ t("public.essentialsTitle") }}</h2>
 
-          <section class="form-section">
-            <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
-            <div class="field-with-help">
-              <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
-              <p class="field-help">{{ t("public.partySizeHelp") }}</p>
-            </div>
-          </section>
+        <section class="form-section">
+          <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
+          <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
+        </section>
 
-          <section v-if="event.help_options.length > 0" class="form-section">
-            <fieldset class="help-choices">
-              <legend>{{ t("public.helpHeading") }}</legend>
-              <label v-for="opt in event.help_options" :key="opt" class="help-row">
-                <Checkbox v-model="helpChoices" :value="opt" />
-                <span>{{ opt }}</span>
-              </label>
-            </fieldset>
-          </section>
-        </AppCard>
+        <section v-if="event.help_options.length > 0" class="form-section help-section">
+          <fieldset class="help-choices">
+            <legend>{{ t("public.helpHeading") }}</legend>
+            <label v-for="opt in event.help_options" :key="opt" class="help-row">
+              <Checkbox v-model="helpChoices" :value="opt" />
+              <span>{{ opt }}</span>
+            </label>
+          </fieldset>
+        </section>
 
-        <AppCard>
-          <h2>{{ t("public.feedbackTitle") }}</h2>
+        <hr class="section-divider" />
 
-          <section class="form-section">
-            <Select
-              v-model="sourceChoice"
-              :options="event.source_options"
-              :placeholder="t('public.sourcePlaceholder')"
-              fluid
-            />
-            <InputText
-              v-if="event.questionnaire_enabled"
-              v-model="email"
-              type="email"
-              :placeholder="t('public.emailOptional')"
-              autocomplete="email"
-              fluid
-            />
-          </section>
+        <h2>{{ t("public.feedbackTitle") }}</h2>
 
-          <div class="submit-row">
-            <p class="required-key">{{ t("public.requiredKey") }}</p>
-            <Button type="submit" :label="t('public.submit')" :loading="submitting" />
-          </div>
-        </AppCard>
-      </form>
+        <section class="form-section">
+          <Select
+            v-model="sourceChoice"
+            :options="event.source_options"
+            :placeholder="t('public.sourcePlaceholder')"
+            fluid
+          />
+          <InputText
+            v-if="event.questionnaire_enabled"
+            v-model="email"
+            type="email"
+            :placeholder="t('public.emailOptional')"
+            autocomplete="email"
+            fluid
+          />
+        </section>
+
+        <div class="submit-row">
+          <Button type="submit" :label="t('public.submit')" :loading="submitting" />
+        </div>
+      </AppCard>
 
     </template>
   </div>
@@ -279,10 +265,32 @@ async function submit() {
 .form-section + .form-section {
   margin-top: 2rem;
 }
-/* Card heading sits a bit further from the first field — the
- * default 0.75rem stack gap glues the h2 to the input. */
+/* Slightly tighter break above the help-with checkboxes — the
+ * fieldset's own legend already adds visual weight, no need for
+ * the full inter-section margin on top of it. */
+.help-section {
+  margin-top: 1.25rem !important;
+}
+/* Calm horizontal separator between the two halves of the form.
+ * Subtle border with symmetric breathing room above and below so
+ * neither half feels glued to it. */
+.section-divider {
+  border: 0;
+  border-top: 1px solid var(--brand-rule, rgba(0, 0, 0, 0.08));
+  margin: 2rem 0;
+}
+/* Second h2 (Help ons leren / Help us learn) follows the divider —
+ * suppress the .stack 0.75rem so the divider's symmetric margins
+ * own the spacing. */
+.signup-form :deep(.card) > .section-divider + h2 {
+  margin-top: 0;
+}
+/* Card heading sits clearly above the first field. The default
+ * 0.75rem stack gap was way too tight; this gives the h2 room to
+ * breathe so it reads as a heading rather than a label glued to
+ * the input. */
 .signup-form :deep(.card) > h2 {
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
 }
 /* Privacy explainer between the event header and the sign-up form.
  * A normal-looking card, but the contents are a foldable
@@ -300,31 +308,11 @@ async function submit() {
   color: var(--brand-text-muted);
   line-height: 1.5;
 }
-/* Bottom row of the card: the "* required" key sits on the left,
- * muted; submit button on the right. Pairs the asterisk legend
- * with the action it qualifies without dangling above the first
- * field. */
+/* Bottom row of the card: submit button right-aligned. */
 .submit-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-end;
   margin-top: 2rem;
-}
-.required-key {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--brand-text-muted);
-}
-.field-with-help {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.field-help {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--brand-text-muted);
 }
 /* "I can help with" — multi-select rendered as a vertical stack of
  * checkboxes. Fieldset reset because PrimeVue doesn't ship a

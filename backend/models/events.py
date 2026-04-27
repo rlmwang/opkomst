@@ -58,9 +58,14 @@ class Signup(UUIDMixin, TimestampMixin, Base):
 
     # Points at Event.entity_id (stable logical id), not row id.
     event_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Display name is optional — visitors can sign up anonymously,
+    # leaving the organiser to count headcount from ``party_size`` only.
+    display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     party_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    source_choice: Mapped[str] = mapped_column(Text, nullable=False)
+    # ``source_choice`` is optional too. NULL means the visitor didn't
+    # answer "how did you find us"; the organiser-side breakdown
+    # excludes those.
+    source_choice: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Subset of the parent event's ``help_options`` the attendee opted
     # into (e.g. ["opbouwen"]). Empty when the event has no help_options
     # configured or the attendee skipped the question.

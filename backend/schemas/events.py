@@ -77,14 +77,16 @@ class SignupSummaryOut(BaseModel):
     source, or feedback-email status; those exist on the model but
     are private to the worker."""
 
-    display_name: str
+    display_name: str | None
     party_size: int
 
 
 class SignupCreate(BaseModel):
-    display_name: str = Field(min_length=1, max_length=100)
+    # Only ``party_size`` is genuinely required — visitors can sign
+    # up anonymously and skip the source question.
+    display_name: str | None = Field(default=None, max_length=100)
     party_size: int = Field(ge=1, le=50)
-    source_choice: str = Field(min_length=1)
+    source_choice: str | None = None
     # Subset of the event's help_options the attendee opted into. Empty
     # is fine — the question is itself optional. The router validates
     # every choice against the parent event's configured options.

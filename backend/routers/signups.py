@@ -25,7 +25,7 @@ def create_signup(
     event = events_svc.get_public_event_by_slug(db, slug)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if data.source_choice not in event.source_options:
+    if data.source_choice is not None and data.source_choice not in event.source_options:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
     invalid_help = [c for c in data.help_choices if c not in event.help_options]
     if invalid_help:

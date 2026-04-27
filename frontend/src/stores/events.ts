@@ -28,7 +28,7 @@ export interface EventStats {
 }
 
 export interface SignupSummary {
-  display_name: string;
+  display_name: string | null;
   party_size: number;
 }
 
@@ -98,9 +98,9 @@ export const useEventsStore = defineStore("events", () => {
   }
 
   async function signUp(slug: string, payload: {
-    display_name: string;
+    display_name: string | null;
     party_size: number;
-    source_choice: string;
+    source_choice: string | null;
     help_choices: string[];
     email: string | null;
   }): Promise<void> {

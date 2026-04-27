@@ -289,7 +289,10 @@ def event_stats(
     )
     total_signups = sum(int(c) for _, c, _ in rows)
     total_attendees = sum(int(s or 0) for _, _, s in rows)
-    by_source = {src: int(c) for src, c, _ in rows}
+    # Sign-ups that skipped the source question (NULL ``source_choice``)
+    # still count toward the totals, but they don't show up in the
+    # per-source breakdown — there's no bucket to put them in.
+    by_source = {src: int(c) for src, c, _ in rows if src is not None}
     return EventStatsOut(
         total_signups=total_signups,
         total_attendees=total_attendees,

@@ -258,7 +258,7 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
         <div v-if="signups.length > 0" class="subgroup">
           <h3 class="subhead">{{ t("event.signupList") }}</h3>
           <div v-for="(s, i) in signups" :key="i" class="list-row">
-            <span class="list-row-label">{{ s.display_name }}</span>
+            <span class="list-row-label">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
             <span class="row-count">{{ s.party_size }}</span>
           </div>
         </div>
