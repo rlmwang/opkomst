@@ -268,15 +268,13 @@ async function submit() {
         </section>
 
         <section v-if="event.help_options.length > 0" class="form-section help-section">
-          <fieldset class="help-choices">
-            <legend>{{ t("public.helpHeading") }}</legend>
-            <div class="help-options">
-              <label v-for="opt in event.help_options" :key="opt" class="help-row">
-                <Checkbox v-model="helpChoices" :value="opt" />
-                <span>{{ opt }}</span>
-              </label>
-            </div>
-          </fieldset>
+          <div class="help-choices" role="group" :aria-label="t('public.helpHeading')">
+            <span class="help-label">{{ t("public.helpHeading") }}</span>
+            <label v-for="opt in event.help_options" :key="opt" class="help-row">
+              <Checkbox v-model="helpChoices" :value="opt" />
+              <span>{{ opt }}</span>
+            </label>
+          </div>
         </section>
 
         <hr class="section-divider" />
@@ -370,23 +368,17 @@ async function submit() {
   justify-content: flex-end;
   margin-top: 2rem;
 }
-/* "I can help with" — multi-select. The legend sits on its own
- * line; the checkbox options sit side-by-side in a single row
- * (wrapping only when the viewport really can't hold them). */
+/* "I can help with" — label and checkboxes share one row. Wraps
+ * only when the viewport really can't hold the lot, keeping
+ * vertical density tight. */
 .help-choices {
-  border: none;
-  margin: 0;
-  padding: 0;
-}
-.help-choices legend {
-  padding: 0;
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-}
-.help-options {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 1.25rem;
+}
+.help-label {
+  font-size: 0.95rem;
 }
 .help-row {
   display: flex;
