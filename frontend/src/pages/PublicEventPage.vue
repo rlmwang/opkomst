@@ -202,58 +202,67 @@ async function submit() {
         </p>
       </AppCard>
 
-      <AppCard v-else tag="form" novalidate @submit.prevent="submit">
-        <h2>{{ t("public.signup") }}</h2>
-        <details class="privacy-notice">
-          <summary>{{ t("public.explainerTitle") }}</summary>
-          <p>
-            {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
-            <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
-          </p>
-        </details>
+      <form v-else class="signup-form stack" novalidate @submit.prevent="submit">
+        <AppCard>
+          <h2>{{ t("public.essentialsTitle") }}</h2>
+          <p class="muted section-intro">{{ t("public.essentialsIntro") }}</p>
 
-        <section class="form-section">
-          <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
-          <div class="field-with-help">
-            <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
-            <p class="field-help">{{ t("public.partySizeHelp") }}</p>
+          <section class="form-section">
+            <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
+            <div class="field-with-help">
+              <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
+              <p class="field-help">{{ t("public.partySizeHelp") }}</p>
+            </div>
+          </section>
+
+          <section v-if="event.help_options.length > 0" class="form-section">
+            <fieldset class="help-choices">
+              <legend>{{ t("public.helpHeading") }}</legend>
+              <label v-for="opt in event.help_options" :key="opt" class="help-row">
+                <Checkbox v-model="helpChoices" :value="opt" />
+                <span>{{ opt }}</span>
+              </label>
+            </fieldset>
+          </section>
+        </AppCard>
+
+        <AppCard>
+          <h2>{{ t("public.feedbackTitle") }}</h2>
+          <p class="muted section-intro">{{ t("public.feedbackIntro") }}</p>
+
+          <section class="form-section">
+            <Select
+              v-model="sourceChoice"
+              :options="event.source_options"
+              :placeholder="t('public.sourcePlaceholder')"
+              fluid
+            />
+          </section>
+
+          <section v-if="event.questionnaire_enabled" class="form-section">
+            <InputText
+              v-model="email"
+              type="email"
+              :placeholder="t('public.emailOptional')"
+              autocomplete="email"
+              fluid
+            />
+          </section>
+
+          <div class="submit-row">
+            <p class="required-key">{{ t("public.requiredKey") }}</p>
+            <Button type="submit" :label="t('public.submit')" :loading="submitting" />
           </div>
-        </section>
+        </AppCard>
+      </form>
 
-        <section class="form-section">
-          <Select
-            v-model="sourceChoice"
-            :options="event.source_options"
-            :placeholder="t('public.sourcePlaceholder')"
-            fluid
-          />
-        </section>
-
-        <section v-if="event.questionnaire_enabled" class="form-section">
-          <InputText
-            v-model="email"
-            type="email"
-            :placeholder="t('public.emailOptional')"
-            autocomplete="email"
-            fluid
-          />
-        </section>
-
-        <section v-if="event.help_options.length > 0" class="form-section">
-          <fieldset class="help-choices">
-            <legend>{{ t("public.helpHeading") }}</legend>
-            <label v-for="opt in event.help_options" :key="opt" class="help-row">
-              <Checkbox v-model="helpChoices" :value="opt" />
-              <span>{{ opt }}</span>
-            </label>
-          </fieldset>
-        </section>
-
-        <div class="submit-row">
-          <p class="required-key">{{ t("public.requiredKey") }}</p>
-          <Button type="submit" :label="t('public.submit')" :loading="submitting" />
-        </div>
-      </AppCard>
+      <details v-if="!submitted" class="privacy-footer">
+        <summary>{{ t("public.explainerTitle") }}</summary>
+        <p>
+          {{ event.questionnaire_enabled ? t("public.explainerBody") : t("public.explainerBodyNoEmail") }}
+          <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
+        </p>
+      </details>
     </template>
   </div>
 </template>
@@ -270,6 +279,29 @@ async function submit() {
 }
 .form-section + .form-section {
   margin-top: 2rem;
+}
+/* Section intro under the card heading — tight pairing with the h2,
+ * a hair of breathing room before the first field. */
+.section-intro {
+  margin: -0.5rem 0 0.5rem;
+  font-size: 0.9375rem;
+}
+/* Privacy explainer at the bottom of the page — small print
+ * pattern. Open by click; closed by default so it doesn't compete
+ * with the form for attention. */
+.privacy-footer {
+  font-size: 0.875rem;
+  color: var(--brand-text-muted);
+  padding: 0 0.5rem;
+}
+.privacy-footer summary {
+  cursor: pointer;
+  user-select: none;
+  padding: 0.25rem 0;
+}
+.privacy-footer p {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
 }
 /* Bottom row of the card: the "* required" key sits on the left,
  * muted; submit button on the right. Pairs the asterisk legend
