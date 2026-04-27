@@ -4,6 +4,8 @@ close, restore) live in the shared module; this file only carries
 chapter-specific concerns: name normalisation, dupe checks, and
 the restore-collision rule."""
 
+from typing import Any
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -30,7 +32,7 @@ def latest_versions(db: Session, *, include_archived: bool) -> list[Chapter]:
     if not include_archived:
         return all_active(db)
     seen: set[str] = set()
-    keep: list[tuple[str, "object"]] = []
+    keep: list[tuple[str, object]] = []
     sub = (
         db.query(Chapter.entity_id, Chapter.valid_from)
         .order_by(Chapter.entity_id, Chapter.valid_from.desc())
@@ -111,7 +113,7 @@ def update(
     current_row = find_current_by_entity(db, entity_id)
     if current_row is None:
         return None
-    changes: dict[str, object] = {}
+    changes: dict[str, Any] = {}
     if name is not None:
         name = normalise_name(name)
         if name != current_row.name:

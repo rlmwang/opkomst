@@ -116,9 +116,10 @@ def run_once() -> int:
         # current Event version. Past versions are history; we never
         # send feedback emails on behalf of an old revision.
         rows = (
-            scd2.current(db.query(Signup, Event))
+            db.query(Signup, Event)
             .join(Event, Signup.event_id == Event.entity_id)
             .filter(
+                Event.valid_until.is_(None),
                 Signup.encrypted_email.is_not(None),
                 Signup.feedback_sent_at.is_(None),
                 Event.ends_at <= cutoff,
@@ -141,7 +142,7 @@ def run_for_event(entity_id: str) -> int:
     Returns the number processed."""
     db = SessionLocal()
     try:
-        event = scd2.current_by_entity(db, entity_id)
+        event = scd2.current_by_entity(db, Event, entity_id)
         if not event:
             return 0
         rows = (

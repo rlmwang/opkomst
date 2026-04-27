@@ -37,6 +37,11 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
+# B008 fires on every FastAPI ``Depends(...)`` default — that's the
+# canonical pattern, not a bug. UP047 wants PEP 695 generics, but
+# we're staying on classic ``TypeVar`` for compatibility with
+# SQLAlchemy mapper introspection.
+ignore = ["B008", "UP047"]
 
 [tool.pyright]
 include = ["backend", "tests"]

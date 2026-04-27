@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .database import SessionLocal
-from .models import Chapter, Event, FeedbackQuestion, FeedbackResponse, Signup, User
+from .models import Event, FeedbackQuestion, FeedbackResponse, Signup, User
 from .services import chapters as chapters_svc
 from .services import encryption
 from .services.slug import new_slug

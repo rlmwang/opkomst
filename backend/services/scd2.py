@@ -53,7 +53,7 @@ _SCD2_OWNED = frozenset(
 
 def _model_of(query: "Query[Any]") -> type:
     """The first mapped entity in a query."""
-    return query.column_descriptions[0]["entity"]
+    return query.column_descriptions[0]["entity"]  # pyright: ignore[reportReturnType]
 
 
 def current(query: "Query[T]") -> "Query[T]":
@@ -102,15 +102,16 @@ def scd2_create(
     ``scd2_update``."""
     new_id = str(uuid7())
     now = datetime.now(UTC)
-    row = model(
-        id=new_id,
-        entity_id=new_id,
-        valid_from=now,
-        valid_until=None,
-        changed_by=changed_by,
-        change_kind="created",
+    kwargs: dict[str, Any] = {
+        "id": new_id,
+        "entity_id": new_id,
+        "valid_from": now,
+        "valid_until": None,
+        "changed_by": changed_by,
+        "change_kind": "created",
         **fields,
-    )
+    }
+    row = model(**kwargs)
     db.add(row)
     db.flush()
     return row
@@ -130,15 +131,16 @@ def scd2_update(
     forwarded = {f: getattr(current_row, f) for f in _carry_forward_fields(model)}
     forwarded.update(changes)
     now = datetime.now(UTC)
-    new_row = model(
-        id=str(uuid7()),
-        entity_id=current_row.entity_id,
-        valid_from=now,
-        valid_until=None,
-        changed_by=changed_by,
-        change_kind=change_kind,
+    kwargs: dict[str, Any] = {
+        "id": str(uuid7()),
+        "entity_id": current_row.entity_id,
+        "valid_from": now,
+        "valid_until": None,
+        "changed_by": changed_by,
+        "change_kind": change_kind,
         **forwarded,
-    )
+    }
+    new_row = model(**kwargs)
     current_row.valid_until = now
     db.add(new_row)
     db.flush()
@@ -177,15 +179,16 @@ def scd2_restore(
     model = type(last_row)
     forwarded = {f: getattr(last_row, f) for f in _carry_forward_fields(model)}
     now = datetime.now(UTC)
-    new_row = model(
-        id=str(uuid7()),
-        entity_id=last_row.entity_id,
-        valid_from=now,
-        valid_until=None,
-        changed_by=changed_by,
-        change_kind="restored",
+    kwargs: dict[str, Any] = {
+        "id": str(uuid7()),
+        "entity_id": last_row.entity_id,
+        "valid_from": now,
+        "valid_until": None,
+        "changed_by": changed_by,
+        "change_kind": "restored",
         **forwarded,
-    )
+    }
+    new_row = model(**kwargs)
     db.add(new_row)
     db.flush()
     return new_row

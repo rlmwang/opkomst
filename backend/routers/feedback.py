@@ -18,8 +18,6 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..database import get_db
 from ..models import Event, FeedbackQuestion, FeedbackResponse, FeedbackToken, Signup, User
-from ..services import scd2 as scd2_svc
-from ..services.rate_limit import limiter
 from ..schemas.feedback import (
     EmailHealthOut,
     FeedbackFormOut,
@@ -29,6 +27,8 @@ from ..schemas.feedback import (
     FeedbackSubmitIn,
     FeedbackSummaryOut,
 )
+from ..services import scd2 as scd2_svc
+from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()
 
@@ -77,7 +77,7 @@ def list_questions(
 @router.get("/feedback/{token}", response_model=FeedbackFormOut)
 def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackFormOut:
     row = _resolve_token(db, token)
-    event = scd2_svc.current_by_entity(db, row.event_id)
+    event = scd2_svc.current_by_entity(db, Event, row.event_id)
     if not event:
         raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
     questions = _ordered_questions(db)

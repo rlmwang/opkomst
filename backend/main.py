@@ -12,14 +12,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from .migrate import run_migrations
-from .seed import run as run_seed
 from .routers import admin as admin_router
-from .routers import chapters as chapters_router
 from .routers import auth as auth_router
+from .routers import chapters as chapters_router
 from .routers import events as events_router
 from .routers import feedback as feedback_router
 from .routers import signups as signups_router
 from .routers import webhooks as webhooks_router
+from .seed import run as run_seed
 from .services import feedback_worker
 from .services.rate_limit import limiter
 from .services.security_headers import SecurityHeadersMiddleware

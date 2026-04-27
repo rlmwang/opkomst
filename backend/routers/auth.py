@@ -5,8 +5,6 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from ..services.rate_limit import limiter
-
 from ..auth import (
     create_purpose_token,
     create_token,
@@ -21,6 +19,7 @@ from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut,
 from ..services import chapters as chapters_svc
 from ..services import scd2
 from ..services.email import build_url, send_email
+from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()
 

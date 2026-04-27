@@ -1,13 +1,13 @@
 import os
 from logging.config import fileConfig
 
+from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
+from backend import models  # noqa: F401, E402
 
 # Import models so Alembic sees them.
 from backend.database import Base  # noqa: E402
-from backend import models  # noqa: F401, E402
 
 config = context.config
 if config.config_file_name is not None:

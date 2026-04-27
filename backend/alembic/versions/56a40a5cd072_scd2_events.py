@@ -10,7 +10,6 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-
 revision: str = "56a40a5cd072"
 down_revision: str | None = "190f36ee419b"
 branch_labels: str | Sequence[str] | None = None
@@ -94,7 +93,9 @@ def downgrade() -> None:
     else:
         op.create_foreign_key("fk_signups_event_id_events", "signups", "events", ["event_id"], ["id"])
         op.create_foreign_key("fk_feedback_tokens_event_id_events", "feedback_tokens", "events", ["event_id"], ["id"])
-        op.create_foreign_key("fk_feedback_responses_event_id_events", "feedback_responses", "events", ["event_id"], ["id"])
+        op.create_foreign_key(
+            "fk_feedback_responses_event_id_events", "feedback_responses", "events", ["event_id"], ["id"]
+        )
 
     with op.batch_alter_table("events") as b:
         b.drop_constraint("fk_events_changed_by_users", type_="foreignkey")
