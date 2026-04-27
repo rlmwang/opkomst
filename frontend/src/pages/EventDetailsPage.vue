@@ -584,10 +584,14 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   gap: 0.5rem;
   align-items: center;
 }
+/* Each q-block sits between two horizontal separators with
+ * symmetric breathing room on both sides — 1.5rem of space above
+ * and below the rule so the questionnaire reads as discrete
+ * sections instead of one dense run-on. */
 .q-block {
   border-top: 1px solid var(--brand-border);
-  padding-top: 0.75rem;
-  margin-top: 0.25rem;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
 }
 .q-block:first-of-type {
   border-top: none;
