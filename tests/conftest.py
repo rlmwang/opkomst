@@ -134,3 +134,89 @@ def organiser_token(client, admin_headers, chapter_id) -> str:
 @pytest.fixture()
 def organiser_headers(organiser_token) -> dict[str, str]:
     return {"Authorization": f"Bearer {organiser_token}"}
+
+
+@pytest.fixture()
+def fake_email() -> Iterator:
+    """Replace the email backend with a recorder for the test's
+    duration. The yielded ``FakeBackend`` exposes ``.sent`` (list
+    of CapturedEmail) plus helpers like ``.to(addr)`` and
+    ``.fail_n_times(addr, n)``. Auto-uninstalls in teardown so a
+    later test starts clean."""
+    from backend.services.email.testing import install_fake_backend, uninstall
+
+    fake = install_fake_backend()
+    try:
+        yield fake
+    finally:
+        uninstall()
+
+
+# ---- Frozen-clock fixture --------------------------------------
+
+class _FrozenClock:
+    """Wrapper around freezegun's ``freeze_time`` that lets a test
+    advance the clock arbitrarily.
+
+    Usage:
+        def test_something(clock):
+            clock.set("2026-04-27T10:00:00+00:00")
+            ... do something ...
+            clock.advance(hours=24)
+            ... do something else ...
+
+    The clock is frozen for the duration of the test; both
+    ``datetime.now()`` and ``time.time()`` return the controlled
+    value. Workers running inside the test see the simulated time.
+    """
+
+    def __init__(self) -> None:
+        self._freezer = None
+        self._frozen = None
+
+    def set(self, when) -> None:  # accepts datetime or ISO string
+        from datetime import datetime
+        import freezegun
+
+        if isinstance(when, str):
+            when = datetime.fromisoformat(when)
+        if self._freezer is not None:
+            self._freezer.stop()
+        self._freezer = freezegun.freeze_time(when)
+        self._frozen = self._freezer.start()
+
+    def advance(self, **kwargs) -> None:
+        """Advance the frozen clock by a timedelta-friendly kwargs:
+        ``hours``, ``days``, ``minutes``, etc. ``set`` must have
+        been called first."""
+        from datetime import datetime, timedelta, timezone
+
+        if self._frozen is None:
+            raise RuntimeError("Call clock.set(...) before clock.advance(...)")
+        # freezegun's frozen handle is a callable that returns the
+        # current frozen time. The simplest portable advance is to
+        # stop the current freezer and start a new one at the
+        # advanced time.
+        delta = timedelta(**kwargs)
+        new_time = self._frozen() + delta
+        if new_time.tzinfo is None:
+            new_time = new_time.replace(tzinfo=timezone.utc)
+        self.set(new_time)
+
+    def stop(self) -> None:
+        if self._freezer is not None:
+            self._freezer.stop()
+            self._freezer = None
+            self._frozen = None
+
+
+@pytest.fixture()
+def clock() -> Iterator:
+    """Frozen-clock helper. Tests that run workers / queries
+    sensitive to time can ``clock.set(when)`` and ``clock.advance(
+    hours=N)`` to simulate the passage of time without sleeping."""
+    c = _FrozenClock()
+    try:
+        yield c
+    finally:
+        c.stop()
