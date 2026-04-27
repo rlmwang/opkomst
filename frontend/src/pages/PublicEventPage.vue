@@ -327,7 +327,6 @@ async function submit() {
 .help-choices legend {
   padding: 0;
   margin-bottom: 0.5rem;
-  font-weight: 600;
   font-size: 0.95rem;
 }
 .help-row {
