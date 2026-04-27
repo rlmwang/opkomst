@@ -225,7 +225,7 @@
     "partySize": "Aantal personen",
     "sourcePlaceholder": "Hoe heb je ons gevonden?",
     "helpHeading": "Ik kan helpen met",
-    "emailOptional": "E-mailadres",
+    "emailOptional": "E-mailadres (voor één feedbackmail)",
     "submit": "Aanmelden",
     "submitFail": "Aanmelden mislukt",
     "loadFailed": "Kon evenement niet laden",

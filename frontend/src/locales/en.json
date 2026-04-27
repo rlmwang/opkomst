@@ -225,7 +225,7 @@
     "partySize": "Number of people",
     "sourcePlaceholder": "How did you find us?",
     "helpHeading": "I can help with",
-    "emailOptional": "Email",
+    "emailOptional": "Email (for one feedback message)",
     "submit": "Sign up",
     "submitFail": "Sign-up failed",
     "loadFailed": "Could not load event",
