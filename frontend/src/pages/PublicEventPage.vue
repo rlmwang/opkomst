@@ -282,14 +282,14 @@ async function submit() {
 /* Second h2 (Help ons leren / Help us learn) follows the divider —
  * suppress the .stack 0.75rem so the divider's symmetric margins
  * own the spacing. */
-.signup-form :deep(.card) > .section-divider + h2 {
+.signup-form > .section-divider + h2 {
   margin-top: 0;
 }
-/* Card heading sits clearly above the first field. The default
- * 0.75rem stack gap was way too tight; this gives the h2 room to
- * breathe so it reads as a heading rather than a label glued to
- * the input. */
-.signup-form :deep(.card) > h2 {
+/* Card heading sits clearly above the first field. AppCard renders
+ * as ``<form class="signup-form card stack">`` so the h2 is a
+ * direct child of ``.signup-form`` — no ``:deep(.card)`` indirection
+ * (that was the bug behind the spacing requests not landing). */
+.signup-form > h2 {
   margin-bottom: 1.5rem;
 }
 /* Privacy explainer between the event header and the sign-up form.
