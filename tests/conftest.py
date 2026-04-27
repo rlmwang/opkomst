@@ -21,8 +21,13 @@ import pytest
 # A per-process tempfile DB. ``:memory:`` would be cleaner but
 # SQLAlchemy's default pool gives each connection its own empty
 # in-memory DB, breaking tests that share state across requests.
+# Override (not setdefault) so a developer running tests after
+# ``source .env`` doesn't accidentally point the suite at the
+# real dev database (which has seeded users from prior runs and
+# would reject the auth fixtures' ``admin@local.dev`` register
+# with 'Email already registered').
 _TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
-os.environ.setdefault("DATABASE_URL", f"sqlite:///{_TMP_DB}")
+os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-not-for-real-use")
 os.environ.setdefault("EMAIL_ENCRYPTION_KEY", "19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=")
 os.environ.setdefault("EMAIL_BACKEND", "console")
@@ -31,7 +36,21 @@ os.environ.setdefault("PUBLIC_BASE_URL", "http://localhost:5173")
 os.environ.setdefault("DISABLE_SCHEDULER", "1")
 # Bootstrap email is read at module-import time in
 # ``routers/auth.py``; setting it after imports would be a no-op.
-os.environ.setdefault("BOOTSTRAP_ADMIN_EMAIL", "admin@local.dev")
+# Override (not setdefault) because ``.env`` ships with an empty
+# ``BOOTSTRAP_ADMIN_EMAIL=`` value — empty-but-set still counts
+# as set for setdefault, so the test's expected admin email
+# would never reach the auth router otherwise.
+os.environ["BOOTSTRAP_ADMIN_EMAIL"] = "admin@local.dev"
+# Override (not setdefault): a developer running tests after
+# ``source .env`` would otherwise inherit ``LOCAL_MODE=1`` from
+# their dev shell, which makes ``seed.run_local_demo`` create
+# admin@local.dev / organiser@local.dev demo users at module
+# import. Those rows survive the per-test ``Base.metadata.drop_all``
+# only if the ORM object happens to live in the session, but the
+# real fallout is that the seed *also* hits the bootstrap path
+# in register, leaving the auth fixtures with a 409 they didn't
+# expect. Tests own user creation; force the seed off here.
+os.environ["LOCAL_MODE"] = "0"
 
 # Repo root on sys.path so ``backend`` imports cleanly.
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -40,13 +59,28 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _bootstrap_schema():
+    """Run alembic migrations once per test session so the
+    ``alembic_version`` table exists at HEAD. Without this the
+    per-test ``Base.metadata.create_all`` would race the
+    module-import-time ``run_migrations()`` inside
+    ``backend.main``: the migrations would try to ``CREATE TABLE
+    users`` on an already-populated schema and bail."""
+    from backend.migrate import run_migrations
+
+    run_migrations()
+    yield
+
+
 @pytest.fixture()
-def db():
+def db(_bootstrap_schema):
     """Per-test fresh DB. Drops all SCD2 chains between tests so
-    state can't leak."""
+    state can't leak. The ``alembic_version`` table persists
+    across drops because it's not in ``Base.metadata``; that's
+    deliberate — once stamped at HEAD it stays valid."""
     from backend.database import Base, SessionLocal, engine
 
-    # In-memory sqlite — drop+create fresh for every test.
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     session = SessionLocal()

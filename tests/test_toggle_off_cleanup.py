@@ -110,6 +110,52 @@ def test_disabling_one_when_other_already_sent_wipes(db: Any) -> None:
         fresh.close()
 
 
+def test_disabling_skips_rows_currently_mid_send(db: Any) -> None:
+    """Phase 3 review fix: ``_retire_disabled_channels`` must
+    NOT flip a row whose worker has already pre-minted a
+    message_id (Phase 2.1's claim). The worker's SMTP send is
+    in flight; if we retire the row to ``not_applicable`` while
+    that's happening, the email goes out but the row says it
+    didn't.
+
+    Simulate by setting message_id on a still-pending row
+    (mimicking a worker that just claimed it) and asserting
+    the retire helper leaves the row alone."""
+    e = make_event(db, starts_in=timedelta(days=4))
+    s = make_signup(db, e, email="alice@example.com")
+    s.feedback_message_id = "<claimed@opkomst.nu>"
+    s.reminder_message_id = "<claimed@opkomst.nu>"
+    db.add(s)
+    commit(db)
+
+    fresh = SessionLocal()
+    try:
+        _retire_disabled_channels(
+            fresh,
+            event_entity_id=e.entity_id,
+            questionnaire_disabled=True,
+            reminder_disabled=True,
+        )
+        fresh.commit()
+    finally:
+        fresh.close()
+
+    fresh = SessionLocal()
+    try:
+        row = fresh.query(Signup).filter(Signup.id == s.id).first()
+        assert row is not None
+        # The ``message_id IS NULL`` filter excluded this row from
+        # the retire UPDATEs — its status stays ``pending`` and
+        # the worker can finish its send legitimately.
+        assert row.feedback_email_status == "pending"
+        assert row.reminder_email_status == "pending"
+        # Ciphertext is also kept — the wipe filter requires both
+        # statuses to be != pending.
+        assert row.encrypted_email is not None
+    finally:
+        fresh.close()
+
+
 def test_disabling_with_neither_flag_set_is_noop(db: Any) -> None:
     """Defensive: if both flags are False the helper returns
     early — the row state must be untouched."""

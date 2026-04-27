@@ -60,7 +60,10 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
     r = client.get(f"/api/v1/events/{eid}/signups", headers=organiser_headers)
     assert r.status_code == 200
     rows = r.json()
-    assert rows == [{"display_name": "Alice", "party_size": 2}]
+    # Help-choices was added in the can-help feature; an empty list
+    # is part of the response shape but doesn't carry email / source /
+    # status data — the privacy invariant is still upheld.
+    assert rows == [{"display_name": "Alice", "party_size": 2, "help_choices": []}]
 
 
 def test_feedback_response_has_no_signup_link():

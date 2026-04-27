@@ -56,9 +56,15 @@ def main() -> None:
     # first interval elapses — so without this initial call a
     # multi-hour gap would never get cleaned up if the worker
     # restarts more often than the daily reaper would run.
-    boot_reaped = reminder_worker.reap_expired()
-    if boot_reaped:
-        logger.info("worker_boot_reap_expired", count=boot_reaped)
+    # Wrapped because a transient DB hiccup at boot shouldn't
+    # take the whole worker process down — log loud, continue,
+    # the daily scheduled tick will retry.
+    try:
+        boot_reaped = reminder_worker.reap_expired()
+        if boot_reaped:
+            logger.info("worker_boot_reap_expired", count=boot_reaped)
+    except Exception:
+        logger.exception("worker_boot_reap_expired_failed")
 
     # BackgroundScheduler runs the sweeps in a worker thread, which
     # leaves the main thread free to block on a signal-aware
