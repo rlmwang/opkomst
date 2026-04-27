@@ -272,12 +272,11 @@ async function submit() {
   margin-top: 1.25rem !important;
 }
 /* Calm horizontal separator between the two halves of the form.
- * Subtle border with symmetric breathing room above and below so
- * neither half feels glued to it. */
+ * Subtle border with symmetric breathing room above and below. */
 .section-divider {
   border: 0;
   border-top: 1px solid var(--brand-rule, rgba(0, 0, 0, 0.08));
-  margin: 2rem 0;
+  margin: 1.5rem 0;
 }
 /* Second h2 (Help ons leren / Help us learn) follows the divider —
  * suppress the .stack 0.75rem so the divider's symmetric margins
