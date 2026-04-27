@@ -13,6 +13,7 @@ export interface FeedbackQuestion {
 export interface FeedbackForm {
   event_name: string;
   event_slug: string;
+  event_locale: "nl" | "en";
   questions: FeedbackQuestion[];
 }
 
@@ -49,6 +50,11 @@ export interface FeedbackSummary {
   questions: FeedbackQuestionSummary[];
 }
 
+export interface FeedbackSubmission {
+  submission_id: string;
+  answers: Record<string, number | string>;
+}
+
 export const useFeedbackStore = defineStore("feedback", () => {
   const questions = ref<FeedbackQuestion[]>([]);
 
@@ -68,5 +74,9 @@ export const useFeedbackStore = defineStore("feedback", () => {
     return get<FeedbackSummary>(`/api/v1/events/${eventId}/feedback-summary`);
   }
 
-  return { questions, fetchQuestions, getForm, submit, getSummary };
+  async function getSubmissions(eventId: string): Promise<FeedbackSubmission[]> {
+    return get<FeedbackSubmission[]>(`/api/v1/events/${eventId}/feedback-submissions`);
+  }
+
+  return { questions, fetchQuestions, getForm, submit, getSummary, getSubmissions };
 });

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 
 const { t } = useI18n();
@@ -8,10 +9,10 @@ const { t } = useI18n();
 <template>
   <AppHeader />
   <div class="container">
-    <div class="card">
+    <AppCard :stack="false">
       <h1>{{ t("notFound.title") }}</h1>
       <p>{{ t("notFound.body") }}</p>
       <router-link to="/">{{ t("notFound.back") }}</router-link>
-    </div>
+    </AppCard>
   </div>
 </template>

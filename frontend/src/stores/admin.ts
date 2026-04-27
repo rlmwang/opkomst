@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { get, post } from "@/api/client";
+import { del, get, post } from "@/api/client";
 import type { User } from "@/stores/auth";
 
 export const useAdminStore = defineStore("admin", () => {
@@ -35,5 +35,10 @@ export const useAdminStore = defineStore("admin", () => {
     users.value = users.value.map((u) => (u.id === userId ? updated : u));
   }
 
-  return { users, fetchUsers, approve, assignAfdeling, promote, demote };
+  async function remove(userId: string): Promise<void> {
+    await del<void>(`/api/v1/admin/users/${userId}`);
+    users.value = users.value.filter((u) => u.id !== userId);
+  }
+
+  return { users, fetchUsers, approve, assignAfdeling, promote, demote, remove };
 });

@@ -24,14 +24,14 @@ function ask(item: T) {
 
 <template>
   <div class="editable-list">
-    <div v-for="item in items" :key="itemKey(item)" class="row">
-      <div class="row-label">
+    <div v-for="item in items" :key="itemKey(item)" class="list-row">
+      <div class="list-row-label">
         <slot name="row" :item="item">
           <span>{{ itemLabel(item) }}</span>
         </slot>
       </div>
       <Button
-        icon="pi pi-times"
+        icon="pi pi-trash"
         size="small"
         severity="secondary"
         text
@@ -51,19 +51,7 @@ function ask(item: T) {
   flex-direction: column;
   gap: 0.25rem;
 }
-.row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: space-between;
-  padding: 0.375rem 0.5rem;
-  border-radius: 6px;
-  transition: background 120ms ease;
-}
-.row:hover {
-  background: var(--brand-bg);
-}
-.row-label {
+.list-row-label {
   flex: 1;
   min-width: 0;
 }
@@ -72,14 +60,14 @@ function ask(item: T) {
   align-items: stretch;
   gap: 0.5rem;
   margin-top: 0.5rem;
-  padding: 0 0.5rem;
 }
-.add-row > * {
-  flex: 1;
-  min-width: 0;
-}
+/* Inputs grow to fill the row; buttons (and other auxiliary
+ * controls) keep their natural size. The previous ``> * { flex: 1 }``
+ * stretched the trailing plus-button to 50% of the row width. */
 .add-row :deep(.p-autocomplete),
 .add-row :deep(.p-inputtext) {
+  flex: 1;
+  min-width: 0;
   width: 100%;
 }
 </style>

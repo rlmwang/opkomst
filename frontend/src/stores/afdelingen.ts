@@ -6,6 +6,16 @@ export interface Afdeling {
   id: string; // entity_id (stable across versions)
   name: string;
   archived: boolean;
+  city: string | null;
+  city_lat: number | null;
+  city_lon: number | null;
+}
+
+export interface AfdelingPatchPayload {
+  name?: string;
+  city?: string | null;
+  city_lat?: number | null;
+  city_lon?: number | null;
 }
 
 export const useAfdelingenStore = defineStore("afdelingen", () => {
@@ -34,7 +44,11 @@ export const useAfdelingenStore = defineStore("afdelingen", () => {
   }
 
   async function rename(id: string, name: string): Promise<Afdeling> {
-    const updated = await patch<Afdeling>(`/api/v1/afdelingen/${id}`, { name });
+    return updatePatch(id, { name });
+  }
+
+  async function updatePatch(id: string, payload: AfdelingPatchPayload): Promise<Afdeling> {
+    const updated = await patch<Afdeling>(`/api/v1/afdelingen/${id}`, payload);
     all.value = all.value
       .map((a) => (a.id === id ? updated : a))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -66,5 +80,5 @@ export const useAfdelingenStore = defineStore("afdelingen", () => {
     return restored;
   }
 
-  return { all, fetchAll, search, create, rename, archive, restore, getUsage };
+  return { all, fetchAll, search, create, rename, updatePatch, archive, restore, getUsage };
 });

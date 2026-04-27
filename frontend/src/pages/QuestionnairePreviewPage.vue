@@ -2,6 +2,7 @@
 import Textarea from "primevue/textarea";
 import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import RatingScale from "@/components/RatingScale.vue";
 import { type FeedbackQuestion, useFeedbackStore } from "@/stores/feedback";
@@ -33,12 +34,12 @@ function placeholder(q: FeedbackQuestion): string {
 <template>
   <AppHeader />
   <div class="container stack">
-    <div class="card stack">
+    <AppCard>
       <h1>{{ t("feedback.preview.title") }}</h1>
       <p class="muted">{{ t("feedback.preview.intro") }}</p>
-    </div>
+    </AppCard>
 
-    <div v-for="q in store.questions" :key="q.id" class="card stack preview-card">
+    <AppCard v-for="q in store.questions" :key="q.id" class="preview-card">
       <label class="prompt">
         {{ q.ordinal }}. {{ prompt(q) }}
         <span v-if="q.required" class="required">*</span>
@@ -58,7 +59,7 @@ function placeholder(q: FeedbackQuestion): string {
         readonly
         fluid
       />
-    </div>
+    </AppCard>
   </div>
 </template>
 

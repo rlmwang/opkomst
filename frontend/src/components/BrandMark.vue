@@ -17,7 +17,6 @@ defineProps<{
       rel="noopener"
       class="party-logo-link"
       aria-label="Revolutionair Socialistische Partij — rsp.nu"
-      title="Revolutionair Socialistische Partij — rsp.nu"
     >
       <img :src="logoUrl" alt="" class="party-logo" />
     </a>

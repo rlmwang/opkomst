@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import { ApiError } from "@/api/client";
+import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const auth = useAuthStore();
-const toast = useToast();
+const toasts = useToasts();
 
 const status = ref<"verifying" | "ok" | "error">("verifying");
 const message = ref<string>("");
@@ -44,9 +45,9 @@ async function goLoginAndResend() {
   }
   try {
     await auth.resendVerification();
-    toast.add({ severity: "success", summary: t("verify.resentOk"), life: 3000 });
+    toasts.success(t("verify.resentOk"));
   } catch {
-    toast.add({ severity: "error", summary: t("verify.resentFail"), life: 3000 });
+    toasts.error(t("verify.resentFail"));
   }
 }
 </script>
@@ -54,7 +55,7 @@ async function goLoginAndResend() {
 <template>
   <AppHeader />
   <div class="container">
-    <div class="card stack">
+    <AppCard>
       <template v-if="status === 'verifying'">
         <h1>{{ t("verify.verifying") }}</h1>
         <p class="muted">{{ t("verify.pleaseWait") }}</p>
@@ -76,7 +77,7 @@ async function goLoginAndResend() {
           </router-link>
         </div>
       </template>
-    </div>
+    </AppCard>
   </div>
 </template>
 

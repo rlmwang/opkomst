@@ -19,6 +19,85 @@ import "./assets/theme.css";
 // these same surface shades, the dialogs end up exactly the same
 // cream as the rest of the app — no separate CSS overrides needed.
 const OpkomstPreset = definePreset(Aura, {
+  components: {
+    // Aura's default off-state track is `{surface.300}`, which maps to
+    // our warm-khaki cream and reads as olive-green next to the page
+    // background. Anchor off/on/handle to brand-friendly tones: pale-
+    // cream track when off, brand-red track when on, cream handle in
+    // both states.
+    toast: {
+      // All three severities anchored on the brand palette so toasts
+      // read as one coherent family on the cream background. Success
+      // and error share the brand-red palette (Aura's defaults are
+      // off-brand green and bright red); they're distinguished by the
+      // built-in severity icons (check vs exclamation). Warn keeps a
+      // warm amber/sand that harmonises with the cream surfaces
+      // instead of Aura's screaming yellow.
+      colorScheme: {
+        light: {
+          success: {
+            background: "color-mix(in srgb, {primary.50}, transparent 5%)",
+            borderColor: "{primary.200}",
+            color: "{primary.600}",
+            detailColor: "{surface.700}",
+            shadow: "0px 4px 8px 0px color-mix(in srgb, {primary.500}, transparent 96%)",
+            closeButton: {
+              hoverBackground: "{primary.100}",
+              focusRing: { color: "{primary.600}", shadow: "none" },
+            },
+          },
+          error: {
+            background: "color-mix(in srgb, {primary.50}, transparent 5%)",
+            borderColor: "{primary.200}",
+            color: "{primary.600}",
+            detailColor: "{surface.700}",
+            shadow: "0px 4px 8px 0px color-mix(in srgb, {primary.500}, transparent 96%)",
+            closeButton: {
+              hoverBackground: "{primary.100}",
+              focusRing: { color: "{primary.600}", shadow: "none" },
+            },
+          },
+          warn: {
+            background: "color-mix(in srgb, #fff5e2, transparent 5%)",
+            borderColor: "#ead9b3",
+            color: "#7a5b00",
+            detailColor: "{surface.700}",
+            shadow: "0px 4px 8px 0px color-mix(in srgb, #b58a1a, transparent 96%)",
+            closeButton: {
+              hoverBackground: "#f6e4b8",
+              focusRing: { color: "#7a5b00", shadow: "none" },
+            },
+          },
+        },
+      },
+    },
+    toggleswitch: {
+      colorScheme: {
+        light: {
+          root: {
+            background: "{surface.200}",
+            hoverBackground: "{surface.300}",
+            checkedBackground: "{primary.color}",
+            checkedHoverBackground: "{primary.hover.color}",
+            borderColor: "{surface.300}",
+            hoverBorderColor: "{surface.400}",
+            checkedBorderColor: "{primary.color}",
+            checkedHoverBorderColor: "{primary.hover.color}",
+          },
+          handle: {
+            background: "{surface.0}",
+            hoverBackground: "{surface.0}",
+            checkedBackground: "{surface.0}",
+            checkedHoverBackground: "{surface.0}",
+            color: "{text.muted.color}",
+            hoverColor: "{text.color}",
+            checkedColor: "{primary.color}",
+            checkedHoverColor: "{primary.hover.color}",
+          },
+        },
+      },
+    },
+  },
   semantic: {
     primary: {
       50: "#fdf2f2",

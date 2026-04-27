@@ -16,7 +16,7 @@ function pick(l: Locale) {
       class="flag"
       :class="{ active: locale === 'nl' }"
       aria-label="Nederlands"
-      title="Nederlands"
+      v-tooltip.top="'Nederlands'"
       @click="pick('nl')"
     >
       🇳🇱
@@ -26,7 +26,7 @@ function pick(l: Locale) {
       class="flag"
       :class="{ active: locale === 'en' }"
       aria-label="English"
-      title="English"
+      v-tooltip.top="'English'"
       @click="pick('en')"
     >
       🇬🇧

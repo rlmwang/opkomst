@@ -20,7 +20,9 @@ function logout() {
     <BrandMark to="/" />
     <nav v-if="auth.isAuthenticated">
       <router-link to="/dashboard">{{ t("header.events") }}</router-link>
+      <router-link v-if="auth.isApproved" to="/events/archived">{{ t("header.archive") }}</router-link>
       <router-link v-if="auth.isAdmin" to="/admin">{{ t("header.admin") }}</router-link>
+      <span class="logout-divider" aria-hidden="true" />
       <Button :label="t('header.logout')" size="small" severity="secondary" text @click="logout" />
     </nav>
   </header>
@@ -47,5 +49,14 @@ nav a {
 nav a.router-link-active {
   color: var(--brand-red);
   font-weight: 600;
+}
+/* Visual + spacing buffer between page navigation and the
+ * destructive logout button — easy misclicks were happening when
+ * logout sat one nav-gap (1rem) away from the last page link. */
+.logout-divider {
+  width: 1px;
+  height: 1.5rem;
+  margin: 0 1rem;
+  background: var(--brand-border);
 }
 </style>

@@ -1,87 +1,79 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import AppSkeleton from "@/components/AppSkeleton.vue";
+import SearchInput from "@/components/SearchInput.vue";
+import { useEventClipboard } from "@/composables/useEventClipboard";
+import { useConfirms } from "@/lib/confirms";
+import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
+import { formatDateTime } from "@/lib/format";
+import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 import { type EventOut, useEventsStore } from "@/stores/events";
 
 const { t, locale } = useI18n();
 const auth = useAuthStore();
 const events = useEventsStore();
-const toast = useToast();
-const confirm = useConfirm();
+const toasts = useToasts();
+const confirms = useConfirms();
+const { copyLink, copyQr } = useEventClipboard();
 
 async function resend() {
   try {
     await auth.resendVerification();
-    toast.add({ severity: "success", summary: t("verify.resentOk"), life: 3000 });
+    toasts.success(t("verify.resentOk"));
   } catch {
-    toast.add({ severity: "error", summary: t("verify.resentFail"), life: 3000 });
+    toasts.error(t("verify.resentFail"));
   }
 }
+
+const query = ref("");
+// True once the events fetch has settled (success or failure). The
+// list cards swap from a skeleton to the real list at this point.
+const loaded = ref(false);
 
 const sortedEvents = computed(() =>
   [...events.all].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
 );
 
+const filteredEvents = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  if (!q) return sortedEvents.value;
+  return sortedEvents.value.filter(
+    (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
+  );
+});
+
 onMounted(async () => {
-  if (!auth.isApproved) return;
+  if (!auth.isApproved) {
+    loaded.value = true;
+    return;
+  }
   try {
     await events.fetchAll();
   } catch {
-    toast.add({ severity: "error", summary: t("dashboard.loadFailed"), life: 3000 });
+    toasts.error(t("dashboard.loadFailed"));
+  } finally {
+    loaded.value = true;
   }
 });
 
-function localeTag(): string {
-  return locale.value === "en" ? "en-GB" : "nl-NL";
-}
-
-function publicUrl(slug: string): string {
-  return `${window.location.origin}/e/${slug}`;
-}
-
-function qrUrl(slug: string): string {
-  return `/api/v1/events/by-slug/${slug}/qr.png`;
-}
-
-async function copyLink(slug: string) {
-  try {
-    await navigator.clipboard.writeText(publicUrl(slug));
-    toast.add({ severity: "success", summary: t("dashboard.linkCopied"), life: 1800 });
-  } catch {
-    /* clipboard API can be unavailable on http without permission; silently no-op */
-  }
-}
-
-async function copyQr(slug: string) {
-  try {
-    const resp = await fetch(qrUrl(slug));
-    const blob = await resp.blob();
-    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    toast.add({ severity: "success", summary: t("dashboard.qrCopied"), life: 1800 });
-  } catch {
-    toast.add({ severity: "warn", summary: t("dashboard.qrCopyFail"), life: 2500 });
-  }
-}
-
 function askArchive(e: EventOut) {
-  confirm.require({
-    message: t("dashboard.archiveConfirmBody", { name: e.name }),
+  confirms.ask({
     header: t("dashboard.archiveConfirmTitle"),
+    message: t("dashboard.archiveConfirmBody", { name: e.name }),
     icon: "pi pi-exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("dashboard.archive"),
-    acceptProps: { severity: "danger" },
     accept: async () => {
       try {
         await events.archive(e.id);
-        toast.add({ severity: "success", summary: t("dashboard.archived"), life: 2000 });
+        toasts.success(t("dashboard.archived"));
       } catch {
-        toast.add({ severity: "error", summary: t("dashboard.archiveFail"), life: 3000 });
+        toasts.error(t("dashboard.archiveFail"));
       }
     },
   });
@@ -91,51 +83,57 @@ function askArchive(e: EventOut) {
 <template>
   <AppHeader />
   <div class="container stack">
-    <div class="title-row">
-      <h1>{{ t("dashboard.title") }}</h1>
-      <router-link v-if="auth.isApproved" to="/events/archived">
-        <Button :label="t('dashboard.viewArchived')" icon="pi pi-archive" size="small" severity="secondary" text />
-      </router-link>
-    </div>
+    <h1>{{ t("dashboard.title") }}</h1>
 
-    <div v-if="!auth.isVerified" class="card stack">
+    <AppCard v-if="!auth.isVerified">
       <h2>{{ t("dashboard.unverifiedTitle") }}</h2>
       <p>{{ t("dashboard.unverifiedBody") }}</p>
       <div>
         <Button :label="t('verify.resend')" size="small" severity="secondary" @click="resend" />
       </div>
-    </div>
+    </AppCard>
 
-    <div v-else-if="!auth.isApproved" class="card stack">
+    <AppCard v-else-if="!auth.isApproved">
       <h2>{{ t("dashboard.pendingTitle") }}</h2>
       <p>{{ t("dashboard.pendingBody") }}</p>
-    </div>
+    </AppCard>
 
     <template v-else>
-      <div>
+      <div class="actions-row">
         <router-link to="/events/new">
           <Button :label="t('dashboard.newEvent')" icon="pi pi-plus" />
         </router-link>
+        <SearchInput
+          v-if="sortedEvents.length > 0"
+          v-model="query"
+          :placeholder="t('dashboard.searchPlaceholder')"
+          class="search"
+        />
       </div>
 
-      <div v-if="sortedEvents.length === 0" class="card">
+      <AppSkeleton v-if="!loaded" :rows="3" cards />
+
+      <AppCard v-else-if="sortedEvents.length === 0" :stack="false">
         <p class="muted">{{ t("dashboard.empty") }}</p>
-      </div>
+      </AppCard>
 
-      <div v-for="e in sortedEvents" :key="e.id" class="card event-card">
+      <p v-else-if="filteredEvents.length === 0" class="muted">
+        {{ t("dashboard.noMatches") }}
+      </p>
+
+      <AppCard v-for="e in filteredEvents" :key="e.id" :stack="false" class="event-card">
         <div class="event-main">
           <div class="event-summary">
             <h3>{{ e.name }}</h3>
-            <p class="muted">{{ e.location }} · {{ new Date(e.starts_at).toLocaleString(localeTag()) }}</p>
+            <p class="muted">{{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}</p>
             <div class="link-row">
-              <a :href="publicUrl(e.slug)" target="_blank" rel="noopener">{{ publicUrl(e.slug) }}</a>
+              <a :href="publicEventUrl(e.slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.slug) }}</a>
               <Button
                 icon="pi pi-copy"
                 size="small"
                 severity="secondary"
                 text
-                :aria-label="t('dashboard.copyLink')"
-                v-tooltip.top="t('dashboard.copyLink')"
+                :aria-label="t('event.share.copyLink')"
                 @click="copyLink(e.slug)"
               />
             </div>
@@ -161,26 +159,29 @@ function askArchive(e: EventOut) {
           <button
             type="button"
             class="qr-button"
-            v-tooltip.top="t('dashboard.copyQr')"
-            :aria-label="t('dashboard.copyQr')"
+            v-tooltip.top="t('event.share.copyQr')"
+            :aria-label="t('event.share.copyQr')"
             @click="copyQr(e.slug)"
           >
-            <img :src="qrUrl(e.slug)" alt="QR" class="qr" />
+            <img :src="eventQrUrl(e.slug)" alt="" class="qr" />
           </button>
         </div>
-      </div>
+      </AppCard>
     </template>
   </div>
 </template>
 
 <style scoped>
-.title-row {
+.actions-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
 }
-.title-row h1 { margin: 0; }
-
+.actions-row .search {
+  flex: 1;
+  max-width: 24rem;
+  margin-left: auto;
+}
 .event-card {
   display: grid;
   grid-template-columns: 1fr auto;

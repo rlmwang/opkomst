@@ -3,40 +3,23 @@ import Button from "primevue/button";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import { useToast } from "primevue/usetoast";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import BrandMark from "@/components/BrandMark.vue";
+import AppCard from "@/components/AppCard.vue";
 import EventMap from "@/components/EventMap.vue";
+import PublicHeader from "@/components/PublicHeader.vue";
 import { ApiError } from "@/api/client";
-import { type EventOut, useEventsStore } from "@/stores/events";
+import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
+import { useToasts } from "@/lib/toasts";
+import { isValidEmail } from "@/lib/validate";
+import { type EventOut, useEventsStore } from "@/stores/events";
 
 const props = defineProps<{ slug: string }>();
 
 const { t, locale } = useI18n();
 const events = useEventsStore();
-const toast = useToast();
-
-function localeTag(): string {
-  return locale.value === "en" ? "en-GB" : "nl-NL";
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(localeTag(), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function formatTimeRange(startIso: string, endIso: string): string {
-  const opts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
-  const start = new Date(startIso).toLocaleTimeString(localeTag(), opts);
-  const end = new Date(endIso).toLocaleTimeString(localeTag(), opts);
-  return `${start} — ${end}`;
-}
+const toasts = useToasts();
 
 const event = ref<EventOut | null>(null);
 const error = ref<string | null>(null);
@@ -48,6 +31,56 @@ const email = ref("");
 const submitting = ref(false);
 const submitted = ref(false);
 
+// --- Draft persistence ---------------------------------------------
+// The signup form survives a page refresh — important for visitors
+// on flaky mobile connections who half-fill the form, lose
+// reception, and reload. Keyed by event slug so each event keeps
+// its own draft. Cleared when the signup is accepted.
+const draftKey = `signup-draft:${props.slug}`;
+
+interface SignupDraft {
+  displayName: string;
+  partySize: number;
+  sourceChoice: string | null;
+  email: string;
+}
+
+function snapshot(): SignupDraft {
+  return {
+    displayName: displayName.value,
+    partySize: partySize.value,
+    sourceChoice: sourceChoice.value,
+    email: email.value,
+  };
+}
+
+function applyDraft(d: SignupDraft) {
+  displayName.value = d.displayName;
+  partySize.value = d.partySize;
+  sourceChoice.value = d.sourceChoice;
+  email.value = d.email;
+}
+
+function clearDraft() {
+  try {
+    localStorage.removeItem(draftKey);
+  } catch {
+    /* localStorage disabled — nothing to clean up */
+  }
+}
+
+let _saveTimer: number | null = null;
+watch([displayName, partySize, sourceChoice, email], () => {
+  if (_saveTimer !== null) clearTimeout(_saveTimer);
+  _saveTimer = window.setTimeout(() => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify(snapshot()));
+    } catch {
+      /* localStorage full or disabled — silently skip */
+    }
+  }, 200);
+});
+
 onMounted(async () => {
   try {
     event.value = await events.getBySlug(props.slug);
@@ -55,22 +88,52 @@ onMounted(async () => {
     error.value =
       e instanceof ApiError && e.status === 404 ? t("public.notFound") : t("public.loadFailed");
   }
+  if (event.value) {
+    // Render the public sign-up page in the event's configured
+    // language, regardless of the visitor's persisted preference.
+    // Set ``locale.value`` directly so localStorage isn't touched
+    // (the visitor's own preference shouldn't change just because
+    // they followed a link to a foreign-language event).
+    locale.value = event.value.locale;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (raw) applyDraft(JSON.parse(raw) as SignupDraft);
+    } catch {
+      /* unparseable draft — ignore */
+    }
+  }
 });
 
 async function submit() {
-  if (!event.value || !sourceChoice.value) return;
+  if (!event.value) return;
+  const name = displayName.value.trim();
+  const trimmedEmail = email.value.trim();
+  if (!name) {
+    toasts.warn(t("public.fillName"));
+    return;
+  }
+  if (!sourceChoice.value) {
+    toasts.warn(t("public.fillSource"));
+    return;
+  }
+  if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+    toasts.warn(t("common.invalidEmail"));
+    return;
+  }
   submitting.value = true;
   try {
     await events.signUp(props.slug, {
-      display_name: displayName.value,
+      display_name: name,
       party_size: partySize.value,
       source_choice: sourceChoice.value,
-      email: email.value.trim() ? email.value.trim() : null,
+      email: trimmedEmail || null,
     });
     submitted.value = true;
-  } catch (e) {
-    const msg = e instanceof ApiError ? e.message : t("public.submitFail");
-    toast.add({ severity: "error", summary: msg, life: 3000 });
+    clearDraft();
+  } catch {
+    // Public visitors should never see a raw backend message — keep
+    // the toast localised, regardless of the underlying status.
+    toasts.error(t("public.submitFail"));
   } finally {
     submitting.value = false;
   }
@@ -79,16 +142,14 @@ async function submit() {
 
 <template>
   <div class="container stack">
-    <header class="public-header">
-      <BrandMark />
-    </header>
+    <PublicHeader />
 
-    <div v-if="error" class="card">
+    <AppCard v-if="error" :stack="false">
       <p>{{ error }}</p>
-    </div>
+    </AppCard>
 
     <template v-else-if="event">
-      <div class="card event-header">
+      <AppCard :stack="false" class="event-header">
         <div class="event-title">
           <h1>{{ event.name }}</h1>
           <p v-if="event.topic" class="event-topic">{{ event.topic }}</p>
@@ -97,11 +158,11 @@ async function submit() {
         <dl class="event-meta">
           <div class="meta-row">
             <i class="pi pi-calendar" aria-hidden="true" />
-            <span>{{ formatDate(event.starts_at) }}</span>
+            <span>{{ formatDate(event.starts_at, locale) }}</span>
           </div>
           <div class="meta-row">
             <i class="pi pi-clock" aria-hidden="true" />
-            <span>{{ formatTimeRange(event.starts_at, event.ends_at) }}</span>
+            <span>{{ formatTimeRange(event.starts_at, event.ends_at, locale) }}</span>
           </div>
           <div class="meta-row">
             <i class="pi pi-map-marker" aria-hidden="true" />
@@ -126,16 +187,16 @@ async function submit() {
           :latitude="event.latitude"
           :longitude="event.longitude"
         />
-      </div>
+      </AppCard>
 
-      <div v-if="submitted" class="card stack">
+      <AppCard v-if="submitted">
         <h2>{{ t("public.thanks") }}</h2>
         <p class="muted">
           {{ event.questionnaire_enabled ? t("public.thanksBody") : t("public.thanksBodyNoEmail") }}
         </p>
-      </div>
+      </AppCard>
 
-      <form v-else class="card stack" @submit.prevent="submit">
+      <AppCard v-else tag="form" novalidate @submit.prevent="submit">
         <h2>{{ t("public.signup") }}</h2>
         <details class="privacy-notice">
           <summary>{{ t("public.explainerTitle") }}</summary>
@@ -144,7 +205,7 @@ async function submit() {
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
-        <InputText v-model="displayName" :placeholder="t('public.displayName')" required fluid />
+        <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
         <div class="field-with-help">
           <InputNumber v-model="partySize" :min="1" :max="50" :placeholder="t('public.partySize')" show-buttons fluid />
           <p class="field-help">{{ t("public.partySizeHelp") }}</p>
@@ -153,7 +214,6 @@ async function submit() {
           v-model="sourceChoice"
           :options="event.source_options"
           :placeholder="t('public.sourcePlaceholder')"
-          required
           fluid
         />
         <InputText
@@ -165,15 +225,12 @@ async function submit() {
           fluid
         />
         <Button type="submit" :label="t('public.submit')" :loading="submitting" />
-      </form>
+      </AppCard>
     </template>
   </div>
 </template>
 
 <style scoped>
-.public-header {
-  padding: 1rem 0;
-}
 .field-with-help {
   display: flex;
   flex-direction: column;
@@ -223,17 +280,8 @@ async function submit() {
   text-align: center;
   flex-shrink: 0;
 }
-.meta-link {
-  color: var(--brand-text);
-  text-decoration: none;
-  border-bottom: 1px dotted var(--brand-border);
-  padding-bottom: 1px;
-  transition: color 120ms ease, border-color 120ms ease;
-}
-.meta-link:hover {
-  color: var(--brand-red);
-  border-bottom-color: var(--brand-red);
-}
+/* External-link affix shown next to a meta-link's text. Stays
+ * scoped because it's only used on this page's location row. */
 .meta-link .external {
   font-size: 0.7rem;
   color: var(--brand-text-muted);

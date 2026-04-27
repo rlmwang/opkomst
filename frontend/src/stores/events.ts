@@ -14,6 +14,7 @@ export interface EventOut {
   ends_at: string;
   source_options: string[];
   questionnaire_enabled: boolean;
+  locale: "nl" | "en";
   afdeling_id: string | null;
   afdeling_name: string | null;
   signup_count: number;
@@ -23,6 +24,11 @@ export interface EventStats {
   total_signups: number;
   total_attendees: number;
   by_source: Record<string, number>;
+}
+
+export interface SignupSummary {
+  display_name: string;
+  party_size: number;
 }
 
 export interface EventCreate {
@@ -35,6 +41,7 @@ export interface EventCreate {
   ends_at: string;
   source_options: string[];
   questionnaire_enabled: boolean;
+  locale: "nl" | "en";
 }
 
 export const useEventsStore = defineStore("events", () => {
@@ -84,6 +91,10 @@ export const useEventsStore = defineStore("events", () => {
     return get<EventStats>(`/api/v1/events/${eventId}/stats`);
   }
 
+  async function getSignups(eventId: string): Promise<SignupSummary[]> {
+    return get<SignupSummary[]>(`/api/v1/events/${eventId}/signups`);
+  }
+
   async function signUp(slug: string, payload: {
     display_name: string;
     party_size: number;
@@ -105,6 +116,7 @@ export const useEventsStore = defineStore("events", () => {
     sendFeedbackEmailsNow,
     getBySlug,
     getStats,
+    getSignups,
     signUp,
   };
 });

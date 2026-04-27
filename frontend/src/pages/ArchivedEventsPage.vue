@@ -1,33 +1,46 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { useToast } from "primevue/usetoast";
-import { onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import AppSkeleton from "@/components/AppSkeleton.vue";
+import SearchInput from "@/components/SearchInput.vue";
+import { formatDateTime } from "@/lib/format";
+import { useToasts } from "@/lib/toasts";
 import { type EventOut, useEventsStore } from "@/stores/events";
 
 const { t, locale } = useI18n();
 const events = useEventsStore();
-const toast = useToast();
+const toasts = useToasts();
+
+const query = ref("");
+const loaded = ref(false);
+
+const filtered = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  if (!q) return events.archived;
+  return events.archived.filter(
+    (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
+  );
+});
 
 onMounted(async () => {
   try {
     await events.fetchArchived();
   } catch {
-    toast.add({ severity: "error", summary: t("archived.loadFailed"), life: 3000 });
+    toasts.error(t("archived.loadFailed"));
+  } finally {
+    loaded.value = true;
   }
 });
-
-function localeTag(): string {
-  return locale.value === "en" ? "en-GB" : "nl-NL";
-}
 
 async function restore(e: EventOut) {
   try {
     await events.restore(e.id);
-    toast.add({ severity: "success", summary: t("archived.restored", { name: e.name }), life: 2000 });
+    toasts.success(t("archived.restored", { name: e.name }));
   } catch {
-    toast.add({ severity: "error", summary: t("archived.restoreFail"), life: 3000 });
+    toasts.error(t("archived.restoreFail"));
   }
 }
 </script>
@@ -35,36 +48,34 @@ async function restore(e: EventOut) {
 <template>
   <AppHeader />
   <div class="container stack">
-    <div class="title-row">
-      <h1>{{ t("archived.title") }}</h1>
-      <router-link to="/dashboard">
-        <Button :label="t('archived.back')" icon="pi pi-arrow-left" size="small" severity="secondary" text />
-      </router-link>
-    </div>
+    <h1>{{ t("archived.title") }}</h1>
     <p class="muted">{{ t("archived.intro") }}</p>
 
-    <div v-if="events.archived.length === 0" class="card">
-      <p class="muted">{{ t("archived.empty") }}</p>
-    </div>
+    <SearchInput
+      v-if="events.archived.length > 0"
+      v-model="query"
+      :placeholder="t('archived.searchPlaceholder')"
+    />
 
-    <div v-for="e in events.archived" :key="e.id" class="card row">
+    <AppSkeleton v-if="!loaded" :rows="2" cards />
+
+    <AppCard v-else-if="events.archived.length === 0" :stack="false">
+      <p class="muted">{{ t("archived.empty") }}</p>
+    </AppCard>
+
+    <p v-else-if="filtered.length === 0" class="muted">{{ t("archived.noMatches") }}</p>
+
+    <AppCard v-for="e in filtered" :key="e.id" :stack="false" class="row">
       <div>
         <h3>{{ e.name }}</h3>
-        <p class="muted">{{ e.location }} · {{ new Date(e.starts_at).toLocaleString(localeTag()) }}</p>
+        <p class="muted">{{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}</p>
       </div>
       <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restore(e)" />
-    </div>
+    </AppCard>
   </div>
 </template>
 
 <style scoped>
-.title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.title-row h1 { margin: 0; }
-
 .row {
   display: flex;
   justify-content: space-between;

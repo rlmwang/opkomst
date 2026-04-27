@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import ToggleSwitch from "primevue/toggleswitch";
-import { useToast } from "primevue/usetoast";
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AfdelingPicker from "@/components/AfdelingPicker.vue";
+import AppCard from "@/components/AppCard.vue";
+import AppDialog from "@/components/AppDialog.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import AppSkeleton from "@/components/AppSkeleton.vue";
+import CityPicker from "@/components/CityPicker.vue";
 import EditableList from "@/components/EditableList.vue";
+import SearchInput from "@/components/SearchInput.vue";
+import { useConfirms } from "@/lib/confirms";
+import { useToasts } from "@/lib/toasts";
 import { type Afdeling, useAfdelingenStore } from "@/stores/afdelingen";
 import { useAdminStore } from "@/stores/admin";
 import { type User, useAuthStore } from "@/stores/auth";
@@ -19,7 +24,8 @@ const { t } = useI18n();
 const admin = useAdminStore();
 const auth = useAuthStore();
 const afdelingen = useAfdelingenStore();
-const toast = useToast();
+const toasts = useToasts();
+const confirms = useConfirms();
 
 // --- Approve / change-chapter dialog ---------------------------------
 type AssignMode = "approve" | "assign";
@@ -36,42 +42,46 @@ function chapterLabelFor(u: User): string {
   return afdelingen.all.find((a) => a.id === u.afdeling_id)?.name ?? u.afdeling_name ?? t("admin.noChapter");
 }
 
-// --- Inline rename for a chapter row ---------------------------------
-const renamingId = ref<string | null>(null);
-const renameDraft = ref<string>("");
+// --- Edit-chapter dialog (name + city) -------------------------------
+const editDialogOpen = ref(false);
+const editTarget = ref<Afdeling | null>(null);
+const editName = ref<string>("");
+const editCity = ref<{ city: string | null; city_lat: number | null; city_lon: number | null }>({
+  city: null,
+  city_lat: null,
+  city_lon: null,
+});
+const editSubmitting = ref(false);
 
-function startRename(a: Afdeling) {
-  renamingId.value = a.id;
-  renameDraft.value = a.name;
-  // Focus the input on the next tick (after Vue swaps the DOM).
-  nextTick(() => {
-    const el = document.getElementById(`rename-input-${a.id}`) as HTMLInputElement | null;
-    el?.focus();
-    el?.select();
-  });
+function openEditChapter(a: Afdeling) {
+  editTarget.value = a;
+  editName.value = a.name;
+  editCity.value = { city: a.city, city_lat: a.city_lat, city_lon: a.city_lon };
+  editDialogOpen.value = true;
 }
 
-function cancelRename() {
-  renamingId.value = null;
-  renameDraft.value = "";
-}
-
-async function commitRename(a: Afdeling) {
-  const name = renameDraft.value.trim();
-  if (!name || name === a.name) {
-    cancelRename();
+async function submitEditChapter() {
+  if (!editTarget.value) return;
+  const target = editTarget.value;
+  const trimmed = editName.value.trim();
+  if (!trimmed) {
+    toasts.warn(t("afdelingen.fillName"));
     return;
   }
+  editSubmitting.value = true;
   try {
-    await afdelingen.rename(a.id, name);
-    toast.add({ severity: "success", summary: t("afdelingen.renamedToast"), life: 2000 });
-    cancelRename();
-  } catch (e) {
-    toast.add({
-      severity: "error",
-      summary: e instanceof Error ? e.message : t("afdelingen.renameFail"),
-      life: 3000,
+    await afdelingen.updatePatch(target.id, {
+      name: trimmed,
+      city: editCity.value.city,
+      city_lat: editCity.value.city_lat,
+      city_lon: editCity.value.city_lon,
     });
+    toasts.success(t("afdelingen.editedToast"));
+    editDialogOpen.value = false;
+  } catch (e) {
+    toasts.error(e instanceof Error ? e.message : t("afdelingen.editFail"));
+  } finally {
+    editSubmitting.value = false;
   }
 }
 
@@ -87,11 +97,31 @@ const otherChapters = computed(() =>
   afdelingen.all.filter((a) => a.id !== deleteTarget.value?.id),
 );
 
+// --- User search -----------------------------------------------------
+const userQuery = ref("");
+
+const filteredUsers = computed(() => {
+  const q = userQuery.value.trim().toLowerCase();
+  if (!q) return admin.users;
+  return admin.users.filter((u) => {
+    const chapter = chapterLabelFor(u).toLowerCase();
+    return (
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      chapter.includes(q)
+    );
+  });
+});
+
+const loaded = ref(false);
+
 onMounted(async () => {
   try {
     await Promise.all([admin.fetchUsers(), afdelingen.fetchAll()]);
   } catch {
-    toast.add({ severity: "error", summary: t("admin.loadFailed"), life: 3000 });
+    toasts.error(t("admin.loadFailed"));
+  } finally {
+    loaded.value = true;
   }
 });
 
@@ -115,46 +145,48 @@ async function submitAssignDialog() {
   try {
     if (assignDialogMode.value === "approve") {
       await admin.approve(assignTargetUser.value.id, assignDialogPick.value.id);
-      toast.add({ severity: "success", summary: t("admin.approveOk"), life: 2000 });
+      toasts.success(t("admin.approveOk"));
     } else {
       await admin.assignAfdeling(assignTargetUser.value.id, assignDialogPick.value.id);
-      toast.add({ severity: "success", summary: t("admin.assignOk"), life: 2000 });
+      toasts.success(t("admin.assignOk"));
     }
     assignDialogOpen.value = false;
   } catch {
-    toast.add({
-      severity: "error",
-      summary: assignDialogMode.value === "approve" ? t("admin.approveFail") : t("admin.assignFail"),
-      life: 3000,
-    });
+    toasts.error(assignDialogMode.value === "approve" ? t("admin.approveFail") : t("admin.assignFail"));
   } finally {
     assignDialogSubmitting.value = false;
   }
+}
+
+function askDeleteUser(u: User) {
+  confirms.ask({
+    header: t("admin.deleteUserConfirmTitle"),
+    message: t("admin.deleteUserConfirmBody", { name: u.name }),
+    icon: "pi pi-exclamation-triangle",
+    rejectLabel: t("common.cancel"),
+    acceptLabel: t("admin.deleteUser"),
+    accept: async () => {
+      try {
+        await admin.remove(u.id);
+        toasts.success(t("admin.deleteUserOk", { name: u.name }));
+      } catch {
+        toasts.error(t("admin.deleteUserFail"));
+      }
+    },
+  });
 }
 
 async function toggleAdmin(u: User, on: boolean) {
   try {
     if (on) {
       await admin.promote(u.id);
-      toast.add({
-        severity: "success",
-        summary: t("admin.promoteOk", { name: u.name }),
-        life: 2000,
-      });
+      toasts.success(t("admin.promoteOk", { name: u.name }));
     } else {
       await admin.demote(u.id);
-      toast.add({
-        severity: "success",
-        summary: t("admin.demoteOk", { name: u.name }),
-        life: 2000,
-      });
+      toasts.success(t("admin.demoteOk", { name: u.name }));
     }
   } catch {
-    toast.add({
-      severity: "error",
-      summary: on ? t("admin.promoteFail") : t("admin.demoteFail"),
-      life: 3000,
-    });
+    toasts.error(on ? t("admin.promoteFail") : t("admin.demoteFail"));
   }
 }
 
@@ -162,13 +194,9 @@ async function onPickedAfdelingFromAddBar(a: Afdeling) {
   if (!a.archived) return;
   try {
     await afdelingen.restore(a.id);
-    toast.add({
-      severity: "success",
-      summary: t("afdelingen.restoredToast", { name: a.name }),
-      life: 2000,
-    });
+    toasts.success(t("afdelingen.restoredToast", { name: a.name }));
   } catch {
-    toast.add({ severity: "error", summary: t("afdelingen.restoreFail"), life: 3000 });
+    toasts.error(t("afdelingen.restoreFail"));
   }
 }
 
@@ -193,21 +221,13 @@ async function onCreateFromAddBar(name: string) {
     );
     if (archivedMatch) {
       await afdelingen.restore(archivedMatch.id);
-      toast.add({
-        severity: "success",
-        summary: t("afdelingen.restoredToast", { name: archivedMatch.name }),
-        life: 2000,
-      });
+      toasts.success(t("afdelingen.restoredToast", { name: archivedMatch.name }));
       return;
     }
     await afdelingen.create(normalised);
-    toast.add({
-      severity: "success",
-      summary: t("afdelingen.createdToast", { name: normalised }),
-      life: 2000,
-    });
+    toasts.success(t("afdelingen.createdToast", { name: normalised }));
   } catch {
-    toast.add({ severity: "error", summary: t("afdelingen.createFail"), life: 3000 });
+    toasts.error(t("afdelingen.createFail"));
   }
 }
 
@@ -231,12 +251,12 @@ async function submitDelete() {
       users: deleteReassignUsersTo.value?.id ?? null,
       events: deleteReassignEventsTo.value?.id ?? null,
     });
-    toast.add({ severity: "success", summary: t("afdelingen.archivedToast"), life: 2000 });
+    toasts.success(t("afdelingen.archivedToast"));
     // Refetch users so chips reflect the reassignment.
     await admin.fetchUsers();
     deleteDialogOpen.value = false;
   } catch {
-    toast.add({ severity: "error", summary: t("afdelingen.archiveFail"), life: 3000 });
+    toasts.error(t("afdelingen.archiveFail"));
   } finally {
     deleteSubmitting.value = false;
   }
@@ -248,10 +268,12 @@ async function submitDelete() {
   <div class="container stack">
     <h1>{{ t("admin.title") }}</h1>
 
-    <div class="card stack">
+    <AppCard>
       <h2>{{ t("afdelingen.title") }}</h2>
       <p class="muted">{{ t("afdelingen.intro") }}</p>
+      <AppSkeleton v-if="!loaded" :rows="3" />
       <EditableList
+        v-else
         :items="afdelingen.all"
         :item-label="(a: Afdeling) => a.name"
         :item-key="(a: Afdeling) => a.id"
@@ -259,43 +281,20 @@ async function submitDelete() {
       >
         <template #row="{ item }">
           <div class="chapter-row">
-            <template v-if="renamingId === (item as Afdeling).id">
-              <InputText
-                :id="`rename-input-${(item as Afdeling).id}`"
-                v-model="renameDraft"
-                size="small"
-                fluid
-                @keyup.enter="commitRename(item as Afdeling)"
-                @keyup.esc="cancelRename"
-              />
-              <Button
-                icon="pi pi-check"
-                size="small"
-                severity="secondary"
-                text
-                :aria-label="t('common.save')"
-                @click="commitRename(item as Afdeling)"
-              />
-              <Button
-                icon="pi pi-times"
-                size="small"
-                severity="secondary"
-                text
-                :aria-label="t('common.cancel')"
-                @click="cancelRename"
-              />
-            </template>
-            <template v-else>
-              <span class="chapter-name">{{ (item as Afdeling).name }}</span>
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :aria-label="t('common.edit')"
-                @click="startRename(item as Afdeling)"
-              />
-            </template>
+            <span class="chapter-name">
+              {{ (item as Afdeling).name }}
+              <span v-if="(item as Afdeling).city" class="muted chapter-city">
+                · {{ (item as Afdeling).city }}
+              </span>
+            </span>
+            <Button
+              icon="pi pi-pencil"
+              size="small"
+              severity="secondary"
+              text
+              :aria-label="t('common.edit')"
+              @click="openEditChapter(item as Afdeling)"
+            />
           </div>
         </template>
         <template #add>
@@ -307,16 +306,26 @@ async function submitDelete() {
           />
         </template>
       </EditableList>
-    </div>
+    </AppCard>
 
-    <div class="card stack">
+    <AppCard>
       <h2>{{ t("admin.usersTitle") }}</h2>
       <p class="muted">{{ t("admin.usersIntro") }}</p>
-      <div v-if="admin.users.length === 0">
-        <p class="muted">{{ t("admin.empty") }}</p>
-      </div>
-      <div v-for="u in admin.users" :key="u.id" class="user-row">
-        <div class="user-main">
+      <AppSkeleton v-if="!loaded" :rows="4" />
+      <template v-else>
+        <SearchInput
+          v-if="admin.users.length > 0"
+          v-model="userQuery"
+          :placeholder="t('admin.searchPlaceholder')"
+        />
+        <div v-if="admin.users.length === 0">
+          <p class="muted">{{ t("admin.empty") }}</p>
+        </div>
+        <p v-else-if="filteredUsers.length === 0" class="muted">
+          {{ t("admin.noMatches") }}
+        </p>
+        <div v-for="u in filteredUsers" :key="u.id" class="list-row">
+        <div class="list-row-label">
           <strong>{{ u.name }}</strong>
           <span class="muted"> · {{ u.email }}</span>
           <div class="tags">
@@ -354,17 +363,25 @@ async function submitDelete() {
             />
             <span>{{ t("admin.adminToggle") }}</span>
           </label>
+          <Button
+            icon="pi pi-trash"
+            size="small"
+            severity="secondary"
+            text
+            :disabled="u.id === auth.user?.id"
+            :aria-label="t('admin.deleteUser')"
+            @click="askDeleteUser(u)"
+          />
         </div>
-      </div>
-    </div>
+        </div>
+      </template>
+    </AppCard>
 
-    <Dialog
+    <AppDialog
       v-model:visible="assignDialogOpen"
       :header="assignDialogMode === 'approve' ? t('admin.approveDialogTitle') : t('admin.assignDialogTitle')"
-      modal
-      :style="{ width: '420px' }"
     >
-      <p class="dialog-body">
+      <p class="muted dialog-text">
         {{
           assignDialogMode === "approve"
             ? t("admin.approveDialogBody", { name: assignTargetUser?.name ?? "" })
@@ -387,73 +404,61 @@ async function submitDelete() {
           @click="submitAssignDialog"
         />
       </template>
-    </Dialog>
+    </AppDialog>
 
-    <Dialog
+    <AppDialog
       v-model:visible="deleteDialogOpen"
       :header="t('afdelingen.deleteDialogTitle', { name: deleteTarget?.name ?? '' })"
-      modal
-      :style="{ width: '480px' }"
+      width="480px"
     >
-      <p class="dialog-body muted">{{ t("afdelingen.deleteDialogBody") }}</p>
-      <div v-if="deleteUsage.users > 0" class="reassign-row">
-        <label>
-          {{ t("afdelingen.deleteUsersLabel", { n: deleteUsage.users }) }}
-          <Select
-            v-model="deleteReassignUsersTo"
-            :options="otherChapters"
-            option-label="name"
-            show-clear
-            :placeholder="t('afdelingen.deleteLeaveOrphaned')"
-            fluid
-          />
-        </label>
-      </div>
-      <div v-if="deleteUsage.events > 0" class="reassign-row">
-        <label>
-          {{ t("afdelingen.deleteEventsLabel", { n: deleteUsage.events }) }}
-          <Select
-            v-model="deleteReassignEventsTo"
-            :options="otherChapters"
-            option-label="name"
-            show-clear
-            :placeholder="t('afdelingen.deleteLeaveOrphaned')"
-            fluid
-          />
-        </label>
-      </div>
-      <p v-if="deleteUsage.users === 0 && deleteUsage.events === 0" class="muted small">
+      <p class="muted dialog-text">{{ t("afdelingen.deleteDialogBody") }}</p>
+      <label v-if="deleteUsage.users > 0" class="reassign-label">
+        {{ t("afdelingen.deleteUsersLabel", { n: deleteUsage.users }) }}
+        <Select
+          v-model="deleteReassignUsersTo"
+          :options="otherChapters"
+          option-label="name"
+          show-clear
+          :placeholder="t('afdelingen.deleteLeaveOrphaned')"
+          fluid
+        />
+      </label>
+      <label v-if="deleteUsage.events > 0" class="reassign-label">
+        {{ t("afdelingen.deleteEventsLabel", { n: deleteUsage.events }) }}
+        <Select
+          v-model="deleteReassignEventsTo"
+          :options="otherChapters"
+          option-label="name"
+          show-clear
+          :placeholder="t('afdelingen.deleteLeaveOrphaned')"
+          fluid
+        />
+      </label>
+      <p v-if="deleteUsage.users === 0 && deleteUsage.events === 0" class="muted dialog-text">
         {{ t("afdelingen.deleteNoDeps") }}
       </p>
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="deleteDialogOpen = false" />
-        <Button
-          :label="t('afdelingen.archive')"
-          severity="danger"
-          :loading="deleteSubmitting"
-          @click="submitDelete"
-        />
+        <Button :label="t('afdelingen.archive')" :loading="deleteSubmitting" @click="submitDelete" />
       </template>
-    </Dialog>
+    </AppDialog>
+
+    <AppDialog
+      v-model:visible="editDialogOpen"
+      :header="t('afdelingen.editDialogTitle', { name: editTarget?.name ?? '' })"
+    >
+      <p class="muted dialog-text">{{ t("afdelingen.editDialogBody") }}</p>
+      <InputText v-model="editName" :placeholder="t('afdelingen.namePlaceholder')" fluid />
+      <CityPicker v-model="editCity" :placeholder="t('afdelingen.cityPlaceholder')" />
+      <template #footer>
+        <Button :label="t('common.cancel')" severity="secondary" text @click="editDialogOpen = false" />
+        <Button :label="t('common.save')" :loading="editSubmitting" @click="submitEditChapter" />
+      </template>
+    </AppDialog>
   </div>
 </template>
 
 <style scoped>
-.user-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.625rem 0.5rem;
-  border-radius: 6px;
-  transition: background 120ms ease;
-}
-.user-row:hover {
-  background: var(--brand-bg);
-}
-.user-main {
-  min-width: 0;
-}
 .tags {
   display: flex;
   gap: 0.5rem;
@@ -467,6 +472,17 @@ async function submitDelete() {
   justify-content: flex-end;
   align-items: center;
 }
+/* Mobile: the user row's name+email block and the actions cluster
+ * each take a full row, with the actions wrapping below the name. */
+@media (max-width: 540px) {
+  .list-row {
+    flex-wrap: wrap;
+  }
+  .actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
 .admin-toggle {
   display: inline-flex;
   align-items: center;
@@ -476,24 +492,24 @@ async function submitDelete() {
   cursor: pointer;
 }
 .admin-toggle.disabled {
-  cursor: not-allowed;
+  cursor: default;
   opacity: 0.65;
 }
-.dialog-body {
-  margin: 0 0 1rem;
+/* PrimeVue's disabled ToggleSwitch defaults to ``not-allowed``; force
+ * the default arrow so hovering the user's own self-toggle doesn't
+ * flash a "blocked" cursor. */
+.admin-toggle.disabled :deep(.p-toggleswitch) {
+  cursor: default;
 }
-.reassign-row {
-  margin-bottom: 1rem;
+.dialog-text {
+  margin: 0;
 }
-.reassign-row label {
+.reassign-label {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
   font-size: 0.875rem;
   color: var(--brand-text);
-}
-.small {
-  font-size: 0.875rem;
 }
 .chapter-row {
   display: flex;

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
-import { useToast } from "primevue/usetoast";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
-import BrandMark from "@/components/BrandMark.vue";
+import AppCard from "@/components/AppCard.vue";
+import PublicHeader from "@/components/PublicHeader.vue";
 import RatingScale from "@/components/RatingScale.vue";
 import { ApiError } from "@/api/client";
+import { useToasts } from "@/lib/toasts";
 import {
   type FeedbackForm,
   type FeedbackQuestion,
@@ -19,9 +20,9 @@ import {
 // reference the slug, so we don't bind it.
 defineProps<{ slug: string }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const route = useRoute();
-const toast = useToast();
+const toasts = useToasts();
 const store = useFeedbackStore();
 
 const form = ref<FeedbackForm | null>(null);
@@ -40,6 +41,10 @@ onMounted(async () => {
   }
   try {
     form.value = await store.getForm(token);
+    // Render the questionnaire in the event's configured language —
+    // matches the email the visitor was sent in. localStorage is
+    // not touched.
+    locale.value = form.value.event_locale;
     for (const q of form.value.questions) {
       if (q.kind === "rating") ratings.value[q.id] = null;
       if (q.kind === "text") texts.value[q.id] = "";
@@ -70,11 +75,11 @@ async function submit() {
   for (const q of form.value.questions) {
     if (!q.required) continue;
     if (q.kind === "rating" && ratings.value[q.id] == null) {
-      toast.add({ severity: "warn", summary: questionPrompt(q), life: 2500 });
+      toasts.warn(questionPrompt(q));
       return;
     }
     if (q.kind === "text" && !texts.value[q.id].trim()) {
-      toast.add({ severity: "warn", summary: questionPrompt(q), life: 2500 });
+      toasts.warn(questionPrompt(q));
       return;
     }
   }
@@ -94,7 +99,7 @@ async function submit() {
       e instanceof ApiError && (e.status === 410 || e.status === 404)
         ? t("feedback.expired")
         : t("feedback.submitFail");
-    toast.add({ severity: "error", summary: msg, life: 3000 });
+    toasts.error(msg);
   } finally {
     submitting.value = false;
   }
@@ -103,27 +108,25 @@ async function submit() {
 
 <template>
   <div class="container stack">
-    <header class="public-header">
-      <BrandMark />
-    </header>
+    <PublicHeader />
 
-    <div v-if="error" class="card">
+    <AppCard v-if="error" :stack="false">
       <p>{{ error }}</p>
-    </div>
+    </AppCard>
 
-    <div v-else-if="submitted" class="card stack">
+    <AppCard v-else-if="submitted">
       <h2>{{ t("feedback.thanks") }}</h2>
       <p class="muted">{{ t("feedback.thanksBody") }}</p>
-    </div>
+    </AppCard>
 
     <template v-else-if="form">
-      <div class="card stack">
+      <AppCard>
         <h1>{{ t("feedback.title", { name: form.event_name }) }}</h1>
         <p class="muted intro">{{ t("feedback.intro") }}</p>
-      </div>
+      </AppCard>
 
-      <form class="stack" @submit.prevent="submit">
-        <div v-for="q in form.questions" :key="q.id" class="card stack">
+      <form class="stack" novalidate @submit.prevent="submit">
+        <AppCard v-for="q in form.questions" :key="q.id">
           <label class="prompt">
             {{ questionPrompt(q) }}
             <span v-if="q.required" class="required">*</span>
@@ -144,7 +147,7 @@ async function submit() {
             auto-resize
             fluid
           />
-        </div>
+        </AppCard>
         <Button type="submit" :label="t('feedback.submit')" :loading="submitting" />
       </form>
     </template>
@@ -152,9 +155,6 @@ async function submit() {
 </template>
 
 <style scoped>
-.public-header {
-  padding: 1rem 0;
-}
 .intro {
   font-size: 0.9375rem;
 }
