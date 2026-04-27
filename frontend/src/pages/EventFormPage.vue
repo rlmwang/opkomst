@@ -327,19 +327,6 @@ async function submit() {
       </label>
       <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
 
-      <h2 class="sources-heading">{{ t("event.localeHeading") }}</h2>
-      <p class="muted sources-explainer">{{ t("event.localeExplainer") }}</p>
-      <Select
-        v-model="eventLocale"
-        :options="[
-          { value: 'nl', label: t('event.localeNl') },
-          { value: 'en', label: t('event.localeEn') },
-        ]"
-        option-label="label"
-        option-value="value"
-        fluid
-      />
-
       <h2 class="sources-heading">{{ t("event.sourcesHeading") }}</h2>
       <p class="muted sources-explainer">{{ t("event.sourcesExplainer") }}</p>
       <EditableList
@@ -364,6 +351,19 @@ async function submit() {
           />
         </template>
       </EditableList>
+
+      <h2 class="sources-heading">{{ t("event.localeHeading") }}</h2>
+      <p class="muted sources-explainer">{{ t("event.localeExplainer") }}</p>
+      <Select
+        v-model="eventLocale"
+        :options="[
+          { value: 'nl', label: t('event.localeNl') },
+          { value: 'en', label: t('event.localeEn') },
+        ]"
+        option-label="label"
+        option-value="value"
+        fluid
+      />
 
       <div class="form-footer">
         <Button
