@@ -215,7 +215,6 @@ async function submit() {
       <form v-else class="signup-form stack" novalidate @submit.prevent="submit">
         <AppCard>
           <h2>{{ t("public.essentialsTitle") }}</h2>
-          <p class="muted section-intro">{{ t("public.essentialsIntro") }}</p>
 
           <section class="form-section">
             <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
@@ -238,7 +237,6 @@ async function submit() {
 
         <AppCard>
           <h2>{{ t("public.feedbackTitle") }}</h2>
-          <p class="muted section-intro">{{ t("public.feedbackIntro") }}</p>
 
           <section class="form-section">
             <Select
@@ -282,12 +280,6 @@ async function submit() {
 }
 .form-section + .form-section {
   margin-top: 2rem;
-}
-/* Section intro under the card heading — tight pairing with the h2,
- * a hair of breathing room before the first field. */
-.section-intro {
-  margin: -0.5rem 0 0.5rem;
-  font-size: 0.9375rem;
 }
 /* Privacy explainer between the event header and the sign-up form.
  * A normal-looking card, but the contents are a foldable
