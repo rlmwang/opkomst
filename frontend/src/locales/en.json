@@ -194,6 +194,7 @@
     "totalSignups": "sign-ups",
     "totalAttendees": "attendees",
     "bySource": "By source",
+    "byHelp": "Helping with",
     "signupList": "Individual sign-ups",
     "signupAnonymous": "Anonymous",
     "sendNow": {

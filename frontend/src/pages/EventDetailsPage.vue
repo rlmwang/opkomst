@@ -255,13 +255,28 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
           </div>
         </div>
 
-        <div v-if="signups.length > 0" class="subgroup">
-          <h3 class="subhead">{{ t("event.signupList") }}</h3>
-          <div v-for="(s, i) in signups" :key="i" class="list-row">
-            <span class="list-row-label">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
-            <span class="row-count">{{ s.party_size }}</span>
+        <div v-if="stats.by_help && Object.keys(stats.by_help).length > 0" class="subgroup">
+          <h3 class="subhead">{{ t("event.byHelp") }}</h3>
+          <div v-for="(count, opt) in stats.by_help" :key="opt" class="list-row">
+            <span class="list-row-label">{{ opt }}</span>
+            <span class="row-count">{{ count }}</span>
           </div>
         </div>
+
+        <details v-if="signups.length > 0" class="subgroup signup-list">
+          <summary class="subhead">{{ t("event.signupList") }}</summary>
+          <div v-for="(s, i) in signups" :key="i" class="list-row signup-row">
+            <span class="list-row-label">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
+            <span v-if="s.help_choices.length > 0" class="help-chips">
+              <span
+                v-for="opt in s.help_choices"
+                :key="opt"
+                class="help-chip"
+              >{{ opt }}</span>
+            </span>
+            <span class="row-count">{{ s.party_size }}</span>
+          </div>
+        </details>
       </AppCard>
 
       <AppCard>
@@ -484,6 +499,48 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   color: var(--brand-red);
   min-width: 1.5rem;
   text-align: right;
+}
+/* Foldable individual-signup list — same layout as the other
+ * subgroups; the <summary> takes the .subhead role and renders as
+ * a click target. The list-row inside still spaces out at .25rem. */
+.signup-list summary {
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.signup-list summary::-webkit-details-marker {
+  display: none;
+}
+.signup-list summary::before {
+  content: "›";
+  display: inline-block;
+  transition: transform 120ms ease-out;
+  color: var(--brand-text-muted);
+}
+.signup-list[open] > summary::before {
+  transform: rotate(90deg);
+}
+/* Each row of the signup list: name on the left, optional
+ * help-chips next to the name, party_size right-aligned. */
+.signup-row {
+  align-items: center;
+}
+.help-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+}
+.help-chip {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.75rem;
+  background: var(--brand-surface-muted, rgba(0, 0, 0, 0.05));
+  color: var(--brand-text-muted);
+  white-space: nowrap;
 }
 
 /* --- Feedback card ------------------------------------------------- */

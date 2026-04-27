@@ -25,11 +25,13 @@ export interface EventStats {
   total_signups: number;
   total_attendees: number;
   by_source: Record<string, number>;
+  by_help: Record<string, number>;
 }
 
 export interface SignupSummary {
   display_name: string | null;
   party_size: number;
+  help_choices: string[];
 }
 
 export interface EventCreate {

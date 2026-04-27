@@ -69,6 +69,13 @@ class EventStatsOut(BaseModel):
     total_signups: int
     total_attendees: int  # sum of party_size
     by_source: dict[str, int]
+    # How many signups opted into each help_option configured on
+    # the event. Keys are exactly the strings on
+    # ``Event.help_options``; values are headcounts of signups
+    # whose ``help_choices`` includes that string. Sums can exceed
+    # ``total_signups`` because each signup can pick multiple
+    # options.
+    by_help: dict[str, int]
 
 
 class SignupSummaryOut(BaseModel):
@@ -79,6 +86,9 @@ class SignupSummaryOut(BaseModel):
 
     display_name: str | None
     party_size: int
+    # Empty when the event had no help_options configured or the
+    # signup skipped the question.
+    help_choices: list[str]
 
 
 class SignupCreate(BaseModel):

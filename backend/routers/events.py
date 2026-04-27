@@ -319,10 +319,28 @@ def event_stats(
     # still count toward the totals, but they don't show up in the
     # per-source breakdown — there's no bucket to put them in.
     by_source = {src: int(c) for src, c, _ in rows if src is not None}
+
+    # ``by_help`` aggregates how many sign-ups opted into each
+    # configured help_option. We tally in Python because help_choices
+    # is JSON; the alternative is a JSON1 ``json_each`` join that
+    # works on SQLite but not portably on Postgres without jsonb_path.
+    by_help: dict[str, int] = {opt: 0 for opt in event.help_options}
+    if event.help_options:
+        choice_lists = (
+            db.query(Signup.help_choices)
+            .filter(Signup.event_id == event.entity_id)
+            .all()
+        )
+        for (choices,) in choice_lists:
+            for choice in choices or []:
+                if choice in by_help:
+                    by_help[choice] += 1
+
     return EventStatsOut(
         total_signups=total_signups,
         total_attendees=total_attendees,
         by_source=by_source,
+        by_help=by_help,
     )
 
 
@@ -332,16 +350,19 @@ def event_signups(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[SignupSummaryOut]:
-    """Per-signup list for the organiser details page. Returns only
-    the display_name + party_size — never email, source, or
-    feedback-email status. Ordered by signup time (oldest first) so
-    a list rendered next to running totals stays stable as new
-    signups arrive at the bottom."""
+    """Per-signup list for the organiser details page. Returns
+    display_name + party_size + help_choices — never email,
+    source, or feedback-email status. Ordered by signup time
+    (oldest first) so a list rendered next to running totals
+    stays stable as new signups arrive at the bottom."""
     event = _get_event_scoped(db, entity_id, user)
     rows = (
-        db.query(Signup.display_name, Signup.party_size)
+        db.query(Signup.display_name, Signup.party_size, Signup.help_choices)
         .filter(Signup.event_id == event.entity_id)
         .order_by(Signup.created_at.asc())
         .all()
     )
-    return [SignupSummaryOut(display_name=name, party_size=size) for name, size in rows]
+    return [
+        SignupSummaryOut(display_name=name, party_size=size, help_choices=help_choices or [])
+        for name, size, help_choices in rows
+    ]
