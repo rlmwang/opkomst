@@ -18,6 +18,7 @@ Adapted from horeca-backend's email service.
 
 import os
 import secrets
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Protocol
 from urllib.parse import urlencode
@@ -80,6 +81,53 @@ def new_message_id() -> str:
     over with a localhost fallback."""
     domain = os.environ["MESSAGE_ID_DOMAIN"]
     return f"<{secrets.token_hex(16)}@{domain}>"
+
+
+def email_batch_size() -> int:
+    """Per-tick cap on the number of signups one worker sweep
+    will process. Without it a single event with thousands of
+    signups would drain in one tick, blast through SMTP rate
+    limits, and flip most rows to ``failed``. Configurable
+    via ``EMAIL_BATCH_SIZE``; default 200."""
+    return int(os.environ.get("EMAIL_BATCH_SIZE", "200"))
+
+
+# Sleep between retry attempts. A flat 1s — exponential is overkill
+# for two attempts but the call site can override via env if a
+# specific deploy needs it.
+_RETRY_SLEEP_SECONDS = float(os.environ.get("EMAIL_RETRY_SLEEP_SECONDS", "1"))
+
+
+def send_with_retry(
+    to: str,
+    *,
+    template_name: str,
+    context: dict[str, Any],
+    locale: str,
+    message_id: str | None = None,
+    attempts: int = 2,
+    log_event: str = "email_send_failed",
+) -> bool:
+    """Wrap ``send_email_sync`` with a retry loop. Returns True
+    on first success, False if every attempt raised. Sleeps
+    ``_RETRY_SLEEP_SECONDS`` between attempts so a transient SMTP
+    flap has a chance to clear; both workers (reminder + feedback)
+    use this so the retry policy stays in one place."""
+    for attempt in range(attempts):
+        try:
+            send_email_sync(
+                to=to,
+                template_name=template_name,
+                context=context,
+                locale=locale,
+                message_id=message_id,
+            )
+            return True
+        except Exception:
+            logger.exception(log_event, attempt=attempt, to=to)
+            if attempt < attempts - 1:
+                time.sleep(_RETRY_SLEEP_SECONDS)
+    return False
 
 
 def build_url(path: str, **params: str) -> str:

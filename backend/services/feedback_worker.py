@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import Event, FeedbackToken, Signup
 from . import encryption, scd2
-from .email import build_url, new_message_id, send_email_sync
+from .email import build_url, email_batch_size, new_message_id, send_with_retry
 
 logger = structlog.get_logger()
 
@@ -97,20 +97,14 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
     token = _mint_token(db, signup, event)
     db.commit()
     feedback_url = build_url(f"e/{event.slug}/feedback", t=token)
-    sent = False
-    for attempt in range(2):
-        try:
-            send_email_sync(
-                to=plaintext,
-                template_name="feedback.html",
-                context={"event_name": event.name, "feedback_url": feedback_url},
-                locale=event.locale,
-                message_id=message_id,
-            )
-            sent = True
-            break
-        except Exception:
-            logger.exception("feedback_send_failed", signup_id=signup.id, attempt=attempt)
+    sent = send_with_retry(
+        to=plaintext,
+        template_name="feedback.html",
+        context={"event_name": event.name, "feedback_url": feedback_url},
+        locale=event.locale,
+        message_id=message_id,
+        log_event="feedback_send_failed",
+    )
 
     _finalise(
         db,
@@ -174,6 +168,7 @@ def _finalise(
 def run_once() -> int:
     """One sweep. Returns the number of signups processed."""
     cutoff = datetime.now(UTC) - timedelta(hours=24)
+    batch_size = email_batch_size()
     db = SessionLocal()
     try:
         # Join via entity_id (the stable logical id) and only the
@@ -195,6 +190,7 @@ def run_once() -> int:
                 Event.ends_at <= cutoff,
                 Event.questionnaire_enabled.is_(True),
             )
+            .limit(batch_size)
             .all()
         )
         for signup, event in rows:
@@ -220,8 +216,9 @@ def run_for_event(entity_id: str) -> int:
             .filter(
                 Signup.event_id == entity_id,
                 Signup.encrypted_email.is_not(None),
-                Signup.feedback_sent_at.is_(None),
+                Signup.feedback_email_status == "pending",
             )
+            .limit(email_batch_size())
             .all()
         )
         for signup in rows:

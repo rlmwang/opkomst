@@ -33,7 +33,7 @@ import structlog
 from ..database import SessionLocal
 from ..models import Event, Signup
 from . import encryption
-from .email import build_url, new_message_id, send_email_sync
+from .email import build_url, email_batch_size, new_message_id, send_with_retry
 
 logger = structlog.get_logger()
 
@@ -78,24 +78,18 @@ def _process_one(db, signup: Signup, event: Event) -> None:
 
     # Step 3 — Send.
     event_url = build_url(f"e/{event.slug}")
-    sent = False
-    for attempt in range(2):
-        try:
-            send_email_sync(
-                to=plaintext,
-                template_name="reminder.html",
-                context={
-                    "event_name": event.name,
-                    "event_url": event_url,
-                    "starts_at": event.starts_at,
-                },
-                locale=event.locale,
-                message_id=message_id,
-            )
-            sent = True
-            break
-        except Exception:
-            logger.exception("reminder_send_failed", signup_id=signup.id, attempt=attempt)
+    sent = send_with_retry(
+        to=plaintext,
+        template_name="reminder.html",
+        context={
+            "event_name": event.name,
+            "event_url": event_url,
+            "starts_at": event.starts_at,
+        },
+        locale=event.locale,
+        message_id=message_id,
+        log_event="reminder_send_failed",
+    )
 
     _finalise(db, signup, sent=sent, message_id=message_id if sent else None)
 
@@ -205,6 +199,7 @@ def run_once() -> int:
     """One sweep. Returns the number of signups processed."""
     now = datetime.now(UTC)
     deadline = now + REMINDER_WINDOW
+    batch_size = email_batch_size()
     db = SessionLocal()
     try:
         # Gate on the event toggle being currently true *and* the
@@ -221,6 +216,7 @@ def run_once() -> int:
                 Signup.encrypted_email.is_not(None),
                 Signup.reminder_email_status == "pending",
             )
+            .limit(batch_size)
             .all()
         )
         for signup, event in rows:

@@ -13,6 +13,18 @@ from uuid_utils import uuid7
 from backend.models import Event, Signup
 from backend.services import encryption
 
+_slug_counter = 0
+
+
+def _unique_slug() -> str:
+    """Tests with a frozen clock can call ``uuid7`` repeatedly and
+    get the same time-based prefix, so a slug derived from the id
+    collides on the unique-slug constraint. Counter-suffixed slug
+    avoids that."""
+    global _slug_counter
+    _slug_counter += 1
+    return f"slug{_slug_counter:06d}"
+
 
 def make_event(
     db: Session,
@@ -34,7 +46,7 @@ def make_event(
     event = Event(
         id=eid,
         entity_id=eid,
-        slug=eid[:8],
+        slug=_unique_slug(),
         name=name,
         location="Test location",
         starts_at=starts_at,

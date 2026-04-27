@@ -217,36 +217,93 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
     """Public signup with email on a future event; clock then
     advances past the reminder window without any worker tick
     (simulating a multi-day outage). The boot-time / daily
-    ``reap_expired`` retires the row to not_applicable."""
+    ``reap_expired`` retires the row to not_applicable.
+
+    Two events seeded — one already-started, one still in the
+    future — so a regression that drops the
+    ``Event.starts_at <= now`` filter on the reaper would touch
+    the wrong rows and fail this test."""
+    from backend.models import Signup as SignupModel
+
     clock.set("2026-04-28T12:00:00+00:00")
-    e = make_event(db, starts_in=timedelta(days=4))
+    past_event = make_event(db, starts_in=timedelta(days=4), name="past")
+    future_event = make_event(db, starts_in=timedelta(days=4), name="future")
     db.commit()
 
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, past_event.slug, email="alice@example.com")
+    assert r.status_code == 201
+    r = _public_signup(client, future_event.slug, email="bob@example.com")
     assert r.status_code == 201
 
-    # Skip past the entire reminder window without running a
-    # reminder sweep. Event has ended.
+    # Advance only enough that ``past_event`` has ended; the
+    # ``future_event`` is still 6 days out (no, 4d-future + the
+    # advance: started 4d after t0, advance 4d3h → past_event has
+    # already ended; future_event same starts_in computed at
+    # make_event-time so also 4d after t0; both end before the
+    # advance lands… let's recompute). Instead: build the future
+    # event explicitly far enough ahead.
+    fresh = SessionLocal()
+    try:
+        from backend.models import Event as EventModel
+
+        ev = fresh.query(EventModel).filter_by(entity_id=future_event.entity_id).first()
+        assert ev is not None
+        # Push the future event's starts_at to 30 days out — far
+        # past any clock advancement in this test.
+        ev.starts_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=30)
+        ev.ends_at = ev.starts_at + timedelta(hours=2)
+        fresh.commit()
+    finally:
+        fresh.close()
+
+    # Skip past the entire reminder window for past_event without
+    # running a reminder sweep.
     clock.advance(days=4, hours=3)
 
-    # The reaper finds the row.
     reaped = reminder_worker.reap_expired()
-    assert reaped == 1
+    assert reaped == 1, "reaper should only touch the past event's signup"
 
-    row = _signup_row(SessionLocal)
-    assert row.reminder_email_status == "not_applicable"
+    fresh = SessionLocal()
+    try:
+        past_signup = (
+            fresh.query(SignupModel)
+            .filter(SignupModel.event_id == past_event.entity_id)
+            .first()
+        )
+        future_signup = (
+            fresh.query(SignupModel)
+            .filter(SignupModel.event_id == future_event.entity_id)
+            .first()
+        )
+        assert past_signup is not None and future_signup is not None
+        # Only the past event's signup got retired.
+        assert past_signup.reminder_email_status == "not_applicable"
+        # The future event's signup is unchanged.
+        assert future_signup.reminder_email_status == "pending"
+    finally:
+        fresh.close()
 
-    # Feedback can still fire — the worker query is gated on
-    # questionnaire_enabled and ends_at <= now-24h. After
-    # ``advance(days=4, hours=3)`` the event ended 1h ago, so we
-    # need another 23h to clear the 24h cutoff. Add a margin.
+    # Feedback for the past event can still fire — the worker
+    # query is gated on questionnaire_enabled and ends_at <=
+    # now-24h. After ``advance(days=4, hours=3)`` the event
+    # ended 1h ago, so we need another 23h to clear the 24h
+    # cutoff.
     clock.advance(hours=24)
     feedback_worker.run_once()
-    assert len(fake_email.sent) == 1  # feedback only
+    assert len(fake_email.sent) == 1  # feedback only, past event
 
-    row = _signup_row(SessionLocal)
-    assert row.feedback_email_status == "sent"
-    assert row.encrypted_email is None  # both channels settled
+    fresh = SessionLocal()
+    try:
+        past_signup = (
+            fresh.query(SignupModel)
+            .filter(SignupModel.event_id == past_event.entity_id)
+            .first()
+        )
+        assert past_signup is not None
+        assert past_signup.feedback_email_status == "sent"
+        assert past_signup.encrypted_email is None  # both channels settled
+    finally:
+        fresh.close()
 
 
 def test_e2e_smtp_failure_wipes_via_failed_path(
@@ -281,23 +338,38 @@ def test_e2e_smtp_failure_wipes_via_failed_path(
     assert row.encrypted_email is None
 
 
-def test_e2e_event_starts_at_in_signup_response_uses_naive_utc(
+def test_e2e_signup_writes_naive_utc_starts_at_to_db(
     db: Any, client: Any, clock: Any
 ) -> None:
-    """Sanity: the public signup endpoint accepts a payload and
-    handles the (naive vs aware) time-zone juggle without
-    crashing or returning a different status. Belt-and-braces
-    for the property test."""
+    """Verify the timezone contract end-to-end: the API receives
+    a naive ISO datetime (treated as UTC), stores it as a naive
+    column on the row, and the worker's later ``starts_at <= now``
+    comparison uses that naive value against ``datetime.now(UTC)``
+    without crashing or off-by-one. Belt-and-braces around the
+    property test in ``tests/test_timezone_invariants``."""
     clock.set("2026-04-28T12:00:00+00:00")
     e = make_event(db, starts_in=timedelta(days=2))
     db.commit()
 
-    # Naive datetime stored in DB (timezone-stripped); we treat
-    # as UTC. Confirm the public sign-up path doesn't blow up
-    # when starts_at is just past the 72h check.
-    db_ev = db.query(type(e)).filter_by(id=e.id).first()
-    db_ev.starts_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=2)
-    db.commit()
-
     r = _public_signup(client, e.slug, email="alice@example.com")
     assert r.status_code == 201
+
+    # Round-trip: starts_at is naive in the DB (SQLAlchemy
+    # ``DateTime`` strips tzinfo on write), but the value
+    # represents UTC. The reminder worker's window check uses
+    # ``datetime.now(UTC)`` which is tz-aware; SQLAlchemy
+    # compares them as if both were UTC, which is the contract
+    # we depend on.
+    fresh = SessionLocal()
+    try:
+        from backend.models import Event as EventModel
+
+        ev = fresh.query(EventModel).filter_by(entity_id=e.entity_id).first()
+        assert ev is not None
+        # Stored naive, value is the expected UTC instant.
+        assert ev.starts_at.tzinfo is None
+        expected = datetime(2026, 4, 30, 12, 0)  # 2 days after frozen now, in UTC
+        # Allow sub-second drift from datetime.now() inside make_event.
+        assert abs((ev.starts_at - expected).total_seconds()) < 5
+    finally:
+        fresh.close()

@@ -38,27 +38,20 @@ def main() -> None:
     # own if we deploy it before the API.
     run_migrations()
 
-    # Reap any signup left in ``pending`` with a message_id from a
-    # prior crash mid-send. Those rows would otherwise be picked
-    # up on the next sweep and double-send. Done before the
-    # scheduler starts so the first tick sees a clean slate.
-    db = SessionLocal()
+    # Both boot-time reapers are wrapped: a transient DB hiccup
+    # shouldn't take the worker down. The hourly / daily
+    # scheduled ticks retry on their own cadence.
     try:
-        reaped = email_lifecycle.reap_partial_sends(db)
-        if reaped:
-            logger.info("worker_boot_reaped", count=reaped)
-    finally:
-        db.close()
+        db = SessionLocal()
+        try:
+            reaped = email_lifecycle.reap_partial_sends(db)
+            if reaped:
+                logger.info("worker_boot_reap_partial", count=reaped)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("worker_boot_reap_partial_failed")
 
-    # Also catch up on any reminder rows whose 72h pre-event
-    # window passed during a prior outage. APScheduler's
-    # ``interval`` trigger doesn't fire at boot — only after the
-    # first interval elapses — so without this initial call a
-    # multi-hour gap would never get cleaned up if the worker
-    # restarts more often than the daily reaper would run.
-    # Wrapped because a transient DB hiccup at boot shouldn't
-    # take the whole worker process down — log loud, continue,
-    # the daily scheduled tick will retry.
     try:
         boot_reaped = reminder_worker.reap_expired()
         if boot_reaped:
