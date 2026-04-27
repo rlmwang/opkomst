@@ -15,7 +15,6 @@ import pytest
 from backend.models import Signup
 from backend.services import email_lifecycle
 
-
 _TERMINAL_STATES = ("not_applicable", "sent", "failed", "bounced", "complaint")
 _ALL_STATES = ("pending",) + _TERMINAL_STATES
 

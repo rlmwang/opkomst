@@ -25,7 +25,12 @@ Centralising the rule here keeps the worker code free of
 call site.
 """
 
+import structlog
+from sqlalchemy.orm import Session
+
 from ..models import Signup
+
+logger = structlog.get_logger()
 
 
 def has_pending_email_activity(signup: Signup) -> bool:
@@ -40,3 +45,54 @@ def wipe_if_done(signup: Signup) -> None:
     """Null the ciphertext when no pending channel remains."""
     if not has_pending_email_activity(signup):
         signup.encrypted_email = None
+
+
+def reap_partial_sends(db: Session) -> int:
+    """Sweep rows whose status is ``pending`` but whose
+    message_id is set — those are stuck mid-send from a process
+    that crashed between persisting the message_id and getting
+    the SMTP ack (or, more commonly, between SMTP ack and the
+    subsequent status flip). Flip them to ``failed``: the
+    recipient may have got the email already (so retrying would
+    duplicate) but we have no way to find out.
+
+    Called on worker boot, before the first sweep. Returns the
+    total number of rows reaped across both channels."""
+    feedback_count = (
+        db.query(Signup)
+        .filter(
+            Signup.feedback_email_status == "pending",
+            Signup.feedback_message_id.is_not(None),
+        )
+        .update(
+            {Signup.feedback_email_status: "failed"},
+            synchronize_session=False,
+        )
+    )
+    reminder_count = (
+        db.query(Signup)
+        .filter(
+            Signup.reminder_email_status == "pending",
+            Signup.reminder_message_id.is_not(None),
+        )
+        .update(
+            {Signup.reminder_email_status: "failed"},
+            synchronize_session=False,
+        )
+    )
+    # Wipe ciphertext on rows where neither channel is pending now —
+    # could be ones we just reaped, or ones whose other channel
+    # was already settled.
+    db.query(Signup).filter(
+        Signup.feedback_email_status != "pending",
+        Signup.reminder_email_status != "pending",
+    ).update({Signup.encrypted_email: None}, synchronize_session=False)
+    db.commit()
+
+    if feedback_count or reminder_count:
+        logger.warning(
+            "reaped_partial_sends",
+            feedback=feedback_count,
+            reminder=reminder_count,
+        )
+    return feedback_count + reminder_count

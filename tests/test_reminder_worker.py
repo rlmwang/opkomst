@@ -9,12 +9,11 @@ inspect what would have been sent without spinning up SMTP.
 from datetime import timedelta
 from typing import Any
 
+from _worker_helpers import commit, make_event, make_signup
+
 from backend.database import SessionLocal
 from backend.models import Signup
 from backend.services import reminder_worker
-
-from _worker_helpers import commit, make_event, make_signup
-
 
 # --- Window gating ---------------------------------------------------
 
@@ -171,17 +170,15 @@ def test_reminder_keeps_ciphertext_when_feedback_pending(
 # --- Decrypt failure -------------------------------------------------
 
 
-def test_reminder_decrypt_failure_keeps_status_pending_today(
+def test_reminder_decrypt_failure_flips_to_failed_once(
     db: Any, fake_email: Any
 ) -> None:
-    """Pre-Phase-2.2 behaviour: a corrupt ciphertext leaves the
-    row at ``pending`` and the worker re-tries every tick. This
-    test pins the current (intentional) behaviour so Phase 2.2
-    has a regression target — once decrypt failure flips to
-    ``failed``, this test will need updating."""
+    """Phase 2.2: a corrupt ciphertext is unrecoverable, so the
+    first decrypt failure flips status to ``failed`` and clears
+    the message_id. The next tick won't re-process — the worker
+    query filters on ``status == 'pending'``."""
     e = make_event(db, starts_in=timedelta(hours=24))
     s = make_signup(db, e, email="alice@example.test")
-    # Corrupt the blob in place.
     s.encrypted_email = b"not-real-ciphertext"
     db.add(s)
     commit(db)
@@ -192,11 +189,13 @@ def test_reminder_decrypt_failure_keeps_status_pending_today(
     try:
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
-        # Today: status untouched because the worker only flips it
-        # in the conditional UPDATE block, which runs even if the
-        # send was skipped — so we end up at "failed".
         assert row.reminder_email_status == "failed"
+        assert row.reminder_message_id is None
     finally:
         fresh.close()
-    # No email was actually sent (decrypt couldn't produce a body).
-    assert fake_email.sent == []
+    assert fake_email.sent == []  # decrypt couldn't produce a body
+
+    # Second tick: worker query filters on status == 'pending'
+    # so the row is no longer eligible.
+    n = reminder_worker.run_once()
+    assert n == 0

@@ -393,20 +393,17 @@ async function submit() {
   padding: 0.125rem 0;
 }
 .privacy-card .privacy-body {
-  margin: 0.75rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 0.9375rem;
   color: var(--brand-text-muted);
   line-height: 1.5;
 }
 .privacy-card .privacy-bullets {
-  margin: 0.5rem 0 0;
+  margin: 0.25rem 0 0;
   padding-left: 1.25rem;
   font-size: 0.9375rem;
   color: var(--brand-text-muted);
   line-height: 1.5;
-}
-.privacy-card .privacy-bullets li + li {
-  margin-top: 0.25rem;
 }
 /* Bottom row of the card: submit button right-aligned. */
 .submit-row {

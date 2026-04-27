@@ -3,12 +3,11 @@
 from datetime import timedelta
 from typing import Any
 
+from _worker_helpers import commit, make_event, make_signup
+
 from backend.database import SessionLocal
 from backend.models import FeedbackToken, Signup
 from backend.services import feedback_worker
-
-from _worker_helpers import commit, make_event, make_signup
-
 
 # --- Window gating ---------------------------------------------------
 
@@ -197,6 +196,35 @@ def test_feedback_keeps_ciphertext_if_reminder_still_pending(
 # --- Conditional UPDATE / parallel safety ----------------------------
 
 
+def test_feedback_decrypt_failure_flips_to_failed_once(
+    db: Any, fake_email: Any
+) -> None:
+    """Phase 2.2 mirror of the reminder-side test: corrupt
+    ciphertext is unrecoverable, so the first decrypt failure
+    flips status to ``failed`` and clears the message_id. Next
+    sweep won't pick it up."""
+    e = make_event(db, starts_in=timedelta(hours=-26), duration=timedelta(hours=1))
+    s = make_signup(db, e, email="alice@example.test")
+    s.encrypted_email = b"not-real-ciphertext"
+    db.add(s)
+    commit(db)
+
+    feedback_worker.run_once()
+
+    fresh = SessionLocal()
+    try:
+        row = fresh.query(Signup).filter(Signup.id == s.id).first()
+        assert row is not None
+        assert row.feedback_email_status == "failed"
+        assert row.feedback_message_id is None
+    finally:
+        fresh.close()
+    assert fake_email.sent == []
+
+    n = feedback_worker.run_once()
+    assert n == 0
+
+
 def test_feedback_conditional_update_does_not_stomp_existing_status(
     db: Any, fake_email: Any
 ) -> None:
@@ -247,7 +275,13 @@ def test_feedback_conditional_update_does_not_stomp_existing_status(
     try:
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
-        # Conditional UPDATE saw status != "pending" → no-op.
+        # Phase 2.1's atomic claim caught the race: the
+        # conditional UPDATE that pre-mints the message_id is
+        # filtered on ``status == 'pending' AND message_id IS
+        # NULL``. session_b's flip made status non-pending, so
+        # the claim returned 0 rows and the worker bailed without
+        # sending — and without minting a message_id. The row's
+        # final state matches what session_b wrote.
         assert row.feedback_email_status == "not_applicable"
         assert row.feedback_message_id is None
     finally:

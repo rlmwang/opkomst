@@ -24,8 +24,9 @@ import threading
 import structlog
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from .database import SessionLocal
 from .migrate import run_migrations
-from .services import feedback_worker, reminder_worker
+from .services import email_lifecycle, feedback_worker, reminder_worker
 
 logger = structlog.get_logger()
 
@@ -36,6 +37,18 @@ def main() -> None:
     # revisions — and means the worker can boot cleanly on its
     # own if we deploy it before the API.
     run_migrations()
+
+    # Reap any signup left in ``pending`` with a message_id from a
+    # prior crash mid-send. Those rows would otherwise be picked
+    # up on the next sweep and double-send. Done before the
+    # scheduler starts so the first tick sees a clean slate.
+    db = SessionLocal()
+    try:
+        reaped = email_lifecycle.reap_partial_sends(db)
+        if reaped:
+            logger.info("worker_boot_reaped", count=reaped)
+    finally:
+        db.close()
 
     # BackgroundScheduler runs the sweeps in a worker thread, which
     # leaves the main thread free to block on a signal-aware

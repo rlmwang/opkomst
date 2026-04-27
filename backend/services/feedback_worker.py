@@ -64,40 +64,83 @@ def _mint_token(db: Session, signup: Signup, event: Event) -> str:
 
 
 def _process_one(db: Session, signup: Signup, event: Event) -> None:
-    plaintext: str | None = None
+    # Step 1 — Atomically claim the row by setting message_id
+    # only when it's still NULL and the status is still pending.
+    # If another worker grabbed it first (parallel sweep), our
+    # UPDATE returns 0 and we skip — the recipient gets one
+    # email, not two. After this commit, a process crash leaves
+    # the row recoverable by the boot-time reaper
+    # (``email_lifecycle.reap_partial_sends``) which flips stuck
+    # ``pending`` rows with a message_id to ``failed``.
+    message_id = _new_message_id()
+    claimed = (
+        db.query(Signup)
+        .filter(
+            Signup.id == signup.id,
+            Signup.feedback_email_status == "pending",
+            Signup.feedback_message_id.is_(None),
+        )
+        .update(
+            {Signup.feedback_message_id: message_id},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    if claimed == 0:
+        logger.info("feedback_skipped_already_claimed", signup_id=signup.id)
+        return
+
+    # Step 2 — Decrypt. A failure here means the ciphertext is
+    # corrupt or the key changed; neither has a recovery path,
+    # so flip to ``failed`` immediately. Don't infinite-retry.
     try:
         plaintext = encryption.decrypt(signup.encrypted_email or b"")
     except Exception:
         logger.exception("feedback_decrypt_failed", signup_id=signup.id)
+        _finalise(db, signup, sent=False, message_id=None, token=None)
+        return
 
+    # Step 3 — Mint the in-email feedback token, then send.
+    token = _mint_token(db, signup, event)
+    db.commit()
+    feedback_url = build_url(f"e/{event.slug}/feedback", t=token)
     sent = False
-    token: str | None = None
-    message_id: str | None = None
-    if plaintext is not None:
-        token = _mint_token(db, signup, event)
-        message_id = _new_message_id()
-        feedback_url = build_url(f"e/{event.slug}/feedback", t=token)
-        for attempt in range(2):
-            try:
-                send_email_sync(
-                    to=plaintext,
-                    template_name="feedback.html",
-                    context={"event_name": event.name, "feedback_url": feedback_url},
-                    locale=event.locale,
-                    message_id=message_id,
-                )
-                sent = True
-                break
-            except Exception:
-                logger.exception("feedback_send_failed", signup_id=signup.id, attempt=attempt)
+    for attempt in range(2):
+        try:
+            send_email_sync(
+                to=plaintext,
+                template_name="feedback.html",
+                context={"event_name": event.name, "feedback_url": feedback_url},
+                locale=event.locale,
+                message_id=message_id,
+            )
+            sent = True
+            break
+        except Exception:
+            logger.exception("feedback_send_failed", signup_id=signup.id, attempt=attempt)
 
-    # Flip the status with a WHERE clause that asserts the row is
-    # still ``pending``. If a parallel worker already finished it
-    # (Phase 1.1 makes the parallel case impossible today, but the
-    # filter is cheap defence in depth), the UPDATE is a no-op and
-    # we don't stomp the other worker's result.
+    _finalise(
+        db,
+        signup,
+        sent=sent,
+        message_id=message_id if sent else None,
+        token=token,
+    )
+
+
+def _finalise(
+    db: Session,
+    signup: Signup,
+    *,
+    sent: bool,
+    message_id: str | None,
+    token: str | None,
+) -> None:
+    """Common cleanup at the end of ``_process_one``: status flip
+    via conditional UPDATE, FeedbackToken deletion on failure,
+    and ciphertext wipe via the same DB-side rule the lifecycle
+    helper enforces."""
     new_status = "sent" if sent else "failed"
-    new_msg_id = message_id if sent else None
     updated = (
         db.query(Signup)
         .filter(
@@ -108,17 +151,14 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
             {
                 Signup.feedback_sent_at: datetime.now(UTC),
                 Signup.feedback_email_status: new_status,
-                Signup.feedback_message_id: new_msg_id,
+                Signup.feedback_message_id: message_id,
             },
             synchronize_session=False,
         )
     )
     if updated == 0:
-        # Someone else (a stale parallel worker, or a toggle-off
-        # cleanup) flipped the status from under us. Drop our token
-        # since the row no longer expects a feedback link, and
-        # bail. The email may still have gone out — that's the
-        # double-send window Phase 2.1 closes.
+        # Someone else flipped the status from under us. Drop our
+        # token since the row no longer expects a feedback link.
         if token:
             db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
         logger.info("feedback_skipped_status_changed", signup_id=signup.id)
@@ -128,9 +168,7 @@ def _process_one(db: Session, signup: Signup, event: Event) -> None:
         db.query(FeedbackToken).filter(FeedbackToken.token == token).delete()
 
     # Wipe the ciphertext only when no channel still has pending
-    # activity. Conditional UPDATE re-reads from the DB, so a
-    # concurrent reminder-worker commit is visible without
-    # depending on the (stale) in-memory ORM state on ``signup``.
+    # activity. DB-side conditional sees concurrent commits.
     db.query(Signup).filter(
         Signup.id == signup.id,
         Signup.feedback_email_status != "pending",

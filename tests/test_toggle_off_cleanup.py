@@ -10,11 +10,11 @@ the operator to remember to come back later.
 from datetime import timedelta
 from typing import Any
 
+from _worker_helpers import commit, make_event, make_signup
+
 from backend.database import SessionLocal
 from backend.models import Signup
 from backend.routers.events import _retire_disabled_channels
-
-from _worker_helpers import commit, make_event, make_signup
 
 
 def test_disabling_reminder_retires_pending_reminders(db: Any) -> None:

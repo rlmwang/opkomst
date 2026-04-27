@@ -1,20 +1,26 @@
 """Pre-event reminder sweep.
 
-Runs hourly (wired from ``backend/main.py`` via APScheduler). For
-every signup whose parent event has ``reminder_enabled`` and
+Runs hourly (wired from ``backend/worker.py`` via APScheduler).
+For every signup whose parent event has ``reminder_enabled`` and
 starts within the next 72 hours, that has an encrypted email and
 a ``reminder_email_status`` still ``"pending"``:
 
-  1. Generate a stable Message-ID for SMTP correlation.
-  2. Decrypt the email.
+  1. Pre-mint a Message-ID and persist it on the row before
+     touching SMTP (Phase 2.1: a process kill between commit and
+     SMTP-ack leaves the row recoverable by the boot-time
+     ``email_lifecycle.reap_partial_sends``).
+  2. Decrypt the email. A failure is unrecoverable — flip status
+     to ``failed`` immediately and never re-process this row
+     (Phase 2.2).
   3. Render the localised reminder body and hand it to SMTP with
      the Message-ID header (one retry on failure).
-  4. Stamp ``reminder_sent_at`` and flip
-     ``reminder_email_status`` to "sent" or "failed".
-  5. Wipe the ciphertext via ``email_lifecycle.wipe_if_done`` —
-     for events with the questionnaire toggle off, that's now;
-     for events with the questionnaire still pending, wipe waits
-     until the feedback worker also finishes.
+  4. Stamp ``reminder_sent_at`` and flip status to ``sent`` or
+     ``failed`` via a conditional UPDATE filtered on
+     ``status == 'pending'`` so a parallel worker / toggle-off
+     cleanup can't be stomped (Phase 1.2).
+  5. Wipe the ciphertext when no channel is still ``pending``,
+     using a DB-side conditional UPDATE so a concurrent
+     feedback-worker commit is visible.
 
 A second legitimate caller of ``services.encryption.decrypt``
 (the other being ``services.feedback_worker``).
@@ -48,41 +54,71 @@ def _new_message_id() -> str:
 
 
 def _process_one(db, signup: Signup, event: Event) -> None:
-    plaintext: str | None = None
+    # Step 1 — Atomically claim the row by setting message_id
+    # only when it's still NULL and the status is still pending.
+    # See ``feedback_worker._process_one`` for the rationale; this
+    # is the claim mechanism that prevents two parallel workers
+    # from both SMTP-ack-ing the same signup.
+    message_id = _new_message_id()
+    claimed = (
+        db.query(Signup)
+        .filter(
+            Signup.id == signup.id,
+            Signup.reminder_email_status == "pending",
+            Signup.reminder_message_id.is_(None),
+        )
+        .update(
+            {Signup.reminder_message_id: message_id},
+            synchronize_session=False,
+        )
+    )
+    db.commit()
+    if claimed == 0:
+        logger.info("reminder_skipped_already_claimed", signup_id=signup.id)
+        return
+
+    # Step 2 — Decrypt. Decrypt failures aren't recoverable; flip
+    # to ``failed`` immediately and never come back to this row.
     try:
         plaintext = encryption.decrypt(signup.encrypted_email or b"")
     except Exception:
         logger.exception("reminder_decrypt_failed", signup_id=signup.id)
+        _finalise(db, signup, sent=False, message_id=None)
+        return
 
+    # Step 3 — Send.
+    event_url = build_url(f"e/{event.slug}")
     sent = False
-    message_id: str | None = None
-    if plaintext is not None:
-        message_id = _new_message_id()
-        event_url = build_url(f"e/{event.slug}")
-        for attempt in range(2):
-            try:
-                send_email_sync(
-                    to=plaintext,
-                    template_name="reminder.html",
-                    context={
-                        "event_name": event.name,
-                        "event_url": event_url,
-                        "starts_at": event.starts_at,
-                    },
-                    locale=event.locale,
-                    message_id=message_id,
-                )
-                sent = True
-                break
-            except Exception:
-                logger.exception("reminder_send_failed", signup_id=signup.id, attempt=attempt)
+    for attempt in range(2):
+        try:
+            send_email_sync(
+                to=plaintext,
+                template_name="reminder.html",
+                context={
+                    "event_name": event.name,
+                    "event_url": event_url,
+                    "starts_at": event.starts_at,
+                },
+                locale=event.locale,
+                message_id=message_id,
+            )
+            sent = True
+            break
+        except Exception:
+            logger.exception("reminder_send_failed", signup_id=signup.id, attempt=attempt)
 
-    # Conditional UPDATE — same defence-in-depth pattern as the
-    # feedback worker. If the row's status moved under us, bail
-    # without overwriting whatever the other process / toggle-off
-    # cleanup decided.
+    _finalise(db, signup, sent=sent, message_id=message_id if sent else None)
+
+
+def _finalise(
+    db,
+    signup: Signup,
+    *,
+    sent: bool,
+    message_id: str | None,
+) -> None:
+    """Conditional status flip + DB-side ciphertext wipe."""
     new_status = "sent" if sent else "failed"
-    new_msg_id = message_id if sent else None
     updated = (
         db.query(Signup)
         .filter(
@@ -93,7 +129,7 @@ def _process_one(db, signup: Signup, event: Event) -> None:
             {
                 Signup.reminder_sent_at: datetime.now(UTC),
                 Signup.reminder_email_status: new_status,
-                Signup.reminder_message_id: new_msg_id,
+                Signup.reminder_message_id: message_id,
             },
             synchronize_session=False,
         )
@@ -103,9 +139,7 @@ def _process_one(db, signup: Signup, event: Event) -> None:
         return
 
     # Wipe the ciphertext only when no channel still has pending
-    # activity. Conditional UPDATE re-reads from the DB, so a
-    # concurrent feedback-worker commit is visible without
-    # depending on the (stale) in-memory ORM state on ``signup``.
+    # activity. DB-side conditional sees concurrent commits.
     db.query(Signup).filter(
         Signup.id == signup.id,
         Signup.feedback_email_status != "pending",

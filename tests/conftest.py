@@ -14,6 +14,7 @@ import os
 import sys
 import tempfile
 from collections.abc import Iterator
+from datetime import UTC
 
 import pytest
 
@@ -176,6 +177,7 @@ class _FrozenClock:
 
     def set(self, when) -> None:  # accepts datetime or ISO string
         from datetime import datetime
+
         import freezegun
 
         if isinstance(when, str):
@@ -189,7 +191,7 @@ class _FrozenClock:
         """Advance the frozen clock by a timedelta-friendly kwargs:
         ``hours``, ``days``, ``minutes``, etc. ``set`` must have
         been called first."""
-        from datetime import datetime, timedelta, timezone
+        from datetime import timedelta
 
         if self._frozen is None:
             raise RuntimeError("Call clock.set(...) before clock.advance(...)")
@@ -200,7 +202,7 @@ class _FrozenClock:
         delta = timedelta(**kwargs)
         new_time = self._frozen() + delta
         if new_time.tzinfo is None:
-            new_time = new_time.replace(tzinfo=timezone.utc)
+            new_time = new_time.replace(tzinfo=UTC)
         self.set(new_time)
 
     def stop(self) -> None:

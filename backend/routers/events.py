@@ -15,7 +15,6 @@ from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
 from ..services import chapters as chapters_svc
-from ..services import email_lifecycle
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
 from ..services.ics import build_event_ics
@@ -39,23 +38,41 @@ def _retire_disabled_channels(
     """When an organiser flips an email toggle off mid-flight, the
     signups that were waiting on that channel stop being eligible.
     Mark their pending status to ``not_applicable`` and, if no
-    other channel still has pending activity for that signup, wipe
-    the encrypted email — privacy invariant from
-    ``services.email_lifecycle``."""
+    other channel still has pending activity for that signup,
+    wipe the encrypted email.
+
+    All three updates are conditional SQL UPDATEs filtered on
+    ``status == 'pending'`` (and the wipe on both columns
+    settled) so a worker that's *currently* processing one of
+    these signups can't be stomped — same defence-in-depth
+    pattern the workers themselves use (Phase 1.2). ORM
+    attribute writes would have lost that race."""
     if not (questionnaire_disabled or reminder_disabled):
         return
-    affected = (
-        db.query(Signup)
-        .filter(Signup.event_id == event_entity_id)
-        .all()
-    )
-    for s in affected:
-        if questionnaire_disabled and s.feedback_email_status == "pending":
-            s.feedback_email_status = "not_applicable"
-        if reminder_disabled and s.reminder_email_status == "pending":
-            s.reminder_email_status = "not_applicable"
-        email_lifecycle.wipe_if_done(s)
-        db.add(s)
+    if questionnaire_disabled:
+        db.query(Signup).filter(
+            Signup.event_id == event_entity_id,
+            Signup.feedback_email_status == "pending",
+        ).update(
+            {Signup.feedback_email_status: "not_applicable"},
+            synchronize_session=False,
+        )
+    if reminder_disabled:
+        db.query(Signup).filter(
+            Signup.event_id == event_entity_id,
+            Signup.reminder_email_status == "pending",
+        ).update(
+            {Signup.reminder_email_status: "not_applicable"},
+            synchronize_session=False,
+        )
+    # Wipe ciphertext on every signup of this event whose channels
+    # are now both settled — could be ones we just retired, or
+    # ones whose other channel was already done.
+    db.query(Signup).filter(
+        Signup.event_id == event_entity_id,
+        Signup.feedback_email_status != "pending",
+        Signup.reminder_email_status != "pending",
+    ).update({Signup.encrypted_email: None}, synchronize_session=False)
 
 
 def _attendees_for(db: Session, entity_id: str) -> int:
