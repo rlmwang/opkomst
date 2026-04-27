@@ -188,12 +188,7 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
     <AppSkeleton v-if="!event || !stats" :rows="4" cards />
 
     <template v-else>
-      <!-- Overview: title spans the full width on top so a long
-           event name has the whole container to wrap into. The
-           meta line, URL + copy, and the QR sit side-by-side on
-           the next row (QR on the right, starting from the meta).
-           The edit button gets its own line below, left-aligned. -->
-      <div class="overview">
+<AppCard :stack="false" class="overview">
         <h1>{{ event.name }}</h1>
         <div class="overview-body">
           <div class="overview-text">
@@ -240,7 +235,7 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
             <img :src="eventQrUrl(event.slug)" alt="" class="qr" />
           </button>
         </div>
-      </div>
+      </AppCard>
 
       <AppCard>
         <div class="signups-header">
@@ -248,14 +243,6 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
           <div class="total-pill">
             <span class="count">{{ stats.total_attendees }}</span>
             <span class="label">{{ t("event.totalAttendees") }}</span>
-          </div>
-        </div>
-
-        <div v-if="Object.keys(stats.by_source).length > 0" class="subgroup">
-          <h3 class="subhead">{{ t("event.bySource") }}</h3>
-          <div v-for="(count, src) in stats.by_source" :key="src" class="list-row">
-            <span class="list-row-label">{{ src }}</span>
-            <span class="row-count">{{ count }}</span>
           </div>
         </div>
 
@@ -267,13 +254,25 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
           </div>
         </div>
 
+        <div v-if="Object.keys(stats.by_source).length > 0" class="subgroup">
+          <h3 class="subhead">{{ t("event.bySource") }}</h3>
+          <div v-for="(count, src) in stats.by_source" :key="src" class="list-row">
+            <span class="list-row-label">{{ src }}</span>
+            <span class="row-count">{{ count }}</span>
+          </div>
+        </div>
+
         <details v-if="signups.length > 0" class="subgroup signup-list">
           <summary class="subhead">{{ t("event.signupList") }}</summary>
           <div
             class="signup-grid"
             :style="{ gridTemplateColumns: signupGridTemplate }"
           >
-            <template v-for="(s, i) in signups" :key="i">
+            <div
+              v-for="(s, i) in signups"
+              :key="i"
+              class="signup-row"
+            >
               <span class="signup-name">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
               <span
                 v-for="opt in event.help_options"
@@ -283,7 +282,7 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
                 <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
               </span>
               <span class="row-count signup-count">{{ s.party_size }}</span>
-            </template>
+            </div>
           </div>
         </details>
       </AppCard>
@@ -528,16 +527,25 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   transform: rotate(90deg);
 }
 /* Tabular signup list — name | one column per help_option | count.
- * Using a single grid container with ``display: contents`` rows
- * keeps every chip vertically aligned with the same option above
- * and below it. Empty cells are rendered as zero-width slots so
- * the column stays in place. */
+ * Parent grid declares the columns; every row is a subgrid that
+ * reuses them, so chips of the same kind stack vertically while
+ * each row is still a real container we can hover and pad. */
 .signup-grid {
   display: grid;
-  align-items: center;
   column-gap: 0.5rem;
-  row-gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
+}
+.signup-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 6px;
+  transition: background 120ms ease;
+}
+.signup-row:hover {
+  background: var(--brand-bg);
 }
 .signup-name {
   overflow: hidden;
