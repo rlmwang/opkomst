@@ -185,6 +185,17 @@ async function submit() {
           :latitude="event.latitude"
           :longitude="event.longitude"
         />
+
+        <div class="event-actions">
+          <a
+            class="cal-button"
+            :href="`/api/v1/events/by-slug/${props.slug}/event.ics`"
+            :download="`event-${props.slug}.ics`"
+          >
+            <i class="pi pi-calendar-plus" aria-hidden="true" />
+            <span>{{ t("public.addToCalendar") }}</span>
+          </a>
+        </div>
       </AppCard>
 
       <AppCard v-if="!submitted" :stack="false" class="privacy-card">
@@ -215,10 +226,12 @@ async function submit() {
         <section v-if="event.help_options.length > 0" class="form-section help-section">
           <fieldset class="help-choices">
             <legend>{{ t("public.helpHeading") }}</legend>
-            <label v-for="opt in event.help_options" :key="opt" class="help-row">
-              <Checkbox v-model="helpChoices" :value="opt" />
-              <span>{{ opt }}</span>
-            </label>
+            <div class="help-options">
+              <label v-for="opt in event.help_options" :key="opt" class="help-row">
+                <Checkbox v-model="helpChoices" :value="opt" />
+                <span>{{ opt }}</span>
+              </label>
+            </div>
           </fieldset>
         </section>
 
@@ -313,21 +326,23 @@ async function submit() {
   justify-content: flex-end;
   margin-top: 2rem;
 }
-/* "I can help with" — multi-select rendered as a vertical stack of
- * checkboxes. Fieldset reset because PrimeVue doesn't ship a
- * checkbox group component that styles legends consistently. */
+/* "I can help with" — multi-select. The legend sits on its own
+ * line; the checkbox options sit side-by-side in a single row
+ * (wrapping only when the viewport really can't hold them). */
 .help-choices {
   border: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
 }
 .help-choices legend {
   padding: 0;
   margin-bottom: 0.5rem;
   font-size: 0.95rem;
+}
+.help-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
 }
 .help-row {
   display: flex;
@@ -338,9 +353,39 @@ async function submit() {
 }
 
 .event-header {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+/* "Add to calendar" is anchored in the card's bottom-right corner
+ * so it doesn't push the layout down by an extra row. Sits on top
+ * of whatever the last content is (typically the map's bottom-right
+ * corner) — small, neutral, doesn't compete with the headline. */
+.event-actions {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+}
+.cal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--brand-text);
+  background: var(--brand-surface, #fff);
+  border: 1px solid var(--brand-rule, rgba(0, 0, 0, 0.12));
+  border-radius: 0.4rem;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.cal-button:hover {
+  background: var(--brand-surface-hover, #f6f6f6);
+}
+.cal-button > i {
+  font-size: 0.95rem;
 }
 .event-title h1 {
   margin: 0;

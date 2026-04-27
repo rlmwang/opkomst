@@ -17,6 +17,7 @@ from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummary
 from ..services import chapters as chapters_svc
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
+from ..services.ics import build_event_ics
 from ..services.rate_limit import limiter
 from ..services.slug import new_slug
 
@@ -247,6 +248,31 @@ def get_event_by_slug(slug: str, db: Session = Depends(get_db)) -> EventOut:
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     return _to_out(db, event)
+
+
+@router.get("/by-slug/{slug}/event.ics")
+def get_event_ics(slug: str, db: Session = Depends(get_db)) -> Response:
+    """Public RFC 5545 calendar download for one event. Universal —
+    Google, Apple, Outlook, Proton, Thunderbird, every mobile
+    calendar app imports it. UID is the event's stable
+    ``entity_id``, so re-importing after an organiser edit updates
+    the existing entry instead of creating a duplicate."""
+    event = events_svc.get_public_event_by_slug(db, slug)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    ics = build_event_ics(event, public_base_url=PUBLIC_BASE_URL)
+    return Response(
+        content=ics,
+        media_type="text/calendar; charset=utf-8; method=PUBLISH",
+        headers={
+            "Content-Disposition": f'attachment; filename="event-{event.slug}.ics"',
+            # Short cache — the file's contents change when the
+            # organiser edits the event, but five minutes is fine
+            # for the common "click, download, click again because
+            # the first one didn't open" flow.
+            "Cache-Control": "public, max-age=300",
+        },
+    )
 
 
 @router.get("/by-slug/{slug}/qr.png")
