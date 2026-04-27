@@ -57,20 +57,33 @@ const endTime = ref<Date | null>(_timeAt(22));
 // Stored as plain strings on the event — once saved they don't
 // auto-translate, but the organiser can rename or remove any of them
 // before saving.
-const sources = ref<string[]>([
-  t("event.sourceDefaults.wordOfMouth"),
-  t("event.sourceDefaults.socialMedia"),
-  t("event.sourceDefaults.flyer"),
-  t("event.sourceDefaults.poster"),
-]);
+// Default option sets for both editable lists are derived from the
+// *event* locale (not the UI locale). The public form is rendered in
+// the event's language, so the seeded options should match — picking
+// English in the UI shouldn't lock the form to English options when
+// the organiser is creating a Dutch-language event.
+function defaultSources(loc: "nl" | "en"): string[] {
+  return [
+    t("event.sourceDefaults.wordOfMouth", 1, { locale: loc }),
+    t("event.sourceDefaults.socialMedia", 1, { locale: loc }),
+    t("event.sourceDefaults.flyer", 1, { locale: loc }),
+    t("event.sourceDefaults.poster", 1, { locale: loc }),
+  ];
+}
+function defaultHelp(loc: "nl" | "en"): string[] {
+  return [
+    t("event.helpDefaults.setup", 1, { locale: loc }),
+    t("event.helpDefaults.teardown", 1, { locale: loc }),
+  ];
+}
+function arraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+const sources = ref<string[]>(defaultSources(((locale.value as "nl" | "en") ?? "nl")));
 const newSource = ref("");
 // Default "I can help with" tasks. Optional — leave empty to hide
-// the question on the public form. Seeded in the organiser's locale;
-// once saved the strings are static (no auto-translate).
-const helpOptions = ref<string[]>([
-  t("event.helpDefaults.setup"),
-  t("event.helpDefaults.teardown"),
-]);
+// the question on the public form.
+const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
 const questionnaireEnabled = ref(true);
 // Default to the organiser's UI locale — they can override per-event
@@ -203,6 +216,20 @@ function addHelp() {
 function removeHelp(i: number) {
   helpOptions.value.splice(i, 1);
 }
+
+// When the organiser flips the event language, swap the default
+// option sets too — but only if the lists haven't been customised
+// yet. An organiser who has added or removed options has clearly
+// thought about the wording and we shouldn't clobber that.
+watch(eventLocale, (next, prev) => {
+  if (next === prev) return;
+  if (arraysEqual(sources.value, defaultSources(prev))) {
+    sources.value = defaultSources(next);
+  }
+  if (arraysEqual(helpOptions.value, defaultHelp(prev))) {
+    helpOptions.value = defaultHelp(next);
+  }
+});
 
 function cancel() {
   clearDraft();

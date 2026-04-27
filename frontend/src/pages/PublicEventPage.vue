@@ -211,7 +211,6 @@ async function submit() {
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
-        <p class="required-key">{{ t("public.requiredKey") }}</p>
 
         <section class="form-section">
           <InputText v-model="displayName" :placeholder="t('public.displayName')" fluid />
@@ -250,7 +249,10 @@ async function submit() {
           </fieldset>
         </section>
 
-        <Button class="submit-button" type="submit" :label="t('public.submit')" :loading="submitting" />
+        <div class="submit-row">
+          <Button type="submit" :label="t('public.submit')" :loading="submitting" />
+          <p class="required-key">{{ t("public.requiredKey") }}</p>
+        </div>
       </AppCard>
     </template>
   </div>
@@ -269,13 +271,21 @@ async function submit() {
 .form-section + .form-section {
   margin-top: 2rem;
 }
+/* Submit button anchors the bottom-right of the card; the
+ * "* required" key sits underneath it, also right-aligned, so the
+ * asterisk convention is visible right where the user is about to
+ * commit instead of dangling above the first field. */
+.submit-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.375rem;
+  margin-top: 2rem;
+}
 .required-key {
   margin: 0;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
-}
-.submit-button {
-  margin-top: 2rem;
 }
 .field-with-help {
   display: flex;
