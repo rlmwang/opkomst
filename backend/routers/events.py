@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import qrcode
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummary
 from ..services import chapters as chapters_svc
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
+from ..services.rate_limit import limiter
 from ..services.slug import new_slug
 
 logger = structlog.get_logger()
@@ -165,7 +166,9 @@ def archive_event(
 
 
 @router.post("/{entity_id}/send-feedback-emails", status_code=200)
+@limiter.limit("5/hour")
 def send_feedback_emails_now(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),

@@ -91,7 +91,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # same origin so this becomes a no-op.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(","),
+    allow_origins=os.environ["CORS_ORIGINS"].split(","),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -127,6 +127,8 @@ _DIST = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if _DIST.is_dir():
     app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
 
+    _DIST_RESOLVED = _DIST.resolve()
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def _spa_fallback(full_path: str) -> FileResponse:
         # ``StaticFiles`` already won the route for ``/assets/*``; this
@@ -137,7 +139,15 @@ if _DIST.is_dir():
             # FastAPI's normal 404 — these would have been handled
             # by the matched router otherwise.
             raise HTTPException(status_code=404, detail="Not found")
-        target = _DIST / full_path
-        if target.is_file():
-            return FileResponse(target)
+        # Resolve the requested path and require it to live under the
+        # dist directory; otherwise fall back to index.html. Without
+        # this guard a request like ``/../../etc/passwd`` would happily
+        # serve any readable file off the host.
+        candidate = (_DIST / full_path).resolve()
+        try:
+            candidate.relative_to(_DIST_RESOLVED)
+        except ValueError:
+            return FileResponse(_DIST / "index.html")
+        if candidate.is_file():
+            return FileResponse(candidate)
         return FileResponse(_DIST / "index.html")

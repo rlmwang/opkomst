@@ -6,8 +6,8 @@ Sets the standard hardening headers on every response:
   PrimeVue 4's runtime style injection (``'unsafe-inline'`` for
   styles only — they're injected as ``<style>`` tags by the
   component library, blocking them renders every PrimeVue
-  component as unstyled HTML), the OSM tile server, and Photon
-  for the address autocomplete.
+  component as unstyled HTML), the OSM tile server, and PDOK
+  Locatieserver for the address autocomplete.
 - ``Strict-Transport-Security`` — only set when the request was
   served over HTTPS, so local dev over HTTP isn't accidentally
   upgraded.
@@ -36,9 +36,7 @@ CSP = (
     "style-src 'self' 'unsafe-inline'; "
     "script-src 'self'; "
     "connect-src 'self' "
-    "https://photon.komoot.io "
     "https://api.pdok.nl "
-    "https://nominatim.openstreetmap.org "
     "https://*.tile.openstreetmap.org; "
     "font-src 'self' data:; "
     "frame-ancestors 'none'; "
