@@ -30,9 +30,11 @@
 
 ## Documentation
 
-- `docs/proposal/` — what we're building toward.
-- `docs/current/` — what's in the codebase right now.
-- `DESIGN_PLAN.md` — work queue.
+- `README.md` — user-facing intro + how to run.
+- `docs/architecture.md` — canonical "what's in the codebase right
+  now": data model, routers, privacy invariants, pipelines. Update
+  alongside any structural change.
+- `docs/deploy.md` — Coolify / Dockerfile / operations notes.
 
 ## Commit style
 
