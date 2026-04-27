@@ -245,10 +245,8 @@ async function submit() {
               :placeholder="t('public.sourcePlaceholder')"
               fluid
             />
-          </section>
-
-          <section v-if="event.questionnaire_enabled" class="form-section">
             <InputText
+              v-if="event.questionnaire_enabled"
               v-model="email"
               type="email"
               :placeholder="t('public.emailOptional')"
