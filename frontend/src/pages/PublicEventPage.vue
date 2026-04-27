@@ -3,8 +3,10 @@ import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
 import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
+import Menu from "primevue/menu";
+import type { MenuItem } from "primevue/menuitem";
 import Select from "primevue/select";
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import EventMap from "@/components/EventMap.vue";
@@ -32,6 +34,45 @@ const helpChoices = ref<string[]>([]);
 const email = ref("");
 const submitting = ref(false);
 const submitted = ref(false);
+
+// --- Add-to-calendar menu ------------------------------------------
+// Two-option dropdown: Google for everyone with a Google account,
+// or download the ICS file for Apple Calendar / Proton / Thunderbird
+// / anything else. Skipping Outlook / Office 365 / Yahoo on purpose
+// — the typical political-event audience doesn't sit in those, and
+// every extra row dilutes the choice.
+const calMenu = ref<InstanceType<typeof Menu> | null>(null);
+
+function _utcCompact(iso: string): string {
+  // YYYYMMDDTHHMMSSZ — what Google expects in its render URL.
+  return new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+const calItems = computed<MenuItem[]>(() => {
+  const e = event.value;
+  if (!e) return [];
+  const enc = encodeURIComponent;
+  const publicUrl = `${window.location.origin}/e/${e.slug}`;
+  const desc = [e.topic ?? "", publicUrl].filter(Boolean).join("\n\n");
+  const ics = `/api/v1/events/by-slug/${e.slug}/event.ics`;
+  const google =
+    `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+    `&text=${enc(e.name)}` +
+    `&dates=${_utcCompact(e.starts_at)}/${_utcCompact(e.ends_at)}` +
+    `&details=${enc(desc)}` +
+    `&location=${enc(e.location)}`;
+  return [
+    { label: "Google", icon: "pi pi-google", url: google, target: "_blank" },
+    { label: t("public.calIcs"), icon: "pi pi-download", url: ics },
+  ];
+});
+
+function openCalMenu(ev: Event) {
+  // PrimeVue Menu in popup mode is opened by calling .toggle on
+  // the ref with the originating event so the popup positions
+  // relative to the trigger button.
+  calMenu.value?.toggle(ev);
+}
 
 // --- Draft persistence ---------------------------------------------
 // The signup form survives a page refresh — important for visitors
@@ -187,14 +228,17 @@ async function submit() {
         />
 
         <div class="event-actions">
-          <a
+          <Button
             class="cal-button"
-            :href="`/api/v1/events/by-slug/${props.slug}/event.ics`"
-            :download="`event-${props.slug}.ics`"
-          >
-            <i class="pi pi-calendar-plus" aria-hidden="true" />
-            <span>{{ t("public.addToCalendar") }}</span>
-          </a>
+            :label="t('public.addToCalendar')"
+            icon="pi pi-calendar-plus"
+            severity="secondary"
+            size="small"
+            aria-haspopup="true"
+            aria-controls="cal-menu"
+            @click="openCalMenu"
+          />
+          <Menu id="cal-menu" ref="calMenu" :model="calItems" :popup="true" />
         </div>
       </AppCard>
 
@@ -368,24 +412,11 @@ async function submit() {
   bottom: 0.75rem;
   z-index: 1;
 }
+/* Lift the secondary button onto a solid surface so it reads
+ * cleanly when it sits on top of the embedded map. */
 .cal-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.875rem;
-  color: var(--brand-text);
-  background: var(--brand-surface, #fff);
-  border: 1px solid var(--brand-rule, rgba(0, 0, 0, 0.12));
-  border-radius: 0.4rem;
-  text-decoration: none;
+  background: var(--brand-surface, #fff) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.cal-button:hover {
-  background: var(--brand-surface-hover, #f6f6f6);
-}
-.cal-button > i {
-  font-size: 0.95rem;
 }
 .event-title h1 {
   margin: 0;
