@@ -1,5 +1,5 @@
 """Generic SCD2 helpers for every dimension table that mixes in
-``SCD2Mixin``. Used by Event, Afdeling, and User — adding a new SCD2
+``SCD2Mixin``. Used by Event, Chapter, and User — adding a new SCD2
 table is one mixin + a model definition, no per-table boilerplate.
 
 A logical entity is a chain of rows sharing one ``entity_id``. The
@@ -16,7 +16,7 @@ Two write shapes:
   (Event archive / restore).
 * ``scd2_close`` — stamp ``valid_until`` on the current row, no
   replacement row. Used when the SCD2 chain itself is being shut
-  down (Afdeling delete) — restore mints a new row in a separate
+  down (Chapter delete) — restore mints a new row in a separate
   step.
 
 Reads always go through ``current(...)`` so history rows never leak
@@ -74,7 +74,7 @@ def current_by_entity(db: Session, model: type[T], entity_id: str) -> T | None:
 def latest_by_entity(db: Session, model: type[T], entity_id: str) -> T | None:
     """Latest row for an entity_id (current or most-recently-archived).
     For surfaces that need to render a name even when the chain is
-    closed (e.g. resolving an afdeling_id on a still-living user
+    closed (e.g. resolving a chapter_id on a still-living user
     after the chapter was deleted)."""
     return (
         db.query(model)
@@ -154,7 +154,7 @@ def scd2_close(
 ) -> T:
     """Stamp ``valid_until`` on the current row, no replacement.
     Use for chain shutdowns where the entity itself is going away
-    (Afdeling delete). Restore mints a brand new current row in a
+    (Chapter delete). Restore mints a brand new current row in a
     separate step. Caller commits."""
     now = datetime.now(UTC)
     current_row.valid_until = now

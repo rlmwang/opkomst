@@ -14,7 +14,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from .migrate import run_migrations
 from .seed import run as run_seed
 from .routers import admin as admin_router
-from .routers import afdelingen as afdelingen_router
+from .routers import chapters as chapters_router
 from .routers import auth as auth_router
 from .routers import events as events_router
 from .routers import feedback as feedback_router
@@ -99,7 +99,7 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
-app.include_router(afdelingen_router.router)
+app.include_router(chapters_router.router)
 app.include_router(events_router.router)
 app.include_router(signups_router.router)
 app.include_router(feedback_router.router)

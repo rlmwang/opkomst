@@ -14,7 +14,7 @@ from ..auth import require_approved
 from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
-from ..services import afdelingen as afdelingen_svc
+from ..services import chapters as chapters_svc
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
 from ..services.slug import new_slug
@@ -48,22 +48,22 @@ def _to_out(db: Session, event: Event) -> EventOut:
         source_options=event.source_options,
         questionnaire_enabled=event.questionnaire_enabled,
         locale=event.locale,
-        afdeling_id=event.afdeling_id,
-        afdeling_name=afdelingen_svc.name_for_entity(db, event.afdeling_id),
+        chapter_id=event.chapter_id,
+        chapter_name=chapters_svc.name_for_entity(db, event.chapter_id),
         signup_count=_attendees_for(db, event.entity_id),
     )
 
 
 def _scope_filter(user: User):
-    if user.afdeling_id is None:
-        return Event.afdeling_id == "__no_match__"
-    return Event.afdeling_id == user.afdeling_id
+    if user.chapter_id is None:
+        return Event.chapter_id == "__no_match__"
+    return Event.chapter_id == user.chapter_id
 
 
 def _get_event_scoped(db: Session, entity_id: str, user: User) -> Event:
     """Fetch the current version of an event by entity_id, scoped to
-    the user's afdeling. 404 (not 403) so existence outside the
-    afdeling never leaks."""
+    the user's chapter. 404 (not 403) so existence outside the
+    chapter never leaks."""
     event = (
         scd2_svc.current(db.query(Event))
         .filter(Event.entity_id == entity_id, _scope_filter(user))
@@ -82,8 +82,8 @@ def create_event(
 ) -> EventOut:
     if data.ends_at <= data.starts_at:
         raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
-    if user.afdeling_id is None:
-        raise HTTPException(status_code=409, detail="No afdeling assigned")
+    if user.chapter_id is None:
+        raise HTTPException(status_code=409, detail="No chapter assigned")
     now = datetime.now(UTC)
     new_id = str(uuid7())
     event = Event(
@@ -100,7 +100,7 @@ def create_event(
         source_options=data.source_options,
         questionnaire_enabled=data.questionnaire_enabled,
         locale=data.locale,
-        afdeling_id=user.afdeling_id,
+        chapter_id=user.chapter_id,
         created_by=user.id,
         valid_from=now,
         valid_until=None,

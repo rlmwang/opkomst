@@ -5,10 +5,10 @@ import AutoComplete, {
 } from "primevue/autocomplete";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { type Afdeling, useAfdelingenStore } from "@/stores/afdelingen";
+import { type Chapter, useChaptersStore } from "@/stores/chapters";
 
 const props = defineProps<{
-  /** When true, archived afdelingen surface in suggestions tagged
+  /** When true, archived chapters surface in suggestions tagged
    * "restore?" so the caller can decide what to do with a pick. */
   showArchived?: boolean;
   /** When true, the picker ONLY surfaces archived suggestions —
@@ -21,23 +21,23 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  /** User picked an existing afdeling (active or archived). The
+  /** User picked an existing chapter (active or archived). The
    * caller decides what to do — for active picks usually a no-op,
    * for archived a restore. */
-  pick: [value: Afdeling];
-  /** User typed text that doesn't match an existing afdeling and
+  pick: [value: Chapter];
+  /** User typed text that doesn't match an existing chapter and
    * pressed Enter — caller should create a new one with this name. */
   create: [name: string];
 }>();
 
 const { t } = useI18n();
-const store = useAfdelingenStore();
+const store = useChaptersStore();
 
-const suggestions = ref<Afdeling[]>([]);
+const suggestions = ref<Chapter[]>([]);
 // AutoComplete sets the bound value to the option object on select
 // and to the typed string until then. We exploit that distinction:
 // string at Enter-time means "no match was picked, treat as create".
-const local = ref<Afdeling | string | null>(null);
+const local = ref<Chapter | string | null>(null);
 
 async function onComplete(e: AutoCompleteCompleteEvent) {
   const all = await store.search(e.query, true);
@@ -45,7 +45,7 @@ async function onComplete(e: AutoCompleteCompleteEvent) {
 }
 
 function onSelect(e: AutoCompleteOptionSelectEvent) {
-  emit("pick", e.value as Afdeling);
+  emit("pick", e.value as Chapter);
   local.value = null;
 }
 
@@ -62,7 +62,7 @@ function onEnter() {
     v-model="local"
     :suggestions="suggestions"
     option-label="name"
-    :placeholder="placeholder ?? t('afdelingen.pickerPlaceholder')"
+    :placeholder="placeholder ?? t('chapters.pickerPlaceholder')"
     :delay="200"
     fluid
     @complete="onComplete"
@@ -70,9 +70,9 @@ function onEnter() {
     @keyup.enter="onEnter"
   >
     <template #option="{ option }">
-      <div class="option" :class="{ archived: (option as Afdeling).archived }">
-        <span>{{ (option as Afdeling).name }}</span>
-        <span v-if="(option as Afdeling).archived" class="tag">{{ t("afdelingen.archivedTag") }}</span>
+      <div class="option" :class="{ archived: (option as Chapter).archived }">
+        <span>{{ (option as Chapter).name }}</span>
+        <span v-if="(option as Chapter).archived" class="tag">{{ t("chapters.archivedTag") }}</span>
       </div>
     </template>
   </AutoComplete>

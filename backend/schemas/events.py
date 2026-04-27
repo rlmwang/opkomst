@@ -44,8 +44,8 @@ class EventOut(BaseModel):
     source_options: list[str]
     questionnaire_enabled: bool
     locale: str
-    afdeling_id: str | None
-    afdeling_name: str | None
+    chapter_id: str | None
+    chapter_name: str | None
     signup_count: int  # aggregate party_size sum, not row count
     model_config = {"from_attributes": True}
 

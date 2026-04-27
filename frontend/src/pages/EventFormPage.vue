@@ -12,7 +12,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import EditableList from "@/components/EditableList.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { useToasts } from "@/lib/toasts";
-import { useAfdelingenStore } from "@/stores/afdelingen";
+import { useChaptersStore } from "@/stores/chapters";
 import { useAuthStore } from "@/stores/auth";
 import { useEventsStore } from "@/stores/events";
 
@@ -22,19 +22,19 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const events = useEventsStore();
 const toasts = useToasts();
-const afdelingen = useAfdelingenStore();
+const chapters = useChaptersStore();
 const auth = useAuthStore();
 
 const isEdit = computed(() => Boolean(props.eventId));
 
 // Bias address suggestions toward the organiser's chapter's home
-// city. Resolved from the afdelingen store rather than the cached
+// city. Resolved from the chapters store rather than the cached
 // auth.user copy so a chapter that gets a city assigned mid-session
 // flows through without a re-login.
 const chapterBias = computed<{ lat: number | null; lon: number | null }>(() => {
-  const id = auth.user?.afdeling_id;
+  const id = auth.user?.chapter_id;
   if (!id) return { lat: null, lon: null };
-  const a = afdelingen.all.find((x) => x.id === id);
+  const a = chapters.all.find((x) => x.id === id);
   return { lat: a?.city_lat ?? null, lon: a?.city_lon ?? null };
 });
 
@@ -192,9 +192,9 @@ function cancel() {
 }
 
 onMounted(async () => {
-  // Always fetch afdelingen so ``chapterBias`` resolves the
+  // Always fetch chapters so ``chapterBias`` resolves the
   // organiser's home city for address suggestions.
-  if (afdelingen.all.length === 0) await afdelingen.fetchAll();
+  if (chapters.all.length === 0) await chapters.fetchAll();
   if (isEdit.value) {
     if (events.all.length === 0) await events.fetchAll();
     const existing = events.all.find((e) => e.id === props.eventId);

@@ -9,8 +9,8 @@ export interface User {
   role: "admin" | "organiser";
   email_verified_at: string | null;
   is_approved: boolean;
-  afdeling_id: string | null;
-  afdeling_name: string | null;
+  chapter_id: string | null;
+  chapter_name: string | null;
   created_at: string;
 }
 

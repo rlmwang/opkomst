@@ -108,7 +108,7 @@
     "loadFailed": "Could not load users",
     "roleAdmin": "admin"
   },
-  "afdelingen": {
+  "chapters": {
     "title": "Chapters",
     "intro": "Local chapters. Events are scoped to a chapter; users only see events from their own chapter.",
     "addPlaceholder": "Search or type new + Enter",

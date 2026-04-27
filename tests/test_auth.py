@@ -30,7 +30,7 @@ def test_login_returns_jwt(client, admin_token):
     assert r.json()["token"]
 
 
-def test_jwt_id_stable_across_user_updates(client, admin_headers, afdeling_id):
+def test_jwt_id_stable_across_user_updates(client, admin_headers, chapter_id):
     """JWT signs ``entity_id``, so it must keep working when the
     user's row id changes (i.e. after any SCD2 update)."""
     r = client.post(
@@ -43,7 +43,7 @@ def test_jwt_id_stable_across_user_updates(client, admin_headers, afdeling_id):
     client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
-        json={"afdeling_id": afdeling_id},
+        json={"chapter_id": chapter_id},
     )
     r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200

@@ -84,14 +84,14 @@ def admin_headers(admin_token) -> dict[str, str]:
 
 
 @pytest.fixture()
-def afdeling_id(client, admin_headers) -> str:
-    r = client.post("/api/v1/afdelingen", headers=admin_headers, json={"name": "Amsterdam"})
+def chapter_id(client, admin_headers) -> str:
+    r = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Amsterdam"})
     assert r.status_code == 201, r.text
     return r.json()["id"]
 
 
 @pytest.fixture()
-def organiser_token(client, admin_headers, afdeling_id) -> str:
+def organiser_token(client, admin_headers, chapter_id) -> str:
     """Register, manually verify, and admin-approve an organiser.
     Returns a logged-in token."""
     r = client.post(
@@ -119,7 +119,7 @@ def organiser_token(client, admin_headers, afdeling_id) -> str:
     r = client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
-        json={"afdeling_id": afdeling_id},
+        json={"chapter_id": chapter_id},
     )
     assert r.status_code == 200, r.text
     # Re-login so the JWT reflects the new approved state.

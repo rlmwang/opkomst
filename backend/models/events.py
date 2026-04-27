@@ -35,8 +35,8 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     # Points at User.entity_id; no FK because user is also SCD2 (its
     # entity_id isn't unique across all rows).
     created_by: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    # Points at Afdeling.entity_id; no FK for the same reason.
-    afdeling_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    # Points at Chapter.entity_id; no FK for the same reason.
+    chapter_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
 
     __table_args__ = (

@@ -18,7 +18,7 @@ from ..auth import (
 from ..database import get_db
 from ..models import User
 from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut, VerifyEmailRequest
-from ..services import afdelingen as afdelingen_svc
+from ..services import chapters as chapters_svc
 from ..services import scd2
 from ..services.email import build_url, send_email
 
@@ -31,7 +31,7 @@ VERIFY_TOKEN_TTL_HOURS = 24
 
 
 def _user_out(db, user: User) -> UserOut:
-    """Materialise UserOut with the afdeling_name resolved.
+    """Materialise UserOut with the chapter_name resolved.
     ``id`` is always ``user.entity_id`` — the stable logical id."""
     return UserOut(
         id=user.entity_id,
@@ -40,8 +40,8 @@ def _user_out(db, user: User) -> UserOut:
         role=user.role,
         email_verified_at=user.email_verified_at,
         is_approved=user.is_approved,
-        afdeling_id=user.afdeling_id,
-        afdeling_name=afdelingen_svc.name_for_entity(db, user.afdeling_id),
+        chapter_id=user.chapter_id,
+        chapter_name=chapters_svc.name_for_entity(db, user.chapter_id),
         created_at=user.created_at,
     )
 
@@ -124,7 +124,7 @@ def register(request: Request, data: RegisterRequest, db: Session = Depends(get_
         role="admin" if is_bootstrap else "organiser",
         is_approved=is_bootstrap,
         email_verified_at=now if is_bootstrap else None,
-        afdeling_id=None,
+        chapter_id=None,
     )
     user.changed_by = user.entity_id
     db.commit()

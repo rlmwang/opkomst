@@ -19,8 +19,8 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .database import SessionLocal
-from .models import Afdeling, Event, FeedbackQuestion, FeedbackResponse, Signup, User
-from .services import afdelingen as afdelingen_svc
+from .models import Chapter, Event, FeedbackQuestion, FeedbackResponse, Signup, User
+from .services import chapters as chapters_svc
 from .services import encryption
 from .services.slug import new_slug
 
@@ -65,7 +65,7 @@ def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str
         # Local seed accounts are pre-verified — both gates pass so the
         # account can act immediately.
         email_verified_at=datetime.now(UTC),
-        afdeling_id=None,
+        chapter_id=None,
     )
     user.changed_by = user.entity_id  # self-reference once entity_id is known
     db.flush()
@@ -82,7 +82,7 @@ def _ensure_event(
     ends_at: datetime,
     created_by: str,
     source_options: list[str],
-    afdeling_id: str | None,
+    chapter_id: str | None,
 ) -> Event:
     existing = (
         db.query(Event)
@@ -104,7 +104,7 @@ def _ensure_event(
         starts_at=starts_at,
         ends_at=ends_at,
         source_options=source_options,
-        afdeling_id=afdeling_id,
+        chapter_id=chapter_id,
         created_by=created_by,
         locale="nl",
         valid_from=now,
@@ -147,35 +147,35 @@ def run_local_demo() -> None:
             role="organiser",
         )
 
-        # Two demo afdelingen + one soft-deleted one so the admin
+        # Two demo chapters + one soft-deleted one so the admin
         # autocomplete demonstrates the restore flow on first boot.
         from .services import scd2
 
-        amsterdam = afdelingen_svc.all_active(db)
+        amsterdam = chapters_svc.all_active(db)
         if not any(a.name == "Amsterdam" for a in amsterdam):
-            afdelingen_svc.create(db, name="Amsterdam", changed_by=admin.entity_id)
-        if not any(a.name == "Utrecht" for a in afdelingen_svc.all_active(db)):
-            afdelingen_svc.create(db, name="Utrecht", changed_by=admin.entity_id)
-        if not afdelingen_svc.latest_versions(db, include_archived=True) or not any(
+            chapters_svc.create(db, name="Amsterdam", changed_by=admin.entity_id)
+        if not any(a.name == "Utrecht" for a in chapters_svc.all_active(db)):
+            chapters_svc.create(db, name="Utrecht", changed_by=admin.entity_id)
+        if not chapters_svc.latest_versions(db, include_archived=True) or not any(
             a.name == "Den Haag"
-            for a in afdelingen_svc.latest_versions(db, include_archived=True)
+            for a in chapters_svc.latest_versions(db, include_archived=True)
         ):
-            den_haag = afdelingen_svc.create(db, name="Den Haag", changed_by=admin.entity_id)
-            afdelingen_svc.archive(db, entity_id=den_haag.entity_id, changed_by=admin.entity_id)
+            den_haag = chapters_svc.create(db, name="Den Haag", changed_by=admin.entity_id)
+            chapters_svc.archive(db, entity_id=den_haag.entity_id, changed_by=admin.entity_id)
 
         amsterdam_row = next(
-            (a for a in afdelingen_svc.all_active(db) if a.name == "Amsterdam"), None
+            (a for a in chapters_svc.all_active(db) if a.name == "Amsterdam"), None
         )
         amsterdam_id = amsterdam_row.entity_id if amsterdam_row else None
 
         # Assign the seed admin and organiser to Amsterdam via SCD2-update.
-        if admin.afdeling_id is None and amsterdam_id:
+        if admin.chapter_id is None and amsterdam_id:
             admin = scd2.scd2_update(
-                db, admin, changed_by=admin.entity_id, afdeling_id=amsterdam_id
+                db, admin, changed_by=admin.entity_id, chapter_id=amsterdam_id
             )
-        if organiser.afdeling_id is None and amsterdam_id:
+        if organiser.chapter_id is None and amsterdam_id:
             organiser = scd2.scd2_update(
-                db, organiser, changed_by=admin.entity_id, afdeling_id=amsterdam_id
+                db, organiser, changed_by=admin.entity_id, chapter_id=amsterdam_id
             )
         db.flush()
 
@@ -190,7 +190,7 @@ def run_local_demo() -> None:
             ends_at=now + timedelta(days=3, hours=2),
             created_by=organiser.entity_id,
             source_options=sources,
-            afdeling_id=amsterdam_id,
+            chapter_id=amsterdam_id,
         )
 
         past = _ensure_event(
@@ -201,7 +201,7 @@ def run_local_demo() -> None:
             ends_at=now - timedelta(days=2),
             created_by=organiser.entity_id,
             source_options=sources,
-            afdeling_id=amsterdam_id,
+            chapter_id=amsterdam_id,
         )
 
         # Idempotent demo signups. Upcoming event gets a single

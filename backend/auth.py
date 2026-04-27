@@ -31,7 +31,7 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(user_entity_id: str) -> str:
     """Sign a JWT against the user's stable ``entity_id`` so the token
-    survives every edit (rename, role change, approval, afdeling
+    survives every edit (rename, role change, approval, chapter
     reassignment)."""
     now = datetime.now(UTC)
     payload = {"sub": user_entity_id, "iat": now, "exp": now + timedelta(hours=JWT_TTL_HOURS)}

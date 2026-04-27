@@ -5,13 +5,13 @@ from ..database import Base
 from ..mixins import SCD2Mixin, TimestampMixin, UUIDMixin
 
 
-class Afdeling(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
+class Chapter(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     """A local chapter / department. SCD2 dimension — see
     ``mixins.SCD2Mixin`` for chain semantics. External references
-    (``Event.afdeling_id``, ``User.afdeling_id``) point at
+    (``Event.chapter_id``, ``User.chapter_id``) point at
     ``entity_id`` so they survive every edit / archive / restore."""
 
-    __tablename__ = "afdelingen"
+    __tablename__ = "chapters"
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
     # Optional anchor city — used to bias address autocomplete on

@@ -1,7 +1,7 @@
-"""Afdelingen — admin-managed local chapters.
+"""Chapters — admin-managed local chapters.
 
 The list endpoint is open to every approved user (organisers need it
-to see their own afdeling and pick a label on the dashboard). Create /
+to see their own chapter and pick a label on the dashboard). Create /
 archive / restore are admin-only.
 """
 
@@ -11,24 +11,24 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_admin, require_approved
 from ..database import get_db
-from ..models import Afdeling, Event, User
-from ..schemas.afdelingen import (
-    AfdelingArchiveRequest,
-    AfdelingCreate,
-    AfdelingOut,
-    AfdelingPatch,
-    AfdelingUsageOut,
+from ..models import Chapter, Event, User
+from ..schemas.chapters import (
+    ChapterArchiveRequest,
+    ChapterCreate,
+    ChapterOut,
+    ChapterPatch,
+    ChapterUsageOut,
 )
-from ..services import afdelingen as svc
+from ..services import chapters as svc
 from ..services import scd2
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/afdelingen", tags=["afdelingen"])
+router = APIRouter(prefix="/api/v1/chapters", tags=["chapters"])
 
 
-def _to_out(row: Afdeling) -> AfdelingOut:
-    return AfdelingOut(
+def _to_out(row: Chapter) -> ChapterOut:
+    return ChapterOut(
         id=row.entity_id,
         name=row.name,
         archived=row.valid_until is not None,
@@ -38,51 +38,48 @@ def _to_out(row: Afdeling) -> AfdelingOut:
     )
 
 
-@router.get("", response_model=list[AfdelingOut])
-def list_afdelingen(
+@router.get("", response_model=list[ChapterOut])
+def list_chapters(
     include_archived: bool = False,
     db: Session = Depends(get_db),
     _user: User = Depends(require_approved),
-) -> list[AfdelingOut]:
-    """List afdelingen. By default only active ones; pass
+) -> list[ChapterOut]:
+    """List chapters. By default only active ones; pass
     ``include_archived=true`` to also surface soft-deleted ones (used
     by the admin autocomplete to support restore)."""
     rows = svc.latest_versions(db, include_archived=include_archived)
     return [_to_out(r) for r in rows]
 
 
-@router.post("", response_model=AfdelingOut, status_code=201)
-def create_afdeling(
-    data: AfdelingCreate,
+@router.post("", response_model=ChapterOut, status_code=201)
+def create_chapter(
+    data: ChapterCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
-) -> AfdelingOut:
+) -> ChapterOut:
     name = svc.normalise_name(data.name)
     if not name:
         raise HTTPException(status_code=400, detail="Name is required")
     if svc.name_exists_active(db, name):
-        raise HTTPException(status_code=409, detail="An afdeling with that name already exists")
+        raise HTTPException(status_code=409, detail="A chapter with that name already exists")
     row = svc.create(db, name=name, changed_by=admin.entity_id)
     db.commit()
-    logger.info("afdeling_created", entity_id=row.entity_id, actor_id=admin.entity_id)
+    logger.info("chapter_created", entity_id=row.entity_id, actor_id=admin.entity_id)
     return _to_out(row)
 
 
-@router.patch("/{entity_id}", response_model=AfdelingOut)
-def patch_afdeling(
+@router.patch("/{entity_id}", response_model=ChapterOut)
+def patch_chapter(
     entity_id: str,
-    data: AfdelingPatch,
+    data: ChapterPatch,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
-) -> AfdelingOut:
+) -> ChapterOut:
     """Partial SCD2 update for the chapter — name and/or city. The
     city tuple is set together (display name + lat + lon); leaving
     all three at ``None`` in the payload clears a previously-set
     city. Pass nothing for ``city*`` keys to leave the current city
     untouched."""
-    # Detect "city tuple supplied" — explicit None for all three is
-    # the "clear it" signal, so we use the model's ``model_fields_set``
-    # introspection rather than ``is None`` checks.
     set_city = any(field in data.model_fields_set for field in ("city", "city_lat", "city_lon"))
     try:
         row = svc.update(
@@ -98,63 +95,61 @@ def patch_afdeling(
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if row is None:
-        raise HTTPException(status_code=404, detail="Afdeling not found")
+        raise HTTPException(status_code=404, detail="Chapter not found")
     db.commit()
-    logger.info("afdeling_patched", entity_id=entity_id, actor_id=admin.entity_id)
+    logger.info("chapter_patched", entity_id=entity_id, actor_id=admin.entity_id)
     return _to_out(row)
 
 
-@router.get("/{entity_id}/usage", response_model=AfdelingUsageOut)
-def afdeling_usage(
+@router.get("/{entity_id}/usage", response_model=ChapterUsageOut)
+def chapter_usage(
     entity_id: str,
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
-) -> AfdelingUsageOut:
+) -> ChapterUsageOut:
     """How many users + events are currently linked to this chapter.
     The frontend calls this before opening the delete dialog so it
     can offer reassignment dropdowns when there's something at stake."""
-    users = scd2.current(db.query(User)).filter(User.afdeling_id == entity_id).count()
-    events = scd2.current(db.query(Event)).filter(Event.afdeling_id == entity_id).count()
-    return AfdelingUsageOut(users=users, events=events)
+    users = scd2.current(db.query(User)).filter(User.chapter_id == entity_id).count()
+    events = scd2.current(db.query(Event)).filter(Event.chapter_id == entity_id).count()
+    return ChapterUsageOut(users=users, events=events)
 
 
-@router.delete("/{entity_id}", status_code=200, response_model=AfdelingOut)
-def archive_afdeling(
+@router.delete("/{entity_id}", status_code=200, response_model=ChapterOut)
+def archive_chapter(
     entity_id: str,
-    data: AfdelingArchiveRequest | None = None,
+    data: ChapterArchiveRequest | None = None,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
-) -> AfdelingOut:
-    # Optional reassignment of dependents BEFORE we close the
-    # afdeling. The admin can choose to leave users / events orphaned
-    # (they stay linked, become invisible / unable-to-act until the
-    # chapter is restored). Both are nullable; neither is required.
+) -> ChapterOut:
+    # Optional reassignment of dependents BEFORE we close the chapter.
+    # The admin can choose to leave users / events orphaned (they stay
+    # linked, become invisible / unable-to-act until the chapter is
+    # restored). Both are nullable; neither is required.
     if data is not None:
         if data.reassign_users_to:
             target = svc.find_current_by_entity(db, data.reassign_users_to)
             if target is None or target.entity_id == entity_id:
                 raise HTTPException(status_code=400, detail="Invalid reassign_users_to target")
-            # SCD2-update every affected user — each gets a new version
-            # recording the reassignment with the admin as ``changed_by``.
-            for u in scd2.current(db.query(User)).filter(User.afdeling_id == entity_id).all():
+            for u in scd2.current(db.query(User)).filter(User.chapter_id == entity_id).all():
                 scd2.scd2_update(
-                    db, u, changed_by=admin.entity_id, afdeling_id=data.reassign_users_to
+                    db, u, changed_by=admin.entity_id, chapter_id=data.reassign_users_to
                 )
         if data.reassign_events_to:
             target = svc.find_current_by_entity(db, data.reassign_events_to)
             if target is None or target.entity_id == entity_id:
                 raise HTTPException(status_code=400, detail="Invalid reassign_events_to target")
-            for e in scd2.current(db.query(Event)).filter(Event.afdeling_id == entity_id).all():
+            for e in scd2.current(db.query(Event)).filter(Event.chapter_id == entity_id).all():
                 scd2.scd2_update(
-                    db, e, changed_by=admin.entity_id, afdeling_id=data.reassign_events_to
+                    db, e, changed_by=admin.entity_id, chapter_id=data.reassign_events_to
                 )
 
     row = svc.archive(db, entity_id=entity_id, changed_by=admin.entity_id)
     if row is None:
-        raise HTTPException(status_code=404, detail="Afdeling not found")
+        raise HTTPException(status_code=404, detail="Chapter not found")
     db.commit()
     logger.info(
-        "afdeling_archived",
+        "chapter_archived",
         entity_id=entity_id,
         actor_id=admin.entity_id,
         reassign_users_to=data.reassign_users_to if data else None,
@@ -163,16 +158,16 @@ def archive_afdeling(
     return _to_out(row)
 
 
-@router.post("/{entity_id}/restore", response_model=AfdelingOut)
-def restore_afdeling(
+@router.post("/{entity_id}/restore", response_model=ChapterOut)
+def restore_chapter(
     entity_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
-) -> AfdelingOut:
+) -> ChapterOut:
     try:
         row = svc.restore(db, entity_id=entity_id, changed_by=admin.entity_id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     db.commit()
-    logger.info("afdeling_restored", entity_id=entity_id, actor_id=admin.entity_id)
+    logger.info("chapter_restored", entity_id=entity_id, actor_id=admin.entity_id)
     return _to_out(row)

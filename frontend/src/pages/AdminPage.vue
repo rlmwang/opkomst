@@ -6,7 +6,7 @@ import Tag from "primevue/tag";
 import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import AfdelingPicker from "@/components/AfdelingPicker.vue";
+import ChapterPicker from "@/components/ChapterPicker.vue";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -16,14 +16,14 @@ import EditableList from "@/components/EditableList.vue";
 import SearchInput from "@/components/SearchInput.vue";
 import { useConfirms } from "@/lib/confirms";
 import { useToasts } from "@/lib/toasts";
-import { type Afdeling, useAfdelingenStore } from "@/stores/afdelingen";
+import { type Chapter, useChaptersStore } from "@/stores/chapters";
 import { useAdminStore } from "@/stores/admin";
 import { type User, useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
 const admin = useAdminStore();
 const auth = useAuthStore();
-const afdelingen = useAfdelingenStore();
+const chapters = useChaptersStore();
 const toasts = useToasts();
 const confirms = useConfirms();
 
@@ -32,19 +32,19 @@ type AssignMode = "approve" | "assign";
 const assignDialogOpen = ref(false);
 const assignDialogMode = ref<AssignMode>("approve");
 const assignTargetUser = ref<User | null>(null);
-const assignDialogPick = ref<Afdeling | null>(null);
+const assignDialogPick = ref<Chapter | null>(null);
 const assignDialogSubmitting = ref(false);
 
 // Lookup chapter name reactively from the store so renames flow into
 // every user row without a refetch.
 function chapterLabelFor(u: User): string {
-  if (!u.afdeling_id) return t("admin.noChapter");
-  return afdelingen.all.find((a) => a.id === u.afdeling_id)?.name ?? u.afdeling_name ?? t("admin.noChapter");
+  if (!u.chapter_id) return t("admin.noChapter");
+  return chapters.all.find((a) => a.id === u.chapter_id)?.name ?? u.chapter_name ?? t("admin.noChapter");
 }
 
 // --- Edit-chapter dialog (name + city) -------------------------------
 const editDialogOpen = ref(false);
-const editTarget = ref<Afdeling | null>(null);
+const editTarget = ref<Chapter | null>(null);
 const editName = ref<string>("");
 const editCity = ref<{ city: string | null; city_lat: number | null; city_lon: number | null }>({
   city: null,
@@ -53,7 +53,7 @@ const editCity = ref<{ city: string | null; city_lat: number | null; city_lon: n
 });
 const editSubmitting = ref(false);
 
-function openEditChapter(a: Afdeling) {
+function openEditChapter(a: Chapter) {
   editTarget.value = a;
   editName.value = a.name;
   editCity.value = { city: a.city, city_lat: a.city_lat, city_lon: a.city_lon };
@@ -65,21 +65,21 @@ async function submitEditChapter() {
   const target = editTarget.value;
   const trimmed = editName.value.trim();
   if (!trimmed) {
-    toasts.warn(t("afdelingen.fillName"));
+    toasts.warn(t("chapters.fillName"));
     return;
   }
   editSubmitting.value = true;
   try {
-    await afdelingen.updatePatch(target.id, {
+    await chapters.updatePatch(target.id, {
       name: trimmed,
       city: editCity.value.city,
       city_lat: editCity.value.city_lat,
       city_lon: editCity.value.city_lon,
     });
-    toasts.success(t("afdelingen.editedToast"));
+    toasts.success(t("chapters.editedToast"));
     editDialogOpen.value = false;
   } catch (e) {
-    toasts.error(e instanceof Error ? e.message : t("afdelingen.editFail"));
+    toasts.error(e instanceof Error ? e.message : t("chapters.editFail"));
   } finally {
     editSubmitting.value = false;
   }
@@ -87,14 +87,14 @@ async function submitEditChapter() {
 
 // --- Delete-chapter dialog (with optional reassignment) --------------
 const deleteDialogOpen = ref(false);
-const deleteTarget = ref<Afdeling | null>(null);
+const deleteTarget = ref<Chapter | null>(null);
 const deleteUsage = ref<{ users: number; events: number }>({ users: 0, events: 0 });
-const deleteReassignUsersTo = ref<Afdeling | null>(null);
-const deleteReassignEventsTo = ref<Afdeling | null>(null);
+const deleteReassignUsersTo = ref<Chapter | null>(null);
+const deleteReassignEventsTo = ref<Chapter | null>(null);
 const deleteSubmitting = ref(false);
 
 const otherChapters = computed(() =>
-  afdelingen.all.filter((a) => a.id !== deleteTarget.value?.id),
+  chapters.all.filter((a) => a.id !== deleteTarget.value?.id),
 );
 
 // --- User search -----------------------------------------------------
@@ -117,7 +117,7 @@ const loaded = ref(false);
 
 onMounted(async () => {
   try {
-    await Promise.all([admin.fetchUsers(), afdelingen.fetchAll()]);
+    await Promise.all([admin.fetchUsers(), chapters.fetchAll()]);
   } catch {
     toasts.error(t("admin.loadFailed"));
   } finally {
@@ -135,7 +135,7 @@ function openApprove(u: User) {
 function openAssign(u: User) {
   assignDialogMode.value = "assign";
   assignTargetUser.value = u;
-  assignDialogPick.value = afdelingen.all.find((a) => a.id === u.afdeling_id) ?? null;
+  assignDialogPick.value = chapters.all.find((a) => a.id === u.chapter_id) ?? null;
   assignDialogOpen.value = true;
 }
 
@@ -147,7 +147,7 @@ async function submitAssignDialog() {
       await admin.approve(assignTargetUser.value.id, assignDialogPick.value.id);
       toasts.success(t("admin.approveOk"));
     } else {
-      await admin.assignAfdeling(assignTargetUser.value.id, assignDialogPick.value.id);
+      await admin.assignChapter(assignTargetUser.value.id, assignDialogPick.value.id);
       toasts.success(t("admin.assignOk"));
     }
     assignDialogOpen.value = false;
@@ -190,18 +190,18 @@ async function toggleAdmin(u: User, on: boolean) {
   }
 }
 
-async function onPickedAfdelingFromAddBar(a: Afdeling) {
+async function onPickedChapterFromAddBar(a: Chapter) {
   if (!a.archived) return;
   try {
-    await afdelingen.restore(a.id);
-    toasts.success(t("afdelingen.restoredToast", { name: a.name }));
+    await chapters.restore(a.id);
+    toasts.success(t("chapters.restoredToast", { name: a.name }));
   } catch {
-    toasts.error(t("afdelingen.restoreFail"));
+    toasts.error(t("chapters.restoreFail"));
   }
 }
 
 function normaliseChapterName(name: string): string {
-  // Mirror backend services.afdelingen.normalise_name — strip + collapse
+  // Mirror backend services.chapters.normalise_name — strip + collapse
   // internal whitespace so " Den   Haag " matches "Den Haag" exactly.
   return name.trim().split(/\s+/).join(" ");
 }
@@ -214,29 +214,29 @@ async function onCreateFromAddBar(name: string) {
   // would be permanently unreachable from the keyboard.
   try {
     const normalised = normaliseChapterName(name);
-    const matches = await afdelingen.search(normalised, true);
+    const matches = await chapters.search(normalised, true);
     const lower = normalised.toLowerCase();
     const archivedMatch = matches.find(
       (a) => a.archived && a.name.toLowerCase() === lower,
     );
     if (archivedMatch) {
-      await afdelingen.restore(archivedMatch.id);
-      toasts.success(t("afdelingen.restoredToast", { name: archivedMatch.name }));
+      await chapters.restore(archivedMatch.id);
+      toasts.success(t("chapters.restoredToast", { name: archivedMatch.name }));
       return;
     }
-    await afdelingen.create(normalised);
-    toasts.success(t("afdelingen.createdToast", { name: normalised }));
+    await chapters.create(normalised);
+    toasts.success(t("chapters.createdToast", { name: normalised }));
   } catch {
-    toasts.error(t("afdelingen.createFail"));
+    toasts.error(t("chapters.createFail"));
   }
 }
 
-async function openDeleteDialog(a: Afdeling) {
+async function openDeleteDialog(a: Chapter) {
   deleteTarget.value = a;
   deleteReassignUsersTo.value = null;
   deleteReassignEventsTo.value = null;
   try {
-    deleteUsage.value = await afdelingen.getUsage(a.id);
+    deleteUsage.value = await chapters.getUsage(a.id);
   } catch {
     deleteUsage.value = { users: 0, events: 0 };
   }
@@ -247,16 +247,16 @@ async function submitDelete() {
   if (!deleteTarget.value) return;
   deleteSubmitting.value = true;
   try {
-    await afdelingen.archive(deleteTarget.value.id, {
+    await chapters.archive(deleteTarget.value.id, {
       users: deleteReassignUsersTo.value?.id ?? null,
       events: deleteReassignEventsTo.value?.id ?? null,
     });
-    toasts.success(t("afdelingen.archivedToast"));
+    toasts.success(t("chapters.archivedToast"));
     // Refetch users so chips reflect the reassignment.
     await admin.fetchUsers();
     deleteDialogOpen.value = false;
   } catch {
-    toasts.error(t("afdelingen.archiveFail"));
+    toasts.error(t("chapters.archiveFail"));
   } finally {
     deleteSubmitting.value = false;
   }
@@ -269,22 +269,22 @@ async function submitDelete() {
     <h1>{{ t("admin.title") }}</h1>
 
     <AppCard>
-      <h2>{{ t("afdelingen.title") }}</h2>
-      <p class="muted">{{ t("afdelingen.intro") }}</p>
+      <h2>{{ t("chapters.title") }}</h2>
+      <p class="muted">{{ t("chapters.intro") }}</p>
       <AppSkeleton v-if="!loaded" :rows="3" />
       <EditableList
         v-else
-        :items="afdelingen.all"
-        :item-label="(a: Afdeling) => a.name"
-        :item-key="(a: Afdeling) => a.id"
+        :items="chapters.all"
+        :item-label="(a: Chapter) => a.name"
+        :item-key="(a: Chapter) => a.id"
         @remove="openDeleteDialog"
       >
         <template #row="{ item }">
           <div class="chapter-row">
             <span class="chapter-name">
-              {{ (item as Afdeling).name }}
-              <span v-if="(item as Afdeling).city" class="muted chapter-city">
-                · {{ (item as Afdeling).city }}
+              {{ (item as Chapter).name }}
+              <span v-if="(item as Chapter).city" class="muted chapter-city">
+                · {{ (item as Chapter).city }}
               </span>
             </span>
             <Button
@@ -293,15 +293,15 @@ async function submitDelete() {
               severity="secondary"
               text
               :aria-label="t('common.edit')"
-              @click="openEditChapter(item as Afdeling)"
+              @click="openEditChapter(item as Chapter)"
             />
           </div>
         </template>
         <template #add>
-          <AfdelingPicker
-            :placeholder="t('afdelingen.addPlaceholder')"
+          <ChapterPicker
+            :placeholder="t('chapters.addPlaceholder')"
             :archived-only="true"
-            @pick="onPickedAfdelingFromAddBar"
+            @pick="onPickedChapterFromAddBar"
             @create="onCreateFromAddBar"
           />
         </template>
@@ -340,8 +340,8 @@ async function submitDelete() {
             @click="openApprove(u)"
           />
           <!-- Single chip-button: shows the chapter, opens the assign
-               dialog on click. The label resolves from the afdelingen
-               store rather than the cached u.afdeling_name so renames
+               dialog on click. The label resolves from the chapters
+               store rather than the cached u.chapter_name so renames
                update reactively without a page refresh. -->
           <Button
             v-if="u.is_approved"
@@ -390,9 +390,9 @@ async function submitDelete() {
       </p>
       <Select
         v-model="assignDialogPick"
-        :options="afdelingen.all"
+        :options="chapters.all"
         option-label="name"
-        :placeholder="t('afdelingen.pickerPlaceholder')"
+        :placeholder="t('chapters.pickerPlaceholder')"
         fluid
       />
       <template #footer>
@@ -408,48 +408,48 @@ async function submitDelete() {
 
     <AppDialog
       v-model:visible="deleteDialogOpen"
-      :header="t('afdelingen.deleteDialogTitle', { name: deleteTarget?.name ?? '' })"
+      :header="t('chapters.deleteDialogTitle', { name: deleteTarget?.name ?? '' })"
       width="480px"
     >
-      <p class="muted dialog-text">{{ t("afdelingen.deleteDialogBody") }}</p>
+      <p class="muted dialog-text">{{ t("chapters.deleteDialogBody") }}</p>
       <label v-if="deleteUsage.users > 0" class="reassign-label">
-        {{ t("afdelingen.deleteUsersLabel", { n: deleteUsage.users }) }}
+        {{ t("chapters.deleteUsersLabel", { n: deleteUsage.users }) }}
         <Select
           v-model="deleteReassignUsersTo"
           :options="otherChapters"
           option-label="name"
           show-clear
-          :placeholder="t('afdelingen.deleteLeaveOrphaned')"
+          :placeholder="t('chapters.deleteLeaveOrphaned')"
           fluid
         />
       </label>
       <label v-if="deleteUsage.events > 0" class="reassign-label">
-        {{ t("afdelingen.deleteEventsLabel", { n: deleteUsage.events }) }}
+        {{ t("chapters.deleteEventsLabel", { n: deleteUsage.events }) }}
         <Select
           v-model="deleteReassignEventsTo"
           :options="otherChapters"
           option-label="name"
           show-clear
-          :placeholder="t('afdelingen.deleteLeaveOrphaned')"
+          :placeholder="t('chapters.deleteLeaveOrphaned')"
           fluid
         />
       </label>
       <p v-if="deleteUsage.users === 0 && deleteUsage.events === 0" class="muted dialog-text">
-        {{ t("afdelingen.deleteNoDeps") }}
+        {{ t("chapters.deleteNoDeps") }}
       </p>
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="deleteDialogOpen = false" />
-        <Button :label="t('afdelingen.archive')" :loading="deleteSubmitting" @click="submitDelete" />
+        <Button :label="t('chapters.archive')" :loading="deleteSubmitting" @click="submitDelete" />
       </template>
     </AppDialog>
 
     <AppDialog
       v-model:visible="editDialogOpen"
-      :header="t('afdelingen.editDialogTitle', { name: editTarget?.name ?? '' })"
+      :header="t('chapters.editDialogTitle', { name: editTarget?.name ?? '' })"
     >
-      <p class="muted dialog-text">{{ t("afdelingen.editDialogBody") }}</p>
-      <InputText v-model="editName" :placeholder="t('afdelingen.namePlaceholder')" fluid />
-      <CityPicker v-model="editCity" :placeholder="t('afdelingen.cityPlaceholder')" />
+      <p class="muted dialog-text">{{ t("chapters.editDialogBody") }}</p>
+      <InputText v-model="editName" :placeholder="t('chapters.namePlaceholder')" fluid />
+      <CityPicker v-model="editCity" :placeholder="t('chapters.cityPlaceholder')" />
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="editDialogOpen = false" />
         <Button :label="t('common.save')" :loading="editSubmitting" @click="submitEditChapter" />

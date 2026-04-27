@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { del, get, patch, post } from "@/api/client";
 
-export interface Afdeling {
+export interface Chapter {
   id: string; // entity_id (stable across versions)
   name: string;
   archived: boolean;
@@ -11,44 +11,44 @@ export interface Afdeling {
   city_lon: number | null;
 }
 
-export interface AfdelingPatchPayload {
+export interface ChapterPatchPayload {
   name?: string;
   city?: string | null;
   city_lat?: number | null;
   city_lon?: number | null;
 }
 
-export const useAfdelingenStore = defineStore("afdelingen", () => {
-  const all = ref<Afdeling[]>([]);
+export const useChaptersStore = defineStore("chapters", () => {
+  const all = ref<Chapter[]>([]);
 
   async function fetchAll(includeArchived = false): Promise<void> {
     const qs = includeArchived ? "?include_archived=true" : "";
-    all.value = await get<Afdeling[]>(`/api/v1/afdelingen${qs}`);
+    all.value = await get<Chapter[]>(`/api/v1/chapters${qs}`);
   }
 
-  async function search(query: string, includeArchived = true): Promise<Afdeling[]> {
-    // Plain in-memory filter for now — afdelingen lists stay small;
+  async function search(query: string, includeArchived = true): Promise<Chapter[]> {
+    // Plain in-memory filter for now — chapters lists stay small;
     // refetch (with archived) and filter client-side.
-    const list = await get<Afdeling[]>(
-      `/api/v1/afdelingen${includeArchived ? "?include_archived=true" : ""}`,
+    const list = await get<Chapter[]>(
+      `/api/v1/chapters${includeArchived ? "?include_archived=true" : ""}`,
     );
     const q = query.trim().toLowerCase();
     if (!q) return list;
     return list.filter((a) => a.name.toLowerCase().includes(q));
   }
 
-  async function create(name: string): Promise<Afdeling> {
-    const created = await post<Afdeling>("/api/v1/afdelingen", { name });
+  async function create(name: string): Promise<Chapter> {
+    const created = await post<Chapter>("/api/v1/chapters", { name });
     all.value = [...all.value, created].sort((a, b) => a.name.localeCompare(b.name));
     return created;
   }
 
-  async function rename(id: string, name: string): Promise<Afdeling> {
+  async function rename(id: string, name: string): Promise<Chapter> {
     return updatePatch(id, { name });
   }
 
-  async function updatePatch(id: string, payload: AfdelingPatchPayload): Promise<Afdeling> {
-    const updated = await patch<Afdeling>(`/api/v1/afdelingen/${id}`, payload);
+  async function updatePatch(id: string, payload: ChapterPatchPayload): Promise<Chapter> {
+    const updated = await patch<Chapter>(`/api/v1/chapters/${id}`, payload);
     all.value = all.value
       .map((a) => (a.id === id ? updated : a))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -56,22 +56,22 @@ export const useAfdelingenStore = defineStore("afdelingen", () => {
   }
 
   async function getUsage(id: string): Promise<{ users: number; events: number }> {
-    return get<{ users: number; events: number }>(`/api/v1/afdelingen/${id}/usage`);
+    return get<{ users: number; events: number }>(`/api/v1/chapters/${id}/usage`);
   }
 
   async function archive(
     id: string,
     reassign?: { users?: string | null; events?: string | null },
   ): Promise<void> {
-    await del(`/api/v1/afdelingen/${id}`, {
+    await del(`/api/v1/chapters/${id}`, {
       reassign_users_to: reassign?.users ?? null,
       reassign_events_to: reassign?.events ?? null,
     });
     all.value = all.value.filter((a) => a.id !== id);
   }
 
-  async function restore(id: string): Promise<Afdeling> {
-    const restored = await post<Afdeling>(`/api/v1/afdelingen/${id}/restore`);
+  async function restore(id: string): Promise<Chapter> {
+    const restored = await post<Chapter>(`/api/v1/chapters/${id}/restore`);
     if (!all.value.find((a) => a.id === id)) {
       all.value = [...all.value, restored].sort((a, b) => a.name.localeCompare(b.name));
     } else {

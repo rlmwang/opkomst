@@ -9,7 +9,7 @@ from ..mixins import SCD2Mixin, TimestampMixin, UUIDMixin
 
 class User(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     """SCD2 dimension. JWT ``sub`` is ``user.entity_id`` so tokens
-    survive every edit (rename, role change, approval, afdeling
+    survive every edit (rename, role change, approval, chapter
     reassignment). Email uniqueness is enforced via a partial unique
     index over current versions — multiple history rows can share
     the same email for one logical account."""
@@ -22,8 +22,8 @@ class User(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     role: Mapped[str] = mapped_column(Text, nullable=False, default="organiser")
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    # Points at Afdeling.entity_id; no FK because Afdeling is SCD2.
-    afdeling_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    # Points at Chapter.entity_id; no FK because Chapter is SCD2.
+    chapter_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
 
     __table_args__ = (
         Index(

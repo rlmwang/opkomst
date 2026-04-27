@@ -153,16 +153,16 @@ def feedback_summary(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FeedbackSummaryOut:
-    # Mirror the events router's afdeling scoping — events outside the
-    # user's afdeling 404 (don't leak existence).
-    afdeling_match = (
-        Event.afdeling_id == user.afdeling_id
-        if user.afdeling_id is not None
-        else Event.afdeling_id == "__no_match__"
+    # Mirror the events router's chapter scoping — events outside the
+    # user's chapter 404 (don't leak existence).
+    chapter_match = (
+        Event.chapter_id == user.chapter_id
+        if user.chapter_id is not None
+        else Event.chapter_id == "__no_match__"
     )
     event = (
         scd2_svc.current(db.query(Event))
-        .filter(Event.entity_id == entity_id, afdeling_match)
+        .filter(Event.entity_id == entity_id, chapter_match)
         .first()
     )
     if not event:
@@ -273,15 +273,15 @@ def feedback_submissions(
     Privacy: the ``submission_id`` is a random per-submission token
     with no link back to the signup that produced it — this matches
     the contract documented in the public privacy notice."""
-    # Same afdeling-scoping as the summary endpoint.
-    afdeling_match = (
-        Event.afdeling_id == user.afdeling_id
-        if user.afdeling_id is not None
-        else Event.afdeling_id == "__no_match__"
+    # Same chapter-scoping as the summary endpoint.
+    chapter_match = (
+        Event.chapter_id == user.chapter_id
+        if user.chapter_id is not None
+        else Event.chapter_id == "__no_match__"
     )
     event = (
         scd2_svc.current(db.query(Event))
-        .filter(Event.entity_id == entity_id, afdeling_match)
+        .filter(Event.entity_id == entity_id, chapter_match)
         .first()
     )
     if not event:

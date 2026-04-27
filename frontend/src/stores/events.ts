@@ -15,8 +15,8 @@ export interface EventOut {
   source_options: string[];
   questionnaire_enabled: boolean;
   locale: "nl" | "en";
-  afdeling_id: string | null;
-  afdeling_name: string | null;
+  chapter_id: string | null;
+  chapter_name: string | null;
   signup_count: number;
 }
 
