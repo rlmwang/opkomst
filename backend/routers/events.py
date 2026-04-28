@@ -381,16 +381,15 @@ def email_preview(slug: str, channel: str, db: Session = Depends(get_db)) -> Res
 
     spec = spec_for(ch)
     context = dict(spec.build_context(event))
-    # In preview mode the absolute URLs that the dispatcher would
-    # send (built off ``PUBLIC_BASE_URL``) might point to a port
-    # other than the one hosting the SPA — in dev the API and SPA
-    # are on different ports. Substitute relative paths so the
-    # browser resolves them against whatever origin opened the
-    # preview, which is always the SPA.
-    if ch == EmailChannel.REMINDER:
-        context["event_url"] = f"/e/{event.slug}"
-    elif ch == EmailChannel.FEEDBACK:
-        context["feedback_url"] = f"/e/{event.slug}/feedback?t=preview"
+    # The feedback CTA's URL needs a token to land on a working
+    # page; real sends mint a per-signup ``FeedbackToken`` in the
+    # pre-send hook, so build_context only fills in event_name.
+    # Use the reserved ``preview`` sentinel — the SPA detects it
+    # and routes to /feedback-preview for a banner+disabled view.
+    if ch == EmailChannel.FEEDBACK:
+        from ..services.email.urls import build_url
+
+        context["feedback_url"] = build_url(f"e/{event.slug}/feedback", t="preview")
 
     _, html_body = render(spec.template_name, context, locale=event.locale)
     return Response(content=html_body, media_type="text/html; charset=utf-8")
