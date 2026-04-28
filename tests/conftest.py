@@ -171,6 +171,33 @@ def organiser_headers(organiser_token) -> dict[str, str]:
     return {"Authorization": f"Bearer {organiser_token}"}
 
 
+# ---- Env isolation ---------------------------------------------
+#
+# Optional env vars that change runtime behaviour. The autouse fixture
+# clears them before every test so tests that don't explicitly opt in
+# see the documented defaults — regardless of what's in the developer's
+# shell, ``.env``, or a sibling test that called ``monkeypatch.setenv``.
+#
+# Required env vars (JWT_SECRET, EMAIL_ENCRYPTION_KEY, …) are set at
+# module import in this file and must stay set; not listed here.
+_OPTIONAL_TEST_ENV_VARS = (
+    "SCALEWAY_WEBHOOK_SECRET",
+    "OPKOMST_ALLOW_UNSIGNED_WEBHOOKS",
+    "EMAIL_BATCH_SIZE",
+    "EMAIL_RETRY_SLEEP_SECONDS",
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_optional_env(monkeypatch) -> None:
+    """Clear every optional behaviour-changing env var before each
+    test. Tests that need a specific value call
+    ``monkeypatch.setenv(...)`` directly — those mutations
+    auto-undo after the test, so the next test starts clean again."""
+    for var in _OPTIONAL_TEST_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture()
 def fake_email() -> Iterator:
     """Replace the email backend with a recorder for the test's

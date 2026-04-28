@@ -11,13 +11,16 @@ import json
 from datetime import timedelta
 from typing import Any
 
-import pytest
 from _helpers import commit
 from _helpers.events import make_event
 from _helpers.signups import get_dispatch, make_signup
 
 from backend.database import SessionLocal
 from backend.models import EmailChannel, EmailStatus, Signup
+
+# Webhook env vars (SCALEWAY_WEBHOOK_SECRET, OPKOMST_ALLOW_UNSIGNED_WEBHOOKS)
+# are reset before every test by the autouse `_isolate_optional_env`
+# fixture in conftest.py.
 
 # --- Helpers ----------------------------------------------------
 
@@ -32,12 +35,6 @@ def _post_event(client: Any, payload: dict | list, secret: str | None = None) ->
     if secret is not None:
         headers["X-Scaleway-Signature"] = _sign(secret, body)
     return client.post("/api/v1/webhooks/scaleway-email", content=body, headers=headers)
-
-
-@pytest.fixture(autouse=True)
-def _isolate_webhook_env(monkeypatch: Any) -> None:
-    monkeypatch.delenv("SCALEWAY_WEBHOOK_SECRET", raising=False)
-    monkeypatch.delenv("OPKOMST_ALLOW_UNSIGNED_WEBHOOKS", raising=False)
 
 
 # --- Signature gating ---------------------------------------------
