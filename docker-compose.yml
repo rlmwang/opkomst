@@ -1,19 +1,39 @@
-# Local prod-like setup for testing the API + worker split.
+# Local prod-like stack: Postgres + API + worker.
 # Production deploys (Coolify) configure each service separately;
 # this file is purely for local "does the multi-process model
-# behave?" smoke tests.
+# behave?" smoke tests, plus a one-stop ``make db-up`` for when
+# only the database is needed (running tests, dev uvicorn).
 #
 # Usage:
-#   docker compose up --build
+#   make db-up                 # postgres only, fastest dev loop
+#   docker compose up --build  # full stack
 #   curl http://localhost:8000/health
 #
-# The worker container shares the same image and DB but runs the
+# The worker container shares the API image and DB but runs the
 # email-sweep scheduler instead of uvicorn. The scheduler code
 # only exists in ``backend/worker.py``; the API binary
 # (``backend/main.py``) doesn't import APScheduler at all, so
 # there's no env-var gate to keep it out of API replicas.
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    # 5433 (not 5432) so a host-side Postgres install on the dev
+    # box doesn't collide with this one.
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: opkomst
+      POSTGRES_PASSWORD: opkomst
+      POSTGRES_DB: opkomst
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opkomst -d opkomst"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   api:
     build: .
     image: opkomst:latest
@@ -21,8 +41,14 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
+    # In-container, the API talks to the postgres service by name —
+    # override DATABASE_URL so the value in .env (which points at
+    # localhost:5433 for host-side dev) doesn't leak in.
+    environment:
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 30s
@@ -32,11 +58,17 @@ services:
   worker:
     image: opkomst:latest
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     env_file:
       - .env
-    volumes:
-      - ./data:/app/data
+    environment:
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst
     command: ["uv", "run", "--no-dev", "python", "-m", "backend.worker"]
     # No exposed ports — this is a background-only service.
     restart: unless-stopped
+
+volumes:
+  postgres-data:
