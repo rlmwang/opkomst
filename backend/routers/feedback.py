@@ -36,6 +36,7 @@ from ..schemas.feedback import (
     FeedbackSubmitIn,
     FeedbackSummaryOut,
 )
+from ..services import access
 from ..services import scd2 as scd2_svc
 from ..services.rate_limit import limiter
 
@@ -159,20 +160,7 @@ def feedback_summary(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FeedbackSummaryOut:
-    # Mirror the events router's chapter scoping — events outside the
-    # user's chapter 404 (don't leak existence).
-    chapter_match = (
-        Event.chapter_id == user.chapter_id
-        if user.chapter_id is not None
-        else Event.chapter_id == "__no_match__"
-    )
-    event = (
-        scd2_svc.current(db.query(Event))
-        .filter(Event.entity_id == entity_id, chapter_match)
-        .first()
-    )
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    access.get_event_for_user(db, entity_id, user)
 
     submission_count = (
         db.query(func.count(distinct(FeedbackResponse.submission_id)))
@@ -298,19 +286,7 @@ def feedback_submissions(
     Privacy: the ``submission_id`` is a random per-submission token
     with no link back to the signup that produced it — this matches
     the contract documented in the public privacy notice."""
-    # Same chapter-scoping as the summary endpoint.
-    chapter_match = (
-        Event.chapter_id == user.chapter_id
-        if user.chapter_id is not None
-        else Event.chapter_id == "__no_match__"
-    )
-    event = (
-        scd2_svc.current(db.query(Event))
-        .filter(Event.entity_id == entity_id, chapter_match)
-        .first()
-    )
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
+    access.get_event_for_user(db, entity_id, user)
 
     questions_by_id = {q.id: q for q in _ordered_questions(db)}
     rows = (

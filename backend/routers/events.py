@@ -14,6 +14,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
+from ..services import access
 from ..services import chapters as chapters_svc
 from ..services import events as events_svc
 from ..services import scd2 as scd2_svc
@@ -61,23 +62,17 @@ def _to_out(db: Session, event: Event) -> EventOut:
 
 
 def _scope_filter(user: User):
+    """Chapter-scope filter for *list* queries. Single-event
+    lookups should use ``access.get_event_for_user`` instead — it
+    rejects users with ``chapter_id=None`` directly. Lists pass
+    the filter into a query and want the no-results behaviour for
+    chapter-less users, which a SQL false predicate gives."""
     if user.chapter_id is None:
-        return Event.chapter_id == "__no_match__"
+        # No chapter, no events. ``Event.entity_id == None`` is
+        # cheaper than the old ``"__no_match__"`` string trick and
+        # means the same thing.
+        return Event.entity_id.is_(None)
     return Event.chapter_id == user.chapter_id
-
-
-def _get_event_scoped(db: Session, entity_id: str, user: User) -> Event:
-    """Fetch the current version of an event by entity_id, scoped to
-    the user's chapter. 404 (not 403) so existence outside the
-    chapter never leaks."""
-    event = (
-        scd2_svc.current(db.query(Event))
-        .filter(Event.entity_id == entity_id, _scope_filter(user))
-        .first()
-    )
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return event
 
 
 @router.post("", response_model=EventOut, status_code=201)
@@ -156,7 +151,7 @@ def archive_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     if event.archived_at is not None:
         raise HTTPException(status_code=409, detail="Already archived")
     new_row = scd2_svc.scd2_update(
@@ -189,7 +184,7 @@ def send_emails_now(
     from ..services import email_dispatcher
     from ..services.email_channels import spec_for
 
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     try:
         ch = EmailChannel(channel)
     except ValueError:
@@ -215,7 +210,7 @@ def restore_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     if event.archived_at is None:
         raise HTTPException(status_code=409, detail="Not archived")
     new_row = scd2_svc.scd2_update(
@@ -240,7 +235,7 @@ def update_event(
 ) -> EventOut:
     if data.ends_at <= data.starts_at:
         raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     was_questionnaire = event.questionnaire_enabled
     was_reminder = event.reminder_enabled
     new_row = scd2_svc.scd2_update(
@@ -420,7 +415,7 @@ def event_stats(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventStatsOut:
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     rows = (
         db.query(Signup.source_choice, func.count(Signup.id), func.sum(Signup.party_size))
         .filter(Signup.event_id == event.entity_id)
@@ -469,7 +464,7 @@ def event_signups(
     source, or feedback-email status. Ordered by signup time
     (oldest first) so a list rendered next to running totals
     stays stable as new signups arrive at the bottom."""
-    event = _get_event_scoped(db, entity_id, user)
+    event = access.get_event_for_user(db, entity_id, user)
     rows = (
         db.query(Signup.display_name, Signup.party_size, Signup.help_choices)
         .filter(Signup.event_id == event.entity_id)
