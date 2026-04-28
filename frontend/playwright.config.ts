@@ -9,7 +9,10 @@ import { defineConfig } from "@playwright/test";
  * Required env when running:
  *   JWT_SECRET, EMAIL_ENCRYPTION_KEY  (any test-grade values)
  *   LOCAL_MODE=1                      seeds admin / organiser
- *   DISABLE_SCHEDULER=1               no hourly worker during tests
+ *
+ * The API binary doesn't import a scheduler (audit #8); the worker
+ * container handles hourly sweeps in production. E2E doesn't need
+ * the worker to be up.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -23,7 +26,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "cd .. && set -a && source .env && set +a && export LOCAL_MODE=1 DISABLE_SCHEDULER=1 && uv run uvicorn backend.main:app --port 8000",
+      command: "cd .. && set -a && source .env && set +a && export LOCAL_MODE=1 && uv run uvicorn backend.main:app --port 8000",
       url: "http://localhost:8000/health",
       timeout: 30_000,
       reuseExistingServer: !process.env.CI,

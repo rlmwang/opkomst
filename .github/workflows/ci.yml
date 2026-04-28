@@ -65,3 +65,54 @@ jobs:
         run: npx vue-tsc --noEmit
       - name: Unit tests (vitest)
         run: npm run test
+
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      # Same defaults as the backend job — playwright.config.ts boots
+      # both servers via webServer; they read these from process env.
+      JWT_SECRET: test-jwt-secret-not-for-real-use
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
+      LOCAL_MODE: "1"
+      DATABASE_URL: sqlite:///./e2e.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - name: Sync backend
+        run: uv sync --all-groups
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Provide .env for the playwright webServer
+        # playwright.config.ts's webServer command sources ../.env;
+        # write a stub so source doesn't 404. The vars are already
+        # inherited from job-level env above.
+        run: touch .env
+      - name: Run Playwright
+        working-directory: frontend
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
