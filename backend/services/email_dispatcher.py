@@ -1,8 +1,8 @@
 """Generic email-channel worker.
 
-Runs hourly per channel via APScheduler (wired in
-``backend/worker.py``). Replaces the two ~230-line
-``feedback_worker.py`` / ``reminder_worker.py`` modules —
+Runs hourly per channel via Coolify cron, which invokes
+``python -m backend.cli dispatch <channel>``. Replaces the two
+~230-line ``feedback_worker.py`` / ``reminder_worker.py`` modules —
 their entire shape was identical except for column names,
 template names, and time-window predicates, all of which now
 live in a ``ChannelSpec``.

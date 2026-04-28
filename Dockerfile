@@ -76,9 +76,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # ``WEB_CONCURRENCY`` env if needed.
 ENV WEB_CONCURRENCY=4
 
-# The image's default CMD is the API. The worker container is
-# started by overriding CMD to ``python -m backend.worker``; the
-# scheduler code only exists in that module so there's no need
-# for an env-var gate to keep it out of API replicas.
+# The image's default CMD is the API. Scheduled email sweeps run
+# as cron-style one-shots via ``python -m backend.cli ...`` — see
+# ``docs/deploy.md`` for the cron stanzas. Same image, different
+# command per cron; no separate long-running worker container.
 
 CMD ["uv", "run", "--no-dev", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

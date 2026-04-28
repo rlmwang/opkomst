@@ -19,7 +19,6 @@ dependencies = [
     "qrcode[pil]>=8",
     "nanoid>=2",
     "httpx>=0.28",
-    "apscheduler>=3.10",
     "uuid-utils>=0.10",
     "jinja2>=3.1",
     "slowapi>=0.1.9",

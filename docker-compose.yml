@@ -1,19 +1,17 @@
-# Local prod-like stack: Postgres + API + worker.
-# Production deploys (Coolify) configure each service separately;
-# this file is purely for local "does the multi-process model
-# behave?" smoke tests, plus a one-stop ``make db-up`` for when
-# only the database is needed (running tests, dev uvicorn).
+# Local prod-like stack: Postgres + API. The email sweeps now run
+# as cron-style one-shots via ``backend.cli`` — there's no
+# long-running worker container any more (Coolify's scheduled-task
+# feature invokes ``python -m backend.cli ...`` on each cadence in
+# production). For local dev / smoke testing, run the same commands
+# manually as needed.
 #
 # Usage:
 #   make db-up                 # postgres only, fastest dev loop
 #   docker compose up --build  # full stack
 #   curl http://localhost:8000/health
 #
-# The worker container shares the API image and DB but runs the
-# email-sweep scheduler instead of uvicorn. The scheduler code
-# only exists in ``backend/worker.py``; the API binary
-# (``backend/main.py``) doesn't import APScheduler at all, so
-# there's no env-var gate to keep it out of API replicas.
+# Email sweeps locally:
+#   docker compose run --rm api python -m backend.cli dispatch reminder
 
 services:
   postgres:
@@ -54,21 +52,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-  worker:
-    image: opkomst:latest
-    depends_on:
-      api:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst
-    command: ["uv", "run", "--no-dev", "python", "-m", "backend.worker"]
-    # No exposed ports — this is a background-only service.
-    restart: unless-stopped
 
 volumes:
   postgres-data:

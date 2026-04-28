@@ -17,8 +17,10 @@ not what we're aspiring to.
 - **Geocoding**: PDOK Locatieserver for address autocomplete.
 - **Email**: Pluggable backend (`console` / `smtp`), Jinja2 templates
   per locale, AES-GCM at rest.
-- **Scheduler**: APScheduler (in-process), hourly feedback sweep,
-  graceful drain on shutdown.
+- **Scheduling**: external cron via Coolify's Scheduled Tasks.
+  Each tick is a one-shot ``python -m backend.cli ...`` invocation
+  of the same container image; non-zero exit becomes a Coolify
+  alert. No long-running scheduler container.
 
 ## Data model
 

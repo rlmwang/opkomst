@@ -2,18 +2,17 @@
 
 ## Architecture
 
-opkomst runs as **two processes** sharing one image:
+opkomst runs as **one image, two invocation patterns**:
 
-* **`api`** — uvicorn behind whatever proxy Coolify gives you.
-  Multiple replicas are fine. `backend/main.py` doesn't import
-  APScheduler at all, so there's no scheduler to boot here.
-* **`worker`** — single replica, runs `python -m backend.worker`.
-  Owns the reminder + feedback email sweeps.
+* **API** — uvicorn behind whatever proxy Coolify gives you.
+  Multiple replicas are fine — they're stateless.
+* **Cron jobs** — same image, different command per cadence,
+  invoked by Coolify's "Scheduled Tasks" feature. See § 7 below
+  for the cron stanzas.
 
-Running the scheduler inside multiple replicas would fire each
-scheduled email N times (one per replica), so the split is
-not optional — it's a correctness requirement, enforced by the
-fact that the API binary literally has no scheduler code.
+Multi-replica safety is structural: only the cron host fires, so
+scaling the API up doesn't double-send any email. There's no
+long-running scheduler container to coordinate.
 
 ## Coolify (recommended)
 
@@ -42,15 +41,27 @@ fact that the API binary literally has no scheduler code.
 6. Webhook URL for Scaleway TEM:
    `https://opkomst.nu/api/v1/webhooks/scaleway-email`. Paste the
    webhook secret into `SCALEWAY_WEBHOOK_SECRET`.
-7. Add a **second service** in Coolify, same git repo + same
-   image, with these overrides:
-   - **Custom start command:**
-     `uv run --no-dev python -m backend.worker`
-   - **Replicas:** 1 (single replica is required — see
-     "Architecture" above).
-   - **No exposed ports** — this service has no HTTP surface.
-   - **Healthcheck:** disable; the worker has no /health endpoint.
-   Both services share the same `DATABASE_URL`.
+7. **Scheduled email sweeps** — Coolify's "Scheduled Tasks" feature
+   invokes the same image with a different command on each cadence.
+   Five jobs total; offset minutes so they don't all hit the DB at
+   once:
+
+   ```
+   0  *  * * *   uv run --no-dev python -m backend.cli dispatch reminder
+   0  *  * * *   uv run --no-dev python -m backend.cli dispatch feedback
+   30 *  * * *   uv run --no-dev python -m backend.cli reap-partial
+   0  3  * * *   uv run --no-dev python -m backend.cli reap-expired
+   30 3  * * *   uv run --no-dev python -m backend.cli reap-post-event-emails
+   ```
+
+   Each command does one sweep and exits. A non-zero exit becomes a
+   Coolify alert (and a Sentry exception if `SENTRY_DSN` is set);
+   we don't want one tick's hiccup to silently mask a real bug, so
+   the CLI deliberately re-raises instead of swallowing.
+
+   Multi-replica safety is structural — only the cron host fires —
+   so unlike a long-running scheduler container, you can scale the
+   API replicas without doubling email sends.
 
 ## Local production smoke
 
@@ -58,17 +69,20 @@ fact that the API binary literally has no scheduler code.
 docker compose up --build
 ```
 
-Brings up `api` (port 8000) + `worker` (background) using the
-same image. Open `http://localhost:8000` for the SPA; the
-worker's stdout shows `worker_started` and per-tick sweeps.
+Brings up `api` (port 8000) + `postgres` using the
+same image. Open `http://localhost:8000` for the SPA. To exercise
+a sweep locally:
 
-Or, single-container API only (no email sweeps):
+```bash
+docker compose run --rm api python -m backend.cli dispatch reminder
+```
+
+Or, single-container API only (no DB):
 
 ```bash
 docker build -t opkomst:latest .
 docker run --rm -p 8000:8000 \
     --env-file .env \
-    -v $(pwd)/data:/app/data \
     opkomst:latest
 ```
 

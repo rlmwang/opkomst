@@ -25,9 +25,8 @@ logger = structlog.get_logger()
 # Sentry — opt-in via env. ``SENTRY_DSN`` unset (dev / local) is a
 # no-op. PII is OFF: ``send_default_pii=False`` keeps usernames /
 # IPs out of events. The FastAPI / Starlette integrations capture
-# 500s automatically. The worker container has its own Sentry
-# init in ``backend/worker.py`` — this module never touches the
-# scheduler, so no Sentry-on-scheduler concerns here.
+# 500s automatically. ``backend/cli.py`` runs the same init so
+# scheduled-task exceptions also reach Sentry.
 if settings.sentry_dsn:
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
@@ -40,6 +39,29 @@ if settings.sentry_dsn:
 
 run_migrations()
 run_seed()
+
+
+def _boot_reaper_pass() -> None:
+    """One defensive sweep at API startup. The cron schedule
+    handles steady state; this one catches whatever the previous
+    process left mid-flight when it crashed (and a clean restart
+    won't have any partial sends to clean up either way)."""
+    from .database import SessionLocal
+    from .services import email_reaper
+
+    db = SessionLocal()
+    try:
+        email_reaper.reap_partial_sends(db)
+    finally:
+        db.close()
+
+
+try:
+    _boot_reaper_pass()
+except Exception:
+    # A boot-time DB hiccup mustn't keep the API from coming up;
+    # the cron will catch up at the next tick.
+    logger.exception("boot_reaper_failed")
 
 
 app = FastAPI(title="Opkomst", version="0.1.0")
