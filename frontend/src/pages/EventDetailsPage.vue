@@ -316,9 +316,14 @@ function askTriggerNow(channel: EmailChannel) {
               :disabled="!summary || summary.submission_count === 0"
               @click="downloadCsv"
             />
-            <router-link to="/questionnaire">
+            <a
+              v-if="event"
+              :href="`/e/${event.slug}/feedback?t=preview`"
+              target="_blank"
+              rel="noopener"
+            >
               <Button :label="t('feedback.preview.open')" size="small" severity="secondary" text icon="pi pi-eye" />
-            </router-link>
+            </a>
           </div>
         </div>
         <p v-if="!summary || summary.submission_count === 0" class="muted">

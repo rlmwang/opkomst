@@ -1,4 +1,5 @@
 import { createI18n } from "vue-i18n";
+import { APP_NAME } from "@/lib/branding";
 import en from "@/locales/en.json";
 import nl from "@/locales/nl.json";
 
@@ -12,11 +13,19 @@ function initialLocale(): Locale {
   return "nl";
 }
 
+// Inject the app name into both locales as ``appName`` so messages
+// can interpolate it via ``@:appName`` without each ``t()`` call
+// passing it explicitly. Single source of truth in ``lib/branding``.
+const messagesWithBranding = {
+  nl: { ...nl, appName: APP_NAME },
+  en: { ...en, appName: APP_NAME },
+};
+
 export const i18n = createI18n({
   legacy: false,
   locale: initialLocale(),
   fallbackLocale: "nl",
-  messages: { nl, en },
+  messages: messagesWithBranding,
 });
 
 export function setLocale(locale: Locale): void {

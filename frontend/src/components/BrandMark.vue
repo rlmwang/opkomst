@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import logoUrl from "@/assets/rsp-logo.png";
+import { APP_NAME } from "@/lib/branding";
 
 defineProps<{
   /** Optional inner-app target for the wordmark (e.g. "/" for the
@@ -20,8 +21,8 @@ defineProps<{
     >
       <img :src="logoUrl" alt="" class="party-logo" />
     </a>
-    <router-link v-if="to" :to="to" class="wordmark">opkomst</router-link>
-    <span v-else class="wordmark">opkomst</span>
+    <router-link v-if="to" :to="to" class="wordmark">{{ APP_NAME }}</router-link>
+    <span v-else class="wordmark">{{ APP_NAME }}</span>
   </div>
 </template>
 

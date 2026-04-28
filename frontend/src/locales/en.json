@@ -202,13 +202,13 @@
     "sendNow": {
       "reminder": {
         "title": "Reminder delivery",
-        "explainer": "Opkomst normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
+        "explainer": "@:appName normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
         "button": "Send reminders now",
         "confirmTitle": "Send reminder now?"
       },
       "feedback": {
         "title": "Feedback delivery",
-        "explainer": "Opkomst normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
+        "explainer": "@:appName normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
         "button": "Send feedback emails now",
         "confirmTitle": "Send feedback email now?"
       },
@@ -335,8 +335,6 @@
       }
     },
     "preview": {
-      "title": "Questionnaire",
-      "intro": "This is what attendees see when they click the feedback link in their email. The questions are fixed across every event — standardised so results stay comparable.",
       "open": "View questionnaire"
     }
   }

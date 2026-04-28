@@ -202,13 +202,13 @@
     "sendNow": {
       "reminder": {
         "title": "Aflevering reminder",
-        "explainer": "Normaal verstuurt opkomst de reminder ongeveer 3 dagen voor het evenement. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
+        "explainer": "Normaal verstuurt @:appName de reminder ongeveer 3 dagen voor het evenement. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
         "button": "Verstuur reminders nu",
         "confirmTitle": "Reminder nu versturen?"
       },
       "feedback": {
         "title": "Aflevering feedbackmail",
-        "explainer": "Normaal verstuurt opkomst de feedbackmail één dag na afloop. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
+        "explainer": "Normaal verstuurt @:appName de feedbackmail één dag na afloop. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
         "button": "Verstuur feedbackmails nu",
         "confirmTitle": "Feedbackmail nu versturen?"
       },
@@ -335,8 +335,6 @@
       }
     },
     "preview": {
-      "title": "Vragenlijst",
-      "intro": "Dit zien aanmelders als ze op de feedbacklink in hun mail klikken. Bij elk evenement gebruiken we dezelfde vragen, zodat de resultaten vergelijkbaar zijn.",
       "open": "Bekijk vragenlijst"
     }
   }

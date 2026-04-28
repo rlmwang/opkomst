@@ -14,7 +14,6 @@ const routes = [
   { path: "/events/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/e/:slug", component: () => import("@/pages/PublicEventPage.vue"), props: true },
   { path: "/e/:slug/feedback", component: () => import("@/pages/FeedbackPage.vue"), props: true },
-  { path: "/questionnaire", component: () => import("@/pages/QuestionnairePreviewPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/:pathMatch(.*)*", component: () => import("@/pages/NotFoundPage.vue") },
 ];
 

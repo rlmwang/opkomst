@@ -26,9 +26,16 @@ def _get_env() -> Environment:
 
 
 def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LOCALE) -> tuple[str, str]:
-    """Render a localised email template. Returns ``(subject, html_body)``."""
+    """Render a localised email template. Returns ``(subject, html_body)``.
+
+    Every render gets ``app_name`` injected automatically — see
+    ``services.branding`` for the single source of truth. Templates
+    interpolate ``{{ app_name }}`` for the brand mention so a
+    rename touches one constant, not every template."""
+    from ..branding import APP_NAME
+
     resolved_locale = locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
-    context = {**context, "locale": resolved_locale}
+    context = {**context, "locale": resolved_locale, "app_name": APP_NAME}
 
     env = _get_env()
     template = env.get_template(f"{resolved_locale}/{template_name}")

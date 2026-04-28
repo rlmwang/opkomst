@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% set subject = "Bevestig je e-mailadres – opkomst" %}
+{% set subject = "Bevestig je e-mailadres – " + app_name %}
 {% block content %}
 <p>Hoi {{ name }},</p>
-<p>Welkom bij opkomst! Bevestig je e-mailadres om je registratie af te ronden.</p>
+<p>Welkom bij {{ app_name }}! Bevestig je e-mailadres om je registratie af te ronden.</p>
 <a href="{{ verify_url }}" class="cta">E-mailadres bevestigen</a>
 <p class="muted">Na bevestiging moet een admin je account goedkeuren voordat je evenementen kunt aanmaken. Je ontvangt een mail zodra dat gebeurt.</p>
 <p class="muted">Deze link verloopt na 24 uur. Heb je geen account aangemaakt? Negeer dan deze mail.</p>
 {% endblock %}
-{% block footer %}opkomst – voor het organiseren van RSP-evenementen{% endblock %}
+{% block footer %}{{ app_name }} – voor het organiseren van RSP-evenementen{% endblock %}

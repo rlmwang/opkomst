@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% set subject = "Confirm your email — opkomst" %}
+{% set subject = "Confirm your email — " + app_name %}
 {% block content %}
 <p>Hi {{ name }},</p>
-<p>Welcome to opkomst. Confirm your email address to finish registering.</p>
+<p>Welcome to {{ app_name }}. Confirm your email address to finish registering.</p>
 <a href="{{ verify_url }}" class="cta">Confirm email</a>
 <p class="muted">After confirming, an admin still needs to approve your account before you can create events. You'll receive an email as soon as that happens.</p>
 <p class="muted">This link expires in 24 hours. If you didn't create an account, ignore this email.</p>
 {% endblock %}
-{% block footer %}opkomst — for organising RSP events{% endblock %}
+{% block footer %}{{ app_name }} — for organising RSP events{% endblock %}
