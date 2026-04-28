@@ -20,7 +20,7 @@ class User(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False, default="organiser")
-    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Points at Chapter.entity_id; no FK because Chapter is SCD2.
     chapter_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)

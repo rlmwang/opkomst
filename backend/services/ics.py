@@ -72,13 +72,9 @@ def _fold(line: str) -> str:
 
 def _fmt_utc(dt: datetime) -> str:
     """Format as UTC date-time (RFC 5545 FORM #2, ``Z`` suffix).
-    SQLite returns naive datetimes; we wrote them as UTC so we
-    interpret naive == UTC. tz-aware datetimes are converted."""
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    else:
-        dt = dt.astimezone(UTC)
-    return dt.strftime("%Y%m%dT%H%M%SZ")
+    Every column is now ``TIMESTAMPTZ`` so the value is always
+    tz-aware; convert to UTC before formatting."""
+    return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def build_event_ics(event: Event, *, public_base_url: str) -> str:

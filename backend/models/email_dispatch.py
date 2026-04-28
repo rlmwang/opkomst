@@ -71,11 +71,11 @@ class SignupEmailDispatch(UUIDMixin, TimestampMixin, Base):
     # — the worker queries it standalone.
     signup_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     channel: Mapped[EmailChannel] = mapped_column(
-        SAEnum(EmailChannel, name="email_channel", native_enum=False),
+        SAEnum(EmailChannel, name="email_channel", native_enum=True),
         nullable=False,
     )
     status: Mapped[EmailStatus] = mapped_column(
-        SAEnum(EmailStatus, name="email_status", native_enum=False),
+        SAEnum(EmailStatus, name="email_status", native_enum=True),
         nullable=False,
         default=EmailStatus.PENDING,
     )
@@ -83,7 +83,7 @@ class SignupEmailDispatch(UUIDMixin, TimestampMixin, Base):
     # leaves the row recoverable by the boot-time reaper. Indexed
     # for the bounce/complaint webhook lookup.
     message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
-    sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         # One dispatch per (signup, channel) — the worker's

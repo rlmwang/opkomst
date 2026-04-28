@@ -1,11 +1,10 @@
 """Property test for the reminder window check.
 
-``Event.starts_at`` is stored naive but represents UTC, while the
-worker compares against a tz-aware ``now``. This property test
-fuzzes a wide range of timestamps (in different source
-timezones) to verify the dispatcher's in-window decision matches a
-hand-rolled UTC reference. Catches naive vs. aware comparison
-landmines.
+Every datetime column is now ``TIMESTAMPTZ``; values round-trip
+as tz-aware UTC. This property test fuzzes a wide range of
+timestamps (in different source timezones) to verify the
+dispatcher's in-window decision matches a hand-rolled UTC
+reference. Catches subtle DST or aware/aware comparison bugs.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -31,12 +30,15 @@ _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 def _setup_clean_db() -> None:
     """Drop and recreate every table — Hypothesis runs ~80 examples
-    in this test, each needing a clean DB."""
+    in this test, each needing a clean DB. ``engine.dispose()``
+    flushes the connection pool so the next session doesn't carry
+    a cached OID for the (now-recreated) Postgres enum types."""
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    engine.dispose()
 
 
-def _seed_event_and_signup(starts_at_utc_naive: datetime) -> None:
+def _seed_event_and_signup(starts_at: datetime) -> None:
     db = SessionLocal()
     try:
         e = Event(
@@ -45,8 +47,8 @@ def _seed_event_and_signup(starts_at_utc_naive: datetime) -> None:
             slug="slug1",
             name="Demo",
             location="Test",
-            starts_at=starts_at_utc_naive,
-            ends_at=starts_at_utc_naive + timedelta(hours=2),
+            starts_at=starts_at,
+            ends_at=starts_at + timedelta(hours=2),
             source_options=["x"],
             help_options=[],
             questionnaire_enabled=True,
@@ -54,7 +56,7 @@ def _seed_event_and_signup(starts_at_utc_naive: datetime) -> None:
             locale="nl",
             chapter_id="chapter-x",
             created_by="user-x",
-            valid_from=_NOW.replace(tzinfo=None),
+            valid_from=_NOW,
             valid_until=None,
             changed_by="user-x",
             change_kind="created",
@@ -111,22 +113,22 @@ def test_reminder_window_check_matches_utc_reference(
 
     src_tz = timezone(timedelta(minutes=aware_offset_minutes))
     src_local = _NOW.astimezone(src_tz) + timedelta(minutes=offset_minutes)
-    starts_at_utc_naive = src_local.astimezone(UTC).replace(tzinfo=None)
+    starts_at = src_local.astimezone(UTC)
 
-    _seed_event_and_signup(starts_at_utc_naive)
+    _seed_event_and_signup(starts_at)
 
     with freezegun.freeze_time(_NOW):
         n = email_dispatcher.run_once(REMINDER)
 
-    delta = starts_at_utc_naive - _NOW.replace(tzinfo=None)
+    delta = starts_at - _NOW
     in_window = timedelta(0) < delta <= timedelta(hours=72)
     if in_window:
         assert n == 1, (
-            f"expected fire: starts_at={starts_at_utc_naive} now={_NOW} "
+            f"expected fire: starts_at={starts_at} now={_NOW} "
             f"offset={offset_minutes}m src_tz={aware_offset_minutes}m"
         )
     else:
         assert n == 0, (
-            f"expected skip: starts_at={starts_at_utc_naive} now={_NOW} "
+            f"expected skip: starts_at={starts_at} now={_NOW} "
             f"offset={offset_minutes}m src_tz={aware_offset_minutes}m"
         )

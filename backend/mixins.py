@@ -22,11 +22,11 @@ class UUIDMixin:
 class TimestampMixin:
     @declared_attr
     def created_at(cls) -> Mapped[datetime]:
-        return mapped_column(DateTime, nullable=False, default=_now)
+        return mapped_column(DateTime(timezone=True),nullable=False, default=_now)
 
     @declared_attr
     def updated_at(cls) -> Mapped[datetime]:
-        return mapped_column(DateTime, nullable=False, default=_now, onupdate=_now)
+        return mapped_column(DateTime(timezone=True),nullable=False, default=_now, onupdate=_now)
 
 
 class SCD2Mixin:
@@ -49,11 +49,11 @@ class SCD2Mixin:
 
     @declared_attr
     def valid_from(cls) -> Mapped[datetime]:
-        return mapped_column(DateTime, nullable=False, default=_now)
+        return mapped_column(DateTime(timezone=True),nullable=False, default=_now)
 
     @declared_attr
     def valid_until(cls) -> Mapped[datetime | None]:
-        return mapped_column(DateTime, nullable=True, index=True)
+        return mapped_column(DateTime(timezone=True),nullable=True, index=True)
 
     @declared_attr
     def changed_by(cls) -> Mapped[str]:

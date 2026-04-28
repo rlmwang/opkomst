@@ -23,8 +23,8 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     # Optional list of "I can help with" tasks (e.g. opbouwen / afbreken).
     # Empty list means the question isn't shown on the public form.
@@ -45,7 +45,7 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     created_by: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     # Points at Chapter.entity_id; no FK for the same reason.
     chapter_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     __table_args__ = (
         Index(

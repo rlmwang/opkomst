@@ -56,7 +56,7 @@ pythonVersion = "3.13"
 # Tests share a per-process tempfile DB; xdist's process-per-worker
 # split would each create their own DB and race the conftest setup.
 # Stay in-band until we wire a per-worker DB fixture.
-addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=63"
+addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=64"
 testpaths = ["tests"]
 
 [tool.coverage.run]

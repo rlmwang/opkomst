@@ -259,7 +259,7 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
             .first()
         )
         assert ev is not None
-        ev.starts_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=30)
+        ev.starts_at = datetime.now(UTC) + timedelta(days=30)
         ev.ends_at = ev.starts_at + timedelta(hours=2)
         fresh.commit()
     finally:
@@ -356,10 +356,12 @@ def test_e2e_smtp_failure_wipes_via_failed_path(
         fresh.close()
 
 
-def test_e2e_signup_writes_naive_utc_starts_at_to_db(
+def test_e2e_signup_writes_aware_utc_starts_at_to_db(
     db: Any, client: Any, clock: Any
 ) -> None:
-    """Verify the timezone contract end-to-end."""
+    """Verify the timezone contract end-to-end. Every datetime
+    column is now ``TIMESTAMPTZ``; the value round-trips as
+    tz-aware UTC."""
     clock.set("2026-04-28T12:00:00+00:00")
     e = make_event(db, starts_in=timedelta(days=2))
     db.commit()
@@ -373,8 +375,8 @@ def test_e2e_signup_writes_naive_utc_starts_at_to_db(
 
         ev = fresh.query(EventModel).filter_by(entity_id=e.entity_id).first()
         assert ev is not None
-        assert ev.starts_at.tzinfo is None
-        expected = datetime(2026, 4, 30, 12, 0)
+        assert ev.starts_at.tzinfo is not None
+        expected = datetime(2026, 4, 30, 12, 0, tzinfo=UTC)
         assert abs((ev.starts_at - expected).total_seconds()) < 5
     finally:
         fresh.close()

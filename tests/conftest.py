@@ -103,11 +103,17 @@ def db(_bootstrap_schema):
     """Per-test fresh DB. Drops all SCD2 chains between tests so
     state can't leak. The ``alembic_version`` table persists
     across drops because it's not in ``Base.metadata``; that's
-    deliberate — once stamped at HEAD it stays valid."""
+    deliberate — once stamped at HEAD it stays valid.
+
+    ``engine.dispose()`` flushes the connection pool — Postgres
+    enum types get new OIDs every time we drop+create, and any
+    connection that survived from a previous test would carry a
+    cached pointer to the old type."""
     from backend.database import Base, SessionLocal, engine
 
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    engine.dispose()
     session = SessionLocal()
     try:
         yield session

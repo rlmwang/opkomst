@@ -55,10 +55,7 @@ def _resolve_token(db: Session, token: str) -> FeedbackToken:
         # email but is no longer redeemable (already used, expired, or
         # the send failed and we deleted it).
         raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
-    # SQLAlchemy returns naive datetimes from SQLite; the worker writes
-    # tz-aware UTC. Normalise to a naive UTC for the comparison.
-    expires = row.expires_at.replace(tzinfo=None) if row.expires_at.tzinfo else row.expires_at
-    if expires <= datetime.now(UTC).replace(tzinfo=None):
+    if row.expires_at <= datetime.now(UTC):
         # Stale — clean up and refuse.
         db.delete(row)
         db.commit()

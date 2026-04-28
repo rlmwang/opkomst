@@ -45,7 +45,7 @@ class FeedbackToken(UUIDMixin, TimestampMixin, Base):
     # Points at Event.entity_id; see models.events.Signup for the
     # rationale on why this isn't a real FK constraint.
     event_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class FeedbackResponse(UUIDMixin, TimestampMixin, Base):

@@ -31,9 +31,10 @@ fact that the API binary literally has no scheduler code.
    - `PUBLIC_BASE_URL=https://opkomst.nu`
    - `BOOTSTRAP_ADMIN_EMAIL` (the email you'll register first)
    - `SENTRY_DSN` (optional)
-3. Persistent storage: mount a volume at `/app/data` if you're using
-   SQLite (`DATABASE_URL=sqlite:////app/data/opkomst.db`). For
-   Postgres, no volume needed.
+3. No application-side volume needed — Postgres is the durable
+   store, and Coolify handles its volume separately. Set
+   `DATABASE_URL=postgresql+psycopg://…` to whichever managed
+   Postgres instance you've provisioned.
 4. Health check: `GET /health` returns `200 {"status":"ok"}`. The
    Dockerfile has a built-in `HEALTHCHECK` so Coolify auto-discovers.
 5. Migrations run on startup via `backend/migrate.py`. The first
@@ -49,8 +50,7 @@ fact that the API binary literally has no scheduler code.
      "Architecture" above).
    - **No exposed ports** — this service has no HTTP surface.
    - **Healthcheck:** disable; the worker has no /health endpoint.
-   Mount the same `/app/data` volume if you're on SQLite. Both
-   services share the same DB.
+   Both services share the same `DATABASE_URL`.
 
 ## Local production smoke
 
@@ -89,9 +89,9 @@ docker run --rm -p 8000:8000 \
 
 ### Backups
 
-SQLite: copy the file at `/app/data/opkomst.db`. Postgres: standard
-`pg_dump`. The schema is small (~10 tables); restoring on a fresh
-host runs migrations to head and then loads the dump.
+Postgres: standard `pg_dump`. The schema is small (~10 tables);
+restoring on a fresh host runs migrations to head and then loads
+the dump.
 
 ### Monitoring
 

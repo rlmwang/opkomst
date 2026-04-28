@@ -42,12 +42,7 @@ def create_signup(
     # creating a row for that case would just be debt for the
     # reaper to clean up later. Feedback applies whenever its
     # toggle is on.
-    now = datetime.now(UTC)
-    starts_at = event.starts_at
-    if starts_at.tzinfo is None:
-        # SQLite returns naive datetimes; we wrote them as UTC.
-        starts_at = starts_at.replace(tzinfo=UTC)
-    event_in_future = starts_at > now
+    event_in_future = event.starts_at > datetime.now(UTC)
 
     has_email = bool(data.email)
     channels: list[EmailChannel] = []

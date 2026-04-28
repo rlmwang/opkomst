@@ -6,8 +6,9 @@ not what we're aspiring to.
 
 ## Stack
 
-- **Backend**: FastAPI on Python 3.13, SQLAlchemy 2.0, Alembic. SQLite
-  for dev, Postgres-ready for prod.
+- **Backend**: FastAPI on Python 3.13, SQLAlchemy 2.0, Alembic.
+  Postgres everywhere — local dev runs the docker-compose ``postgres``
+  service (``make db-up``), prod uses Coolify's managed Postgres.
 - **Frontend**: Vue 3 Composition API + TypeScript + Vite + Pinia +
   PrimeVue 4. Routes lazy-loaded; vendor chunks split (`vue`,
   `i18n`, `primevue`).

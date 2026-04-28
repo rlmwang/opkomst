@@ -6,7 +6,7 @@ The whole code base is open source — anyone can verify what the server does wi
 
 ## Stack
 
-- Backend: FastAPI + SQLAlchemy + Alembic, SQLite locally / Postgres-ready, `uv` for deps.
+- Backend: FastAPI + SQLAlchemy + Alembic on Postgres (`make db-up` boots a local instance via docker compose), `uv` for deps.
 - Frontend: Vue 3 + TypeScript + Vite + Pinia, PrimeVue.
 - Auth: JWT with bcrypt password hashing.
 - QR: server-rendered PNG via `qrcode[pil]`.
@@ -17,6 +17,7 @@ The whole code base is open source — anyone can verify what the server does wi
 ```bash
 cp .env.example .env
 # Edit .env to set JWT_SECRET, EMAIL_ENCRYPTION_KEY, etc.
+make db-up
 set -a && source .env && set +a && uv run uvicorn backend.main:app --reload
 ```
 
