@@ -1,4 +1,3 @@
-import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -7,11 +6,12 @@ from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .database import get_db
 from .models import User
 from .services import scd2
 
-JWT_SECRET = os.environ["JWT_SECRET"]
+_JWT_SECRET = settings.jwt_secret.get_secret_value()
 JWT_ALGORITHM = "HS256"
 JWT_TTL_HOURS = 24 * 7
 
@@ -35,7 +35,7 @@ def create_token(user_entity_id: str) -> str:
     reassignment)."""
     now = datetime.now(UTC)
     payload = {"sub": user_entity_id, "iat": now, "exp": now + timedelta(hours=JWT_TTL_HOURS)}
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, _JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 # --- Purpose tokens (email verification, password reset) ---
@@ -52,12 +52,12 @@ def create_purpose_token(user_entity_id: str, email: str, purpose: str, expires_
         "iat": now,
         "exp": now + timedelta(hours=expires_hours),
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, _JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 
 def decode_purpose_token(token: str, expected_purpose: str) -> dict[str, Any]:
     try:
-        payload: dict[str, Any] = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload: dict[str, Any] = jwt.decode(token, _JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except JWTError as exc:
         raise HTTPException(status_code=400, detail="Invalid or expired token") from exc
     if payload.get("purpose") != expected_purpose:
@@ -67,7 +67,7 @@ def decode_purpose_token(token: str, expected_purpose: str) -> dict[str, Any]:
 
 def _decode_token(token: str) -> str:
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, _JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except JWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
     sub = payload.get("sub")

@@ -1,4 +1,3 @@
-import os
 from datetime import UTC, datetime
 
 import structlog
@@ -13,6 +12,7 @@ from ..auth import (
     hash_password,
     verify_password,
 )
+from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut, VerifyEmailRequest
@@ -26,7 +26,9 @@ logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
-BOOTSTRAP_ADMIN_EMAIL = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "").lower()
+BOOTSTRAP_ADMIN_EMAIL = (
+    settings.bootstrap_admin_email.lower() if settings.bootstrap_admin_email else ""
+)
 VERIFY_TOKEN_TTL_HOURS = 24
 
 

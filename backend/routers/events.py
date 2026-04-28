@@ -1,5 +1,4 @@
 import io
-import os
 from datetime import UTC, datetime
 
 import qrcode
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session
 from uuid_utils import uuid7
 
 from ..auth import require_approved
+from ..config import settings
 from ..database import get_db
 from ..models import Event, Signup, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
@@ -25,7 +25,9 @@ logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
-PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
+# Public-facing base URL for QR codes / ICS links / email previews.
+# Validated at import time (HttpUrl) — never empty.
+PUBLIC_BASE_URL = str(settings.public_base_url).rstrip("/")
 
 
 def _attendees_for(db: Session, entity_id: str) -> int:

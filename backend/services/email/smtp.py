@@ -1,20 +1,27 @@
 """SMTP backend — for production (Scaleway TEM or any SMTP provider).
 
-Reads SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD from env.
+Reads SMTP_* config from ``settings``; the boot-time validator
+guarantees ``smtp_host`` is set whenever ``email_backend == 'smtp'``.
 """
 
-import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+from ...config import settings
+
 
 class SmtpBackend:
     def __init__(self) -> None:
-        self.host = os.environ["SMTP_HOST"]
-        self.port = int(os.environ.get("SMTP_PORT", "587"))
-        self.user = os.environ.get("SMTP_USER", "")
-        self.password = os.environ.get("SMTP_PASSWORD", "")
+        # smtp_host / smtp_user / smtp_password are guaranteed
+        # non-None when email_backend=smtp by the Settings validator.
+        assert settings.smtp_host is not None
+        self.host = settings.smtp_host
+        self.port = settings.smtp_port
+        self.user = settings.smtp_user or ""
+        self.password = (
+            settings.smtp_password.get_secret_value() if settings.smtp_password else ""
+        )
 
     def send(
         self,

@@ -16,7 +16,6 @@ Container:
     ``["uv", "run", "--no-dev", "python", "-m", "backend.worker"]``.
 """
 
-import os
 import signal
 import threading
 
@@ -24,6 +23,7 @@ import sentry_sdk
 import structlog
 from apscheduler.schedulers.background import BackgroundScheduler
 
+from .config import settings
 from .database import SessionLocal
 from .migrate import run_migrations
 from .services import email_dispatcher, email_reaper
@@ -57,13 +57,12 @@ def _safe_reap(name: str, fn) -> None:  # noqa: ANN001
 # HTTP-served exceptions; without an explicit init here, every
 # send failure or scheduled-job crash would log to stdout but
 # never alert.
-_sentry_dsn = os.environ.get("SENTRY_DSN")
-if _sentry_dsn:
+if settings.sentry_dsn:
     sentry_sdk.init(
-        dsn=_sentry_dsn,
-        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        dsn=settings.sentry_dsn,
+        environment=settings.sentry_environment,
         send_default_pii=False,
-        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0")),
+        traces_sample_rate=settings.sentry_traces_sample_rate,
     )
     logger.info("sentry_initialized", process="worker")
 

@@ -11,8 +11,9 @@ import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-_KEY_B64 = os.environ["EMAIL_ENCRYPTION_KEY"]
-_KEY = base64.b64decode(_KEY_B64)
+from ..config import settings
+
+_KEY = base64.b64decode(settings.email_encryption_key.get_secret_value())
 if len(_KEY) != 32:
     raise RuntimeError("EMAIL_ENCRYPTION_KEY must decode to exactly 32 bytes (AES-256)")
 

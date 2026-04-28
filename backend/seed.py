@@ -10,7 +10,6 @@ upcoming and a past demo event. Never touches real data — the guard is
 the env var, not a row count.
 """
 
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -18,6 +17,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from .auth import hash_password
+from .config import settings
 from .database import SessionLocal
 from .models import (
     EmailChannel,
@@ -146,7 +146,7 @@ def run_questions() -> None:
 
 
 def run_local_demo() -> None:
-    if os.environ.get("LOCAL_MODE") != "1":
+    if not settings.local_mode:
         return
 
     db = SessionLocal()

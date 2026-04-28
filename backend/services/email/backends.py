@@ -4,11 +4,12 @@ Backend instance and executor are lazy singletons — set up on
 first use, reused for the lifetime of the process. ``EMAIL_BACKEND``
 selects ``smtp`` vs. ``console`` (default ``console`` for dev)."""
 
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Protocol
 
 import structlog
+
+from ...config import settings
 
 logger = structlog.get_logger()
 
@@ -33,8 +34,7 @@ def get_backend() -> EmailBackend:
     if _backend is not None:
         return _backend
 
-    backend_type = os.environ.get("EMAIL_BACKEND", "console").lower()
-    if backend_type == "smtp":
+    if settings.email_backend == "smtp":
         from .smtp import SmtpBackend
 
         _backend = SmtpBackend()
@@ -43,7 +43,7 @@ def get_backend() -> EmailBackend:
 
         _backend = ConsoleBackend()
 
-    logger.info("email_backend_initialized", backend=backend_type)
+    logger.info("email_backend_initialized", backend=settings.email_backend)
     return _backend
 
 

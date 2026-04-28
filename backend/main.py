@@ -1,5 +1,3 @@
-import os
-
 import sentry_sdk
 import structlog
 from fastapi import FastAPI, HTTPException
@@ -9,6 +7,7 @@ from sentry_sdk.integrations.starlette import StarletteIntegration
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from .config import cors_origins_list, settings
 from .migrate import run_migrations
 from .routers import admin as admin_router
 from .routers import auth as auth_router
@@ -29,13 +28,12 @@ logger = structlog.get_logger()
 # 500s automatically. The worker container has its own Sentry
 # init in ``backend/worker.py`` — this module never touches the
 # scheduler, so no Sentry-on-scheduler concerns here.
-_sentry_dsn = os.environ.get("SENTRY_DSN")
-if _sentry_dsn:
+if settings.sentry_dsn:
     sentry_sdk.init(
-        dsn=_sentry_dsn,
-        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+        dsn=settings.sentry_dsn,
+        environment=settings.sentry_environment,
         send_default_pii=False,
-        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0")),
+        traces_sample_rate=settings.sentry_traces_sample_rate,
         integrations=[StarletteIntegration(), FastApiIntegration()],
     )
     logger.info("sentry_initialized")
@@ -70,7 +68,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # same origin so this becomes a no-op.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ["CORS_ORIGINS"].split(","),
+    allow_origins=cors_origins_list(),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

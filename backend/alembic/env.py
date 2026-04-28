@@ -1,10 +1,10 @@
-import os
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from backend import models  # noqa: F401, E402
+from backend.config import settings  # noqa: E402
 
 # Import models so Alembic sees them.
 from backend.database import Base  # noqa: E402
@@ -13,8 +13,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Pull DATABASE_URL from env (overrides any value in alembic.ini).
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+# Pull DATABASE_URL from settings (overrides any value in alembic.ini).
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 
