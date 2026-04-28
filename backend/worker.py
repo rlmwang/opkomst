@@ -80,6 +80,7 @@ def main() -> None:
     # can't take the worker down before the scheduler even starts.
     _safe_reap("partial_sends", _reap_partial)
     _safe_reap("expired_windows", email_reaper.reap_expired_windows)
+    _safe_reap("post_event_emails", email_reaper.purge_post_event_emails)
 
     # BackgroundScheduler runs the sweeps in a worker thread,
     # which leaves the main thread free to block on a
@@ -115,6 +116,14 @@ def main() -> None:
         "interval",
         hours=24,
         id="reap_expired_windows",
+    )
+    # Daily privacy backstop: ≥7 days post-event, wipe any leftover
+    # ciphertext that other paths missed.
+    scheduler.add_job(
+        lambda: _safe_reap("post_event_emails", email_reaper.purge_post_event_emails),
+        "interval",
+        hours=24,
+        id="purge_post_event_emails",
     )
 
     stop_event = threading.Event()

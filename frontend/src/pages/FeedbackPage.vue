@@ -15,10 +15,7 @@ import {
   useFeedbackStore,
 } from "@/stores/feedback";
 
-// `slug` is declared so the router populates it via `props: true`; the
-// page reads the token from the query string and otherwise doesn't
-// reference the slug, so we don't bind it.
-defineProps<{ slug: string }>();
+const props = defineProps<{ slug: string }>();
 
 const { t, locale } = useI18n();
 const route = useRoute();
@@ -33,6 +30,10 @@ const submitting = ref(false);
 const submitted = ref(false);
 
 const token = (route.query.t as string | undefined) ?? "";
+// Reserved sentinel — the email-preview endpoint embeds this so an
+// organiser viewing the preview lands on a working page with the
+// submit disabled, instead of a 410 from the token resolver.
+const isPreview = token === "preview";
 
 onMounted(async () => {
   if (!token) {
@@ -40,7 +41,9 @@ onMounted(async () => {
     return;
   }
   try {
-    form.value = await store.getForm(token);
+    form.value = isPreview
+      ? await store.getPreview(props.slug)
+      : await store.getForm(token);
     // Render the questionnaire in the event's configured language —
     // matches the email the visitor was sent in. localStorage is
     // not touched.
@@ -70,7 +73,7 @@ function textPlaceholder(q: FeedbackQuestion): string {
 }
 
 async function submit() {
-  if (!form.value) return;
+  if (!form.value || isPreview) return;
   // Client-side check on required questions, mirrors backend.
   for (const q of form.value.questions) {
     if (!q.required) continue;
@@ -120,6 +123,10 @@ async function submit() {
     </AppCard>
 
     <template v-else-if="form">
+      <AppCard v-if="isPreview" :stack="false" class="preview-banner">
+        <p>{{ t("feedback.previewBanner") }}</p>
+      </AppCard>
+
       <AppCard>
         <h1>{{ t("feedback.title", { name: form.event_name }) }}</h1>
         <p class="muted intro">{{ t("feedback.intro") }}</p>
@@ -148,7 +155,12 @@ async function submit() {
             fluid
           />
         </AppCard>
-        <Button type="submit" :label="t('feedback.submit')" :loading="submitting" />
+        <Button
+          type="submit"
+          :label="t('feedback.submit')"
+          :loading="submitting"
+          :disabled="isPreview"
+        />
       </form>
     </template>
   </div>
@@ -166,5 +178,14 @@ async function submit() {
 .required {
   color: var(--brand-red);
   margin-left: 0.125rem;
+}
+.preview-banner {
+  border: 1px dashed var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 6%, transparent);
+}
+.preview-banner p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--brand-primary);
 }
 </style>

@@ -1,4 +1,4 @@
-"""Three classes of cleanup that all amount to "scan dispatches,
+"""Four classes of cleanup that all amount to "scan dispatches,
 remove or finalise rows, wipe ciphertext if nothing else
 pending":
 
@@ -20,12 +20,20 @@ pending":
   filter excludes rows currently mid-send by a worker, so a
   toggle-off can never stomp an in-flight send.
 
-All three end with a ciphertext-wipe pass so the privacy
+* ``purge_post_event_emails`` — daily privacy backstop. ≥7 days
+  after an event ends, every legitimate wipe path (successful
+  send, toggle-off cleanup, partial-send reaper, expired-window
+  reaper) should already have nulled the ciphertext. If anything
+  is still present, this sweep wipes it unconditionally and logs
+  a warning so the underlying bug surfaces. Under normal
+  operation this is a no-op.
+
+All four end with a ciphertext-wipe pass so the privacy
 invariant ("encrypted_email is NULL when no pending dispatch
 remains") is upheld atomically.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from sqlalchemy.orm import Session
@@ -34,6 +42,14 @@ from ..database import SessionLocal
 from ..models import EmailChannel, EmailStatus, Event, Signup, SignupEmailDispatch
 
 logger = structlog.get_logger()
+
+# How long after an event ends before we force-wipe any remaining
+# ciphertext for its signups. Comfortably past every other path:
+# the reminder window closes at event start, feedback fires 24h
+# after end, retries finish within hours, and the daily reapers
+# clean up anything stuck. A week is "the system has had every
+# chance".
+POST_EVENT_PURGE_DELAY = timedelta(days=7)
 
 
 def _wipe_orphaned_ciphertext(db: Session) -> None:
@@ -168,3 +184,49 @@ def retire_event_channels(
     _wipe_orphaned_ciphertext(db)
 
 
+# ---- 4. Post-event privacy backstop ------------------------------
+
+
+def purge_post_event_emails() -> int:
+    """≥7 days after an event ends, force-wipe any remaining
+    ciphertext for its signups. Every other wipe path should
+    already have run by this point — if this sweep finds
+    anything, that's a bug and we surface it via a warning log
+    so it can be investigated. Under normal operation this is a
+    no-op."""
+    now = datetime.now(UTC)
+    cutoff = now - POST_EVENT_PURGE_DELAY
+    db = SessionLocal()
+    try:
+        # Subquery: signup IDs whose current event ended ≥7 days
+        # ago. Correlated against Signup so it works on both
+        # SQLite and Postgres without dragging entity_ids through
+        # Python.
+        old_event_signup = (
+            db.query(Event.entity_id)
+            .filter(
+                Event.valid_until.is_(None),
+                Event.ends_at <= cutoff,
+                Event.entity_id == Signup.event_id,
+            )
+            .exists()
+        )
+        wiped = (
+            db.query(Signup)
+            .filter(
+                Signup.encrypted_email.is_not(None),
+                old_event_signup,
+            )
+            .update(
+                {Signup.encrypted_email: None},
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+        if wiped:
+            # Warning, not info: under normal operation every
+            # legitimate path should already have wiped these.
+            logger.warning("post_event_email_purge", count=wiped)
+        return wiped
+    finally:
+        db.close()

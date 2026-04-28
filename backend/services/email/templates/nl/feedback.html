@@ -1,9 +1,6 @@
-{% extends "base.html" %}
+{% extends "nl/_event_base.html" %}
 {% set subject = "Hoe was " + event_name + "?" %}
 {% block content %}
-<p>Bedankt voor je komst naar <strong>{{ event_name }}</strong>.</p>
-<p>Twee minuten van je tijd helpt ons het volgende beter te maken:</p>
-<a href="{{ feedback_url }}" class="cta">Vul de korte vragenlijst in</a>
-<p class="muted">Dit is de enige mail die je van ons krijgt; je adres wissen we direct nadat we deze hebben verstuurd. De volledige broncode van deze app vind je <a href="https://github.com/rlmwang/opkomst">openbaar online</a>.</p>
+<p>Bedankt voor je komst naar <strong>{{ event_name }}</strong>! We zijn benieuwd hoe je het vond – een paar korte vragen, hooguit twee minuten:</p>
+<a href="{{ feedback_url }}" class="cta">Vul de vragenlijst in</a>
 {% endblock %}
-{% block footer %}opkomst — voor het organiseren van RSP-evenementen{% endblock %}

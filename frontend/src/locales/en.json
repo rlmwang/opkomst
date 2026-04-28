@@ -263,6 +263,7 @@
     "thanksBody": "We use your answers to make the next event better. Your email address was deleted right after we sent this message.",
     "expired": "This feedback link is no longer valid.",
     "loadFailed": "Could not load the questionnaire",
+    "previewBanner": "Preview — submission is disabled.",
     "questions": {
       "q1_overall": {
         "prompt": "How was the event for you?",

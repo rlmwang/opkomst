@@ -1,17 +1,13 @@
-{% extends "base.html" %}
+{% extends "en/_event_base.html" %}
 {% set subject = event_name + " — coming up in a few days" %}
 {% block content %}
 <p>Just a quick reminder: you signed up for <strong>{{ event_name }}</strong>.</p>
 <div class="details">
   <h3>{{ event_name }}</h3>
   {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
-  <dl>
-    <dt>Date</dt><dd>{{ event_date }}</dd>
-    <dt>Time</dt><dd>{{ event_time }}</dd>
-    <dt>Location</dt><dd>{{ location }} &middot; <a href="{{ map_url }}">view on map</a></dd>
-  </dl>
+  <p class="meta">{{ event_date }}</p>
+  <p class="meta">{{ event_time }}</p>
+  <p class="meta">{{ location }} &middot; <a href="{{ map_url }}">view on map</a></p>
 </div>
 <a href="{{ event_url }}" class="cta">View event</a>
-<p class="muted">You're getting this reminder because you left your email when you signed up. It's stored encrypted and deleted as soon as every email related to this event has been sent.</p>
 {% endblock %}
-{% block footer %}opkomst — for organising RSP events{% endblock %}

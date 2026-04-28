@@ -66,6 +66,12 @@ export const useFeedbackStore = defineStore("feedback", () => {
     return get<FeedbackForm>(`/api/v1/feedback/${encodeURIComponent(token)}`);
   }
 
+  async function getPreview(slug: string): Promise<FeedbackForm> {
+    return get<FeedbackForm>(
+      `/api/v1/events/by-slug/${encodeURIComponent(slug)}/feedback-preview`,
+    );
+  }
+
   async function submit(token: string, answers: FeedbackAnswer[]): Promise<void> {
     await post(`/api/v1/feedback/${encodeURIComponent(token)}/submit`, { answers });
   }
@@ -78,5 +84,13 @@ export const useFeedbackStore = defineStore("feedback", () => {
     return get<FeedbackSubmission[]>(`/api/v1/events/${eventId}/feedback-submissions`);
   }
 
-  return { questions, fetchQuestions, getForm, submit, getSummary, getSubmissions };
+  return {
+    questions,
+    fetchQuestions,
+    getForm,
+    getPreview,
+    submit,
+    getSummary,
+    getSubmissions,
+  };
 });

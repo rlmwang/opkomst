@@ -320,6 +320,82 @@ def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
+@router.get("/by-slug/{slug}/feedback-preview")
+def feedback_form_preview(slug: str, db: Session = Depends(get_db)):
+    """Preview of the post-event feedback form.
+
+    The CTA in the feedback email's preview points here so an
+    organiser can see exactly what attendees will fill in. No
+    real ``FeedbackToken`` is involved — the SPA flags this
+    response as a preview and disables the submit button.
+    """
+    from ..models import FeedbackQuestion
+    from ..schemas.feedback import FeedbackFormOut, FeedbackQuestionOut
+
+    event = events_svc.get_public_event_by_slug(db, slug)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if not event.questionnaire_enabled:
+        raise HTTPException(status_code=404, detail="Channel disabled")
+
+    questions = (
+        db.query(FeedbackQuestion).order_by(FeedbackQuestion.ordinal).all()
+    )
+    return FeedbackFormOut(
+        event_name=event.name,
+        event_slug=event.slug,
+        event_locale=event.locale,
+        questions=[FeedbackQuestionOut.model_validate(q) for q in questions],
+    )
+
+
+@router.get("/by-slug/{slug}/email-preview/{channel}")
+def email_preview(slug: str, channel: str, db: Session = Depends(get_db)) -> Response:
+    """Render the exact email that the dispatcher will send to a
+    signup on this event. Public, no auth — links from the
+    privacy explainer use it to show the visitor what they're
+    consenting to before leaving an email address.
+
+    The feedback preview synthesises a placeholder ``?t=preview``
+    URL since real per-signup tokens are minted only at send
+    time."""
+    from ..models import EmailChannel
+    from ..services.email.templates import render
+    from ..services.email_channels import spec_for
+
+    event = events_svc.get_public_event_by_slug(db, slug)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    try:
+        ch = EmailChannel(channel)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unknown channel") from None
+
+    # Channel must apply to this event — previewing an email
+    # the visitor will never receive would mislead.
+    if ch == EmailChannel.REMINDER and not event.reminder_enabled:
+        raise HTTPException(status_code=404, detail="Channel disabled")
+    if ch == EmailChannel.FEEDBACK and not event.questionnaire_enabled:
+        raise HTTPException(status_code=404, detail="Channel disabled")
+
+    spec = spec_for(ch)
+    context = dict(spec.build_context(event))
+    # In preview mode the absolute URLs that the dispatcher would
+    # send (built off ``PUBLIC_BASE_URL``) might point to a port
+    # other than the one hosting the SPA — in dev the API and SPA
+    # are on different ports. Substitute relative paths so the
+    # browser resolves them against whatever origin opened the
+    # preview, which is always the SPA.
+    if ch == EmailChannel.REMINDER:
+        context["event_url"] = f"/e/{event.slug}"
+    elif ch == EmailChannel.FEEDBACK:
+        context["feedback_url"] = f"/e/{event.slug}/feedback?t=preview"
+
+    _, html_body = render(spec.template_name, context, locale=event.locale)
+    return Response(content=html_body, media_type="text/html; charset=utf-8")
+
+
 @router.get("/{entity_id}/stats", response_model=EventStatsOut)
 def event_stats(
     entity_id: str,

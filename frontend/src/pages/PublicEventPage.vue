@@ -92,12 +92,27 @@ const emailPlaceholder = computed(() => {
   return t("public.emailFor.feedbackOnly");
 });
 
-const emailUseBullets = computed<string[]>(() => {
+interface EmailUseBullet {
+  text: string;
+  previewUrl: string;
+}
+
+const emailUseBullets = computed<EmailUseBullet[]>(() => {
   const e = event.value;
   if (!e) return [];
-  const bullets: string[] = [];
-  if (e.reminder_enabled) bullets.push(t("public.emailUses.reminder"));
-  if (e.questionnaire_enabled) bullets.push(t("public.emailUses.feedback"));
+  const bullets: EmailUseBullet[] = [];
+  if (e.reminder_enabled) {
+    bullets.push({
+      text: t("public.emailUses.reminder"),
+      previewUrl: `/api/v1/events/by-slug/${props.slug}/email-preview/reminder`,
+    });
+  }
+  if (e.questionnaire_enabled) {
+    bullets.push({
+      text: t("public.emailUses.feedback"),
+      previewUrl: `/api/v1/events/by-slug/${props.slug}/email-preview/feedback`,
+    });
+  }
   return bullets;
 });
 
@@ -272,17 +287,25 @@ async function submit() {
       <AppCard v-if="!submitted" :stack="false" class="privacy-card">
         <details>
           <summary>{{ t("public.explainerTitle") }}</summary>
-          <p class="privacy-body">{{ t("public.explainerIntro") }}</p>
           <template v-if="emailFieldShown">
-            <p class="privacy-body">{{ t("public.explainerEmailIntro") }}</p>
+            <p class="privacy-body">
+              {{ t("public.explainerIntro") }} {{ t("public.explainerEmailIntro") }}
+            </p>
             <ul class="privacy-bullets">
-              <li v-for="b in emailUseBullets" :key="b">{{ b }}</li>
+              <li v-for="b in emailUseBullets" :key="b.previewUrl">
+                <a :href="b.previewUrl" target="_blank" rel="noopener" class="meta-link">
+                  {{ b.text }}
+                  <i class="pi pi-external-link external" aria-hidden="true" />
+                </a>
+              </li>
             </ul>
-            <p class="privacy-body">{{ t("public.explainerEmailOutro") }}</p>
+            <p class="privacy-body">
+              {{ t("public.explainerEmailOutro") }} {{ t("public.explainerSource") }}
+              <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
+            </p>
           </template>
-          <p v-else class="privacy-body">{{ t("public.explainerNoEmail") }}</p>
-          <p class="privacy-body">
-            {{ t("public.explainerSource") }}
+          <p v-else class="privacy-body">
+            {{ t("public.explainerIntro") }} {{ t("public.explainerNoEmail") }} {{ t("public.explainerSource") }}
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("public.explainerLink") }}</a>.
           </p>
         </details>
@@ -486,8 +509,9 @@ async function submit() {
   text-align: center;
   flex-shrink: 0;
 }
-/* External-link affix shown next to a meta-link's text. Stays
- * scoped because it's only used on this page's location row. */
+/* External-link affix on any meta-link — the location row in the
+ * event header and the email-preview bullets in the privacy
+ * explainer share this. */
 .meta-link .external {
   font-size: 0.7rem;
   color: var(--brand-text-muted);
