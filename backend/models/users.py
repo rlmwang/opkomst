@@ -30,7 +30,6 @@ class User(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
             "uq_users_email_current",
             "email",
             unique=True,
-            sqlite_where=text("valid_until IS NULL"),
             postgresql_where=text("valid_until IS NULL"),
         ),
     )
