@@ -68,13 +68,65 @@ def _reminder_window(now: datetime) -> Any:
     return (Event.starts_at > now) & (Event.starts_at <= now + REMINDER_WINDOW)
 
 
+_DAY_NAMES = {
+    "nl": ["maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"],
+    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+}
+_MONTH_NAMES = {
+    "nl": [
+        "januari", "februari", "maart", "april", "mei", "juni",
+        "juli", "augustus", "september", "oktober", "november", "december",
+    ],
+    "en": [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ],
+}
+
+
+def _format_date(when: datetime, locale: str) -> str:
+    """Locale-aware long-form date: ``dinsdag 30 april 2026`` /
+    ``Tuesday 30 April 2026``. Reminder emails fire ≤72h before
+    the event, so the year is rare-but-useful (events spanning
+    new year)."""
+    days = _DAY_NAMES[locale]
+    months = _MONTH_NAMES[locale]
+    return f"{days[when.weekday()]} {when.day} {months[when.month - 1]} {when.year}"
+
+
+def _format_time_range(starts_at: datetime, ends_at: datetime) -> str:
+    """24-hour HH:MM–HH:MM. Same format in both locales — the NL
+    audience reads 24h, the EN audience reads it just fine too."""
+    return f"{starts_at:%H:%M}–{ends_at:%H:%M}"
+
+
+def _osm_url(event: Event) -> str:
+    """Pin-on-map URL when we have coordinates; fall back to a
+    text search by ``location`` so the link still goes somewhere
+    useful for events imported without geocoding."""
+    from urllib.parse import quote
+
+    if event.latitude is not None and event.longitude is not None:
+        return (
+            f"https://www.openstreetmap.org/?mlat={event.latitude}"
+            f"&mlon={event.longitude}#map=17/{event.latitude}/{event.longitude}"
+        )
+    return f"https://www.openstreetmap.org/search?query={quote(event.location)}"
+
+
 def _reminder_context(event: Event) -> dict[str, Any]:
     from .email.urls import build_url
 
     return {
         "event_name": event.name,
         "event_url": build_url(f"e/{event.slug}"),
+        "topic": event.topic,
         "starts_at": event.starts_at,
+        "ends_at": event.ends_at,
+        "event_date": _format_date(event.starts_at, event.locale),
+        "event_time": _format_time_range(event.starts_at, event.ends_at),
+        "location": event.location,
+        "map_url": _osm_url(event),
     }
 
 

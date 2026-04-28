@@ -2,7 +2,15 @@
 {% set subject = event_name + " — over een paar dagen" %}
 {% block content %}
 <p>Hoi! Even een herinnering: je hebt je aangemeld voor <strong>{{ event_name }}</strong>.</p>
-<p>Het evenement begint binnenkort. Bekijk de details of stel je aanmelding bij:</p>
+<div class="details">
+  <h3>{{ event_name }}</h3>
+  {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
+  <dl>
+    <dt>Datum</dt><dd>{{ event_date }}</dd>
+    <dt>Tijd</dt><dd>{{ event_time }}</dd>
+    <dt>Locatie</dt><dd>{{ location }} &middot; <a href="{{ map_url }}">bekijk op kaart</a></dd>
+  </dl>
+</div>
 <a href="{{ event_url }}" class="cta">Bekijk evenement</a>
 <p class="muted">Je krijgt deze herinnering omdat je je e-mailadres bij je aanmelding hebt achtergelaten. We slaan het versleuteld op en verwijderen het zodra alle e-mailcontact rond dit evenement is afgerond.</p>
 {% endblock %}
