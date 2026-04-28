@@ -14,10 +14,25 @@ concurrency:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: opkomst
+          POSTGRES_PASSWORD: opkomst
+          POSTGRES_DB: opkomst
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opkomst -d opkomst"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
-      # Per-test tempfile DB — the test suite manages its own DATABASE_URL
-      # via tests/conftest.py. The values below are required by
-      # backend.main / backend.config but never used by tests.
+      # tests/conftest.py auto-creates an ``opkomst_test`` database
+      # alongside ``opkomst`` and pins DATABASE_URL itself; the value
+      # here is just for any module-import that reads it before the
+      # conftest fixture overrides.
       JWT_SECRET: test-jwt-secret-not-for-real-use
       EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
       EMAIL_BACKEND: console
@@ -26,7 +41,7 @@ jobs:
       CORS_ORIGINS: http://localhost:5173
       BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
       LOCAL_MODE: "0"
-      DATABASE_URL: sqlite:///./ci.db
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -69,6 +84,20 @@ jobs:
     # Don't waste a Playwright run when the cheaper checks are red —
     # backend or frontend failures usually explain the e2e symptom too.
     needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: opkomst
+          POSTGRES_PASSWORD: opkomst
+          POSTGRES_DB: opkomst
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opkomst -d opkomst"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       # Same defaults as the backend job — playwright.config.ts boots
       # both servers via webServer; they read these from process env.
@@ -80,7 +109,7 @@ jobs:
       CORS_ORIGINS: http://localhost:5173
       BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
       LOCAL_MODE: "1"
-      DATABASE_URL: sqlite:///./e2e.db
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -103,10 +132,10 @@ jobs:
       - name: Install Playwright browsers
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Provide .env for the playwright webServer
-        # playwright.config.ts's webServer command sources ../.env;
-        # write a stub so source doesn't 404. The vars are already
-        # inherited from job-level env above.
+      - name: Provide an empty .env for the playwright webServer
+        # The webServer command sources ../.env if present; an empty
+        # one is fine since the vars are already inherited from the
+        # job-level env: block.
         run: touch .env
       - name: Run Playwright
         working-directory: frontend

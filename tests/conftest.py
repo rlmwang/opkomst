@@ -1,33 +1,59 @@
 """Test fixtures.
 
-A fresh sqlite-mem DB per test, seeded with two users (``admin`` /
-``organiser``) and one chapter (``Amsterdam``) so individual tests
-can focus on their behaviour rather than re-bootstrapping the world
-every time.
+A fresh per-test schema reset on a dedicated Postgres test database,
+seeded with two users (``admin`` / ``organiser``) and one chapter
+(``Amsterdam``) so individual tests can focus on their behaviour
+rather than re-bootstrapping the world every time.
 
 Each test gets its own ``TestClient`` bound to that DB; module
 imports are kept inside fixtures so the app's startup-time
 ``run_migrations`` / ``run_seed`` don't fight per-test setup.
+
+Local: ``make db-up`` runs once per dev session; the suite then
+auto-creates an ``opkomst_test`` database next to the ``opkomst``
+dev database. CI: GitHub Actions provides a ``postgres`` service
+container with the same defaults.
 """
 
 import os
 import sys
-import tempfile
 from collections.abc import Iterator
 from datetime import UTC
 
+import psycopg
 import pytest
 
-# A per-process tempfile DB. ``:memory:`` would be cleaner but
-# SQLAlchemy's default pool gives each connection its own empty
-# in-memory DB, breaking tests that share state across requests.
-# Override (not setdefault) so a developer running tests after
-# ``source .env`` doesn't accidentally point the suite at the
-# real dev database (which has seeded users from prior runs and
-# would reject the auth fixtures' ``admin@local.dev`` register
-# with 'Email already registered').
-_TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
-os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB}"
+# Dedicated test database — separate from the dev one so a stray
+# ``pytest`` invocation can't trample seeded events. Auto-created
+# below if missing. Override via ``TEST_DATABASE_URL`` if your CI /
+# host setup uses different creds.
+_TEST_DB_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst_test",
+)
+
+
+def _ensure_test_database() -> None:
+    """Create the test database if it doesn't exist. Connect to the
+    administrative ``postgres`` database to issue the CREATE."""
+    target_name = _TEST_DB_URL.rsplit("/", 1)[1]
+    admin_url = _TEST_DB_URL.rsplit("/", 1)[0] + "/postgres"
+    # ``psycopg.connect`` doesn't accept the SQLAlchemy ``+psycopg``
+    # dialect prefix.
+    admin_url = admin_url.replace("postgresql+psycopg://", "postgresql://")
+    with psycopg.connect(admin_url, autocommit=True) as conn:
+        cur = conn.execute(
+            "SELECT 1 FROM pg_database WHERE datname = %s",
+            (target_name,),
+        )
+        if cur.fetchone() is None:
+            # Identifier interpolation: target_name is hard-coded
+            # in this file, not user input.
+            conn.execute(f'CREATE DATABASE "{target_name}"')
+
+
+_ensure_test_database()
+os.environ["DATABASE_URL"] = _TEST_DB_URL
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-not-for-real-use")
 os.environ.setdefault("EMAIL_ENCRYPTION_KEY", "19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=")
 os.environ.setdefault("EMAIL_BACKEND", "console")
