@@ -394,3 +394,367 @@ one's coverage gate is committed.
 
 If any of those become priorities later, treat them as separate plans with
 their own phasing — do not interleave with hardening work.
+
+---
+
+## 13. Radical alternatives — collapse the bug surface, don't patch it
+
+Sections 1–12 are incremental hardening: more tests, more guards, more docs.
+Each fix patches a known leak. The deeper question is whether the *shape* of
+the codebase is what's leaking.
+
+The recent dispatcher refactor is the model: two ~230-line workers with 90 %
+identical code, three parallel column sets on `Signup`, two webhook lookup
+ladders — collapsed into one `ChannelSpec` table-driven loop, one normalised
+dispatches table, one indexed query. **Adding a third channel now costs one
+constant.** That's the kind of move that retires whole categories of bug at
+once instead of testing harder against them.
+
+The audit surfaced six more places where the same kind of move is on the
+table. Each entry below estimates LoC delta and the **class of bug it makes
+structurally impossible**, which is the only honest measure for a
+low-maintenance app.
+
+### 13.1 Postgres-only — drop SQLite entirely
+
+**Current state.** SQLite for dev/test, Postgres in prod. The audit logged
+multiple specific costs of the duality:
+
+* Dialect branching in migrations (`5928b093bf42:_is_sqlite()`, future
+  constraint-mod migrations require it everywhere).
+* Naive UTC datetimes in SQLite, aware UTC at the boundary — every read does
+  `replace(tzinfo=UTC)` somewhere (`routers/signups.py:48`,
+  `routers/feedback.py:60`, the property test exists *because* of this).
+* `native_enum=False` forced on every `SAEnum` column
+  (`models/email_dispatch.py:74,78`).
+* JSON columns behave subtly differently (`source_options`, `help_options`,
+  `help_choices` — currently round-trip but a future Postgres-only feature
+  like jsonb operators would diverge).
+* The Python-loop backfill in `2b9a94e0632f` exists because SQLite can't do
+  per-row id minting in pure SQL — Postgres can, with `gen_random_uuid()` or
+  a generated column.
+* Partial indexes need both `sqlite_where` and `postgresql_where`
+  (`models/events.py:50–58`).
+
+**Refactor.** Run Postgres locally via `docker compose up postgres` (already
+in the deploy stack). Drop SQLite from `pyproject.toml` extras. Drop the
+dialect branches. Move every datetime column to `TIMESTAMPTZ`. Remove every
+`replace(tzinfo=UTC)`.
+
+**Bug class eliminated:** the entire "naive datetime got compared to aware
+datetime" family, every dialect-divergence migration bug, and the indirect
+costs of writing every feature twice.
+
+**Cost.** Medium. Local dev needs Postgres running. CI gets simpler (one
+matrix entry, not two). Migration files lose ~15 % of their length.
+
+**Recommendation: do it.** This is the single biggest reliability win
+available. Phase it in week 7 instead of "make tests pass on both".
+
+### 13.2 External cron, drop APScheduler
+
+**Current state.** `worker.py` runs a `BackgroundScheduler` in-process. Three
+scheduled jobs (one per channel sweep, plus the reaper). The whole worker
+container exists for one reason: to host this scheduler. APScheduler swallows
+job exceptions by default unless `EVENT_JOB_ERROR` is wired (it's not).
+
+**Refactor.** Replace `worker.py` with three small entry-points:
+
+```
+python -m backend.dispatcher_tick reminder
+python -m backend.dispatcher_tick feedback
+python -m backend.reaper_tick
+```
+
+Each does one sweep and exits. Coolify cron (or the host's cron) invokes them
+hourly / daily. Exceptions become exit codes; a non-zero exit becomes a
+Coolify alert. Multi-replica safety becomes structural: only the cron host
+fires. The `worker` Docker container goes away — the existing API image
+already has everything needed.
+
+**Bug class eliminated:** "scheduled job stopped firing because the scheduler
+crashed silently"; "two replicas of the worker container fire every email
+twice"; "SIGTERM during a sweep doesn't get observed cleanly". All four go
+away.
+
+**Cost.** Small. Coolify supports cron jobs natively. The `_safe_reap`
+wrapper from § 5 of the audit becomes the cron entry-point. The
+boot-time-reaper pattern stays (still runs at startup of the API replica, as
+a defensive sweep).
+
+**Recommendation: do it.** Replaces ~150 lines of `worker.py` +
+`scheduler.add_job` + `_safe_reap` plumbing with ~30 lines of stand-alone
+modules and one `coolify.yaml` cron stanza.
+
+### 13.3 Magic-link auth — drop passwords entirely
+
+**Current state.** Bcrypt with a 72-byte truncation quirk (`auth.py:25,29`).
+No account lockout. Brute-force mitigated only by a 10/min rate limit. A
+"forgot password" flow (not yet built — but it's coming if we keep
+passwords). Plus the password column on the user model.
+
+**Refactor.** Login becomes: enter your email → we send a magic-link token →
+click → JWT issued. The token is a short-lived (15-min) signed value; the
+existing `FeedbackToken` infra is the model. The `users.password_hash` column
+goes away. The whole `bcrypt` dependency goes away.
+
+The app already does email. The login UX for an organiser tool used a few
+times a year is **better** with magic links than passwords ("which password
+did I use here?").
+
+**Bug class eliminated:** every "weak password" / "credential reuse" /
+"account lockout policy" / "password reset email leaks token" concern. The
+72-byte truncation. The bcrypt cost-factor decision. The "forgot password"
+flow that doesn't exist yet but would have to be built and tested.
+
+**Cost.** Medium. One migration to drop the password column. Update
+`/auth/register` (no password field), `/auth/login` (email-only), add
+`/auth/login-link` (token issuance). The existing `/auth/verify-email` flow
+becomes redundant — registration *is* a verified email — and can be deleted.
+
+**Recommendation: do it before launch.** Post-launch you have to migrate
+existing passwords; pre-launch you just don't add the column.
+
+### 13.4 OpenAPI-driven frontend types — single source of truth
+
+**Current state.** Every frontend store hand-mirrors a Pydantic schema:
+
+* `stores/events.ts:17` — `interface EventOut { id, slug, name, ... }`
+  duplicates `schemas/events.py:47` `class EventOut`.
+* `stores/feedback.ts:13` — same pattern for FeedbackForm.
+* `stores/admin.ts` — same for AdminUserOut.
+* When backend adds a field, frontend must remember to add it. Renames are
+  worse — silent drift, no type error.
+
+**Refactor.** `openapi-typescript` reads the FastAPI-generated `openapi.json`
+and emits a `frontend/src/api/schema.ts`. `openapi-fetch` provides a typed
+client (`api.get('/api/v1/events')` returns `EventOut[]` typed-from-schema).
+The hand-written types in stores delete themselves.
+
+**Bug class eliminated:** "frontend type drifted from backend schema". The
+`as ` cast audit in § 8.2 evaporates because most casts existed to bridge
+this gap.
+
+**Cost.** Small. One `make generate-types` step in `package.json`; pre-commit
+hook fails if the file is out of sync. About 200 lines of manual interfaces
+deleted across the stores.
+
+**Recommendation: do it.** Cheap and removes a whole category of silent drift.
+
+### 13.5 Vue Query — retire the hand-rolled Pinia stores
+
+**Current state.** Five Pinia stores (`auth`, `admin`, `chapters`, `events`,
+`feedback`), totalling ~454 lines, all reinventing the same primitives:
+
+* a list ref + `fetch()` populating it,
+* `create()` / `update()` / `delete()` mutating local + remote,
+* no rollback (`stores/admin.ts` is the worst — § 8.1).
+
+The audit caught at least three places where a failed mutation diverges
+local state from server state.
+
+**Refactor.** Replace with `@tanstack/vue-query`:
+
+* `useQuery({ queryKey: ['events'], queryFn: () => api.get('/api/v1/events') })`
+  for reads — caching, refetching, stale-while-revalidate, all built-in.
+* `useMutation({ mutationFn: …, onMutate: …, onError: … })` for writes —
+  optimistic updates with **automatic rollback** on failure.
+
+Auth state stays in a tiny Pinia store (it's session-state, not
+server-state). Everything else goes through Vue Query.
+
+**Bug class eliminated:** the entire "local store diverged from server after
+a failed mutation" family. Stale data after window-focus changes. Manual
+cache invalidation after mutations. Refetch-on-reconnect. Loading + error
+state plumbing repeated five times.
+
+**Cost.** Medium. ~454 lines of stores → ~200 lines of query hooks. New
+dependency. Frontend smoke tests need updating.
+
+**Recommendation: do it.** This is the frontend-side equivalent of the
+dispatcher refactor: replacing five hand-rolled implementations of the same
+pattern with one parametric library.
+
+### 13.6 Pydantic Settings — single boot-time config validator
+
+**Current state.** Env vars consumed at module-import and first-use across
+the backend:
+
+* `JWT_SECRET` (auth.py:14)
+* `EMAIL_ENCRYPTION_KEY` (encryption.py:14, validates length here)
+* `MESSAGE_ID_DOMAIN` (email/identifiers.py:15) — first send only
+* `SMTP_HOST` (email/smtp.py:13) — first send only
+* `PUBLIC_BASE_URL` (email/urls.py:11) — first send only
+* `CORS_ORIGINS` (main.py:73) — at startup
+* `SCALEWAY_WEBHOOK_SECRET` (webhooks.py:47) — first webhook only
+* `EMAIL_BATCH_SIZE`, `EMAIL_RETRY_SLEEP_SECONDS`, `EMAIL_BACKEND`,
+  `BOOTSTRAP_ADMIN_EMAIL`, `LOCAL_MODE`, `RATE_LIMIT_STORAGE_URI`,
+  `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`,
+  `WEB_CONCURRENCY`, `OPKOMST_ALLOW_UNSIGNED_WEBHOOKS`.
+
+15+ env vars. No central registry. The audit found two specific cases where
+a misconfig fails on first use, not at boot.
+
+**Refactor.** One `backend/config.py` with a single `Settings(BaseSettings)`:
+
+```python
+class Settings(BaseSettings):
+    jwt_secret: SecretStr
+    email_encryption_key: bytes  # validator: must be 32 bytes
+    message_id_domain: str
+    public_base_url: HttpUrl
+    cors_origins: list[HttpUrl]
+    email_backend: Literal["console", "smtp"] = "console"
+    # … etc
+    model_config = {"env_file": ".env"}
+
+    @model_validator(mode="after")
+    def smtp_required_when_smtp_backend(self):
+        if self.email_backend == "smtp" and not self.smtp_host:
+            raise ValueError("EMAIL_BACKEND=smtp requires SMTP_HOST")
+        return self
+```
+
+Every `os.environ[…]` becomes `settings.jwt_secret`, etc. The settings
+instance is loaded once at boot; missing/invalid env vars → app refuses to
+start with a clear error pointing at the offending field.
+
+**Bug class eliminated:** "deployment runs for hours before the first email
+goes out, then we discover MESSAGE_ID_DOMAIN was unset." All env-var bugs
+become startup-time failures.
+
+**Cost.** Small-medium. ~30 sites to update. The audit's `validate_config()`
+recommendation in § 5.3 *is* this refactor; doing it via Pydantic Settings is
+the structural version, not just a defensive check.
+
+**Recommendation: do it.** Cheap, prevents an entire category of "works on
+my machine" deploy bugs.
+
+### 13.7 Generic CRUD route helper — collapse the scope/archive/SCD2 dance
+
+**Current state.** Every route that touches an event goes through:
+
+```python
+event = scd2_svc.current_by_entity(db, Event, entity_id)
+if not event: 404
+if user.chapter_id != event.chapter_id: 404
+if event.archived_at is not None: 410  # or 404, varies
+```
+
+`routers/events.py:62-64` has the magic-string `"__no_match__"` workaround.
+`routers/feedback.py` reimplements the same scope check. Half a dozen routes
+inline the archive check inconsistently (some 410, some 404).
+
+**Refactor.** One helper:
+
+```python
+def get_event_for_user(
+    db: Session,
+    entity_id: str,
+    user: User,
+    *,
+    allow_archived: bool = False,
+    public: bool = False,  # skip the chapter check
+) -> Event:
+    ...  # uniform 404 / 410 semantics
+```
+
+Same shape for users (`get_user_for_admin`) and chapters (`get_chapter_for_admin`).
+
+**Bug class eliminated:** the "wait, is this route doing the archive check?"
+audit. Every consistency mismatch between routes. The magic-string scope
+workaround.
+
+**Cost.** Small. ~12 call sites updated. The helper is ~15 lines.
+
+**Recommendation: do it.** Makes the routers ~30 % shorter and forces
+consistent semantics by construction.
+
+### 13.8 Property-based testing as the primary test surface
+
+**Current state.** Hypothesis is used in exactly one file
+(`test_timezone_invariants.py`), 80 examples per test. Everywhere else the
+tests are example-based: pick a scenario, assert outcome.
+
+**Refactor.** Most invariants in this app are best tested as properties, not
+examples:
+
+* The privacy invariant (encrypted_email NULL iff no pending dispatch).
+* The state-machine consistency under arbitrary trigger sequences.
+* The wipe rule across DST boundaries.
+* The atomic-claim under arbitrary interleaving.
+
+Move from "tests assert behaviour on N hand-picked scenarios" to "tests
+assert invariants hold over a generated state space". The
+state-transition-matrix test in § 2.3 is example-based; the property version
+generates a random sequence of triggers and asserts the invariants always
+hold.
+
+**Bug class eliminated:** the "we tested the cases we thought of" gap. The
+"corner case nobody thought to write down" class.
+
+**Cost.** Small. Hypothesis is already a dependency. Each property test is
+shorter than the equivalent example matrix.
+
+**Recommendation: do it.** Lower priority than 13.1–13.7 because it's a
+testing-philosophy shift, not a structural refactor — but the lowest-cost
+item on this list.
+
+### 13.9 Considered and rejected
+
+**Event sourcing for the dispatch state machine.** Instead of mutating a row
+through 5 states, append events to a log; current state is a fold over
+events. Genuinely powerful, but overkill for a sub-1000-events-per-day app.
+The current state-machine + reapers is well-understood and the reapers
+already handle the recoverability concern that event sourcing buys you.
+
+**End-to-end privacy (recipient-key encryption).** Storing email encrypted
+with a key only the recipient knows would mean the server literally can't
+read the address. Lovely, but the recipient can't possibly hold a key when
+they sign up — they don't even have an account. Not workable for this
+threat model.
+
+**`SQLModel` instead of separate Pydantic + SQLAlchemy.** The schemas and
+the ORM models would unify, but `SQLModel` is still pre-1.0, has subtle
+serialisation issues, and locks you into one ORM. Not worth the risk.
+
+**Dropping Vue Router for file-based routing.** Cosmetic. Skip.
+
+### 13.10 Recommended phasing of the radical refactors
+
+If § 1–12 is a 5-week incremental hardening pass, this is a parallel **2-week
+structural pass** that should happen *before* the hardening because hardening
+the soon-to-be-deleted code is wasted work.
+
+| week | refactor | ship-with |
+|---|---|---|
+| 1 | 13.1 Postgres-only | one PR; CI matrix dropped to single dialect |
+| 1 | 13.6 Pydantic Settings | one PR; eliminates `validate_config` from § 5.3 |
+| 1 | 13.4 OpenAPI types | one PR; eliminates the `as ` cast audit from § 8.2 |
+| 2 | 13.2 External cron | one PR; deletes worker container |
+| 2 | 13.7 Route helper | one PR; collapses the scope dance |
+| 2 | 13.5 Vue Query | one PR; retires the manual stores |
+| 3 | 13.3 Magic-link auth | one PR; drops bcrypt + password column |
+
+13.8 (property-based tests) is best done *during* § 1–12, not as a separate
+phase — every test added in § 2–4 should be a property when possible.
+
+After this 3-week pass, the hardening work in § 1–12 has a much smaller
+surface to cover. Total LoC reduction estimate:
+
+| refactor | LoC delta |
+|---|---|
+| 13.1 Postgres-only | -100 (dialect branches, naive-datetime dance) |
+| 13.2 External cron | -150 (worker.py + scheduler plumbing) |
+| 13.3 Magic-link | -120 (bcrypt, password handling, password reset future-work) |
+| 13.4 OpenAPI types | -200 (manual TS interfaces) |
+| 13.5 Vue Query | -250 (Pinia store boilerplate) |
+| 13.6 Pydantic Settings | -50 (scattered env var reads, +1 settings module) |
+| 13.7 Route helper | -100 (per-route scope/archive checks) |
+| **total** | **~-1 000 LoC** |
+
+For an 11 600-line codebase, that's a **9 % reduction in the surface area
+that has to be tested, reviewed, and maintained** — applied to the parts
+where the most bugs lived. Net result is fewer lines, fewer dependencies,
+fewer abstractions to keep in sync, and several whole categories of bug made
+structurally impossible.
