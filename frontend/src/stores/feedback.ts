@@ -1,61 +1,27 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type {
+  EmailChannel,
+  EmailHealth,
+  FeedbackAnswer,
+  FeedbackForm,
+  FeedbackQuestion,
+  FeedbackQuestionSummary,
+  FeedbackSubmission,
+  FeedbackSummary,
+} from "@/api/types";
 import { get, post } from "@/api/client";
 
-export interface FeedbackQuestion {
-  id: string;
-  ordinal: number;
-  kind: "rating" | "text";
-  key: string;
-  required: boolean;
-}
-
-export interface FeedbackForm {
-  event_name: string;
-  event_slug: string;
-  event_locale: "nl" | "en";
-  questions: FeedbackQuestion[];
-}
-
-export interface FeedbackAnswer {
-  question_id: string;
-  answer_int?: number | null;
-  answer_text?: string | null;
-}
-
-export interface FeedbackQuestionSummary {
-  question_id: string;
-  key: string;
-  kind: "rating" | "text";
-  response_count: number;
-  rating_distribution: number[] | null;
-  rating_average: number | null;
-  texts: string[] | null;
-}
-
-export type EmailChannel = "reminder" | "feedback";
-
-export interface EmailHealth {
-  not_applicable: number;
-  pending: number;
-  sent: number;
-  bounced: number;
-  complaint: number;
-  failed: number;
-}
-
-export interface FeedbackSummary {
-  submission_count: number;
-  signup_count: number;
-  response_rate: number;
-  email_health: Record<EmailChannel, EmailHealth>;
-  questions: FeedbackQuestionSummary[];
-}
-
-export interface FeedbackSubmission {
-  submission_id: string;
-  answers: Record<string, number | string>;
-}
+export type {
+  EmailChannel,
+  EmailHealth,
+  FeedbackAnswer,
+  FeedbackForm,
+  FeedbackQuestion,
+  FeedbackQuestionSummary,
+  FeedbackSubmission,
+  FeedbackSummary,
+};
 
 export const useFeedbackStore = defineStore("feedback", () => {
   const questions = ref<FeedbackQuestion[]>([]);

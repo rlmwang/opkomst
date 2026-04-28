@@ -1,23 +1,9 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import type { AuthResponse, User } from "@/api/types";
 import { clearToken, get, getToken, post, setToken } from "@/api/client";
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: "admin" | "organiser";
-  email_verified_at: string | null;
-  is_approved: boolean;
-  chapter_id: string | null;
-  chapter_name: string | null;
-  created_at: string;
-}
-
-interface AuthResponse {
-  token: string;
-  user: User;
-}
+export type { User };
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);

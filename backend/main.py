@@ -37,8 +37,14 @@ if settings.sentry_dsn:
     )
     logger.info("sentry_initialized")
 
-run_migrations()
-run_seed()
+# Boot side-effects: migrations + seed + reaper pass. Skipped
+# when ``OPKOMST_SKIP_BOOT=1`` so schema-generation scripts can
+# import the app without touching the DB.
+import os as _os  # noqa: E402
+
+if _os.environ.get("OPKOMST_SKIP_BOOT") != "1":
+    run_migrations()
+    run_seed()
 
 
 def _boot_reaper_pass() -> None:
@@ -56,12 +62,13 @@ def _boot_reaper_pass() -> None:
         db.close()
 
 
-try:
-    _boot_reaper_pass()
-except Exception:
-    # A boot-time DB hiccup mustn't keep the API from coming up;
-    # the cron will catch up at the next tick.
-    logger.exception("boot_reaper_failed")
+if _os.environ.get("OPKOMST_SKIP_BOOT") != "1":
+    try:
+        _boot_reaper_pass()
+    except Exception:
+        # A boot-time DB hiccup mustn't keep the API from coming up;
+        # the cron will catch up at the next tick.
+        logger.exception("boot_reaper_failed")
 
 
 app = FastAPI(title="Opkomst", version="0.1.0")

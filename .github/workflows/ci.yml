@@ -60,6 +60,47 @@ jobs:
       - name: Tests + coverage gate
         run: uv run pytest
 
+  schema-drift:
+    # Regenerate openapi.json + frontend/src/api/schema.ts on every PR
+    # and fail if the working tree differs from HEAD. A backend schema
+    # change without its matching commit-of-the-generated-types is the
+    # exact "frontend type drift" bug A3 was supposed to make
+    # structurally impossible — this gate enforces it.
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
+      OPKOMST_SKIP_BOOT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - run: uv sync --all-groups
+      - run: cd frontend && npm ci
+      - name: Regenerate openapi.json + schema.ts
+        run: make openapi
+      - name: Diff against HEAD
+        run: |
+          if ! git diff --exit-code --quiet openapi.json frontend/src/api/schema.ts; then
+            echo "::error::openapi.json or frontend/src/api/schema.ts is out of date — run 'make openapi'"
+            git diff openapi.json frontend/src/api/schema.ts
+            exit 1
+          fi
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

@@ -1,6 +1,6 @@
 # Common dev tasks for opkomst. ``make help`` lists the targets.
 
-.PHONY: help db-up db-down db-reset db-shell test test-fast lint typecheck e2e
+.PHONY: help db-up db-down db-reset db-shell test test-fast lint typecheck e2e openapi
 
 help:
 	@echo "make db-up        Start postgres in docker (port 5433)."
@@ -12,6 +12,7 @@ help:
 	@echo "make lint         ruff + pyright."
 	@echo "make typecheck    pyright + vue-tsc."
 	@echo "make e2e          Playwright critical-path on a fresh stack."
+	@echo "make openapi      Regenerate openapi.json + frontend/src/api/schema.ts."
 
 db-up:
 	docker compose up -d postgres
@@ -47,3 +48,7 @@ typecheck:
 
 e2e:
 	cd frontend && CI=1 npx playwright test
+
+openapi:
+	uv run python scripts/generate_openapi.py
+	cd frontend && npx openapi-typescript ../openapi.json -o src/api/schema.ts

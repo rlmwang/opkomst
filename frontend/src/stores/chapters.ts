@@ -1,22 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type { Chapter, ChapterPatch as ChapterPatchPayload } from "@/api/types";
 import { del, get, patch, post } from "@/api/client";
 
-export interface Chapter {
-  id: string; // entity_id (stable across versions)
-  name: string;
-  archived: boolean;
-  city: string | null;
-  city_lat: number | null;
-  city_lon: number | null;
-}
-
-export interface ChapterPatchPayload {
-  name?: string;
-  city?: string | null;
-  city_lat?: number | null;
-  city_lon?: number | null;
-}
+export type { Chapter, ChapterPatchPayload };
 
 export const useChaptersStore = defineStore("chapters", () => {
   const all = ref<Chapter[]>([]);

@@ -1,54 +1,14 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import type {
+  EventCreate,
+  EventOut,
+  EventStats,
+  SignupSummary,
+} from "@/api/types";
 import { get, post, put } from "@/api/client";
 
-export interface EventOut {
-  id: string;
-  slug: string;
-  name: string;
-  topic: string | null;
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  starts_at: string;
-  ends_at: string;
-  source_options: string[];
-  help_options: string[];
-  questionnaire_enabled: boolean;
-  reminder_enabled: boolean;
-  locale: "nl" | "en";
-  chapter_id: string | null;
-  chapter_name: string | null;
-  signup_count: number;
-}
-
-export interface EventStats {
-  total_signups: number;
-  total_attendees: number;
-  by_source: Record<string, number>;
-  by_help: Record<string, number>;
-}
-
-export interface SignupSummary {
-  display_name: string | null;
-  party_size: number;
-  help_choices: string[];
-}
-
-export interface EventCreate {
-  name: string;
-  topic: string | null;
-  location: string;
-  latitude: number | null;
-  longitude: number | null;
-  starts_at: string;
-  ends_at: string;
-  source_options: string[];
-  help_options: string[];
-  questionnaire_enabled: boolean;
-  reminder_enabled: boolean;
-  locale: "nl" | "en";
-}
+export type { EventCreate, EventOut, EventStats, SignupSummary };
 
 export const useEventsStore = defineStore("events", () => {
   const all = ref<EventOut[]>([]);

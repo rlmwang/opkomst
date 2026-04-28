@@ -10,12 +10,14 @@ class ChapterOut(BaseModel):
     id: str  # entity_id, not the row id
     name: str
     archived: bool
-    # Optional anchor city — display name + centroid coords. Used by
-    # the event-creation address picker to bias suggestions toward
-    # streets near this chapter's home town.
-    city: str | None = None
-    city_lat: float | None = None
-    city_lon: float | None = None
+    # Anchor city — display name + centroid coords. Used by the
+    # event-creation address picker to bias suggestions toward
+    # streets near this chapter's home town. The fields are always
+    # present in the DB (NULL where unset) so they're required-but-
+    # nullable in the response, not optional.
+    city: str | None
+    city_lat: float | None
+    city_lon: float | None
 
 
 class ChapterCreate(BaseModel):

@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from .events import Locale
+
 
 class FeedbackQuestionOut(BaseModel):
     """Question shape for the public form. The frontend resolves the
@@ -20,7 +22,7 @@ class FeedbackFormOut(BaseModel):
 
     event_name: str
     event_slug: str
-    event_locale: str
+    event_locale: Locale
     questions: list[FeedbackQuestionOut]
 
 

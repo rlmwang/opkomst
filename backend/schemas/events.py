@@ -1,8 +1,15 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
 from .common import LowercaseEmail
+
+# Two-letter ISO language tag. Drives both the public sign-up
+# page's UI language and the locale of the feedback email sent
+# afterwards. Two values today (nl / en); widen the literal if we
+# ever localise per region.
+Locale = Literal["nl", "en"]
 
 
 class EventCreate(BaseModel):
@@ -20,10 +27,7 @@ class EventCreate(BaseModel):
     help_options: list[str] = Field(default_factory=list)
     questionnaire_enabled: bool = True
     reminder_enabled: bool = False
-    # Two-letter ISO language tag. Drives both the public sign-up
-    # page's UI language and the locale of the feedback email sent
-    # afterwards. Defaults to Dutch — the org's primary audience.
-    locale: str = Field(default="nl", pattern="^(nl|en)$")
+    locale: Locale = "nl"
 
     @field_validator("source_options")
     @classmethod
@@ -58,7 +62,7 @@ class EventOut(BaseModel):
     help_options: list[str]
     questionnaire_enabled: bool
     reminder_enabled: bool
-    locale: str
+    locale: Locale
     chapter_id: str | None
     chapter_name: str | None
     signup_count: int  # aggregate party_size sum, not row count
