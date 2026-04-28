@@ -18,7 +18,11 @@ import {
   type SignupSummary,
   useEventsStore,
 } from "@/stores/events";
-import { type FeedbackSummary, useFeedbackStore } from "@/stores/feedback";
+import {
+  type EmailChannel,
+  type FeedbackSummary,
+  useFeedbackStore,
+} from "@/stores/feedback";
 
 const props = defineProps<{ eventId: string }>();
 
@@ -33,7 +37,7 @@ const event = ref<EventOut | null>(null);
 const stats = ref<EventStats | null>(null);
 const signups = ref<SignupSummary[]>([]);
 const summary = ref<FeedbackSummary | null>(null);
-const triggering = ref(false);
+const triggering = ref<EmailChannel | null>(null);
 
 // Tabular layout for the signup-list foldable: name in column 1,
 // one column per configured help_option (so chips of the same kind
@@ -132,39 +136,53 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
   return { width: `${Math.round((distribution[idx] / max) * 100)}%`, count: distribution[idx] };
 }
 
-const canTriggerNow = computed(() => {
-  if (!event.value || !summary.value) return false;
-  if (!event.value.questionnaire_enabled) return false;
-  return summary.value.email_health.pending > 0;
-});
+const CHANNELS: EmailChannel[] = ["reminder", "feedback"];
+const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint", "failed"] as const;
 
-const triggerDisabledReason = computed(() => {
+function channelEnabled(channel: EmailChannel): boolean {
+  if (!event.value) return false;
+  return channel === "reminder"
+    ? event.value.reminder_enabled
+    : event.value.questionnaire_enabled;
+}
+
+function channelHealth(channel: EmailChannel) {
+  return summary.value?.email_health[channel];
+}
+
+function canTrigger(channel: EmailChannel): boolean {
+  if (!event.value || !summary.value) return false;
+  if (!channelEnabled(channel)) return false;
+  return (channelHealth(channel)?.pending ?? 0) > 0;
+}
+
+function triggerDisabledReason(channel: EmailChannel): string {
   if (!event.value) return "";
-  if (!event.value.questionnaire_enabled) return t("event.sendNow.disabledOff");
-  if (summary.value && summary.value.email_health.pending === 0) {
+  if (!channelEnabled(channel)) return t("event.sendNow.disabledOff");
+  if ((channelHealth(channel)?.pending ?? 0) === 0) {
     return t("event.sendNow.disabledNothingPending");
   }
   return "";
-});
+}
 
 async function refreshSummary() {
   summary.value = await feedback.getSummary(props.eventId).catch(() => summary.value);
 }
 
-function askTriggerNow() {
+function askTriggerNow(channel: EmailChannel) {
   if (!event.value) return;
   confirms.ask({
-    header: t("event.sendNow.confirmTitle"),
+    header: t(`event.sendNow.${channel}.confirmTitle`),
     message: t("event.sendNow.confirmBody", {
-      n: summary.value?.email_health.pending ?? 0,
+      n: channelHealth(channel)?.pending ?? 0,
     }),
     icon: "pi pi-send",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("event.sendNow.confirm"),
     accept: async () => {
-      triggering.value = true;
+      triggering.value = channel;
       try {
-        const r = await events.sendFeedbackEmailsNow(props.eventId);
+        const r = await events.sendEmailsNow(props.eventId, channel);
         toasts.success(t("event.sendNow.successTitle"), {
           detail: t("event.sendNow.successBody", { n: r.processed }),
         });
@@ -173,13 +191,11 @@ function askTriggerNow() {
         const msg = e instanceof ApiError ? e.message : t("event.sendNow.failed");
         toasts.error(msg);
       } finally {
-        triggering.value = false;
+        triggering.value = null;
       }
     },
   });
 }
-
-const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint", "failed"] as const;
 </script>
 
 <template>
@@ -341,41 +357,42 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
         </template>
       </AppCard>
 
-      <!-- Email-delivery health follows the feedback card so it
-           contextualises the response numbers above (a low response
-           rate is easier to read with the bounce / complaint counts
-           visible right next to it). -->
-      <AppCard v-if="summary">
-        <h2>{{ t("feedback.email.title") }}</h2>
-        <p class="muted">{{ t("feedback.email.explainer") }}</p>
-        <div class="email-health">
-          <div
-            v-for="key in HEALTH_KEYS"
-            :key="key"
-            class="health-pill"
-            :class="`health-${key}`"
-            v-tooltip.top="t(`feedback.email.tooltips.${key}`)"
-          >
-            <span class="count">{{ summary.email_health[key] }}</span>
-            <span class="label">{{ t(`feedback.email.${key}`) }}</span>
+      <!-- One card per channel, each combining delivery health
+           with a "send now" button. Order is chronological: the
+           reminder fires before the event, feedback fires after.
+           Pills explain delivery state at a glance; the button
+           below lets the organiser fire that channel manually
+           for any signups still ``pending``. -->
+      <template v-if="summary">
+        <AppCard v-for="channel in CHANNELS" :key="channel">
+          <h2>{{ t(`event.sendNow.${channel}.title`) }}</h2>
+          <p class="muted">{{ t(`event.sendNow.${channel}.explainer`) }}</p>
+          <div class="email-health">
+            <div
+              v-for="key in HEALTH_KEYS"
+              :key="key"
+              class="health-pill"
+              :class="`health-${key}`"
+              v-tooltip.top="t(`feedback.email.tooltips.${channel}.${key}`)"
+            >
+              <span class="count">{{ channelHealth(channel)?.[key] ?? 0 }}</span>
+              <span class="label">{{ t(`feedback.email.${key}`) }}</span>
+            </div>
           </div>
-        </div>
-      </AppCard>
-
-      <AppCard>
-        <h2>{{ t("event.sendNow.title") }}</h2>
-        <p>{{ t("event.sendNow.explainer") }}</p>
-        <p v-if="triggerDisabledReason" class="muted small">{{ triggerDisabledReason }}</p>
-        <div>
-          <Button
-            :label="t('event.sendNow.button')"
-            icon="pi pi-send"
-            :disabled="!canTriggerNow || triggering"
-            :loading="triggering"
-            @click="askTriggerNow"
-          />
-        </div>
-      </AppCard>
+          <p v-if="triggerDisabledReason(channel)" class="muted small">
+            {{ triggerDisabledReason(channel) }}
+          </p>
+          <div class="send-now-row">
+            <Button
+              :label="t(`event.sendNow.${channel}.button`)"
+              icon="pi pi-send"
+              :disabled="!canTrigger(channel) || triggering !== null"
+              :loading="triggering === channel"
+              @click="askTriggerNow(channel)"
+            />
+          </div>
+        </AppCard>
+      </template>
     </template>
   </div>
 </template>
@@ -633,6 +650,10 @@ const HEALTH_KEYS = ["sent", "not_applicable", "pending", "bounced", "complaint"
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.send-now-row {
+  margin-top: 0.5rem;
 }
 .health-pill {
   display: flex;

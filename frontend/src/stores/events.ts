@@ -85,8 +85,13 @@ export const useEventsStore = defineStore("events", () => {
     all.value = [restored, ...all.value];
   }
 
-  async function sendFeedbackEmailsNow(eventId: string): Promise<{ processed: number }> {
-    return post<{ processed: number }>(`/api/v1/events/${eventId}/send-feedback-emails`);
+  async function sendEmailsNow(
+    eventId: string,
+    channel: "reminder" | "feedback",
+  ): Promise<{ processed: number }> {
+    return post<{ processed: number }>(
+      `/api/v1/events/${eventId}/send-emails/${channel}`,
+    );
   }
 
   async function getBySlug(slug: string): Promise<EventOut> {
@@ -120,7 +125,7 @@ export const useEventsStore = defineStore("events", () => {
     update,
     archive,
     restore,
-    sendFeedbackEmailsNow,
+    sendEmailsNow,
     getBySlug,
     getStats,
     getSignups,

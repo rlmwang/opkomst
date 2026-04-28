@@ -188,35 +188,40 @@ def feedback_summary(
     )
     rate = (submission_count / signup_count) if signup_count else 0.0
 
-    # Group feedback dispatches for this event's signups by status.
-    # ``not_applicable`` is now derived: every signup without a
-    # feedback dispatch row is in that bucket.
+    # Group dispatches by (channel, status) in one query — the
+    # dashboard surfaces delivery health for every channel
+    # side-by-side. ``not_applicable`` is derived per channel:
+    # signups without a dispatch row for that channel.
     health_rows = (
-        db.query(SignupEmailDispatch.status, func.count(SignupEmailDispatch.id))
-        .join(Signup, Signup.id == SignupEmailDispatch.signup_id)
-        .filter(
-            Signup.event_id == entity_id,
-            SignupEmailDispatch.channel == EmailChannel.FEEDBACK,
+        db.query(
+            SignupEmailDispatch.channel,
+            SignupEmailDispatch.status,
+            func.count(SignupEmailDispatch.id),
         )
-        .group_by(SignupEmailDispatch.status)
+        .join(Signup, Signup.id == SignupEmailDispatch.signup_id)
+        .filter(Signup.event_id == entity_id)
+        .group_by(SignupEmailDispatch.channel, SignupEmailDispatch.status)
         .all()
     )
-    health_counts: dict[str, int] = {
-        getattr(status, "value", status): int(count)
-        for status, count in health_rows
+    counts_by_channel: dict[str, dict[str, int]] = {
+        ch.value: {} for ch in EmailChannel
     }
-    dispatched = sum(health_counts.values())
-    email_health = EmailHealthOut(
-        # not_applicable = signups that never got a feedback
-        # dispatch (no email at signup time, or feedback toggle
-        # off, or retired by toggle-off cleanup).
-        not_applicable=max(0, signup_count - dispatched),
-        pending=health_counts.get("pending", 0),
-        sent=health_counts.get("sent", 0),
-        bounced=health_counts.get("bounced", 0),
-        complaint=health_counts.get("complaint", 0),
-        failed=health_counts.get("failed", 0),
-    )
+    for channel, status, count in health_rows:
+        ch_name = getattr(channel, "value", channel)
+        st_name = getattr(status, "value", status)
+        counts_by_channel[ch_name][st_name] = int(count)
+
+    email_health: dict[str, EmailHealthOut] = {}
+    for ch_name, ch_counts in counts_by_channel.items():
+        dispatched = sum(ch_counts.values())
+        email_health[ch_name] = EmailHealthOut(
+            not_applicable=max(0, signup_count - dispatched),
+            pending=ch_counts.get("pending", 0),
+            sent=ch_counts.get("sent", 0),
+            bounced=ch_counts.get("bounced", 0),
+            complaint=ch_counts.get("complaint", 0),
+            failed=ch_counts.get("failed", 0),
+        )
 
     questions = _ordered_questions(db)
     summaries: list[FeedbackQuestionSummary] = []

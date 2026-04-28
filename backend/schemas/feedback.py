@@ -51,10 +51,10 @@ class FeedbackQuestionSummary(BaseModel):
 
 
 class EmailHealthOut(BaseModel):
-    """Aggregate of feedback-email delivery status across an event's
-    signups. Counts always sum to ``signup_count``."""
+    """Aggregate of one channel's email delivery status across an
+    event's signups. Counts always sum to ``signup_count``."""
 
-    not_applicable: int  # no email supplied / questionnaire disabled
+    not_applicable: int  # no email supplied / channel disabled
     pending: int  # email collected, worker hasn't run yet
     sent: int  # SMTP accepted; no bounce reported
     bounced: int  # provider reported a hard bounce
@@ -63,12 +63,14 @@ class EmailHealthOut(BaseModel):
 
 
 class FeedbackSummaryOut(BaseModel):
-    """Organiser-only feedback summary for an event."""
+    """Organiser-only feedback summary for an event. ``email_health``
+    is keyed by channel name (``reminder`` / ``feedback``) so the
+    dashboard can surface delivery health for each side-by-side."""
 
     submission_count: int
     signup_count: int
     response_rate: float  # submission_count / signup_count, 0 if no signups
-    email_health: EmailHealthOut
+    email_health: dict[str, EmailHealthOut]
     questions: list[FeedbackQuestionSummary]
 
 

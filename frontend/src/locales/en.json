@@ -200,13 +200,21 @@
     "signupList": "Individual sign-ups",
     "signupAnonymous": "Anonymous",
     "sendNow": {
-      "title": "Send feedback emails early",
-      "explainer": "Opkomst normally sends the feedback email one day after the event ends. This button sends it now to every sign-up that's still waiting. Once sent, emails can't be sent again.",
-      "button": "Send feedback emails now",
-      "disabledOff": "The questionnaire is turned off for this event, so no emails are sent.",
-      "disabledNothingPending": "All emails have already been sent, or there are no sign-ups with an email address.",
-      "confirmTitle": "Send now?",
-      "confirmBody": "Send the feedback email to {n} sign-up(s)? This can't be undone.",
+      "reminder": {
+        "title": "Reminder delivery",
+        "explainer": "Opkomst normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
+        "button": "Send reminders now",
+        "confirmTitle": "Send reminder now?"
+      },
+      "feedback": {
+        "title": "Feedback delivery",
+        "explainer": "Opkomst normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
+        "button": "Send feedback emails now",
+        "confirmTitle": "Send feedback email now?"
+      },
+      "disabledOff": "This channel is turned off for this event, so no emails are sent.",
+      "disabledNothingPending": "All emails have already been sent, or no sign-ups are waiting.",
+      "confirmBody": "Send to {n} sign-up(s)? Once sent, emails can't be sent again.",
       "confirm": "Send",
       "successTitle": "Sent",
       "successBody": "{n} message(s) handed off to the mail server.",
@@ -301,8 +309,6 @@
       "csvFail": "Could not download CSV"
     },
     "email": {
-      "title": "Feedback email delivery",
-      "explainer": "Per-signup delivery status of the post-event feedback email. Bounces and spam reports lower your sender reputation; investigate them so they don't keep climbing across events.",
       "sent": "sent",
       "pending": "pending",
       "bounced": "bounced",
@@ -310,12 +316,22 @@
       "failed": "failed",
       "not_applicable": "no email",
       "tooltips": {
-        "sent": "The mail server accepted the feedback email and no bounce was reported afterwards.",
-        "pending": "The signup left an email but the worker hasn't sent the feedback message yet (it runs hourly, ≥24h after the event ends).",
-        "bounced": "The recipient's mail server rejected the message as undeliverable.",
-        "complaint": "The recipient flagged the message as spam.",
-        "failed": "The worker couldn't decrypt the address or the SMTP send threw twice. The encrypted address is wiped either way.",
-        "not_applicable": "The signup didn't supply an email, or the questionnaire was off for this event."
+        "reminder": {
+          "sent": "The mail server accepted the reminder and no bounce was reported afterwards.",
+          "pending": "The signup left an email but the reminder hasn't been sent yet (it runs hourly, in the 72h before the event starts).",
+          "bounced": "The recipient's mail server rejected the reminder as undeliverable.",
+          "complaint": "The recipient flagged the reminder as spam.",
+          "failed": "The worker couldn't decrypt the address or the SMTP send threw twice. The encrypted address is wiped either way.",
+          "not_applicable": "The signup didn't supply an email, or the reminder was off for this event."
+        },
+        "feedback": {
+          "sent": "The mail server accepted the feedback email and no bounce was reported afterwards.",
+          "pending": "The signup left an email but the feedback hasn't been sent yet (it runs hourly, ≥24h after the event ends).",
+          "bounced": "The recipient's mail server rejected the feedback as undeliverable.",
+          "complaint": "The recipient flagged the feedback as spam.",
+          "failed": "The worker couldn't decrypt the address or the SMTP send threw twice. The encrypted address is wiped either way.",
+          "not_applicable": "The signup didn't supply an email, or the questionnaire was off for this event."
+        }
       }
     },
     "preview": {

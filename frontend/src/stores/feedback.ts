@@ -33,6 +33,8 @@ export interface FeedbackQuestionSummary {
   texts: string[] | null;
 }
 
+export type EmailChannel = "reminder" | "feedback";
+
 export interface EmailHealth {
   not_applicable: number;
   pending: number;
@@ -46,7 +48,7 @@ export interface FeedbackSummary {
   submission_count: number;
   signup_count: number;
   response_rate: number;
-  email_health: EmailHealth;
+  email_health: Record<EmailChannel, EmailHealth>;
   questions: FeedbackQuestionSummary[];
 }
 

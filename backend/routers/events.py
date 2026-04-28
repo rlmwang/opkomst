@@ -170,23 +170,40 @@ def archive_event(
     return _to_out(db, new_row)
 
 
-@router.post("/{entity_id}/send-feedback-emails", status_code=200)
+@router.post("/{entity_id}/send-emails/{channel}", status_code=200)
 @limiter.limit("5/hour")
-def send_feedback_emails_now(
+def send_emails_now(
     request: Request,
     entity_id: str,
+    channel: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> dict[str, int]:
-    """Manually trigger the feedback worker for a single event."""
+    """Manually trigger the worker for one channel on a single
+    event. Re-use of the generic dispatcher means the reminder
+    + feedback "send now" buttons share one endpoint and one
+    rate-limit budget."""
+    from ..models import EmailChannel
     from ..services import email_dispatcher
-    from ..services.email_channels import FEEDBACK
+    from ..services.email_channels import spec_for
 
     event = _get_event_scoped(db, entity_id, user)
-    if not event.questionnaire_enabled:
+    try:
+        ch = EmailChannel(channel)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unknown channel") from None
+    if ch == EmailChannel.REMINDER and not event.reminder_enabled:
+        raise HTTPException(status_code=409, detail="Reminder is disabled for this event")
+    if ch == EmailChannel.FEEDBACK and not event.questionnaire_enabled:
         raise HTTPException(status_code=409, detail="Questionnaire is disabled for this event")
-    processed = email_dispatcher.run_for_event(FEEDBACK, entity_id)
-    logger.info("feedback_emails_triggered", event_id=entity_id, actor_id=user.id, processed=processed)
+    processed = email_dispatcher.run_for_event(spec_for(ch), entity_id)
+    logger.info(
+        "emails_triggered",
+        event_id=entity_id,
+        channel=channel,
+        actor_id=user.id,
+        processed=processed,
+    )
     return {"processed": processed}
 
 

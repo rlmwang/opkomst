@@ -200,13 +200,21 @@
     "signupList": "Aangemelde personen",
     "signupAnonymous": "Anoniem",
     "sendNow": {
-      "title": "Feedbackmail eerder versturen",
-      "explainer": "Normaal verstuurt opkomst de feedbackmail één dag na afloop. Met deze knop verstuur je hem direct naar alle aanmelders die nog wachten. Een verzonden mail kun je niet opnieuw versturen.",
-      "button": "Verstuur feedbackmails nu",
-      "disabledOff": "De vragenlijst staat uit voor dit evenement, dus er worden geen e-mails verstuurd.",
-      "disabledNothingPending": "Alle e-mails zijn al verstuurd of er zijn geen aanmelders met een e-mailadres.",
-      "confirmTitle": "Verstuur nu?",
-      "confirmBody": "Stuur de feedbackmail naar {n} aanmelder(s)? Deze actie kun je niet ongedaan maken.",
+      "reminder": {
+        "title": "Aflevering reminder",
+        "explainer": "Normaal verstuurt opkomst de reminder ongeveer 3 dagen voor het evenement. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
+        "button": "Verstuur reminders nu",
+        "confirmTitle": "Reminder nu versturen?"
+      },
+      "feedback": {
+        "title": "Aflevering feedbackmail",
+        "explainer": "Normaal verstuurt opkomst de feedbackmail één dag na afloop. Met de knop hieronder verstuur je hem direct naar iedereen die nog wacht.",
+        "button": "Verstuur feedbackmails nu",
+        "confirmTitle": "Feedbackmail nu versturen?"
+      },
+      "disabledOff": "Dit kanaal staat uit voor dit evenement, dus er worden geen e-mails verstuurd.",
+      "disabledNothingPending": "Alle e-mails zijn al verstuurd of er zijn geen aanmelders die nog wachten.",
+      "confirmBody": "Versturen naar {n} aanmelder(s)? Een verzonden mail kun je niet opnieuw versturen.",
       "confirm": "Verstuur",
       "successTitle": "Verstuurd",
       "successBody": "{n} mail(s) verstuurd.",
@@ -301,8 +309,6 @@
       "csvFail": "CSV-download mislukt"
     },
     "email": {
-      "title": "Aflevering feedbackmail",
-      "explainer": "Per aanmelder zie je de status van de feedbackmail na het evenement. Bounces en spamklachten verlagen je afzenderreputatie – pak ze aan voordat ze zich over meerdere evenementen opstapelen.",
       "sent": "verstuurd",
       "pending": "wacht",
       "bounced": "gebounced",
@@ -310,12 +316,22 @@
       "failed": "mislukt",
       "not_applicable": "geen e-mail",
       "tooltips": {
-        "sent": "De mailserver heeft de feedbackmail geaccepteerd en er kwam geen bouncebericht terug.",
-        "pending": "Er is een e-mailadres achtergelaten, maar de feedbackmail is nog niet verstuurd. We versturen elk uur, vanaf 24 uur na afloop.",
-        "bounced": "De mailserver van de ontvanger heeft het bericht afgewezen als onbestelbaar.",
-        "complaint": "De ontvanger heeft het bericht als spam gemarkeerd.",
-        "failed": "Versturen is mislukt: het adres kon niet worden uitgelezen of de mailserver gaf twee keer een fout. Het opgeslagen adres is hoe dan ook gewist.",
-        "not_applicable": "Er is geen e-mailadres opgegeven, of de vragenlijst stond uit voor dit evenement."
+        "reminder": {
+          "sent": "De mailserver heeft de reminder geaccepteerd en er kwam geen bouncebericht terug.",
+          "pending": "Er is een e-mailadres achtergelaten, maar de reminder is nog niet verstuurd. We versturen elk uur, vanaf 72 uur voor het evenement.",
+          "bounced": "De mailserver van de ontvanger heeft de reminder afgewezen als onbestelbaar.",
+          "complaint": "De ontvanger heeft de reminder als spam gemarkeerd.",
+          "failed": "Versturen is mislukt: het adres kon niet worden uitgelezen of de mailserver gaf twee keer een fout. Het opgeslagen adres is hoe dan ook gewist.",
+          "not_applicable": "Er is geen e-mailadres opgegeven, of de reminder stond uit voor dit evenement."
+        },
+        "feedback": {
+          "sent": "De mailserver heeft de feedbackmail geaccepteerd en er kwam geen bouncebericht terug.",
+          "pending": "Er is een e-mailadres achtergelaten, maar de feedbackmail is nog niet verstuurd. We versturen elk uur, vanaf 24 uur na afloop.",
+          "bounced": "De mailserver van de ontvanger heeft de feedbackmail afgewezen als onbestelbaar.",
+          "complaint": "De ontvanger heeft de feedbackmail als spam gemarkeerd.",
+          "failed": "Versturen is mislukt: het adres kon niet worden uitgelezen of de mailserver gaf twee keer een fout. Het opgeslagen adres is hoe dan ook gewist.",
+          "not_applicable": "Er is geen e-mailadres opgegeven, of de vragenlijst stond uit voor dit evenement."
+        }
       }
     },
     "preview": {
