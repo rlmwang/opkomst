@@ -264,7 +264,7 @@
   },
   "feedback": {
     "title": "How was {name}?",
-    "intro": "Five quick questions — two minutes of your time helps us make the next one better. Only the first two are required.",
+    "intro": "Five quick questions, two minutes. The first two are required; the rest you can skip.",
     "submit": "Submit",
     "submitFail": "Submission failed",
     "thanks": "Thanks — we got your feedback.",
@@ -274,12 +274,12 @@
     "previewBanner": "Preview — submission is disabled.",
     "questions": {
       "q1_overall": {
-        "prompt": "How was the event for you?",
+        "prompt": "How was the event?",
         "labelLow": "bad",
         "labelHigh": "great"
       },
       "q2_recommend": {
-        "prompt": "Would you recommend a comrade come to the next RSP event?",
+        "prompt": "Would you recommend this to a comrade?",
         "labelLow": "definitely not",
         "labelHigh": "definitely"
       },
@@ -293,7 +293,7 @@
         "placeholder": "Optional"
       },
       "q5_anything_else": {
-        "prompt": "Anything else you'd like us to know?",
+        "prompt": "Anything else to share?",
         "placeholder": "Optional"
       }
     },

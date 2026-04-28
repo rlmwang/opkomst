@@ -136,7 +136,6 @@ async function submit() {
         <AppCard v-for="q in form.questions" :key="q.id">
           <label class="prompt">
             {{ questionPrompt(q) }}
-            <span v-if="q.required" class="required">*</span>
           </label>
           <RatingScale
             v-if="q.kind === 'rating'"
@@ -174,10 +173,6 @@ async function submit() {
   font-weight: 600;
   font-size: 1.0625rem;
   line-height: 1.4;
-}
-.required {
-  color: var(--brand-red);
-  margin-left: 0.125rem;
 }
 .preview-banner {
   border: 1px dashed var(--brand-primary);

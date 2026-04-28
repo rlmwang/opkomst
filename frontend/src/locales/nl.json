@@ -264,7 +264,7 @@
   },
   "feedback": {
     "title": "Hoe was {name}?",
-    "intro": "Vijf korte vragen – twee minuten van je tijd helpen ons het volgende evenement beter te maken. Alleen de eerste twee zijn verplicht.",
+    "intro": "Vijf korte vragen, twee minuten. De eerste twee zijn verplicht; de rest mag je overslaan.",
     "submit": "Verstuur",
     "submitFail": "Versturen mislukt",
     "thanks": "Bedankt – je feedback is binnen.",
@@ -274,12 +274,12 @@
     "previewBanner": "Voorbeeldweergave – versturen is uitgeschakeld.",
     "questions": {
       "q1_overall": {
-        "prompt": "Hoe was het evenement voor jou?",
+        "prompt": "Hoe was het evenement?",
         "labelLow": "slecht",
         "labelHigh": "geweldig"
       },
       "q2_recommend": {
-        "prompt": "Raad je een kameraad aan om naar een volgend RSP-evenement te komen?",
+        "prompt": "Zou je dit aanraden aan een kameraad?",
         "labelLow": "zeker niet",
         "labelHigh": "zeker"
       },
@@ -293,7 +293,7 @@
         "placeholder": "Optioneel"
       },
       "q5_anything_else": {
-        "prompt": "Iets anders dat je ons wilt meegeven?",
+        "prompt": "Nog iets om mee te geven?",
         "placeholder": "Optioneel"
       }
     },
