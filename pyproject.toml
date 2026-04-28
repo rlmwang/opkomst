@@ -27,6 +27,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pytest-cov>=5",
     "pytest-xdist>=3",
     "ruff>=0.7",
     "pyright>=1.1",
@@ -54,5 +55,15 @@ pythonVersion = "3.13"
 # Tests share a per-process tempfile DB; xdist's process-per-worker
 # split would each create their own DB and race the conftest setup.
 # Stay in-band until we wire a per-worker DB fixture.
-addopts = ""
+addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=64"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "backend/alembic/*",
+    "backend/seed.py",
+    # Live SMTP backend — tested via aiosmtpd integration test in B4.1
+    # (not yet present); excluded from the coverage gate until then.
+    "backend/services/email/smtp.py",
+]

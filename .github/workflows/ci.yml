@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel earlier runs on the same branch when a new push lands so a long
+# tail of stale jobs doesn't keep CI minutes burning.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      # Per-test tempfile DB — the test suite manages its own DATABASE_URL
+      # via tests/conftest.py. The values below are required by
+      # backend.main / backend.config but never used by tests.
+      JWT_SECRET: test-jwt-secret-not-for-real-use
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
+      LOCAL_MODE: "0"
+      DATABASE_URL: sqlite:///./ci.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - name: Sync dependencies
+        run: uv sync --all-groups
+      - name: Lint (ruff)
+        run: uv run ruff check backend tests
+      - name: Type-check (pyright)
+        run: uv run pyright backend
+      - name: Tests + coverage gate
+        run: uv run pytest
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint (biome)
+        run: npx biome check
+      - name: Type-check (vue-tsc)
+        run: npx vue-tsc --noEmit
