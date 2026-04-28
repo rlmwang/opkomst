@@ -111,45 +111,6 @@ describe("auth store", () => {
   });
 });
 
-// ---- admin --------------------------------------------------------
-
-describe("admin store", () => {
-  it("fetchUsers calls GET /api/v1/admin/users and stores the response", async () => {
-    const { useAdminStore } = await import("@/stores/admin");
-    const store = useAdminStore();
-    mockGet.mockResolvedValueOnce([{ id: "u1", name: "X" } as never]);
-
-    await store.fetchUsers();
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/admin/users");
-    expect(store.users).toHaveLength(1);
-  });
-
-  it("fetchUsers passes ?pending=true when opted in", async () => {
-    const { useAdminStore } = await import("@/stores/admin");
-    const store = useAdminStore();
-    mockGet.mockResolvedValueOnce([]);
-
-    await store.fetchUsers({ pending: true });
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/admin/users?pending=true");
-  });
-
-  it("approve POSTs to /approve and replaces the local row", async () => {
-    const { useAdminStore } = await import("@/stores/admin");
-    const store = useAdminStore();
-    store.users = [{ id: "u1", name: "Old" } as never];
-    mockPost.mockResolvedValueOnce({ id: "u1", name: "New" } as never);
-
-    await store.approve("u1", "ch1");
-
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/admin/users/u1/approve", {
-      chapter_id: "ch1",
-    });
-    expect(store.users[0]).toMatchObject({ name: "New" });
-  });
-});
-
 // ---- chapters -----------------------------------------------------
 
 describe("chapters store", () => {

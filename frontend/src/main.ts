@@ -1,3 +1,4 @@
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import { definePreset } from "@primeuix/themes";
 import Aura from "@primeuix/themes/aura";
@@ -150,6 +151,23 @@ const OpkomstPreset = definePreset(Aura, {
 const app = createApp(App);
 
 app.use(createPinia());
+
+// Vue Query owns server state. Defaults: 30 s stale-time so a
+// dialog opening from a list doesn't refetch on mount; one retry
+// for a transient API hiccup; no refetch-on-window-focus
+// (organiser browser tabs sit open all afternoon — refetching
+// every focus would be noisy without solving anything real).
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+app.use(VueQueryPlugin, { queryClient });
+
 app.use(i18n);
 app.use(router);
 app.use(PrimeVue, {

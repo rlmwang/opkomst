@@ -6,7 +6,10 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [vue()],
   test: {
-    environment: "node",
+    // happy-dom for component / Vue-Query composables (need a DOM
+    // for ``app.mount(document.createElement(...))``); pure-utility
+    // tests that don't touch the DOM are unaffected.
+    environment: "happy-dom",
     include: ["src/__tests__/**/*.test.ts"],
   },
   resolve: {

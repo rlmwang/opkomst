@@ -14,18 +14,36 @@ import AppSkeleton from "@/components/AppSkeleton.vue";
 import CityPicker from "@/components/CityPicker.vue";
 import EditableList from "@/components/EditableList.vue";
 import SearchInput from "@/components/SearchInput.vue";
+import {
+  useApproveUser,
+  useAssignChapter,
+  useDemoteUser,
+  usePromoteUser,
+  useRemoveUser,
+  userList,
+  useUsers,
+} from "@/composables/useAdmin";
 import { useConfirms } from "@/lib/confirms";
 import { useToasts } from "@/lib/toasts";
 import { type Chapter, useChaptersStore } from "@/stores/chapters";
-import { useAdminStore } from "@/stores/admin";
 import { type User, useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
-const admin = useAdminStore();
 const auth = useAuthStore();
 const chapters = useChaptersStore();
 const toasts = useToasts();
 const confirms = useConfirms();
+
+// Vue Query — server state. The cache + invalidate-on-mutate
+// pipeline replaces the old admin store's hand-rolled
+// users.value mutations.
+const usersQuery = useUsers();
+const users = userList(usersQuery);
+const approveMutation = useApproveUser();
+const assignMutation = useAssignChapter();
+const promoteMutation = usePromoteUser();
+const demoteMutation = useDemoteUser();
+const removeMutation = useRemoveUser();
 
 // --- Approve / change-chapter dialog ---------------------------------
 type AssignMode = "approve" | "assign";
@@ -102,8 +120,8 @@ const userQuery = ref("");
 
 const filteredUsers = computed(() => {
   const q = userQuery.value.trim().toLowerCase();
-  if (!q) return admin.users;
-  return admin.users.filter((u) => {
+  if (!q) return users.value;
+  return users.value.filter((u) => {
     const chapter = chapterLabelFor(u).toLowerCase();
     return (
       u.name.toLowerCase().includes(q) ||
@@ -113,15 +131,13 @@ const filteredUsers = computed(() => {
   });
 });
 
-const loaded = ref(false);
+const loaded = computed(() => !usersQuery.isLoading.value);
 
 onMounted(async () => {
   try {
-    await Promise.all([admin.fetchUsers(), chapters.fetchAll()]);
+    await chapters.fetchAll();
   } catch {
     toasts.error(t("admin.loadFailed"));
-  } finally {
-    loaded.value = true;
   }
 });
 
@@ -143,11 +159,15 @@ async function submitAssignDialog() {
   if (!assignTargetUser.value || !assignDialogPick.value) return;
   assignDialogSubmitting.value = true;
   try {
+    const vars = {
+      userId: assignTargetUser.value.id,
+      chapterId: assignDialogPick.value.id,
+    };
     if (assignDialogMode.value === "approve") {
-      await admin.approve(assignTargetUser.value.id, assignDialogPick.value.id);
+      await approveMutation.mutateAsync(vars);
       toasts.success(t("admin.approveOk"));
     } else {
-      await admin.assignChapter(assignTargetUser.value.id, assignDialogPick.value.id);
+      await assignMutation.mutateAsync(vars);
       toasts.success(t("admin.assignOk"));
     }
     assignDialogOpen.value = false;
@@ -167,7 +187,7 @@ function askDeleteUser(u: User) {
     acceptLabel: t("admin.deleteUser"),
     accept: async () => {
       try {
-        await admin.remove(u.id);
+        await removeMutation.mutateAsync(u.id);
         toasts.success(t("admin.deleteUserOk", { name: u.name }));
       } catch {
         toasts.error(t("admin.deleteUserFail"));
@@ -179,10 +199,10 @@ function askDeleteUser(u: User) {
 async function toggleAdmin(u: User, on: boolean) {
   try {
     if (on) {
-      await admin.promote(u.id);
+      await promoteMutation.mutateAsync(u.id);
       toasts.success(t("admin.promoteOk", { name: u.name }));
     } else {
-      await admin.demote(u.id);
+      await demoteMutation.mutateAsync(u.id);
       toasts.success(t("admin.demoteOk", { name: u.name }));
     }
   } catch {
@@ -253,7 +273,7 @@ async function submitDelete() {
     });
     toasts.success(t("chapters.archivedToast"));
     // Refetch users so chips reflect the reassignment.
-    await admin.fetchUsers();
+    await usersQuery.refetch();
     deleteDialogOpen.value = false;
   } catch {
     toasts.error(t("chapters.archiveFail"));
@@ -309,16 +329,16 @@ async function submitDelete() {
     </AppCard>
 
     <AppCard>
-      <h2>{{ t("admin.usersTitle") }}</h2>
-      <p class="muted">{{ t("admin.usersIntro") }}</p>
+      <h2>{{ t("usersTitle") }}</h2>
+      <p class="muted">{{ t("usersIntro") }}</p>
       <AppSkeleton v-if="!loaded" :rows="4" />
       <template v-else>
         <SearchInput
-          v-if="admin.users.length > 0"
+          v-if="users.length > 0"
           v-model="userQuery"
           :placeholder="t('admin.searchPlaceholder')"
         />
-        <div v-if="admin.users.length === 0">
+        <div v-if="users.length === 0">
           <p class="muted">{{ t("admin.empty") }}</p>
         </div>
         <p v-else-if="filteredUsers.length === 0" class="muted">
