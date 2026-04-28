@@ -264,7 +264,7 @@
   },
   "feedback": {
     "title": "Hoe was {name}?",
-    "intro": "Vijf korte vragen, twee minuten. De eerste twee zijn verplicht; de rest mag je overslaan.",
+    "intro": "Vijf korte vragen, twee minuten. De eerste twee zijn noodzakelijk; de rest mag je overslaan.",
     "submit": "Verstuur",
     "submitFail": "Versturen mislukt",
     "thanks": "Bedankt – je feedback is binnen.",
