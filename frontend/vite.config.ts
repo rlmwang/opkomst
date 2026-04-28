@@ -17,7 +17,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8000",
+      // Forward /api/* to the backend. Defaults to the dev port; the
+      // E2E_API_PORT override lets ``playwright test`` boot the backend
+      // on a non-default port when 8000 is already in use.
+      "/api": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
     },
   },
   build: {

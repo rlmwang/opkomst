@@ -1,51 +1,71 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Critical path: log in as the seeded organiser, create an event,
- * land on its details page, copy the public URL, open the public
- * sign-up form, submit it, verify the thanks state.
+ * Critical path: public visitor lands on a real event's sign-up page,
+ * fills the form, submits, sees the thanks state.
  *
- * Doesn't cover the email-driven verification flow (no SMTP in
- * tests) or admin approval (the seed pre-approves both fixture
- * users, which is exactly the path 99% of organisers take).
+ * The event is created via the organiser API rather than the form
+ * UI — exercising the date-picker / location-autocomplete is its own
+ * concern and would belong to an organiser-form spec, not the
+ * public-flow critical path. The seed already pre-approves the
+ * organiser, so the API call works without admin intervention.
+ *
+ * Doesn't cover the email-driven flows (no SMTP in tests).
  */
-test("organiser creates an event, public visitor signs up", async ({ browser }) => {
-  // --- organiser: log in + create event ---
-  const organiser = await browser.newContext();
-  const page = await organiser.newPage();
-  await page.goto("/login");
-  await page.locator("input[type=email]").fill("organiser@local.dev");
-  await page.locator("input[type=password]").fill("organiser1234");
-  await page.locator("button[type=submit]").click();
-  await page.waitForURL("**/dashboard");
+test("public visitor signs up for an event and sees the thanks state", async ({
+  request,
+  browser,
+}) => {
+  // --- arrange: log in as organiser, create an event via the API ---
+  const loginRes = await request.post("/api/v1/auth/login", {
+    data: { email: "organiser@local.dev", password: "organiser1234" },
+  });
+  expect(loginRes.ok()).toBeTruthy();
+  const { token } = await loginRes.json();
+  expect(token).toBeTruthy();
 
-  await page.getByRole("link", { name: /nieuw evenement|new event/i }).click();
-  await page.locator("input[placeholder*='Naam'], input[placeholder*='Event name']").first().fill("E2E Smoke Event");
-  await page.locator("input[placeholder*='Locatie'], input[placeholder*='Location']").fill("Amsterdam");
-  // Date picker — pick today + 7 by typing into the day field.
-  // PrimeVue DatePicker accepts free-text in dd-mm-yy; type a
-  // hard-coded future date.
-  await page.locator("input[placeholder*='Datum'], input[placeholder*='Date']").fill("31-12-26");
-  await page.locator("button[type=submit]").click();
-  await page.waitForURL("**/details", { timeout: 10_000 });
-  // Public URL should be visible on the details overview.
-  const publicLink = page
-    .locator("a")
-    .filter({ hasText: /\/e\// })
-    .first();
-  const slugUrl = await publicLink.getAttribute("href");
-  expect(slugUrl).toBeTruthy();
+  // Far enough in the future that the reminder window doesn't fire
+  // and the public form treats it as upcoming.
+  const startsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30d
+  const endsAt = new Date(startsAt.getTime() + 2 * 60 * 60 * 1000); // +2h
 
-  // --- visitor: open public link, sign up ---
+  const eventRes = await request.post("/api/v1/events", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      name: "E2E Smoke Event",
+      location: "Amsterdam",
+      starts_at: startsAt.toISOString().slice(0, 19),
+      ends_at: endsAt.toISOString().slice(0, 19),
+      source_options: ["Mond-tot-mond"],
+      help_options: [],
+      questionnaire_enabled: false,
+      reminder_enabled: false,
+      locale: "nl",
+    },
+  });
+  expect(eventRes.ok()).toBeTruthy();
+  const event = await eventRes.json();
+  expect(event.slug).toBeTruthy();
+
+  // --- act: visitor opens the public link, fills + submits the form ---
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(slugUrl!);
+  await v.goto(`/e/${event.slug}`);
+
+  // Display name input is the first field on the form.
   await v.locator("input").first().fill("Anna Anoniem");
+
   // Source select — PrimeVue Select; click + pick first option.
   await v.locator(".p-select").first().click();
   await v.locator(".p-select-option").first().click();
+
   await v.getByRole("button", { name: /aanmelden|sign up/i }).click();
 
-  // Thanks state replaces the form.
-  await expect(v.locator("h2")).toContainText(/bedankt|thanks/i);
+  // --- assert: thanks state replaces the form ---
+  // Multiple h2s on the page (the always-rendered "Help ons leren"
+  // section sits below the form). Match by accessible name so the
+  // locator picks exactly the thanks heading.
+  await expect(
+    v.getByRole("heading", { level: 2, name: /bedankt|thanks/i }),
+  ).toBeVisible({ timeout: 5_000 });
 });
