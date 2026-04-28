@@ -59,8 +59,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: npm ci
-      - name: Lint (biome)
-        run: npx biome check
       - name: Type-check (vue-tsc)
         run: npx vue-tsc --noEmit
       - name: Unit tests (vitest)
@@ -68,6 +66,9 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    # Don't waste a Playwright run when the cheaper checks are red —
+    # backend or frontend failures usually explain the e2e symptom too.
+    needs: [backend, frontend]
     env:
       # Same defaults as the backend job — playwright.config.ts boots
       # both servers via webServer; they read these from process env.

@@ -27,3 +27,5 @@ openapi.json
 *.swp
 .DS_Store
 .coverage
+frontend/test-results/
+frontend/playwright-report/
