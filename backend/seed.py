@@ -19,7 +19,16 @@ from sqlalchemy.orm import Session
 
 from .auth import hash_password
 from .database import SessionLocal
-from .models import Event, FeedbackQuestion, FeedbackResponse, Signup, User
+from .models import (
+    EmailChannel,
+    EmailStatus,
+    Event,
+    FeedbackQuestion,
+    FeedbackResponse,
+    Signup,
+    SignupEmailDispatch,
+    User,
+)
 from .services import chapters as chapters_svc
 from .services import encryption
 from .services.slug import new_slug
@@ -216,101 +225,112 @@ def run_local_demo() -> None:
         # feedback-email lifecycle state, so the details page shows
         # the full UX without needing to set up SMTP / wait for the
         # worker.
-        if not db.query(Signup).filter(Signup.event_id == upcoming.entity_id).first():
-            db.add(
-                Signup(
-                    event_id=upcoming.entity_id,
-                    display_name="Anon Buur",
-                    party_size=2,
-                    source_choice="Flyer",
-                    help_choices=["Opbouwen"],
-                    encrypted_email=None,
-                    feedback_email_status="not_applicable",
+        def _seed_signup(
+            *,
+            event_id: str,
+            display_name: str,
+            party_size: int,
+            source: str,
+            help_choices: list[str],
+            email: str | None = None,
+            feedback_status: EmailStatus | None = None,
+            feedback_sent_at: datetime | None = None,
+            feedback_message_id: str | None = None,
+        ) -> None:
+            """Insert one demo signup + (optionally) a feedback
+            dispatch row matching the requested status."""
+            signup = Signup(
+                event_id=event_id,
+                display_name=display_name,
+                party_size=party_size,
+                source_choice=source,
+                help_choices=help_choices,
+                encrypted_email=encryption.encrypt(email)
+                if email and feedback_status == EmailStatus.PENDING
+                else None,
+            )
+            db.add(signup)
+            db.flush()
+            if feedback_status is not None:
+                db.add(
+                    SignupEmailDispatch(
+                        signup_id=signup.id,
+                        channel=EmailChannel.FEEDBACK,
+                        status=feedback_status,
+                        sent_at=feedback_sent_at,
+                        message_id=feedback_message_id,
+                    )
                 )
+
+        if not db.query(Signup).filter(Signup.event_id == upcoming.entity_id).first():
+            _seed_signup(
+                event_id=upcoming.entity_id,
+                display_name="Anon Buur",
+                party_size=2,
+                source="Flyer",
+                help_choices=["Opbouwen"],
             )
         if not db.query(Signup).filter(Signup.event_id == past.entity_id).first():
-            # not_applicable: someone signed up without an email.
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Demo Anon",
-                    party_size=1,
-                    source_choice="Social media",
-                    help_choices=["Opbouwen", "Afbreken"],
-                    encrypted_email=None,
-                    feedback_email_status="not_applicable",
-                )
+            # No-email signup: no dispatch row at all.
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Demo Anon",
+                party_size=1,
+                source="Social media",
+                help_choices=["Opbouwen", "Afbreken"],
             )
-            # pending: still ciphertext on disk, worker hasn't run yet
-            # (in real life this lasts until the next hourly tick).
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Pim",
-                    party_size=1,
-                    source_choice="Flyer",
-                    help_choices=["Afbreken"],
-                    encrypted_email=encryption.encrypt("pim@local.dev"),
-                    feedback_email_status="pending",
-                )
+            # pending: still ciphertext on disk, worker hasn't run yet.
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Pim",
+                party_size=1,
+                source="Flyer",
+                help_choices=["Afbreken"],
+                email="pim@local.dev",
+                feedback_status=EmailStatus.PENDING,
             )
             # sent: worker successfully handed the message to SMTP.
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Sien",
-                    party_size=2,
-                    source_choice="Mond-tot-mond",
-                    help_choices=["Opbouwen"],
-                    encrypted_email=None,
-                    feedback_email_status="sent",
-                    feedback_sent_at=now - timedelta(days=1, hours=23),
-                    feedback_message_id="<demo-sent@local.dev>",
-                )
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Sien",
+                party_size=2,
+                source="Mond-tot-mond",
+                help_choices=["Opbouwen"],
+                feedback_status=EmailStatus.SENT,
+                feedback_sent_at=now - timedelta(days=1, hours=23),
+                feedback_message_id="<demo-sent@local.dev>",
             )
-            # bounced: TEM webhook reported the address as
-            # undeliverable after a successful send.
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Robin",
-                    party_size=1,
-                    source_choice="Social media",
-                    help_choices=[],
-                    encrypted_email=None,
-                    feedback_email_status="bounced",
-                    feedback_sent_at=now - timedelta(days=1, hours=22),
-                    feedback_message_id="<demo-bounced@local.dev>",
-                )
+            # bounced: webhook flagged a hard delivery failure.
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Robin",
+                party_size=1,
+                source="Social media",
+                help_choices=[],
+                feedback_status=EmailStatus.BOUNCED,
+                feedback_sent_at=now - timedelta(days=1, hours=22),
+                feedback_message_id="<demo-bounced@local.dev>",
             )
-            # complaint: recipient flagged it as spam. Rare but the UI
-            # should distinguish it from a bounce.
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Kees",
-                    party_size=1,
-                    source_choice="Flyer",
-                    help_choices=["Opbouwen", "Afbreken"],
-                    encrypted_email=None,
-                    feedback_email_status="complaint",
-                    feedback_sent_at=now - timedelta(days=1, hours=21),
-                    feedback_message_id="<demo-complaint@local.dev>",
-                )
+            # complaint: recipient flagged it as spam.
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Kees",
+                party_size=1,
+                source="Flyer",
+                help_choices=["Opbouwen", "Afbreken"],
+                feedback_status=EmailStatus.COMPLAINT,
+                feedback_sent_at=now - timedelta(days=1, hours=21),
+                feedback_message_id="<demo-complaint@local.dev>",
             )
-            # failed: SMTP send threw after retry, or decrypt failed.
-            db.add(
-                Signup(
-                    event_id=past.entity_id,
-                    display_name="Mira",
-                    party_size=3,
-                    source_choice="Mond-tot-mond",
-                    help_choices=["Afbreken"],
-                    encrypted_email=None,
-                    feedback_email_status="failed",
-                    feedback_sent_at=now - timedelta(days=1, hours=20),
-                    feedback_message_id=None,
-                )
+            # failed: SMTP rejected after retries.
+            _seed_signup(
+                event_id=past.entity_id,
+                display_name="Mira",
+                party_size=3,
+                source="Mond-tot-mond",
+                help_choices=["Afbreken"],
+                feedback_status=EmailStatus.FAILED,
+                feedback_sent_at=now - timedelta(days=1, hours=20),
             )
 
         # Sample filled-in questionnaires on the past event so the stats

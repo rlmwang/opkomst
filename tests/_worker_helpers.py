@@ -2,7 +2,8 @@
 
 Skips the auth/admin/login flow that ``conftest.py`` wires up
 because worker tests don't need a logged-in user — they just need
-events and signups directly in the DB.
+events, signups, and ``signup_email_dispatches`` rows directly in
+the DB.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -10,7 +11,13 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 from uuid_utils import uuid7
 
-from backend.models import Event, Signup
+from backend.models import (
+    EmailChannel,
+    EmailStatus,
+    Event,
+    Signup,
+    SignupEmailDispatch,
+)
 from backend.services import encryption
 
 _slug_counter = 0
@@ -73,22 +80,27 @@ def make_signup(
     event: Event,
     *,
     email: str | None = "alice@example.test",
-    feedback_status: str | None = None,
-    reminder_status: str | None = None,
+    feedback: str | bool | None = None,
+    reminder: str | bool | None = None,
     display_name: str = "Alice",
 ) -> Signup:
-    """Insert a Signup row. ``email`` controls the encrypted blob;
-    ``*_status`` defaults derive from the event's toggles when
-    ``email`` is set, mirroring the router's logic. Pass an
-    explicit status to bypass that mapping."""
-    if feedback_status is None:
-        feedback_status = (
-            "pending" if email and event.questionnaire_enabled else "not_applicable"
-        )
-    if reminder_status is None:
-        reminder_status = (
-            "pending" if email and event.reminder_enabled else "not_applicable"
-        )
+    """Insert a Signup row plus its dispatch rows.
+
+    ``feedback`` / ``reminder`` accept:
+
+    * ``None`` (default) — derive from ``email`` and the event's
+      toggle, mirroring the signups router. ``"pending"`` if the
+      channel applies, otherwise no dispatch row.
+    * ``False`` — explicitly skip the dispatch row.
+    * a status string (``"pending"``, ``"sent"``, ``"failed"``,
+      ``"bounced"``, ``"complaint"``) — insert a dispatch row at
+      that status.
+    """
+    if feedback is None:
+        feedback = "pending" if email and event.questionnaire_enabled else False
+    if reminder is None:
+        reminder = "pending" if email and event.reminder_enabled else False
+
     signup = Signup(
         event_id=event.entity_id,
         display_name=display_name,
@@ -96,12 +108,44 @@ def make_signup(
         source_choice="Mond-tot-mond",
         help_choices=[],
         encrypted_email=encryption.encrypt(email) if email else None,
-        feedback_email_status=feedback_status,
-        reminder_email_status=reminder_status,
     )
     db.add(signup)
     db.flush()
+
+    if feedback:
+        db.add(
+            SignupEmailDispatch(
+                signup_id=signup.id,
+                channel=EmailChannel.FEEDBACK,
+                status=EmailStatus(feedback),
+            )
+        )
+    if reminder:
+        db.add(
+            SignupEmailDispatch(
+                signup_id=signup.id,
+                channel=EmailChannel.REMINDER,
+                status=EmailStatus(reminder),
+            )
+        )
+    db.flush()
     return signup
+
+
+def get_dispatch(
+    db: Session, signup_id: str, channel: EmailChannel
+) -> SignupEmailDispatch | None:
+    """Fetch the (signup, channel) dispatch row for assertions
+    or in-test mutation (e.g. setting ``message_id`` to simulate
+    a partial-send crash)."""
+    return (
+        db.query(SignupEmailDispatch)
+        .filter(
+            SignupEmailDispatch.signup_id == signup_id,
+            SignupEmailDispatch.channel == channel,
+        )
+        .first()
+    )
 
 
 def commit(db: Session) -> None:

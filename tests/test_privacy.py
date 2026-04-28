@@ -9,25 +9,23 @@
 """
 
 
-def test_decrypt_only_called_from_email_workers():
-    """Static check: the only call sites of ``encryption.decrypt``
-    in the backend are the two email workers. Adding a third
-    caller is a privacy red flag and must be a deliberate code
-    review, not a casual change."""
+def test_decrypt_only_called_from_email_dispatcher():
+    """Static check: the only call site of ``encryption.decrypt``
+    in the backend is the generic email dispatcher. Adding a
+    second caller is a privacy red flag and must be a deliberate
+    code review, not a casual change."""
     import pathlib
 
     backend_dir = pathlib.Path(__file__).resolve().parent.parent / "backend"
     callers: list[str] = []
     for path in backend_dir.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        # Don't count the definition itself.
         if path.name == "encryption.py":
             continue
         if "encryption.decrypt" in text or "from .encryption import decrypt" in text:
             callers.append(str(path.relative_to(backend_dir.parent)))
     assert sorted(callers) == [
-        "backend/services/feedback_worker.py",
-        "backend/services/reminder_worker.py",
+        "backend/services/email_dispatcher.py",
     ], callers
 
 

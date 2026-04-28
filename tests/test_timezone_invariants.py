@@ -1,15 +1,11 @@
-"""Phase 5.7 — property test for the reminder window check.
+"""Property test for the reminder window check.
 
 ``Event.starts_at`` is stored naive but represents UTC, while the
 worker compares against a tz-aware ``now``. This property test
 fuzzes a wide range of timestamps (in different source
-timezones) to verify the worker's in-window decision matches a
+timezones) to verify the dispatcher's in-window decision matches a
 hand-rolled UTC reference. Catches naive vs. aware comparison
 landmines.
-
-Hypothesis runs many examples per test invocation, so we manage
-the DB state inline rather than through the per-test ``db``
-fixture.
 """
 
 from datetime import UTC, datetime, timedelta, timezone
@@ -17,18 +13,25 @@ from datetime import UTC, datetime, timedelta, timezone
 import freezegun
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from uuid_utils import uuid7
 
 from backend.database import Base, SessionLocal, engine
-from backend.models import Event, Signup
-from backend.services import encryption, reminder_worker
+from backend.models import (
+    EmailChannel,
+    EmailStatus,
+    Event,
+    Signup,
+    SignupEmailDispatch,
+)
+from backend.services import email_dispatcher, encryption
+from backend.services.email_channels import REMINDER
 
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 
 def _setup_clean_db() -> None:
     """Drop and recreate every table — Hypothesis runs ~80 examples
-    in this test, each needing a clean DB; the regular per-test
-    ``db`` fixture only fires once."""
+    in this test, each needing a clean DB."""
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 
@@ -65,10 +68,25 @@ def _seed_event_and_signup(starts_at_utc_naive: datetime) -> None:
             source_choice="x",
             help_choices=[],
             encrypted_email=encryption.encrypt("alice@example.test"),
-            feedback_email_status="pending",
-            reminder_email_status="pending",
         )
         db.add(s)
+        db.flush()
+        db.add(
+            SignupEmailDispatch(
+                id=str(uuid7()),
+                signup_id=s.id,
+                channel=EmailChannel.REMINDER,
+                status=EmailStatus.PENDING,
+            )
+        )
+        db.add(
+            SignupEmailDispatch(
+                id=str(uuid7()),
+                signup_id=s.id,
+                channel=EmailChannel.FEEDBACK,
+                status=EmailStatus.PENDING,
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -80,16 +98,14 @@ def _seed_event_and_signup(starts_at_utc_naive: datetime) -> None:
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 @given(
-    # 1 week before to 1 week after the anchor — wider than 72h
-    # so the boundary conditions are exercised.
     offset_minutes=st.integers(min_value=-7 * 24 * 60, max_value=7 * 24 * 60),
-    aware_offset_minutes=st.sampled_from([0, 60, -300, 540]),  # UTC, +01, -05, +09
+    aware_offset_minutes=st.sampled_from([0, 60, -300, 540]),
 )
 def test_reminder_window_check_matches_utc_reference(
     offset_minutes: int, aware_offset_minutes: int, fake_email
 ) -> None:
-    """For every (offset, source-tz) pair, the worker fires iff
-    the event starts in (now, now + 72h]."""
+    """For every (offset, source-tz) pair, the dispatcher fires
+    iff the event starts in (now, now + 72h]."""
     fake_email.reset()
     _setup_clean_db()
 
@@ -100,7 +116,7 @@ def test_reminder_window_check_matches_utc_reference(
     _seed_event_and_signup(starts_at_utc_naive)
 
     with freezegun.freeze_time(_NOW):
-        n = reminder_worker.run_once()
+        n = email_dispatcher.run_once(REMINDER)
 
     delta = starts_at_utc_naive - _NOW.replace(tzinfo=None)
     in_window = timedelta(0) < delta <= timedelta(hours=72)

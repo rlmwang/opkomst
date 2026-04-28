@@ -17,7 +17,16 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..database import get_db
-from ..models import Event, FeedbackQuestion, FeedbackResponse, FeedbackToken, Signup, User
+from ..models import (
+    EmailChannel,
+    Event,
+    FeedbackQuestion,
+    FeedbackResponse,
+    FeedbackToken,
+    Signup,
+    SignupEmailDispatch,
+    User,
+)
 from ..schemas.feedback import (
     EmailHealthOut,
     FeedbackFormOut,
@@ -179,15 +188,29 @@ def feedback_summary(
     )
     rate = (submission_count / signup_count) if signup_count else 0.0
 
+    # Group feedback dispatches for this event's signups by status.
+    # ``not_applicable`` is now derived: every signup without a
+    # feedback dispatch row is in that bucket.
     health_rows = (
-        db.query(Signup.feedback_email_status, func.count(Signup.id))
-        .filter(Signup.event_id == entity_id)
-        .group_by(Signup.feedback_email_status)
+        db.query(SignupEmailDispatch.status, func.count(SignupEmailDispatch.id))
+        .join(Signup, Signup.id == SignupEmailDispatch.signup_id)
+        .filter(
+            Signup.event_id == entity_id,
+            SignupEmailDispatch.channel == EmailChannel.FEEDBACK,
+        )
+        .group_by(SignupEmailDispatch.status)
         .all()
     )
-    health_counts: dict[str, int] = {status: int(count) for status, count in health_rows}
+    health_counts: dict[str, int] = {
+        getattr(status, "value", status): int(count)
+        for status, count in health_rows
+    }
+    dispatched = sum(health_counts.values())
     email_health = EmailHealthOut(
-        not_applicable=health_counts.get("not_applicable", 0),
+        # not_applicable = signups that never got a feedback
+        # dispatch (no email at signup time, or feedback toggle
+        # off, or retired by toggle-off cleanup).
+        not_applicable=max(0, signup_count - dispatched),
         pending=health_counts.get("pending", 0),
         sent=health_counts.get("sent", 0),
         bounced=health_counts.get("bounced", 0),

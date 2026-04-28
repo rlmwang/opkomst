@@ -76,19 +76,11 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     # configured or the attendee skipped the question.
     help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     encrypted_email: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    feedback_email_status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="not_applicable", index=True
-    )
-    feedback_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    feedback_message_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
-    # Parallel set of fields tracking the 3-days-before reminder.
-    # ``reminder_email_status`` mirrors the lifecycle of the
-    # feedback status (not_applicable / pending / sent / bounced /
-    # complaint / failed). ``encrypted_email`` is wiped only after
-    # *every* pending email activity finishes (see
-    # ``services.email_lifecycle._wipe_if_done``).
-    reminder_email_status: Mapped[str] = mapped_column(
-        Text, nullable=False, default="not_applicable", index=True
-    )
-    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    reminder_message_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
+    # Per-channel send state lives on ``SignupEmailDispatch`` —
+    # one row per (signup, channel) the email applies to. Absence
+    # of a dispatch row for a (signup, channel) pair means "this
+    # channel doesn't apply / never will" (no email at signup
+    # time, toggle off, expired window, or retired by toggle-off
+    # cleanup). The privacy-wipe rule reads as "wipe ciphertext
+    # iff no SignupEmailDispatch row with status='pending' refers
+    # to this signup".

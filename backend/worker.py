@@ -26,7 +26,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from .database import SessionLocal
 from .migrate import run_migrations
-from .services import email_lifecycle, feedback_worker, reminder_worker
+from .services import email_dispatcher, email_reaper
+from .services.email_channels import ALL_CHANNELS
 
 logger = structlog.get_logger()
 
@@ -60,7 +61,7 @@ def main() -> None:
     try:
         db = SessionLocal()
         try:
-            reaped = email_lifecycle.reap_partial_sends(db)
+            reaped = email_reaper.reap_partial_sends(db)
             if reaped:
                 logger.info("worker_boot_reap_partial", count=reaped)
         finally:
@@ -69,7 +70,7 @@ def main() -> None:
         logger.exception("worker_boot_reap_partial_failed")
 
     try:
-        boot_reaped = reminder_worker.reap_expired()
+        boot_reaped = email_reaper.reap_expired_windows()
         if boot_reaped:
             logger.info("worker_boot_reap_expired", count=boot_reaped)
     except Exception:
@@ -83,32 +84,38 @@ def main() -> None:
     # would mean the process ignores ``docker stop`` until the
     # next hourly tick.)
     scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        feedback_worker.run_once, "interval", hours=1, id="feedback_sweep"
-    )
-    scheduler.add_job(
-        reminder_worker.run_once, "interval", hours=1, id="reminder_sweep"
-    )
+    # One sweep job per channel, parameterised over the same
+    # generic dispatcher. Adding a third channel is a single
+    # ``ChannelSpec`` constant in ``email_channels.py``; this
+    # loop picks it up automatically.
+    for spec in ALL_CHANNELS:
+        scheduler.add_job(
+            email_dispatcher.run_once,
+            "interval",
+            hours=1,
+            id=f"{spec.channel.value}_sweep",
+            args=(spec,),
+        )
 
     def _reap_partial() -> None:
         # Wrapper so APScheduler doesn't try to schedule a
         # closure-bound DB session. Each tick gets a fresh one.
         db = SessionLocal()
         try:
-            email_lifecycle.reap_partial_sends(db)
+            email_reaper.reap_partial_sends(db)
         finally:
             db.close()
 
     scheduler.add_job(
         _reap_partial, "interval", hours=1, id="reap_partial_sends"
     )
-    # Daily catch-up: reminders pending for events that have
-    # already started (72h window passed without a successful
-    # tick — typical cause: the worker was down across the
-    # window). Flip those to not_applicable so the ciphertext
-    # eventually gets wiped.
+    # Daily catch-up: dispatches stuck pending after their
+    # event already started.
     scheduler.add_job(
-        reminder_worker.reap_expired, "interval", hours=24, id="reminder_reap_expired"
+        email_reaper.reap_expired_windows,
+        "interval",
+        hours=24,
+        id="reap_expired_windows",
     )
 
     stop_event = threading.Event()

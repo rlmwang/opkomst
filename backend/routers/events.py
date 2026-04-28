@@ -35,51 +35,23 @@ def _retire_disabled_channels(
     questionnaire_disabled: bool,
     reminder_disabled: bool,
 ) -> None:
-    """When an organiser flips an email toggle off mid-flight, the
-    signups that were waiting on that channel stop being eligible.
-    Mark their pending status to ``not_applicable`` and, if no
-    other channel still has pending activity for that signup,
-    wipe the encrypted email.
+    """When an organiser flips an email toggle off mid-flight,
+    the signups that were waiting on that channel stop being
+    eligible. Defers to ``email_reaper.retire_event_channels``
+    which does the actual delete + ciphertext-wipe pass."""
+    from ..models import EmailChannel
+    from ..services import email_reaper
 
-    All three updates are conditional SQL UPDATEs filtered on
-    ``status == 'pending'`` (and the wipe on both columns
-    settled) so a worker that's *currently* processing one of
-    these signups can't be stomped — same defence-in-depth
-    pattern the workers themselves use (Phase 1.2). ORM
-    attribute writes would have lost that race."""
-    if not (questionnaire_disabled or reminder_disabled):
-        return
-    # ``message_id IS NULL`` excludes rows currently mid-send by a
-    # worker (which has pre-minted the message_id but hasn't
-    # finalised yet). Without that filter, a worker can SMTP-ack
-    # the email while we flip the channel to not_applicable —
-    # the email goes out but the row says it didn't.
+    channels: set[EmailChannel] = set()
     if questionnaire_disabled:
-        db.query(Signup).filter(
-            Signup.event_id == event_entity_id,
-            Signup.feedback_email_status == "pending",
-            Signup.feedback_message_id.is_(None),
-        ).update(
-            {Signup.feedback_email_status: "not_applicable"},
-            synchronize_session=False,
-        )
+        channels.add(EmailChannel.FEEDBACK)
     if reminder_disabled:
-        db.query(Signup).filter(
-            Signup.event_id == event_entity_id,
-            Signup.reminder_email_status == "pending",
-            Signup.reminder_message_id.is_(None),
-        ).update(
-            {Signup.reminder_email_status: "not_applicable"},
-            synchronize_session=False,
-        )
-    # Wipe ciphertext on every signup of this event whose channels
-    # are now both settled — could be ones we just retired, or
-    # ones whose other channel was already done.
-    db.query(Signup).filter(
-        Signup.event_id == event_entity_id,
-        Signup.feedback_email_status != "pending",
-        Signup.reminder_email_status != "pending",
-    ).update({Signup.encrypted_email: None}, synchronize_session=False)
+        channels.add(EmailChannel.REMINDER)
+    email_reaper.retire_event_channels(
+        db,
+        event_entity_id=event_entity_id,
+        channels=channels,
+    )
 
 
 def _attendees_for(db: Session, entity_id: str) -> int:
@@ -233,12 +205,13 @@ def send_feedback_emails_now(
     user: User = Depends(require_approved),
 ) -> dict[str, int]:
     """Manually trigger the feedback worker for a single event."""
-    from ..services import feedback_worker
+    from ..services import email_dispatcher
+    from ..services.email_channels import FEEDBACK
 
     event = _get_event_scoped(db, entity_id, user)
     if not event.questionnaire_enabled:
         raise HTTPException(status_code=409, detail="Questionnaire is disabled for this event")
-    processed = feedback_worker.run_for_event(entity_id)
+    processed = email_dispatcher.run_for_event(FEEDBACK, entity_id)
     logger.info("feedback_emails_triggered", event_id=entity_id, actor_id=user.id, processed=processed)
     return {"processed": processed}
 

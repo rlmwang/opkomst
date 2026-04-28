@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Signup
+from ..models import EmailStatus, SignupEmailDispatch
 from ..services.email import emit_metric
 
 logger = structlog.get_logger()
@@ -76,45 +76,54 @@ async def scaleway_email_event(
         if not message_id:
             continue
 
-        # The webhook can be reporting on either the feedback or
-        # the reminder send; look the message_id up in both columns
-        # and update whichever channel matches.
-        signup = (
-            db.query(Signup)
-            .filter(Signup.feedback_message_id == message_id)
+        # Single indexed lookup over the unified dispatches
+        # table. Whatever channel sent this message_id, we find
+        # it in one query — no asymmetric "try column A, then
+        # column B" ladder.
+        dispatch = (
+            db.query(SignupEmailDispatch)
+            .filter(SignupEmailDispatch.message_id == message_id)
             .first()
         )
-        channel = "feedback"
-        if signup is None:
-            signup = (
-                db.query(Signup)
-                .filter(Signup.reminder_message_id == message_id)
-                .first()
-            )
-            channel = "reminder"
-        if not signup:
+        if dispatch is None:
             # Could be from a previous deployment, or a message we never
             # tracked. Log and move on — webhooks are fire-and-forget.
             logger.info("scaleway_event_unmatched", event_type=event_type, message_id=message_id)
             continue
 
-        status_attr = f"{channel}_email_status"
         if event_type in _BOUNCE_EVENTS:
-            setattr(signup, status_attr, "bounced")
-            db.add(signup)
-            logger.info(
-                "email_bounced", channel=channel, signup_id=signup.id, event_type=event_type
-            )
-            emit_metric(channel=channel, outcome="bounced")
+            new_status = EmailStatus.BOUNCED
+            outcome = "bounced"
+            log_event = "email_bounced"
         elif event_type in _COMPLAINT_EVENTS:
-            setattr(signup, status_attr, "complaint")
-            db.add(signup)
-            logger.info(
-                "email_complaint", channel=channel, signup_id=signup.id, event_type=event_type
+            new_status = EmailStatus.COMPLAINT
+            outcome = "complaint"
+            log_event = "email_complaint"
+        else:
+            # email_delivered / email_open / email_click / soft
+            # bounces: leave the dispatch alone. Soft bounces in
+            # particular often resolve on their own.
+            continue
+
+        # Only flip rows that are currently 'sent' — never
+        # downgrade a row that's already moved to a final state
+        # (e.g. retired by toggle-off cleanup before the webhook
+        # arrived).
+        updated = (
+            db.query(SignupEmailDispatch)
+            .filter(
+                SignupEmailDispatch.id == dispatch.id,
+                SignupEmailDispatch.status == EmailStatus.SENT,
             )
-            emit_metric(channel=channel, outcome="complaint")
-        # email_delivered / email_open / email_click / soft bounces:
-        # leave "sent" alone. Soft bounces in particular often resolve
-        # on their own and would mislead organisers if we surfaced them.
+            .update({SignupEmailDispatch.status: new_status}, synchronize_session=False)
+        )
+        if updated:
+            logger.info(
+                log_event,
+                channel=dispatch.channel.value,
+                dispatch_id=dispatch.id,
+                event_type=event_type,
+            )
+            emit_metric(channel=dispatch.channel.value, outcome=outcome)
 
     db.commit()

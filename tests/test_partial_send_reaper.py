@@ -1,41 +1,49 @@
-"""Phase 2.1 — boot-time reaper.
+"""Boot-time + hourly reaper for stuck mid-send dispatches.
 
 When a worker process crashes between persisting the message_id
 and getting the SMTP ack (or between ack and the final status
-flip), the row is left ``status == 'pending'`` AND
+flip), the dispatch row is left ``status='pending'`` AND
 ``message_id IS NOT NULL``. The next worker boot calls
-``email_lifecycle.reap_partial_sends(db)`` which flips those rows
-to ``failed`` so the next sweep doesn't re-process them.
+``email_reaper.reap_partial_sends(db)`` which flips those rows to
+``failed`` so the next sweep doesn't re-process them.
 """
 
 from datetime import timedelta
 from typing import Any
 
-from _worker_helpers import commit, make_event, make_signup
+from _worker_helpers import commit, get_dispatch, make_event, make_signup
 
 from backend.database import SessionLocal
-from backend.models import Signup
-from backend.services import email_lifecycle, reminder_worker
+from backend.models import EmailChannel, EmailStatus, Signup
+from backend.services import email_dispatcher, email_reaper
+from backend.services.email_channels import REMINDER
+
+
+def _stick(db: Any, signup_id: str, channel: EmailChannel) -> None:
+    """Mark a dispatch as mid-send by giving it a message_id while
+    leaving its status at pending — exactly the shape a crashed
+    worker leaves behind."""
+    d = get_dispatch(db, signup_id, channel)
+    assert d is not None
+    d.message_id = "<stuck@opkomst.nu>"
+    db.add(d)
 
 
 def test_reaper_flips_partial_reminder_to_failed(db: Any) -> None:
-    """Row with reminder_email_status='pending' AND message_id set
-    is a stuck partial send — reap to 'failed'."""
     e = make_event(db, starts_in=timedelta(hours=24))
     s = make_signup(db, e, email="alice@example.test")
-    # Simulate a crash between pre-mint commit and SMTP ack.
-    s.reminder_message_id = "<stuck@opkomst.nu>"
-    db.add(s)
+    _stick(db, s.id, EmailChannel.REMINDER)
     commit(db)
 
-    reaped = email_lifecycle.reap_partial_sends(SessionLocal())
+    reaped = email_reaper.reap_partial_sends(SessionLocal())
     assert reaped == 1
 
     fresh = SessionLocal()
     try:
-        row = fresh.query(Signup).filter(Signup.id == s.id).first()
-        assert row is not None
-        assert row.reminder_email_status == "failed"
+        d = get_dispatch(fresh, s.id, EmailChannel.REMINDER)
+        assert d is not None
+        assert d.status == EmailStatus.FAILED
+        assert d.sent_at is not None
     finally:
         fresh.close()
 
@@ -43,39 +51,36 @@ def test_reaper_flips_partial_reminder_to_failed(db: Any) -> None:
 def test_reaper_flips_partial_feedback_to_failed(db: Any) -> None:
     e = make_event(db, starts_in=timedelta(hours=-26), duration=timedelta(hours=1))
     s = make_signup(db, e, email="alice@example.test")
-    s.feedback_message_id = "<stuck@opkomst.nu>"
-    db.add(s)
+    _stick(db, s.id, EmailChannel.FEEDBACK)
     commit(db)
 
-    reaped = email_lifecycle.reap_partial_sends(SessionLocal())
+    reaped = email_reaper.reap_partial_sends(SessionLocal())
     assert reaped == 1
 
     fresh = SessionLocal()
     try:
-        row = fresh.query(Signup).filter(Signup.id == s.id).first()
-        assert row is not None
-        assert row.feedback_email_status == "failed"
+        d = get_dispatch(fresh, s.id, EmailChannel.FEEDBACK)
+        assert d is not None
+        assert d.status == EmailStatus.FAILED
     finally:
         fresh.close()
 
 
 def test_reaper_skips_clean_pending_rows(db: Any) -> None:
-    """Pending rows with message_id NULL haven't been touched by a
-    worker yet — leave them alone so the next sweep handles them
-    normally."""
+    """Pending rows with message_id NULL haven't been claimed by a
+    worker yet — leave them alone."""
     e = make_event(db, starts_in=timedelta(hours=24))
     s = make_signup(db, e, email="alice@example.test")
     commit(db)
 
-    reaped = email_lifecycle.reap_partial_sends(SessionLocal())
-    assert reaped == 0
+    assert email_reaper.reap_partial_sends(SessionLocal()) == 0
 
     fresh = SessionLocal()
     try:
-        row = fresh.query(Signup).filter(Signup.id == s.id).first()
-        assert row is not None
-        assert row.reminder_email_status == "pending"
-        assert row.feedback_email_status == "pending"
+        d_r = get_dispatch(fresh, s.id, EmailChannel.REMINDER)
+        d_f = get_dispatch(fresh, s.id, EmailChannel.FEEDBACK)
+        assert d_r is not None and d_r.status == EmailStatus.PENDING
+        assert d_f is not None and d_f.status == EmailStatus.PENDING
     finally:
         fresh.close()
 
@@ -84,76 +89,91 @@ def test_reaper_subsequent_sweep_does_not_resend(
     db: Any, fake_email: Any
 ) -> None:
     """End-to-end: stuck row → reaper → next sweep produces zero
-    sends because the row is no longer ``pending``."""
+    sends because the dispatch is no longer ``pending``."""
     e = make_event(db, starts_in=timedelta(hours=24))
     s = make_signup(db, e, email="alice@example.test")
-    s.reminder_message_id = "<stuck@opkomst.nu>"
-    db.add(s)
+    _stick(db, s.id, EmailChannel.REMINDER)
     commit(db)
 
-    email_lifecycle.reap_partial_sends(SessionLocal())
-    reminder_worker.run_once()
+    email_reaper.reap_partial_sends(SessionLocal())
+    email_dispatcher.run_once(REMINDER)
 
     assert fake_email.sent == []
 
 
-def test_reaper_wipes_ciphertext_when_both_channels_settled(
+def test_reaper_wipes_ciphertext_when_both_dispatches_settled(
     db: Any,
 ) -> None:
-    """If reaping was the *last* settling action for a row (e.g.
-    feedback already sent, reminder was the partial), the wipe
-    fires."""
+    """If reaping was the last settling action (feedback already
+    sent, reminder was the partial), the wipe fires."""
     e = make_event(db, starts_in=timedelta(hours=24))
-    s = make_signup(db, e, email="alice@example.test", feedback_status="sent")
-    s.reminder_message_id = "<stuck@opkomst.nu>"
-    db.add(s)
+    s = make_signup(db, e, email="alice@example.test", feedback="sent")
+    _stick(db, s.id, EmailChannel.REMINDER)
     commit(db)
 
-    email_lifecycle.reap_partial_sends(SessionLocal())
+    email_reaper.reap_partial_sends(SessionLocal())
 
     fresh = SessionLocal()
     try:
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
-        assert row.reminder_email_status == "failed"
-        assert row.encrypted_email is None  # both channels settled → wiped
+        assert row.encrypted_email is None
+        d = get_dispatch(fresh, s.id, EmailChannel.REMINDER)
+        assert d is not None and d.status == EmailStatus.FAILED
     finally:
         fresh.close()
 
 
-def test_reaper_stamps_sent_at_so_row_isnt_re_fetched(
+def test_reaper_keeps_ciphertext_when_other_dispatch_still_pending(
+    db: Any,
+) -> None:
+    """Reminder reaped to failed; feedback still pending → keep
+    ciphertext so the feedback worker can decrypt later."""
+    e = make_event(db, starts_in=timedelta(hours=24))
+    s = make_signup(db, e, email="alice@example.test")
+    _stick(db, s.id, EmailChannel.REMINDER)
+    commit(db)
+
+    email_reaper.reap_partial_sends(SessionLocal())
+
+    fresh = SessionLocal()
+    try:
+        row = fresh.query(Signup).filter(Signup.id == s.id).first()
+        assert row is not None
+        assert row.encrypted_email is not None
+        d_r = get_dispatch(fresh, s.id, EmailChannel.REMINDER)
+        assert d_r is not None and d_r.status == EmailStatus.FAILED
+        d_f = get_dispatch(fresh, s.id, EmailChannel.FEEDBACK)
+        assert d_f is not None and d_f.status == EmailStatus.PENDING
+    finally:
+        fresh.close()
+
+
+def test_reaper_stamps_sent_at_breaking_the_hot_loop(
     db: Any, fake_email: Any
 ) -> None:
-    """The reaper must stamp ``*_sent_at`` along with the status
-    flip, otherwise the regular sweep's ``sent_at IS NULL`` filter
-    keeps re-fetching the row every tick.
-
-    Two-step assertion: (a) the row is left at ``failed`` with a
-    ``sent_at`` stamp; (b) the next ``feedback_worker.run_once``
-    finds zero rows to process, confirming the reaper actually
-    breaks the hot loop.
-    """
-    from backend.services import feedback_worker
-
+    """The reaper must stamp ``sent_at`` along with the status
+    flip so the regular sweep can't re-fetch the row by accident.
+    Belt-and-braces: the status filter alone is sufficient, but
+    keeping sent_at populated keeps the row out of any
+    diagnostics that scan ``sent_at IS NULL``."""
     e = make_event(db, starts_in=timedelta(hours=-26), duration=timedelta(hours=1))
     s = make_signup(db, e, email="alice@example.test")
-    s.feedback_message_id = "<stuck@opkomst.nu>"
-    db.add(s)
+    _stick(db, s.id, EmailChannel.FEEDBACK)
     commit(db)
 
-    email_lifecycle.reap_partial_sends(SessionLocal())
+    email_reaper.reap_partial_sends(SessionLocal())
 
     fresh = SessionLocal()
     try:
-        row = fresh.query(Signup).filter(Signup.id == s.id).first()
-        assert row is not None
-        assert row.feedback_email_status == "failed"
-        assert row.feedback_sent_at is not None
+        d = get_dispatch(fresh, s.id, EmailChannel.FEEDBACK)
+        assert d is not None
+        assert d.status == EmailStatus.FAILED
+        assert d.sent_at is not None
     finally:
         fresh.close()
 
-    # And the next sweep finds nothing to do — the row is
-    # excluded by both the status filter (now 'failed') and (as
-    # belt-and-braces) the sent_at filter.
-    assert feedback_worker.run_once() == 0
+    from backend.services.email_channels import FEEDBACK
+
+    assert email_dispatcher.run_once(FEEDBACK) == 0
     assert fake_email.sent == []

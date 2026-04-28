@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Signup
+from ..models import EmailChannel, EmailStatus, Signup, SignupEmailDispatch
 from ..schemas.events import SignupAck, SignupCreate
 from ..services import encryption
 from ..services import events as events_svc
@@ -37,9 +37,11 @@ def create_signup(
         )
 
     # Decide which channels apply for this signup. Reminders apply
-    # whenever the event hasn't started yet — the worker's own
-    # window check (``REMINDER_WINDOW``) handles "fire now vs.
-    # wait" once we're inside the 3-day pre-event period.
+    # only when the event hasn't started yet — the worker's window
+    # check would skip a row whose event is already in the past;
+    # creating a row for that case would just be debt for the
+    # reaper to clean up later. Feedback applies whenever its
+    # toggle is on.
     now = datetime.now(UTC)
     starts_at = event.starts_at
     if starts_at.tzinfo is None:
@@ -47,16 +49,14 @@ def create_signup(
         starts_at = starts_at.replace(tzinfo=UTC)
     event_in_future = starts_at > now
 
-    will_send_feedback = bool(data.email) and event.questionnaire_enabled
-    will_send_reminder = (
-        bool(data.email) and event.reminder_enabled and event_in_future
-    )
-    will_send_anything = will_send_feedback or will_send_reminder
-    encrypted = (
-        encryption.encrypt(data.email)
-        if will_send_anything and data.email
-        else None
-    )
+    has_email = bool(data.email)
+    channels: list[EmailChannel] = []
+    if has_email and event.questionnaire_enabled:
+        channels.append(EmailChannel.FEEDBACK)
+    if has_email and event.reminder_enabled and event_in_future:
+        channels.append(EmailChannel.REMINDER)
+
+    encrypted = encryption.encrypt(data.email) if channels and data.email else None
     signup = Signup(
         # Point at the stable logical id so signups survive every edit.
         event_id=event.entity_id,
@@ -65,10 +65,23 @@ def create_signup(
         source_choice=data.source_choice,
         help_choices=data.help_choices,
         encrypted_email=encrypted,
-        feedback_email_status="pending" if will_send_feedback else "not_applicable",
-        reminder_email_status="pending" if will_send_reminder else "not_applicable",
     )
     db.add(signup)
+    db.flush()  # need signup.id for the dispatch rows.
+
+    for ch in channels:
+        db.add(
+            SignupEmailDispatch(
+                signup_id=signup.id,
+                channel=ch,
+                status=EmailStatus.PENDING,
+            )
+        )
     db.commit()
-    logger.info("signup_created", event_id=event.entity_id, party_size=data.party_size)
+    logger.info(
+        "signup_created",
+        event_id=event.entity_id,
+        party_size=data.party_size,
+        channels=[c.value for c in channels],
+    )
     return SignupAck()
