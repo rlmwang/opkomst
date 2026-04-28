@@ -111,31 +111,6 @@ describe("auth store", () => {
   });
 });
 
-// ---- chapters -----------------------------------------------------
-
-describe("chapters store", () => {
-  it("fetchAll calls GET /api/v1/chapters and stores the response", async () => {
-    const { useChaptersStore } = await import("@/stores/chapters");
-    const store = useChaptersStore();
-    mockGet.mockResolvedValueOnce([{ id: "ch1", name: "A" } as never]);
-
-    await store.fetchAll();
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/chapters");
-    expect(store.all).toHaveLength(1);
-  });
-
-  it("fetchAll passes ?include_archived=true when opted in", async () => {
-    const { useChaptersStore } = await import("@/stores/chapters");
-    const store = useChaptersStore();
-    mockGet.mockResolvedValueOnce([]);
-
-    await store.fetchAll(true);
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/chapters?include_archived=true");
-  });
-});
-
 // ---- events -------------------------------------------------------
 
 describe("events store", () => {

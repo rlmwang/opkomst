@@ -4,7 +4,7 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import ToggleSwitch from "primevue/toggleswitch";
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ChapterPicker from "@/components/ChapterPicker.vue";
 import AppCard from "@/components/AppCard.vue";
@@ -23,20 +23,27 @@ import {
   userList,
   useUsers,
 } from "@/composables/useAdmin";
+import {
+  type Chapter,
+  chapterList,
+  getChapterUsage,
+  useArchiveChapter,
+  useChapters,
+  useCreateChapter,
+  useRestoreChapter,
+  useUpdateChapter,
+} from "@/composables/useChapters";
 import { useConfirms } from "@/lib/confirms";
 import { useToasts } from "@/lib/toasts";
-import { type Chapter, useChaptersStore } from "@/stores/chapters";
 import { type User, useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
 const auth = useAuthStore();
-const chapters = useChaptersStore();
 const toasts = useToasts();
 const confirms = useConfirms();
 
-// Vue Query — server state. The cache + invalidate-on-mutate
-// pipeline replaces the old admin store's hand-rolled
-// users.value mutations.
+// Vue Query — server state. Replaces the old admin + chapters
+// stores' hand-rolled list mutations.
 const usersQuery = useUsers();
 const users = userList(usersQuery);
 const approveMutation = useApproveUser();
@@ -44,6 +51,13 @@ const assignMutation = useAssignChapter();
 const promoteMutation = usePromoteUser();
 const demoteMutation = useDemoteUser();
 const removeMutation = useRemoveUser();
+
+const chaptersQuery = useChapters({ includeArchived: false });
+const chapters = chapterList(chaptersQuery);
+const createChapter = useCreateChapter();
+const updateChapter = useUpdateChapter();
+const archiveChapter = useArchiveChapter();
+const restoreChapter = useRestoreChapter();
 
 // --- Approve / change-chapter dialog ---------------------------------
 type AssignMode = "approve" | "assign";
@@ -57,7 +71,7 @@ const assignDialogSubmitting = ref(false);
 // every user row without a refetch.
 function chapterLabelFor(u: User): string {
   if (!u.chapter_id) return t("admin.noChapter");
-  return chapters.all.find((a) => a.id === u.chapter_id)?.name ?? u.chapter_name ?? t("admin.noChapter");
+  return chapters.value.find((a) => a.id === u.chapter_id)?.name ?? u.chapter_name ?? t("admin.noChapter");
 }
 
 // --- Edit-chapter dialog (name + city) -------------------------------
@@ -88,11 +102,14 @@ async function submitEditChapter() {
   }
   editSubmitting.value = true;
   try {
-    await chapters.updatePatch(target.id, {
-      name: trimmed,
-      city: editCity.value.city,
-      city_lat: editCity.value.city_lat,
-      city_lon: editCity.value.city_lon,
+    await updateChapter.mutateAsync({
+      id: target.id,
+      payload: {
+        name: trimmed,
+        city: editCity.value.city,
+        city_lat: editCity.value.city_lat,
+        city_lon: editCity.value.city_lon,
+      },
     });
     toasts.success(t("chapters.editedToast"));
     editDialogOpen.value = false;
@@ -112,7 +129,7 @@ const deleteReassignEventsTo = ref<Chapter | null>(null);
 const deleteSubmitting = ref(false);
 
 const otherChapters = computed(() =>
-  chapters.all.filter((a) => a.id !== deleteTarget.value?.id),
+  chapters.value.filter((a) => a.id !== deleteTarget.value?.id),
 );
 
 // --- User search -----------------------------------------------------
@@ -133,13 +150,9 @@ const filteredUsers = computed(() => {
 
 const loaded = computed(() => !usersQuery.isLoading.value);
 
-onMounted(async () => {
-  try {
-    await chapters.fetchAll();
-  } catch {
-    toasts.error(t("admin.loadFailed"));
-  }
-});
+// chaptersQuery + usersQuery auto-fetch on first use; no need to
+// kick them off here. ``isLoading`` reflects the in-flight status
+// for the skeleton.
 
 function openApprove(u: User) {
   assignDialogMode.value = "approve";
@@ -151,7 +164,7 @@ function openApprove(u: User) {
 function openAssign(u: User) {
   assignDialogMode.value = "assign";
   assignTargetUser.value = u;
-  assignDialogPick.value = chapters.all.find((a) => a.id === u.chapter_id) ?? null;
+  assignDialogPick.value = chapters.value.find((a) => a.id === u.chapter_id) ?? null;
   assignDialogOpen.value = true;
 }
 
@@ -213,7 +226,7 @@ async function toggleAdmin(u: User, on: boolean) {
 async function onPickedChapterFromAddBar(a: Chapter) {
   if (!a.archived) return;
   try {
-    await chapters.restore(a.id);
+    await restoreChapter.mutateAsync(a.id);
     toasts.success(t("chapters.restoredToast", { name: a.name }));
   } catch {
     toasts.error(t("chapters.restoreFail"));
@@ -234,17 +247,20 @@ async function onCreateFromAddBar(name: string) {
   // would be permanently unreachable from the keyboard.
   try {
     const normalised = normaliseChapterName(name);
-    const matches = await chapters.search(normalised, true);
+    // Refresh the cache then search the cached list for an archived
+    // match. Cheaper than a second HTTP call now that the include-
+    // archived list is one query away.
+    const archivedQuery = await chaptersQuery.refetch();
     const lower = normalised.toLowerCase();
-    const archivedMatch = matches.find(
+    const archivedMatch = (archivedQuery.data ?? []).find(
       (a) => a.archived && a.name.toLowerCase() === lower,
     );
     if (archivedMatch) {
-      await chapters.restore(archivedMatch.id);
+      await restoreChapter.mutateAsync(archivedMatch.id);
       toasts.success(t("chapters.restoredToast", { name: archivedMatch.name }));
       return;
     }
-    await chapters.create(normalised);
+    await createChapter.mutateAsync(normalised);
     toasts.success(t("chapters.createdToast", { name: normalised }));
   } catch {
     toasts.error(t("chapters.createFail"));
@@ -256,7 +272,7 @@ async function openDeleteDialog(a: Chapter) {
   deleteReassignUsersTo.value = null;
   deleteReassignEventsTo.value = null;
   try {
-    deleteUsage.value = await chapters.getUsage(a.id);
+    deleteUsage.value = await getChapterUsage(a.id);
   } catch {
     deleteUsage.value = { users: 0, events: 0 };
   }
@@ -267,9 +283,12 @@ async function submitDelete() {
   if (!deleteTarget.value) return;
   deleteSubmitting.value = true;
   try {
-    await chapters.archive(deleteTarget.value.id, {
-      users: deleteReassignUsersTo.value?.id ?? null,
-      events: deleteReassignEventsTo.value?.id ?? null,
+    await archiveChapter.mutateAsync({
+      id: deleteTarget.value.id,
+      reassign: {
+        users: deleteReassignUsersTo.value?.id ?? null,
+        events: deleteReassignEventsTo.value?.id ?? null,
+      },
     });
     toasts.success(t("chapters.archivedToast"));
     // Refetch users so chips reflect the reassignment.
@@ -294,7 +313,7 @@ async function submitDelete() {
       <AppSkeleton v-if="!loaded" :rows="3" />
       <EditableList
         v-else
-        :items="chapters.all"
+        :items="chapters"
         :item-label="(a: Chapter) => a.name"
         :item-key="(a: Chapter) => a.id"
         @remove="openDeleteDialog"
@@ -410,7 +429,7 @@ async function submitDelete() {
       </p>
       <Select
         v-model="assignDialogPick"
-        :options="chapters.all"
+        :options="chapters"
         option-label="name"
         :placeholder="t('chapters.pickerPlaceholder')"
         fluid

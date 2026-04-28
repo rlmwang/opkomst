@@ -5,7 +5,10 @@ import AutoComplete, {
 } from "primevue/autocomplete";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { type Chapter, useChaptersStore } from "@/stores/chapters";
+import type { Chapter } from "@/api/types";
+import { get } from "@/api/client";
+
+export type { Chapter };
 
 const props = defineProps<{
   /** When true, archived chapters surface in suggestions tagged
@@ -31,7 +34,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const store = useChaptersStore();
 
 const suggestions = ref<Chapter[]>([]);
 // AutoComplete sets the bound value to the option object on select
@@ -40,8 +42,14 @@ const suggestions = ref<Chapter[]>([]);
 const local = ref<Chapter | string | null>(null);
 
 async function onComplete(e: AutoCompleteCompleteEvent) {
-  const all = await store.search(e.query, true);
-  suggestions.value = props.archivedOnly ? all.filter((a) => a.archived) : all;
+  // Direct fetch: the picker is its own little island and shouldn't
+  // share cache with the page-level chapter list (the picker always
+  // wants archived results so the user can pick-to-restore; the
+  // page list usually doesn't).
+  const list = await get<Chapter[]>("/api/v1/chapters?include_archived=true");
+  const q = e.query.trim().toLowerCase();
+  const matched = q ? list.filter((a) => a.name.toLowerCase().includes(q)) : list;
+  suggestions.value = props.archivedOnly ? matched.filter((a) => a.archived) : matched;
 }
 
 function onSelect(e: AutoCompleteOptionSelectEvent) {

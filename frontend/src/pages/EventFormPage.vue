@@ -11,8 +11,8 @@ import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import EditableList from "@/components/EditableList.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
+import { chapterList, useChapters } from "@/composables/useChapters";
 import { useToasts } from "@/lib/toasts";
-import { useChaptersStore } from "@/stores/chapters";
 import { useAuthStore } from "@/stores/auth";
 import { useEventsStore } from "@/stores/events";
 
@@ -22,7 +22,8 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const events = useEventsStore();
 const toasts = useToasts();
-const chapters = useChaptersStore();
+const chaptersQuery = useChapters();
+const chapters = chapterList(chaptersQuery);
 const auth = useAuthStore();
 
 const isEdit = computed(() => Boolean(props.eventId));
@@ -34,7 +35,7 @@ const isEdit = computed(() => Boolean(props.eventId));
 const chapterBias = computed<{ lat: number | null; lon: number | null }>(() => {
   const id = auth.user?.chapter_id;
   if (!id) return { lat: null, lon: null };
-  const a = chapters.all.find((x) => x.id === id);
+  const a = chapters.value.find((x) => x.id === id);
   return { lat: a?.city_lat ?? null, lon: a?.city_lon ?? null };
 });
 
@@ -250,7 +251,7 @@ function cancel() {
 onMounted(async () => {
   // Always fetch chapters so ``chapterBias`` resolves the
   // organiser's home city for address suggestions.
-  if (chapters.all.length === 0) await chapters.fetchAll();
+  // chaptersQuery auto-fetches on first use; nothing to do here.
   if (isEdit.value) {
     if (events.all.length === 0) await events.fetchAll();
     const existing = events.all.find((e) => e.id === props.eventId);
