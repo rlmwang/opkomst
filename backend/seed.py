@@ -50,7 +50,7 @@ ORGANISER_PASSWORD = "organiser1234"
 SEED_QUESTIONS = [
     {"ordinal": 1, "kind": "rating", "key": "q1_overall", "required": True},
     {"ordinal": 2, "kind": "rating", "key": "q2_recommend", "required": True},
-    {"ordinal": 3, "kind": "rating", "key": "q3_welcome", "required": False},
+    {"ordinal": 3, "kind": "rating", "key": "q3_welcome", "required": True},
     {"ordinal": 4, "kind": "text", "key": "q4_better", "required": False},
     {"ordinal": 5, "kind": "text", "key": "q5_anything_else", "required": False},
 ]
