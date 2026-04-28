@@ -12,20 +12,27 @@ import AppCard from "@/components/AppCard.vue";
 import EventMap from "@/components/EventMap.vue";
 import PublicHeader from "@/components/PublicHeader.vue";
 import { ApiError } from "@/api/client";
+import { useEventBySlug, usePublicSignup } from "@/composables/useEvents";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { useToasts } from "@/lib/toasts";
 import { isValidEmail } from "@/lib/validate";
-import { type EventOut, useEventsStore } from "@/stores/events";
 
 const props = defineProps<{ slug: string }>();
 
 const { t, locale } = useI18n();
-const events = useEventsStore();
 const toasts = useToasts();
 
-const event = ref<EventOut | null>(null);
-const error = ref<string | null>(null);
+const eventQuery = useEventBySlug(computed(() => props.slug));
+const signupMutation = usePublicSignup();
+const event = computed(() => eventQuery.data.value ?? null);
+const error = computed(() => {
+  const err = eventQuery.error.value;
+  if (!err) return null;
+  return err instanceof ApiError && err.status === 404
+    ? t("public.notFound")
+    : t("public.loadFailed");
+});
 
 const displayName = ref("");
 const partySize = ref(1);
@@ -169,26 +176,25 @@ watch([displayName, partySize, sourceChoice, helpChoices, email], () => {
   }, 200);
 });
 
-onMounted(async () => {
+// Render the public sign-up page in the event's configured language,
+// regardless of the visitor's persisted preference. ``locale.value``
+// is set directly so localStorage isn't touched (the visitor's own
+// preference shouldn't change just because they followed a link to a
+// foreign-language event).
+watch(
+  event,
+  (e) => {
+    if (e) locale.value = e.locale;
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
   try {
-    event.value = await events.getBySlug(props.slug);
-  } catch (e) {
-    error.value =
-      e instanceof ApiError && e.status === 404 ? t("public.notFound") : t("public.loadFailed");
-  }
-  if (event.value) {
-    // Render the public sign-up page in the event's configured
-    // language, regardless of the visitor's persisted preference.
-    // Set ``locale.value`` directly so localStorage isn't touched
-    // (the visitor's own preference shouldn't change just because
-    // they followed a link to a foreign-language event).
-    locale.value = event.value.locale;
-    try {
-      const raw = localStorage.getItem(draftKey);
-      if (raw) applyDraft(JSON.parse(raw) as SignupDraft);
-    } catch {
-      /* unparseable draft — ignore */
-    }
+    const raw = localStorage.getItem(draftKey);
+    if (raw) applyDraft(JSON.parse(raw) as SignupDraft);
+  } catch {
+    /* unparseable draft — ignore */
   }
 });
 
@@ -202,12 +208,15 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    await events.signUp(props.slug, {
-      display_name: name || null,
-      party_size: partySize.value,
-      source_choice: sourceChoice.value,
-      help_choices: helpChoices.value,
-      email: trimmedEmail || null,
+    await signupMutation.mutateAsync({
+      slug: props.slug,
+      payload: {
+        display_name: name || null,
+        party_size: partySize.value,
+        source_choice: sourceChoice.value,
+        help_choices: helpChoices.value,
+        email: trimmedEmail || null,
+      },
     });
     submitted.value = true;
     clearDraft();

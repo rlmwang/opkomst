@@ -102,3 +102,52 @@ describe("useAdmin composables", () => {
     expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
   });
 });
+
+describe("useEvents composables", () => {
+  it("useArchiveEvent rolls the cache back to the snapshot on failure", async () => {
+    const { useArchiveEvent } = await import("@/composables/useEvents");
+
+    queryClient.setQueryData(
+      ["events", "active"],
+      [{ id: "e1", name: "A" }, { id: "e2", name: "B" }],
+    );
+    mockPost.mockRejectedValueOnce(new Error("boom"));
+
+    const m = withSetup(() => useArchiveEvent());
+    await expect(m.mutateAsync("e1")).rejects.toThrow();
+
+    // Snapshot restored — both events back in the cache, in order.
+    const after = queryClient.getQueryData<{ id: string }[]>(["events", "active"]);
+    expect(after?.map((e) => e.id)).toEqual(["e1", "e2"]);
+  });
+
+  it("useSendEmailsNow POSTs the channel-keyed URL", async () => {
+    const { useSendEmailsNow } = await import("@/composables/useEvents");
+    mockPost.mockResolvedValueOnce({ processed: 3 });
+
+    const m = withSetup(() => useSendEmailsNow());
+    const r = await m.mutateAsync({ eventId: "ev1", channel: "reminder" });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/v1/events/ev1/send-emails/reminder",
+    );
+    expect(r.processed).toBe(3);
+  });
+});
+
+describe("useFeedback composables", () => {
+  it("useSubmitFeedback POSTs the URL-encoded token path with answers", async () => {
+    const { useSubmitFeedback } = await import("@/composables/useFeedback");
+    mockPost.mockResolvedValueOnce({} as never);
+
+    const m = withSetup(() => useSubmitFeedback());
+    await m.mutateAsync({
+      token: "abc 123/x",
+      answers: [{ question_id: "q1", answer_int: 5 }],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/feedback/abc%20123%2Fx/submit", {
+      answers: [{ question_id: "q1", answer_int: 5 }],
+    });
+  });
+});

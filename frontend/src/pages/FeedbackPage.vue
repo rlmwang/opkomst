@@ -1,64 +1,67 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import Textarea from "primevue/textarea";
-import { onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import PublicHeader from "@/components/PublicHeader.vue";
 import RatingScale from "@/components/RatingScale.vue";
 import { ApiError } from "@/api/client";
-import { useToasts } from "@/lib/toasts";
 import {
-  type FeedbackForm,
   type FeedbackQuestion,
-  useFeedbackStore,
-} from "@/stores/feedback";
+  useFeedbackForm,
+  useFeedbackPreview,
+  useSubmitFeedback,
+} from "@/composables/useFeedback";
+import { useToasts } from "@/lib/toasts";
 
 const props = defineProps<{ slug: string }>();
 
 const { t, locale } = useI18n();
 const route = useRoute();
 const toasts = useToasts();
-const store = useFeedbackStore();
 
-const form = ref<FeedbackForm | null>(null);
 const ratings = ref<Record<string, number | null>>({});
 const texts = ref<Record<string, string>>({});
-const error = ref<string | null>(null);
-const submitting = ref(false);
 const submitted = ref(false);
 
 const token = (route.query.t as string | undefined) ?? "";
-// Reserved sentinel — the email-preview endpoint embeds this so an
-// organiser viewing the preview lands on a working page with the
-// submit disabled, instead of a 410 from the token resolver.
 const isPreview = token === "preview";
 
-onMounted(async () => {
-  if (!token) {
-    error.value = t("feedback.expired");
-    return;
-  }
-  try {
-    form.value = isPreview
-      ? await store.getPreview(props.slug)
-      : await store.getForm(token);
-    // Render the questionnaire in the event's configured language —
-    // matches the email the visitor was sent in. localStorage is
-    // not touched.
-    locale.value = form.value.event_locale;
-    for (const q of form.value.questions) {
+const formQuery = useFeedbackForm(token, !isPreview && Boolean(token));
+const previewQuery = useFeedbackPreview(
+  computed(() => props.slug),
+  isPreview,
+);
+const submitMutation = useSubmitFeedback();
+
+const form = computed(() =>
+  isPreview ? previewQuery.data.value ?? null : formQuery.data.value ?? null,
+);
+const submitting = computed(() => submitMutation.isPending.value);
+
+const error = computed<string | null>(() => {
+  if (!token) return t("feedback.expired");
+  const err = isPreview ? previewQuery.error.value : formQuery.error.value;
+  if (!err) return null;
+  return err instanceof ApiError && (err.status === 410 || err.status === 404)
+    ? t("feedback.expired")
+    : t("feedback.loadFailed");
+});
+
+watch(
+  form,
+  (f) => {
+    if (!f) return;
+    locale.value = f.event_locale;
+    for (const q of f.questions) {
       if (q.kind === "rating") ratings.value[q.id] = null;
       if (q.kind === "text") texts.value[q.id] = "";
     }
-  } catch (e) {
-    error.value =
-      e instanceof ApiError && (e.status === 410 || e.status === 404)
-        ? t("feedback.expired")
-        : t("feedback.loadFailed");
-  }
-});
+  },
+  { immediate: true },
+);
 
 function questionPrompt(q: FeedbackQuestion): string {
   return t(`feedback.questions.${q.key}.prompt`);
@@ -93,9 +96,8 @@ async function submit() {
       : { question_id: q.id, answer_text: texts.value[q.id] || null },
   );
 
-  submitting.value = true;
   try {
-    await store.submit(token, answers);
+    await submitMutation.mutateAsync({ token, answers });
     submitted.value = true;
   } catch (e) {
     const msg =
@@ -103,8 +105,6 @@ async function submit() {
         ? t("feedback.expired")
         : t("feedback.submitFail");
     toasts.error(msg);
-  } finally {
-    submitting.value = false;
   }
 }
 </script>

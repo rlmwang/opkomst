@@ -1,25 +1,37 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import SearchInput from "@/components/SearchInput.vue";
 import { useEventClipboard } from "@/composables/useEventClipboard";
+import {
+  type EventOut,
+  eventList,
+  useArchiveEvent,
+  useEventList,
+} from "@/composables/useEvents";
 import { useConfirms } from "@/lib/confirms";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { formatDateTime } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
-import { type EventOut, useEventsStore } from "@/stores/events";
 
 const { t, locale } = useI18n();
 const auth = useAuthStore();
-const events = useEventsStore();
 const toasts = useToasts();
 const confirms = useConfirms();
 const { copyLink, copyQr } = useEventClipboard();
+
+const eventsQuery = useEventList(computed(() => auth.isApproved));
+const events = eventList(eventsQuery);
+const archiveMutation = useArchiveEvent();
+
+watch(eventsQuery.isError, (isError) => {
+  if (isError) toasts.error(t("dashboard.loadFailed"));
+});
 
 async function resend() {
   try {
@@ -31,12 +43,10 @@ async function resend() {
 }
 
 const query = ref("");
-// True once the events fetch has settled (success or failure). The
-// list cards swap from a skeleton to the real list at this point.
-const loaded = ref(false);
+const loaded = computed(() => !auth.isApproved || !eventsQuery.isPending.value);
 
 const sortedEvents = computed(() =>
-  [...events.all].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+  [...events.value].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
 );
 
 const filteredEvents = computed(() => {
@@ -45,20 +55,6 @@ const filteredEvents = computed(() => {
   return sortedEvents.value.filter(
     (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
   );
-});
-
-onMounted(async () => {
-  if (!auth.isApproved) {
-    loaded.value = true;
-    return;
-  }
-  try {
-    await events.fetchAll();
-  } catch {
-    toasts.error(t("dashboard.loadFailed"));
-  } finally {
-    loaded.value = true;
-  }
 });
 
 function askArchive(e: EventOut) {
@@ -70,7 +66,7 @@ function askArchive(e: EventOut) {
     acceptLabel: t("dashboard.archive"),
     accept: async () => {
       try {
-        await events.archive(e.id);
+        await archiveMutation.mutateAsync(e.id);
         toasts.success(t("dashboard.archived"));
       } catch {
         toasts.error(t("dashboard.archiveFail"));

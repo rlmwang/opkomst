@@ -111,82 +111,9 @@ describe("auth store", () => {
   });
 });
 
-// ---- events -------------------------------------------------------
-
-describe("events store", () => {
-  it("fetchAll calls GET /api/v1/events", async () => {
-    const { useEventsStore } = await import("@/stores/events");
-    const store = useEventsStore();
-    mockGet.mockResolvedValueOnce([]);
-
-    await store.fetchAll();
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/events");
-  });
-
-  it("sendEmailsNow POSTs the right channel-keyed URL", async () => {
-    const { useEventsStore } = await import("@/stores/events");
-    const store = useEventsStore();
-    mockPost.mockResolvedValueOnce({ processed: 3 });
-
-    const r = await store.sendEmailsNow("ev1", "reminder");
-
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/events/ev1/send-emails/reminder");
-    expect(r.processed).toBe(3);
-  });
-});
-
-// ---- feedback -----------------------------------------------------
-
-describe("feedback store", () => {
-  it("fetchQuestions calls GET /api/v1/feedback/questions", async () => {
-    const { useFeedbackStore } = await import("@/stores/feedback");
-    const store = useFeedbackStore();
-    mockGet.mockResolvedValueOnce([]);
-
-    await store.fetchQuestions();
-
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/feedback/questions");
-  });
-
-  it("getForm hits /api/v1/feedback/{token} with token-encoded path", async () => {
-    const { useFeedbackStore } = await import("@/stores/feedback");
-    const store = useFeedbackStore();
-    mockGet.mockResolvedValueOnce({ event_name: "X" } as never);
-
-    await store.getForm("abc 123/with-slash");
-
-    expect(mockGet).toHaveBeenCalledWith(
-      "/api/v1/feedback/abc%20123%2Fwith-slash",
-    );
-  });
-
-  it("submit hits /submit and POSTs the answers", async () => {
-    const { useFeedbackStore } = await import("@/stores/feedback");
-    const store = useFeedbackStore();
-    mockPost.mockResolvedValueOnce({} as never);
-
-    await store.submit("tok", [{ question_id: "q1", answer_int: 5 }]);
-
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/feedback/tok/submit", {
-      answers: [{ question_id: "q1", answer_int: 5 }],
-    });
-  });
-
-  it("getPreview targets the slug-scoped preview endpoint", async () => {
-    const { useFeedbackStore } = await import("@/stores/feedback");
-    const store = useFeedbackStore();
-    mockGet.mockResolvedValueOnce({} as never);
-
-    await store.getPreview("my-slug");
-
-    expect(mockGet).toHaveBeenCalledWith(
-      "/api/v1/events/by-slug/my-slug/feedback-preview",
-    );
-  });
-});
-
 // Suppress unused-vars warnings on the broader mocks the suite imports.
+void mockGet;
+void mockPost;
 void mockPut;
 void mockPatch;
 void mockDel;

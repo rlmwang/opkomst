@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import { ApiError } from "@/api/client";
+import {
+  eventList,
+  useEventList,
+  useEventSignups,
+  useEventStats,
+  useSendEmailsNow,
+} from "@/composables/useEvents";
 import { useEventClipboard } from "@/composables/useEventClipboard";
 import { useConfirms } from "@/lib/confirms";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
@@ -13,30 +20,32 @@ import { formatDateTime } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { useToasts } from "@/lib/toasts";
 import {
-  type EventOut,
-  type EventStats,
-  type SignupSummary,
-  useEventsStore,
-} from "@/stores/events";
-import {
   type EmailChannel,
-  type FeedbackSummary,
-  useFeedbackStore,
-} from "@/stores/feedback";
+  fetchFeedbackSubmissions,
+  useFeedbackSummary,
+} from "@/composables/useFeedback";
 
 const props = defineProps<{ eventId: string }>();
 
 const { t, locale } = useI18n();
-const events = useEventsStore();
-const feedback = useFeedbackStore();
 const confirms = useConfirms();
 const toasts = useToasts();
 const { copyLink, copyQr } = useEventClipboard();
 
-const event = ref<EventOut | null>(null);
-const stats = ref<EventStats | null>(null);
-const signups = ref<SignupSummary[]>([]);
-const summary = ref<FeedbackSummary | null>(null);
+const eventsQuery = useEventList();
+const events = eventList(eventsQuery);
+const event = computed(() => events.value.find((e) => e.id === props.eventId) ?? null);
+
+const statsQuery = useEventStats(computed(() => props.eventId));
+const stats = computed(() => statsQuery.data.value ?? null);
+
+const signupsQuery = useEventSignups(computed(() => props.eventId));
+const signups = computed(() => signupsQuery.data.value ?? []);
+
+const sendEmailsMutation = useSendEmailsNow();
+
+const summaryQuery = useFeedbackSummary(computed(() => props.eventId));
+const summary = computed(() => summaryQuery.data.value ?? null);
 const triggering = ref<EmailChannel | null>(null);
 
 // Tabular layout for the signup-list foldable: name in column 1,
@@ -47,19 +56,6 @@ const signupGridTemplate = computed(() => {
   return n > 0
     ? `minmax(0, 1fr) repeat(${n}, auto) auto`
     : "minmax(0, 1fr) auto";
-});
-
-onMounted(async () => {
-  if (events.all.length === 0) await events.fetchAll();
-  event.value = events.all.find((e: EventOut) => e.id === props.eventId) ?? null;
-  const [s, sg, fs] = await Promise.all([
-    events.getStats(props.eventId),
-    events.getSignups(props.eventId).catch(() => [] as SignupSummary[]),
-    feedback.getSummary(props.eventId).catch(() => null),
-  ]);
-  stats.value = s;
-  signups.value = sg;
-  summary.value = fs;
 });
 
 const responsesLine = computed(() => {
@@ -104,7 +100,7 @@ function _filenameSlug(value: string): string {
 async function downloadCsv() {
   if (!event.value || !summary.value) return;
   try {
-    const submissions = await feedback.getSubmissions(props.eventId);
+    const submissions = await fetchFeedbackSubmissions(props.eventId);
     const keys = summary.value.questions.map((q) => q.key);
     const header = [t("feedback.summary.submissionId"), ...keys.map(questionPrompt)];
     const rows = submissions.map((s) => [
@@ -166,7 +162,7 @@ function triggerDisabledReason(channel: EmailChannel): string {
 }
 
 async function refreshSummary() {
-  summary.value = await feedback.getSummary(props.eventId).catch(() => summary.value);
+  await summaryQuery.refetch();
 }
 
 function askTriggerNow(channel: EmailChannel) {
@@ -182,7 +178,10 @@ function askTriggerNow(channel: EmailChannel) {
     accept: async () => {
       triggering.value = channel;
       try {
-        const r = await events.sendEmailsNow(props.eventId, channel);
+        const r = await sendEmailsMutation.mutateAsync({
+          eventId: props.eventId,
+          channel,
+        });
         toasts.success(t("event.sendNow.successTitle"), {
           detail: t("event.sendNow.successBody", { n: r.processed }),
         });

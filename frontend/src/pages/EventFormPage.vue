@@ -12,18 +12,26 @@ import AppHeader from "@/components/AppHeader.vue";
 import EditableList from "@/components/EditableList.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import {
+  eventList,
+  useCreateEvent,
+  useEventList,
+  useUpdateEvent,
+} from "@/composables/useEvents";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
-import { useEventsStore } from "@/stores/events";
 
 const props = defineProps<{ eventId?: string }>();
 
 const { t, locale } = useI18n();
 const router = useRouter();
-const events = useEventsStore();
 const toasts = useToasts();
 const chaptersQuery = useChapters();
 const chapters = chapterList(chaptersQuery);
+const eventsQuery = useEventList();
+const events = eventList(eventsQuery);
+const createMutation = useCreateEvent();
+const updateMutation = useUpdateEvent();
 const auth = useAuthStore();
 
 const isEdit = computed(() => Boolean(props.eventId));
@@ -253,8 +261,22 @@ onMounted(async () => {
   // organiser's home city for address suggestions.
   // chaptersQuery auto-fetches on first use; nothing to do here.
   if (isEdit.value) {
-    if (events.all.length === 0) await events.fetchAll();
-    const existing = events.all.find((e) => e.id === props.eventId);
+    // Wait for the events list to settle so we can pull the existing
+    // row out of the cache. ``isPending`` is true on first fetch and
+    // false once the query has resolved (success or failure).
+    await new Promise<void>((resolve) => {
+      if (!eventsQuery.isPending.value) {
+        resolve();
+        return;
+      }
+      const stop = watch(eventsQuery.isPending, (pending) => {
+        if (!pending) {
+          stop();
+          resolve();
+        }
+      });
+    });
+    const existing = events.value.find((e) => e.id === props.eventId);
     if (!existing) {
       toasts.error(t("event.notFound"));
       return;
@@ -332,8 +354,8 @@ async function submit() {
     };
     const result =
       isEdit.value && props.eventId
-        ? await events.update(props.eventId, payload)
-        : await events.create(payload);
+        ? await updateMutation.mutateAsync({ eventId: props.eventId, payload })
+        : await createMutation.mutateAsync(payload);
     clearDraft();
     void router.push(`/events/${result.id}/details`);
   } catch {
