@@ -6,7 +6,7 @@ import pytest
 
 
 def test_fake_email_records_calls(fake_email: Any) -> None:
-    from backend.services.email import send_email_sync
+    from backend.services.email.sender import send_email_sync
 
     send_email_sync(
         to="alice@example.test",
@@ -26,7 +26,7 @@ def test_fake_email_records_calls(fake_email: Any) -> None:
 
 
 def test_fake_email_can_simulate_failures(fake_email: Any) -> None:
-    from backend.services.email import send_email_sync
+    from backend.services.email.sender import send_email_sync
 
     fake_email.fail_n_times("alice@example.test", 1)
     # First call raises.

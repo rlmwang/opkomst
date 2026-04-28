@@ -92,16 +92,16 @@ def install_fake_backend() -> FakeBackend:
     """Replace the singleton backend with a fresh ``FakeBackend``
     and return it. Idempotent: re-installs cleanly even if the
     previous install wasn't torn down."""
-    from backend.services import email as email_module
+    from backend.services.email import backends
 
     fake = FakeBackend()
-    email_module._backend = fake
+    backends._backend = fake
     return fake
 
 
 def uninstall() -> None:
     """Reset the email module's singleton so the next ``get_backend``
     rebuilds from environment (typical: console backend in tests)."""
-    from backend.services import email as email_module
+    from backend.services.email import backends
 
-    email_module._backend = None
+    backends._backend = None

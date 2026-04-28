@@ -69,7 +69,7 @@ def _reminder_window(now: datetime) -> Any:
 
 
 def _reminder_context(event: Event) -> dict[str, Any]:
-    from .email import build_url
+    from .email.urls import build_url
 
     return {
         "event_name": event.name,
@@ -106,7 +106,7 @@ def _feedback_pre_send(db: Session, signup: Signup, event: Event) -> dict[str, A
     import secrets
 
     from ..models import FeedbackToken
-    from .email import build_url
+    from .email.urls import build_url
 
     token = secrets.token_urlsafe(32)
     db.add(

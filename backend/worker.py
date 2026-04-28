@@ -31,6 +31,26 @@ from .services.email_channels import ALL_CHANNELS
 
 logger = structlog.get_logger()
 
+
+def _reap_partial() -> int:
+    """Fresh DB session per call so APScheduler doesn't carry one
+    across ticks."""
+    db = SessionLocal()
+    try:
+        return email_reaper.reap_partial_sends(db)
+    finally:
+        db.close()
+
+
+def _safe_reap(name: str, fn) -> None:  # noqa: ANN001
+    """Run a reaper call, swallowing exceptions so one bad tick
+    doesn't take the worker down. ``email_reaper`` itself logs
+    success counts; this wrapper only surfaces failures."""
+    try:
+        fn()
+    except Exception:
+        logger.exception("reap_failed", name=name)
+
 # Mirror the API container's Sentry setup so worker-thread
 # exceptions (the email sweeps run in this process) actually
 # reach Sentry. The FastAPI / Starlette integrations only catch
@@ -55,26 +75,11 @@ def main() -> None:
     # own if we deploy it before the API.
     run_migrations()
 
-    # Both boot-time reapers are wrapped: a transient DB hiccup
-    # shouldn't take the worker down. The hourly / daily
-    # scheduled ticks retry on their own cadence.
-    try:
-        db = SessionLocal()
-        try:
-            reaped = email_reaper.reap_partial_sends(db)
-            if reaped:
-                logger.info("worker_boot_reap_partial", count=reaped)
-        finally:
-            db.close()
-    except Exception:
-        logger.exception("worker_boot_reap_partial_failed")
-
-    try:
-        boot_reaped = email_reaper.reap_expired_windows()
-        if boot_reaped:
-            logger.info("worker_boot_reap_expired", count=boot_reaped)
-    except Exception:
-        logger.exception("worker_boot_reap_expired_failed")
+    # Boot-time reaper pass. ``email_reaper`` already logs its own
+    # success counts; we wrap each call so a transient DB hiccup
+    # can't take the worker down before the scheduler even starts.
+    _safe_reap("partial_sends", _reap_partial)
+    _safe_reap("expired_windows", email_reaper.reap_expired_windows)
 
     # BackgroundScheduler runs the sweeps in a worker thread,
     # which leaves the main thread free to block on a
@@ -97,22 +102,16 @@ def main() -> None:
             args=(spec,),
         )
 
-    def _reap_partial() -> None:
-        # Wrapper so APScheduler doesn't try to schedule a
-        # closure-bound DB session. Each tick gets a fresh one.
-        db = SessionLocal()
-        try:
-            email_reaper.reap_partial_sends(db)
-        finally:
-            db.close()
-
     scheduler.add_job(
-        _reap_partial, "interval", hours=1, id="reap_partial_sends"
+        lambda: _safe_reap("partial_sends", _reap_partial),
+        "interval",
+        hours=1,
+        id="reap_partial_sends",
     )
     # Daily catch-up: dispatches stuck pending after their
     # event already started.
     scheduler.add_job(
-        email_reaper.reap_expired_windows,
+        lambda: _safe_reap("expired_windows", email_reaper.reap_expired_windows),
         "interval",
         hours=24,
         id="reap_expired_windows",

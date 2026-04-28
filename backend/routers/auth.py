@@ -18,7 +18,8 @@ from ..models import User
 from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut, VerifyEmailRequest
 from ..services import chapters as chapters_svc
 from ..services import scd2
-from ..services.email import build_url, send_email
+from ..services.email.sender import send_email
+from ..services.email.urls import build_url
 from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()

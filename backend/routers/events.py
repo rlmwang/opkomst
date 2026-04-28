@@ -28,32 +28,6 @@ router = APIRouter(prefix="/api/v1/events", tags=["events"])
 PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "")
 
 
-def _retire_disabled_channels(
-    db: Session,
-    *,
-    event_entity_id: str,
-    questionnaire_disabled: bool,
-    reminder_disabled: bool,
-) -> None:
-    """When an organiser flips an email toggle off mid-flight,
-    the signups that were waiting on that channel stop being
-    eligible. Defers to ``email_reaper.retire_event_channels``
-    which does the actual delete + ciphertext-wipe pass."""
-    from ..models import EmailChannel
-    from ..services import email_reaper
-
-    channels: set[EmailChannel] = set()
-    if questionnaire_disabled:
-        channels.add(EmailChannel.FEEDBACK)
-    if reminder_disabled:
-        channels.add(EmailChannel.REMINDER)
-    email_reaper.retire_event_channels(
-        db,
-        event_entity_id=event_entity_id,
-        channels=channels,
-    )
-
-
 def _attendees_for(db: Session, entity_id: str) -> int:
     total = db.query(func.coalesce(func.sum(Signup.party_size), 0)).filter(Signup.event_id == entity_id).scalar()
     return int(total or 0)
@@ -268,15 +242,19 @@ def update_event(
         reminder_enabled=data.reminder_enabled,
         locale=data.locale,
     )
-    # Toggle-off cleanup: when an organiser disables a channel, the
-    # signups that were waiting on it stop being eligible. Mark
-    # those pending statuses as not_applicable and wipe the
-    # ciphertext if no other channel still has pending activity.
-    _retire_disabled_channels(
-        db,
-        event_entity_id=new_row.entity_id,
-        questionnaire_disabled=was_questionnaire and not data.questionnaire_enabled,
-        reminder_disabled=was_reminder and not data.reminder_enabled,
+    # Toggle-off cleanup: when an organiser disables a channel,
+    # delete pending dispatches for it and wipe ciphertext for
+    # signups that no longer have any pending dispatch.
+    from ..models import EmailChannel
+    from ..services import email_reaper
+
+    retired: set[EmailChannel] = set()
+    if was_questionnaire and not data.questionnaire_enabled:
+        retired.add(EmailChannel.FEEDBACK)
+    if was_reminder and not data.reminder_enabled:
+        retired.add(EmailChannel.REMINDER)
+    email_reaper.retire_event_channels(
+        db, event_entity_id=new_row.entity_id, channels=retired
     )
     db.commit()
     db.refresh(new_row)

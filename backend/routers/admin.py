@@ -8,7 +8,8 @@ from ..models import AuditLog, User
 from ..schemas.admin import AdminUserOut, ApproveUserRequest, AssignChapterRequest
 from ..services import chapters as chapters_svc
 from ..services import scd2
-from ..services.email import build_url, send_email
+from ..services.email.sender import send_email
+from ..services.email.urls import build_url
 
 logger = structlog.get_logger()
 

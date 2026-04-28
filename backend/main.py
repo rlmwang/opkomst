@@ -91,11 +91,11 @@ def health() -> dict[str, object]:
     Includes the email-executor's bounded worker count so a
     deploy / config-change that accidentally lifted the cap is
     visible at a glance (Phase 4.3)."""
-    from .services.email import _get_executor
+    from .services.email.backends import get_executor
 
     return {
         "status": "ok",
-        "email_executor_max_workers": _get_executor()._max_workers,
+        "email_executor_max_workers": get_executor()._max_workers,
     }
 
 

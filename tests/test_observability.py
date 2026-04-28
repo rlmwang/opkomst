@@ -18,7 +18,8 @@ from unittest.mock import patch
 from _worker_helpers import commit, make_event, make_signup
 
 from backend.services import email_dispatcher
-from backend.services.email import emit_metric, send_with_retry
+from backend.services.email.observability import emit_metric
+from backend.services.email.sender import send_with_retry
 from backend.services.email_channels import REMINDER
 
 # ---- Metrics ---------------------------------------------------------
@@ -68,12 +69,12 @@ def test_dispatcher_emits_failed_metric_on_smtp_failure(
 def test_send_with_retry_calls_sentry_on_final_failure(
     monkeypatch: Any,
 ) -> None:
-    import backend.services.email as email_module
+    import backend.services.email.sender as sender_module
 
     def _raise(*_args: Any, **_kwargs: Any) -> None:
         raise RuntimeError("forced")
 
-    monkeypatch.setattr(email_module, "send_email_sync", _raise)
+    monkeypatch.setattr(sender_module, "send_email_sync", _raise)
 
     captured: list[BaseException] = []
     with patch("sentry_sdk.capture_exception") as fake_capture:
@@ -127,9 +128,9 @@ def test_send_with_retry_sleeps_between_attempts(
     def _record_sleep(seconds: float) -> None:
         sleeps.append(seconds)
 
-    import backend.services.email as email_module
+    import backend.services.email.sender as sender_module
 
-    monkeypatch.setattr(email_module.time, "sleep", _record_sleep)
+    monkeypatch.setattr(sender_module.time, "sleep", _record_sleep)
 
     fake_email.fail_n_times("alice@example.com", 1)
     ok = send_with_retry(

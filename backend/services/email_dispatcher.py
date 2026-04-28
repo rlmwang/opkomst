@@ -41,12 +41,10 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import EmailStatus, Event, Signup, SignupEmailDispatch
 from . import encryption
-from .email import (
-    email_batch_size,
-    emit_metric,
-    new_message_id,
-    send_with_retry,
-)
+from .email.config import email_batch_size
+from .email.identifiers import new_message_id
+from .email.observability import emit_metric
+from .email.sender import send_with_retry
 
 if TYPE_CHECKING:
     from .email_channels import ChannelSpec

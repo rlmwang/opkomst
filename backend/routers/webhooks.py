@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import EmailStatus, SignupEmailDispatch
-from ..services.email import emit_metric
+from ..services.email.observability import emit_metric
 
 logger = structlog.get_logger()
 
