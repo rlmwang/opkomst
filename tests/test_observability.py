@@ -15,7 +15,9 @@ from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
-from _worker_helpers import commit, make_event, make_signup
+from _helpers import commit
+from _helpers.events import make_event
+from _helpers.signups import make_signup
 
 from backend.services import email_dispatcher
 from backend.services.email.observability import emit_metric

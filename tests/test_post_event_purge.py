@@ -9,7 +9,9 @@ catches anything they missed."""
 from datetime import timedelta
 from typing import Any
 
-from _worker_helpers import commit, make_event, make_signup
+from _helpers import commit
+from _helpers.events import make_event
+from _helpers.signups import make_signup
 
 from backend.database import SessionLocal
 from backend.models import Signup

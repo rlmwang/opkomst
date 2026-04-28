@@ -10,7 +10,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import Any
 
-from _worker_helpers import commit, get_dispatch, make_event, make_signup
+from _helpers import commit
+from _helpers.events import make_event
+from _helpers.signups import get_dispatch, make_signup
 
 from backend.database import SessionLocal
 from backend.models import EmailChannel, EmailStatus, Signup

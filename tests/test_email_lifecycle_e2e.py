@@ -9,7 +9,8 @@ clock fixture together. Verifies the privacy invariant
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from _worker_helpers import get_dispatch, make_event
+from _helpers.events import make_event
+from _helpers.signups import get_dispatch
 
 from backend.database import SessionLocal
 from backend.models import EmailChannel, EmailStatus, Signup
