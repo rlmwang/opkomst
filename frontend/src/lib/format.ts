@@ -22,7 +22,16 @@ export function formatTimeRange(startIso: string, endIso: string, locale: string
   return `${start} — ${end}`;
 }
 
-/** Compact "date + time" used in list rows: ``27-04-2026 18:00``. */
+/** Compact "date + time" used in list rows: ``27-04-2026 18:00``.
+ * Seconds are deliberately suppressed — events are scheduled to
+ * the minute, never the second, so showing ``18:00:00`` is just
+ * noise that erodes typographic rhythm. */
 export function formatDateTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleString(localeTag(locale));
+  return new Date(iso).toLocaleString(localeTag(locale), {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

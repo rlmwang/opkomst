@@ -17,7 +17,7 @@ from _helpers.signups import get_dispatch, make_signup
 from backend.database import SessionLocal
 from backend.models import EmailChannel, EmailStatus, Signup
 from backend.services import email_dispatcher
-from backend.services.email_channels import REMINDER
+from backend.services.email_channels import FEEDBACK, REMINDER
 
 
 def test_parallel_reminder_sweeps_send_each_row_once(
@@ -58,5 +58,47 @@ def test_parallel_reminder_sweeps_send_each_row_once(
             fresh.query(Signup).filter(Signup.display_name.like("P%")).all()
         )
         assert len(rows) == 5
+    finally:
+        fresh.close()
+
+
+def test_parallel_feedback_sweeps_send_each_row_once(
+    db: Any, fake_email: Any
+) -> None:
+    """Same conditional-UPDATE atomic-claim contract on the
+    feedback channel. Event ended ≥24h ago so the channel applies;
+    two simultaneous sweeps must not double-send."""
+    e = make_event(
+        db, starts_in=timedelta(hours=-30), duration=timedelta(hours=2)
+    )
+    signups = [
+        make_signup(
+            db,
+            e,
+            email=f"f{i}@example.test",
+            display_name=f"F{i}",
+        )
+        for i in range(5)
+    ]
+    commit(db)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        f1 = pool.submit(email_dispatcher.run_once, FEEDBACK)
+        f2 = pool.submit(email_dispatcher.run_once, FEEDBACK)
+        f1.result()
+        f2.result()
+
+    for i in range(5):
+        captures = fake_email.to(f"f{i}@example.test")
+        assert len(captures) <= 1, (
+            f"recipient f{i}@example.test received {len(captures)} emails"
+        )
+
+    fresh = SessionLocal()
+    try:
+        for s in signups:
+            d = get_dispatch(fresh, s.id, EmailChannel.FEEDBACK)
+            assert d is not None
+            assert d.status == EmailStatus.SENT, d.status
     finally:
         fresh.close()

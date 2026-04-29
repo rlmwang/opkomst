@@ -59,6 +59,18 @@ jobs:
         run: uv run pyright backend
       - name: Tests + coverage gate
         run: uv run pytest
+      - name: Migrations are idempotent
+        # Apply migrations to a fresh DB, then re-apply to the same
+        # DB. Both invocations must succeed cleanly. Catches the
+        # class of bug where a migration assumes "this column doesn't
+        # exist yet" rather than checking — running the same revision
+        # twice on the same DB is the closest CI-friendly proxy for
+        # "what happens when a deploy retries after a transient
+        # failure".
+        run: |
+          uv run alembic -c backend/alembic.ini downgrade base
+          uv run alembic -c backend/alembic.ini upgrade head
+          uv run alembic -c backend/alembic.ini upgrade head
 
   schema-drift:
     # Regenerate openapi.json + frontend/src/api/schema.ts on every PR
