@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..auth import create_token, get_current_user
@@ -138,26 +139,46 @@ def register(
     else:
         # Bootstrap: the very first registration with the configured
         # admin email auto-promotes to admin — without this carve-out
-        # there'd be no one to approve anyone.
+        # there'd be no one to approve anyone. The ``count()`` check
+        # is a TOCTOU-prone hint, not the safety mechanism. The real
+        # serialisation point is the partial-unique index
+        # ``uq_users_email_current``: if two callers race past the
+        # check, only one INSERT lands; the other raises
+        # ``IntegrityError`` and we treat it like an existing-email
+        # registration (mint a fresh link to the row that won the
+        # race). ``scd2_create`` self-references ``changed_by`` to
+        # the new entity_id when None is passed, so we don't write
+        # the row twice.
         is_bootstrap = bool(
             BOOTSTRAP_ADMIN_EMAIL
             and data.email == BOOTSTRAP_ADMIN_EMAIL
             and scd2.current(db.query(User)).count() == 0
         )
-        user = scd2.scd2_create(
-            db,
-            User,
-            changed_by="bootstrap",
-            email=data.email,
-            name=data.name,
-            role="admin" if is_bootstrap else "organiser",
-            is_approved=is_bootstrap,
-            chapter_id=None,
-        )
-        user.changed_by = user.entity_id
-        db.commit()
-        db.refresh(user)
-        logger.info("user_registered", user_id=user.entity_id, bootstrap=is_bootstrap)
+        try:
+            with db.begin_nested():
+                user = scd2.scd2_create(
+                    db,
+                    User,
+                    email=data.email,
+                    name=data.name,
+                    role="admin" if is_bootstrap else "organiser",
+                    is_approved=is_bootstrap,
+                    chapter_id=None,
+                )
+            db.commit()
+            db.refresh(user)
+            logger.info("user_registered", user_id=user.entity_id, bootstrap=is_bootstrap)
+        except IntegrityError:
+            db.rollback()
+            existing = _user_by_email(db, data.email)
+            if existing is None:
+                # Constraint other than the email partial-unique fired —
+                # don't swallow.
+                raise
+            raw = _mint_login_token(db, existing)
+            _send_login_email(existing, raw)
+            logger.info("register_race_lost", user_id=existing.entity_id)
+            return LinkSent()
 
     raw = _mint_login_token(db, user)
     _send_login_email(user, raw)

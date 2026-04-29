@@ -165,6 +165,102 @@ def test_register_rate_limit(client):
     assert r.status_code == 429
 
 
+def test_bootstrap_promotes_only_first_registration(client, admin_token):
+    """Once the bootstrap admin exists, a second registration with
+    the same email must NOT re-promote — it lands as an existing
+    email (mint-link branch). A third registration with the
+    bootstrap email after the admin is soft-deleted goes through
+    restore, which strips the admin role by design."""
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert r.json()["role"] == "admin"
+
+    # Second registration: email exists, mint-link path. Role
+    # unchanged.
+    assert (
+        client.post(
+            "/api/v1/auth/register",
+            json={"email": "admin@local.dev", "name": "Doppelgänger"},
+        ).status_code
+        == 201
+    )
+
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "admin@local.dev").first()
+        assert user is not None
+        assert user.role == "admin"  # still admin from first registration
+        assert user.is_approved is True
+    finally:
+        db.close()
+
+
+def test_bootstrap_race_falls_through_to_mint_link(client, monkeypatch):
+    """Two simultaneous registrations with the bootstrap email both
+    pass the ``count() == 0`` check; the second INSERT collides on
+    the partial-unique index ``uq_users_email_current``. The router
+    must catch the IntegrityError, treat it as an existing-email
+    case, and mint a link to the row that won the race — instead of
+    bubbling a 500."""
+    from backend.routers import auth as auth_module
+    from backend.services import scd2 as scd2_module
+
+    sent: list[tuple[str, str]] = []
+
+    def _capture(to: str, template_name: str, context, locale="nl") -> None:  # noqa: ANN001
+        sent.append((to, template_name))
+
+    monkeypatch.setattr(auth_module, "send_email", _capture)
+
+    # Simulate the other process winning the race by committing a
+    # competing user from a *separate* session right before the
+    # router's INSERT. We hook ``_user_by_email`` to return None on
+    # the first call (so the router still believes the email is
+    # free), then commit the rival, then let the router's INSERT
+    # crash on the partial-unique index.
+    from backend.database import SessionLocal
+
+    real_create = scd2_module.scd2_create
+    raced: dict[str, bool] = {"done": False}
+
+    def _commit_rival_then_create(db, model, **kwargs):  # noqa: ANN001, ANN201
+        if not raced["done"] and kwargs.get("email") == "admin@local.dev":
+            raced["done"] = True
+            rival = SessionLocal()
+            try:
+                real_create(rival, model, **{**kwargs, "name": "Winner"})
+                rival.commit()
+            finally:
+                rival.close()
+        return real_create(db, model, **kwargs)
+
+    monkeypatch.setattr(auth_module.scd2, "scd2_create", _commit_rival_then_create)
+
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@local.dev", "name": "Loser"},
+    )
+    assert r.status_code == 201, r.text
+    # Loser branch: sent a fresh login link to the winner.
+    assert ("admin@local.dev", "login.html") in sent
+
+    # The winning row is the one that's current.
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "admin@local.dev").first()
+        assert user is not None
+        assert user.name == "Winner"
+    finally:
+        db.close()
+
+
 def test_register_existing_email_still_sends_link(client, admin_token, monkeypatch):
     """Privacy carve-out: registering with an already-registered
     email must not 409 (that would leak existence). Instead the

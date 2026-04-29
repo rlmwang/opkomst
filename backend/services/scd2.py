@@ -94,12 +94,18 @@ def scd2_create(
     db: Session,
     model: type[T],
     *,
-    changed_by: str,
+    changed_by: str | None = None,
     **fields: Any,
 ) -> T:
     """Insert a brand-new SCD2 chain. ``entity_id`` self-references
     on the first row; subsequent versions inherit it via
-    ``scd2_update``."""
+    ``scd2_update``.
+
+    ``changed_by=None`` records the new entity as the changer of
+    its own creation — the natural choice for self-registration
+    and system-seeded rows where there's no prior user to point
+    at. Pass an explicit value when an authenticated actor created
+    the row (e.g. an admin minting a chapter)."""
     new_id = str(uuid7())
     now = datetime.now(UTC)
     kwargs: dict[str, Any] = {
@@ -107,7 +113,7 @@ def scd2_create(
         "entity_id": new_id,
         "valid_from": now,
         "valid_until": None,
-        "changed_by": changed_by,
+        "changed_by": changed_by if changed_by is not None else new_id,
         "change_kind": "created",
         **fields,
     }

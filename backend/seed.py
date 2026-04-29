@@ -62,14 +62,12 @@ def _ensure_user(db: Session, *, email: str, name: str, role: str) -> User:
     user = scd2.scd2_create(
         db,
         User,
-        changed_by="seed",
         email=email,
         name=name,
         role=role,
         is_approved=True,
         chapter_id=None,
     )
-    user.changed_by = user.entity_id  # self-reference once entity_id is known
     db.flush()
     logger.info("seed_user_created", email=email, role=role)
     return user
