@@ -693,10 +693,19 @@ export interface paths {
         };
         /**
          * Health
-         * @description Liveness probe + a few introspection knobs for ops.
-         *     Includes the email-executor's bounded worker count so a
-         *     deploy / config-change that accidentally lifted the cap is
-         *     visible at a glance (Phase 4.3).
+         * @description Liveness probe + introspection for ops.
+         *
+         *     Beyond ``status: ok``, the response surfaces:
+         *     * email-executor bounded worker count — a deploy that
+         *       accidentally lifted the cap is visible at a glance;
+         *     * Alembic schema head — the migration revision the running
+         *       process believes the DB is at, so a Coolify deploy that
+         *       forgot to run migrations is one curl away from being
+         *       caught;
+         *     * DB connectivity — a trivial ``SELECT 1`` round-trip;
+         *     * oldest pending dispatch — surfaces a stuck queue (worker
+         *       crashed, SMTP outage, etc.) before it shows up in user
+         *       complaints.
          */
         get: operations["health_health_get"];
         put?: never;

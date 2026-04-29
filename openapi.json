@@ -3204,7 +3204,7 @@
     },
     "/health": {
       "get": {
-        "description": "Liveness probe + a few introspection knobs for ops.\nIncludes the email-executor's bounded worker count so a\ndeploy / config-change that accidentally lifted the cap is\nvisible at a glance (Phase 4.3).",
+        "description": "Liveness probe + introspection for ops.\n\nBeyond ``status: ok``, the response surfaces:\n* email-executor bounded worker count \u2014 a deploy that\n  accidentally lifted the cap is visible at a glance;\n* Alembic schema head \u2014 the migration revision the running\n  process believes the DB is at, so a Coolify deploy that\n  forgot to run migrations is one curl away from being\n  caught;\n* DB connectivity \u2014 a trivial ``SELECT 1`` round-trip;\n* oldest pending dispatch \u2014 surfaces a stuck queue (worker\n  crashed, SMTP outage, etc.) before it shows up in user\n  complaints.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
