@@ -155,14 +155,174 @@ def test_register_rate_limit(client):
     for i in range(5):
         r = client.post(
             "/api/v1/auth/register",
-            json={
-                "email": f"rl{i}@local.dev",
-                "name": "RL",
-            },
+            json={"email": f"rl{i}@local.dev", "name": "RL"},
         )
-        assert r.status_code in (201, 422), r.text
+        assert r.status_code == 201, r.text
     r = client.post(
         "/api/v1/auth/register",
         json={"email": "rl-over@local.dev", "name": "RL"},
     )
     assert r.status_code == 429
+
+
+def test_register_existing_email_still_sends_link(client, admin_token, monkeypatch):
+    """Privacy carve-out: registering with an already-registered
+    email must not 409 (that would leak existence). Instead the
+    server mints a fresh login link for the existing account so the
+    legitimate owner of the address can always get in."""
+    sent: list[tuple[str, str]] = []
+
+    def _capture(to: str, template_name: str, context, locale="nl") -> None:  # noqa: ANN001
+        sent.append((to, template_name))
+
+    monkeypatch.setattr("backend.routers.auth.send_email", _capture)
+
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "admin@local.dev", "name": "Doppelgänger"},
+    )
+    assert r.status_code == 201, r.text
+    assert ("admin@local.dev", "login.html") in sent
+
+
+def test_login_rejects_expired_token(client, admin_token):
+    """A token whose ``expires_at`` is in the past must 410. The
+    redeem path also has to delete the row so it doesn't pile up."""
+    from datetime import UTC, datetime, timedelta
+
+    from backend.database import SessionLocal
+    from backend.models import LoginToken, User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "admin@local.dev").first()
+        assert user is not None
+        row = LoginToken(
+            token="expired-token",
+            user_id=user.entity_id,
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
+        )
+        db.add(row)
+        db.commit()
+    finally:
+        db.close()
+
+    r = client.post("/api/v1/auth/login", json={"token": "expired-token"})
+    assert r.status_code == 410
+
+    db = SessionLocal()
+    try:
+        assert (
+            db.query(LoginToken).filter(LoginToken.token == "expired-token").first() is None
+        )
+    finally:
+        db.close()
+
+
+def test_login_rejects_token_for_archived_user(client, admin_token, admin_headers):
+    """Archive a user between minting and redeeming a token. The
+    redeem path defensively 410s instead of issuing a JWT for a
+    no-longer-current entity."""
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "ghost@local.dev", "name": "Ghost"},
+    )
+    assert r.status_code == 201
+
+    from backend.database import SessionLocal
+    from backend.models import LoginToken, User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "ghost@local.dev").first()
+        assert user is not None
+        uid = user.entity_id
+        row = db.query(LoginToken).filter(LoginToken.user_id == uid).order_by(
+            LoginToken.created_at.desc()
+        ).first()
+        assert row is not None
+        raw = row.token
+    finally:
+        db.close()
+
+    r = client.delete(f"/api/v1/admin/users/{uid}", headers=admin_headers)
+    assert r.status_code == 204
+
+    r = client.post("/api/v1/auth/login", json={"token": raw})
+    assert r.status_code == 410
+
+
+def test_restored_user_can_log_in_via_magic_link(client, admin_headers):
+    """End-to-end restore round-trip: register → admin deletes →
+    re-register (restores SCD2 chain) → mint link via
+    /auth/login-link → redeem → fresh JWT against the restored
+    entity_id."""
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "phoenix@local.dev", "name": "Phoenix"},
+    )
+    assert r.status_code == 201
+
+    from backend.database import SessionLocal
+    from backend.models import LoginToken, User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = (
+            scd2.current(db.query(User)).filter(User.email == "phoenix@local.dev").first()
+        )
+        assert user is not None
+        uid_before = user.entity_id
+    finally:
+        db.close()
+
+    assert (
+        client.delete(f"/api/v1/admin/users/{uid_before}", headers=admin_headers).status_code
+        == 204
+    )
+
+    # Re-register: SCD2 chain restores, entity_id preserved.
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "phoenix@local.dev", "name": "Phoenix-back"},
+    )
+    assert r.status_code == 201
+
+    # Independent /login-link to mint a fresh token (the register
+    # path also mints one but we're proving the explicit re-login
+    # round-trip works after restore).
+    assert (
+        client.post(
+            "/api/v1/auth/login-link", json={"email": "phoenix@local.dev"}
+        ).status_code
+        == 200
+    )
+
+    db = SessionLocal()
+    try:
+        user = (
+            scd2.current(db.query(User)).filter(User.email == "phoenix@local.dev").first()
+        )
+        assert user is not None
+        assert user.entity_id == uid_before  # SCD2 chain restored
+        # Pick the most recent token for this user, regardless of
+        # which endpoint minted it.
+        row = (
+            db.query(LoginToken)
+            .filter(LoginToken.user_id == user.entity_id)
+            .order_by(LoginToken.created_at.desc())
+            .first()
+        )
+        assert row is not None
+        raw = row.token
+    finally:
+        db.close()
+
+    r = client.post("/api/v1/auth/login", json={"token": raw})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["user"]["id"] == uid_before
+    assert body["user"]["is_approved"] is False  # gate re-required after restore

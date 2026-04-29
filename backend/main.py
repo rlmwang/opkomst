@@ -47,30 +47,6 @@ if _os.environ.get("OPKOMST_SKIP_BOOT") != "1":
     run_seed()
 
 
-def _boot_reaper_pass() -> None:
-    """One defensive sweep at API startup. The cron schedule
-    handles steady state; this one catches whatever the previous
-    process left mid-flight when it crashed (and a clean restart
-    won't have any partial sends to clean up either way)."""
-    from .database import SessionLocal
-    from .services import email_reaper
-
-    db = SessionLocal()
-    try:
-        email_reaper.reap_partial_sends(db)
-    finally:
-        db.close()
-
-
-if _os.environ.get("OPKOMST_SKIP_BOOT") != "1":
-    try:
-        _boot_reaper_pass()
-    except Exception:
-        # A boot-time DB hiccup mustn't keep the API from coming up;
-        # the cron will catch up at the next tick.
-        logger.exception("boot_reaper_failed")
-
-
 app = FastAPI(title="Opkomst", version="0.1.0")
 
 # Rate limiting — installed before any router is included so the

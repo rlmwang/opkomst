@@ -206,9 +206,8 @@ Audit list (from § 0):
 | endpoint | currently limited? | recommendation |
 |---|---|---|
 | `POST /auth/register` | 5/h | ✓ |
-| `POST /auth/login` | 10/min | ✓ but consider IP-based fail2ban-style lockout |
-| `POST /auth/verify-email` | none | add 30/h |
-| `POST /auth/resend-verification` | none | add 5/h (else email-bomb vector) |
+| `POST /auth/login-link` | 5/h | ✓ (per-IP; consider per-email too) |
+| `POST /auth/login` | 20/min | ✓ token-redemption — bounded by single-use tokens, but cheap to limit |
 | `POST /events` | none | add 30/h (organiser only, but still bounded) |
 | `PATCH /events/{id}` | none | add 60/h |
 | `POST /events/{id}/archive` | none | add 30/h |
@@ -239,7 +238,9 @@ Document the deployed choice in `docs/deploy.md`.
 
 ### 6.4 Auth flow tests
 
-Add explicit tests for: register → verify → admin approval → first login (bootstrap admin) → role change reflects in JWT after re-login → JWT expiry → invalid signature rejected. Some are tested; full matrix is missing.
+Magic-link flow (post-A7). Covered in `tests/test_auth.py`: bootstrap auto-approves, login-link unknown email returns 200, mint-then-redeem issues JWT, single-use replay 410s, register against an existing email still mints + sends a link, expired tokens 410, archived users between mint and redeem 410, soft-delete + restore round-trip lands a working JWT against the preserved entity_id.
+
+Still missing from the full matrix: role change reflected in JWT after re-login (the JWT signs `entity_id`, so it's stable across SCD2 updates — covered partially by `test_jwt_id_stable_across_user_updates`); JWT expiry; invalid signature rejected.
 
 `BOOTSTRAP_ADMIN_EMAIL` regression: add a test that registering twice with that email does **not** re-promote (already enforced by code; pin it with a test).
 
@@ -487,6 +488,8 @@ a defensive sweep).
 modules and one `coolify.yaml` cron stanza.
 
 ### 13.3 Magic-link auth — drop passwords entirely
+
+**Status: implemented in A7.** What follows is the original proposal kept for the rationale.
 
 **Current state.** Bcrypt with a 72-byte truncation quirk (`auth.py:25,29`).
 No account lockout. Brute-force mitigated only by a 10/min rate limit. A

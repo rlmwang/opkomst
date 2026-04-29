@@ -43,7 +43,7 @@ long-running scheduler container to coordinate.
    webhook secret into `SCALEWAY_WEBHOOK_SECRET`.
 7. **Scheduled email sweeps** — Coolify's "Scheduled Tasks" feature
    invokes the same image with a different command on each cadence.
-   Five jobs total; offset minutes so they don't all hit the DB at
+   Six jobs total; offset minutes so they don't all hit the DB at
    once:
 
    ```
@@ -52,6 +52,7 @@ long-running scheduler container to coordinate.
    30 *  * * *   uv run --no-dev python -m backend.cli reap-partial
    0  3  * * *   uv run --no-dev python -m backend.cli reap-expired
    30 3  * * *   uv run --no-dev python -m backend.cli reap-post-event-emails
+   45 3  * * *   uv run --no-dev python -m backend.cli reap-login-tokens
    ```
 
    Each command does one sweep and exits. A non-zero exit becomes a

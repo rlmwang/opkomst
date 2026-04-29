@@ -48,9 +48,6 @@ function withSetup<T>(composable: () => T): T {
     },
   });
   app = createApp(Harness);
-  app.provide(VUE_QUERY_CLIENT + ":", queryClient);
-  // ``provide`` for the default key (no app-level ``inject`` lookup
-  // is needed — the symbol ``VUE_QUERY_CLIENT`` is the public key).
   app.provide(VUE_QUERY_CLIENT, queryClient);
   app.mount(document.createElement("div"));
   return result;
@@ -100,6 +97,38 @@ describe("useAdmin composables", () => {
     await m.mutateAsync("u1");
 
     expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
+  });
+
+  it("useRemoveUser rolls every cached users-list back on failure", async () => {
+    const { useRemoveUser } = await import("@/composables/useAdmin");
+
+    // Two cached lists under the same prefix — verify both get
+    // rolled back, not just one.
+    queryClient.setQueryData(
+      ["admin", "users", { pending: false }],
+      [{ id: "u1", name: "A" }, { id: "u2", name: "B" }],
+    );
+    queryClient.setQueryData(
+      ["admin", "users", { pending: true }],
+      [{ id: "u1", name: "A" }],
+    );
+    mockDel.mockRejectedValueOnce(new Error("boom"));
+
+    const m = withSetup(() => useRemoveUser());
+    await expect(m.mutateAsync("u1")).rejects.toThrow();
+
+    const all = queryClient.getQueryData<{ id: string }[]>([
+      "admin",
+      "users",
+      { pending: false },
+    ]);
+    const pending = queryClient.getQueryData<{ id: string }[]>([
+      "admin",
+      "users",
+      { pending: true },
+    ]);
+    expect(all?.map((u) => u.id)).toEqual(["u1", "u2"]);
+    expect(pending?.map((u) => u.id)).toEqual(["u1"]);
   });
 });
 

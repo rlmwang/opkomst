@@ -148,7 +148,8 @@ sets on every response:
 Redis URL for multi-replica). Per-IP limits:
 
 - `POST /auth/register` — 5/hour
-- `POST /auth/login` — 10/minute
+- `POST /auth/login-link` — 5/hour
+- `POST /auth/login` — 20/minute (token redemption)
 - `POST /events/by-slug/{slug}/signups` — 30/hour
 - `POST /feedback/{token}/submit` — 20/hour
 - Default fallback on every other endpoint — 120/minute

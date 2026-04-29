@@ -8,6 +8,7 @@ external scheduler) invokes them on the documented cadence:
     python -m backend.cli reap-partial             # hourly (offset)
     python -m backend.cli reap-expired             # daily
     python -m backend.cli reap-post-event-emails   # daily
+    python -m backend.cli reap-login-tokens        # daily
 
 Migrations are idempotent — alembic skips already-applied
 revisions — and run on every invocation so a sweep that lands
@@ -72,6 +73,25 @@ def _reap_post_event() -> int:
     return email_reaper.purge_post_event_emails()
 
 
+def _reap_login_tokens() -> int:
+    """Delete expired single-use magic-link rows. The redeem path
+    already 410s on expired-or-missing, so this sweep is hygiene
+    only — keeps the table from growing monotonically as users
+    request links they never click."""
+    from datetime import UTC, datetime
+
+    from .models import LoginToken
+
+    db = SessionLocal()
+    try:
+        n = db.query(LoginToken).filter(LoginToken.expires_at < datetime.now(UTC)).delete()
+        db.commit()
+        logger.info("login_tokens_reaped", deleted=n)
+        return n
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m backend.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -80,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("reap-partial", help="Reap stuck partial sends.")
     sub.add_parser("reap-expired", help="Reap reminders past their window.")
     sub.add_parser("reap-post-event-emails", help="≥7d post-event ciphertext purge.")
+    sub.add_parser("reap-login-tokens", help="Delete expired magic-link tokens.")
 
     args = parser.parse_args(argv)
 
@@ -94,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         _reap_expired()
     elif args.cmd == "reap-post-event-emails":
         _reap_post_event()
+    elif args.cmd == "reap-login-tokens":
+        _reap_login_tokens()
     else:
         parser.error(f"unknown command: {args.cmd}")
 
