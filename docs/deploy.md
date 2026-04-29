@@ -53,6 +53,7 @@ long-running scheduler container to coordinate.
    0  3  * * *   uv run --no-dev python -m backend.cli reap-expired
    30 3  * * *   uv run --no-dev python -m backend.cli reap-post-event-emails
    45 3  * * *   uv run --no-dev python -m backend.cli reap-login-tokens
+   0  4  * * *   bash scripts/backup.sh
    ```
 
    Each command does one sweep and exits. A non-zero exit becomes a

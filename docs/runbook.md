@@ -185,10 +185,26 @@ echo "$SCALEWAY_WEBHOOK_SECRET" | wc -c   # > 1 if set
 echo -n "<raw body>" | openssl dgst -sha256 -hmac "$SCALEWAY_WEBHOOK_SECRET"
 ```
 
-## "Restore from backup"
+## Backups
 
-Use the restore drill to verify your backup before you need it
-under pressure. Quarterly cadence:
+Daily ``scripts/backup.sh`` runs from cron at 04:00 UTC. It pipes
+``pg_dump`` through ``scripts/_backup_redact.py`` which NULLs
+``Signup.encrypted_email`` at dump time — even though the column
+is AES-GCM ciphertext, the privacy stance is "addresses don't
+sit in cold storage". Trade-off: a restore loses the ability to
+send any pending feedback emails. Acceptable; those have a 24h
+shelf life anyway.
+
+Output: ``$BACKUP_DIR/opkomst-<UTC-stamp>.sql.gz`` (default
+``/var/backups/opkomst``). Files older than ``$RETENTION_DAYS``
+(default 30) are pruned at the end of each run.
+
+The wrapper aborts the backup if the redactor didn't emit its
+``-- opkomst-redacted: signups`` marker — that catches the
+"schema rename made the redactor pass through unchanged"
+failure mode loudly.
+
+To verify a backup actually restores, run the drill (quarterly):
 
 ```bash
 BACKUP_DIR=/var/backups/opkomst \

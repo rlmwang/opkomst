@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import { definePreset } from "@primeuix/themes";
@@ -149,6 +150,29 @@ const OpkomstPreset = definePreset(Aura, {
 });
 
 const app = createApp(App);
+
+// Sentry. The DSN is injected at build time via
+// ``VITE_SENTRY_DSN``; left unset in dev (``import.meta.env.DEV``)
+// so a noisy ``console`` doesn't spam during local work. PII is
+// off — usernames, IPs, and request bodies are not captured. The
+// app's own ``app.config.errorHandler`` is replaced by Sentry's,
+// so a render error or unhandled promise reaches the same DSN as
+// backend exceptions.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn && !import.meta.env.DEV) {
+  Sentry.init({
+    app,
+    dsn: sentryDsn,
+    environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "production",
+    sendDefaultPii: false,
+    // Lower the trace sample rate to zero by default — opkomst
+    // gets little traffic and tracing every event would burn
+    // the free-tier quota fast. Bump in env if you want spans.
+    tracesSampleRate: Number(
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? 0,
+    ),
+  });
+}
 
 app.use(createPinia());
 

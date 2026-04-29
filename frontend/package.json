@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@primeuix/themes": "^1.0.0",
+    "@sentry/vue": "^10.50.0",
     "@tanstack/vue-query": "^5.100.6",
     "leaflet": "^1.9.4",
     "pinia": "^3.0.0",

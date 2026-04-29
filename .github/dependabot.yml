@@ -1,0 +1,54 @@
+# Dependabot keeps the lock files honest. Weekly cadence — daily
+# is too noisy for a small project; monthly leaves CVEs sitting.
+#
+# Each ecosystem opens its own PR; CI's the gate. Group all
+# patch/minor updates into one PR per ecosystem so the review
+# burden is one round of "click green, merge" per week instead
+# of dozens.
+version: 2
+updates:
+  # Backend Python deps managed by uv. Dependabot reads
+  # ``pyproject.toml`` + ``uv.lock``.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    groups:
+      python-patch-and-minor:
+        update-types: ["patch", "minor"]
+    commit-message:
+      prefix: "deps(python)"
+
+  # Frontend npm deps. The ``frontend/`` subdirectory is its own
+  # workspace.
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    groups:
+      npm-patch-and-minor:
+        update-types: ["patch", "minor"]
+    commit-message:
+      prefix: "deps(npm)"
+
+  # CI action versions (actions/checkout, setup-uv, etc).
+  # Pinning floats once a week; major-version drift is rare and
+  # we want the heads-up when it happens.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(actions)"
