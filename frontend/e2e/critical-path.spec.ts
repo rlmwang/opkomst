@@ -17,8 +17,11 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   browser,
 }) => {
   // --- arrange: log in as organiser, create an event via the API ---
-  const loginRes = await request.post("/api/v1/auth/login", {
-    data: { email: "organiser@local.dev", password: "organiser1234" },
+  // ``/auth/dev-issue-token`` is the LOCAL_MODE=1 test fixture
+  // that mints a JWT without the magic-link round-trip. Returns
+  // 404 in any other environment so prod can't call it.
+  const loginRes = await request.post("/api/v1/auth/dev-issue-token", {
+    data: { email: "organiser@local.dev" },
   });
   expect(loginRes.ok()).toBeTruthy();
   const { token } = await loginRes.json();

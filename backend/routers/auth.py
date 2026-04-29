@@ -216,3 +216,22 @@ def login(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
     return _user_out(db, user)
+
+
+@router.post("/dev-issue-token", response_model=AuthResponse, include_in_schema=False)
+def dev_issue_token(
+    data: LoginLinkRequest, db: Session = Depends(get_db)
+) -> AuthResponse:
+    """Local-mode-only test fixture. Mints a JWT for any
+    registered email without going through the magic-link
+    round-trip. Gated by ``settings.local_mode`` — returns 404
+    in any other environment so prod can't call it.
+
+    Used by Playwright e2e tests that can't read a magic link
+    out of the email backend's structured log."""
+    if not settings.local_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+    user = _user_by_email(db, data.email)
+    if user is None:
+        raise HTTPException(status_code=404, detail="No such user")
+    return AuthResponse(token=create_token(user.entity_id), user=_user_out(db, user))

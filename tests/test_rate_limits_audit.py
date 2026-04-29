@@ -20,7 +20,12 @@ _MUTATING_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 
 # Routes deliberately not gated at the request layer. Document
 # *why* — the audit test reads this comment.
-_EXEMPT: set[tuple[str, str]] = set()
+_EXEMPT: set[tuple[str, str]] = {
+    # Local-mode-only test fixture; returns 404 unless
+    # ``settings.local_mode`` is True. Never reachable in
+    # production, so a rate limit would just be noise.
+    ("POST", "/api/v1/auth/dev-issue-token"),
+}
 
 
 def _route_has_limit(route: APIRoute) -> bool:
