@@ -3,48 +3,116 @@
 Operational scenarios with concrete commands. Optimised for "it's
 01:00 and something is wrong" — short, copy-paste, no prose.
 
-## Monitoring & alerting (passive)
+## Monitoring & alerting
 
-You should be alerted by **at least one** of three independent
-channels for every production failure mode. None of them is
-strictly redundant; each catches a class the others miss.
+### How "guaranteed" alerting works
 
-### 1. External uptime monitor — covers "the API is down"
+There is no single channel that guarantees alerting. Each
+channel has a blind spot, and the way you get to "you'll
+definitely hear within ~5 min" is by stacking three independent
+ones so a coincident failure is implausible.
 
-**UptimeRobot** (free, 5-min interval) or **BetterStack** (free,
-30-sec). Configure one HTTP monitor:
+| failure mode | uptime monitor | Sentry exception alerts | Sentry cron monitors | Coolify alerts |
+|---|---|---|---|---|
+| API container died | ✅ within 5 min | ✗ (process gone) | depends | ✅ on restart attempt |
+| Process running but throwing 500s | ✗ (`/health` still 200) | ✅ first event | ✗ | ✗ |
+| Cron host died (jobs not running) | ✗ | ✗ | ✅ missed heartbeat | depends |
+| DB unreachable | ✅ (`/health` returns `degraded`) | ✅ exception on next request | ✅ cron will fail | ✗ |
+| Disk full | ✅ (`disk_free_gb` rule) | ✅ exception on next write | ✅ cron will fail | ✗ |
+| Coolify itself is down | ✅ | depends | depends | ✗ (it's the thing that's down) |
+| All of the above | UptimeRobot still pings | ✗ | ✗ | ✗ |
 
-* URL: `https://flatwork.nl/health`
-* Expect: status 200, body contains `"status":"ok"`
-* Alert: email + push notification on first failure
+So the answer is: you're guaranteed alerts on every realistic
+failure mode **as long as the uptime monitor is configured**.
+The other two layers are how you find out *what* broke without
+having to dig.
 
-Below 1 GB of disk free, ``/health`` reports `disk_free_gb` low —
-add a "keyword on body" rule to alert when `"disk_free_gb"` is a
-single-digit value.
+### Setup checklist (do once, ~15 min)
 
-### 2. Sentry — covers "something inside the running process threw"
+Tick these off in order. Until **#1** is done, you have no
+guarantee.
 
-Already wired (`sentry_sdk.init` in `main.py` and `cli.py`). In
-the Sentry UI:
+#### 1. UptimeRobot (load-bearing — do this first)
 
-* **Alert rule**: Settings → Alerts → New Alert → "An issue is
-  first seen" → email yourself.
-* **Cron monitors**: `cli.py` sends `capture_checkin` for every
-  invocation under monitor slugs `opkomst-cli-{cmd}` (one per
-  subcommand). In the Sentry UI, Crons → Add Monitor for each
-  slug, with an SLA matching the schedule (e.g. `0 * * * *` with
-  a 5-minute checkin tolerance for hourly jobs). Sentry pages you
-  if a heartbeat is missing.
+- Sign up at https://uptimerobot.com (free tier, no card).
+- Add Monitor → HTTP(s):
+  - URL: `https://flatwork.nl/health`
+  - Monitoring interval: 5 minutes (free plan minimum)
+  - **Advanced → "Keyword Monitoring"**: keyword `"status":"ok"`,
+    "Alert when keyword exists: NOT exists" — this catches the
+    `degraded` case where DB is down but process is up.
+- Alert Contacts → add your email + (optional) push to the
+  UptimeRobot mobile app.
+- Test by sending the API a deliberate 500: stop the container
+  via Coolify; you should get an email within 5 min.
 
-### 3. Coolify container alerts — covers "the container restarts"
+#### 2. Sentry — exception alerts
 
-In Coolify project settings, enable email/Discord notifications
-for:
-* Deploy failures
-* Container exited unexpectedly
-* OOM kills
+- Already wired in code via `SENTRY_DSN`. Confirm it's set in
+  Coolify env: `echo $SENTRY_DSN | wc -c` returns >1 inside
+  the running container.
+- Sentry UI → project → Alerts → Create Alert → "An issue is
+  first seen this week" → action: send email to you.
+- Test by hitting an endpoint that throws (fastest:
+  `curl https://flatwork.nl/api/v1/events/by-slug/<garbage>`
+  returns 404, not 500 — instead force one with `gh issue` or
+  a temporary throw in a sandbox deploy).
 
-This catches crash loops between uptime-monitor pings.
+#### 3. Sentry — cron heartbeat monitors
+
+`cli.py` sends `capture_checkin` for every invocation under
+slugs `opkomst-cli-{cmd}`. Tells Sentry "I ran" so it can page
+you when a job is missing.
+
+- Sentry UI → Crons → Add Monitor for each cron slug:
+  - `opkomst-cli-dispatch-reminder` — schedule `0 * * * *`,
+    checkin-margin 5 min, max-runtime 10 min
+  - `opkomst-cli-dispatch-feedback` — same
+  - `opkomst-cli-reap-partial` — schedule `30 * * * *`
+  - `opkomst-cli-reap-expired` — schedule `0 3 * * *`,
+    checkin-margin 30 min
+  - `opkomst-cli-reap-post-event-emails` — schedule `30 3 * * *`
+  - `opkomst-cli-reap-login-tokens` — schedule `45 3 * * *`
+
+#### 4. Coolify notifications
+
+- Coolify project → Notifications → enable email (or Discord
+  webhook) for:
+  - Deploy failed
+  - Container restarted (unexpected)
+  - OOM killed
+- Catches crash loops between UptimeRobot's 5-min pings.
+
+### Why three layers
+
+* **External uptime monitor** is the only thing that catches
+  "the whole VPS is unreachable" — Sentry + Coolify both run
+  *adjacent to* the failed container or rely on the container
+  itself reporting in.
+* **Sentry exception alerts** catch "the process is up and
+  responding to `/health` but a real user request is throwing".
+  The uptime monitor would be cheerfully green.
+* **Sentry cron monitors** catch "the cron host died, no email
+  has been sent in 6 hours". The uptime monitor still pings the
+  API; nobody else notices the missing emails until your
+  organisers do.
+
+### Quick verification
+
+Once configured, force a test alert on each channel:
+
+```bash
+# 1. Uptime monitor: stop the container, wait <5 min, expect email
+docker compose stop api
+
+# 2. Sentry exception: force a /health failure by stopping the DB
+docker compose stop postgres
+curl https://flatwork.nl/health | jq .status   # "degraded"
+
+# 3. Sentry cron: skip a tick. Easiest is to disable one
+#    Coolify cron job and wait for its checkin-margin window
+#    to elapse — Sentry pages.
+```
 
 ---
 
