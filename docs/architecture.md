@@ -38,26 +38,30 @@ has `valid_until IS NULL`. Public DTOs always expose `entity_id` as
 | Model | Notes |
 |---|---|
 | `User` | Email is partial-unique on the current version. JWTs sign `entity_id`, so tokens survive role / approval / chapter changes. Soft-delete = `scd2_close`; re-register with the same email restores the chain (unapproved). |
-| `Afdeling` | Local chapter. Optional anchor city (display name + lat/lon) drives proximity bias on event-creation address autocomplete. |
+| `Chapter` | Local chapter. Optional anchor city (display name + lat/lon) drives proximity bias on event-creation address autocomplete. |
 | `Event` | Slug is partial-unique on the current version. `created_by` and `changed_by` reference `User.entity_id` (no FK — entity_id isn't unique across all rows). `archived_at` toggles for archive/restore. `locale` drives the public sign-up page language and the feedback email language. |
 
 ### Append-only / row-id-stable
 
 | Model | Notes |
 |---|---|
-| `Signup` | `event_id` references `Event.entity_id`. Holds AES-GCM-encrypted email blob (nulled after the worker processes the signup). `feedback_email_status`, `feedback_message_id`, `feedback_sent_at` track delivery. |
+| `Signup` | `event_id` references `Event.entity_id`. Holds AES-GCM-encrypted email blob (nulled after every dispatch row pointing at the signup is finalised). |
+| `SignupEmailDispatch` | One row per (signup, channel). `status` cycles ``pending`` → ``sent`` / ``failed`` / ``bounced`` / ``complaint``. `message_id` is pre-minted before SMTP for the bounce-webhook lookup. Replaced the per-channel `feedback_email_status` / `reminder_email_status` triplets that used to live on `Signup`. |
+| `LoginToken` | One-shot magic-link token. URL-safe random, 30-min TTL. Deleted on redeem; the daily ``reap-login-tokens`` cron purges expired rows. |
 | `FeedbackQuestion` | The five fixed questions, keyed for i18n. |
 | `FeedbackToken` | One-time URL-safe token. `signup_id` + `event_id` (the latter as `entity_id`). Deleted on response submit or send-failure. |
 | `FeedbackResponse` | `event_id` (entity_id), `question_id`, `submission_id` (random per submission). **No link to signup** by design — privacy invariant. |
-| `AuditLog` | `actor_id` / `target_id` reference `User.entity_id`. Records approve / promote / demote / assign_afdeling / delete. |
+| `AuditLog` | `actor_id` / `target_id` reference `User.entity_id`. Records approve / promote / demote / assign_chapter / delete. |
 
 ## Privacy invariants (enforced at multiple layers)
 
 1. **No PII in logs.** Routes log a route name + outcome only. The
    email send hop is the only place `to=` ever appears.
-2. **Email decryption only by the feedback worker.** Static check:
-   `tests/test_privacy.py::test_decrypt_only_called_from_feedback_worker`
-   greps the backend tree for `encryption.decrypt` callers.
+2. **Email decryption only by the email dispatcher.** Static
+   check: `tests/test_privacy.py::test_decrypt_only_called_from_email_dispatcher`
+   greps the backend tree for `encryption.decrypt` callers and
+   pins the allowlist (the channel-parametric dispatcher is the
+   one legitimate caller).
 3. **Encrypted email is hard-deleted after the worker runs**
    (success or failure-after-retry).
 4. **Feedback responses are not linkable to signups.** No
@@ -74,9 +78,9 @@ All under `/api/v1/`.
 | Router | Endpoints | Auth |
 |---|---|---|
 | `auth.py` | login-link (request), login (redeem token), register (mints link), /me | public POST + bearer; rate-limited |
-| `admin.py` | list users, approve, assign-afdeling, promote, demote, delete | admin |
-| `afdelingen.py` | list, create, patch (name + city), archive, restore, usage | mixed |
-| `events.py` | list, list-archived, create, by-slug, qr.png, update, archive, restore, send-feedback-emails-now, stats, signups | scoped to user's afdeling |
+| `admin.py` | list users, approve, assign-chapter, promote, demote, delete | admin |
+| `chapters.py` | list, create, patch (name + city), archive, restore, usage | mixed |
+| `events.py` | list, list-archived, create, by-slug, qr.png, update, archive, restore, send-emails-now (per channel), stats, signups | scoped to user's chapter |
 | `signups.py` | public POST | none (public); rate-limited |
 | `feedback.py` | questions list, public form GET, public submit, organiser summary, organiser submissions list (CSV source) | mixed; rate-limited on public submit |
 | `webhooks.py` | scaleway-email | HMAC if `SCALEWAY_WEBHOOK_SECRET` is set |
@@ -99,29 +103,63 @@ All under `/api/v1/`.
 
 ## Email pipeline
 
-```
-Public signup form (questionnaire_enabled=true)
-  ↓ encryption.encrypt(email) → Signup.encrypted_email
-  Signup.feedback_email_status = "pending"
+The dispatcher is channel-parametric: one
+``email_dispatcher.run_once(spec)`` function, one
+``ChannelSpec`` per channel
+(``services/email_channels.py::REMINDER`` and ``FEEDBACK``). A
+new channel is a config change — a new ``ChannelSpec`` plus a
+template — never a parallel code path.
 
-Hourly worker tick (or organiser-triggered)
-  ↓ for each pending signup whose event ended ≥24h ago
-  Mint FeedbackToken (URL-safe random, 30-day TTL)
-  Generate Message-ID (random hex @ MESSAGE_ID_DOMAIN)
-  Decrypt email (only legitimate caller)
-  Render Jinja template in event.locale
-  Hand to backend (console / SMTP) with Message-ID header
-    ↓ on success: status = "sent", message_id stored
-    ↓ on failure-after-retry: status = "failed", token deleted, message_id discarded
-  Wipe encrypted_email regardless
+```
+Public signup form
+  ↓ encryption.encrypt(email) → Signup.encrypted_email
+  For each channel applicable to this event (toggle on +
+  email present + window viable), insert a SignupEmailDispatch
+  row with status='pending'.
+
+Hourly cron tick (or organiser "send now" button)
+  python -m backend.cli dispatch reminder
+  python -m backend.cli dispatch feedback
+  ↓ for each PENDING dispatch whose event satisfies the
+    channel's window predicate
+  Conditional UPDATE pre-mints message_id (atomic claim:
+    filtered on status='pending' AND message_id IS NULL).
+  Decrypt Signup.encrypted_email (only legitimate caller).
+  Per-channel pre-send hook (e.g. feedback mints FeedbackToken).
+  Render Jinja template in event.locale.
+  send_with_retry — one retry on flap, then Sentry-captured
+    failure.
+    ↓ success: status='sent', message_id stored, sent_at = now
+    ↓ failure: status='failed', message_id NULL, sent_at = now,
+      per-channel on_failure hook runs (feedback deletes the
+      FeedbackToken)
+  Wipe Signup.encrypted_email iff no PENDING dispatch row
+    pointing at this signup remains.
 
 Scaleway TEM webhook
   ↓ POST /api/v1/webhooks/scaleway-email
-  HMAC-SHA256 verify against SCALEWAY_WEBHOOK_SECRET
-  Lookup signup by feedback_message_id
-  BOUNCE_EVENTS → status = "bounced"
-  COMPLAINT_EVENTS → status = "complaint"
-  Soft bounces / deliveries / opens: ignored
+  HMAC-SHA256 verify against SCALEWAY_WEBHOOK_SECRET (fail
+    closed: 503 if secret unset)
+  Single indexed lookup on dispatch.message_id (covers both
+    channels with one query).
+  Conditional UPDATE filtered on status='sent' so a row that
+    already moved to a final state isn't downgraded.
+  BOUNCE_EVENTS → status='bounced'
+  COMPLAINT_EVENTS → status='complaint'
+  Soft bounces / deliveries / opens: ignored.
+  After every flip: per-event bounce-rate check; ≥10 % over
+    ≥5 finalised dispatches emits a ``high_bounce_rate``
+    structured warning.
+
+Daily reapers (cron)
+  reap-partial — flip orphaned PENDING+message_id rows to
+    FAILED (mid-send crash recovery), wipe orphaned ciphertext.
+  reap-expired — DELETE pending REMINDER rows whose event
+    already started.
+  reap-post-event-emails — wipe ciphertext + FAIL pending
+    dispatches for events that ended ≥7 days ago. Backstop;
+    under normal operation a no-op.
+  reap-login-tokens — DELETE expired magic-link rows.
 
 Public submission /api/v1/feedback/{token}/submit
   ↓ Validate token + required questions

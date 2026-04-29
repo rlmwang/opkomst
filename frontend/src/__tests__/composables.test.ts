@@ -32,6 +32,8 @@ vi.mock("@/api/client", () => ({
 
 const mockGet = vi.mocked(apiClient.get);
 const mockPost = vi.mocked(apiClient.post);
+const mockPut = vi.mocked(apiClient.put);
+const mockPatch = vi.mocked(apiClient.patch);
 const mockDel = vi.mocked(apiClient.del);
 
 let app: App | null = null;
@@ -161,6 +163,113 @@ describe("useEvents composables", () => {
       "/api/v1/events/ev1/send-emails/reminder",
     );
     expect(r.processed).toBe(3);
+  });
+
+  it("useCreateEvent POSTs /api/v1/events with the payload", async () => {
+    const { useCreateEvent } = await import("@/composables/useEvents");
+    const payload = {
+      name: "Demo",
+      topic: null,
+      location: "X",
+      latitude: null,
+      longitude: null,
+      starts_at: "2026-05-01T18:00:00Z",
+      ends_at: "2026-05-01T20:00:00Z",
+      source_options: ["F"],
+      help_options: [],
+      questionnaire_enabled: true,
+      reminder_enabled: false,
+      locale: "nl" as const,
+    };
+    mockPost.mockResolvedValueOnce({ id: "ev1" });
+
+    const m = withSetup(() => useCreateEvent());
+    await m.mutateAsync(payload);
+
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/events", payload);
+  });
+
+  it("useUpdateEvent PUTs the event-id-keyed URL", async () => {
+    const { useUpdateEvent } = await import("@/composables/useEvents");
+    mockPut.mockResolvedValueOnce({ id: "ev1" } as never);
+
+    const m = withSetup(() => useUpdateEvent());
+    const payload = { name: "X" } as never;
+    await m.mutateAsync({ eventId: "ev1", payload });
+
+    expect(mockPut).toHaveBeenCalledWith("/api/v1/events/ev1", payload);
+  });
+
+  it("useRestoreEvent POSTs /api/v1/events/{id}/restore", async () => {
+    const { useRestoreEvent } = await import("@/composables/useEvents");
+    mockPost.mockResolvedValueOnce({} as never);
+
+    const m = withSetup(() => useRestoreEvent());
+    await m.mutateAsync("ev1");
+
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/events/ev1/restore");
+  });
+
+  it("usePublicSignup POSTs to the slug-keyed signups endpoint", async () => {
+    const { usePublicSignup } = await import("@/composables/useEvents");
+    mockPost.mockResolvedValueOnce({} as never);
+
+    const m = withSetup(() => usePublicSignup());
+    const payload = {
+      display_name: "Anon",
+      party_size: 1,
+      source_choice: "F",
+      help_choices: [],
+      email: null,
+    };
+    await m.mutateAsync({ slug: "my-event", payload });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/api/v1/events/by-slug/my-event/signups",
+      payload,
+    );
+  });
+});
+
+describe("useChapters composables", () => {
+  it("useArchiveChapter rolls every cached chapters-list back on failure", async () => {
+    const { useArchiveChapter } = await import("@/composables/useChapters");
+
+    queryClient.setQueryData(
+      ["chapters"],
+      [{ id: "c1", name: "A" }, { id: "c2", name: "B" }],
+    );
+    mockDel.mockRejectedValueOnce(new Error("boom"));
+
+    const m = withSetup(() => useArchiveChapter());
+    await expect(m.mutateAsync({ id: "c1" })).rejects.toThrow();
+
+    const after = queryClient.getQueryData<{ id: string }[]>(["chapters"]);
+    expect(after?.map((c) => c.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("useCreateChapter POSTs /api/v1/chapters with the name body", async () => {
+    const { useCreateChapter } = await import("@/composables/useChapters");
+    mockPost.mockResolvedValueOnce({} as never);
+
+    const m = withSetup(() => useCreateChapter());
+    await m.mutateAsync("New chapter");
+
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/chapters", {
+      name: "New chapter",
+    });
+  });
+
+  it("useUpdateChapter PATCHes /api/v1/chapters/{id} with the payload", async () => {
+    const { useUpdateChapter } = await import("@/composables/useChapters");
+    mockPatch.mockResolvedValueOnce({} as never);
+
+    const m = withSetup(() => useUpdateChapter());
+    await m.mutateAsync({ id: "c1", payload: { name: "Renamed" } });
+
+    expect(mockPatch).toHaveBeenCalledWith("/api/v1/chapters/c1", {
+      name: "Renamed",
+    });
   });
 });
 
