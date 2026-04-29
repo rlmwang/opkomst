@@ -11,7 +11,6 @@ the body looks like.
 import hashlib
 import hmac
 import json
-import os
 
 import pytest
 from hypothesis import HealthCheck, given, settings

@@ -104,6 +104,7 @@ def health() -> dict[str, object]:
       crashed, SMTP outage, etc.) before it shows up in user
       complaints.
     """
+    import shutil
     from datetime import UTC, datetime
 
     from sqlalchemy import text
@@ -115,6 +116,14 @@ def health() -> dict[str, object]:
     db_ok = False
     schema_head: str | None = None
     oldest_pending_age_seconds: int | None = None
+    # Disk-free under the working directory — picks up the volume
+    # the SQLite-or-Postgres data + uploaded assets sit on. Below
+    # 1 GB the runbook says page someone.
+    try:
+        usage = shutil.disk_usage(".")
+        disk_free_gb = round(usage.free / (1024**3), 2)
+    except Exception:
+        disk_free_gb = None
     db = SessionLocal()
     try:
         db.execute(text("SELECT 1"))
@@ -142,6 +151,7 @@ def health() -> dict[str, object]:
         "db_connectivity": db_ok,
         "schema_head": schema_head,
         "oldest_pending_dispatch_age_seconds": oldest_pending_age_seconds,
+        "disk_free_gb": disk_free_gb,
         "email_executor_max_workers": get_executor()._max_workers,
     }
 

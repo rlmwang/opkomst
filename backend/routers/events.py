@@ -76,7 +76,9 @@ def _scope_filter(user: User):
 
 
 @router.post("", response_model=EventOut, status_code=201)
+@limiter.limit("30/hour")
 def create_event(
+    request: Request,
     data: EventCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
@@ -146,7 +148,9 @@ def list_archived_events(
 
 
 @router.post("/{entity_id}/archive", response_model=EventOut)
+@limiter.limit("30/hour")
 def archive_event(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
@@ -205,7 +209,9 @@ def send_emails_now(
 
 
 @router.post("/{entity_id}/restore", response_model=EventOut)
+@limiter.limit("30/hour")
 def restore_event(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
@@ -227,7 +233,9 @@ def restore_event(
 
 
 @router.put("/{entity_id}", response_model=EventOut)
+@limiter.limit("60/hour")
 def update_event(
+    request: Request,
     entity_id: str,
     data: EventCreate,
     db: Session = Depends(get_db),

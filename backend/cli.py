@@ -107,6 +107,18 @@ def main(argv: list[str] | None = None) -> int:
     _init_sentry()
     run_migrations()
 
+    # Sentry Cron Monitors: send a check-in at start + end. If
+    # Sentry hasn't heard from a job within the configured SLA
+    # (set in the Sentry UI, per monitor slug) it raises an
+    # incident — which is how you find out the cron host died
+    # without waiting for the email queue to back up. Slug names
+    # match the subcommand; configure each one in the Sentry UI.
+    monitor_slug = f"opkomst-cli-{args.cmd}"
+    check_in_id = sentry_sdk.crons.capture_checkin(
+        monitor_slug=monitor_slug,
+        status="in_progress",
+    )
+
     try:
         if args.cmd == "dispatch":
             _dispatch(args.channel)
@@ -129,8 +141,18 @@ def main(argv: list[str] | None = None) -> int:
         # process exits non-zero (Coolify retry policy still
         # applies).
         sentry_sdk.capture_exception()
+        sentry_sdk.crons.capture_checkin(
+            monitor_slug=monitor_slug,
+            check_in_id=check_in_id,
+            status="error",
+        )
         raise
 
+    sentry_sdk.crons.capture_checkin(
+        monitor_slug=monitor_slug,
+        check_in_id=check_in_id,
+        status="ok",
+    )
     return 0
 
 

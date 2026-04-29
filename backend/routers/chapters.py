@@ -6,7 +6,7 @@ archive / restore are admin-only.
 """
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..auth import require_admin, require_approved
@@ -21,6 +21,7 @@ from ..schemas.chapters import (
 )
 from ..services import chapters as svc
 from ..services import scd2
+from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()
 
@@ -52,7 +53,9 @@ def list_chapters(
 
 
 @router.post("", response_model=ChapterOut, status_code=201)
+@limiter.limit("30/hour")
 def create_chapter(
+    request: Request,
     data: ChapterCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -69,7 +72,9 @@ def create_chapter(
 
 
 @router.patch("/{entity_id}", response_model=ChapterOut)
+@limiter.limit("60/hour")
 def patch_chapter(
+    request: Request,
     entity_id: str,
     data: ChapterPatch,
     db: Session = Depends(get_db),
@@ -116,7 +121,9 @@ def chapter_usage(
 
 
 @router.delete("/{entity_id}", status_code=200, response_model=ChapterOut)
+@limiter.limit("30/hour")
 def archive_chapter(
+    request: Request,
     entity_id: str,
     data: ChapterArchiveRequest | None = None,
     db: Session = Depends(get_db),
@@ -159,7 +166,9 @@ def archive_chapter(
 
 
 @router.post("/{entity_id}/restore", response_model=ChapterOut)
+@limiter.limit("30/hour")
 def restore_chapter(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),

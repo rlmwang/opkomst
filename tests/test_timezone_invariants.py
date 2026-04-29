@@ -27,7 +27,6 @@ from backend.services.email_channels import (
     FEEDBACK,
     FEEDBACK_DELAY,
     REMINDER,
-    REMINDER_WINDOW,
 )
 
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)

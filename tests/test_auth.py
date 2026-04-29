@@ -141,6 +141,89 @@ def test_soft_delete_then_restore_via_register(client, admin_headers):
         db.close()
 
 
+def test_jwt_with_invalid_signature_rejected(client):
+    """A token signed with a different secret must 401. The
+    server's secret is loaded at boot via ``settings.jwt_secret``;
+    we forge a token with a different key and post it."""
+    from datetime import UTC, datetime, timedelta
+
+    from jose import jwt as jose_jwt
+
+    payload = {
+        "sub": "fake-user",
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=1),
+    }
+    forged = jose_jwt.encode(payload, "wrong-secret", algorithm="HS256")
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {forged}"})
+    assert r.status_code == 401
+
+
+def test_jwt_expired_rejected(client, admin_token):
+    """A valid signature with ``exp`` in the past must 401.
+    Generates a token with the live secret but with ``exp`` an
+    hour ago."""
+    from datetime import UTC, datetime, timedelta
+
+    from jose import jwt as jose_jwt
+
+    from backend.config import settings
+
+    payload = {
+        "sub": "any-id",
+        "iat": datetime.now(UTC) - timedelta(hours=2),
+        "exp": datetime.now(UTC) - timedelta(hours=1),
+    }
+    expired = jose_jwt.encode(
+        payload, settings.jwt_secret.get_secret_value(), algorithm="HS256"
+    )
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired}"})
+    assert r.status_code == 401
+
+
+def test_jwt_for_archived_user_rejected(client, admin_headers, admin_token):
+    """A previously-valid JWT becomes invalid the moment the user
+    is soft-deleted: ``get_current_user`` looks up the
+    ``entity_id`` via SCD2 ``current_by_entity``, which returns
+    None for a closed chain."""
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": "ephemeral@local.dev", "name": "E"},
+    )
+    assert r.status_code == 201
+
+    from backend.auth import create_token
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = (
+            scd2.current(db.query(User)).filter(User.email == "ephemeral@local.dev").first()
+        )
+        assert user is not None
+        uid = user.entity_id
+    finally:
+        db.close()
+    token = create_token(uid)
+    # Token works while the user is current.
+    assert (
+        client.get(
+            "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
+        ).status_code
+        == 200
+    )
+
+    # Soft-delete; the same JWT now 401s.
+    assert (
+        client.delete(f"/api/v1/admin/users/{uid}", headers=admin_headers).status_code
+        == 204
+    )
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 401
+
+
 def test_explicit_validation_for_register(client):
     # Email format
     r = client.post(
@@ -248,7 +331,6 @@ def test_bootstrap_race_falls_through_to_mint_link(client, monkeypatch):
     assert ("admin@local.dev", "login.html") in sent
 
     # The winning row is the one that's current.
-    from backend.database import SessionLocal
     from backend.models import User
     from backend.services import scd2
 

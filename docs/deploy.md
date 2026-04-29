@@ -64,6 +64,25 @@ long-running scheduler container to coordinate.
    so unlike a long-running scheduler container, you can scale the
    API replicas without doubling email sends.
 
+## Rate limiting (SlowAPI storage)
+
+Opkomst uses ``slowapi`` for per-IP rate limits. The default
+storage backend is in-process memory (``memory://``), which means
+each replica counts independently — running ``N`` replicas
+multiplies effective limits by ``N``.
+
+**Decision: opkomst runs as a single API replica**, behind
+Coolify's reverse proxy. Email volume + traffic make horizontal
+scaling unnecessary at the foreseeable scale, and a single replica
+keeps SlowAPI's defaults correct without operating a separate
+Redis instance for rate-limit state alone.
+
+If you ever need to scale to multiple replicas, set
+``RATE_LIMIT_STORAGE_URI=redis://<host>:6379/0`` in the Coolify
+env so the limiter shares a counter across instances. The
+``Settings`` model already accepts the variable; no code change is
+required.
+
 ## Local production smoke
 
 ```bash

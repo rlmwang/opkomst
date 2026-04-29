@@ -1,5 +1,5 @@
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..auth import require_admin
@@ -10,6 +10,7 @@ from ..services import chapters as chapters_svc
 from ..services import scd2
 from ..services.email.sender import send_email
 from ..services.email.urls import build_url
+from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()
 
@@ -50,7 +51,9 @@ def list_users(
 
 
 @router.post("/users/{entity_id}/approve", response_model=AdminUserOut)
+@limiter.limit("60/hour")
 def approve_user(
+    request: Request,
     entity_id: str,
     data: ApproveUserRequest,
     db: Session = Depends(get_db),
@@ -95,7 +98,9 @@ def approve_user(
 
 
 @router.post("/users/{entity_id}/assign-chapter", response_model=AdminUserOut)
+@limiter.limit("60/hour")
 def assign_chapter(
+    request: Request,
     entity_id: str,
     data: AssignChapterRequest,
     db: Session = Depends(get_db),
@@ -126,7 +131,9 @@ def assign_chapter(
 
 
 @router.post("/users/{entity_id}/promote", response_model=AdminUserOut)
+@limiter.limit("60/hour")
 def promote_user(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -150,7 +157,9 @@ def promote_user(
 
 
 @router.delete("/users/{entity_id}", status_code=204)
+@limiter.limit("30/hour")
 def delete_user(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -175,7 +184,9 @@ def delete_user(
 
 
 @router.post("/users/{entity_id}/demote", response_model=AdminUserOut)
+@limiter.limit("60/hour")
 def demote_user(
+    request: Request,
     entity_id: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
