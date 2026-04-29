@@ -189,19 +189,24 @@ def retire_event_channels(
 
 def purge_post_event_emails() -> int:
     """≥7 days after an event ends, force-wipe any remaining
-    ciphertext for its signups. Every other wipe path should
-    already have run by this point — if this sweep finds
-    anything, that's a bug and we surface it via a warning log
-    so it can be investigated. Under normal operation this is a
-    no-op."""
+    ciphertext for its signups AND finalise any still-pending
+    dispatch rows. Every other path should have run by this
+    point; if this sweep finds anything, that's a bug elsewhere
+    and we surface it via a warning log. Under normal operation
+    this is a no-op.
+
+    Pending rows must transition along with the wipe: a pending
+    row whose ciphertext has just been NULLed can never succeed
+    (the dispatcher needs the plaintext to send), and leaving it
+    pending breaks the wipe invariant
+    (``encrypted_email IS NULL`` ⇔ no PENDING dispatch row)."""
     now = datetime.now(UTC)
     cutoff = now - POST_EVENT_PURGE_DELAY
     db = SessionLocal()
     try:
         # Subquery: signup IDs whose current event ended ≥7 days
-        # ago. Correlated against Signup so it works on both
-        # SQLite and Postgres without dragging entity_ids through
-        # Python.
+        # ago. Correlated against Signup so it can be reused on
+        # both the wipe and the failed-finalise statements.
         old_event_signup = (
             db.query(Event.entity_id)
             .filter(
@@ -210,6 +215,29 @@ def purge_post_event_emails() -> int:
                 Event.entity_id == Signup.event_id,
             )
             .exists()
+        )
+        old_signup_id = (
+            db.query(Signup.id)
+            .filter(
+                Signup.id == SignupEmailDispatch.signup_id,
+                old_event_signup,
+            )
+            .exists()
+        )
+
+        finalised = (
+            db.query(SignupEmailDispatch)
+            .filter(
+                SignupEmailDispatch.status == EmailStatus.PENDING,
+                old_signup_id,
+            )
+            .update(
+                {
+                    SignupEmailDispatch.status: EmailStatus.FAILED,
+                    SignupEmailDispatch.sent_at: now,
+                },
+                synchronize_session=False,
+            )
         )
         wiped = (
             db.query(Signup)
@@ -223,10 +251,12 @@ def purge_post_event_emails() -> int:
             )
         )
         db.commit()
-        if wiped:
-            # Warning, not info: under normal operation every
-            # legitimate path should already have wiped these.
-            logger.warning("post_event_email_purge", count=wiped)
+        if wiped or finalised:
+            logger.warning(
+                "post_event_email_purge",
+                wiped=wiped,
+                finalised_pending=finalised,
+            )
         return wiped
     finally:
         db.close()

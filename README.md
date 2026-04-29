@@ -36,7 +36,20 @@ Set `LOCAL_MODE=1` in `.env` and the backend will seed two test accounts and two
 | `admin@local.dev`      | admin     |
 | `organiser@local.dev`  | organiser |
 
-Both accounts are pre-approved. Sign in by entering the email on the login page; with `EMAIL_BACKEND=console` the magic-link URL is logged to stdout — copy it into the browser to land on `/auth/redeem` and get a JWT. The organiser owns one upcoming and one past event; the past event has a signup with an encrypted email so the hourly feedback worker has something real to chew through. Use it locally only.
+Both accounts are pre-approved. To sign in:
+
+1. Open the frontend (default `http://localhost:5174`) and go to `/login`.
+2. Enter `admin@local.dev` (or `organiser@local.dev`) and click "Send sign-in link".
+3. With `EMAIL_BACKEND=console` (the dev default), the backend writes a structured log line for each email it would have sent. Look for `event=email_console` and copy the link out of `urls=[...]`:
+
+   ```
+   event=email_console to=admin@local.dev subject='Sign in to opkomst.nu' \
+     urls=['http://localhost:5174/auth/redeem?token=<...>']
+   ```
+
+4. Paste the URL into your browser. The page redeems the token, stores the JWT, and redirects you to `/dashboard`.
+
+The link works once and expires in 30 minutes. Click "Send sign-in link" again to mint a fresh one. The organiser owns one upcoming and one past event; the past event has a signup with an encrypted email so the hourly feedback worker has something real to chew through. Use it locally only.
 
 ## Privacy posture
 

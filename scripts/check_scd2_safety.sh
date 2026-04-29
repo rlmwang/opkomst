@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-SCD2_MODELS="Event|Afdeling|User"
+SCD2_MODELS="Event|Chapter|User"
 
 # ``\.current\(`` matches both ``scd2.current(...)`` and the alias
 # ``scd2_svc.current(...)`` used by router code.

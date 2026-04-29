@@ -117,3 +117,47 @@ def test_purge_with_clock_advance_crosses_cutoff(
 
     clock.advance(days=7, hours=2)
     assert email_reaper.purge_post_event_emails() == 1
+
+
+def test_purge_is_a_backstop_with_pending_dispatches(db: Any) -> None:
+    """Simulate the failure mode the backstop exists for: an event
+    has ended ≥7 days ago, the per-channel wipe never ran (a bug in
+    the dispatcher, a deploy that was rolled back mid-flight,
+    whatever), so the signup still has ciphertext AND a pending
+    dispatch row. The backstop must wipe the ciphertext AND
+    finalise the orphaned pending row to FAILED — leaving a
+    pending row with no ciphertext would break the wipe invariant
+    (``encrypted_email IS NULL`` ⇔ no PENDING dispatch row)."""
+    from backend.models import EmailStatus, SignupEmailDispatch
+
+    e = make_event(
+        db,
+        starts_in=timedelta(days=-9),
+        duration=timedelta(hours=2),
+        questionnaire_enabled=True,
+    )
+    # ``feedback="pending"`` deliberately leaves a pending row to
+    # simulate the not-cleaned-up state.
+    s = make_signup(db, e, email="alice@example.test", feedback="pending")
+    commit(db)
+
+    wiped = email_reaper.purge_post_event_emails()
+    assert wiped == 1
+
+    fresh = SessionLocal()
+    try:
+        row = fresh.query(Signup).filter(Signup.id == s.id).first()
+        assert row is not None and row.encrypted_email is None
+        # The orphaned pending row must have been transitioned to
+        # FAILED — otherwise the wipe invariant breaks.
+        pending = (
+            fresh.query(SignupEmailDispatch)
+            .filter(
+                SignupEmailDispatch.signup_id == s.id,
+                SignupEmailDispatch.status == EmailStatus.PENDING,
+            )
+            .count()
+        )
+        assert pending == 0, "purge left a pending dispatch behind"
+    finally:
+        fresh.close()
