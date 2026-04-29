@@ -107,18 +107,29 @@ def main(argv: list[str] | None = None) -> int:
     _init_sentry()
     run_migrations()
 
-    if args.cmd == "dispatch":
-        _dispatch(args.channel)
-    elif args.cmd == "reap-partial":
-        _reap_partial()
-    elif args.cmd == "reap-expired":
-        _reap_expired()
-    elif args.cmd == "reap-post-event-emails":
-        _reap_post_event()
-    elif args.cmd == "reap-login-tokens":
-        _reap_login_tokens()
-    else:
-        parser.error(f"unknown command: {args.cmd}")
+    try:
+        if args.cmd == "dispatch":
+            _dispatch(args.channel)
+        elif args.cmd == "reap-partial":
+            _reap_partial()
+        elif args.cmd == "reap-expired":
+            _reap_expired()
+        elif args.cmd == "reap-post-event-emails":
+            _reap_post_event()
+        elif args.cmd == "reap-login-tokens":
+            _reap_login_tokens()
+        else:
+            parser.error(f"unknown command: {args.cmd}")
+    except Exception:
+        # Capture-and-reraise: Coolify cron will surface the
+        # non-zero exit, but the FastAPI / Starlette Sentry
+        # integrations only catch HTTP-served exceptions, so
+        # without this an uncaught error in a cron sweep would
+        # log to stdout and never alert. Re-raise so the
+        # process exits non-zero (Coolify retry policy still
+        # applies).
+        sentry_sdk.capture_exception()
+        raise
 
     return 0
 

@@ -41,7 +41,11 @@ class SmtpBackend:
             msg["Message-ID"] = message_id
         msg.attach(MIMEText(html_body, "html"))
 
-        with smtplib.SMTP(self.host, self.port, timeout=10) as server:
+        # 5s connection-and-command timeout. Production opkomst is
+        # one outbound queue against Scaleway TEM; if a single send
+        # blocks past five seconds the worker should bail and let
+        # the retry loop pick it up rather than tie the thread up.
+        with smtplib.SMTP(self.host, self.port, timeout=5) as server:
             server.starttls()
             if self.user:
                 server.login(self.user, self.password)

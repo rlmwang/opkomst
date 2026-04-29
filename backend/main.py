@@ -90,14 +90,58 @@ app.include_router(webhooks_router.router)
 
 @app.get("/health")
 def health() -> dict[str, object]:
-    """Liveness probe + a few introspection knobs for ops.
-    Includes the email-executor's bounded worker count so a
-    deploy / config-change that accidentally lifted the cap is
-    visible at a glance (Phase 4.3)."""
+    """Liveness probe + introspection for ops.
+
+    Beyond ``status: ok``, the response surfaces:
+    * email-executor bounded worker count — a deploy that
+      accidentally lifted the cap is visible at a glance;
+    * Alembic schema head — the migration revision the running
+      process believes the DB is at, so a Coolify deploy that
+      forgot to run migrations is one curl away from being
+      caught;
+    * DB connectivity — a trivial ``SELECT 1`` round-trip;
+    * oldest pending dispatch — surfaces a stuck queue (worker
+      crashed, SMTP outage, etc.) before it shows up in user
+      complaints.
+    """
+    from datetime import UTC, datetime
+
+    from sqlalchemy import text
+
+    from .database import SessionLocal
+    from .models import EmailStatus, SignupEmailDispatch
     from .services.email.backends import get_executor
 
+    db_ok = False
+    schema_head: str | None = None
+    oldest_pending_age_seconds: int | None = None
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        db_ok = True
+        head_row = db.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).first()
+        schema_head = head_row[0] if head_row else None
+        oldest = (
+            db.query(SignupEmailDispatch.created_at)
+            .filter(SignupEmailDispatch.status == EmailStatus.PENDING)
+            .order_by(SignupEmailDispatch.created_at.asc())
+            .first()
+        )
+        if oldest is not None:
+            age = datetime.now(UTC) - oldest[0]
+            oldest_pending_age_seconds = int(age.total_seconds())
+    except Exception:
+        # ``status: ok`` only flips false when DB is unreachable;
+        # everything else is best-effort introspection.
+        pass
+    finally:
+        db.close()
+
     return {
-        "status": "ok",
+        "status": "ok" if db_ok else "degraded",
+        "db_connectivity": db_ok,
+        "schema_head": schema_head,
+        "oldest_pending_dispatch_age_seconds": oldest_pending_age_seconds,
         "email_executor_max_workers": get_executor()._max_workers,
     }
 

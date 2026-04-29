@@ -26,8 +26,14 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import EmailStatus, SignupEmailDispatch
+from ..models import EmailStatus, Signup, SignupEmailDispatch
 from ..services.email.observability import emit_metric
+from ..services.rate_limit import limiter
+
+# A bounce/complaint rate over this fraction trips a warning log.
+# 10 % is the canonical "your IP reputation is tanking" threshold
+# that mailbox providers (Gmail, M365) start reacting to.
+_BOUNCE_RATE_ALERT = 0.10
 
 logger = structlog.get_logger()
 
@@ -58,6 +64,7 @@ def _verify_signature(raw_body: bytes, header_value: str | None) -> None:
 
 
 @router.post("/scaleway-email", status_code=204)
+@limiter.limit("60/minute")
 async def scaleway_email_event(
     request: Request,
     x_scaleway_signature: str | None = Header(default=None, alias="X-Scaleway-Signature"),
@@ -125,5 +132,57 @@ async def scaleway_email_event(
                 event_type=event_type,
             )
             emit_metric(channel=dispatch.channel.value, outcome=outcome)
+            _maybe_warn_bounce_rate(db, dispatch)
 
     db.commit()
+
+
+def _maybe_warn_bounce_rate(db: Session, dispatch: SignupEmailDispatch) -> None:
+    """Per-event bounce-rate alarm. Counts terminal-bad statuses
+    (BOUNCED + COMPLAINT) over total finalised dispatches for the
+    event this dispatch belongs to. Logs a structured warning if
+    the ratio crosses :data:`_BOUNCE_RATE_ALERT`. Cheap — runs at
+    most once per webhook event, against indexed columns."""
+    event_id_subq = (
+        db.query(Signup.event_id)
+        .filter(Signup.id == dispatch.signup_id)
+        .scalar_subquery()
+    )
+    matching_dispatches = (
+        db.query(SignupEmailDispatch)
+        .join(Signup, Signup.id == SignupEmailDispatch.signup_id)
+        .filter(
+            Signup.event_id == event_id_subq,
+            SignupEmailDispatch.channel == dispatch.channel,
+            SignupEmailDispatch.status.in_(
+                {
+                    EmailStatus.SENT,
+                    EmailStatus.BOUNCED,
+                    EmailStatus.COMPLAINT,
+                    EmailStatus.FAILED,
+                }
+            ),
+        )
+    )
+    rows = matching_dispatches.all()
+    total = len(rows)
+    if total < 5:
+        # Below this size the ratio is too noisy — one bounce out
+        # of three rows is 33 %, which doesn't tell us anything
+        # about reputation.
+        return
+    bad = sum(
+        1 for r in rows if r.status in (EmailStatus.BOUNCED, EmailStatus.COMPLAINT)
+    )
+    rate = bad / total
+    if rate >= _BOUNCE_RATE_ALERT:
+        logger.warning(
+            "high_bounce_rate",
+            channel=dispatch.channel.value,
+            event_id=db.query(Signup.event_id)
+            .filter(Signup.id == dispatch.signup_id)
+            .scalar(),
+            rate=round(rate, 3),
+            total_dispatches=total,
+            bad_dispatches=bad,
+        )
