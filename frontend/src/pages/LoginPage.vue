@@ -59,8 +59,24 @@ async function submit() {
     <AppCard v-else>
       <h1>{{ t("auth.login") }}</h1>
       <p class="muted">{{ t("auth.linkIntro") }}</p>
-      <form class="stack" novalidate @submit.prevent="submit">
-        <InputText v-model="email" type="email" :placeholder="t('auth.email')" autocomplete="email" fluid />
+      <!-- ``method="post"`` + named ``email`` input + ``autocomplete=
+           "username email"`` is what Firefox's password manager
+           keys on for passwordless / magic-link forms. Without
+           ``autocomplete="username"`` Firefox doesn't recognise
+           the form as a sign-in and never offers to save the
+           address; without ``name`` Chrome's autofill won't
+           remember it across sites. We still ``preventDefault``
+           and submit via Vue, but the attributes are what the
+           browser heuristics inspect. -->
+      <form class="stack" method="post" action="" novalidate @submit.prevent="submit">
+        <InputText
+          v-model="email"
+          type="email"
+          name="email"
+          :placeholder="t('auth.email')"
+          autocomplete="username email"
+          fluid
+        />
         <Button type="submit" :label="t('auth.sendLink')" :loading="submitting" />
       </form>
       <p class="muted">

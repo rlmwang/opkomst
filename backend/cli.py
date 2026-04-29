@@ -26,6 +26,7 @@ import sys
 
 import sentry_sdk
 import structlog
+from sentry_sdk.crons import capture_checkin
 
 from .config import settings
 from .database import SessionLocal
@@ -114,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     # without waiting for the email queue to back up. Slug names
     # match the subcommand; configure each one in the Sentry UI.
     monitor_slug = f"opkomst-cli-{args.cmd}"
-    check_in_id = sentry_sdk.crons.capture_checkin(
+    check_in_id = capture_checkin(
         monitor_slug=monitor_slug,
         status="in_progress",
     )
@@ -141,14 +142,14 @@ def main(argv: list[str] | None = None) -> int:
         # process exits non-zero (Coolify retry policy still
         # applies).
         sentry_sdk.capture_exception()
-        sentry_sdk.crons.capture_checkin(
+        capture_checkin(
             monitor_slug=monitor_slug,
             check_in_id=check_in_id,
             status="error",
         )
         raise
 
-    sentry_sdk.crons.capture_checkin(
+    capture_checkin(
         monitor_slug=monitor_slug,
         check_in_id=check_in_id,
         status="ok",

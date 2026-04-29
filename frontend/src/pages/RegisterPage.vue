@@ -56,9 +56,26 @@ async function submit() {
     <AppCard v-else>
       <h1>{{ t("auth.register") }}</h1>
       <p class="muted">{{ t("auth.registerHint") }}</p>
-      <form class="stack" novalidate @submit.prevent="submit">
-        <InputText v-model="name" :placeholder="t('auth.name')" fluid />
-        <InputText v-model="email" type="email" :placeholder="t('auth.email')" autocomplete="email" fluid />
+      <!-- See LoginPage for the explanation of the
+           ``method="post"`` + ``name`` + ``autocomplete=
+           "username email"`` combination — same Firefox/Chrome
+           autofill story applies to register. -->
+      <form class="stack" method="post" action="" novalidate @submit.prevent="submit">
+        <InputText
+          v-model="name"
+          name="name"
+          :placeholder="t('auth.name')"
+          autocomplete="name"
+          fluid
+        />
+        <InputText
+          v-model="email"
+          type="email"
+          name="email"
+          :placeholder="t('auth.email')"
+          autocomplete="username email"
+          fluid
+        />
         <Button type="submit" :label="t('auth.sendLink')" :loading="submitting" />
       </form>
       <p class="muted">

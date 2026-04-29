@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, Index, Integer, LargeBinary, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -37,9 +38,12 @@ class Event(UUIDMixin, TimestampMixin, SCD2Mixin, Base):
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # ISO language tag — drives the public-page UI language and the
     # locale of the post-event feedback email. Two-letter codes
-    # only ('nl' / 'en') today; widen to a code/region pair if we
-    # ever localise per region.
-    locale: Mapped[str] = mapped_column(Text, nullable=False, default="nl")
+    # only ('nl' / 'en') today; widen the Literal to add a region.
+    # Stored as plain Text but the schema layer
+    # (``schemas.events.Locale``) is the write-side gate, and
+    # mirroring the literal here keeps consumers (DTO build,
+    # template rendering) strict without a runtime CHECK.
+    locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
     # Points at User.entity_id; no FK because user is also SCD2 (its
     # entity_id isn't unique across all rows).
     created_by: Mapped[str] = mapped_column(Text, nullable=False, index=True)

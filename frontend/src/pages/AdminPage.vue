@@ -2,7 +2,6 @@
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import Tag from "primevue/tag";
 import ToggleSwitch from "primevue/toggleswitch";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -367,9 +366,6 @@ async function submitDelete() {
         <div class="list-row-label">
           <strong>{{ u.name }}</strong>
           <span class="muted"> · {{ u.email }}</span>
-          <div class="tags">
-            <Tag v-if="!u.is_approved" :value="t('admin.pending')" severity="warn" />
-          </div>
         </div>
         <div class="actions">
           <Button
