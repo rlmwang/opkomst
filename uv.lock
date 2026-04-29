@@ -598,7 +598,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "nanoid", specifier = ">=2" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.3" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.11" },
     { name = "pydantic-settings", specifier = ">=2.6" },
     { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3" },
