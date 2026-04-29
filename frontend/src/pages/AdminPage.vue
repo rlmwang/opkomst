@@ -347,8 +347,8 @@ async function submitDelete() {
     </AppCard>
 
     <AppCard>
-      <h2>{{ t("usersTitle") }}</h2>
-      <p class="muted">{{ t("usersIntro") }}</p>
+      <h2>{{ t("admin.usersTitle") }}</h2>
+      <p class="muted">{{ t("admin.usersIntro") }}</p>
       <AppSkeleton v-if="!loaded" :rows="4" />
       <template v-else>
         <SearchInput
