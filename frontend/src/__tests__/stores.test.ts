@@ -59,12 +59,11 @@ describe("auth store", () => {
     expect(store.user).toBeNull();
     expect(store.loaded).toBe(false);
     expect(store.isAuthenticated).toBe(false);
-    expect(store.isVerified).toBe(false);
     expect(store.isApproved).toBe(false);
     expect(store.isAdmin).toBe(false);
   });
 
-  it("computeds react to user state changes (verified+approved+admin all gate)", async () => {
+  it("computeds react to user state changes (approved+admin gate)", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     const store = useAuthStore();
     const baseUser = {
@@ -72,41 +71,30 @@ describe("auth store", () => {
       email: "x@y",
       name: "X",
       role: "organiser" as const,
-      email_verified_at: null,
       is_approved: false,
       chapter_id: null,
       chapter_name: null,
       created_at: "2026-01-01T00:00:00Z",
     };
 
-    // Logged in but unverified + unapproved.
+    // Logged in but unapproved.
     store.user = { ...baseUser };
     expect(store.isAuthenticated).toBe(true);
-    expect(store.isVerified).toBe(false);
     expect(store.isApproved).toBe(false);
     expect(store.isAdmin).toBe(false);
 
-    // Verified only.
-    store.user = { ...baseUser, email_verified_at: "2026-01-01T00:00:00Z" };
-    expect(store.isVerified).toBe(true);
-    expect(store.isApproved).toBe(false);
-
-    // Verified + approved.
-    store.user = { ...baseUser, email_verified_at: "2026-01-01T00:00:00Z", is_approved: true };
+    // Approved organiser.
+    store.user = { ...baseUser, is_approved: true };
     expect(store.isApproved).toBe(true);
-    expect(store.isAdmin).toBe(false); // role still organiser
+    expect(store.isAdmin).toBe(false);
 
-    // Admin role + verified + approved → isAdmin.
-    store.user = {
-      ...baseUser,
-      role: "admin",
-      email_verified_at: "2026-01-01T00:00:00Z",
-      is_approved: true,
-    };
+    // Admin role + approved → isAdmin.
+    store.user = { ...baseUser, role: "admin", is_approved: true };
     expect(store.isAdmin).toBe(true);
 
-    // Admin role but unverified → still false (mirrors backend require_admin).
-    store.user = { ...baseUser, role: "admin", is_approved: true };
+    // Admin role but unapproved → still false (mirrors backend
+    // require_admin).
+    store.user = { ...baseUser, role: "admin", is_approved: false };
     expect(store.isAdmin).toBe(false);
   });
 });

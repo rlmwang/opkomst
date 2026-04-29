@@ -1,7 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
-import bcrypt
 from fastapi import Depends, Header, HTTPException
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -18,17 +16,6 @@ JWT_TTL_HOURS = 24 * 7
 ROLE_RANK: dict[str, int] = {"organiser": 1, "admin": 2}
 
 
-def hash_password(password: str) -> str:
-    # bcrypt caps input at 72 bytes; truncate to be explicit instead of letting
-    # the library raise. Pre-hashing with sha256 would be the alternative but
-    # adds operational complexity for negligible benefit at our scale.
-    return bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
-
-
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8")[:72], hashed.encode("utf-8"))
-
-
 def create_token(user_entity_id: str) -> str:
     """Sign a JWT against the user's stable ``entity_id`` so the token
     survives every edit (rename, role change, approval, chapter
@@ -36,33 +23,6 @@ def create_token(user_entity_id: str) -> str:
     now = datetime.now(UTC)
     payload = {"sub": user_entity_id, "iat": now, "exp": now + timedelta(hours=JWT_TTL_HOURS)}
     return jwt.encode(payload, _JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-
-# --- Purpose tokens (email verification, password reset) ---
-
-
-def create_purpose_token(user_entity_id: str, email: str, purpose: str, expires_hours: int) -> str:
-    """Signed, short-lived token tied to one user + purpose. ``sub`` is
-    the user's ``entity_id`` so the link survives user edits."""
-    now = datetime.now(UTC)
-    payload = {
-        "sub": user_entity_id,
-        "email": email,
-        "purpose": purpose,
-        "iat": now,
-        "exp": now + timedelta(hours=expires_hours),
-    }
-    return jwt.encode(payload, _JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-
-def decode_purpose_token(token: str, expected_purpose: str) -> dict[str, Any]:
-    try:
-        payload: dict[str, Any] = jwt.decode(token, _JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except JWTError as exc:
-        raise HTTPException(status_code=400, detail="Invalid or expired token") from exc
-    if payload.get("purpose") != expected_purpose:
-        raise HTTPException(status_code=400, detail="Invalid token")
-    return payload
 
 
 def _decode_token(token: str) -> str:
@@ -91,11 +51,10 @@ def get_current_user(
 
 
 def require_approved(user: User = Depends(get_current_user)) -> User:
-    """Two gates: the user must have confirmed their email AND an admin
-    must have approved their account. Both have to hold before an
-    organiser can do anything beyond fetching /me."""
-    if user.email_verified_at is None:
-        raise HTTPException(status_code=403, detail="Email not verified")
+    """An admin must have approved the account before an organiser can
+    do anything beyond fetching /me. Email ownership is implicit —
+    the user only got a JWT by clicking a magic link delivered to
+    their address."""
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="Account is awaiting admin approval")
     return user
@@ -104,8 +63,6 @@ def require_approved(user: User = Depends(get_current_user)) -> User:
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    if user.email_verified_at is None:
-        raise HTTPException(status_code=403, detail="Email not verified")
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="Account is awaiting admin approval")
     return user

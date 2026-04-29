@@ -883,21 +883,42 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "LoginRequest": {
+      "LinkSent": {
+        "description": "Boring 200 response so /login-link and /register don't leak\nwhether an email exists.",
+        "properties": {
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "LinkSent",
+        "type": "object"
+      },
+      "LoginLinkRequest": {
         "properties": {
           "email": {
             "format": "email",
             "title": "Email",
             "type": "string"
-          },
-          "password": {
-            "title": "Password",
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "LoginLinkRequest",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "description": "Redeems a magic-link token. The token was minted by\n``/auth/login-link`` (existing user) or ``/auth/register`` (new\nuser); both flows funnel into this single redemption endpoint.",
+        "properties": {
+          "token": {
+            "title": "Token",
             "type": "string"
           }
         },
         "required": [
-          "email",
-          "password"
+          "token"
         ],
         "title": "LoginRequest",
         "type": "object"
@@ -913,16 +934,10 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
-          },
-          "password": {
-            "minLength": 8,
-            "title": "Password",
-            "type": "string"
           }
         },
         "required": [
           "email",
-          "password",
           "name"
         ],
         "title": "RegisterRequest",
@@ -1064,18 +1079,6 @@
             "title": "Email",
             "type": "string"
           },
-          "email_verified_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Email Verified At"
-          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -1098,7 +1101,6 @@
           "email",
           "name",
           "role",
-          "email_verified_at",
           "is_approved",
           "chapter_id",
           "chapter_name",
@@ -1145,19 +1147,6 @@
           "type"
         ],
         "title": "ValidationError",
-        "type": "object"
-      },
-      "VerifyEmailRequest": {
-        "properties": {
-          "token": {
-            "title": "Token",
-            "type": "string"
-          }
-        },
-        "required": [
-          "token"
-        ],
-        "title": "VerifyEmailRequest",
         "type": "object"
       }
     }
@@ -1539,6 +1528,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
+        "description": "Redeem a magic-link token. Single-use: the row is deleted on\nsuccessful redemption so a forwarded link can't be replayed.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -1573,6 +1563,48 @@
           }
         },
         "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login-link": {
+      "post": {
+        "description": "Send a magic-link email if the address is registered. Always\nreturns 200 \u2014 never reveal whether the email exists.",
+        "operationId": "login_link_api_v1_auth_login_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkSent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login Link",
         "tags": [
           "auth"
         ]
@@ -1629,6 +1661,7 @@
     },
     "/api/v1/auth/register": {
       "post": {
+        "description": "Create the account (or restore a previously-archived one) and\nsend a magic link. The user becomes \"real\" only when they click\nthe link \u2014 registration without redemption leaves an unapproved\nrow that an admin still has to gate.",
         "operationId": "register_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -1645,7 +1678,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/LinkSent"
                 }
               }
             },
@@ -1663,89 +1696,6 @@
           }
         },
         "summary": "Register",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/resend-verification": {
-      "post": {
-        "operationId": "resend_verification_api_v1_auth_resend_verification_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Resend Verification",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/verify-email": {
-      "post": {
-        "operationId": "verify_email_api_v1_auth_verify_email_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VerifyEmailRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Verify Email",
         "tags": [
           "auth"
         ]

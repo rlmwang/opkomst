@@ -20,9 +20,10 @@ type S = components["schemas"];
 export type User = S["UserOut"];
 export type AdminUser = S["AdminUserOut"];
 export type AuthResponse = S["AuthResponse"];
+export type LoginLinkRequest = S["LoginLinkRequest"];
 export type LoginRequest = S["LoginRequest"];
 export type RegisterRequest = S["RegisterRequest"];
-export type VerifyEmailRequest = S["VerifyEmailRequest"];
+export type LinkSent = S["LinkSent"];
 export type ApproveUserRequest = S["ApproveUserRequest"];
 export type AssignChapterRequest = S["AssignChapterRequest"];
 

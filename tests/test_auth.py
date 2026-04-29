@@ -1,6 +1,5 @@
-"""Auth flow: register → bootstrap admin auto-approve, register a
-non-bootstrap user → unverified state, login, JWT survives user
-edits, soft-delete + restore via re-register."""
+"""Auth flow: bootstrap admin, magic-link redemption, JWT survives
+user edits, soft-delete + restore via re-register."""
 
 
 def test_bootstrap_admin_auto_approves(client, admin_token):
@@ -10,24 +9,61 @@ def test_bootstrap_admin_auto_approves(client, admin_token):
     assert me["email"] == "admin@local.dev"
     assert me["role"] == "admin"
     assert me["is_approved"] is True
-    assert me["email_verified_at"] is not None
 
 
-def test_login_requires_correct_password(client, admin_token):
+def test_login_link_unknown_email_returns_ok(client):
+    """We never reveal whether an email exists — every login-link
+    POST returns 200."""
     r = client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin@local.dev", "password": "wrong"},
-    )
-    assert r.status_code == 401
-
-
-def test_login_returns_jwt(client, admin_token):
-    r = client.post(
-        "/api/v1/auth/login",
-        json={"email": "admin@local.dev", "password": "admin1234"},
+        "/api/v1/auth/login-link",
+        json={"email": "ghost@local.dev"},
     )
     assert r.status_code == 200
+
+
+def test_login_link_then_redeem(client, admin_token):
+    """Mint a link for a real user, redeem it, expect a fresh JWT."""
+    r = client.post(
+        "/api/v1/auth/login-link",
+        json={"email": "admin@local.dev"},
+    )
+    assert r.status_code == 200
+
+    # Pull the freshly-minted token out of the DB — the test backend
+    # doesn't roundtrip through SMTP.
+    from backend.database import SessionLocal
+    from backend.models import LoginToken
+
+    db = SessionLocal()
+    try:
+        row = db.query(LoginToken).order_by(LoginToken.created_at.desc()).first()
+        assert row is not None
+        raw = row.token
+    finally:
+        db.close()
+
+    r = client.post("/api/v1/auth/login", json={"token": raw})
+    assert r.status_code == 200, r.text
     assert r.json()["token"]
+
+
+def test_login_token_is_single_use(client, admin_token):
+    client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+
+    from backend.database import SessionLocal
+    from backend.models import LoginToken
+
+    db = SessionLocal()
+    try:
+        row = db.query(LoginToken).order_by(LoginToken.created_at.desc()).first()
+        assert row is not None
+        raw = row.token
+    finally:
+        db.close()
+
+    assert client.post("/api/v1/auth/login", json={"token": raw}).status_code == 200
+    # Replay → 410 Gone.
+    assert client.post("/api/v1/auth/login", json={"token": raw}).status_code == 410
 
 
 def test_jwt_id_stable_across_user_updates(client, admin_headers, chapter_id):
@@ -35,11 +71,24 @@ def test_jwt_id_stable_across_user_updates(client, admin_headers, chapter_id):
     user's row id changes (i.e. after any SCD2 update)."""
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "x@local.dev", "password": "pw12345678", "name": "X"},
+        json={"email": "x@local.dev", "name": "X"},
     )
-    uid = r.json()["user"]["id"]
-    token = r.json()["token"]
-    # Promote-via-approve causes an SCD2 update — row id changes.
+    assert r.status_code == 201
+
+    from backend.auth import create_token
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "x@local.dev").first()
+        assert user is not None
+        uid = user.entity_id
+    finally:
+        db.close()
+
+    token = create_token(uid)
     client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
@@ -55,27 +104,48 @@ def test_soft_delete_then_restore_via_register(client, admin_headers):
     restores the SCD2 chain rather than creating a new one."""
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "rejoin@local.dev", "password": "pw12345678", "name": "Re"},
+        json={"email": "rejoin@local.dev", "name": "Re"},
     )
-    uid = r.json()["user"]["id"]
+    assert r.status_code == 201
+
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "rejoin@local.dev").first()
+        assert user is not None
+        uid = user.entity_id
+    finally:
+        db.close()
+
     r = client.delete(f"/api/v1/admin/users/{uid}", headers=admin_headers)
     assert r.status_code == 204
-    # Reregister with same email — should restore.
+
+    # Reregister with same email — should restore the SCD2 chain.
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "rejoin@local.dev", "password": "newpw87654", "name": "Re-back"},
+        json={"email": "rejoin@local.dev", "name": "Re-back"},
     )
     assert r.status_code == 201, r.text
-    body = r.json()
-    assert body["user"]["id"] == uid  # entity_id preserved
-    assert body["user"]["is_approved"] is False  # gates re-required
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "rejoin@local.dev").first()
+        assert user is not None
+        assert user.entity_id == uid  # entity_id preserved
+        assert user.is_approved is False  # gate re-required
+        assert user.role == "organiser"
+    finally:
+        db.close()
 
 
 def test_explicit_validation_for_register(client):
     # Email format
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "not-an-email", "password": "pw12345678", "name": "X"},
+        json={"email": "not-an-email", "name": "X"},
     )
     assert r.status_code == 422
 
@@ -87,13 +157,12 @@ def test_register_rate_limit(client):
             "/api/v1/auth/register",
             json={
                 "email": f"rl{i}@local.dev",
-                "password": "pw12345678",
                 "name": "RL",
             },
         )
         assert r.status_code in (201, 422), r.text
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "rl-over@local.dev", "password": "pw12345678", "name": "RL"},
+        json={"email": "rl-over@local.dev", "name": "RL"},
     )
     assert r.status_code == 429

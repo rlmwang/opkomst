@@ -5,15 +5,21 @@ from pydantic import BaseModel, Field
 from .common import LowercaseEmail
 
 
-class RegisterRequest(BaseModel):
+class LoginLinkRequest(BaseModel):
     email: LowercaseEmail
-    password: str = Field(min_length=8)
-    name: str = Field(min_length=1)
 
 
 class LoginRequest(BaseModel):
+    """Redeems a magic-link token. The token was minted by
+    ``/auth/login-link`` (existing user) or ``/auth/register`` (new
+    user); both flows funnel into this single redemption endpoint."""
+
+    token: str
+
+
+class RegisterRequest(BaseModel):
     email: LowercaseEmail
-    password: str
+    name: str = Field(min_length=1)
 
 
 class UserOut(BaseModel):
@@ -21,7 +27,6 @@ class UserOut(BaseModel):
     email: str
     name: str
     role: str
-    email_verified_at: datetime | None
     is_approved: bool
     chapter_id: str | None
     chapter_name: str | None
@@ -29,10 +34,13 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class VerifyEmailRequest(BaseModel):
-    token: str
-
-
 class AuthResponse(BaseModel):
     token: str
     user: UserOut
+
+
+class LinkSent(BaseModel):
+    """Boring 200 response so /login-link and /register don't leak
+    whether an email exists."""
+
+    status: str = "ok"

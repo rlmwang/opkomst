@@ -3,7 +3,7 @@ from .chapters import Chapter
 from .email_dispatch import EmailChannel, EmailStatus, SignupEmailDispatch
 from .events import Event, Signup
 from .feedback import FeedbackQuestion, FeedbackResponse, FeedbackToken
-from .users import User
+from .users import LoginToken, User
 
 __all__ = [
     "AuditLog",
@@ -14,6 +14,7 @@ __all__ = [
     "FeedbackQuestion",
     "FeedbackResponse",
     "FeedbackToken",
+    "LoginToken",
     "Signup",
     "SignupEmailDispatch",
     "User",

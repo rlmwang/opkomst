@@ -16,7 +16,6 @@ from datetime import UTC, datetime, timedelta
 import structlog
 from sqlalchemy.orm import Session
 
-from .auth import hash_password
 from .config import settings
 from .database import SessionLocal
 from .models import (
@@ -36,9 +35,7 @@ from .services.slug import new_slug
 logger = structlog.get_logger()
 
 ADMIN_EMAIL = "admin@local.dev"
-ADMIN_PASSWORD = "admin1234"
 ORGANISER_EMAIL = "organiser@local.dev"
-ORGANISER_PASSWORD = "organiser1234"
 
 
 # Single source of truth for the post-event questionnaire. Five
@@ -56,7 +53,7 @@ SEED_QUESTIONS = [
 ]
 
 
-def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str) -> User:
+def _ensure_user(db: Session, *, email: str, name: str, role: str) -> User:
     from .services import scd2
 
     user = scd2.current(db.query(User)).filter(User.email == email).first()
@@ -67,13 +64,9 @@ def _ensure_user(db: Session, *, email: str, name: str, password: str, role: str
         User,
         changed_by="seed",
         email=email,
-        password_hash=hash_password(password),
         name=name,
         role=role,
         is_approved=True,
-        # Local seed accounts are pre-verified — both gates pass so the
-        # account can act immediately.
-        email_verified_at=datetime.now(UTC),
         chapter_id=None,
     )
     user.changed_by = user.entity_id  # self-reference once entity_id is known
@@ -151,12 +144,11 @@ def run_local_demo() -> None:
 
     db = SessionLocal()
     try:
-        admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", password=ADMIN_PASSWORD, role="admin")
+        admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", role="admin")
         organiser = _ensure_user(
             db,
             email=ORGANISER_EMAIL,
             name="Local Organiser",
-            password=ORGANISER_PASSWORD,
             role="organiser",
         )
 

@@ -4,8 +4,8 @@ Three entry points:
 
 * ``send_email`` — fire-and-forget on the bounded executor; never
   raises, never blocks the caller. Used by request handlers
-  (registration confirmations, password resets) where we don't
-  need to know whether SMTP succeeded.
+  (magic-link emails, post-event feedback) where we don't need
+  to know whether SMTP succeeded.
 * ``send_email_sync`` — render + send synchronously. Used by the
   email dispatcher (which already runs off the request thread)
   and by tests that need to observe the send.

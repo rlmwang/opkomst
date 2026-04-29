@@ -12,8 +12,11 @@ not what we're aspiring to.
 - **Frontend**: Vue 3 Composition API + TypeScript + Vite + Pinia +
   PrimeVue 4. Routes lazy-loaded; vendor chunks split (`vue`,
   `i18n`, `primevue`).
-- **Auth**: JWT in `Authorization: Bearer`, signed against the
-  user's stable SCD2 `entity_id`. bcrypt for password hashing.
+- **Auth**: passwordless magic-link sign-in. Emails carry a
+  one-shot ``LoginToken`` (URL-safe, 30-min TTL); on redemption the
+  server issues a JWT signed against the user's stable SCD2
+  ``entity_id`` so the token survives every later edit
+  (rename, role change, approval, chapter reassignment).
 - **Geocoding**: PDOK Locatieserver for address autocomplete.
 - **Email**: Pluggable backend (`console` / `smtp`), Jinja2 templates
   per locale, AES-GCM at rest.
@@ -70,7 +73,7 @@ All under `/api/v1/`.
 
 | Router | Endpoints | Auth |
 |---|---|---|
-| `auth.py` | register, login, /me, verify-email, resend-verification | mixed; rate-limited |
+| `auth.py` | login-link (request), login (redeem token), register (mints link), /me | public POST + bearer; rate-limited |
 | `admin.py` | list users, approve, assign-afdeling, promote, demote, delete | admin |
 | `afdelingen.py` | list, create, patch (name + city), archive, restore, usage | mixed |
 | `events.py` | list, list-archived, create, by-slug, qr.png, update, archive, restore, send-feedback-emails-now, stats, signups | scoped to user's afdeling |
@@ -84,7 +87,7 @@ All under `/api/v1/`.
 |---|---|---|
 | LoginPage | `/login` | public; redirects authed visitors to `/dashboard` |
 | RegisterPage | `/register` | public |
-| VerifyEmailPage | `/verify-email?token=` | public |
+| RedeemPage | `/auth/redeem?token=` | public (one-shot magic-link landing) |
 | DashboardPage | `/dashboard` | required (events list with search + skeleton loading) |
 | AdminPage | `/admin` | admin (chapters + users with city picker, search, skeleton loading) |
 | EventFormPage | `/events/new`, `/events/:id/edit` | approved (locale picker, draft persisted to localStorage) |

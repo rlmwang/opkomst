@@ -33,15 +33,6 @@ watch(eventsQuery.isError, (isError) => {
   if (isError) toasts.error(t("dashboard.loadFailed"));
 });
 
-async function resend() {
-  try {
-    await auth.resendVerification();
-    toasts.success(t("verify.resentOk"));
-  } catch {
-    toasts.error(t("verify.resentFail"));
-  }
-}
-
 const query = ref("");
 const loaded = computed(() => !auth.isApproved || !eventsQuery.isPending.value);
 
@@ -81,15 +72,7 @@ function askArchive(e: EventOut) {
   <div class="container stack">
     <h1>{{ t("dashboard.title") }}</h1>
 
-    <AppCard v-if="!auth.isVerified">
-      <h2>{{ t("dashboard.unverifiedTitle") }}</h2>
-      <p>{{ t("dashboard.unverifiedBody") }}</p>
-      <div>
-        <Button :label="t('verify.resend')" size="small" severity="secondary" @click="resend" />
-      </div>
-    </AppCard>
-
-    <AppCard v-else-if="!auth.isApproved">
+    <AppCard v-if="!auth.isApproved">
       <h2>{{ t("dashboard.pendingTitle") }}</h2>
       <p>{{ t("dashboard.pendingBody") }}</p>
     </AppCard>

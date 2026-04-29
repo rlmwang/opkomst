@@ -10,18 +10,11 @@ export const useAuthStore = defineStore("auth", () => {
   const loaded = ref(false);
 
   const isAuthenticated = computed(() => user.value !== null);
-  const isVerified = computed(() => user.value?.email_verified_at != null);
-  const isApproved = computed(
-    () => user.value?.is_approved === true && user.value?.email_verified_at != null,
-  );
-  // Admin must clear the same two gates the backend's require_admin
-  // dependency enforces (verified + approved). Keeping the frontend
-  // computed in lock-step avoids a nav link that would 403 when clicked.
+  const isApproved = computed(() => user.value?.is_approved === true);
+  // Admin must also be approved — keep this in lock-step with the
+  // backend's require_admin so a nav link can't 403 when clicked.
   const isAdmin = computed(
-    () =>
-      user.value?.role === "admin" &&
-      user.value?.is_approved === true &&
-      user.value?.email_verified_at != null,
+    () => user.value?.role === "admin" && user.value?.is_approved === true,
   );
 
   async function fetchMe(): Promise<void> {
@@ -38,14 +31,16 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function login(email: string, password: string): Promise<void> {
-    const resp = await post<AuthResponse>("/api/v1/auth/login", { email, password });
-    setToken(resp.token);
-    user.value = resp.user;
+  async function requestLoginLink(email: string): Promise<void> {
+    await post("/api/v1/auth/login-link", { email });
   }
 
-  async function register(email: string, password: string, name: string): Promise<void> {
-    const resp = await post<AuthResponse>("/api/v1/auth/register", { email, password, name });
+  async function register(email: string, name: string): Promise<void> {
+    await post("/api/v1/auth/register", { email, name });
+  }
+
+  async function redeem(token: string): Promise<void> {
+    const resp = await post<AuthResponse>("/api/v1/auth/login", { token });
     setToken(resp.token);
     user.value = resp.user;
   }
@@ -55,26 +50,16 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = null;
   }
 
-  async function verifyEmail(token: string): Promise<void> {
-    user.value = await post<User>("/api/v1/auth/verify-email", { token });
-  }
-
-  async function resendVerification(): Promise<void> {
-    await post("/api/v1/auth/resend-verification");
-  }
-
   return {
     user,
     loaded,
     isAuthenticated,
-    isVerified,
     isApproved,
     isAdmin,
     fetchMe,
-    login,
+    requestLoginLink,
     register,
+    redeem,
     logout,
-    verifyEmail,
-    resendVerification,
   };
 });

@@ -132,8 +132,33 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login */
+        /**
+         * Login
+         * @description Redeem a magic-link token. Single-use: the row is deleted on
+         *     successful redemption so a forwarded link can't be replayed.
+         */
         post: operations["login_api_v1_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/login-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login Link
+         * @description Send a magic-link email if the address is registered. Always
+         *     returns 200 — never reveal whether the email exists.
+         */
+        post: operations["login_link_api_v1_auth_login_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -166,42 +191,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register */
+        /**
+         * Register
+         * @description Create the account (or restore a previously-archived one) and
+         *     send a magic link. The user becomes "real" only when they click
+         *     the link — registration without redemption leaves an unapproved
+         *     row that an admin still has to gate.
+         */
         post: operations["register_api_v1_auth_register_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/resend-verification": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resend Verification */
-        post: operations["resend_verification_api_v1_auth_resend_verification_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/verify-email": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Verify Email */
-        post: operations["verify_email_api_v1_auth_verify_email_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1061,15 +1058,35 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** LoginRequest */
-        LoginRequest: {
+        /**
+         * LinkSent
+         * @description Boring 200 response so /login-link and /register don't leak
+         *     whether an email exists.
+         */
+        LinkSent: {
+            /**
+             * Status
+             * @default ok
+             */
+            status: string;
+        };
+        /** LoginLinkRequest */
+        LoginLinkRequest: {
             /**
              * Email
              * Format: email
              */
             email: string;
-            /** Password */
-            password: string;
+        };
+        /**
+         * LoginRequest
+         * @description Redeems a magic-link token. The token was minted by
+         *     ``/auth/login-link`` (existing user) or ``/auth/register`` (new
+         *     user); both flows funnel into this single redemption endpoint.
+         */
+        LoginRequest: {
+            /** Token */
+            token: string;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -1080,8 +1097,6 @@ export interface components {
             email: string;
             /** Name */
             name: string;
-            /** Password */
-            password: string;
         };
         /**
          * SignupAck
@@ -1136,8 +1151,6 @@ export interface components {
             created_at: string;
             /** Email */
             email: string;
-            /** Email Verified At */
-            email_verified_at: string | null;
             /** Id */
             id: string;
             /** Is Approved */
@@ -1159,11 +1172,6 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
-        };
-        /** VerifyEmailRequest */
-        VerifyEmailRequest: {
-            /** Token */
-            token: string;
         };
     };
     responses: never;
@@ -1411,6 +1419,39 @@ export interface operations {
             };
         };
     };
+    login_link_api_v1_auth_login_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkSent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     me_api_v1_auth_me_get: {
         parameters: {
             query?: never;
@@ -1461,69 +1502,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resend_verification_api_v1_auth_resend_verification_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    verify_email_api_v1_auth_verify_email_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VerifyEmailRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserOut"];
+                    "application/json": components["schemas"]["LinkSent"];
                 };
             };
             /** @description Validation Error */

@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
-import Password from "primevue/password";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
-import { ApiError } from "@/api/client";
 import { useToasts } from "@/lib/toasts";
 import { isValidEmail } from "@/lib/validate";
 import { useAuthStore } from "@/stores/auth";
@@ -15,18 +13,12 @@ import { useAuthStore } from "@/stores/auth";
 const { t } = useI18n();
 const auth = useAuthStore();
 const router = useRouter();
-const route = useRoute();
 const toasts = useToasts();
 
 const email = ref("");
-const password = ref("");
 const submitting = ref(false);
+const sent = ref(false);
 
-// An already-authenticated visitor on /login is just bouncing off
-// the auth flow — send them straight to the events page. The same
-// /dashboard target is the default post-submit redirect, so login
-// always resolves to the events list regardless of how the user
-// got here.
 onMounted(() => {
   if (auth.isAuthenticated) void router.replace("/dashboard");
 });
@@ -41,20 +33,15 @@ async function submit() {
     toasts.warn(t("common.invalidEmail"));
     return;
   }
-  if (!password.value) {
-    toasts.warn(t("auth.fillPassword"));
-    return;
-  }
   submitting.value = true;
   try {
-    await auth.login(trimmedEmail, password.value);
-    const next = (route.query.next as string) || "/dashboard";
-    void router.push(next);
-  } catch (e) {
-    // Login failures all collapse to the same generic message — we
-    // never reveal "no such email" vs "wrong password" anyway.
-    const msg = e instanceof ApiError && e.status === 401 ? t("auth.loginFailed") : t("auth.loginFailed");
-    toasts.error(msg);
+    await auth.requestLoginLink(trimmedEmail);
+    sent.value = true;
+  } catch {
+    // Network or server error — backend never throws on unknown
+    // email (200 is the privacy-preserving response), so any error
+    // here is a genuine outage.
+    toasts.error(t("auth.loginFailed"));
   } finally {
     submitting.value = false;
   }
@@ -64,17 +51,21 @@ async function submit() {
 <template>
   <AppHeader />
   <div class="container">
-    <AppCard>
+    <AppCard v-if="sent">
+      <h1>{{ t("auth.linkSentTitle") }}</h1>
+      <p class="muted">{{ t("auth.linkSentBody", { email }) }}</p>
+    </AppCard>
+
+    <AppCard v-else>
       <h1>{{ t("auth.login") }}</h1>
+      <p class="muted">{{ t("auth.linkIntro") }}</p>
       <form class="stack" novalidate @submit.prevent="submit">
         <InputText v-model="email" type="email" :placeholder="t('auth.email')" autocomplete="email" fluid />
-        <Password v-model="password" :placeholder="t('auth.password')" :feedback="false" toggle-mask autocomplete="current-password" fluid />
-        <Button type="submit" :label="t('auth.login')" :loading="submitting" />
+        <Button type="submit" :label="t('auth.sendLink')" :loading="submitting" />
       </form>
       <p class="muted">
         {{ t("auth.noAccount") }}
         <router-link to="/register">{{ t("auth.registerHere") }}</router-link>
-        — {{ t("auth.loginHint") }}
       </p>
     </AppCard>
   </div>

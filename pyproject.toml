@@ -12,7 +12,6 @@ dependencies = [
     "pydantic[email]>=2.11",
     "pydantic-settings>=2.6",
     "python-jose[cryptography]>=3.3",
-    "bcrypt>=4.2",
     "python-multipart>=0.0.20",
     "structlog>=24",
     "cryptography>=44",
@@ -38,6 +37,7 @@ dev = [
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["backend/alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]

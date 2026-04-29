@@ -1,21 +1,22 @@
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from ..auth import (
-    create_purpose_token,
-    create_token,
-    decode_purpose_token,
-    get_current_user,
-    hash_password,
-    verify_password,
-)
+from ..auth import create_token, get_current_user
 from ..config import settings
 from ..database import get_db
-from ..models import User
-from ..schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserOut, VerifyEmailRequest
+from ..models import LoginToken, User
+from ..schemas.auth import (
+    AuthResponse,
+    LinkSent,
+    LoginLinkRequest,
+    LoginRequest,
+    RegisterRequest,
+    UserOut,
+)
 from ..services import chapters as chapters_svc
 from ..services import scd2
 from ..services.email.sender import send_email
@@ -29,18 +30,16 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 BOOTSTRAP_ADMIN_EMAIL = (
     settings.bootstrap_admin_email.lower() if settings.bootstrap_admin_email else ""
 )
-VERIFY_TOKEN_TTL_HOURS = 24
+LOGIN_TOKEN_TTL_MINUTES = 30
 
 
-def _user_out(db, user: User) -> UserOut:
-    """Materialise UserOut with the chapter_name resolved.
-    ``id`` is always ``user.entity_id`` — the stable logical id."""
+def _user_out(db: Session, user: User) -> UserOut:
+    """``id`` is always ``user.entity_id`` — the stable logical id."""
     return UserOut(
         id=user.entity_id,
         email=user.email,
         name=user.name,
         role=user.role,
-        email_verified_at=user.email_verified_at,
         is_approved=user.is_approved,
         chapter_id=user.chapter_id,
         chapter_name=chapters_svc.name_for_entity(db, user.chapter_id),
@@ -48,19 +47,7 @@ def _user_out(db, user: User) -> UserOut:
     )
 
 
-def _send_verification(user: User) -> None:
-    token = create_purpose_token(user.entity_id, user.email, "verify-email", VERIFY_TOKEN_TTL_HOURS)
-    verify_url = build_url("verify-email", token=token)
-    send_email(
-        to=user.email,
-        template_name="verify.html",
-        context={"name": user.name, "verify_url": verify_url},
-        locale="nl",
-    )
-
-
 def _user_by_email(db: Session, email: str) -> User | None:
-    """Resolve an email to its current user version."""
     return scd2.current(db.query(User)).filter(User.email == email).first()
 
 
@@ -76,108 +63,135 @@ def _last_closed_user_by_email(db: Session, email: str) -> User | None:
     )
 
 
-@router.post("/register", response_model=AuthResponse, status_code=201)
-@limiter.limit("5/hour")
-def register(request: Request, data: RegisterRequest, db: Session = Depends(get_db)) -> AuthResponse:
-    if _user_by_email(db, data.email) is not None:
-        raise HTTPException(status_code=409, detail="Email already registered")
+def _mint_login_token(db: Session, user: User) -> str:
+    """Insert a fresh single-use token, return its raw value. The
+    raw token is what the email link carries; redeem deletes the
+    row so a clicked link can't be replayed."""
+    raw = secrets.token_urlsafe(32)
+    row = LoginToken(
+        token=raw,
+        user_id=user.entity_id,
+        expires_at=datetime.now(UTC) + timedelta(minutes=LOGIN_TOKEN_TTL_MINUTES),
+    )
+    db.add(row)
+    db.commit()
+    return raw
 
-    # If the email belongs to a soft-deleted account, restore the chain
-    # instead of opening a new one. The new row carries the freshly
-    # supplied password + name but lands unapproved + unverified — both
-    # gates have to pass again before the account can act.
+
+def _send_login_email(user: User, raw_token: str) -> None:
+    url = build_url("auth/redeem", token=raw_token)
+    send_email(
+        to=user.email,
+        template_name="login.html",
+        context={"name": user.name, "login_url": url},
+        locale="nl",
+    )
+
+
+@router.post("/login-link", response_model=LinkSent)
+@limiter.limit("5/hour")
+def login_link(
+    request: Request, data: LoginLinkRequest, db: Session = Depends(get_db)
+) -> LinkSent:
+    """Send a magic-link email if the address is registered. Always
+    returns 200 — never reveal whether the email exists."""
+    user = _user_by_email(db, data.email)
+    if user is not None:
+        raw = _mint_login_token(db, user)
+        _send_login_email(user, raw)
+        logger.info("login_link_sent", user_id=user.entity_id)
+    else:
+        logger.info("login_link_unknown_email")
+    return LinkSent()
+
+
+@router.post("/register", response_model=LinkSent, status_code=201)
+@limiter.limit("5/hour")
+def register(
+    request: Request, data: RegisterRequest, db: Session = Depends(get_db)
+) -> LinkSent:
+    """Create the account (or restore a previously-archived one) and
+    send a magic link. The user becomes "real" only when they click
+    the link — registration without redemption leaves an unapproved
+    row that an admin still has to gate."""
+    existing = _user_by_email(db, data.email)
+    if existing is not None:
+        # Don't 409 — that leaks email existence. Send a fresh login
+        # link to the existing account instead, so the legitimate
+        # owner of the address can always get in.
+        raw = _mint_login_token(db, existing)
+        _send_login_email(existing, raw)
+        logger.info("register_existing_email", user_id=existing.entity_id)
+        return LinkSent()
+
     closed = _last_closed_user_by_email(db, data.email)
     if closed is not None:
         user = scd2.scd2_restore(db, closed, changed_by=closed.entity_id)
-        # Override the carried-forward values with the new registration's.
-        user.password_hash = hash_password(data.password)
         user.name = data.name
         user.is_approved = False
-        user.email_verified_at = None
         # Restore drops admin: a previously-deleted admin returning has
         # to be re-promoted by another admin.
         user.role = "organiser"
         db.commit()
         db.refresh(user)
-        _send_verification(user)
         logger.info("user_restored_via_register", user_id=user.entity_id)
-        return AuthResponse(token=create_token(user.entity_id), user=_user_out(db, user))
+    else:
+        # Bootstrap: the very first registration with the configured
+        # admin email auto-promotes to admin — without this carve-out
+        # there'd be no one to approve anyone.
+        is_bootstrap = bool(
+            BOOTSTRAP_ADMIN_EMAIL
+            and data.email == BOOTSTRAP_ADMIN_EMAIL
+            and scd2.current(db.query(User)).count() == 0
+        )
+        user = scd2.scd2_create(
+            db,
+            User,
+            changed_by="bootstrap",
+            email=data.email,
+            name=data.name,
+            role="admin" if is_bootstrap else "organiser",
+            is_approved=is_bootstrap,
+            chapter_id=None,
+        )
+        user.changed_by = user.entity_id
+        db.commit()
+        db.refresh(user)
+        logger.info("user_registered", user_id=user.entity_id, bootstrap=is_bootstrap)
 
-    # Bootstrap: the very first registration with the configured admin
-    # email auto-promotes to admin AND auto-verifies the email — without
-    # this carve-out there'd be no one to approve anyone.
-    is_bootstrap = bool(
-        BOOTSTRAP_ADMIN_EMAIL
-        and data.email == BOOTSTRAP_ADMIN_EMAIL
-        and scd2.current(db.query(User)).count() == 0
-    )
-
-    now = datetime.now(UTC)
-    user = scd2.scd2_create(
-        db,
-        User,
-        # Self-reference: every later mutation is signed by an admin or
-        # by the user themselves; the very first row has no other
-        # candidate, so we point at the user's own entity_id.
-        changed_by="bootstrap",
-        email=data.email,
-        password_hash=hash_password(data.password),
-        name=data.name,
-        role="admin" if is_bootstrap else "organiser",
-        is_approved=is_bootstrap,
-        email_verified_at=now if is_bootstrap else None,
-        chapter_id=None,
-    )
-    user.changed_by = user.entity_id
-    db.commit()
-    db.refresh(user)
-
-    if not is_bootstrap:
-        _send_verification(user)
-
-    logger.info("user_registered", user_id=user.entity_id, bootstrap=is_bootstrap)
-    return AuthResponse(token=create_token(user.entity_id), user=_user_out(db, user))
+    raw = _mint_login_token(db, user)
+    _send_login_email(user, raw)
+    return LinkSent()
 
 
 @router.post("/login", response_model=AuthResponse)
-@limiter.limit("10/minute")
-def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
-    user = _user_by_email(db, data.email)
-    if not user or not verify_password(data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+@limiter.limit("20/minute")
+def login(
+    request: Request, data: LoginRequest, db: Session = Depends(get_db)
+) -> AuthResponse:
+    """Redeem a magic-link token. Single-use: the row is deleted on
+    successful redemption so a forwarded link can't be replayed."""
+    row = db.query(LoginToken).filter(LoginToken.token == data.token).first()
+    if row is None:
+        raise HTTPException(status_code=410, detail="Invalid or already-used link")
+    if row.expires_at <= datetime.now(UTC):
+        db.delete(row)
+        db.commit()
+        raise HTTPException(status_code=410, detail="Login link has expired")
+
+    user = scd2.current_by_entity(db, User, row.user_id)
+    if user is None:
+        # The user was archived between minting and redemption.
+        db.delete(row)
+        db.commit()
+        raise HTTPException(status_code=410, detail="Account no longer exists")
+
+    db.delete(row)
+    db.commit()
+    logger.info("login_link_redeemed", user_id=user.entity_id)
     return AuthResponse(token=create_token(user.entity_id), user=_user_out(db, user))
 
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
     return _user_out(db, user)
-
-
-@router.post("/verify-email", response_model=UserOut)
-def verify_email(data: VerifyEmailRequest, db: Session = Depends(get_db)) -> UserOut:
-    payload = decode_purpose_token(data.token, "verify-email")
-    user = scd2.current_by_entity(db, User, payload["sub"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.email != payload.get("email"):
-        raise HTTPException(status_code=400, detail="Token email mismatch")
-    if user.email_verified_at is None:
-        new_user = scd2.scd2_update(
-            db,
-            user,
-            changed_by=user.entity_id,
-            email_verified_at=datetime.now(UTC),
-        )
-        db.commit()
-        db.refresh(new_user)
-        logger.info("email_verified", user_id=new_user.entity_id)
-        return _user_out(db, new_user)
-    return _user_out(db, user)
-
-
-@router.post("/resend-verification", status_code=204)
-def resend_verification(user: User = Depends(get_current_user)) -> None:
-    if user.email_verified_at is not None:
-        raise HTTPException(status_code=409, detail="Already verified")
-    _send_verification(user)
-    logger.info("verification_resent", user_id=user.entity_id)

@@ -136,13 +136,29 @@ def client(db) -> Iterator:
 
 @pytest.fixture()
 def admin_token(client) -> str:
-    """Register a bootstrap admin and return their JWT."""
+    """Register a bootstrap admin and return their JWT.
+
+    Tests don't roundtrip through the magic-link email — once the
+    user row exists we mint a JWT directly, since the email path
+    is exercised separately in ``test_auth_flow.py``."""
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "admin@local.dev", "password": "admin1234", "name": "Admin"},
+        json={"email": "admin@local.dev", "name": "Admin"},
     )
     assert r.status_code == 201, r.text
-    return r.json()["token"]
+
+    from backend.auth import create_token
+    from backend.database import SessionLocal
+    from backend.models import User
+    from backend.services import scd2
+
+    db = SessionLocal()
+    try:
+        user = scd2.current(db.query(User)).filter(User.email == "admin@local.dev").first()
+        assert user is not None
+        return create_token(user.entity_id)
+    finally:
+        db.close()
 
 
 @pytest.fixture()
@@ -159,43 +175,36 @@ def chapter_id(client, admin_headers) -> str:
 
 @pytest.fixture()
 def organiser_token(client, admin_headers, chapter_id) -> str:
-    """Register, manually verify, and admin-approve an organiser.
-    Returns a logged-in token."""
+    """Register and admin-approve an organiser. Returns a JWT minted
+    directly — the magic-link flow is tested separately."""
     r = client.post(
         "/api/v1/auth/register",
-        json={"email": "organiser@local.dev", "password": "org12345", "name": "Organiser"},
+        json={"email": "organiser@local.dev", "name": "Organiser"},
     )
     assert r.status_code == 201, r.text
-    uid = r.json()["user"]["id"]
-    # Verify directly in DB — no email roundtrip in tests.
-    from datetime import UTC, datetime
 
+    from backend.auth import create_token
     from backend.database import SessionLocal
     from backend.models import User
     from backend.services import scd2
 
     db = SessionLocal()
     try:
-        user = scd2.current_by_entity(db, User, uid)
+        user = (
+            scd2.current(db.query(User)).filter(User.email == "organiser@local.dev").first()
+        )
         assert user is not None
-        scd2.scd2_update(db, user, changed_by=user.entity_id, email_verified_at=datetime.now(UTC))
-        db.commit()
+        uid = user.entity_id
     finally:
         db.close()
-    # Approve via the admin endpoint.
+
     r = client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
         json={"chapter_id": chapter_id},
     )
     assert r.status_code == 200, r.text
-    # Re-login so the JWT reflects the new approved state.
-    r = client.post(
-        "/api/v1/auth/login",
-        json={"email": "organiser@local.dev", "password": "org12345"},
-    )
-    assert r.status_code == 200, r.text
-    return r.json()["token"]
+    return create_token(uid)
 
 
 @pytest.fixture()

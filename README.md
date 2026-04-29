@@ -8,7 +8,7 @@ The whole code base is open source — anyone can verify what the server does wi
 
 - Backend: FastAPI + SQLAlchemy + Alembic on Postgres (`make db-up` boots a local instance via docker compose), `uv` for deps.
 - Frontend: Vue 3 + TypeScript + Vite + Pinia, PrimeVue.
-- Auth: JWT with bcrypt password hashing.
+- Auth: passwordless magic-link sign-in. Single-use links by email, JWT after redemption.
 - QR: server-rendered PNG via `qrcode[pil]`.
 - Encryption: AES-GCM via `cryptography`, key from `EMAIL_ENCRYPTION_KEY` env var.
 
@@ -31,12 +31,12 @@ cd frontend && npm install && npm run dev
 
 Set `LOCAL_MODE=1` in `.env` and the backend will seed two test accounts and two demo events on every startup (idempotently — it never touches rows it didn't create):
 
-| Email                  | Password         | Role      |
-|------------------------|------------------|-----------|
-| `admin@local.dev`      | `admin1234`      | admin     |
-| `organiser@local.dev`  | `organiser1234`  | organiser |
+| Email                  | Role      |
+|------------------------|-----------|
+| `admin@local.dev`      | admin     |
+| `organiser@local.dev`  | organiser |
 
-Both accounts are pre-approved. The organiser owns one upcoming and one past event; the past event has a signup with an encrypted email so the hourly feedback worker has something real to chew through. Use it locally only.
+Both accounts are pre-approved. Sign in by entering the email on the login page; with `EMAIL_BACKEND=console` the magic-link URL is logged to stdout — copy it into the browser to land on `/auth/redeem` and get a JWT. The organiser owns one upcoming and one past event; the past event has a signup with an encrypted email so the hourly feedback worker has something real to chew through. Use it locally only.
 
 ## Privacy posture
 
