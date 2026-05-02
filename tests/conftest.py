@@ -117,6 +117,12 @@ def db(_bootstrap_schema):
     table_names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
     with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
+    # ``/health/full`` caches its introspection payload for ~15 s
+    # in-process; clear between tests so a prior healthy run can't
+    # mask a monkeypatched-DB-down assertion or stale schema_head.
+    from backend.routers.health import _reset_health_full_cache
+
+    _reset_health_full_cache()
     session = SessionLocal()
     try:
         yield session

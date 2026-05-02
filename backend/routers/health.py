@@ -17,6 +17,8 @@ Two routes, deliberately split:
 """
 
 import shutil
+import threading
+import time
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
@@ -49,6 +51,30 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# Coolify's container healthcheck + UptimeRobot together hit
+# ``/health/full`` ~3×/min; on a memory-pressured host each tick
+# costs a worker the disk_usage syscall, the alembic version
+# SELECT, and an EmailDispatch index scan. None of that data
+# changes on the seconds-scale, so the introspection payload is
+# cached for ``_HEALTH_FULL_TTL`` and reused. Live ``SELECT 1``
+# still runs on every request so a downed DB is reported within
+# one tick (the 503 contract is unchanged).
+_HEALTH_FULL_TTL = 15.0
+_health_full_lock = threading.Lock()
+_health_full_cache: dict[str, object] | None = None
+_health_full_expires_at: float = 0.0
+
+
+def _reset_health_full_cache() -> None:
+    """Drop the cached introspection payload. Test fixtures call
+    this between tests so a prior healthy run can't mask a
+    monkeypatched-DB-down assertion."""
+    global _health_full_cache, _health_full_expires_at
+    with _health_full_lock:
+        _health_full_cache = None
+        _health_full_expires_at = 0.0
+
+
 @router.head("/health/full", include_in_schema=False)
 @router.get("/health/full")
 def health_full() -> JSONResponse:
@@ -66,7 +92,30 @@ def health_full() -> JSONResponse:
       crashed, SMTP outage, etc.) before it shows up in user
       complaints.
     """
-    db_ok = False
+    global _health_full_cache, _health_full_expires_at
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db.close()
+        body: dict[str, object] = {
+            "status": "degraded",
+            "db_connectivity": False,
+            "schema_head": None,
+            "oldest_pending_dispatch_age_seconds": None,
+            "disk_free_gb": None,
+            "email_executor_max_workers": get_executor()._max_workers,
+        }
+        return JSONResponse(content=body, status_code=503)
+
+    now = time.monotonic()
+    with _health_full_lock:
+        cached = _health_full_cache
+        fresh = cached is not None and now < _health_full_expires_at
+    if fresh:
+        db.close()
+        return JSONResponse(content=cached, status_code=200)
+
     schema_head: str | None = None
     oldest_pending_age_seconds: int | None = None
     # Disk-free under the working directory — picks up the volume
@@ -74,13 +123,10 @@ def health_full() -> JSONResponse:
     # 1 GB the runbook says page someone.
     try:
         usage = shutil.disk_usage(".")
-        disk_free_gb = round(usage.free / (1024**3), 2)
+        disk_free_gb: float | None = round(usage.free / (1024**3), 2)
     except Exception:
         disk_free_gb = None
-    db = SessionLocal()
     try:
-        db.execute(text("SELECT 1"))
-        db_ok = True
         head_row = db.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).first()
         schema_head = head_row[0] if head_row else None
         oldest = (
@@ -93,23 +139,22 @@ def health_full() -> JSONResponse:
             age = datetime.now(UTC) - oldest[0]
             oldest_pending_age_seconds = int(age.total_seconds())
     except Exception:
-        # ``status: ok`` only flips false when DB is unreachable;
-        # everything else is best-effort introspection.
+        # Best-effort introspection: ``SELECT 1`` already passed
+        # so ``status`` stays "ok"; a transient failure on the
+        # follow-up queries leaves their fields ``None``.
         pass
     finally:
         db.close()
 
-    body: dict[str, object] = {
-        "status": "ok" if db_ok else "degraded",
-        "db_connectivity": db_ok,
+    body = {
+        "status": "ok",
+        "db_connectivity": True,
         "schema_head": schema_head,
         "oldest_pending_dispatch_age_seconds": oldest_pending_age_seconds,
         "disk_free_gb": disk_free_gb,
         "email_executor_max_workers": get_executor()._max_workers,
     }
-    # Return 503 when the DB is unreachable so plain HTTP-status
-    # uptime monitors (UptimeRobot free tier, Sentry Uptime) catch
-    # it without needing keyword-monitoring (which UptimeRobot
-    # recently moved to paid plans). Body shape stays the same so
-    # tooling that parses the JSON keeps working.
-    return JSONResponse(content=body, status_code=200 if db_ok else 503)
+    with _health_full_lock:
+        _health_full_cache = body
+        _health_full_expires_at = now + _HEALTH_FULL_TTL
+    return JSONResponse(content=body, status_code=200)
