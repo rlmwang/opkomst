@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set subject = "Your account has been approved — " + app_name %}
+{% block content %}
+<p>Hi {{ name }},</p>
+{% if chapter_names|length == 0 %}
+<p>Your account has been approved. Pick the chapters you're active in inside {{ app_name }} to get started.</p>
+{% elif chapter_names|length == 1 %}
+<p>Your account has been approved. You can now organise events for chapter <strong>{{ chapter_names[0] }}</strong>.</p>
+{% else %}
+<p>Your account has been approved. You can now organise events for the following chapters:</p>
+<ul>
+{% for chapter in chapter_names %}<li><strong>{{ chapter }}</strong></li>
+{% endfor %}</ul>
+{% endif %}
+<a href="{{ dashboard_url }}" class="cta">Open {{ app_name }}</a>
+{% endblock %}
+{% block footer %}{{ app_name }} — for organising RSP events{% endblock %}

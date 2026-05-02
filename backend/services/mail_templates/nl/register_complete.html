@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set subject = "Account aanmaken bij " + app_name %}
+{% block content %}
+<p>Hoi,</p>
+<p>Je hebt dit e-mailadres ingevuld op {{ app_name }}, maar je hebt nog geen account. Klik op onderstaande knop om er één aan te maken. Daarna ben je meteen ingelogd.</p>
+<a href="{{ complete_url }}" class="cta">Account aanmaken</a>
+<p class="muted">Deze link werkt één keer en verloopt na 30 minuten. Heb je deze mail niet aangevraagd? Negeer hem dan.</p>
+{% endblock %}
+{% block footer %}{{ app_name }} – voor het organiseren van RSP-evenementen{% endblock %}

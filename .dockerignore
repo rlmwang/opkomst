@@ -1,0 +1,37 @@
+# VCS
+.git
+.gitignore
+
+# Local DB
+*.db
+*.db-shm
+*.db-wal
+
+# Python build artefacts
+__pycache__
+*.py[cod]
+*.egg-info
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Node build artefacts (we rebuild in the frontend-builder stage)
+frontend/node_modules
+frontend/dist
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Docs / scratch
+docs
+README.md
+*.md
+!CLAUDE.md

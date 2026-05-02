@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <title>Opkomst</title>
+    <!--
+      Inline first-paint loader. Visible the instant the HTML
+      arrives, replaced when Vue mounts onto ``#app``. Kills the
+      "blank screen for a long time" perception on slow connections
+      while the JS bundle downloads + parses. Inlined (not a CSS
+      file) so it never costs an extra request.
+    -->
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f0e6; color: #2a2a2a; }
+      .app-boot {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        flex-direction: column; gap: 1rem;
+      }
+      .app-boot-ring {
+        width: 36px; height: 36px;
+        border: 3px solid #e0d6c2;
+        border-top-color: #9f000b;
+        border-radius: 50%;
+        animation: app-boot-spin 0.8s linear infinite;
+      }
+      .app-boot-text { color: #6a6a6a; font-size: 0.9375rem; }
+      @keyframes app-boot-spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="app-boot" aria-hidden="true">
+        <div class="app-boot-ring"></div>
+        <div class="app-boot-text">opkomst</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set subject = "Create your " + app_name + " account" %}
+{% block content %}
+<p>Hi,</p>
+<p>You entered this email on {{ app_name }}, but there's no account for it yet. Click the button below to create one. You'll be signed in straight away.</p>
+<a href="{{ complete_url }}" class="cta">Create account</a>
+<p class="muted">This link works once and expires in 30 minutes. If you didn't request this email, ignore it.</p>
+{% endblock %}
+{% block footer %}{{ app_name }} — for organising RSP events{% endblock %}

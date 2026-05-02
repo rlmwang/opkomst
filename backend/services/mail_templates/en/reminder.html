@@ -1,0 +1,13 @@
+{% extends "en/_event_base.html" %}
+{% set subject = event_name + " — coming up in a few days" %}
+{% block content %}
+<p>Just a quick reminder: you signed up for <strong>{{ event_name }}</strong>.</p>
+<div class="details">
+  <h3>{{ event_name }}</h3>
+  {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
+  <p class="meta">{{ event_date }}</p>
+  <p class="meta">{{ event_time }}</p>
+  <p class="meta">{{ location }} &middot; <a href="{{ map_url }}">view on map</a></p>
+</div>
+<p>See you there!</p>
+{% endblock %}

@@ -1,0 +1,82 @@
+[project]
+name = "opkomst"
+version = "0.1.0"
+description = "Privacy-first event sign-up tool"
+license = "EUPL-1.2"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "pydantic[email]>=2.11",
+    "pydantic-settings>=2.6",
+    # JWT signing/verifying. ``pyjwt`` is the canonical library
+    # and is actively maintained; ``python-jose`` has had security
+    # advisories and lower commit cadence. Smaller wheel too.
+    "pyjwt>=2.10",
+    "structlog>=24",
+    "cryptography>=44",
+    # No ``[pil]`` extra — the QR endpoint serves SVG, rendered
+    # via ``qrcode.image.svg`` which is pure Python. Dropping
+    # Pillow saves ~5 MB of wheels + the ``libjpeg62-turbo`` apt
+    # dep we used to need for it.
+    "qrcode>=8",
+    "nanoid>=2",
+    "uuid-utils>=0.10",
+    "jinja2>=3.1",
+    "slowapi>=0.1.9",
+    "sentry-sdk>=2.58.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-cov>=5",
+    "pytest-xdist>=3",
+    "ruff>=0.7",
+    "pyright>=1.1",
+    "freezegun>=1.5",
+    "hypothesis>=6",
+    # Needed by ``starlette.testclient.TestClient`` which our
+    # FastAPI tests use. Production code never imports httpx
+    # directly — keeping it dev-only means the runtime image
+    # doesn't ship it.
+    "httpx>=0.28",
+]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["backend/alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+# B008 fires on every FastAPI ``Depends(...)`` default — that's the
+# canonical pattern, not a bug. UP047 wants PEP 695 generics, but
+# we're staying on classic ``TypeVar`` for compatibility with
+# SQLAlchemy mapper introspection.
+ignore = ["B008", "UP047"]
+
+[tool.pyright]
+include = ["backend", "tests"]
+typeCheckingMode = "basic"
+pythonVersion = "3.13"
+
+[tool.pytest.ini_options]
+# Tests share a per-process tempfile DB; xdist's process-per-worker
+# split would each create their own DB and race the conftest setup.
+# Stay in-band until we wire a per-worker DB fixture.
+addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=64"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "backend/alembic/*",
+    "backend/seed.py",
+    # Live SMTP backend — tested via aiosmtpd integration test in B4.1
+    # (not yet present); excluded from the coverage gate until then.
+    "backend/services/email/smtp.py",
+]

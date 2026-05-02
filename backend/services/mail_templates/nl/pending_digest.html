@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set subject = "Aanmeldingen wachten op goedkeuring – " + app_name %}
+{% block content %}
+<p>Hoi {{ admin_name }},</p>
+{% if pending|length == 1 %}
+<p>Er staat één nieuwe aanmelding klaar voor goedkeuring:</p>
+{% else %}
+<p>Er staan {{ pending|length }} nieuwe aanmeldingen klaar voor goedkeuring:</p>
+{% endif %}
+<ul>
+{% for u in pending %}<li>{{ u.name }} – {{ u.email }}</li>
+{% endfor %}</ul>
+<a href="{{ accounts_url }}" class="cta">Naar Accounts</a>
+{% endblock %}
+{% block footer %}{{ app_name }} – voor het organiseren van RSP-evenementen{% endblock %}

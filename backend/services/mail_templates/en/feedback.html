@@ -1,0 +1,6 @@
+{% extends "en/_event_base.html" %}
+{% set subject = "How was " + event_name + "?" %}
+{% block content %}
+<p>Thanks for coming to <strong>{{ event_name }}</strong>! We'd love to hear how it went — a few short questions, two minutes at most:</p>
+<a href="{{ feedback_url }}" class="cta">Fill in the questionnaire</a>
+{% endblock %}

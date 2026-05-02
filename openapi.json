@@ -1,0 +1,3442 @@
+{
+  "components": {
+    "schemas": {
+      "ApproveUserRequest": {
+        "description": "Approve a pending user, optionally also assigning them to\nchapters. The list may be empty \u2014 a freshly approved user\nwith no chapters lands on the dashboard's onboarding banner\nwhere they self-pick. The admin doesn't have to know which\nchapters apply at approval time, which matters when the\nperson who registered is the one with that context.",
+        "properties": {
+          "chapter_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Chapter Ids",
+            "type": "array"
+          }
+        },
+        "title": "ApproveUserRequest",
+        "type": "object"
+      },
+      "AuthResponse": {
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "token",
+          "user"
+        ],
+        "title": "AuthResponse",
+        "type": "object"
+      },
+      "ChapterArchiveRequest": {
+        "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
+        "properties": {
+          "reassign_events_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reassign Events To"
+          },
+          "reassign_users_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reassign Users To"
+          }
+        },
+        "title": "ChapterArchiveRequest",
+        "type": "object"
+      },
+      "ChapterCreate": {
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ChapterCreate",
+        "type": "object"
+      },
+      "ChapterOut": {
+        "description": "One chapter, live or archived. ``archived`` mirrors\n``deleted_at IS NOT NULL`` so the frontend doesn't need to\ninspect timestamps.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "city_lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Lat"
+          },
+          "city_lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Lon"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "archived",
+          "city",
+          "city_lat",
+          "city_lon"
+        ],
+        "title": "ChapterOut",
+        "type": "object"
+      },
+      "ChapterPatch": {
+        "description": "Partial update for a chapter. Either field may be omitted;\nthe city tuple is all-or-nothing \u2014 passing ``city`` requires\n``city_lat``/``city_lon`` (and vice versa) so we never end up\nwith a city display name that has no coordinates.",
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "city_lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Lat"
+          },
+          "city_lon": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City Lon"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "ChapterPatch",
+        "type": "object"
+      },
+      "ChapterRef": {
+        "description": "Lightweight chapter reference embedded in ``UserOut``. Just\nenough for the frontend to render a chip without a second\nround-trip.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ChapterRef",
+        "type": "object"
+      },
+      "ChapterUsageOut": {
+        "description": "How many users / events are currently assigned to this\nchapter. Used by the delete dialog so the admin sees what\nhappens to dependents before confirming.",
+        "properties": {
+          "events": {
+            "title": "Events",
+            "type": "integer"
+          },
+          "users": {
+            "title": "Users",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "users",
+          "events"
+        ],
+        "title": "ChapterUsageOut",
+        "type": "object"
+      },
+      "CompleteRegistrationRequest": {
+        "description": "Redeems a registration token minted for an unknown email,\nsupplying the only field we still need to create the user\n(their name). Returns an ``AuthResponse`` \u2014 completing\nregistration is also the user's first sign-in.",
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name"
+        ],
+        "title": "CompleteRegistrationRequest",
+        "type": "object"
+      },
+      "EmailHealthOut": {
+        "description": "Aggregate of one channel's email delivery status across an\nevent's signups. Counts always sum to ``signup_count``.",
+        "properties": {
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "not_applicable": {
+            "title": "Not Applicable",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "not_applicable",
+          "pending",
+          "sent",
+          "failed"
+        ],
+        "title": "EmailHealthOut",
+        "type": "object"
+      },
+      "EventCreate": {
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "feedback_enabled": {
+            "default": true,
+            "title": "Feedback Enabled",
+            "type": "boolean"
+          },
+          "help_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Options",
+            "type": "array"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Location",
+            "type": "string"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "reminder_enabled": {
+            "default": true,
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "source_options": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Source Options",
+            "type": "array"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "name",
+          "chapter_id",
+          "location",
+          "starts_at",
+          "ends_at",
+          "source_options"
+        ],
+        "title": "EventCreate",
+        "type": "object"
+      },
+      "EventOut": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "attendee_count": {
+            "title": "Attendee Count",
+            "type": "integer"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "feedback_enabled": {
+            "title": "Feedback Enabled",
+            "type": "boolean"
+          },
+          "help_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Options",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "reminder_enabled": {
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "source_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Options",
+            "type": "array"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "topic",
+          "location",
+          "latitude",
+          "longitude",
+          "starts_at",
+          "ends_at",
+          "source_options",
+          "help_options",
+          "feedback_enabled",
+          "reminder_enabled",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "attendee_count",
+          "archived"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EventStatsOut": {
+        "description": "Organiser-only aggregate. Never includes individual signups.",
+        "properties": {
+          "by_help": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Help",
+            "type": "object"
+          },
+          "by_source": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "By Source",
+            "type": "object"
+          },
+          "total_attendees": {
+            "title": "Total Attendees",
+            "type": "integer"
+          },
+          "total_signups": {
+            "title": "Total Signups",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_signups",
+          "total_attendees",
+          "by_source",
+          "by_help"
+        ],
+        "title": "EventStatsOut",
+        "type": "object"
+      },
+      "FeedbackAnswerIn": {
+        "properties": {
+          "answer_int": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Int"
+          },
+          "answer_text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Text"
+          },
+          "question_key": {
+            "title": "Question Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_key"
+        ],
+        "title": "FeedbackAnswerIn",
+        "type": "object"
+      },
+      "FeedbackFormOut": {
+        "description": "Public payload for GET /feedback/{token} \u2014 what the questionnaire\npage renders. Includes minimal event context so the page can show\nthe user which event they're giving feedback on.",
+        "properties": {
+          "event_locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Event Locale",
+            "type": "string"
+          },
+          "event_name": {
+            "title": "Event Name",
+            "type": "string"
+          },
+          "event_slug": {
+            "title": "Event Slug",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_name",
+          "event_slug",
+          "event_locale",
+          "questions"
+        ],
+        "title": "FeedbackFormOut",
+        "type": "object"
+      },
+      "FeedbackQuestionOut": {
+        "description": "Question shape for the public form. The frontend resolves the\nprompt + labels from i18n using ``key``. ``key`` is also the\nstable identifier the submit endpoint expects in answers.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "ordinal",
+          "kind",
+          "required"
+        ],
+        "title": "FeedbackQuestionOut",
+        "type": "object"
+      },
+      "FeedbackQuestionSummary": {
+        "description": "Per-question aggregate. ``rating_distribution`` is a 1..5 array\nwhen kind=='rating' (counts at each scale point), or null. ``texts``\nis the list of free-text answers when kind=='text', or null.",
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_distribution": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Distribution"
+          },
+          "response_count": {
+            "title": "Response Count",
+            "type": "integer"
+          },
+          "texts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texts"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "response_count"
+        ],
+        "title": "FeedbackQuestionSummary",
+        "type": "object"
+      },
+      "FeedbackSubmissionOut": {
+        "description": "One submission as a flat record \u2014 keyed by ``question.key`` so\na CSV consumer can map columns by question identifier without\nneeding the questions table. Rating values surface as the int;\ntext answers as the string. Missing answers are absent from\n``answers``. ``submission_id`` is the random per-submission id\nthat has no link back to a signup (privacy contract).",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "answers"
+        ],
+        "title": "FeedbackSubmissionOut",
+        "type": "object"
+      },
+      "FeedbackSubmitIn": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackAnswerIn"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "FeedbackSubmitIn",
+        "type": "object"
+      },
+      "FeedbackSummaryOut": {
+        "description": "Organiser-only feedback summary for an event. ``email_health``\nis keyed by channel name (``reminder`` / ``feedback``) so the\ndashboard can surface delivery health for each side-by-side.",
+        "properties": {
+          "email_health": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EmailHealthOut"
+            },
+            "title": "Email Health",
+            "type": "object"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackQuestionSummary"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "response_rate": {
+            "title": "Response Rate",
+            "type": "number"
+          },
+          "signup_count": {
+            "title": "Signup Count",
+            "type": "integer"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_count",
+          "signup_count",
+          "response_rate",
+          "email_health",
+          "questions"
+        ],
+        "title": "FeedbackSummaryOut",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LinkSent": {
+        "description": "Boring 200 response so /login-link can't be probed for whether\nan email is registered.",
+        "properties": {
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "LinkSent",
+        "type": "object"
+      },
+      "LoginLinkRequest": {
+        "description": "Single entry point for both populations: a registered email\nreceives a sign-in link, an unknown email receives a\n\"finish creating your account\" link. The endpoint returns the\nsame response shape either way so the API can't be probed for\naccount existence.",
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "LoginLinkRequest",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "description": "Redeems a magic-link token minted by /auth/login-link for an\nexisting user. Single-use; the row is deleted on redemption.",
+        "properties": {
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "PendingCountOut": {
+        "description": "Tiny DTO for the navbar's pending-approval indicator. Admin-\nonly \u2014 surfacing this to organisers would just be noise.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "PendingCountOut",
+        "type": "object"
+      },
+      "RenameUserRequest": {
+        "description": "Min-length=1 catches empty strings; the handler additionally\nstrips whitespace and 422s on a name that's whitespace-only,\nsince Pydantic's ``min_length`` doesn't strip.",
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RenameUserRequest",
+        "type": "object"
+      },
+      "SetUserChaptersRequest": {
+        "description": "Replace the user's full chapter membership set. ``min_length=1``\nkeeps approved users in at least one chapter \u2014 emptying the set\nis the same as de-activating them, which is what the delete\nendpoint is for.",
+        "properties": {
+          "chapter_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Chapter Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_ids"
+        ],
+        "title": "SetUserChaptersRequest",
+        "type": "object"
+      },
+      "SignupAck": {
+        "description": "Public response after a successful signup. Returns nothing\nidentifying \u2014 just confirms the booking landed.",
+        "properties": {
+          "status": {
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "SignupAck",
+        "type": "object"
+      },
+      "SignupCreate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
+          "party_size": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "source_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Choice"
+          }
+        },
+        "required": [
+          "party_size"
+        ],
+        "title": "SignupCreate",
+        "type": "object"
+      },
+      "SignupSummaryOut": {
+        "description": "A single signup as seen on the organiser's details page.\nDeliberately minimal \u2014 name, headcount, help-choices. Never\nemail, source, or feedback-email status; those exist on the\nmodel but are private to the worker. ``id`` is exposed so the\norganiser can target an individual row for deletion (e.g.\ncleaning up an accidental sign-up they made themselves).",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "party_size",
+          "help_choices"
+        ],
+        "title": "SignupSummaryOut",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ChapterRef"
+            },
+            "title": "Chapters",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_approved": {
+            "title": "Is Approved",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "is_approved",
+          "chapters",
+          "created_at"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Opkomst",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/users": {
+      "get": {
+        "description": "Open to every approved user. Returns the same projection\neveryone else sees \u2014 names + email + chapter memberships.\nNo \"see only your own row\" mode; the visibility matches the\norganising context the project is built for.",
+        "operationId": "list_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pending",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Pending",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserOut"
+                  },
+                  "title": "Response List Users Api V1 Admin Users Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/pending-count": {
+      "get": {
+        "description": "How many live users are awaiting admin approval. Backs the\nred-dot indicator on the navbar's Accounts link \u2014 only\nrendered for admins, and the endpoint is admin-only too so\norganisers can't sniff the count.\n\nDefined *before* ``GET /users`` so the static path beats\nFastAPI's parametric ``/users/{user_id}/...`` patterns; the\nexplicit string segment wouldn't actually conflict with the\nlist endpoint, but keeping all the static-segment routes up\ntop is the cheapest way to never trip over that ordering rule\nin the future.",
+        "operationId": "pending_user_count_api_v1_admin_users_pending_count_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingCountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pending User Count",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}": {
+      "delete": {
+        "description": "Soft-delete a user. Stamps ``deleted_at``; the email slot\nfrees up via the partial-unique index, so registering again\nwith the same address restores the row in an unapproved\nstate.\n\nSelf-deletion is implicitly blocked because the permission\nmatrix's DELETE_USER branch is admin-only and contains no\nself-service carve-out \u2014 an admin trying to delete their\nown row therefore goes through the matrix and is rejected\nby the explicit \"not self\" check we still keep here as\ndefence in depth (and to give a clearer 409 over the\nmatrix's blanket 403).",
+        "operationId": "delete_user_api_v1_admin_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/approve": {
+      "post": {
+        "description": "Mark a pending user approved and replace their membership\nset with ``chapter_ids``. The approval email lists every\nassigned chapter so the user knows the full scope of what\nthey've been let into.",
+        "operationId": "approve_user_api_v1_admin_users__user_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Approve User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/demote": {
+      "post": {
+        "description": "Demote an admin back to organiser. The matrix blocks\nself-demotion \u2014 the same anti-foot-shoot rule that previously\nlived inline in this handler.",
+        "operationId": "demote_user_api_v1_admin_users__user_id__demote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demote User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/promote": {
+      "post": {
+        "operationId": "promote_user_api_v1_admin_users__user_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/rename": {
+      "post": {
+        "description": "Update a user's display name. Self-service. The user-\nsupplied value is stripped of surrounding whitespace; an\nempty-after-strip name is rejected before the row is touched\n(Pydantic's ``min_length`` doesn't strip).",
+        "operationId": "rename_user_api_v1_admin_users__user_id__rename_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename User",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/set-chapters": {
+      "post": {
+        "description": "Replace the user's full chapter membership set. Self-service:\na user can manage their own chapter memberships without\nadmin intervention. ``min_length=1`` on the schema keeps\nevery approved user in at least one chapter \u2014 emptying the\nset would orphan you from the project.",
+        "operationId": "set_user_chapters_api_v1_admin_users__user_id__set_chapters_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUserChaptersRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set User Chapters",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/auth/complete-registration": {
+      "post": {
+        "description": "Redeem a registration token + supply the user's name. Creates\n(or restores) the user and returns a JWT \u2014 completing\nregistration is the user's first sign-in.\n\nSingle-use: the token row is deleted on every terminal outcome\n(success, expired, race) so a clicked link can't be replayed\nand orphan rows don't accumulate.",
+        "operationId": "complete_registration_api_v1_auth_complete_registration_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Complete Registration",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Redeem a login token. Single-use: the row is deleted on\nsuccessful redemption so a forwarded link can't be replayed.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/login-link": {
+      "post": {
+        "description": "Send a magic link.\n\nBranches on whether the email matches a live user. Both\nbranches return the same ``LinkSent`` so the API can't be\nprobed for account existence.",
+        "operationId": "login_link_api_v1_auth_login_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkSent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login Link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "me_api_v1_auth_me_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/chapters": {
+      "get": {
+        "description": "List chapters. By default only active ones; pass\n``include_archived=true`` to also surface soft-deleted ones (used\nby the admin autocomplete to support restore).",
+        "operationId": "list_chapters_api_v1_chapters_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChapterOut"
+                  },
+                  "title": "Response List Chapters Api V1 Chapters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Chapters",
+        "tags": [
+          "chapters"
+        ]
+      },
+      "post": {
+        "operationId": "create_chapter_api_v1_chapters_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChapterCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Chapter",
+        "tags": [
+          "chapters"
+        ]
+      }
+    },
+    "/api/v1/chapters/{chapter_id}": {
+      "delete": {
+        "operationId": "archive_chapter_api_v1_chapters__chapter_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chapter_id",
+            "required": true,
+            "schema": {
+              "title": "Chapter Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ChapterArchiveRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Chapter",
+        "tags": [
+          "chapters"
+        ]
+      },
+      "patch": {
+        "description": "Partial update \u2014 name and/or city. The city tuple is set\ntogether (display name + lat + lon); leaving all three at\n``None`` in the payload clears a previously-set city. Pass\nnothing for ``city*`` keys to leave the current city\nuntouched.",
+        "operationId": "patch_chapter_api_v1_chapters__chapter_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chapter_id",
+            "required": true,
+            "schema": {
+              "title": "Chapter Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChapterPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Chapter",
+        "tags": [
+          "chapters"
+        ]
+      }
+    },
+    "/api/v1/chapters/{chapter_id}/restore": {
+      "post": {
+        "operationId": "restore_chapter_api_v1_chapters__chapter_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chapter_id",
+            "required": true,
+            "schema": {
+              "title": "Chapter Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Chapter",
+        "tags": [
+          "chapters"
+        ]
+      }
+    },
+    "/api/v1/chapters/{chapter_id}/usage": {
+      "get": {
+        "description": "How many live users + events are currently linked to this\nchapter. The frontend calls this before opening the delete\ndialog so it can offer reassignment dropdowns when there's\nsomething at stake.",
+        "operationId": "chapter_usage_api_v1_chapters__chapter_id__usage_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "chapter_id",
+            "required": true,
+            "schema": {
+              "title": "Chapter Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chapter Usage",
+        "tags": [
+          "chapters"
+        ]
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "operationId": "list_events_api_v1_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Events Api V1 Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "operationId": "create_event_api_v1_events_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/archived": {
+      "get": {
+        "operationId": "list_archived_events_api_v1_events_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response List Archived Events Api V1 Events Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Events",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}": {
+      "get": {
+        "description": "Public event lookup. The response is identical for every\nvisitor in the seconds between two organiser edits, so it's a\nperfect candidate for HTTP caching: a 60 s shared cache window\n(Coolify/Traefik / any CDN that fronts the app) keeps the\ncommon case off the DB entirely, and ``stale-while-revalidate``\nmeans a request after the 60 s expiry serves the still-warm\npayload while a single background fetch refreshes it.\n\nThe 60 s freshness window is the trade-off: an organiser edit\nis visible to *new* visitors after up to 60 s. Acceptable \u2014\nedits during an active sign-up window are rare, and\n``no-store`` would defeat the point of caching the highest-\ntraffic public endpoint.",
+        "operationId": "get_event_by_slug_api_v1_events_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event By Slug",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}/email-preview/{channel}": {
+      "get": {
+        "description": "Render the exact email that the dispatcher will send to a\nsignup on this event.",
+        "operationId": "email_preview_api_v1_events_by_slug__slug__email_preview__channel__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "title": "Channel",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Email Preview",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}/event.ics": {
+      "get": {
+        "description": "Public RFC 5545 calendar download for one event. Universal \u2014\nGoogle, Apple, Outlook, Proton, Thunderbird, every mobile\ncalendar app imports it. UID is the event's stable ``id``,\nso re-importing after an organiser edit updates the existing\nentry instead of creating a duplicate.",
+        "operationId": "get_event_ics_api_v1_events_by_slug__slug__event_ics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event Ics",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}/feedback-preview": {
+      "get": {
+        "description": "Preview of the post-event feedback form.",
+        "operationId": "feedback_form_preview_api_v1_events_by_slug__slug__feedback_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackFormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Feedback Form Preview",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}/qr.svg": {
+      "get": {
+        "operationId": "get_event_qr_api_v1_events_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event Qr",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/by-slug/{slug}/signups": {
+      "post": {
+        "operationId": "create_signup_api_v1_events_by_slug__slug__signups_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Signup",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}": {
+      "delete": {
+        "description": "Hard-delete an archived event. Refuses if the event isn't\narchived first \u2014 accidentally hard-deleting a live event\nwith sign-ups would be a data-loss footgun. Cascades through\n``signups`` / ``email_dispatches`` / ``feedback_responses`` /\n``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the\nschema; the row + its dependents go with one DELETE.",
+        "operationId": "delete_event_api_v1_events__event_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event",
+        "tags": [
+          "events"
+        ]
+      },
+      "put": {
+        "operationId": "update_event_api_v1_events__event_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/archive": {
+      "post": {
+        "operationId": "archive_event_api_v1_events__event_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/feedback-submissions": {
+      "get": {
+        "description": "Per-submission feedback rows. One entry per ``submission_id``,\nkeyed by question ``key`` (so a CSV consumer can index by\nquestion without joining to a questions table \u2014 there is no\nquestions table; the keys are app-level constants). Used by\nthe organiser-side CSV export.\n\nPrivacy: the ``submission_id`` is a random per-submission token\nwith no link back to the signup that produced it \u2014 this matches\nthe contract documented in the public privacy notice.",
+        "operationId": "feedback_submissions_api_v1_events__event_id__feedback_submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackSubmissionOut"
+                  },
+                  "title": "Response Feedback Submissions Api V1 Events  Event Id  Feedback Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Feedback Submissions",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/feedback-summary": {
+      "get": {
+        "operationId": "feedback_summary_api_v1_events__event_id__feedback_summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Feedback Summary",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/restore": {
+      "post": {
+        "operationId": "restore_event_api_v1_events__event_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Event",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/send-emails/{channel}": {
+      "post": {
+        "description": "Manually trigger the worker for one channel on a single\nevent. Re-use of the generic dispatcher means the reminder\n+ feedback \"send now\" buttons share one endpoint and one\nrate-limit budget.",
+        "operationId": "send_emails_now_api_v1_events__event_id__send_emails__channel__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "channel",
+            "required": true,
+            "schema": {
+              "title": "Channel",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Send Emails Now Api V1 Events  Event Id  Send Emails  Channel  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Emails Now",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/signups": {
+      "get": {
+        "description": "Per-signup list for the organiser details page. Returns\ndisplay_name + party_size + help_choices \u2014 never email,\nsource, or feedback-email status.",
+        "operationId": "event_signups_api_v1_events__event_id__signups_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SignupSummaryOut"
+                  },
+                  "title": "Response Event Signups Api V1 Events  Event Id  Signups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event Signups",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/signups/{signup_id}": {
+      "delete": {
+        "description": "Organiser-only hard-delete of a single signup row. Targets\nthe case where someone (often the organiser themselves) wants\na stray sign-up gone \u2014 accidental submission, duplicate row,\ntest data left in a real event.\n\nPrivacy invariant unaffected: ``Signup`` carries no email, so\ndeleting the row removes only headcount + display-name. Any\npending ``EmailDispatch`` rows for this event live on by\ndesign (no signup_id link); the worker may still send a\nreminder/feedback email to the address the deleted signup\nsubmitted. That decoupling is the whole point \u2014 see\n``models/email_dispatch.py``.",
+        "operationId": "delete_signup_api_v1_events__event_id__signups__signup_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Signup",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/stats": {
+      "get": {
+        "operationId": "event_stats_endpoint_api_v1_events__event_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventStatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event Stats Endpoint",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/feedback/questions": {
+      "get": {
+        "description": "The fixed-set questionnaire, used by the organiser-side preview page.",
+        "operationId": "list_questions_api_v1_feedback_questions_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackQuestionOut"
+                  },
+                  "title": "Response List Questions Api V1 Feedback Questions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Questions",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/feedback/{token}": {
+      "get": {
+        "operationId": "get_feedback_form_api_v1_feedback__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackFormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Feedback Form",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/feedback/{token}/submit": {
+      "post": {
+        "operationId": "submit_feedback_api_v1_feedback__token__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Submit Feedback Api V1 Feedback  Token  Submit Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Feedback",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Cheap liveness \u2014 Coolify pings this every 30 s. A 2xx\nresponse is the only contract; deeper introspection lives on\n``/health/full``.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    },
+    "/health/full": {
+      "get": {
+        "description": "Liveness + ops introspection.\n\nBeyond ``status: ok``, the response surfaces:\n* email-executor bounded worker count \u2014 a deploy that\n  accidentally lifted the cap is visible at a glance;\n* Alembic schema head \u2014 the migration revision the running\n  process believes the DB is at, so a Coolify deploy that\n  forgot to run migrations is one curl away from being\n  caught;\n* DB connectivity \u2014 a trivial ``SELECT 1`` round-trip;\n* oldest pending dispatch \u2014 surfaces a stuck queue (worker\n  crashed, SMTP outage, etc.) before it shows up in user\n  complaints.",
+        "operationId": "health_full_health_full_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Full"
+      }
+    }
+  }
+}

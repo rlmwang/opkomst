@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% set subject = "Accounts awaiting approval — " + app_name %}
+{% block content %}
+<p>Hi {{ admin_name }},</p>
+<p>There {% if pending|length == 1 %}is 1 account{% else %}are {{ pending|length }} accounts{% endif %} currently awaiting approval:</p>
+<ul>
+{% for u in pending %}<li>{{ u.name }} – {{ u.email }}</li>
+{% endfor %}</ul>
+<a href="{{ accounts_url }}" class="cta">Open Accounts</a>
+{% endblock %}
+{% block footer %}{{ app_name }} — for organising RSP events{% endblock %}

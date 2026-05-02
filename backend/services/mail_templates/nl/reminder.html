@@ -1,0 +1,13 @@
+{% extends "nl/_event_base.html" %}
+{% set subject = event_name + " – bijna zover" %}
+{% block content %}
+<p>Hoi! Je hebt je aangemeld voor <strong>{{ event_name }}</strong>, en het is bijna zover:</p>
+<div class="details">
+  <h3>{{ event_name }}</h3>
+  {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
+  <p class="meta">{{ event_date }}</p>
+  <p class="meta">{{ event_time }}</p>
+  <p class="meta">{{ location }} &middot; <a href="{{ map_url }}">bekijk op kaart</a></p>
+</div>
+<p>Tot dan!</p>
+{% endblock %}

@@ -1,0 +1,217 @@
+@layer primevue, app;
+
+@layer app {
+  :root {
+    /* Warm cream palette — evokes pamphlet / newsprint stock and sits
+     * comfortably next to the deep brand red without the sterile feel
+     * of pure white. */
+    --brand-red: #9f000b;
+    --brand-bg: #f6f1e7;
+    --brand-surface: #fbf7ee;
+    --brand-text: #1a1a1a;
+    --brand-text-muted: #5e5a52;
+    --brand-border: #e6dec9;
+  }
+
+  html, body, #app {
+    margin: 0;
+    padding: 0;
+    background: var(--brand-bg);
+    color: var(--brand-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* App-wide heading sizes — slightly smaller than browser defaults
+   * so page titles don't dominate the narrow 720px container.
+   * Margins are zeroed: vertical spacing comes from ``.stack`` on
+   * the parent (``AppCard``, container, etc.) so different page
+   * sections start at the same offset regardless of heading level. */
+  h1, h2, h3, h4, h5, h6 { margin: 0; }
+  h1 { font-size: 1.5rem; line-height: 1.25; font-weight: 700; }
+  h2 { font-size: 1.125rem; line-height: 1.3; font-weight: 600; }
+  h3 { font-size: 1rem; line-height: 1.35; font-weight: 600; }
+
+  a { color: var(--brand-red); }
+
+  /* Visible keyboard focus on every interactive surface PrimeVue's
+   * own focus styling doesn't already cover. Mouse users still see
+   * no outline because ``:focus-visible`` only triggers on
+   * keyboard navigation. */
+  a:focus-visible,
+  button:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--brand-red);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+  }
+
+  .card {
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+
+  .stack > * + * { margin-top: 0.75rem; }
+
+  /* Canonical row inside a card-list. Both EditableList rows and the
+   * AdminPage user-list rows mount this so the two lists stay visually
+   * identical — no per-page padding/gap drift. */
+  .list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 6px;
+    transition: background 120ms ease;
+  }
+  .list-row:hover {
+    background: var(--brand-bg);
+  }
+
+  /* Page-header row: a primary heading on the left and an actions
+   * cluster on the right (back button, edit button, etc). Identical
+   * across DashboardPage / ArchivedEventsPage / EventDetailsPage —
+   * lives here so all three pages stay in lock-step. */
+  .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .title-row h1 { margin: 0 0 0.25rem; }
+
+  /* Mobile: trim the container's horizontal padding so the cards
+   * stretch closer to the viewport edges, and shrink the heading
+   * sizes one notch so they fit the narrower frame. */
+  @media (max-width: 480px) {
+    .container { padding: 1rem 0.75rem; }
+    .card { padding: 1rem; }
+    h1 { font-size: 1.25rem; }
+    h2 { font-size: 1rem; }
+  }
+
+  .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+
+  /* Inline link for metadata lines ("location · datetime"). Keeps
+   * the surrounding text colour with a dotted underline so the link
+   * affordance is visible without dominating; brand-red on hover. */
+  .meta-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dotted var(--brand-border);
+    padding-bottom: 1px;
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+  .meta-link:hover {
+    color: var(--brand-red);
+    border-bottom-color: var(--brand-red);
+  }
+
+  /* Brand-red dialog title + icon. Backgrounds and borders all flow
+   * from the PrimeVue preset's surface palette — no per-component
+   * overrides needed (every dialog, dropdown, and form field shares
+   * the same cream tokens). */
+  .p-dialog .p-dialog-title {
+    color: var(--brand-red);
+    font-weight: 600;
+  }
+  .p-dialog .p-confirmdialog-icon {
+    color: var(--brand-red);
+  }
+  .p-dialog-mask {
+    background: rgba(26, 26, 26, 0.4);
+  }
+  /* Mobile cap on every PrimeVue dialog: callers pass widths like
+   * 420 px or 480 px in their ``:style``; on a 375 px phone those
+   * overflow the viewport. Cap the dialog at the viewport minus a
+   * 1rem margin so any caller-supplied width gets clamped on
+   * narrow screens without the caller having to know about
+   * breakpoints. Single-line override; PrimeVue's positioning still
+   * keeps the dialog centred. */
+  .p-dialog {
+    max-width: calc(100vw - 1rem);
+  }
+
+  /* Secondary buttons in the brand-red family at low saturation:
+   * soft-pink fill, red border, red text. Stand out clearly against
+   * the cream surfaces without competing with primary buttons. Targets
+   * both the solid and outlined variants from PrimeVue. */
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link) {
+    background: #fbdadc;
+    color: #9f000b;
+    border: 1px solid #f5b0b4;
+  }
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover {
+    background: #f5b0b4;
+    color: #5e0007;
+    border-color: #9f000b;
+  }
+  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
+    background: #ec7e85;
+    color: #440005;
+    border-color: #9f000b;
+  }
+  /* Text-variant secondary: red text, soft-pink hover wash. */
+  .p-button.p-button-secondary.p-button-text {
+    color: #9f000b;
+  }
+  .p-button.p-button-secondary.p-button-text:hover {
+    background: #fbdadc;
+    color: #5e0007;
+  }
+  .p-button.p-button-secondary.p-button-text:active {
+    background: #f5b0b4;
+    color: #440005;
+  }
+
+  .privacy-notice {
+    font-size: 0.875rem;
+    color: var(--brand-text-muted);
+    background: #fff5e2;
+    border: 1px solid #ead9b3;
+    border-radius: 8px;
+  }
+
+  /* Padding lives on the summary (and body) rather than the details
+   * wrapper so the clickable hit area covers the whole box, not just
+   * the text. */
+  .privacy-notice > summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--brand-text);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+  }
+  .privacy-notice > summary::-webkit-details-marker { display: none; }
+  /* PrimeIcons chevron — rotated 90° when the details element is open. */
+  .privacy-notice > summary::before {
+    content: "\e932"; /* pi-chevron-right */
+    font-family: "primeicons";
+    font-size: 0.75rem;
+    line-height: 1;
+    transition: transform 150ms ease;
+  }
+  .privacy-notice[open] > summary {
+    border-radius: 8px 8px 0 0;
+  }
+  .privacy-notice[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .privacy-notice > p {
+    margin: 0;
+    padding: 0 1rem 0.75rem;
+  }
+}

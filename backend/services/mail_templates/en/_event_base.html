@@ -1,0 +1,9 @@
+{# Shared chrome for the two public-facing event emails (reminder +
+   feedback): identical disclaimer + footer, so the prose can't
+   drift between channels. Channel-specific templates extend this
+   and only fill ``content``. #}
+{% extends "base.html" %}
+{% block disclaimer %}
+<p class="muted">You're getting this email because you left your address when you signed up. We store it encrypted and delete it once every email about this event has been sent. The source code of this app is <a href="https://github.com/rlmwang/opkomst">openly available</a>.</p>
+{% endblock %}
+{% block footer %}{{ app_name }} — for organising RSP events{% endblock %}

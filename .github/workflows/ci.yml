@@ -1,0 +1,213 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel earlier runs on the same branch when a new push lands so a long
+# tail of stale jobs doesn't keep CI minutes burning.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: opkomst
+          POSTGRES_PASSWORD: opkomst
+          POSTGRES_DB: opkomst
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opkomst -d opkomst"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # tests/conftest.py auto-creates an ``opkomst_test`` database
+      # alongside ``opkomst`` and pins DATABASE_URL itself; the value
+      # here is just for any module-import that reads it before the
+      # conftest fixture overrides.
+      JWT_SECRET: test-jwt-secret-not-for-real-use
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
+      LOCAL_MODE: "0"
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - name: Sync dependencies
+        run: uv sync --all-groups
+      - name: Lint (ruff)
+        run: uv run ruff check backend tests
+      - name: Type-check (pyright)
+        run: uv run pyright backend
+      - name: Tests + coverage gate
+        run: uv run pytest
+      - name: Migrations are idempotent
+        # Apply migrations to a fresh DB, then re-apply to the same
+        # DB. Both invocations must succeed cleanly. Catches the
+        # class of bug where a migration assumes "this column doesn't
+        # exist yet" rather than checking — running the same revision
+        # twice on the same DB is the closest CI-friendly proxy for
+        # "what happens when a deploy retries after a transient
+        # failure".
+        run: |
+          uv run alembic -c backend/alembic.ini downgrade base
+          uv run alembic -c backend/alembic.ini upgrade head
+          uv run alembic -c backend/alembic.ini upgrade head
+
+  schema-drift:
+    # Regenerate openapi.json + frontend/src/api/schema.ts on every PR
+    # and fail if the working tree differs from HEAD. A backend schema
+    # change without its matching commit-of-the-generated-types is the
+    # exact "frontend type drift" bug A3 was supposed to make
+    # structurally impossible — this gate enforces it.
+    runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
+      OPKOMST_SKIP_BOOT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - run: uv sync --all-groups
+      - run: cd frontend && npm ci
+      - name: Regenerate openapi.json + schema.ts
+        run: make openapi
+      - name: Diff against HEAD
+        run: |
+          if ! git diff --exit-code --quiet openapi.json frontend/src/api/schema.ts; then
+            echo "::error::openapi.json or frontend/src/api/schema.ts is out of date — run 'make openapi'"
+            git diff openapi.json frontend/src/api/schema.ts
+            exit 1
+          fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Type-check (vue-tsc)
+        run: npx vue-tsc --noEmit
+      - name: Unit tests (vitest)
+        run: npm run test
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Don't waste a Playwright run when the cheaper checks are red —
+    # backend or frontend failures usually explain the e2e symptom too.
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: opkomst
+          POSTGRES_PASSWORD: opkomst
+          POSTGRES_DB: opkomst
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U opkomst -d opkomst"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Same defaults as the backend job — playwright.config.ts boots
+      # both servers via webServer; they read these from process env.
+      JWT_SECRET: test-jwt-secret-not-for-real-use
+      EMAIL_ENCRYPTION_KEY: 19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=
+      EMAIL_BACKEND: console
+      MESSAGE_ID_DOMAIN: ci.opkomst.local
+      PUBLIC_BASE_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
+      BOOTSTRAP_ADMIN_EMAIL: admin@local.dev
+      LOCAL_MODE: "1"
+      DATABASE_URL: postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+      - name: Sync backend
+        run: uv sync --all-groups
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Provide an empty .env for the playwright webServer
+        # The webServer command sources ../.env if present; an empty
+        # one is fine since the vars are already inherited from the
+        # job-level env: block.
+        run: touch .env
+      - name: Apply migrations
+        # ``cli seed-demo`` doesn't bootstrap the schema — it
+        # expects the migrations to already have run. The
+        # webServer would run them on first request, but
+        # ``seed-demo`` runs first.
+        run: uv run alembic -c backend/alembic.ini upgrade head
+      - name: Seed local-mode demo data
+        # ``admin@local.dev`` + ``organiser@local.dev`` accounts +
+        # demo events. Required for the e2e tests' dev-issue-token
+        # path; pre-R4.3 this fired automatically on boot, since
+        # R4.3 it's an explicit CLI invocation.
+        run: uv run python -m backend.cli seed-demo
+      - name: Run Playwright
+        working-directory: frontend
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
