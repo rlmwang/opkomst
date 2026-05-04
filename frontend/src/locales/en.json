@@ -30,17 +30,17 @@
     "loadFail": "The survey couldn't be loaded.",
     "submitFail": "Submission failed. Try again in a moment.",
     "q1": {
-      "prompt": "Do you feel connected to the party since the new members day?",
+      "prompt": "Do you feel connected to the party?",
       "labelLow": "barely",
       "labelHigh": "strongly"
     },
     "q2": {
-      "prompt": "How clear is your concrete next step?",
+      "prompt": "Is it clear to you what kind of member you want to be in the party?",
       "labelLow": "no idea",
       "labelHigh": "crystal clear"
     },
     "q3": {
-      "prompt": "How likely are you to be (or stay) active in the coming months?",
+      "prompt": "Is it likely you'll be (or stay) active in the coming months?",
       "labelLow": "unlikely",
       "labelHigh": "for sure"
     },

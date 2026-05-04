@@ -30,39 +30,39 @@
     "loadFail": "De vragenlijst kon niet geladen worden.",
     "submitFail": "Versturen lukte niet. Probeer het zo opnieuw.",
     "q1": {
-      "prompt": "Voel je je verbonden met de partij sinds de nieuwe ledendag?",
+      "prompt": "Voel je je verbonden met de partij?",
       "labelLow": "nauwelijks",
       "labelHigh": "sterk"
     },
     "q2": {
-      "prompt": "Hoe duidelijk is voor jou wat je concrete volgende stap kan zijn?",
+      "prompt": "Is het duidelijk in welke vorm je lid wilt zijn van de partij?",
       "labelLow": "geen idee",
       "labelHigh": "glashelder"
     },
     "q3": {
-      "prompt": "Hoe waarschijnlijk is het dat je de komende maanden actief wordt of blijft?",
+      "prompt": "Is het waarschijnlijk dat je de komende maanden actief wordt of blijft?",
       "labelLow": "onwaarschijnlijk",
       "labelHigh": "zeker"
     },
     "q4": {
-      "prompt": "Wat houdt je op dit moment tegen om meer actief te worden?",
+      "prompt": "Wat weerhoudt je er momenteel van om meer actief te worden?",
       "hint": "Meerdere antwoorden mogelijk.",
       "otherLabel": "Anders, namelijk",
       "otherPlaceholder": "Optioneel"
     },
     "q5": {
-      "prompt": "Wat zou jou helpen om meer betrokken te raken?",
+      "prompt": "Wat zou je helpen om meer betrokken te raken?",
       "placeholder": "Optioneel"
     },
     "barriers": {
-      "no_time": "Ik heb er de tijd niet voor",
-      "distance_or_cost": "De reisafstand of de kosten zijn een drempel",
-      "lacks_knowledge": "Ik mis kennis of vaardigheden",
-      "no_clear_step": "Ik zie geen concrete volgende stap",
-      "knows_no_one": "Ik ken er nog (bijna) niemand",
-      "nobody_asked": "Niemand heeft me gevraagd om iets concreets te doen",
-      "not_for_me": "Ik heb het gevoel dat het niet voor mensen zoals ik is",
-      "doubts_impact": "Ik twijfel of ik écht een verschil kan maken"
+      "no_time": "Geen tijd",
+      "distance_or_cost": "Reisafstand of kosten",
+      "lacks_knowledge": "Kennis of ervaring",
+      "no_clear_step": "Geen concrete vervolgstap",
+      "knows_no_one": "Ken nog (bijna) niemand",
+      "nobody_asked": "Niemand heeft het me gevraagd",
+      "not_for_me": "Niets voor mij",
+      "doubts_impact": "Kan geen écht verschil maken"
     },
     "results": {
       "title": "Feedback Nieuwe Ledendag",
