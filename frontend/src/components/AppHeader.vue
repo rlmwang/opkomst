@@ -45,6 +45,7 @@ function logout() {
           >{{ pendingCount }}</span>
         </router-link>
         <router-link v-if="auth.isApproved" to="/chapters">{{ t("header.chapters") }}</router-link>
+        <router-link v-if="auth.isAdmin" to="/member-feedback">{{ t("header.memberFeedback") }}</router-link>
         <span class="logout-divider" aria-hidden="true" />
         <Button :label="t('header.logout')" size="small" severity="secondary" text @click="logout" />
       </nav>

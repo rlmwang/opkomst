@@ -17,6 +17,7 @@ from .routers import events as events_router
 from .routers import events_public as events_public_router
 from .routers import feedback as feedback_router
 from .routers import health as health_router
+from .routers import member_survey as member_survey_router
 from .routers import signups as signups_router
 from .routers import spa
 from .services.observability import TimingMiddleware
@@ -102,6 +103,7 @@ app.include_router(events_router.router)
 app.include_router(events_public_router.router)
 app.include_router(signups_router.router)
 app.include_router(feedback_router.router)
+app.include_router(member_survey_router.router)
 app.include_router(health_router.router)
 
 # Local-mode-only routes (dev-issue-token et al). Mounted iff

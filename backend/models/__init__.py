@@ -2,6 +2,7 @@ from .chapters import Chapter
 from .email_dispatch import EmailChannel, EmailDispatch, EmailStatus
 from .events import Event, Signup
 from .feedback import FeedbackResponse, FeedbackToken
+from .member_survey import MemberSurveyResponse
 from .users import LoginToken, RegistrationToken, User, UserChapter
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "FeedbackResponse",
     "FeedbackToken",
     "LoginToken",
+    "MemberSurveyResponse",
     "RegistrationToken",
     "Signup",
     "User",

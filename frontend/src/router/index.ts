@@ -21,6 +21,11 @@ const routes = [
   // the admin bundle because it's a one-off form gated on a
   // single-use token, low traffic.
   { path: "/e/:slug/feedback", component: () => import("@/pages/FeedbackPage.vue"), props: true },
+  // Public new-members feedback survey. ``/s/nieuwe-leden`` is the
+  // short URL we share with attendees of a nieuwe-ledendag.
+  { path: "/s/nieuwe-leden", component: () => import("@/pages/MemberSurveyPage.vue") },
+  // Admin-only results page for the same survey.
+  { path: "/member-feedback", component: () => import("@/pages/MemberSurveyResultsPage.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: "/:pathMatch(.*)*", component: () => import("@/pages/NotFoundPage.vue") },
 ];
 

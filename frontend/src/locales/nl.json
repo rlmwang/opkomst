@@ -13,8 +13,70 @@
     "archive": "Archief",
     "users": "Gebruikers",
     "chapters": "Afdelingen",
+    "memberFeedback": "Feedback",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen"
+  },
+  "memberSurvey": {
+    "title": "Feedback — Nieuwe-ledendag",
+    "intro": "Naar aanleiding van de nieuwe ledendag hebben we vijf korte vragen. Dit helpt ons bepalen waar we als afdeling in moeten investeren om onze nieuwe leden écht een plek te geven.",
+    "nameLabel": "Hoe heet je?",
+    "namePlaceholder": "Voornaam — zodat we je kunnen helpen als je iets wil",
+    "nameNote": "Optioneel. Laat leeg als je liever anoniem reageert.",
+    "submit": "Versturen",
+    "submitting": "Even geduld…",
+    "thanks": "Bedankt — je antwoorden zijn binnen.",
+    "thanksBody": "We nemen ze mee in de planning voor de afdeling.",
+    "loadFail": "De vragenlijst kon niet geladen worden.",
+    "submitFail": "Versturen lukte niet. Probeer het zo opnieuw.",
+    "q1": {
+      "prompt": "Hoe verbonden voel je je met de partij sinds de nieuwe-ledendag?",
+      "labelLow": "nauwelijks",
+      "labelHigh": "heel verbonden"
+    },
+    "q2": {
+      "prompt": "Hoe duidelijk is voor jou wat je concrete volgende stap kan zijn?",
+      "labelLow": "geen idee",
+      "labelHigh": "glashelder"
+    },
+    "q3": {
+      "prompt": "Hoe waarschijnlijk is het dat je de komende maanden actief wordt of blijft?",
+      "labelLow": "onwaarschijnlijk",
+      "labelHigh": "zeker"
+    },
+    "q4": {
+      "prompt": "Wat houdt je op dit moment tegen om (meer) actief te worden?",
+      "hint": "Meerdere antwoorden mogelijk.",
+      "otherLabel": "Anders, namelijk",
+      "otherPlaceholder": "Optioneel"
+    },
+    "q5": {
+      "prompt": "Wat zou jou helpen om die volgende stap te zetten?",
+      "placeholder": "Optioneel"
+    },
+    "barriers": {
+      "no_time": "Ik heb er de tijd niet voor",
+      "distance_or_cost": "De reisafstand of de kosten zijn een drempel",
+      "lacks_knowledge": "Ik mis kennis of vaardigheden",
+      "no_clear_step": "Ik zie geen concrete volgende stap",
+      "knows_no_one": "Ik ken er nog (bijna) niemand",
+      "nobody_asked": "Niemand heeft me gevraagd om iets concreets te doen",
+      "not_for_me": "Ik heb het gevoel dat het niet voor mensen zoals ik is",
+      "doubts_impact": "Ik twijfel of ik écht een verschil kan maken"
+    },
+    "results": {
+      "title": "Feedback — Nieuwe-ledendag",
+      "subtitle": "Resultaten van de feedbackvragenlijst voor nieuwe leden.",
+      "formLink": "Open de vragenlijst",
+      "formLinkHint": "Deel deze link met nieuwe leden zodat ze de vragenlijst kunnen invullen.",
+      "responseCount": "{n} reacties",
+      "noResponses": "Nog geen reacties.",
+      "barriersTitle": "Wat houdt mensen tegen?",
+      "responsesTitle": "Per inzending",
+      "anonymous": "anoniem",
+      "noBarriers": "Geen barrières aangevinkt.",
+      "noOpen": "—"
+    }
   },
   "auth": {
     "login": "Inloggen",

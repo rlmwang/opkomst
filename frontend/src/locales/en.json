@@ -13,8 +13,70 @@
     "archive": "Archive",
     "users": "Users",
     "chapters": "Chapters",
+    "memberFeedback": "Feedback",
     "pendingBadgeLabel": "{n} sign-ups awaiting approval",
     "logout": "Log out"
+  },
+  "memberSurvey": {
+    "title": "Feedback — New members day",
+    "intro": "In response to the new members day, we have five short questions. This helps us decide where to invest so that our new members get a real place in our party.",
+    "nameLabel": "What's your first name?",
+    "namePlaceholder": "First name — so we can follow up if you'd like",
+    "nameNote": "Optional. Leave blank to respond anonymously.",
+    "submit": "Submit",
+    "submitting": "Sending…",
+    "thanks": "Thanks — your answers are in.",
+    "thanksBody": "We'll factor them into the chapter's planning.",
+    "loadFail": "The survey couldn't be loaded.",
+    "submitFail": "Submission failed. Try again in a moment.",
+    "q1": {
+      "prompt": "How connected do you feel to the party since the new-members day?",
+      "labelLow": "barely",
+      "labelHigh": "very connected"
+    },
+    "q2": {
+      "prompt": "How clear is your concrete next step?",
+      "labelLow": "no idea",
+      "labelHigh": "crystal clear"
+    },
+    "q3": {
+      "prompt": "How likely are you to be (or stay) active in the coming months?",
+      "labelLow": "unlikely",
+      "labelHigh": "for sure"
+    },
+    "q4": {
+      "prompt": "What's holding you back from becoming (more) active?",
+      "hint": "Multiple answers possible.",
+      "otherLabel": "Other",
+      "otherPlaceholder": "Optional"
+    },
+    "q5": {
+      "prompt": "What would help you take that next step?",
+      "placeholder": "Optional"
+    },
+    "barriers": {
+      "no_time": "I don't have the time",
+      "distance_or_cost": "Travel distance or cost is a barrier",
+      "lacks_knowledge": "I lack knowledge or skills",
+      "no_clear_step": "I don't see a concrete next step",
+      "knows_no_one": "I (barely) know anyone there",
+      "nobody_asked": "Nobody has asked me to do anything specific",
+      "not_for_me": "I feel like it's not for people like me",
+      "doubts_impact": "I doubt I can really make a difference"
+    },
+    "results": {
+      "title": "Feedback — New members day",
+      "subtitle": "Results of the new-members survey.",
+      "formLink": "Open the survey",
+      "formLinkHint": "Share this link with new members so they can fill in the survey.",
+      "responseCount": "{n} responses",
+      "noResponses": "No responses yet.",
+      "barriersTitle": "What's holding people back?",
+      "responsesTitle": "Per submission",
+      "anonymous": "anonymous",
+      "noBarriers": "No barriers selected.",
+      "noOpen": "—"
+    }
   },
   "auth": {
     "login": "Log in",
