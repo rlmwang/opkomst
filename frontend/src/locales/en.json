@@ -20,7 +20,6 @@
   "memberSurvey": {
     "title": "Feedback New Members Day",
     "intro": "Following the new members day, we have five short questions.",
-    "nameLabel": "What's your first name?",
     "namePlaceholder": "First name",
     "nameNote": "Optional. Leave blank to respond anonymously.",
     "submit": "Submit",

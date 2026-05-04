@@ -80,7 +80,6 @@ async function onSubmit() {
 
       <form class="stack" novalidate @submit.prevent="onSubmit">
         <AppCard>
-          <label class="prompt" for="first-name">{{ t("memberSurvey.nameLabel") }}</label>
           <InputText
             id="first-name"
             v-model="firstName"
