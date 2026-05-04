@@ -18,21 +18,21 @@
     "logout": "Log out"
   },
   "memberSurvey": {
-    "title": "Feedback — New members day",
-    "intro": "In response to the new members day, we have five short questions. This helps us decide where to invest so that our new members get a real place in our party.",
+    "title": "Feedback New Members Day",
+    "intro": "Following the new members day, we have five short questions.",
     "nameLabel": "What's your first name?",
-    "namePlaceholder": "First name — so we can follow up if you'd like",
+    "namePlaceholder": "First name",
     "nameNote": "Optional. Leave blank to respond anonymously.",
     "submit": "Submit",
     "submitting": "Sending…",
-    "thanks": "Thanks — your answers are in.",
+    "thanks": "Thanks! Your answers are in.",
     "thanksBody": "We'll factor them into the chapter's planning.",
     "loadFail": "The survey couldn't be loaded.",
     "submitFail": "Submission failed. Try again in a moment.",
     "q1": {
-      "prompt": "How connected do you feel to the party since the new-members day?",
+      "prompt": "Do you feel connected to the party since the new members day?",
       "labelLow": "barely",
-      "labelHigh": "very connected"
+      "labelHigh": "strongly"
     },
     "q2": {
       "prompt": "How clear is your concrete next step?",
@@ -45,13 +45,13 @@
       "labelHigh": "for sure"
     },
     "q4": {
-      "prompt": "What's holding you back from becoming (more) active?",
+      "prompt": "What's currently holding you back from becoming more active?",
       "hint": "Multiple answers possible.",
       "otherLabel": "Other",
       "otherPlaceholder": "Optional"
     },
     "q5": {
-      "prompt": "What would help you take that next step?",
+      "prompt": "What would help you become more involved?",
       "placeholder": "Optional"
     },
     "barriers": {
@@ -65,7 +65,7 @@
       "doubts_impact": "I doubt I can really make a difference"
     },
     "results": {
-      "title": "Feedback — New members day",
+      "title": "Feedback New Members Day",
       "subtitle": "Results of the new-members survey.",
       "formLink": "Open the survey",
       "formLinkHint": "Share this link with new members so they can fill in the survey.",
