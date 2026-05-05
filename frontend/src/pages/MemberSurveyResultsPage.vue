@@ -183,6 +183,9 @@ function fmtDate(iso: string): string {
                 <div v-if="r.q5_helps" class="response-text">
                   <em>{{ t("memberSurvey.q5.prompt") }}</em><br />{{ r.q5_helps }}
                 </div>
+                <div v-if="r.q6_anything_else" class="response-text">
+                  <em>{{ t("memberSurvey.q6.prompt") }}</em><br />{{ r.q6_anything_else }}
+                </div>
               </div>
             </div>
           </AppCard>

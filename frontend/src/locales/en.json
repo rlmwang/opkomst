@@ -19,7 +19,7 @@
   },
   "memberSurvey": {
     "title": "Feedback New Members Day",
-    "intro": "Following the new members day, we have five short questions.",
+    "intro": "Following the new members day, we have six short questions.",
     "namePlaceholder": "First name",
     "nameNote": "Optional. Leave blank to respond anonymously.",
     "submit": "Submit",
@@ -51,6 +51,10 @@
     },
     "q5": {
       "prompt": "What would help you become more involved?",
+      "placeholder": "Optional"
+    },
+    "q6": {
+      "prompt": "Anything else you'd like to share about this survey or the new members day?",
       "placeholder": "Optional"
     },
     "barriers": {

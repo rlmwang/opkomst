@@ -57,6 +57,7 @@ def submit_response(
     first_name = (data.first_name or "").strip() or None
     other_text = (data.q4_other_text or "").strip() or None
     helps = (data.q5_helps or "").strip() or None
+    anything_else = (data.q6_anything_else or "").strip() or None
 
     row = MemberSurveyResponse(
         first_name=first_name,
@@ -66,6 +67,7 @@ def submit_response(
         q4_barriers=barriers,
         q4_other_text=other_text,
         q5_helps=helps,
+        q6_anything_else=anything_else,
     )
     db.add(row)
     db.commit()

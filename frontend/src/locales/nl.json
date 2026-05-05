@@ -19,7 +19,7 @@
   },
   "memberSurvey": {
     "title": "Feedback Nieuwe Ledendag",
-    "intro": "Naar aanleiding van de nieuwe ledendag hebben we vijf korte vragen.",
+    "intro": "Naar aanleiding van de nieuwe ledendag hebben we zes korte vragen.",
     "namePlaceholder": "Voornaam",
     "nameNote": "Optioneel. Laat leeg als je liever anoniem reageert.",
     "submit": "Versturen",
@@ -51,6 +51,10 @@
     },
     "q5": {
       "prompt": "Wat zou je helpen om meer betrokken te raken?",
+      "placeholder": "Optioneel"
+    },
+    "q6": {
+      "prompt": "Wil je nog iets kwijt over deze enquête of de nieuwe ledendag?",
       "placeholder": "Optioneel"
     },
     "barriers": {

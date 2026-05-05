@@ -37,6 +37,7 @@ const q3 = ref<number | null>(null);
 const barriers = ref<string[]>([]);
 const otherText = ref("");
 const helps = ref("");
+const anythingElse = ref("");
 const submitted = ref(false);
 
 const submitting = computed(() => submit.isPending.value);
@@ -55,6 +56,7 @@ async function onSubmit() {
       q4_barriers: barriers.value,
       q4_other_text: otherText.value.trim() || null,
       q5_helps: helps.value.trim() || null,
+      q6_anything_else: anythingElse.value.trim() || null,
     });
     submitted.value = true;
   } catch {
@@ -147,6 +149,19 @@ async function onSubmit() {
             id="q5-helps"
             v-model="helps"
             :placeholder="t('memberSurvey.q5.placeholder')"
+            :maxlength="2000"
+            rows="4"
+            auto-resize
+            fluid
+          />
+        </AppCard>
+
+        <AppCard>
+          <label class="prompt" for="q6-anything-else">{{ t("memberSurvey.q6.prompt") }}</label>
+          <Textarea
+            id="q6-anything-else"
+            v-model="anythingElse"
+            :placeholder="t('memberSurvey.q6.placeholder')"
             :maxlength="2000"
             rows="4"
             auto-resize

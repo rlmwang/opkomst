@@ -958,6 +958,17 @@
               }
             ],
             "title": "Q5 Helps"
+          },
+          "q6_anything_else": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q6 Anything Else"
           }
         },
         "required": [
@@ -969,7 +980,8 @@
           "q3_likelihood",
           "q4_barriers",
           "q4_other_text",
-          "q5_helps"
+          "q5_helps",
+          "q6_anything_else"
         ],
         "title": "MemberSurveyResponseOut",
         "type": "object"
@@ -1078,6 +1090,18 @@
               }
             ],
             "title": "Q5 Helps"
+          },
+          "q6_anything_else": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q6 Anything Else"
           }
         },
         "required": [

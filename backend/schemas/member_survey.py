@@ -19,6 +19,7 @@ class MemberSurveySubmitIn(BaseModel):
     q4_barriers: list[str] = Field(default_factory=list, max_length=20)
     q4_other_text: str | None = Field(default=None, max_length=500)
     q5_helps: str | None = Field(default=None, max_length=2000)
+    q6_anything_else: str | None = Field(default=None, max_length=2000)
 
 
 class MemberSurveyResponseOut(BaseModel):
@@ -33,6 +34,7 @@ class MemberSurveyResponseOut(BaseModel):
     q4_barriers: list[str]
     q4_other_text: str | None
     q5_helps: str | None
+    q6_anything_else: str | None
     model_config = {"from_attributes": True}
 
 

@@ -1335,6 +1335,8 @@ export interface components {
             q4_other_text: string | null;
             /** Q5 Helps */
             q5_helps: string | null;
+            /** Q6 Anything Else */
+            q6_anything_else: string | null;
         };
         /** MemberSurveyResultsOut */
         MemberSurveyResultsOut: {
@@ -1366,6 +1368,8 @@ export interface components {
             q4_other_text?: string | null;
             /** Q5 Helps */
             q5_helps?: string | null;
+            /** Q6 Anything Else */
+            q6_anything_else?: string | null;
         };
         /**
          * PendingCountOut
