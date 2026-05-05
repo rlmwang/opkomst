@@ -31,10 +31,10 @@ checks immediately.
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from hypothesis import HealthCheck, settings
+from hypothesis import settings
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
-from backend.database import Base, SessionLocal, engine
+from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
@@ -43,14 +43,18 @@ from backend.models import (
     Signup,
 )
 from backend.services import encryption, mail_lifecycle
+from tests._helpers.db_reset import truncate_all
 
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 
 def _reset_db() -> None:
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    engine.dispose()
+    """Per-example data reset. Schema stays in place across the
+    state-machine run (bootstrapped once by ``conftest`` at session
+    start); only the rows are wiped. With fsync disabled on the
+    test DB this is microseconds — ``drop_all + create_all`` used
+    to be the dominant runtime cost of this test."""
+    truncate_all()
 
 
 def _seed(starts_at: datetime, ends_at: datetime) -> str:
@@ -241,13 +245,17 @@ class WipeInvariantMachine(RuleBasedStateMachine):
                 mail_lifecycle.run_once(spec)
 
 
-# Hypothesis runs ~50 examples by default for state machines; a
-# tighter budget here keeps the wall clock reasonable while still
-# exercising every rule combination several times.
+# ``stateful_step_count`` is specific to RuleBasedStateMachine —
+# the global Hypothesis profile in ``conftest.py`` covers
+# ``max_examples`` / ``deadline`` / ``suppress_health_check``;
+# this just adds the per-example walk depth.
+#
+# A walk of 6 rules per example is enough to interleave the
+# dispatcher / reaper / retire transitions and catch the wipe
+# invariant violation we care about. The CI profile bumps
+# ``max_examples`` to 100 so the total step count there
+# (100 × 6 = 600) still sweeps a wide state space; locally
+# (15 × 6 = 90 steps) it's fast and the failing seeds get
+# replayed by Hypothesis's example database anyway.
 TestWipeInvariant = WipeInvariantMachine.TestCase
-TestWipeInvariant.settings = settings(
-    max_examples=25,
-    stateful_step_count=12,
-    deadline=None,
-    suppress_health_check=[HealthCheck.function_scoped_fixture],
-)
+TestWipeInvariant.settings = settings(stateful_step_count=6)

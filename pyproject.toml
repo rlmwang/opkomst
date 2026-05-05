@@ -65,10 +65,18 @@ typeCheckingMode = "basic"
 pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
-# Tests share a per-process tempfile DB; xdist's process-per-worker
-# split would each create their own DB and race the conftest setup.
-# Stay in-band until we wire a per-worker DB fixture.
-addopts = "--cov=backend --cov-report=term-missing --cov-fail-under=64"
+# Each xdist worker gets its own ``opkomst_test_<worker>`` database
+# (see ``conftest._TEST_DB_URL``). ``--dist=worksteal`` lets idle
+# workers steal pending tests from busy ones, which packs the
+# heavy property/e2e tests across cores instead of stalling on
+# whoever drew the longest straw. Module-level state in test files
+# (the ``_slug_counter`` in tests/_helpers/events.py, fake-email
+# installs) is process-local — but each worker has its own DB so
+# slug collisions across workers don't happen. Coverage is
+# collected via pytest-cov's xdist integration. Override at the
+# CLI with ``-n 0`` for single-process runs (handy when debugging
+# a fixture).
+addopts = "-n auto --dist=worksteal --cov=backend --cov-report=term-missing --cov-fail-under=64"
 testpaths = ["tests"]
 
 [tool.coverage.run]

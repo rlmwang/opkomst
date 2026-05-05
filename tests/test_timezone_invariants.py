@@ -10,11 +10,11 @@ Catches subtle DST or aware/aware comparison bugs.
 from datetime import UTC, datetime, timedelta, timezone
 
 import freezegun
-from hypothesis import HealthCheck, given, settings
+from hypothesis import given
 from hypothesis import strategies as st
 from uuid_utils import uuid7
 
-from backend.database import Base, SessionLocal, engine
+from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
@@ -24,18 +24,18 @@ from backend.models import (
 )
 from backend.services import encryption, mail_lifecycle
 from backend.services.mail_lifecycle import FEEDBACK_DELAY
+from tests._helpers.db_reset import truncate_all
 
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 
 def _setup_clean_db() -> None:
-    """Drop and recreate every table — Hypothesis runs ~80 examples
-    in this test, each needing a clean DB. ``engine.dispose()``
-    flushes the connection pool so the next session doesn't carry
-    a cached OID for the (now-recreated) Postgres enum types."""
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    engine.dispose()
+    """Per-example data reset. Schema stays in place across all
+    Hypothesis examples (bootstrapped once by ``conftest`` at
+    session start); only the rows are wiped. With fsync disabled
+    on the test DB this is microseconds — ``drop_all + create_all
+    + engine.dispose()`` used to dominate this test's runtime."""
+    truncate_all()
 
 
 def _seed_event_and_signup(
@@ -90,11 +90,6 @@ def _seed_event_and_signup(
         db.close()
 
 
-@settings(
-    max_examples=80,
-    deadline=None,
-    suppress_health_check=[HealthCheck.function_scoped_fixture],
-)
 @given(
     offset_minutes=st.integers(min_value=-7 * 24 * 60, max_value=7 * 24 * 60),
     aware_offset_minutes=st.sampled_from([0, 60, -300, 540]),
@@ -128,11 +123,6 @@ def test_reminder_window_check_matches_utc_reference(
         )
 
 
-@settings(
-    max_examples=80,
-    deadline=None,
-    suppress_health_check=[HealthCheck.function_scoped_fixture],
-)
 @given(
     offset_minutes=st.integers(min_value=-7 * 24 * 60, max_value=7 * 24 * 60),
     aware_offset_minutes=st.sampled_from([0, 60, -300, 540]),
@@ -167,11 +157,6 @@ def test_feedback_window_check_matches_utc_reference(
         )
 
 
-@settings(
-    max_examples=60,
-    deadline=None,
-    suppress_health_check=[HealthCheck.function_scoped_fixture],
-)
 @given(
     offset_minutes=st.integers(min_value=-30 * 24 * 60, max_value=30 * 24 * 60),
     aware_offset_minutes=st.sampled_from([0, 60, -300, 540]),

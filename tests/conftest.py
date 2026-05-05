@@ -19,18 +19,31 @@ import os
 import sys
 from collections.abc import Iterator
 from datetime import UTC
+from pathlib import Path
 
+import hypothesis
 import psycopg
 import pytest
+from hypothesis import HealthCheck
 
 # Dedicated test database — separate from the dev one so a stray
 # ``pytest`` invocation can't trample seeded events. Auto-created
 # below if missing. Override via ``TEST_DATABASE_URL`` if your CI /
 # host setup uses different creds.
-_TEST_DB_URL = os.environ.get(
+#
+# Under pytest-xdist each worker needs its own isolated database;
+# otherwise their per-test ``TRUNCATE`` calls collide. xdist sets
+# ``PYTEST_XDIST_WORKER=gw0`` (etc.) — we suffix the DB name with
+# that. Single-process runs (no xdist) just use ``opkomst_test``.
+_BASE_TEST_DB_URL = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst_test",
 )
+_xdist_worker = os.environ.get("PYTEST_XDIST_WORKER")
+if _xdist_worker:
+    _TEST_DB_URL = f"{_BASE_TEST_DB_URL}_{_xdist_worker}"
+else:
+    _TEST_DB_URL = _BASE_TEST_DB_URL
 
 
 def _ensure_test_database() -> None:
@@ -50,6 +63,28 @@ def _ensure_test_database() -> None:
             # Identifier interpolation: target_name is hard-coded
             # in this file, not user input.
             conn.execute(f'CREATE DATABASE "{target_name}"')
+
+
+# Hypothesis profiles. Local dev (the default ``dev`` profile, used
+# by lefthook's pre-push hook) runs few examples for fast feedback;
+# CI bumps the budget to catch tail-edge cases. Activate the CI
+# profile by setting the ``CI`` env var (GitHub Actions sets it
+# automatically). Per-test ``@settings`` decorators that omit
+# ``max_examples`` inherit from the loaded profile — the profile
+# is the source of truth for fuzz budget.
+hypothesis.settings.register_profile(
+    "dev",
+    max_examples=5,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+hypothesis.settings.register_profile(
+    "ci",
+    max_examples=100,
+    deadline=None,
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+)
+hypothesis.settings.load_profile("ci" if os.environ.get("CI") else "dev")
 
 
 _ensure_test_database()
@@ -84,11 +119,34 @@ if _ROOT not in sys.path:
 @pytest.fixture(scope="session", autouse=True)
 def _bootstrap_schema():
     """Run alembic migrations once per test session so the
-    ``alembic_version`` table exists at HEAD. Without this the
-    per-test ``Base.metadata.create_all`` would race the
-    module-import-time ``run_migrations()`` inside
-    ``backend.main``: the migrations would try to ``CREATE TABLE
-    users`` on an already-populated schema and bail."""
+    ``alembic_version`` table exists at HEAD.
+
+    Skip the upgrade if the DB is already stamped at the head
+    revision — for warm test DBs (the common case under xdist
+    where ``opkomst_test_<worker>`` databases persist between
+    runs) this saves ~1.5 s of per-worker startup. The first
+    cold run still pays the migration cost; subsequent runs hit
+    the fast path."""
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import inspect, text
+
+    from backend.config import settings
+    from backend.database import engine
+
+    cfg_path = Path(__file__).parents[1] / "backend" / "alembic.ini"
+    inspector = inspect(engine)
+    if inspector.has_table("alembic_version"):
+        from alembic.config import Config
+
+        cfg = Config(str(cfg_path))
+        cfg.set_main_option("sqlalchemy.url", settings.database_url)
+        head_rev = ScriptDirectory.from_config(cfg).get_current_head()
+        with engine.connect() as conn:
+            current = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        if current == head_rev:
+            yield
+            return
+
     from backend.migrate import run_migrations
 
     run_migrations()
@@ -110,13 +168,10 @@ def db(_bootstrap_schema):
     FKs so we don't have to truncate in dependency order. The
     ``alembic_version`` table is never in ``Base.metadata`` and
     is deliberately excluded from the truncate set."""
-    from sqlalchemy import text
+    from backend.database import SessionLocal
+    from tests._helpers.db_reset import truncate_all
 
-    from backend.database import Base, SessionLocal, engine
-
-    table_names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
-    with engine.begin() as conn:
-        conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
+    truncate_all()
     # ``/health/full`` caches its introspection payload for ~15 s
     # in-process; clear between tests so a prior healthy run can't
     # mask a monkeypatched-DB-down assertion or stale schema_head.
@@ -144,18 +199,27 @@ def client(db) -> Iterator:
 
 
 @pytest.fixture()
-def admin_token(client) -> str:
-    """Register a bootstrap admin and return their JWT.
+def admin_token(db) -> str:
+    """Insert an approved admin row directly and mint a JWT.
 
-    Drives the full magic-link sign-up flow once so the bootstrap
-    carve-out and rate-limit budgets behave the same as in
-    production; subsequent fixtures don't roundtrip through email
-    because the user row already exists."""
+    The full magic-link sign-up flow is exercised by dedicated
+    tests in ``test_auth.py`` (which call ``register_user``
+    directly). For every other test that just needs an admin
+    actor, the HTTP round-trip is pure overhead — this fixture
+    skips it and inserts the row in one commit."""
     from backend.auth import create_token
-    from tests._helpers.users import register_user
+    from backend.models import User
 
-    uid = register_user(client, "admin@local.dev", "Admin")
-    return create_token(uid)
+    user = User(
+        email="admin@local.dev",
+        name="Admin",
+        role="admin",
+        is_approved=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return create_token(user.id)
 
 
 @pytest.fixture()
@@ -164,28 +228,43 @@ def admin_headers(admin_token) -> dict[str, str]:
 
 
 @pytest.fixture()
-def chapter_id(client, admin_headers) -> str:
-    r = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Amsterdam"})
-    assert r.status_code == 201, r.text
-    return r.json()["id"]
+def chapter_id(db) -> str:
+    """Insert a Chapter row directly and return its id. Same
+    skip-the-HTTP rationale as ``admin_token``."""
+    from backend.models import Chapter
+
+    chapter = Chapter(name="Amsterdam")
+    db.add(chapter)
+    db.commit()
+    db.refresh(chapter)
+    return chapter.id
 
 
 @pytest.fixture()
-def organiser_token(client, admin_headers, chapter_id) -> str:
-    """Register and admin-approve an organiser. Drives the
-    sign-up flow end-to-end, then mints a JWT directly so tests
-    don't need to redeem login tokens."""
-    from backend.auth import create_token
-    from tests._helpers.users import register_user
+def organiser_token(db, admin_token, chapter_id) -> str:
+    """Insert an approved organiser row with a chapter membership
+    and mint a JWT. Same skip-the-HTTP rationale as
+    ``admin_token`` — dedicated auth tests cover the real flow.
 
-    uid = register_user(client, "organiser@local.dev", "Organiser")
-    r = client.post(
-        f"/api/v1/admin/users/{uid}/approve",
-        headers=admin_headers,
-        json={"chapter_ids": [chapter_id]},
+    Depends on ``admin_token`` to preserve the previous fixture
+    chain's invariant that an admin row exists whenever an
+    organiser does. Several tests assume both populate the user
+    table together; the dependency keeps that contract."""
+    from backend.auth import create_token
+    from backend.models import User, UserChapter
+
+    user = User(
+        email="organiser@local.dev",
+        name="Organiser",
+        role="organiser",
+        is_approved=True,
     )
-    assert r.status_code == 200, r.text
-    return create_token(uid)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.add(UserChapter(user_id=user.id, chapter_id=chapter_id))
+    db.commit()
+    return create_token(user.id)
 
 
 @pytest.fixture()
@@ -216,6 +295,53 @@ def _isolate_optional_env(monkeypatch) -> None:
     auto-undo after the test, so the next test starts clean again."""
     for var in _OPTIONAL_TEST_ENV_VARS:
         monkeypatch.delenv(var, raising=False)
+
+
+# ---- Per-test perf guard ---------------------------------------
+#
+# Records every test's call-phase duration and emits a terminal
+# summary at session end listing any test over budget. Catches
+# regressions like the ``drop_all + create_all`` Hypothesis pattern
+# that turned single tests into ~40 s monsters before we noticed.
+#
+# Soft signal — does not fail the run. Bumped to a hard failure by
+# setting ``OPKOMST_PERF_STRICT=1`` (good for a periodic CI job).
+# Per-test budget: 3 s. The Hypothesis property tests legitimately
+# sit just under that on the CI profile; routine router tests are
+# under 200 ms. Anything above 3 s is almost certainly a bug.
+
+_PERF_BUDGET_SECONDS = 3.0
+_test_durations: dict[str, float] = {}
+
+# Bind ``time.monotonic`` at conftest-import time. Freezegun
+# rewrites ``time.monotonic`` *attribute* on the module when a
+# test calls ``freeze_time`` — the local reference here keeps the
+# original C function, so the perf guard measures real wall-clock
+# rather than the (frozen) test clock. Without this, every test
+# that uses ``clock`` reports duration ≈ epoch seconds.
+from time import monotonic as _real_monotonic  # noqa: E402
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):  # type: ignore[no-untyped-def]
+    start = _real_monotonic()
+    outcome = yield
+    _test_durations[item.nodeid] = _real_monotonic() - start
+    return outcome
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):  # type: ignore[no-untyped-def]
+    over = [(n, t) for n, t in _test_durations.items() if t > _PERF_BUDGET_SECONDS]
+    if not over:
+        return
+    over.sort(key=lambda nt: -nt[1])
+    terminalreporter.write_sep("=", f"tests over {_PERF_BUDGET_SECONDS}s budget", yellow=True)
+    for nodeid, t in over:
+        terminalreporter.write_line(f"  {t:6.2f}s  {nodeid}")
+    if os.environ.get("OPKOMST_PERF_STRICT"):
+        # Tip the run red: budget overruns are real failures under strict mode.
+        # Same exit code pytest uses for test failures.
+        raise SystemExit(1)
 
 
 @pytest.fixture()
