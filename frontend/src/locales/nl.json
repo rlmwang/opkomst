@@ -78,7 +78,8 @@
       "responsesTitle": "Per inzending",
       "anonymous": "anoniem",
       "noBarriers": "Geen barrières aangevinkt.",
-      "noOpen": "—"
+      "noOpen": "—",
+      "submittedAt": "Ingediend op"
     }
   },
   "auth": {

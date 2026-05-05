@@ -78,7 +78,8 @@
       "responsesTitle": "Per submission",
       "anonymous": "anonymous",
       "noBarriers": "No barriers selected.",
-      "noOpen": "—"
+      "noOpen": "—",
+      "submittedAt": "Submitted at"
     }
   },
   "auth": {

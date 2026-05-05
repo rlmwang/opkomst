@@ -11,15 +11,6 @@ const { t, d } = useI18n();
 const toasts = useToasts();
 const { data, isLoading, error } = useMemberSurveyResults();
 
-async function copyFormLink() {
-  try {
-    await navigator.clipboard.writeText(formUrl.value);
-    toasts.success(t("event.share.linkCopied"));
-  } catch {
-    /* clipboard unavailable — user can copy the visible URL by hand */
-  }
-}
-
 const results = computed(() => data.value ?? null);
 
 // Absolute URL of the public form, computed at runtime so it
@@ -49,6 +40,60 @@ function pct(distribution: number[], idx: number): number {
 function fmtDate(iso: string): string {
   return d(new Date(iso), "short");
 }
+
+async function copyFormLink() {
+  try {
+    await navigator.clipboard.writeText(formUrl.value);
+    toasts.success(t("event.share.linkCopied"));
+  } catch {
+    /* clipboard unavailable — user can copy the visible URL by hand */
+  }
+}
+
+function csvEscape(v: unknown): string {
+  const s = String(v ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function downloadCsv() {
+  if (!results.value || results.value.response_count === 0) return;
+  try {
+    const header = [
+      t("memberSurvey.results.submittedAt"),
+      t("memberSurvey.namePlaceholder"),
+      t("memberSurvey.q1.prompt"),
+      t("memberSurvey.q2.prompt"),
+      t("memberSurvey.q3.prompt"),
+      t("memberSurvey.q4.prompt"),
+      t("memberSurvey.q4.otherLabel"),
+      t("memberSurvey.q5.prompt"),
+      t("memberSurvey.q6.prompt"),
+    ];
+    const rows = results.value.responses.map((r) => [
+      r.created_at,
+      r.first_name ?? "",
+      r.q1_connected,
+      r.q2_clarity,
+      r.q3_likelihood,
+      r.q4_barriers.map((k) => t(`memberSurvey.barriers.${k}`)).join("; "),
+      r.q4_other_text ?? "",
+      r.q5_helps ?? "",
+      r.q6_anything_else ?? "",
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
+    const blob = new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const today = new Date().toISOString().slice(0, 10);
+    a.download = `${today}-nieuwe-leden-feedback.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    toasts.error(t("feedback.summary.csvFail"));
+  }
+}
 </script>
 
 <template>
@@ -57,7 +102,18 @@ function fmtDate(iso: string): string {
 
     <div class="container stack">
       <AppCard>
-        <h1>{{ t("memberSurvey.results.title") }}</h1>
+        <div class="title-row">
+          <h1>{{ t("memberSurvey.results.title") }}</h1>
+          <Button
+            :label="t('feedback.summary.exportCsv')"
+            size="small"
+            severity="secondary"
+            text
+            icon="pi pi-download"
+            :disabled="!results || results.response_count === 0"
+            @click="downloadCsv"
+          />
+        </div>
         <p class="muted">{{ t("memberSurvey.results.subtitle") }}</p>
         <div class="link-row">
           <a :href="formUrl" target="_blank" rel="noopener">{{ formUrl }}</a>
@@ -200,6 +256,12 @@ function fmtDate(iso: string): string {
   max-width: 880px;
   margin: 0 auto;
   padding: 1rem;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 .link-row {
   display: flex;
