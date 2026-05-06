@@ -89,6 +89,25 @@ describe("parseCsv", () => {
     expect(r.rows[1]).toMatchObject({ status: "invalid", error: "duplicateNumber" });
   });
 
+  it("auto-detects TSV when the header row contains tabs (Google Sheets paste)", () => {
+    const r = parseCsv("number\tname\tcolor\n31612345678\tAlice\tred\n31698765432\tBob\tblue");
+    expect(r.fatal).toEqual([]);
+    expect(r.headers).toEqual(["number", "name", "color"]);
+    expect(r.rows).toHaveLength(2);
+    expect(r.rows[0].fields).toEqual({
+      number: "31612345678",
+      name: "Alice",
+      color: "red",
+    });
+  });
+
+  it("treats commas inside cells as data when the file is TSV", () => {
+    // A name like "Doe, John" with a literal comma must survive
+    // because TSV uses tabs as the field separator.
+    const r = parseCsv("number\tname\n31612345678\tDoe, John");
+    expect(r.rows[0].fields.name).toBe("Doe, John");
+  });
+
   it("respects RFC-4180 quoting so embedded commas survive", () => {
     const r = parseCsv('number,name\n31612345678,"Doe, John"');
     expect(r.rows[0].fields.name).toBe("Doe, John");

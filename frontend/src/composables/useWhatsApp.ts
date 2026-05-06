@@ -78,6 +78,17 @@ export function useWhatsApp() {
     }
   }
 
+  function onVisibilityChange(): void {
+    // Browsers throttle ``setInterval`` to once-per-minute or
+    // less in background tabs, which can lag the heartbeat past
+    // the server-side watchdog grace. Re-firing on
+    // ``visibilitychange`` => visible bridges that gap as soon
+    // as the user comes back to the tab.
+    if (document.visibilityState === "visible") {
+      void fetchStatus();
+    }
+  }
+
   function startPolling(): void {
     if (heartbeatTimer !== null) return;
     void fetchStatus();
@@ -89,9 +100,11 @@ export function useWhatsApp() {
         void fetchQr();
       }
     }, QR_REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   function stopPolling(): void {
+    document.removeEventListener("visibilitychange", onVisibilityChange);
     if (heartbeatTimer !== null) {
       window.clearInterval(heartbeatTimer);
       heartbeatTimer = null;

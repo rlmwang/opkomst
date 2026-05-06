@@ -38,7 +38,7 @@ const wa = useWhatsApp();
 // Section B state. Kept in the page (not the composable) since
 // it's purely client-side and doesn't outlive the page mount.
 const csvText = ref("");
-const phoneColumn = ref("number");
+const phoneColumn = ref("nummer");
 // Default country code applied to bare national numbers in the
 // CSV (e.g. ``0612345678`` becomes ``31612345678``). Defaults to
 // NL since that's the overwhelmingly common case for this app;
@@ -280,6 +280,13 @@ onBeforeUnmount(() => {
 
       <div v-if="wa.state.value === 'open'" class="linked">
         <span class="linked-pill">✓ {{ t("whatsapp.connected.linked") }}</span>
+        <Button
+          :label="t('whatsapp.connected.disconnect')"
+          severity="secondary"
+          text
+          class="disconnect-btn"
+          @click="wa.disconnect"
+        />
       </div>
 
       <!-- Recipients + composer flow once linked. No "Step 2 / Step 3"
@@ -325,15 +332,11 @@ onBeforeUnmount(() => {
           </label>
         </div>
 
-        <label class="csv-label">
-          <span class="csv-label-text">{{ t("whatsapp.recipients.csvLabel") }}</span>
-          <Textarea
-            v-model="csvText"
-            rows="8"
-            :placeholder="t('whatsapp.recipients.placeholder')"
-            class="csv-textarea"
-          />
-        </label>
+        <Textarea
+          v-model="csvText"
+          rows="8"
+          class="csv-textarea"
+        />
 
         <div v-if="parsed.fatal.length" class="fatal">
           <p v-for="code in parsed.fatal" :key="code">
@@ -373,7 +376,13 @@ onBeforeUnmount(() => {
                 :class="{ invalid: row.status === 'invalid' }"
               >
                 <td>{{ idx + 1 }}</td>
-                <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
+                <td v-for="h in parsed.headers" :key="h">
+                  {{
+                    h === phoneColumn.toLowerCase()
+                      ? row.phone || row.fields[h]
+                      : row.fields[h]
+                  }}
+                </td>
                 <td>
                   <span v-if="row.status === 'ok'" class="ok">✓</span>
                   <span v-else class="bad">
@@ -385,9 +394,8 @@ onBeforeUnmount(() => {
           </table>
         </div>
 
-        <template v-if="validRows.length > 0">
-          <h2 class="section-h">{{ t("whatsapp.compose.title") }}</h2>
-          <p class="muted">{{ t("whatsapp.compose.hint") }}</p>
+        <h2 class="section-h">{{ t("whatsapp.compose.title") }}</h2>
+        <p class="muted">{{ t("whatsapp.compose.hint") }}</p>
 
           <div class="compose-grid">
             <div class="compose-input">
@@ -501,7 +509,13 @@ onBeforeUnmount(() => {
                 >
                   <td>{{ idx + 1 }}</td>
                   <td><span class="ok">✓</span></td>
-                  <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
+                  <td v-for="h in parsed.headers" :key="h">
+                    {{
+                      h === phoneColumn.toLowerCase()
+                        ? row.phone || row.fields[h]
+                        : row.fields[h]
+                    }}
+                  </td>
                   <td>
                     <span v-if="sendResults[row.line]?.status === 'sent'" class="ok">
                       ✓ {{ t("whatsapp.compose.sent") }}
@@ -526,16 +540,6 @@ onBeforeUnmount(() => {
               @click="downloadResults"
             />
           </div>
-        </template>
-
-        <div class="card-footer">
-          <Button
-            :label="t('whatsapp.connected.disconnect')"
-            severity="secondary"
-            text
-            @click="wa.disconnect"
-          />
-        </div>
       </template>
     </AppCard>
 
@@ -603,7 +607,11 @@ onBeforeUnmount(() => {
 .linked {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
+}
+.disconnect-btn {
+  margin-left: auto;
 }
 .linked-pill {
   display: inline-flex;
@@ -690,38 +698,22 @@ onBeforeUnmount(() => {
   color: var(--brand-text-muted);
   font-variant-numeric: tabular-nums;
 }
-.csv-label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-.csv-label-text {
-  font-size: 0.9rem;
-  font-weight: 500;
-}
 .csv-textarea {
   width: 100%;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.9rem;
 }
 /* Lock the height so a big paste scrolls inside the box rather
- * than pushing the rest of the page down. ``rows="8"`` controls
- * the initial height; ``resize: vertical`` lets the user grow
- * the box if they really want more visible lines. */
+ * than pushing the rest of the page down. ``resize: none`` keeps
+ * the box at the ``rows="8"`` initial height; the user can scroll
+ * inside it but not drag the corner. */
 .csv-textarea :deep(textarea) {
-  resize: vertical;
+  resize: none;
   overflow: auto;
 }
 .download-row {
   display: flex;
   justify-content: flex-end;
-}
-.card-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--brand-border);
 }
 .fatal {
   color: var(--brand-red);

@@ -1,11 +1,15 @@
 /**
- * Minimal CSV parser for the WhatsApp blast tool's recipient list.
+ * Minimal CSV/TSV parser for the WhatsApp blast tool's recipient
+ * list.
  *
- * Scope: the tool accepts hand-pasted or hand-exported CSV up to a
- * few hundred rows. RFC 4180 quoting is supported so spreadsheets
- * that emit ``"Doe, John"`` round-trip cleanly. Newlines inside
- * quoted fields are supported. No streaming, no async; the whole
- * blob is parsed in one pass.
+ * Scope: the tool accepts hand-pasted or hand-exported CSV/TSV up
+ * to a few hundred rows. The field separator is auto-detected per
+ * paste: a tab in the header row picks TSV (matches a Google
+ * Docs / Google Sheets cell-range paste verbatim), otherwise we
+ * fall back to comma. RFC 4180 quoting is supported so
+ * spreadsheets that emit ``"Doe, John"`` round-trip cleanly.
+ * Newlines inside quoted fields are supported. No streaming, no
+ * async; the whole blob is parsed in one pass.
  *
  * The first non-empty line is the header row. Header names are
  * lowercased and trimmed so ``Number`` and ``number`` collapse to
@@ -40,9 +44,25 @@ export interface ParseResult {
   fatal: string[];
 }
 
-const PHONE_DIGITS_RE = /^\d{8,15}$/;
+// 11 digits minimum: NL mobile is 31 6 12345678 = 11 digits,
+// which is the load-bearing case for this app. Anything shorter
+// is almost certainly a typo (post-prefix noise like
+// "31612345" was previously sneaking through and being
+// reported as valid). 15 is the E.164 maximum.
+const PHONE_DIGITS_RE = /^\d{11,15}$/;
 
-function tokenize(text: string): string[][] {
+/** Pick the field separator from the first non-empty line: prefer
+ * tab if one appears (Google Docs / Google Sheets cell-range paste
+ * is pure TSV), otherwise fall back to comma. The check is naive
+ * (it doesn't honour quoting), which is fine in practice: a header
+ * row with a literal tab inside a quoted cell is implausible. */
+function detectDelimiter(text: string): "," | "\t" {
+  const newline = text.search(/[\r\n]/);
+  const firstLine = newline === -1 ? text : text.slice(0, newline);
+  return firstLine.includes("\t") ? "\t" : ",";
+}
+
+function tokenize(text: string, delimiter: string): string[][] {
   const out: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -70,7 +90,7 @@ function tokenize(text: string): string[][] {
       i++;
       continue;
     }
-    if (c === ",") {
+    if (c === delimiter) {
       row.push(cell);
       cell = "";
       i++;
@@ -136,7 +156,7 @@ export function parseCsv(text: string, phoneColumn = "number", countryCode = "")
     return result;
   }
 
-  const tokens = tokenize(trimmed);
+  const tokens = tokenize(trimmed, detectDelimiter(trimmed));
   if (tokens.length === 0) {
     result.fatal.push("emptyInput");
     return result;

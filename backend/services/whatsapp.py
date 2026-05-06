@@ -41,22 +41,28 @@ logger = structlog.get_logger()
 # heard from it for this long while the WhatsApp session is
 # linked, tear the session down.
 #
-# Why 3 minutes and not the obvious 15-30s: ``_last_seen`` is
-# per-worker in-memory state, but uvicorn runs ``WEB_CONCURRENCY``
-# workers (4 in prod) and the load balancer round-robins across
-# them. A given worker only sees roughly every Nth heartbeat, so
-# its ``_last_seen`` lags the actual page-alive signal by up to
-# ``5s * WEB_CONCURRENCY`` even when the user is actively typing.
-# A short grace would race that lag and tear down a healthy
-# session. Three minutes is comfortably above the worst plausible
-# spread; the trade-off is that a closed browser without a
-# functioning ``sendBeacon`` (Safari intermittent, Firefox
-# permission edge cases) leaves Evolution linked for up to that
-# long. Acceptable: the explicit Disconnect button and
-# ``onBeforeUnmount`` cover the expected paths, and the page's
-# app-logout flow tears the instance down too. The watchdog is
-# the last resort, not the primary mechanism.
-_WATCHDOG_GRACE = _dt.timedelta(seconds=180)
+# Two effects push this number well past the obvious 15-30s:
+#
+# 1. ``_last_seen`` is per-uvicorn-worker in-memory state, and
+#    the load balancer round-robins across ``WEB_CONCURRENCY``
+#    (4 in prod). A given worker only sees roughly every Nth
+#    heartbeat.
+# 2. Browsers throttle ``setInterval`` aggressively for
+#    backgrounded tabs (~1/min on Chromium and Safari after a
+#    short delay, longer still on mobile). A user composing a
+#    blast often has the tab focused, but somebody who
+#    backgrounds the tab to grab a contact list elsewhere can
+#    easily go a few minutes without the heartbeat firing at
+#    all.
+#
+# Ten minutes is comfortably above both. The trade-off: a
+# browser that closed without ``sendBeacon`` firing leaves
+# Evolution linked for up to that long. Acceptable: the
+# explicit Disconnect button, ``onBeforeUnmount``, and the
+# app-logout flow already cover the expected paths. The
+# watchdog is a last-resort cleanup, not the primary
+# disconnect mechanism.
+_WATCHDOG_GRACE = _dt.timedelta(minutes=10)
 
 # Module-level. Single-process, in-memory. A fresh worker means a
 # missed beat is a tear-down, which is the conservative direction.
