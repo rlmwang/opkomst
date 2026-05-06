@@ -453,6 +453,9 @@ services:
     volumes:
       - evolution_instances:/evolution/instances
     depends_on: [evolution-postgres, evolution-redis]
+    networks:
+      - default
+      - coolify
 
   evolution-postgres:
     image: postgres:16-alpine
@@ -470,11 +473,25 @@ services:
     volumes:
       - evolution_redis:/data
 
+networks:
+  coolify:
+    external: true
+    name: coolify
+
 volumes:
   evolution_instances:
   evolution_pg:
   evolution_redis:
 ```
+
+The two ``networks`` blocks are load-bearing. Coolify deploys
+each resource on its own auto-generated bridge network, so by
+default the Evolution stack and the Opkomst application can't
+see each other. Joining ``evolution-api`` to the pre-existing
+``coolify`` network (the one every Coolify-managed app already
+sits on) closes the gap. Postgres and Redis stay on
+``default`` only so they remain reachable solely from inside
+the Compose stack and not from anywhere else Coolify hosts.
 
 Save the compose file. Coolify's env-var panel now has three
 editable rows. Fill them in:
@@ -505,10 +522,10 @@ Notes:
   rescan is one minute.
 * No public domain needed. Coolify keeps the service on its
   internal network; Opkomst reaches it at
-  ``http://evolution-api:8080`` (the Compose service name).
-  Coolify may decorate that name on its internal DNS, so after
-  deploy, check the Evolution service's "Internal URL" panel
-  and use whatever hostname Coolify shows.
+  ``http://evolution-api:8080``. Inside the ``coolify`` network
+  the unsuffixed service name resolves; Coolify also exposes a
+  decorated alias (e.g. ``evolution-api-<resource-uuid>``) which
+  works equally but isn't worth the typing.
 
 Click **Deploy**. Wait for the Evolution container to be
 healthy.

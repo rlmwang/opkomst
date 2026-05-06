@@ -298,6 +298,46 @@ Restart of the Opkomst container resets the watchdog's
 in-memory ``_last_seen``, which is fine: a fresh process means
 no live page = nothing to keep.
 
+## "WhatsApp tab is hidden after enabling the env vars"
+
+Symptoms: the three ``EVOLUTION_*`` env vars are set on the
+Opkomst app and the Evolution stack is running, but the admin
+header still doesn't show the WhatsApp tab.
+
+The frontend only renders the tab when ``/api/v1/whatsapp/status``
+returns something other than ``not_configured`` and the call
+itself succeeds. Most common cause is a Docker network gap: the
+two Coolify resources sit on different bridge networks and
+Opkomst can't resolve ``evolution-api``.
+
+```bash
+# 1. From the Coolify host: confirm both containers exist and
+#    note their network attachments.
+docker ps --format 'table {{.Names}}\t{{.Networks}}' \
+  | grep -iE 'opkomst|evolution'
+
+# 2. From inside the Opkomst container: does the hostname
+#    resolve?
+docker exec <opkomst-container-name> getent hosts evolution-api
+# Expect: <ip>  evolution-api
+# If empty, the container isn't on the Evolution network.
+
+# 3. Quick smoke test that doesn't need curl/wget in the image.
+docker exec <opkomst-container-name> python3 -c "import urllib.request; \
+  print(urllib.request.urlopen('http://evolution-api:8080/').read()[:200])"
+# Expect: a "Welcome to the Evolution API" JSON blob.
+```
+
+If step 2 fails, the persistent fix is to attach
+``evolution-api`` to the shared ``coolify`` network in the
+Evolution Compose YAML, which Opkomst already sits on. See
+``docs/deploy.md`` § 13a for the exact ``networks:`` block.
+Manually ``docker network connect``-ing the container works as a
+hotfix but doesn't survive the next redeploy.
+
+After fixing the network, hard-refresh the admin browser tab so
+``auth.fetchMe`` re-runs and re-probes ``/whatsapp/status``.
+
 ## "QR code won't scan / pairing won't complete"
 
 Symptoms: visiting ``/admin/whatsapp`` shows the QR but scanning
@@ -318,7 +358,7 @@ curl -s -X DELETE -H "apikey: $EVOLUTION_API_KEY" \
 # itself when it asks for a fresh QR.
 
 # 3. If even the create call fails, Evolution's own DB is the
-#    most likely culprit — check the service's logs in Coolify
+#    most likely culprit. Check the service's logs in Coolify
 #    and confirm CACHE_REDIS_URI / DATABASE_CONNECTION_URI both
 #    resolve from inside the Evolution container.
 ```
@@ -337,7 +377,7 @@ download the CSV and replay the failed-only subset.
 
 If individual sends fail with a 4xx and the linked phone is
 clearly online, the recipient's number probably isn't on
-WhatsApp — Evolution returns ``404`` for unknown numbers. That's
+WhatsApp; Evolution returns ``404`` for unknown numbers. That's
 expected; mark them as such in the source list.
 
 ## "Evolution session expired and we can't tell"
