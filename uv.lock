@@ -550,6 +550,7 @@ dependencies = [
     { name = "alembic" },
     { name = "cryptography" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "nanoid" },
     { name = "psycopg", extra = ["binary"] },
@@ -568,12 +569,12 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "freezegun" },
-    { name = "httpx" },
     { name = "hypothesis" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
+    { name = "respx" },
     { name = "ruff" },
 ]
 
@@ -582,6 +583,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.13" },
     { name = "cryptography", specifier = ">=44" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "nanoid", specifier = ">=2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
@@ -600,12 +602,12 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "freezegun", specifier = ">=1.5" },
-    { name = "httpx", specifier = ">=0.28" },
     { name = "hypothesis", specifier = ">=6" },
     { name = "pyright", specifier = ">=1.1" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-cov", specifier = ">=5" },
     { name = "pytest-xdist", specifier = ">=3" },
+    { name = "respx", specifier = ">=0.21" },
     { name = "ruff", specifier = ">=0.7" },
 ]
 
@@ -913,6 +915,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8f/b2/7fc2931bfae0af02d5f53b174e9cf701adbb35f39d69c2af63d4a39f81a9/qrcode-8.2.tar.gz", hash = "sha256:35c3f2a4172b33136ab9f6b3ef1c00260dd2f66f858f24d88418a015f446506c", size = 43317, upload-time = "2025-05-01T15:44:24.726Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/b8/d2d6d731733f51684bbf76bf34dab3b70a9148e8f2cef2bb544fccec681a/qrcode-8.2-py3-none-any.whl", hash = "sha256:16e64e0716c14960108e85d853062c9e8bba5ca8252c0b4d0231b9df4060ff4f", size = 45986, upload-time = "2025-05-01T15:44:22.781Z" },
+]
+
+[[package]]
+name = "respx"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/98/4e55c9c486404ec12373708d015ebce157966965a5ebe7f28ff2c784d41b/respx-0.23.1.tar.gz", hash = "sha256:242dcc6ce6b5b9bf621f5870c82a63997e8e82bc7c947f9ffe272b8f3dd5a780", size = 29243, upload-time = "2026-04-08T14:37:16.008Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/4a/221da6ca167db45693d8d26c7dc79ccfc978a440251bf6721c9aaf251ac0/respx-0.23.1-py2.py3-none-any.whl", hash = "sha256:b18004b029935384bccfa6d7d9d74b4ec9af73a081cc28600fffc0447f4b8c1a", size = 25557, upload-time = "2026-04-08T14:37:14.613Z" },
 ]
 
 [[package]]

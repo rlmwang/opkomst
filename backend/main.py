@@ -20,6 +20,7 @@ from .routers import health as health_router
 from .routers import member_survey as member_survey_router
 from .routers import signups as signups_router
 from .routers import spa
+from .routers import whatsapp as whatsapp_router
 from .services.observability import TimingMiddleware
 from .services.observability import install as install_timing
 from .services.rate_limit import limiter
@@ -48,6 +49,10 @@ async def _lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
 
     _warmup_db()
     yield
+    # Shutdown: drain the WhatsApp Evolution proxy's HTTP pool.
+    from .services import whatsapp as _whatsapp  # noqa: PLC0415
+
+    await _whatsapp.shutdown()
 
 
 app = FastAPI(title="Opkomst", version="0.1.0", lifespan=_lifespan)
@@ -105,6 +110,7 @@ app.include_router(signups_router.router)
 app.include_router(feedback_router.router)
 app.include_router(member_survey_router.router)
 app.include_router(health_router.router)
+app.include_router(whatsapp_router.router)
 
 # Local-mode-only routes (dev-issue-token et al). Mounted iff
 # ``settings.local_mode`` is True so prod simply 404s on these

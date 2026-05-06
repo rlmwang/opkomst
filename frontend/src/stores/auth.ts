@@ -8,10 +8,15 @@ export type { User };
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const loaded = ref(false);
+  // Admin-only feature flag. True when EVOLUTION_URL,
+  // EVOLUTION_API_KEY, and EVOLUTION_INSTANCE are all set on the
+  // server. Drives the WhatsApp nav tab visibility and the
+  // route guard. Hydrated on fetchMe for admins only.
+  const whatsappAvailable = ref(false);
 
   const isAuthenticated = computed(() => user.value !== null);
   const isApproved = computed(() => user.value?.is_approved === true);
-  // Admin must also be approved — keep this in lock-step with the
+  // Admin must also be approved, keep this in lock-step with the
   // backend's require_admin so a nav link can't 403 when clicked.
   const isAdmin = computed(
     () => user.value?.role === "admin" && user.value?.is_approved === true,
@@ -24,8 +29,19 @@ export const useAuthStore = defineStore("auth", () => {
     }
     try {
       user.value = await get<User>("/api/v1/auth/me");
+      if (user.value?.role === "admin" && user.value?.is_approved) {
+        try {
+          const s = await get<{ state: string }>("/api/v1/whatsapp/status");
+          whatsappAvailable.value = s.state !== "not_configured";
+        } catch {
+          whatsappAvailable.value = false;
+        }
+      } else {
+        whatsappAvailable.value = false;
+      }
     } catch {
       user.value = null;
+      whatsappAvailable.value = false;
     } finally {
       loaded.value = true;
     }
@@ -52,9 +68,19 @@ export const useAuthStore = defineStore("auth", () => {
     user.value = resp.user;
   }
 
-  function logout(): void {
+  async function logout(): Promise<void> {
+    // Best-effort server hook — wipes any linked WhatsApp blast
+    // session before we drop the JWT. Failures here must not
+    // block sign-out (the user clicked Logout, the local state
+    // gets cleared regardless).
+    try {
+      await post("/api/v1/auth/logout", {});
+    } catch {
+      // ignore
+    }
     clearToken();
     user.value = null;
+    whatsappAvailable.value = false;
   }
 
   return {
@@ -63,6 +89,7 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     isApproved,
     isAdmin,
+    whatsappAvailable,
     fetchMe,
     requestLoginLink,
     redeem,

@@ -96,6 +96,85 @@ describe("auth store", () => {
     store.user = { ...baseUser, role: "admin", is_approved: false };
     expect(store.isAdmin).toBe(false);
   });
+
+  it("hydrates whatsappAvailable from /whatsapp/status when an admin loads", async () => {
+    const { useAuthStore } = await import("@/stores/auth");
+    vi.mocked(apiClient.getToken).mockReturnValue("tok");
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/auth/me") {
+        return {
+          id: "u1",
+          email: "a@b",
+          name: "A",
+          role: "admin",
+          is_approved: true,
+          chapters: [],
+          created_at: "2026-01-01T00:00:00Z",
+        };
+      }
+      if (path === "/api/v1/whatsapp/status") return { state: "open" };
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const store = useAuthStore();
+    await store.fetchMe();
+    expect(store.whatsappAvailable).toBe(true);
+  });
+
+  it("sets whatsappAvailable=false when /status reports not_configured", async () => {
+    const { useAuthStore } = await import("@/stores/auth");
+    vi.mocked(apiClient.getToken).mockReturnValue("tok");
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/auth/me") {
+        return {
+          id: "u1",
+          email: "a@b",
+          name: "A",
+          role: "admin",
+          is_approved: true,
+          chapters: [],
+          created_at: "2026-01-01T00:00:00Z",
+        };
+      }
+      if (path === "/api/v1/whatsapp/status") return { state: "not_configured" };
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const store = useAuthStore();
+    await store.fetchMe();
+    expect(store.whatsappAvailable).toBe(false);
+  });
+
+  it("does not call /whatsapp/status for a non-admin user", async () => {
+    const { useAuthStore } = await import("@/stores/auth");
+    vi.mocked(apiClient.getToken).mockReturnValue("tok");
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/auth/me") {
+        return {
+          id: "u1",
+          email: "a@b",
+          name: "A",
+          role: "organiser",
+          is_approved: true,
+          chapters: [],
+          created_at: "2026-01-01T00:00:00Z",
+        };
+      }
+      throw new Error(`unexpected GET ${path}`);
+    });
+    const store = useAuthStore();
+    await store.fetchMe();
+    expect(store.whatsappAvailable).toBe(false);
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/auth/me");
+  });
+
+  it("clears whatsappAvailable on logout", async () => {
+    const { useAuthStore } = await import("@/stores/auth");
+    mockPost.mockResolvedValueOnce(undefined);
+    const store = useAuthStore();
+    store.whatsappAvailable = true;
+    await store.logout();
+    expect(store.whatsappAvailable).toBe(false);
+  });
 });
 
 // Suppress unused-vars warnings on the broader mocks the suite imports.

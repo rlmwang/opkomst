@@ -26,6 +26,11 @@ const routes = [
   { path: "/s/nieuwe-leden", component: () => import("@/pages/MemberSurveyPage.vue") },
   // Admin-only results page for the same survey.
   { path: "/member-feedback", component: () => import("@/pages/MemberSurveyResultsPage.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
+  // Admin-only WhatsApp blast tool (Evolution API proxy).
+  // ``requiresWhatsApp`` redirects to /events when the EVOLUTION_*
+  // env vars aren't all set on the server, so direct URL pokes
+  // don't surface a non-functional page.
+  { path: "/admin/whatsapp", component: () => import("@/pages/AdminWhatsAppPage.vue"), meta: { requiresAuth: true, requiresAdmin: true, requiresWhatsApp: true } },
   { path: "/:pathMatch(.*)*", component: () => import("@/pages/NotFoundPage.vue") },
 ];
 
@@ -45,6 +50,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/login", query: { next: to.fullPath } };
   if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/events" };
   if (to.meta.requiresApproved && !auth.isApproved) return { path: "/events" };
+  if (to.meta.requiresWhatsApp && !auth.whatsappAvailable) return { path: "/events" };
   return true;
 });
 

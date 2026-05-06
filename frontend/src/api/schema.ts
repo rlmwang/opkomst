@@ -268,6 +268,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Sign-out hook. JWT is stateless so there's nothing to revoke
+         *     server-side; the route exists so app-logout can also tear down
+         *     the WhatsApp blast tool's linked-device session (otherwise a
+         *     user closes the app and the linked phone stays paired with
+         *     Evolution until the watchdog catches up).
+         *
+         *     Best-effort: a failure here must not block sign-out — the
+         *     frontend clears its JWT regardless. Errors are swallowed and
+         *     logged, never raised.
+         */
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -856,6 +884,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Heartbeat
+         * @description Page liveness ping. Bumps ``_last_seen`` and returns current
+         *     state in one round-trip so the page can poll a single endpoint.
+         *
+         *     The 120/min cap is well above the page's 15s interval; it's a
+         *     safety net against a runaway tab, not a usage cap.
+         */
+        post: operations["heartbeat_api_v1_whatsapp_heartbeat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Logout
+         * @description Full wipe: logs out and deletes the Evolution instance, so
+         *     the next visit starts from a fresh QR.
+         */
+        post: operations["logout_api_v1_whatsapp_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Qr */
+        get: operations["get_qr_api_v1_whatsapp_qr_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send
+         * @description Send one text message. Client paces the loop; this cap is a
+         *     backstop against a runaway send.
+         */
+        post: operations["send_api_v1_whatsapp_send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Status */
+        get: operations["get_status_api_v1_whatsapp_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1264,6 +1392,17 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HeartbeatResponse
+         * @description One round-trip for "I'm still here" + status poll.
+         */
+        HeartbeatResponse: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "connecting" | "close" | "unknown" | "not_configured";
+        };
+        /**
          * LinkSent
          * @description Boring 200 response so /login-link can't be probed for whether
          *     an email is registered.
@@ -1380,6 +1519,18 @@ export interface components {
             /** Count */
             count: number;
         };
+        /**
+         * QrResponse
+         * @description Pairing payload from Evolution. ``qr`` is a base64 PNG data
+         *     URL or the raw QR string, depending on Evolution's mood; the
+         *     frontend renders both shapes.
+         */
+        QrResponse: {
+            /** Pairingcode */
+            pairingCode?: string | null;
+            /** Qr */
+            qr?: string | null;
+        };
         /** RatingBreakdown */
         RatingBreakdown: {
             /** Average */
@@ -1396,6 +1547,24 @@ export interface components {
         RenameUserRequest: {
             /** Name */
             name: string;
+        };
+        /**
+         * SendRequest
+         * @description One outbound message. Phone normalisation happens client-side.
+         */
+        SendRequest: {
+            /** Number */
+            number: string;
+            /** Text */
+            text: string;
+        };
+        /**
+         * SendResponse
+         * @description Generic ack. the frontend only cares whether it succeeded.
+         */
+        SendResponse: {
+            /** Ok */
+            ok: boolean;
         };
         /**
          * SetUserChaptersRequest
@@ -1451,6 +1620,17 @@ export interface components {
             id: string;
             /** Party Size */
             party_size: number;
+        };
+        /**
+         * StatusResponse
+         * @description Connection state of the linked WhatsApp session.
+         */
+        StatusResponse: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "open" | "connecting" | "close" | "unknown" | "not_configured";
         };
         /** UserOut */
         UserOut: {
@@ -1853,6 +2033,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LinkSent"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_auth_logout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2902,6 +3111,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MemberSurveyResultsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    heartbeat_api_v1_whatsapp_heartbeat_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeartbeatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    logout_api_v1_whatsapp_logout_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_qr_api_v1_whatsapp_qr_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QrResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_api_v1_whatsapp_send_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_status_api_v1_whatsapp_status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusResponse"];
                 };
             };
             /** @description Validation Error */

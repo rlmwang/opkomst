@@ -23,8 +23,8 @@ const showPendingBadge = computed(
   () => auth.isAdmin && pendingCount.value > 0,
 );
 
-function logout() {
-  auth.logout();
+async function logout() {
+  await auth.logout();
   void router.push("/login");
 }
 </script>
@@ -46,6 +46,7 @@ function logout() {
         </router-link>
         <router-link v-if="auth.isApproved" to="/chapters">{{ t("header.chapters") }}</router-link>
         <router-link v-if="auth.isAdmin" to="/member-feedback">{{ t("header.memberFeedback") }}</router-link>
+        <router-link v-if="auth.isAdmin && auth.whatsappAvailable" to="/admin/whatsapp">{{ t("header.whatsapp") }}</router-link>
         <span class="logout-divider" aria-hidden="true" />
         <Button :label="t('header.logout')" size="small" severity="secondary" text @click="logout" />
       </nav>

@@ -29,6 +29,10 @@ dependencies = [
     "jinja2>=3.1",
     "slowapi>=0.1.9",
     "sentry-sdk>=2.58.0",
+    # Async HTTP client for the Evolution API proxy in
+    # ``services/whatsapp.py``. Also pulled in by Starlette's
+    # ``TestClient`` so tests would see it regardless.
+    "httpx>=0.28",
 ]
 
 [dependency-groups]
@@ -40,11 +44,9 @@ dev = [
     "pyright>=1.1",
     "freezegun>=1.5",
     "hypothesis>=6",
-    # Needed by ``starlette.testclient.TestClient`` which our
-    # FastAPI tests use. Production code never imports httpx
-    # directly — keeping it dev-only means the runtime image
-    # doesn't ship it.
-    "httpx>=0.28",
+    # Mocks ``httpx`` calls in unit tests so the Evolution API proxy
+    # can be exercised without a real instance.
+    "respx>=0.21",
 ]
 
 [tool.ruff]

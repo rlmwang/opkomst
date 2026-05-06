@@ -190,6 +190,14 @@ WEB_CONCURRENCY=2
 
 # LOCAL_MODE seeds two demo accounts. Leave UNSET in production.
 LOCAL_MODE=
+
+# WhatsApp blast tool. Optional. Leave the three vars unset and
+# the admin tab is hidden, the route guard redirects, and the
+# routes return 503. Set all three together to enable.
+# Full setup walkthrough is in step 13 below.
+EVOLUTION_URL=
+EVOLUTION_API_KEY=
+EVOLUTION_INSTANCE=opkomst-blast
 ```
 
 Click **Deploy**. The container builds, the bootstrap module
@@ -403,7 +411,147 @@ ls -la /app/data/backups/
 # https://opkomst.nu/health/full.
 ```
 
-## 13. Day-to-day
+## 13. WhatsApp blast tool (optional)
+
+Skip this whole section if the org doesn't need outbound WhatsApp
+blasts. The admin UI hides itself when the env vars are unset.
+
+The tool is a thin proxy in front of a self-hosted **Evolution
+API** instance. Evolution holds the linked WhatsApp session;
+Opkomst never persists phone numbers or message bodies. Privacy
+contract and "forget when the user leaves" mechanics are
+documented in ``docs/runbook.md`` § "WhatsApp blast tool".
+
+### 13a. Evolution sidecar in Coolify
+
+Coolify → project → **+ New → Resource → Docker Compose**. Paste
+the YAML below. Note the ``${VAR}`` placeholders: any inline
+value typed straight into the YAML becomes read-only in
+Coolify's env-var UI (the YAML is the source of truth for
+those). Using shell interpolation makes Coolify auto-create
+editable env-var rows for each placeholder, which is what we
+want for secrets.
+
+```yaml
+services:
+  evolution-api:
+    image: atendai/evolution-api:latest
+    restart: unless-stopped
+    environment:
+      - SERVER_URL=http://evolution-api:8080
+      - AUTHENTICATION_API_KEY=${AUTHENTICATION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=${EVOLUTION_DB_URL}
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://evolution-redis:6379
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CONFIG_SESSION_PHONE_CLIENT=Opkomst
+      - QRCODE_LIMIT=10
+      - LANGUAGE=en
+    volumes:
+      - evolution_instances:/evolution/instances
+    depends_on: [evolution-postgres, evolution-redis]
+
+  evolution-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=${EVOLUTION_DB_PASSWORD}
+      - POSTGRES_DB=evolution
+    volumes:
+      - evolution_pg:/var/lib/postgresql/data
+
+  evolution-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - evolution_redis:/data
+
+volumes:
+  evolution_instances:
+  evolution_pg:
+  evolution_redis:
+```
+
+Save the compose file. Coolify's env-var panel now has three
+editable rows. Fill them in:
+
+```bash
+# AUTHENTICATION_API_KEY: the API key Opkomst will use to talk
+# to Evolution. **Save this value**; you need the same string
+# in 13b.
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# EVOLUTION_DB_PASSWORD: a fresh password for Evolution's
+# dedicated Postgres. Doesn't have to be remembered; only
+# Evolution itself uses it.
+python -c "import secrets; print(secrets.token_urlsafe(24))"
+```
+
+```ini
+EVOLUTION_DB_URL=postgresql://evolution:<EVOLUTION_DB_PASSWORD value>@evolution-postgres:5432/evolution
+```
+
+Notes:
+* The three services (``evolution-api``, ``evolution-postgres``,
+  ``evolution-redis``) are Evolution's own internal stack. Don't
+  share Postgres or Redis with the main Opkomst app.
+* The ``evolution_instances`` volume holds the linked-device
+  session keys. Losing that volume forces a fresh QR scan but is
+  otherwise harmless. Don't bother backing it up; the cost of a
+  rescan is one minute.
+* No public domain needed. Coolify keeps the service on its
+  internal network; Opkomst reaches it at
+  ``http://evolution-api:8080`` (the Compose service name).
+  Coolify may decorate that name on its internal DNS, so after
+  deploy, check the Evolution service's "Internal URL" panel
+  and use whatever hostname Coolify shows.
+
+Click **Deploy**. Wait for the Evolution container to be
+healthy.
+
+### 13b. Wire Opkomst to Evolution
+
+Coolify → **Opkomst application** → Environment Variables. Add:
+
+```ini
+EVOLUTION_URL=http://evolution-api:8080
+EVOLUTION_API_KEY=<the same string from 13a>
+EVOLUTION_INSTANCE=opkomst-blast
+```
+
+The instance name (``opkomst-blast``) is what Opkomst will
+create on Evolution the first time you visit the admin page; you
+don't have to pre-create it.
+
+Redeploy the Opkomst application so the new env vars take
+effect.
+
+### 13c. Verify
+
+* Sign in as the bootstrap admin. The header should now show a
+  **WhatsApp** tab next to *Feedback*.
+* Click it. The page should land on the QR card and show a
+  rotating QR code.
+* (Optional) Scan with a throwaway WhatsApp account on a phone
+  you control: WhatsApp → Settings → Linked Devices → Link a
+  device. The page should flip to the recipients section within
+  ~2 s.
+* Click "Disconnect". The linked-device list on the phone should
+  clear.
+
+If the tab doesn't appear: refresh the admin user's session
+(``Logout`` then sign back in) so ``fetchMe`` re-runs the
+``/whatsapp/status`` probe.
+
+If the tab is there but the QR never appears: see
+``docs/runbook.md`` § "QR code won't scan / pairing won't
+complete".
+
+## 14. Day-to-day
 
 Once setup is complete, the system runs on its own:
 

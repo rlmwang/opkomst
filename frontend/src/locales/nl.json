@@ -14,8 +14,80 @@
     "users": "Gebruikers",
     "chapters": "Afdelingen",
     "memberFeedback": "Feedback",
+    "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen"
+  },
+  "whatsapp": {
+    "title": "WhatsApp-blast",
+    "lede": "Stuur in één keer een persoonlijk WhatsApp-bericht naar een lijst met contacten. Er wordt niets opgeslagen: zodra je het tabblad sluit, wordt de koppeling met WhatsApp gewist.",
+    "state": {
+      "open": "gekoppeld",
+      "connecting": "verbinden…",
+      "close": "niet gekoppeld",
+      "unknown": "onbekend",
+      "not_configured": "niet geconfigureerd"
+    },
+    "connect": {
+      "title": "Stap 1: koppel je WhatsApp",
+      "step1": "Open WhatsApp op je telefoon.",
+      "step2": "Ga naar Instellingen > Gekoppelde apparaten > Apparaat koppelen.",
+      "step3": "Scan de QR-code hieronder.",
+      "qrAlt": "QR-code om WhatsApp te koppelen",
+      "pairingCode": "Of voer de koppelcode in:",
+      "statusLabel": "Status:"
+    },
+    "connected": {
+      "title": "Stap 1: gekoppeld",
+      "body": "Je WhatsApp is gekoppeld aan deze server. Stel hieronder je bericht op en verstuur het.",
+      "disconnect": "Loskoppelen"
+    },
+    "recipients": {
+      "title": "Stap 2: ontvangers",
+      "hint": "Plak of upload een CSV met een kopregel. Eén kolom bevat de telefoonnummers (geef hieronder de naam ervan op). Andere kolommen kun je als variabelen in je bericht gebruiken.",
+      "example": "telefoon,naam,kleur\n31612345678,Alice,rood\n31698765432,Bob,blauw",
+      "placeholder": "telefoon,naam\n31612345678,Alice\n31698765432,Bob",
+      "phoneColumnLabel": "Kolom met telefoonnummers",
+      "countryCodeLabel": "Standaard landcode",
+      "countryCodeHint": "Optioneel. Wordt toegepast op nummers zonder landcode (bv. 31 maakt van 0612345678 een 31612345678).",
+      "upload": "Of upload een .csv-bestand",
+      "validCount": "geldig",
+      "invalidCount": "ongeldig",
+      "availableTags": "Beschikbare variabelen:",
+      "status": "Status",
+      "errors": {
+        "emptyInput": "Geen CSV opgegeven.",
+        "missingPhoneColumn": "De kopregel moet de kolomnaam bevatten die je hierboven hebt opgegeven.",
+        "emptyNumber": "geen nummer",
+        "invalidNumber": "geen geldig telefoonnummer",
+        "duplicateNumber": "dubbel"
+      }
+    },
+    "compose": {
+      "title": "Stap 3: bericht opstellen en versturen",
+      "hint": "Schrijf je bericht. Gebruik {tag} om een kolom uit de CSV in te voegen. Het voorbeeld hiernaast laat zien wat je eerste ontvanger te zien krijgt.",
+      "placeholder": "Hoi {naam}, ...",
+      "formattingHelp": "WhatsApp-opmaak (vet, cursief, doorgehaald, monospace)",
+      "bold": "vet",
+      "italic": "cursief",
+      "strike": "doorgehaald",
+      "mono": "monospace",
+      "previewTitle": "Voorbeeld",
+      "previewFor": "Voor",
+      "previewEmpty": "(leeg bericht)",
+      "sendButton": "Verstuur naar {count} ontvangers",
+      "confirmHeader": "WhatsApp-blast versturen?",
+      "confirmMessage": "Je staat op het punt {count} berichten te versturen. Het eerste bericht luidt:\n\n{preview}",
+      "confirmAccept": "Verstuur naar {count}",
+      "pause": "Pauzeren",
+      "resume": "Hervatten",
+      "cancel": "Annuleren",
+      "sent": "verstuurd",
+      "failed": "mislukt",
+      "of": "van {total}",
+      "sendStatus": "Verzending",
+      "download": "Resultaten downloaden (.csv)"
+    }
   },
   "memberSurvey": {
     "title": "Feedback Nieuwe Ledendag",

@@ -248,3 +248,102 @@ Scaleway TEM moved its webhooks behind a paid Cockpit topic and
 we pulled the integration). The SMTP provider's own dashboard is
 the source of truth for bounce / complaint rates and reputation
 warnings — check there if mail starts disappearing.
+
+## WhatsApp blast tool
+
+A self-contained admin page at ``/admin/whatsapp`` that proxies
+to a self-hosted **Evolution API** instance for one-off
+personalised WhatsApp blasts. Designed in
+``docs/plan-whatsapp-blast.md``; this section is the ops view.
+
+**Where things live**
+- Backend proxy: ``backend/services/whatsapp.py`` +
+  ``backend/routers/whatsapp.py``. Stateless, no DB writes, no
+  PII at rest.
+- Frontend page: ``frontend/src/pages/AdminWhatsAppPage.vue``.
+- The CSV-input parser, country-code normaliser, and merge-tag
+  engine are in ``frontend/src/lib/csv.ts``. Markdown preview
+  is ``frontend/src/lib/whatsappFormat.ts``. Emoji button is
+  ``frontend/src/components/EmojiPicker.vue``.
+
+**Enabling the tool.** Three env vars on the Opkomst app
+(``EVOLUTION_URL``, ``EVOLUTION_API_KEY``, ``EVOLUTION_INSTANCE``)
+plus a Coolify Docker-Compose resource for the Evolution
+sidecar. The full from-zero setup walkthrough lives in
+``docs/deploy.md`` § 13. Leave any of the three env vars unset
+and the tool is silently disabled: the nav tab is hidden, the
+route guard redirects ``/admin/whatsapp`` to ``/events``, and
+the proxy routes return 503.
+
+**Privacy contract.** This is the only piece of the app that
+holds phone numbers in memory at all, and it does so only for
+the lifetime of the page. None reach the database. The proxy
+layer logs ``route + outcome`` only — never numbers, never
+message bodies. ``tests/test_whatsapp.py::test_no_pii_in_whatsapp_logs``
+greps the service module to keep it that way.
+
+**The "forget when the user leaves" guarantee.** Three layers:
+1. Closing the page fires ``navigator.sendBeacon`` to
+   ``/api/v1/whatsapp/logout`` which deletes the Evolution
+   instance entirely (logout + remove session keys).
+2. Browser crash leaves the beacon undelivered, so the page also
+   heartbeats ``/api/v1/whatsapp/heartbeat`` every 15 s; if the
+   server stops hearing for >60 s and Evolution still reports an
+   ``open`` session, a lazy watchdog tears it down on the next
+   inbound request.
+3. App-level logout (``POST /api/v1/auth/logout``) also tears the
+   instance down before the JWT is cleared.
+
+Restart of the Opkomst container resets the watchdog's
+in-memory ``_last_seen``, which is fine: a fresh process means
+no live page = nothing to keep.
+
+## "QR code won't scan / pairing won't complete"
+
+Symptoms: visiting ``/admin/whatsapp`` shows the QR but scanning
+times out, or the linked-device list on the phone doesn't show
+the new device.
+
+```bash
+# 1. Confirm the Evolution instance exists and isn't stuck.
+curl -s -H "apikey: $EVOLUTION_API_KEY" \
+  "$EVOLUTION_URL/instance/connectionState/$EVOLUTION_INSTANCE"
+# state: "close" / "connecting" / "open"
+
+# 2. If it's "connecting" but never advances, force a clean
+#    re-scan: delete and re-create the instance.
+curl -s -X DELETE -H "apikey: $EVOLUTION_API_KEY" \
+  "$EVOLUTION_URL/instance/delete/$EVOLUTION_INSTANCE"
+# Reload /admin/whatsapp; the page calls /instance/create
+# itself when it asks for a fresh QR.
+
+# 3. If even the create call fails, Evolution's own DB is the
+#    most likely culprit — check the service's logs in Coolify
+#    and confirm CACHE_REDIS_URI / DATABASE_CONNECTION_URI both
+#    resolve from inside the Evolution container.
+```
+
+The QR rotates every ~20 s. The page auto-refreshes; if it
+seems frozen, hard-refresh the browser tab.
+
+## "WhatsApp linked but messages stop arriving mid-blast"
+
+Most likely the linked phone went offline (WhatsApp linked
+devices piggy-back on the primary phone for ~14 days of grace,
+but a temporarily-offline phone stalls live messages
+immediately). The blast loop will see ``send`` fail per row and
+mark them ``failed`` in the page's status table; the user can
+download the CSV and replay the failed-only subset.
+
+If individual sends fail with a 4xx and the linked phone is
+clearly online, the recipient's number probably isn't on
+WhatsApp — Evolution returns ``404`` for unknown numbers. That's
+expected; mark them as such in the source list.
+
+## "Evolution session expired and we can't tell"
+
+WhatsApp auto-unlinks inactive linked devices after about two
+weeks. The Evolution API will keep reporting ``state: "close"``
+in that case. The page's status poll surfaces this as "not
+linked", prompting the operator to re-scan. No alarm needed
+beyond what the page already shows.

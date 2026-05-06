@@ -306,3 +306,24 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)) -
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
     return _user_out(db, user)
+
+
+@router.post("/logout", status_code=204)
+@limiter.limit(Limits.ORG_RARE)
+async def logout(request: Request, _: User = Depends(get_current_user)) -> None:
+    """Sign-out hook. JWT is stateless so there's nothing to revoke
+    server-side; the route exists so app-logout can also tear down
+    the WhatsApp blast tool's linked-device session (otherwise a
+    user closes the app and the linked phone stays paired with
+    Evolution until the watchdog catches up).
+
+    Best-effort: a failure here must not block sign-out — the
+    frontend clears its JWT regardless. Errors are swallowed and
+    logged, never raised."""
+    from ..services import whatsapp as wa  # noqa: PLC0415 — keep auth's import surface small
+
+    if wa.is_configured():
+        try:
+            await wa.delete_instance()
+        except Exception:
+            logger.warning("auth_logout_whatsapp_teardown", outcome="error")
