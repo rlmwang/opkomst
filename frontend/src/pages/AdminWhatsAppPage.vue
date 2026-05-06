@@ -15,8 +15,11 @@
  *  - Server-side watchdog catches anything those two miss.
  */
 import Button from "primevue/button";
+import Dialog from "primevue/dialog";
+import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import ProgressBar from "primevue/progressbar";
+import Select from "primevue/select";
 import Textarea from "primevue/textarea";
 import { computed, ref } from "vue";
 import { onBeforeUnmount, onMounted } from "vue";
@@ -25,13 +28,12 @@ import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import EmojiPicker from "@/components/EmojiPicker.vue";
 import { useWhatsApp } from "@/composables/useWhatsApp";
-import { useConfirms } from "@/lib/confirms";
+import { COUNTRIES, type Country, flagEmoji } from "@/lib/countries";
 import { applyMerge, mergeTags, parseCsv } from "@/lib/csv";
 import { whatsappFormat } from "@/lib/whatsappFormat";
 
 const { t } = useI18n();
 const wa = useWhatsApp();
-const confirms = useConfirms();
 
 // Section B state. Kept in the page (not the composable) since
 // it's purely client-side and doesn't outlive the page mount.
@@ -40,8 +42,9 @@ const phoneColumn = ref("number");
 // Default country code applied to bare national numbers in the
 // CSV (e.g. ``0612345678`` becomes ``31612345678``). Defaults to
 // NL since that's the overwhelmingly common case for this app;
-// the user can clear or change it.
-const countryCode = ref("31");
+// the dropdown lets the user pick a different one.
+const country = ref<Country>(COUNTRIES.find((c) => c.iso === "NL") ?? COUNTRIES[0]);
+const countryCode = computed(() => country.value.dialCode);
 const parsed = computed(() =>
   parseCsv(csvText.value, phoneColumn.value, countryCode.value),
 );
@@ -78,6 +81,15 @@ const finished = computed(
   () => validRows.value.length > 0 && sentCount.value + failedCount.value === validRows.value.length,
 );
 
+// Pacing between sends. Default is 6s (mid-point of WhatsApp's
+// own anti-spam tolerance for a freshly-linked device); 2s is
+// the floor — below that the server starts dropping
+// "you're sending too fast" warnings and risks the linked
+// session being unlinked. Cap at 60s to catch typos.
+const DELAY_MIN = 2;
+const DELAY_MAX = 60;
+const delaySeconds = ref(6);
+
 const previewSourceRow = computed(() => validRows.value[0] ?? null);
 const previewMerged = computed(() =>
   previewSourceRow.value ? applyMerge(template.value, previewSourceRow.value.fields) : template.value,
@@ -110,12 +122,16 @@ function insertEmoji(emoji: string): void {
   });
 }
 
-function jitter(min: number, max: number): number {
-  return min + Math.random() * (max - min);
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** ±20 % around the user-configured base delay. The randomness
+ * blunts the bot-pattern fingerprint that a perfectly-periodic
+ * cadence would otherwise create. */
+function nextDelayMs(): number {
+  const base = delaySeconds.value * 1000;
+  return base * (0.8 + Math.random() * 0.4);
 }
 
 async function runSendLoop(): Promise<void> {
@@ -141,7 +157,7 @@ async function runSendLoop(): Promise<void> {
     // Pace between sends with random jitter to keep the spam-detection
     // heuristic at bay. Skip after the last send.
     if (row !== validRows.value[validRows.value.length - 1]) {
-      await sleep(jitter(4000, 9000));
+      await sleep(nextDelayMs());
     }
   }
 
@@ -149,19 +165,15 @@ async function runSendLoop(): Promise<void> {
   sending.value = false;
 }
 
-function confirmSend(): void {
-  confirms.ask({
-    header: t("whatsapp.compose.confirmHeader"),
-    message: t("whatsapp.compose.confirmMessage", {
-      count: validRows.value.length,
-      preview: previewMerged.value.slice(0, 200),
-    }),
-    acceptLabel: t("whatsapp.compose.confirmAccept", { count: validRows.value.length }),
-    rejectLabel: t("common.cancel"),
-    accept: () => {
-      void runSendLoop();
-    },
-  });
+const confirmOpen = ref(false);
+
+function openConfirm(): void {
+  confirmOpen.value = true;
+}
+
+function acceptConfirm(): void {
+  confirmOpen.value = false;
+  void runSendLoop();
 }
 
 function cancelSend(): void {
@@ -193,16 +205,6 @@ function downloadResults(): void {
   URL.revokeObjectURL(url);
 }
 
-function onFile(e: Event): void {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    csvText.value = String(reader.result ?? "");
-  };
-  reader.readAsText(file);
-}
-
 function onPageHide(): void {
   // Best-effort: ``sendBeacon`` is the only request shape that
   // survives a tab close. Failures (or beacon being unsupported)
@@ -216,13 +218,26 @@ function onPageHide(): void {
   }
 }
 
+// Browsers ignore custom strings here, but setting ``returnValue``
+// or calling ``preventDefault`` triggers their generic
+// "Leave site? Changes you made may not be saved." prompt. Just
+// enough to stop the user from accidentally tab-closing
+// mid-blast. Skip the prompt when the loop isn't running.
+function onBeforeUnload(e: BeforeUnloadEvent): void {
+  if (!sending.value) return;
+  e.preventDefault();
+  e.returnValue = "";
+}
+
 onMounted(() => {
   wa.startPolling();
   window.addEventListener("pagehide", onPageHide);
+  window.addEventListener("beforeunload", onBeforeUnload);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("pagehide", onPageHide);
+  window.removeEventListener("beforeunload", onBeforeUnload);
 });
 </script>
 
@@ -232,279 +247,327 @@ onBeforeUnmount(() => {
     <h1>{{ t("whatsapp.title") }}</h1>
     <p class="muted">{{ t("whatsapp.lede") }}</p>
 
-    <!-- Section A: Connect -->
-    <AppCard
-      v-if="wa.state.value !== 'open' && wa.state.value !== 'not_configured'"
-      class="connect-card"
-    >
-      <h2>{{ t("whatsapp.connect.title") }}</h2>
-      <ol class="instructions">
-        <li>{{ t("whatsapp.connect.step1") }}</li>
-        <li>{{ t("whatsapp.connect.step2") }}</li>
-        <li>{{ t("whatsapp.connect.step3") }}</li>
-      </ol>
-
-      <div class="qr-wrap">
-        <img
-          v-if="wa.qr.value"
-          :src="wa.qr.value"
-          :alt="t('whatsapp.connect.qrAlt')"
-          class="qr"
-        />
-        <div v-else class="qr-loading">{{ t("common.loading") }}</div>
-      </div>
-
-      <p v-if="wa.pairingCode.value" class="pairing">
-        {{ t("whatsapp.connect.pairingCode") }}
-        <code>{{ wa.pairingCode.value }}</code>
-      </p>
-
-      <p class="status-line">
-        {{ t("whatsapp.connect.statusLabel") }}
-        <strong>{{ t(`whatsapp.state.${wa.state.value}`) }}</strong>
-      </p>
-    </AppCard>
-
-    <!-- Section A (connected variant): linked number + disconnect -->
-    <AppCard v-if="wa.state.value === 'open'" class="connected-card">
-      <h2>{{ t("whatsapp.connected.title") }}</h2>
-      <p>{{ t("whatsapp.connected.body") }}</p>
-      <Button
-        :label="t('whatsapp.connected.disconnect')"
-        severity="secondary"
-        @click="wa.disconnect"
-      />
-    </AppCard>
-
-    <!-- Section B: Recipients (CSV input) -->
-    <AppCard v-if="wa.state.value === 'open'" class="recipients-card">
-      <h2>{{ t("whatsapp.recipients.title") }}</h2>
-      <p class="hint">{{ t("whatsapp.recipients.hint") }}</p>
-      <pre class="example">{{ t("whatsapp.recipients.example") }}</pre>
-
-      <div class="phone-config">
-        <label class="phone-col">
-          <span>{{ t("whatsapp.recipients.phoneColumnLabel") }}</span>
-          <InputText
-            v-model="phoneColumn"
-            spellcheck="false"
-            autocomplete="off"
-            class="phone-col-input"
+    <AppCard class="wa-card">
+      <!-- Connect: big QR while not linked, slim "linked" row otherwise. -->
+      <div
+        v-if="wa.state.value !== 'open' && wa.state.value !== 'not_configured'"
+        class="connect"
+      >
+        <h2>{{ t("whatsapp.connect.title") }}</h2>
+        <ol class="instructions">
+          <li>{{ t("whatsapp.connect.step1") }}</li>
+          <li>{{ t("whatsapp.connect.step2") }}</li>
+          <li>{{ t("whatsapp.connect.step3") }}</li>
+        </ol>
+        <div class="qr-wrap">
+          <img
+            v-if="wa.qr.value"
+            :src="wa.qr.value"
+            :alt="t('whatsapp.connect.qrAlt')"
+            class="qr"
           />
-        </label>
-        <label class="phone-col">
-          <span>{{ t("whatsapp.recipients.countryCodeLabel") }}</span>
-          <InputText
-            v-model="countryCode"
-            spellcheck="false"
-            autocomplete="off"
-            inputmode="numeric"
-            placeholder="31"
-            class="country-code-input"
-          />
-        </label>
-      </div>
-      <p class="hint subtle">{{ t("whatsapp.recipients.countryCodeHint") }}</p>
-
-      <div class="csv-input">
-        <Textarea
-          v-model="csvText"
-          rows="8"
-          :placeholder="t('whatsapp.recipients.placeholder')"
-          class="csv-textarea"
-          autoResize
-        />
-        <label class="file-pick">
-          <input type="file" accept=".csv,text/csv,text/plain" @change="onFile" />
-          <span>{{ t("whatsapp.recipients.upload") }}</span>
-        </label>
-      </div>
-
-      <div v-if="parsed.fatal.length" class="fatal">
-        <p v-for="code in parsed.fatal" :key="code">
-          {{ t(`whatsapp.recipients.errors.${code}`) }}
+          <div v-else class="qr-loading">{{ t("common.loading") }}</div>
+        </div>
+        <p v-if="wa.pairingCode.value" class="pairing">
+          {{ t("whatsapp.connect.pairingCode") }}
+          <code>{{ wa.pairingCode.value }}</code>
+        </p>
+        <p class="status-line">
+          {{ t("whatsapp.connect.statusLabel") }}
+          <strong>{{ t(`whatsapp.state.${wa.state.value}`) }}</strong>
         </p>
       </div>
 
-      <div v-if="parsed.headers.length" class="parse-summary">
-        <p class="counts">
-          <strong>{{ validRows.length }}</strong>
-          {{ t("whatsapp.recipients.validCount") }}
-          <span v-if="parsed.rows.length - validRows.length > 0">
-            ,
-            <strong>{{ parsed.rows.length - validRows.length }}</strong>
-            {{ t("whatsapp.recipients.invalidCount") }}
-          </span>
-        </p>
-        <p v-if="tags.length" class="tags">
-          {{ t("whatsapp.recipients.availableTags") }}
-          <code v-for="tag in tags" :key="tag" class="tag">{{ "{" + tag + "}" }}</code>
-        </p>
+      <div v-if="wa.state.value === 'open'" class="linked">
+        <span class="linked-pill">✓ {{ t("whatsapp.connected.linked") }}</span>
       </div>
 
-      <div v-if="parsed.rows.length" class="preview-table-wrap">
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th v-for="h in parsed.headers" :key="h">{{ h }}</th>
-              <th>{{ t("whatsapp.recipients.status") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, idx) in parsed.rows"
-              :key="idx"
-              :class="{ invalid: row.status === 'invalid' }"
+      <!-- Recipients + composer flow once linked. No "Step 2 / Step 3"
+           framing; the page is short enough to just read top-to-bottom. -->
+      <template v-if="wa.state.value === 'open'">
+        <h2 class="section-h">{{ t("whatsapp.recipients.title") }}</h2>
+        <p class="muted">{{ t("whatsapp.recipients.hint") }}</p>
+
+        <div class="phone-config">
+          <label class="phone-col">
+            <span>{{ t("whatsapp.recipients.phoneColumnLabel") }}</span>
+            <InputText
+              v-model="phoneColumn"
+              spellcheck="false"
+              autocomplete="off"
+              class="phone-col-input"
+            />
+          </label>
+          <label class="phone-col">
+            <span>{{ t("whatsapp.recipients.countryCodeLabel") }}</span>
+            <Select
+              v-model="country"
+              :options="COUNTRIES"
+              optionLabel="name"
+              filter
+              filterPlaceholder="..."
+              class="country-select"
             >
-              <td>{{ idx + 1 }}</td>
-              <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
-              <td>
-                <span v-if="row.status === 'ok'" class="ok">✓</span>
-                <span v-else class="bad">
-                  ✗ {{ t(`whatsapp.recipients.errors.${row.error}`) }}
+              <template #value="{ value }">
+                <span v-if="value" class="country-row">
+                  <span class="flag">{{ flagEmoji(value.iso) }}</span>
+                  <span>+{{ value.dialCode }}</span>
                 </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </AppCard>
+              </template>
+              <template #option="{ option }">
+                <span class="country-row">
+                  <span class="flag">{{ flagEmoji(option.iso) }}</span>
+                  <span class="country-name">{{ option.name }}</span>
+                  <span class="country-dial">+{{ option.dialCode }}</span>
+                </span>
+              </template>
+            </Select>
+          </label>
+        </div>
 
-    <!-- Section C: Compose & send -->
-    <AppCard
-      v-if="wa.state.value === 'open' && validRows.length > 0"
-      class="compose-card"
-    >
-      <h2>{{ t("whatsapp.compose.title") }}</h2>
-      <p class="hint">{{ t("whatsapp.compose.hint") }}</p>
-
-      <div class="compose-grid">
-        <div class="compose-input">
+        <label class="csv-label">
+          <span class="csv-label-text">{{ t("whatsapp.recipients.csvLabel") }}</span>
           <Textarea
-            ref="composeRef"
-            v-model="template"
+            v-model="csvText"
             rows="8"
-            :placeholder="t('whatsapp.compose.placeholder')"
-            class="compose-textarea"
-            autoResize
-            :disabled="sending"
+            :placeholder="t('whatsapp.recipients.placeholder')"
+            class="csv-textarea"
           />
-          <div class="compose-toolbar">
-            <EmojiPicker @select="insertEmoji" />
-          </div>
-          <details class="formatting-help">
-            <summary>{{ t("whatsapp.compose.formattingHelp") }}</summary>
-            <ul>
-              <li><code>*{{ t("whatsapp.compose.bold") }}*</code></li>
-              <li><code>_{{ t("whatsapp.compose.italic") }}_</code></li>
-              <li><code>~{{ t("whatsapp.compose.strike") }}~</code></li>
-              <li><code>`{{ t("whatsapp.compose.mono") }}`</code></li>
-            </ul>
-          </details>
-        </div>
+        </label>
 
-        <div class="compose-preview">
-          <h3>{{ t("whatsapp.compose.previewTitle") }}</h3>
-          <p v-if="previewSourceRow" class="preview-meta">
-            {{ t("whatsapp.compose.previewFor") }}
-            <strong>{{ previewSourceRow.fields[phoneColumn.toLowerCase()] }}</strong>
+        <div v-if="parsed.fatal.length" class="fatal">
+          <p v-for="code in parsed.fatal" :key="code">
+            {{ t(`whatsapp.recipients.errors.${code}`) }}
           </p>
-          <div class="preview-bubble">
-            <span v-if="!previewMerged" class="preview-empty">
-              {{ t("whatsapp.compose.previewEmpty") }}
-            </span>
-            <span v-else v-html="previewHtml" />
-          </div>
         </div>
-      </div>
 
-      <div v-if="sending || finished" class="send-progress">
-        <ProgressBar :value="progress" />
-        <p class="progress-line">
-          {{ sentCount }} {{ t("whatsapp.compose.sent") }},
-          {{ failedCount }} {{ t("whatsapp.compose.failed") }}
-          <span v-if="!finished">
-            ({{ t("whatsapp.compose.of", { total: validRows.length }) }})
-          </span>
-        </p>
-      </div>
+        <div v-if="parsed.headers.length" class="parse-summary">
+          <p class="counts">
+            <strong>{{ validRows.length }}</strong>
+            {{ t("whatsapp.recipients.validCount") }}
+            <span v-if="parsed.rows.length - validRows.length > 0">
+              ,
+              <strong>{{ parsed.rows.length - validRows.length }}</strong>
+              {{ t("whatsapp.recipients.invalidCount") }}
+            </span>
+          </p>
+          <p v-if="tags.length" class="tags">
+            {{ t("whatsapp.recipients.availableTags") }}
+            <code v-for="tag in tags" :key="tag" class="tag">{{ "{" + tag + "}" }}</code>
+          </p>
+        </div>
 
-      <div class="send-controls">
-        <Button
-          v-if="!sending && !finished"
-          :label="t('whatsapp.compose.sendButton', { count: validRows.length })"
-          :disabled="sendDisabled"
-          @click="confirmSend"
-        />
-        <template v-if="sending">
-          <Button
-            v-if="!paused"
-            :label="t('whatsapp.compose.pause')"
-            severity="secondary"
-            @click="paused = true"
-          />
-          <Button
-            v-else
-            :label="t('whatsapp.compose.resume')"
-            @click="paused = false"
-          />
-          <Button
-            :label="t('whatsapp.compose.cancel')"
-            severity="danger"
-            text
-            @click="cancelSend"
-          />
+        <div v-if="parsed.rows.length" class="preview-table-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th v-for="h in parsed.headers" :key="h">{{ h }}</th>
+                <th>{{ t("whatsapp.recipients.status") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, idx) in parsed.rows"
+                :key="idx"
+                :class="{ invalid: row.status === 'invalid' }"
+              >
+                <td>{{ idx + 1 }}</td>
+                <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
+                <td>
+                  <span v-if="row.status === 'ok'" class="ok">✓</span>
+                  <span v-else class="bad">
+                    ✗ {{ t(`whatsapp.recipients.errors.${row.error}`) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <template v-if="validRows.length > 0">
+          <h2 class="section-h">{{ t("whatsapp.compose.title") }}</h2>
+          <p class="muted">{{ t("whatsapp.compose.hint") }}</p>
+
+          <div class="compose-grid">
+            <div class="compose-input">
+              <Textarea
+                ref="composeRef"
+                v-model="template"
+                rows="8"
+                :placeholder="t('whatsapp.compose.placeholder')"
+                class="compose-textarea"
+                autoResize
+                :disabled="sending"
+              />
+              <div class="compose-toolbar">
+                <EmojiPicker @select="insertEmoji" />
+                <span class="fmt"><code>*</code><strong>{{ t("whatsapp.compose.bold") }}</strong><code>*</code></span>
+                <span class="fmt"><code>_</code><em>{{ t("whatsapp.compose.italic") }}</em><code>_</code></span>
+                <span class="fmt"><code>~</code><s>{{ t("whatsapp.compose.strike") }}</s><code>~</code></span>
+                <span class="fmt"><code>`{{ t("whatsapp.compose.mono") }}`</code></span>
+              </div>
+            </div>
+
+            <div class="compose-preview">
+              <div class="preview-bubble">
+                <span v-if="!previewMerged" class="preview-empty">
+                  {{ t("whatsapp.compose.previewEmpty") }}
+                </span>
+                <span v-else v-html="previewHtml" />
+              </div>
+            </div>
+          </div>
+
+          <div v-if="!sending && !finished" class="delay-row">
+            <label class="delay-label">
+              <span>{{ t("whatsapp.compose.delayLabel") }}</span>
+              <InputNumber
+                v-model="delaySeconds"
+                :min="DELAY_MIN"
+                :max="DELAY_MAX"
+                :step="1"
+                showButtons
+                buttonLayout="horizontal"
+                suffix=" s"
+                :inputStyle="{ width: '4rem', textAlign: 'right' }"
+              />
+            </label>
+            <p class="muted delay-hint">{{ t("whatsapp.compose.delayHint") }}</p>
+          </div>
+
+          <div v-if="sending || finished" class="send-progress">
+            <ProgressBar :value="progress" />
+            <p class="progress-line">
+              {{ sentCount }} {{ t("whatsapp.compose.sent") }},
+              {{ failedCount }} {{ t("whatsapp.compose.failed") }}
+              <span v-if="!finished">
+                ({{ t("whatsapp.compose.of", { total: validRows.length }) }})
+              </span>
+            </p>
+          </div>
+
+          <p v-if="sending" class="closing-warning">
+            ⚠️ {{ t("whatsapp.compose.dontCloseWarning") }}
+          </p>
+
+          <div class="send-controls">
+            <Button
+              v-if="!sending && !finished"
+              :label="t('whatsapp.compose.sendButton', { count: validRows.length })"
+              :disabled="sendDisabled"
+              @click="openConfirm"
+            />
+            <template v-if="sending">
+              <Button
+                v-if="!paused"
+                :label="t('whatsapp.compose.pause')"
+                severity="secondary"
+                @click="paused = true"
+              />
+              <Button
+                v-else
+                :label="t('whatsapp.compose.resume')"
+                @click="paused = false"
+              />
+              <Button
+                :label="t('whatsapp.compose.cancel')"
+                severity="danger"
+                text
+                @click="cancelSend"
+              />
+            </template>
+          </div>
+
+          <div v-if="Object.keys(sendResults).length" class="send-table-wrap">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{{ t("whatsapp.recipients.status") }}</th>
+                  <th v-for="h in parsed.headers" :key="h">{{ h }}</th>
+                  <th>{{ t("whatsapp.compose.sendStatus") }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(row, idx) in validRows"
+                  :key="row.line"
+                  :class="{
+                    'send-current': currentLine === row.line,
+                    'send-failed': sendResults[row.line]?.status === 'failed',
+                    'send-sent': sendResults[row.line]?.status === 'sent',
+                  }"
+                >
+                  <td>{{ idx + 1 }}</td>
+                  <td><span class="ok">✓</span></td>
+                  <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
+                  <td>
+                    <span v-if="sendResults[row.line]?.status === 'sent'" class="ok">
+                      ✓ {{ t("whatsapp.compose.sent") }}
+                    </span>
+                    <span v-else-if="sendResults[row.line]?.status === 'failed'" class="bad">
+                      ✗ {{ sendResults[row.line]?.error || t("whatsapp.compose.failed") }}
+                    </span>
+                    <span v-else-if="sendResults[row.line]?.status === 'sending'" class="sending-cell">
+                      …
+                    </span>
+                    <span v-else class="muted">-</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="finished" class="download-row">
+            <Button
+              :label="t('whatsapp.compose.download')"
+              severity="secondary"
+              @click="downloadResults"
+            />
+          </div>
         </template>
-        <Button
-          v-if="finished"
-          :label="t('whatsapp.compose.download')"
-          severity="secondary"
-          @click="downloadResults"
-        />
-      </div>
 
-      <!-- Per-row send status (shown once at least one row has fired). -->
-      <div v-if="Object.keys(sendResults).length" class="send-table-wrap">
-        <table class="preview-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>{{ t("whatsapp.recipients.status") }}</th>
-              <th v-for="h in parsed.headers" :key="h">{{ h }}</th>
-              <th>{{ t("whatsapp.compose.sendStatus") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(row, idx) in validRows"
-              :key="row.line"
-              :class="{
-                'send-current': currentLine === row.line,
-                'send-failed': sendResults[row.line]?.status === 'failed',
-                'send-sent': sendResults[row.line]?.status === 'sent',
-              }"
-            >
-              <td>{{ idx + 1 }}</td>
-              <td><span class="ok">✓</span></td>
-              <td v-for="h in parsed.headers" :key="h">{{ row.fields[h] }}</td>
-              <td>
-                <span v-if="sendResults[row.line]?.status === 'sent'" class="ok">
-                  ✓ {{ t("whatsapp.compose.sent") }}
-                </span>
-                <span v-else-if="sendResults[row.line]?.status === 'failed'" class="bad">
-                  ✗ {{ sendResults[row.line]?.error || t("whatsapp.compose.failed") }}
-                </span>
-                <span v-else-if="sendResults[row.line]?.status === 'sending'" class="sending-cell">
-                  …
-                </span>
-                <span v-else class="muted">-</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="card-footer">
+          <Button
+            :label="t('whatsapp.connected.disconnect')"
+            severity="secondary"
+            text
+            @click="wa.disconnect"
+          />
+        </div>
+      </template>
     </AppCard>
+
+    <Dialog
+      v-model:visible="confirmOpen"
+      modal
+      :header="t('whatsapp.compose.confirmHeader')"
+      :style="{ width: '420px' }"
+      :closable="true"
+    >
+      <p class="confirm-lead">
+        {{ t("whatsapp.compose.confirmLead", { count: validRows.length }) }}
+      </p>
+      <div class="preview-bubble confirm-bubble">
+        <span v-if="!previewMerged" class="preview-empty">
+          {{ t("whatsapp.compose.previewEmpty") }}
+        </span>
+        <span v-else v-html="previewHtml" />
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          text
+          @click="confirmOpen = false"
+        />
+        <Button
+          :label="t('whatsapp.compose.confirmAccept', { count: validRows.length })"
+          @click="acceptConfirm"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -517,12 +580,42 @@ onBeforeUnmount(() => {
   max-width: 64rem;
 }
 
-/* ---- Section A: Connect ------------------------------------- */
+/* The whole flow lives in one card now (connect at top, then
+ * recipients, then compose). Breathing room comes from
+ * ``.section-h`` margins, not from card boundaries. */
+.wa-card :deep(.card) > * + * {
+  margin-top: 1rem;
+}
+.section-h {
+  margin-top: 2rem;
+}
 
+/* ---- Connect block ----------------------------------------- */
+
+.connect h2 {
+  margin-bottom: 0.75rem;
+}
 .instructions {
   margin: 0 0 1rem 1.25rem;
   padding: 0;
   line-height: 1.6;
+}
+.linked {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.linked-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  background: #e3f7e8;
+  color: #1b873f;
+  border: 1px solid #cfe8d4;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 .qr-wrap {
   display: flex;
@@ -561,22 +654,8 @@ onBeforeUnmount(() => {
   font-size: 0.875rem;
 }
 
-/* ---- Section B: Recipients ---------------------------------- */
+/* ---- Recipients block -------------------------------------- */
 
-.hint {
-  color: var(--brand-text-muted);
-  font-size: 0.875rem;
-  margin: 0;
-}
-.example {
-  background: var(--brand-bg);
-  border: 1px solid var(--brand-border);
-  border-radius: 0.25rem;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.85rem;
-  margin: 0;
-  white-space: pre-wrap;
-}
 .phone-config {
   display: flex;
   flex-wrap: wrap;
@@ -591,30 +670,58 @@ onBeforeUnmount(() => {
 .phone-col-input {
   max-width: 12rem;
 }
-.country-code-input {
-  max-width: 6rem;
+.country-select {
+  min-width: 8rem;
 }
-.subtle {
-  font-size: 0.85rem;
+.country-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.country-row .flag {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.country-row .country-name {
+  flex: 1;
+}
+.country-row .country-dial {
   color: var(--brand-text-muted);
-  margin: 0;
+  font-variant-numeric: tabular-nums;
 }
-.csv-input {
+.csv-label {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
+}
+.csv-label-text {
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 .csv-textarea {
   width: 100%;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.9rem;
 }
-.file-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--brand-text-muted);
+/* Lock the height so a big paste scrolls inside the box rather
+ * than pushing the rest of the page down. ``rows="8"`` controls
+ * the initial height; ``resize: vertical`` lets the user grow
+ * the box if they really want more visible lines. */
+.csv-textarea :deep(textarea) {
+  resize: vertical;
+  overflow: auto;
+}
+.download-row {
+  display: flex;
+  justify-content: flex-end;
+}
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--brand-border);
 }
 .fatal {
   color: var(--brand-red);
@@ -675,7 +782,7 @@ onBeforeUnmount(() => {
   color: var(--brand-red);
 }
 
-/* ---- Section C: Compose & send ------------------------------ */
+/* ---- Compose block ----------------------------------------- */
 
 .compose-grid {
   display: grid;
@@ -698,19 +805,17 @@ onBeforeUnmount(() => {
 }
 .compose-toolbar {
   display: flex;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
   margin: -0.25rem 0 0.25rem;
-}
-.formatting-help {
   font-size: 0.85rem;
   color: var(--brand-text-muted);
 }
-.formatting-help ul {
-  margin: 0.5rem 0 0 1rem;
-  padding: 0;
-}
-.formatting-help li {
-  margin-bottom: 0.2rem;
+.fmt code {
+  background: var(--brand-bg);
+  padding: 0 0.15rem;
+  border-radius: 0.2rem;
 }
 .preview-meta {
   font-size: 0.85rem;
@@ -736,6 +841,13 @@ onBeforeUnmount(() => {
   color: var(--brand-text-muted);
   font-style: italic;
 }
+.confirm-lead {
+  margin: 0 0 0.75rem;
+}
+.confirm-bubble {
+  max-height: 18rem;
+  overflow-y: auto;
+}
 .progress-line {
   margin: 0.5rem 0 0;
   font-size: 0.9rem;
@@ -745,6 +857,32 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+.delay-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+.delay-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.delay-hint {
+  font-size: 0.85rem;
+  margin: 0;
+  flex-basis: 100%;
+}
+.closing-warning {
+  background: #fff7e6;
+  border: 1px solid #f5d8a0;
+  color: #7a4a00;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+  font-size: 0.9rem;
 }
 .send-current {
   background: var(--brand-bg);

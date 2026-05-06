@@ -103,7 +103,11 @@ export function useWhatsApp() {
   }
 
   async function disconnect(): Promise<void> {
-    stopPolling();
+    // Tear down the Evolution session and reset visible state.
+    // Don't stop polling: the user may want to re-link without
+    // refreshing the page, and polling is what fetches the next
+    // QR. The component's ``onBeforeUnmount`` handles timer
+    // cleanup when the page actually goes away.
     try {
       await post("/api/v1/whatsapp/logout", {});
     } catch {
