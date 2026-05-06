@@ -34,7 +34,12 @@ interface QrBody {
 }
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
-const QR_REFRESH_INTERVAL_MS = 20_000;
+// Evolution rotates the QR roughly every 20s, mirroring WhatsApp's
+// own pairing-token lifetime. Poll well below that so the image
+// on screen is never more than ~5s behind the live token; if we
+// poll at the rotation cadence the user often ends up scanning a
+// just-expired QR and gets WhatsApp's "Couldn't link device".
+const QR_REFRESH_INTERVAL_MS = 5_000;
 
 export function useWhatsApp() {
   const state = ref<WaState>("unknown");
