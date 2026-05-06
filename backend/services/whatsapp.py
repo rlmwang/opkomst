@@ -124,8 +124,22 @@ async def ensure_instance() -> None:
 
 
 async def status() -> ConnectionState:
+    """Connection state of the linked WhatsApp session.
+
+    Degrades gracefully when Evolution is unreachable: a network
+    error returns ``"unknown"`` rather than propagating, so the
+    page-load path (``/auth/me`` indirectly calls this via
+    ``auth.fetchMe``) never 500s on a misconfigured deploy. The
+    frontend already treats anything other than ``"open"`` as
+    "no session" and hides the tab, so this is the right
+    default.
+    """
     _, _, instance = _require_config()
-    res = await _request("GET", f"/instance/connectionState/{instance}")
+    try:
+        res = await _request("GET", f"/instance/connectionState/{instance}")
+    except httpx.RequestError:
+        logger.warning("whatsapp.status", outcome="unreachable")
+        return "unknown"
     if res.status_code == 404:
         return "close"
     if res.status_code != 200:

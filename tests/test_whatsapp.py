@@ -129,6 +129,24 @@ def test_status_when_configured(client, admin_headers, monkeypatch) -> None:
 
 
 @respx.mock
+def test_status_returns_unknown_when_evolution_unreachable(
+    client, admin_headers, monkeypatch
+) -> None:
+    """If the Evolution host can't be reached (DNS failure,
+    container down, wrong network), ``/status`` must return 200
+    with ``state=unknown`` rather than 500. ``fetchMe`` calls
+    this on every page load; a 500 here would spam Sentry on
+    every nav and pollute the access log."""
+    _configure(monkeypatch)
+    respx.get("http://evo.test/instance/connectionState/test-instance").mock(
+        side_effect=httpx.ConnectError("Temporary failure in name resolution")
+    )
+    r = client.get("/api/v1/whatsapp/status", headers=admin_headers)
+    assert r.status_code == 200
+    assert r.json() == {"state": "unknown"}
+
+
+@respx.mock
 def test_send_forwards_to_evolution(client, admin_headers, monkeypatch) -> None:
     _configure(monkeypatch)
     route = respx.post("http://evo.test/message/sendText/test-instance").mock(
