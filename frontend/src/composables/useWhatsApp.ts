@@ -33,7 +33,14 @@ interface QrBody {
   pairingCode: string | null;
 }
 
-const HEARTBEAT_INTERVAL_MS = 15_000;
+// 5s, not 15s: the backend watchdog is per-uvicorn-worker
+// in-memory state and the load balancer round-robins across N
+// workers, so each worker only sees one heartbeat every
+// ``HEARTBEAT_INTERVAL_MS * N``. Faster ticks here keep every
+// worker's ``_last_seen`` fresh enough that the watchdog never
+// trips a healthy session. Cheap on the server (no DB, no
+// external HTTP if the watchdog is fresh).
+const HEARTBEAT_INTERVAL_MS = 5_000;
 // Evolution rotates the QR roughly every 20s, mirroring WhatsApp's
 // own pairing-token lifetime. Poll well below that so the image
 // on screen is never more than ~5s behind the live token; if we

@@ -37,11 +37,26 @@ from backend.config import settings
 
 logger = structlog.get_logger()
 
-# Watchdog grace: the page heartbeats every 15s. If we haven't
+# Watchdog grace: the page heartbeats every 5s. If we haven't
 # heard from it for this long while the WhatsApp session is
-# linked, tear the session down. 60s gives one missed heartbeat
-# of slack before action.
-_WATCHDOG_GRACE = _dt.timedelta(seconds=60)
+# linked, tear the session down.
+#
+# Why 3 minutes and not the obvious 15-30s: ``_last_seen`` is
+# per-worker in-memory state, but uvicorn runs ``WEB_CONCURRENCY``
+# workers (4 in prod) and the load balancer round-robins across
+# them. A given worker only sees roughly every Nth heartbeat, so
+# its ``_last_seen`` lags the actual page-alive signal by up to
+# ``5s * WEB_CONCURRENCY`` even when the user is actively typing.
+# A short grace would race that lag and tear down a healthy
+# session. Three minutes is comfortably above the worst plausible
+# spread; the trade-off is that a closed browser without a
+# functioning ``sendBeacon`` (Safari intermittent, Firefox
+# permission edge cases) leaves Evolution linked for up to that
+# long. Acceptable: the explicit Disconnect button and
+# ``onBeforeUnmount`` cover the expected paths, and the page's
+# app-logout flow tears the instance down too. The watchdog is
+# the last resort, not the primary mechanism.
+_WATCHDOG_GRACE = _dt.timedelta(seconds=180)
 
 # Module-level. Single-process, in-memory. A fresh worker means a
 # missed beat is a tear-down, which is the conservative direction.

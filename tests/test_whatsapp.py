@@ -187,9 +187,11 @@ def test_watchdog_tears_down_when_stale(client, admin_headers, monkeypatch) -> N
     """``_last_seen`` older than the grace window + Evolution
     reporting ``open`` ⇒ next request triggers logout + delete."""
     _configure(monkeypatch)
-    # Pretend the page last heartbeated two minutes ago.
+    # Pretend the page last heartbeated four minutes ago. Has to
+    # be longer than ``_WATCHDOG_GRACE`` (180s in prod) so the
+    # tear-down branch fires.
     monkeypatch.setattr(
-        wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(seconds=120)
+        wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(seconds=240)
     )
     respx.get("http://evo.test/instance/connectionState/test-instance").mock(
         return_value=httpx.Response(200, json={"instance": {"state": "open"}})
