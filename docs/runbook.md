@@ -366,6 +366,16 @@ curl -s -X DELETE -H "apikey: $EVOLUTION_API_KEY" \
 The QR rotates every ~20 s. The page auto-refreshes; if it
 seems frozen, hard-refresh the browser tab.
 
+If ``/instance/connect`` keeps returning ``{"count":0}`` and
+the Evolution log shows ``Browser: ... / Baileys version env:
+...`` looping every few seconds with no QR-update events, the
+Baileys library shipped with that Evolution version is broken
+against the current WhatsApp protocol. Symptom on the page is a
+permanently-empty QR placeholder. Fix is to upgrade the image.
+``deploy.md`` § 13a pins ``evoapicloud/evolution-api:v2.3.7``;
+older tags (especially anything from the abandoned ``atendai``
+namespace, last touched Feb 2025) hit this exact failure.
+
 ## "WhatsApp linked but messages stop arriving mid-blast"
 
 Most likely the linked phone went offline (WhatsApp linked

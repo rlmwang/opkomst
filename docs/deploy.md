@@ -435,7 +435,15 @@ want for secrets.
 ```yaml
 services:
   evolution-api:
-    image: atendai/evolution-api:latest
+    # Pinned to v2.3.7 from the maintained ``evoapicloud`` fork.
+    # The original ``atendai/evolution-api`` namespace went stale
+    # in early 2025, and ``v2.2.3`` ships a Baileys version that
+    # WhatsApp's protocol has since broken: instances stay in
+    # ``connecting`` forever and never emit a QR. ``evoapicloud``
+    # is the project's live home; pin to a tagged release rather
+    # than ``:latest`` so the next maintainer doesn't get
+    # surprised by a Baileys regression on a routine redeploy.
+    image: evoapicloud/evolution-api:v2.3.7
     restart: unless-stopped
     environment:
       - SERVER_URL=http://evolution-api:8080
