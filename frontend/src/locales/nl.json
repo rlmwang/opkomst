@@ -39,6 +39,7 @@
     },
     "connected": {
       "linked": "WhatsApp gekoppeld",
+      "reconnecting": "verbinden…",
       "disconnect": "Loskoppelen"
     },
     "recipients": {
@@ -48,6 +49,8 @@
       "countryCodeLabel": "Landcode",
       "validCount": "geldig",
       "invalidCount": "ongeldig",
+      "alreadySent": "al verstuurd",
+      "clear": "Lijst wissen",
       "availableTags": "Beschikbare variabelen:",
       "status": "Status",
       "errors": {

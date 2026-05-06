@@ -39,6 +39,7 @@
     },
     "connected": {
       "linked": "WhatsApp linked",
+      "reconnecting": "reconnecting…",
       "disconnect": "Disconnect"
     },
     "recipients": {
@@ -48,6 +49,8 @@
       "countryCodeLabel": "Default country code",
       "validCount": "valid",
       "invalidCount": "invalid",
+      "alreadySent": "already sent",
+      "clear": "Clear and start over",
       "availableTags": "Merge tags:",
       "status": "Status",
       "errors": {

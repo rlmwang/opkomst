@@ -69,7 +69,7 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function logout(): Promise<void> {
-    // Best-effort server hook — wipes any linked WhatsApp blast
+    // Best-effort server hook. Wipes any linked WhatsApp blast
     // session before we drop the JWT. Failures here must not
     // block sign-out (the user clicked Logout, the local state
     // gets cleared regardless).
@@ -81,6 +81,15 @@ export const useAuthStore = defineStore("auth", () => {
     clearToken();
     user.value = null;
     whatsappAvailable.value = false;
+    // Drop any draft / recipient list the WhatsApp blast tool
+    // had stashed in sessionStorage. Same privacy posture as
+    // the rest of the project: nothing of the previous session
+    // leaks into the next one.
+    try {
+      sessionStorage.removeItem("opkomst.whatsapp.draft");
+    } catch {
+      // ignore
+    }
   }
 
   return {

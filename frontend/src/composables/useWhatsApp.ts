@@ -14,7 +14,7 @@
  * other than ``open``. Evolution rotates the QR every ~20s, so
  * the page refreshes it on the same cadence.
  */
-import { onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { get, post } from "@/api/client";
 
 export type WaState =
@@ -48,8 +48,36 @@ const HEARTBEAT_INTERVAL_MS = 5_000;
 // just-expired QR and gets WhatsApp's "Couldn't link device".
 const QR_REFRESH_INTERVAL_MS = 5_000;
 
+// WhatsApp's protocol terminates linked-device sessions
+// occasionally (``stream:error code: 515``); Baileys typically
+// reconnects within a few seconds. Don't yank the user back to
+// the QR view on every momentary blip; only count the link as
+// "really gone" once a non-``open`` state has persisted for
+// this many seconds. Tuned to ride out a typical Baileys
+// reconnection without surprising the user mid-typing.
+const STATE_FLAP_GRACE_MS = 30_000;
+
 export function useWhatsApp() {
   const state = ref<WaState>("unknown");
+  // Wall-clock millis of the last server-confirmed ``open`` state.
+  // Drives ``stableState``: a brief flap to "close" / "connecting"
+  // counts as still-linked until the flap exceeds ``STATE_FLAP_GRACE_MS``.
+  const lastOpenAt = ref<number>(0);
+  // ``state`` is the raw signal; ``stableState`` is what the page
+  // should react to. They diverge only during a Baileys reconnect
+  // window, where ``state`` momentarily reports "close" but
+  // ``stableState`` keeps reporting "open" so the composer doesn't
+  // disappear while the user is mid-message.
+  const stableState = computed<WaState>(() => {
+    if (state.value === "open") return "open";
+    if (lastOpenAt.value > 0 && Date.now() - lastOpenAt.value < STATE_FLAP_GRACE_MS) {
+      return "open";
+    }
+    return state.value;
+  });
+  const reconnecting = computed(
+    () => state.value !== "open" && stableState.value === "open",
+  );
   const qr = ref<string | null>(null);
   const pairingCode = ref<string | null>(null);
   const lastError = ref<string | null>(null);
@@ -61,6 +89,7 @@ export function useWhatsApp() {
     try {
       const body = await post<StatusBody>("/api/v1/whatsapp/heartbeat", {});
       state.value = body.state;
+      if (body.state === "open") lastOpenAt.value = Date.now();
       lastError.value = null;
     } catch (e) {
       state.value = "unknown";
@@ -127,6 +156,7 @@ export function useWhatsApp() {
       // Best-effort. The watchdog is the safety net.
     }
     state.value = "close";
+    lastOpenAt.value = 0;
     qr.value = null;
     pairingCode.value = null;
   }
@@ -150,6 +180,8 @@ export function useWhatsApp() {
 
   return {
     state,
+    stableState,
+    reconnecting,
     qr,
     pairingCode,
     lastError,

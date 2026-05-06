@@ -21,7 +21,7 @@ import InputText from "primevue/inputtext";
 import ProgressBar from "primevue/progressbar";
 import Select from "primevue/select";
 import Textarea from "primevue/textarea";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
@@ -35,15 +35,62 @@ import { whatsappFormat } from "@/lib/whatsappFormat";
 const { t } = useI18n();
 const wa = useWhatsApp();
 
-// Section B state. Kept in the page (not the composable) since
-// it's purely client-side and doesn't outlive the page mount.
-const csvText = ref("");
-const phoneColumn = ref("nummer");
+// ---- sessionStorage persistence -----------------------------------
+//
+// State is restored on mount and persisted on change so a long
+// disconnect (Baileys' ``stream:error 515`` that requires a
+// re-scan, an accidental tab refresh, etc.) doesn't lose the
+// CSV / draft / per-row send progress. Scope is per-tab:
+// ``sessionStorage`` evaporates when the tab closes, matching
+// the project's "forget when the user leaves" contract — nothing
+// here ever ends up in ``localStorage`` or anywhere shared
+// between tabs.
+//
+// Cleared explicitly by the Disconnect button and the app-logout
+// flow so a returning user doesn't inherit a previous session's
+// recipient list.
+const STORAGE_KEY = "opkomst.whatsapp.draft";
+interface PersistedState {
+  csvText: string;
+  phoneColumn: string;
+  countryIso: string;
+  delaySeconds: number;
+  template: string;
+  sendResults: Record<string, SendOutcome>;
+}
+type SendOutcome = { status: "queued" | "sending" | "sent" | "failed"; error?: string };
+
+function readPersisted(): Partial<PersistedState> {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Partial<PersistedState>;
+  } catch {
+    return {};
+  }
+}
+
+function clearPersisted(): void {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore quota / private-mode errors */
+  }
+}
+
+// Section B state. Hydrated from ``sessionStorage`` so an
+// accidental refresh or a Baileys 515 that forces a full
+// re-scan doesn't lose the recipient list.
+const persisted = readPersisted();
+const csvText = ref(persisted.csvText ?? "");
+const phoneColumn = ref(persisted.phoneColumn ?? "nummer");
 // Default country code applied to bare national numbers in the
 // CSV (e.g. ``0612345678`` becomes ``31612345678``). Defaults to
 // NL since that's the overwhelmingly common case for this app;
 // the dropdown lets the user pick a different one.
-const country = ref<Country>(COUNTRIES.find((c) => c.iso === "NL") ?? COUNTRIES[0]);
+const country = ref<Country>(
+  COUNTRIES.find((c) => c.iso === (persisted.countryIso ?? "NL")) ?? COUNTRIES[0],
+);
 const countryCode = computed(() => country.value.dialCode);
 const parsed = computed(() =>
   parseCsv(csvText.value, phoneColumn.value, countryCode.value),
@@ -55,7 +102,7 @@ const tags = computed(() => mergeTags(parsed.value.headers, phoneColumn.value));
 // loop below walks ``validRows`` and writes results into
 // ``sendResults`` so the parser's per-row state isn't disturbed
 // (rows can be re-validated mid-blast if the CSV is edited).
-const template = ref("");
+const template = ref(persisted.template ?? "");
 // Ref to the PrimeVue Textarea so the emoji picker can insert at
 // the cursor position. PrimeVue exposes the underlying DOM
 // element on ``$el``.
@@ -64,8 +111,21 @@ const sending = ref(false);
 const paused = ref(false);
 const cancelled = ref(false);
 const currentLine = ref<number | null>(null);
-type SendOutcome = { status: "queued" | "sending" | "sent" | "failed"; error?: string };
-const sendResults = ref<Record<number, SendOutcome>>({});
+// Per-row send outcomes. Keyed by the cleansed phone number so
+// resume-after-reconnect survives CSV reordering / row deletes /
+// re-pastes that change line numbers but not recipients.
+// Restored from sessionStorage but only rows already marked
+// ``"sent"`` survive: anything queued / sending / failed at the
+// moment of the crash gets retried on the next Send (failed
+// rows are usually transient WhatsApp errors and the user wants
+// another go).
+const sendResults = ref<Record<string, SendOutcome>>(
+  Object.fromEntries(
+    Object.entries(persisted.sendResults ?? {}).filter(
+      ([, v]) => (v as SendOutcome).status === "sent",
+    ),
+  ) as Record<string, SendOutcome>,
+);
 const sentCount = computed(
   () => Object.values(sendResults.value).filter((r) => r.status === "sent").length,
 );
@@ -88,7 +148,7 @@ const finished = computed(
 // session being unlinked. Cap at 60s to catch typos.
 const DELAY_MIN = 2;
 const DELAY_MAX = 60;
-const delaySeconds = ref(6);
+const delaySeconds = ref(persisted.delaySeconds ?? 6);
 
 const previewSourceRow = computed(() => validRows.value[0] ?? null);
 const previewMerged = computed(() =>
@@ -99,6 +159,52 @@ const previewHtml = computed(() => whatsappFormat(previewMerged.value));
 const sendDisabled = computed(
   () => sending.value || finished.value || validRows.value.length === 0 || template.value.trim() === "",
 );
+
+const hasPersistedProgress = computed(
+  () => csvText.value.trim() !== "" || Object.keys(sendResults.value).length > 0,
+);
+
+// Mirror to sessionStorage on every change. ``deep`` so the
+// sendResults object's nested writes get caught.
+watch(
+  [csvText, phoneColumn, country, delaySeconds, template, sendResults],
+  () => {
+    try {
+      const snapshot: PersistedState = {
+        csvText: csvText.value,
+        phoneColumn: phoneColumn.value,
+        countryIso: country.value.iso,
+        delaySeconds: delaySeconds.value,
+        template: template.value,
+        sendResults: sendResults.value,
+      };
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      /* private mode / quota: not fatal, the in-memory state
+       * still drives the UI */
+    }
+  },
+  { deep: true },
+);
+
+function clearAllProgress(): void {
+  csvText.value = "";
+  template.value = "";
+  sendResults.value = {};
+  cancelled.value = false;
+  paused.value = false;
+  currentLine.value = null;
+  clearPersisted();
+}
+
+/** Disconnect button. Tears down the linked WhatsApp session
+ * AND wipes the persisted draft, since the user is signalling
+ * "I'm done with this blast". The CSV/draft would otherwise
+ * outlive the link in sessionStorage. */
+async function onDisconnectClick(): Promise<void> {
+  clearAllProgress();
+  await wa.disconnect();
+}
 
 function insertEmoji(emoji: string): void {
   // Insert at the current selection; if the textarea has never
@@ -134,11 +240,32 @@ function nextDelayMs(): number {
   return base * (0.8 + Math.random() * 0.4);
 }
 
+/** Block until ``wa.state`` reports ``"open"`` again or the
+ * deadline / cancel flag fires. Used to ride out a Baileys
+ * stream:error 515 mid-blast without burning rows. Returns
+ * true if we re-linked, false if cancel/timeout. */
+async function awaitReconnect(timeoutMs = 60_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cancelled.value && wa.state.value !== "open" && Date.now() < deadline) {
+    await sleep(2_000);
+  }
+  return wa.state.value === "open" && !cancelled.value;
+}
+
 async function runSendLoop(): Promise<void> {
   sending.value = true;
   cancelled.value = false;
   paused.value = false;
-  sendResults.value = {};
+  // Don't wipe ``sendResults``. Rows already marked ``"sent"``
+  // (from a previous attempt that got reconnect-cancelled) are
+  // skipped in the loop body, so a re-link can resume from
+  // exactly where the blast left off. Anything that wasn't
+  // ``sent`` (queued/sending/failed) gets a fresh attempt.
+  for (const phone of Object.keys(sendResults.value)) {
+    if (sendResults.value[phone]?.status !== "sent") {
+      delete sendResults.value[phone];
+    }
+  }
 
   for (const row of validRows.value) {
     if (cancelled.value) break;
@@ -147,13 +274,45 @@ async function runSendLoop(): Promise<void> {
     }
     if (cancelled.value) break;
 
+    if (sendResults.value[row.phone]?.status === "sent") continue;
+
     currentLine.value = row.line;
-    sendResults.value[row.line] = { status: "sending" };
-    const text = applyMerge(template.value, row.fields);
-    const res = await wa.send(row.phone, text);
-    sendResults.value[row.line] = res.ok
-      ? { status: "sent" }
-      : { status: "failed", error: res.error };
+
+    // Per-row retry loop. WhatsApp regularly tears down
+    // linked-device sessions (``stream:error code: 515``) and
+    // Baileys reconnects within a few seconds. We don't want
+    // those moments to burn rows: wait for the reconnect, then
+    // try the same row again. Capped at 3 attempts so a
+    // permanently-broken session can't spin forever.
+    let done = false;
+    for (let attempt = 0; attempt < 3 && !done && !cancelled.value; attempt++) {
+      if (wa.state.value !== "open") {
+        sendResults.value[row.phone] = { status: "queued" };
+        if (!(await awaitReconnect())) break;
+      }
+      sendResults.value[row.phone] = { status: "sending" };
+      const text = applyMerge(template.value, row.fields);
+      const res = await wa.send(row.phone, text);
+      if (res.ok) {
+        sendResults.value[row.phone] = { status: "sent" };
+        done = true;
+      } else if (wa.state.value !== "open") {
+        // Connection dropped during the send; loop body retries.
+        continue;
+      } else {
+        // Connection is still up: this is a real per-recipient
+        // failure (number isn't on WhatsApp, etc.). Don't retry.
+        sendResults.value[row.phone] = { status: "failed", error: res.error };
+        done = true;
+      }
+    }
+    if (!done && !cancelled.value) {
+      sendResults.value[row.phone] = {
+        status: "failed",
+        error: "could not reconnect within 60s",
+      };
+    }
+
     // Pace between sends with random jitter to keep the spam-detection
     // heuristic at bay. Skip after the last send.
     if (row !== validRows.value[validRows.value.length - 1]) {
@@ -190,7 +349,7 @@ function downloadResults(): void {
   const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
   const lines = [cols.join(",")];
   for (const row of validRows.value) {
-    const result = sendResults.value[row.line];
+    const result = sendResults.value[row.phone];
     const cells = parsed.value.headers.map((h) => escape(row.fields[h] ?? ""));
     cells.push(escape(result?.status ?? ""));
     cells.push(escape(result?.error ?? ""));
@@ -250,7 +409,7 @@ onBeforeUnmount(() => {
     <AppCard class="wa-card">
       <!-- Connect: big QR while not linked, slim "linked" row otherwise. -->
       <div
-        v-if="wa.state.value !== 'open' && wa.state.value !== 'not_configured'"
+        v-if="wa.stableState.value !== 'open' && wa.stableState.value !== 'not_configured'"
         class="connect"
       >
         <h2>{{ t("whatsapp.connect.title") }}</h2>
@@ -278,20 +437,25 @@ onBeforeUnmount(() => {
         </p>
       </div>
 
-      <div v-if="wa.state.value === 'open'" class="linked">
-        <span class="linked-pill">✓ {{ t("whatsapp.connected.linked") }}</span>
+      <div v-if="wa.stableState.value === 'open'" class="linked">
+        <span class="linked-pill">
+          ✓ {{ t("whatsapp.connected.linked") }}
+          <span v-if="wa.reconnecting.value" class="reconnect-note">
+            ({{ t("whatsapp.connected.reconnecting") }})
+          </span>
+        </span>
         <Button
           :label="t('whatsapp.connected.disconnect')"
           severity="secondary"
           text
           class="disconnect-btn"
-          @click="wa.disconnect"
+          @click="onDisconnectClick"
         />
       </div>
 
       <!-- Recipients + composer flow once linked. No "Step 2 / Step 3"
            framing; the page is short enough to just read top-to-bottom. -->
-      <template v-if="wa.state.value === 'open'">
+      <template v-if="wa.stableState.value === 'open'">
         <h2 class="section-h">{{ t("whatsapp.recipients.title") }}</h2>
         <p class="muted">{{ t("whatsapp.recipients.hint") }}</p>
 
@@ -353,11 +517,23 @@ onBeforeUnmount(() => {
               <strong>{{ parsed.rows.length - validRows.length }}</strong>
               {{ t("whatsapp.recipients.invalidCount") }}
             </span>
+            <span v-if="sentCount > 0">
+              · <strong>{{ sentCount }}</strong>
+              {{ t("whatsapp.recipients.alreadySent") }}
+            </span>
           </p>
           <p v-if="tags.length" class="tags">
             {{ t("whatsapp.recipients.availableTags") }}
             <code v-for="tag in tags" :key="tag" class="tag">{{ "{" + tag + "}" }}</code>
           </p>
+          <Button
+            v-if="hasPersistedProgress && !sending"
+            :label="t('whatsapp.recipients.clear')"
+            severity="secondary"
+            size="small"
+            text
+            @click="clearAllProgress"
+          />
         </div>
 
         <div v-if="parsed.rows.length" class="preview-table-wrap">
@@ -503,8 +679,8 @@ onBeforeUnmount(() => {
                   :key="row.line"
                   :class="{
                     'send-current': currentLine === row.line,
-                    'send-failed': sendResults[row.line]?.status === 'failed',
-                    'send-sent': sendResults[row.line]?.status === 'sent',
+                    'send-failed': sendResults[row.phone]?.status === 'failed',
+                    'send-sent': sendResults[row.phone]?.status === 'sent',
                   }"
                 >
                   <td>{{ idx + 1 }}</td>
@@ -517,13 +693,13 @@ onBeforeUnmount(() => {
                     }}
                   </td>
                   <td>
-                    <span v-if="sendResults[row.line]?.status === 'sent'" class="ok">
+                    <span v-if="sendResults[row.phone]?.status === 'sent'" class="ok">
                       ✓ {{ t("whatsapp.compose.sent") }}
                     </span>
-                    <span v-else-if="sendResults[row.line]?.status === 'failed'" class="bad">
-                      ✗ {{ sendResults[row.line]?.error || t("whatsapp.compose.failed") }}
+                    <span v-else-if="sendResults[row.phone]?.status === 'failed'" class="bad">
+                      ✗ {{ sendResults[row.phone]?.error || t("whatsapp.compose.failed") }}
                     </span>
-                    <span v-else-if="sendResults[row.line]?.status === 'sending'" class="sending-cell">
+                    <span v-else-if="sendResults[row.phone]?.status === 'sending'" class="sending-cell">
                       …
                     </span>
                     <span v-else class="muted">-</span>
