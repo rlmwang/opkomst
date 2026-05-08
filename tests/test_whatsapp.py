@@ -45,6 +45,7 @@ def _configure(monkeypatch: pytest.MonkeyPatch) -> None:
     object.__setattr__(settings, "evolution_api_key", SecretStr("test-key"))
     object.__setattr__(settings, "evolution_instance", "test-instance")
     monkeypatch.setattr(wa, "_last_seen", None)
+    monkeypatch.setattr(wa, "_consecutive_send_failures", 0)
 
 
 def _unconfigure() -> None:
@@ -321,6 +322,70 @@ def test_send_text_raises_on_evolution_error(monkeypatch) -> None:
         asyncio.run(wa.send_text("31612345678", "hi"))
     assert excinfo.value.kind == "http"
     assert excinfo.value.status == 500
+
+
+@respx.mock
+def test_send_text_tears_down_zombie_session(monkeypatch) -> None:
+    """Three consecutive upstream failures means Evolution is in a
+    zombie state (``connectionState=open`` but every send fails).
+    The service should logout + delete the instance so the next
+    status flips to ``close`` and the page prompts a fresh QR."""
+    import asyncio
+
+    _configure(monkeypatch)
+    respx.post("http://evo.test/message/sendText/test-instance").mock(
+        return_value=httpx.Response(500, json={"error": "boom"})
+    )
+    logout_route = respx.post("http://evo.test/instance/logout/test-instance").mock(
+        return_value=httpx.Response(200)
+    )
+    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(
+        return_value=httpx.Response(200)
+    )
+
+    async def run() -> None:
+        for _ in range(3):
+            with pytest.raises(wa.WhatsAppUpstreamError):
+                await wa.send_text("31612345678", "hi")
+
+    asyncio.run(run())
+    assert logout_route.called
+    assert delete_route.called
+    assert wa._consecutive_send_failures == 0
+
+
+@respx.mock
+def test_send_text_resets_failure_counter_on_success(monkeypatch) -> None:
+    """A successful send resets the zombie counter, so two failures
+    followed by a success followed by two more failures must not
+    trigger teardown."""
+    import asyncio
+
+    _configure(monkeypatch)
+    responses = [
+        httpx.Response(500),
+        httpx.Response(500),
+        httpx.Response(200, json={"key": {"id": "ok"}}),
+        httpx.Response(500),
+        httpx.Response(500),
+    ]
+    respx.post("http://evo.test/message/sendText/test-instance").mock(
+        side_effect=responses
+    )
+    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(
+        return_value=httpx.Response(200)
+    )
+
+    async def run() -> None:
+        for i in range(5):
+            try:
+                await wa.send_text("31612345678", "hi")
+            except wa.WhatsAppUpstreamError:
+                if i == 2:  # noqa: PLR2004
+                    raise
+
+    asyncio.run(run())
+    assert not delete_route.called
 
 
 @respx.mock

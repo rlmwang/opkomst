@@ -69,6 +69,17 @@ _WATCHDOG_GRACE = _dt.timedelta(minutes=10)
 _last_seen: _dt.datetime | None = None
 _client: httpx.AsyncClient | None = None
 
+# Zombie-session detection. Baileys regularly ends up in a state
+# where Evolution's ``connectionState`` reports ``open`` but the
+# socket to WhatsApp is actually dead, so every ``sendText`` 5xx's.
+# A page refresh + re-link recovers it; we detect the same shape
+# server-side by counting consecutive upstream failures and tearing
+# the instance down once we've crossed the threshold. Three is
+# enough to ride out a one-off blip while still recovering before
+# a multi-recipient blast burns its whole list.
+_ZOMBIE_FAILURE_THRESHOLD = 3
+_consecutive_send_failures: int = 0
+
 
 ConnectionState = Literal["open", "connecting", "close", "unknown"]
 
@@ -239,8 +250,10 @@ async def send_text(number: str, text: str) -> dict[str, Any]:
     clean gateway status instead of leaking httpx exceptions into
     the middleware TaskGroup.
     """
+    global _consecutive_send_failures
     base, key, instance = _require_config()
     headers = {"apikey": key, "Content-Type": "application/json"}
+    err: WhatsAppUpstreamError | None = None
     try:
         res = await _get_client().post(
             f"{base}/message/sendText/{instance}",
@@ -249,14 +262,37 @@ async def send_text(number: str, text: str) -> dict[str, Any]:
             timeout=httpx.Timeout(45.0, connect=5.0),
         )
     except httpx.TimeoutException:
+        err = WhatsAppUpstreamError("timeout")
         logger.warning("whatsapp.send", outcome="timeout")
-        raise WhatsAppUpstreamError("timeout") from None
     except httpx.RequestError:
+        err = WhatsAppUpstreamError("network")
         logger.warning("whatsapp.send", outcome="network_error")
-        raise WhatsAppUpstreamError("network") from None
-    if res.status_code >= 400:
-        logger.warning("whatsapp.send", outcome="error", status=res.status_code)
-        raise WhatsAppUpstreamError("http", status=res.status_code)
+    else:
+        if res.status_code >= 400:
+            err = WhatsAppUpstreamError("http", status=res.status_code)
+            logger.warning("whatsapp.send", outcome="error", status=res.status_code)
+
+    if err is not None:
+        _consecutive_send_failures += 1
+        if _consecutive_send_failures >= _ZOMBIE_FAILURE_THRESHOLD:
+            # Evolution claims the session is open but every send is
+            # failing, classic zombie. Tear it down so the next
+            # status poll flips to ``close`` and the page prompts a
+            # fresh QR; the page's resume-after-reconnect logic
+            # picks up the unsent rows.
+            logger.warning(
+                "whatsapp.send",
+                outcome="zombie_teardown",
+                failures=_consecutive_send_failures,
+            )
+            _consecutive_send_failures = 0
+            try:
+                await delete_instance()
+            except Exception:
+                pass
+        raise err
+
+    _consecutive_send_failures = 0
     logger.info("whatsapp.send", outcome="ok")
     return res.json()
 
