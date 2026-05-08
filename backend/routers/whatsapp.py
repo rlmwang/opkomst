@@ -83,11 +83,22 @@ async def heartbeat(request: Request, _: User = Depends(require_admin)) -> Heart
 @limiter.limit("30/minute")
 async def send(request: Request, body: SendRequest, _: User = Depends(require_admin)) -> SendResponse:
     """Send one text message. Client paces the loop; this cap is a
-    backstop against a runaway send."""
+    backstop against a runaway send.
+
+    Upstream failures (Evolution 5xx, network drop, read timeout)
+    are mapped to a 502/504 with a short stable code. The frontend
+    treats the row as failed and continues; raw httpx exceptions
+    would otherwise surface as TaskGroup ExceptionGroups in logs.
+    """
     await _watchdog()
     if not wa.is_configured():
         raise HTTPException(status_code=503, detail="WhatsApp tool not configured")
-    await wa.send_text(body.number, body.text)
+    try:
+        await wa.send_text(body.number, body.text)
+    except wa.WhatsAppUpstreamError as e:
+        if e.kind == "timeout":
+            raise HTTPException(status_code=504, detail="upstream_timeout") from None
+        raise HTTPException(status_code=502, detail="upstream_error") from None
     return SendResponse(ok=True)
 
 

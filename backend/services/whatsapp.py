@@ -81,6 +81,19 @@ class WhatsAppNotConfigured(RuntimeError):
     """
 
 
+class WhatsAppUpstreamError(RuntimeError):
+    """Evolution returned a non-success response or the request timed out.
+
+    Carries a coarse ``kind`` so the router can pick a sensible
+    gateway status (502 vs 504) without inspecting httpx types.
+    """
+
+    def __init__(self, kind: Literal["timeout", "network", "http"], status: int | None = None) -> None:
+        super().__init__(kind)
+        self.kind = kind
+        self.status = status
+
+
 def is_configured() -> bool:
     return bool(settings.evolution_url and settings.evolution_api_key and settings.evolution_instance)
 
@@ -218,16 +231,32 @@ async def send_text(number: str, text: str) -> dict[str, Any]:
 
     Rate-limited at the route level. Caller paces the loop.
     Logs route + outcome only. never the number or text.
+
+    Bailey's session can stall sending for tens of seconds when the
+    upstream is under load, so this path uses a longer per-call
+    timeout than the shared client default. Upstream failures are
+    mapped to ``WhatsAppUpstreamError`` so the router can return a
+    clean gateway status instead of leaking httpx exceptions into
+    the middleware TaskGroup.
     """
-    _, _, instance = _require_config()
-    res = await _request(
-        "POST",
-        f"/message/sendText/{instance}",
-        json={"number": number, "text": text},
-    )
+    base, key, instance = _require_config()
+    headers = {"apikey": key, "Content-Type": "application/json"}
+    try:
+        res = await _get_client().post(
+            f"{base}/message/sendText/{instance}",
+            headers=headers,
+            json={"number": number, "text": text},
+            timeout=httpx.Timeout(45.0, connect=5.0),
+        )
+    except httpx.TimeoutException:
+        logger.warning("whatsapp.send", outcome="timeout")
+        raise WhatsAppUpstreamError("timeout") from None
+    except httpx.RequestError:
+        logger.warning("whatsapp.send", outcome="network_error")
+        raise WhatsAppUpstreamError("network") from None
     if res.status_code >= 400:
         logger.warning("whatsapp.send", outcome="error", status=res.status_code)
-        res.raise_for_status()
+        raise WhatsAppUpstreamError("http", status=res.status_code)
     logger.info("whatsapp.send", outcome="ok")
     return res.json()
 

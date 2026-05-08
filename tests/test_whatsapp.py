@@ -307,17 +307,35 @@ def test_logout_requires_auth(client) -> None:
 
 @respx.mock
 def test_send_text_raises_on_evolution_error(monkeypatch) -> None:
-    """``send_text`` propagates a 4xx/5xx from Evolution as an
-    HTTPStatusError so the route returns a 500. Without this, a
-    failed send would silently report ``ok``."""
+    """``send_text`` translates a 4xx/5xx from Evolution into a
+    domain-level ``WhatsAppUpstreamError`` so the router can map it
+    to a clean 502 instead of leaking httpx exceptions into the
+    middleware TaskGroup."""
     import asyncio
 
     _configure(monkeypatch)
     respx.post("http://evo.test/message/sendText/test-instance").mock(
         return_value=httpx.Response(500, json={"error": "boom"})
     )
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(wa.WhatsAppUpstreamError) as excinfo:
         asyncio.run(wa.send_text("31612345678", "hi"))
+    assert excinfo.value.kind == "http"
+    assert excinfo.value.status == 500
+
+
+@respx.mock
+def test_send_text_raises_on_timeout(monkeypatch) -> None:
+    """A read timeout from Evolution becomes a ``timeout``-kind
+    upstream error so the router can return 504."""
+    import asyncio
+
+    _configure(monkeypatch)
+    respx.post("http://evo.test/message/sendText/test-instance").mock(
+        side_effect=httpx.ReadTimeout("slow")
+    )
+    with pytest.raises(wa.WhatsAppUpstreamError) as excinfo:
+        asyncio.run(wa.send_text("31612345678", "hi"))
+    assert excinfo.value.kind == "timeout"
 
 
 @respx.mock

@@ -4079,7 +4079,7 @@
     },
     "/api/v1/whatsapp/send": {
       "post": {
-        "description": "Send one text message. Client paces the loop; this cap is a\nbackstop against a runaway send.",
+        "description": "Send one text message. Client paces the loop; this cap is a\nbackstop against a runaway send.\n\nUpstream failures (Evolution 5xx, network drop, read timeout)\nare mapped to a 502/504 with a short stable code. The frontend\ntreats the row as failed and continues; raw httpx exceptions\nwould otherwise surface as TaskGroup ExceptionGroups in logs.",
         "operationId": "send_api_v1_whatsapp_send_post",
         "parameters": [
           {

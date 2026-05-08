@@ -959,6 +959,11 @@ export interface paths {
          * Send
          * @description Send one text message. Client paces the loop; this cap is a
          *     backstop against a runaway send.
+         *
+         *     Upstream failures (Evolution 5xx, network drop, read timeout)
+         *     are mapped to a 502/504 with a short stable code. The frontend
+         *     treats the row as failed and continues; raw httpx exceptions
+         *     would otherwise surface as TaskGroup ExceptionGroups in logs.
          */
         post: operations["send_api_v1_whatsapp_send_post"];
         delete?: never;
