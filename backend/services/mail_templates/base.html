@@ -8,8 +8,14 @@
     .container { max-width: 600px; margin: 0 auto; padding: 32px 20px; }
     .card { background: #fbf7ee; border: 1px solid #e6dec9; border-radius: 12px; padding: 32px 28px; }
     .logo { font-size: 22px; font-weight: 700; color: #9f000b; text-align: center; margin-bottom: 24px; letter-spacing: 0.5px; }
+    .logo a { color: #9f000b; text-decoration: none; }
     .content { font-size: 15px; line-height: 1.55; color: #1a1a1a; }
     .content p { margin: 0 0 14px; }
+    /* Brand-red links everywhere by default. The CTA button below
+       sets ``color: #ffffff !important`` so it stays white text on
+       a red background; everything else (in-body links, the
+       disclaimer's source-code link, the footer) inherits red. */
+    .content a, .muted a, .footer a { color: #9f000b; text-decoration: underline; }
     .cta { display: block; width: fit-content; margin: 24px auto; padding: 12px 28px; background: #9f000b; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-size: 15px; font-weight: 600; text-align: center; }
     .footer { text-align: center; font-size: 12px; color: #5e5a52; margin-top: 20px; padding: 0 20px; }
     .muted { color: #5e5a52; font-size: 13px; }
@@ -24,7 +30,7 @@
 <body>
   <div class="container">
     <div class="card">
-      <div class="logo">{{ app_name }}</div>
+      <div class="logo">{% block logo %}{{ app_name }}{% endblock %}</div>
       <div class="content">
         {% block content %}{% endblock %}
         {% block disclaimer %}{% endblock %}
