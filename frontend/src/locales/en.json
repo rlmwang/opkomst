@@ -10,6 +10,9 @@
   },
   "header": {
     "events": "Events",
+    "forms": "Forms",
+    "admin": "Admin",
+    "active": "Active",
     "archive": "Archive",
     "users": "Users",
     "chapters": "Chapters",

@@ -10,6 +10,9 @@
   },
   "header": {
     "events": "Evenementen",
+    "forms": "Vragenlijsten",
+    "admin": "Admin",
+    "active": "Actief",
     "archive": "Archief",
     "users": "Gebruikers",
     "chapters": "Afdelingen",
