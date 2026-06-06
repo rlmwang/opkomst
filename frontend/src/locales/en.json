@@ -304,7 +304,7 @@
     "imageUploadFailed": "Upload failed",
     "imageRemoveFailed": "Remove failed",
     "imageArtistPlaceholder": "Artist's Instagram (optional)",
-    "imageArtistHelp": "E.g. ``rsp_amsterdam``. We show ‘Artwork by @handle’ on the sign-up page and in the emails, with a link to the profile.",
+    "imageArtistHelp": "E.g. ``rsp_amsterdam``. We show ‘Artwork by {'@'}handle’ on the sign-up page and in the emails, with a link to the profile.",
     "imageCredit": "Artwork by",
     "sourcesHeading": "How did you find us?",
     "sourcesExplainer": "These options will appear on the public sign-up form.",

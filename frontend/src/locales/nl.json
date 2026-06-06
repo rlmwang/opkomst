@@ -304,7 +304,7 @@
     "imageUploadFailed": "Uploaden mislukt",
     "imageRemoveFailed": "Verwijderen mislukt",
     "imageArtistPlaceholder": "Instagram van de maker (optioneel)",
-    "imageArtistHelp": "Bijv. ``rsp_amsterdam``. We tonen 'Beeld door @handle' op de aanmeldpagina en in de e-mails, met een link naar het profiel.",
+    "imageArtistHelp": "Bijv. ``rsp_amsterdam``. We tonen 'Beeld door {'@'}handle' op de aanmeldpagina en in de e-mails, met een link naar het profiel.",
     "imageCredit": "Beeld door",
     "sourcesHeading": "Hoe heb je ons gevonden?",
     "sourcesExplainer": "Deze opties verschijnen op het openbare aanmeldformulier.",
