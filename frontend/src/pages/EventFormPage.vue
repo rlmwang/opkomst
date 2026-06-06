@@ -8,6 +8,7 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { ApiError } from "@/api/client";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import EditableList from "@/components/EditableList.vue";
@@ -68,8 +69,8 @@ async function onImageSelected(ev: Event): Promise<void> {
     });
     imageUrl.value = updated.image_url;
     toasts.success(t("event.imageUploaded"));
-  } catch {
-    toasts.error(t("event.imageUploadFailed"));
+  } catch (err) {
+    toasts.error(`${t("event.imageUploadFailed")}: ${describeError(err)}`);
   } finally {
     imageUploading.value = false;
   }
@@ -81,11 +82,17 @@ async function removeImage(): Promise<void> {
   try {
     const updated = await deleteImageMutation.mutateAsync(props.eventId);
     imageUrl.value = updated.image_url;
-  } catch {
-    toasts.error(t("event.imageRemoveFailed"));
+  } catch (err) {
+    toasts.error(`${t("event.imageRemoveFailed")}: ${describeError(err)}`);
   } finally {
     imageUploading.value = false;
   }
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof ApiError) return `${err.status} ${err.message}`;
+  if (err instanceof Error && err.message) return err.message;
+  return "unknown";
 }
 
 const isEdit = computed(() => Boolean(props.eventId));
@@ -511,7 +518,6 @@ async function submit() {
 
       <section class="form-section">
         <h2 class="section-heading">{{ t("event.imageHeading") }}</h2>
-        <p class="muted section-explainer">{{ t("event.imageExplainer") }}</p>
         <!-- Hidden native picker — triggered by the Button below so
              we keep PrimeVue's visual language across the form. -->
         <input
@@ -560,7 +566,6 @@ async function submit() {
           :placeholder="t('event.imageArtistPlaceholder')"
           fluid
         />
-        <p class="muted toggle-help">{{ t("event.imageArtistHelp") }}</p>
       </section>
 
       <section class="form-section">
