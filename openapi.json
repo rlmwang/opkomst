@@ -3456,7 +3456,7 @@
         ]
       },
       "post": {
-        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/event_image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:3, resized to 1200x900, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/event_image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/event_image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/event_image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
         "operationId": "upload_event_image_api_v1_events__event_id__image_post",
         "parameters": [
           {

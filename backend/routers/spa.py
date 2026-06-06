@@ -97,8 +97,12 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     # (gives every share a real event-specific card); otherwise fall
     # back to the favicon so parsers still get *something*.
     og_image = event.image_url or _OG_IMAGE_URL
-    # Hero uploads are 4:3; favicon is square. Hint the card shape
-    # so previewers (WhatsApp especially) don't crop oddly.
+    # Hero uploads are 4:5 portrait; favicon is square. Modern
+    # previewers (WhatsApp, Telegram, Signal, Discord, iMessage)
+    # render the large-image card for portrait sources too; older
+    # Twitter clients crop wider than ideal but the alternative is
+    # the tiny ``summary`` thumbnail. Hint large-image for any
+    # uploaded hero.
     twitter_card_type = "summary_large_image" if event.image_url else "summary"
 
     et = html.escape(title, quote=True)

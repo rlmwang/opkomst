@@ -668,7 +668,7 @@ export interface paths {
          * Upload Event Image
          * @description Upload (or replace) the event's hero image. The bytes go
          *     through ``services/event_image.py`` — validated, EXIF-rotated,
-         *     cropped to 4:3, resized to 1200x900, JPEG-re-encoded — and
+         *     cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
          *     PUT to the configured GitHub repo. ``event.image_url`` is set
          *     to the resulting ``raw.githubusercontent.com`` URL.
          *

@@ -705,10 +705,10 @@ async function submit() {
 .section-explainer {
   margin: -0.25rem 0 0.25rem;
 }
-/* 4:3 hero-image preview on the form. ``max-width`` caps the
- * preview so it doesn't dominate the form on desktop — the
+/* 4:5 portrait hero-image preview on the form. ``max-width`` caps
+ * the preview so it doesn't dominate the form on desktop — the
  * public sign-up page uses the same value (see PublicEvent.vue);
- * the emails render the full 1200x900 inside the email card. */
+ * the emails render the full 1200x1500 inside the email card. */
 .image-preview {
   display: flex;
   flex-direction: column;
@@ -718,7 +718,7 @@ async function submit() {
 .image-preview img {
   display: block;
   max-width: 320px;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 4 / 5;
   width: 100%;
   height: auto;
   border-radius: 8px;

@@ -222,7 +222,7 @@ function askTriggerNow(channel: EmailChannel) {
           {{ event.name }}
           <span v-if="event.chapter_name" class="event-chapter-chip">{{ event.chapter_name }}</span>
         </h1>
-        <!-- Hero image + artist credit. Same 4:3 crop attendees
+        <!-- Hero image + artist credit. Same 4:5 crop attendees
              see; click the image to open the raw file (useful for
              "I need to forward this to someone"). Editing happens
              on the event form, not here. -->
@@ -460,7 +460,7 @@ function askTriggerNow(channel: EmailChannel) {
   /* Long names wrap mid-word rather than overflow. */
   overflow-wrap: anywhere;
 }
-/* 4:3 hero on the organiser's overview card. ``max-width: 320px``
+/* 4:5 hero on the organiser's overview card. ``max-width: 320px``
  * matches the form preview — a quick glance for the organiser,
  * not a hero spread. */
 .event-image-figure {

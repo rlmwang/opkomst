@@ -28,19 +28,19 @@ def _png_bytes(w: int, h: int, mode: str = "RGB", color: tuple[int, ...] = (200,
     return buf.getvalue()
 
 
-def test_process_upload_resizes_to_1200x900_jpeg() -> None:
+def test_process_upload_resizes_to_1200x1500_jpeg() -> None:
     data = _png_bytes(3000, 2000)  # 3:2 source
     out = event_image.process_upload(data)
     img = Image.open(io.BytesIO(out))
     assert img.format == "JPEG"
-    assert img.size == (1200, 900)
+    assert img.size == (1200, 1500)
 
 
-def test_process_upload_center_crops_to_4_3_aspect() -> None:
+def test_process_upload_center_crops_to_4_5_aspect() -> None:
     data = _png_bytes(1920, 1080)  # 16:9 source
     out = event_image.process_upload(data)
     img = Image.open(io.BytesIO(out))
-    assert img.size == (1200, 900)
+    assert img.size == (1200, 1500)
 
 
 def test_process_upload_flattens_alpha_onto_white() -> None:
@@ -48,8 +48,8 @@ def test_process_upload_flattens_alpha_onto_white() -> None:
     out = event_image.process_upload(data)
     img = Image.open(io.BytesIO(out))
     assert img.mode == "RGB"
-    assert img.size == (1200, 900)
-    assert img.getpixel((600, 450)) == (255, 255, 255)
+    assert img.size == (1200, 1500)
+    assert img.getpixel((600, 750)) == (255, 255, 255)
 
 
 def test_process_upload_rejects_too_large() -> None:
@@ -70,13 +70,13 @@ def test_process_upload_rejects_empty() -> None:
 
 def test_process_upload_upscales_small_source() -> None:
     """Small sources are upscaled rather than rejected — an organiser
-    with a sub-1200x900 flyer can still upload it. Output is always
-    1200x900 4:3 JPEG."""
+    with a sub-1200x1500 flyer can still upload it. Output is always
+    1200x1500 4:5 JPEG."""
     from PIL import Image
 
-    jpeg = event_image.process_upload(_png_bytes(800, 600))
+    jpeg = event_image.process_upload(_png_bytes(800, 1000))
     out = Image.open(io.BytesIO(jpeg))
-    assert (out.width, out.height) == (1200, 900)
+    assert (out.width, out.height) == (1200, 1500)
     assert out.format == "JPEG"
 
 

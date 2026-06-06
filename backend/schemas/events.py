@@ -107,7 +107,7 @@ class EventOut(BaseModel):
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
-    # Public URL of the event's hero image (4:3 JPEG hosted on
+    # Public URL of the event's hero image (4:5 JPEG hosted on
     # GitHub). Null if the organiser hasn't uploaded one. ``EventCreate``
     # has no parallel field — image uploads go through their own
     # endpoint (``POST /events/{id}/image``), separate from the

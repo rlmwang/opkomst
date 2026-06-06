@@ -35,7 +35,7 @@ class Event(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Public URL of the event's 4:3 hero image. Hosted in a GitHub
+    # Public URL of the event's 4:5 hero image. Hosted in a GitHub
     # repo (raw.githubusercontent.com/.../events/{id}/{ts}.jpg);
     # uploads go through ``services/event_image.py`` which crops,
     # resizes, and PUTs via the GitHub Contents API. Null = the

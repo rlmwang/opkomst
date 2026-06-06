@@ -1,10 +1,11 @@
 """Event-image upload pipeline.
 
 Two-stage flow: the organiser POSTs a file, ``process_upload``
-turns whatever they sent into a single canonical 4:3 JPEG, and
-``upload_to_github`` PUTs it to the configured GitHub repo via
-the Contents API. The returned ``raw.githubusercontent.com`` URL
-is what gets stored on ``Event.image_url`` — never the GitHub
+turns whatever they sent into a single canonical 4:5 JPEG (the
+Instagram-portrait ratio organisers' flyers are usually designed
+to), and ``upload_to_github`` PUTs it to the configured GitHub
+repo via the Contents API. The returned ``raw.githubusercontent.com``
+URL is what gets stored on ``Event.image_url`` — never the GitHub
 ``contents`` API URL, which would 404 anonymously and rate-limit
 on heavy load.
 
@@ -19,7 +20,7 @@ The image is rewritten end-to-end before upload:
 * EXIF rotation is applied and the EXIF block is dropped — phones
   routinely upload images "rotated" in EXIF only, which renders
   sideways in email clients that don't honour the tag.
-* Center-cropped to 4:3, then resized to 1200x900 — single
+* Center-cropped to 4:5, then resized to 1200x1500 — single
   source of truth for every consumer (public sign-up page caps
   display height; emails embed at 544px wide; OG cards inherit
   the original).
@@ -45,12 +46,14 @@ from ..config import settings
 
 logger = structlog.get_logger()
 
-# Output dimensions. 1200x900 covers retina rendering at 600x450
-# (twice the SPA card width + a bit) and gives email clients a
-# crisp 544x408 display when the template caps width to the
-# email card's inner content area.
+# Output dimensions. 4:5 portrait at 1200x1500 covers retina
+# rendering at 600x750 (twice the SPA card width) and gives email
+# clients a crisp 544x680 display when the template caps width to
+# the email card's inner content area. 4:5 matches Instagram's
+# portrait-post crop, which is what organisers' flyers are
+# usually laid out for.
 _OUT_W: Final[int] = 1200
-_OUT_H: Final[int] = 900
+_OUT_H: Final[int] = 1500
 
 # Maximum upload payload. Bigger than any phone photo, smaller
 # than anything that would OOM Pillow on the 1 GB container.
@@ -76,7 +79,7 @@ class GithubUploadError(RuntimeError):
 
 def process_upload(data: bytes) -> bytes:
     """Validate, normalise, and re-encode the upload to a
-    canonical 1200x900 sRGB JPEG. Raises ``ImageProcessingError``
+    canonical 1200x1500 4:5 sRGB JPEG. Raises ``ImageProcessingError``
     on anything that isn't a usable image; the resulting bytes
     are safe to ship straight to GitHub."""
     if len(data) > MAX_UPLOAD_BYTES:
@@ -104,9 +107,9 @@ def process_upload(data: bytes) -> bytes:
             background.paste(img)
         img = background
 
-    # Center-crop to 4:3 (no letterboxing), then resize to target.
-    # ``fit`` picks the largest 4:3 rectangle inside the source and
-    # resamples it to 1200x900 — upscaling if the source is smaller
+    # Center-crop to 4:5 (no letterboxing), then resize to target.
+    # ``fit`` picks the largest 4:5 rectangle inside the source and
+    # resamples it to 1200x1500 — upscaling if the source is smaller
     # on either axis. LANCZOS + JPEG q=85 hides upscale fuzz well
     # enough at hero-card size, and rejecting small images just
     # leaves the organiser staring at a 400 they can't act on.

@@ -305,9 +305,9 @@ watch(event, (e) => {
 
     <template v-else>
       <div class="card event-header">
-        <!-- 4:3 hero, capped at 200px tall so the form stays
-             above the fold on desktop. The image is null until
-             the organiser uploads one; mobile gets the
+        <!-- 4:5 portrait hero, capped at 400px tall so the form
+             stays roughly above the fold on desktop. The image is
+             null until the organiser uploads one; mobile gets the
              natural width-constrained render. -->
         <figure v-if="event?.image_url" class="event-image-figure">
           <img
@@ -678,9 +678,11 @@ watch(event, (e) => {
   flex-direction: column;
   gap: 1rem;
 }
-/* 4:3 hero, height-capped so the sign-up form stays above
- * the fold on desktop. The source is server-cropped to 4:3
- * (services/event_image.py) so no ``object-fit`` is needed. */
+/* 4:5 portrait hero. ``max-height`` keeps it tall enough to be
+ * readable on a phone (320px wide at 4:5) without pushing the
+ * sign-up form completely below the fold on desktop. The source
+ * is server-cropped to 4:5 (services/event_image.py) so no
+ * ``object-fit`` is needed. */
 .event-image-figure {
   margin: 0;
   display: flex;
@@ -689,7 +691,7 @@ watch(event, (e) => {
 }
 .event-image {
   display: block;
-  max-height: 200px;
+  max-height: 400px;
   width: auto;
   max-width: 100%;
   border-radius: 8px;
