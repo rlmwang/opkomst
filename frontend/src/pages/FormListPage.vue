@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -6,9 +7,11 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ListPageView from "@/components/ListPageView.vue";
+import { get } from "@/api/client";
+import { useFormClipboard } from "@/composables/useFormClipboard";
 import { type FormOut, formList, useArchiveForm, useFormList } from "@/composables/useForms";
 import { useConfirms } from "@/lib/confirms";
-import { publicFormUrl } from "@/lib/form-urls";
+import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
@@ -18,6 +21,8 @@ const toasts = useToasts();
 const confirms = useConfirms();
 const router = useRouter();
 const route = useRoute();
+const qc = useQueryClient();
+const { copyLink, copyQr } = useFormClipboard();
 
 // Chapter filter — same URL-param shape as Events so the filter
 // survives navigation between active and archived list pages.
@@ -57,13 +62,23 @@ const sortedForms = computed(() =>
   [...forms.value].sort((a, b) => b.created_at.localeCompare(a.created_at)),
 );
 
-async function copyLink(slug: string) {
-  try {
-    await navigator.clipboard.writeText(publicFormUrl(slug));
-    toasts.success(t("forms.list.linkCopied"));
-  } catch {
-    /* clipboard unavailable — user can copy the URL by hand */
-  }
+// Prefetch the details + summary queries when an organiser
+// hovers a row. Same pattern Dashboard uses for its event cards
+// — by the time the click resolves and FormDetailsPage mounts,
+// both queries are already in cache so the page paints without
+// a skeleton flash.
+const prefetched = new Set<string>();
+function prefetchDetails(formId: string) {
+  if (prefetched.has(formId)) return;
+  prefetched.add(formId);
+  void qc.prefetchQuery({
+    queryKey: ["forms", "single", formId],
+    queryFn: () => get(`/api/v1/forms/${formId}`),
+  });
+  void qc.prefetchQuery({
+    queryKey: ["forms", formId, "summary"],
+    queryFn: () => get(`/api/v1/forms/${formId}/summary`),
+  });
 }
 
 function askArchive(f: FormOut) {
@@ -139,37 +154,57 @@ function askArchive(f: FormOut) {
     </template>
 
     <template #row="{ item: f }">
-      <AppCard :stack="false" class="form-card">
-        <div class="form-summary">
-          <h3>
-            {{ f.name }}
-            <span v-if="f.chapter_name" class="event-chapter-chip">{{ f.chapter_name }}</span>
-          </h3>
-          <div class="link-row">
-            <a :href="publicFormUrl(f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(f.slug) }}</a>
+      <AppCard
+        :stack="false"
+        class="form-card"
+        @mouseenter="prefetchDetails(f.id)"
+        @focusin="prefetchDetails(f.id)"
+      >
+        <div class="form-main">
+          <div class="form-summary">
+            <h3>
+              {{ f.name }}
+              <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
+            </h3>
+            <div class="link-row">
+              <a :href="publicFormUrl(f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(f.slug) }}</a>
+              <Button
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                text
+                v-tooltip.top="t('forms.share.copyLink')"
+                :aria-label="t('forms.share.copyLink')"
+                @click="copyLink(f.slug)"
+              />
+            </div>
+          </div>
+
+          <div class="actions">
+            <router-link :to="`/forms/${f.id}/details`">
+              <Button :label="t('forms.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            </router-link>
             <Button
-              icon="pi pi-copy"
+              :label="t('forms.list.archive')"
+              icon="pi pi-archive"
               size="small"
               severity="secondary"
               text
-              :aria-label="t('forms.list.copyLink')"
-              @click="copyLink(f.slug)"
+              @click="askArchive(f)"
             />
           </div>
         </div>
 
-        <div class="form-actions">
-          <router-link :to="`/forms/${f.id}/details`">
-            <Button :label="t('forms.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-          </router-link>
-          <Button
-            :label="t('forms.list.archive')"
-            icon="pi pi-archive"
-            size="small"
-            severity="secondary"
-            text
-            @click="askArchive(f)"
-          />
+        <div class="form-side">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('forms.share.copyQr')"
+            :aria-label="t('forms.share.copyQr')"
+            @click="copyQr(f.slug)"
+          >
+            <img :src="formQrUrl(f.slug)" alt="" class="qr" />
+          </button>
         </div>
       </AppCard>
     </template>
@@ -177,15 +212,26 @@ function askArchive(f: FormOut) {
 </template>
 
 <style scoped>
+/* Mirrors ``DashboardPage``'s ``.event-card`` shape one-to-one:
+ * two-column grid with main content on the left and the QR
+ * thumbnail on the right. Forms don't have an attendee count to
+ * sit above the QR (no signups model), so the side column carries
+ * just the QR button. */
 .form-card {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 1.25rem;
-  align-items: center;
+  align-items: stretch;
 }
-.form-summary { min-width: 0; }
+.form-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+}
 .form-summary h3 { margin: 0 0 0.25rem; }
-.event-chapter-chip {
+.form-summary .link-row { margin-top: 0.25rem; }
+.chapter-chip {
   display: inline-flex;
   align-items: center;
   margin-left: 0.5rem;
@@ -210,13 +256,47 @@ function askArchive(f: FormOut) {
   white-space: nowrap;
   min-width: 0;
 }
-.form-actions {
+.actions {
   display: flex;
   gap: 0.5rem;
+  margin-top: auto;
 }
+
+.form-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.qr-button {
+  align-self: center;
+  line-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.qr-button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.qr {
+  width: 96px;
+  height: 96px;
+  background: white;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  padding: 4px;
+  display: block;
+}
+
 @media (max-width: 540px) {
   .form-card {
     grid-template-columns: 1fr;
+  }
+  .form-side {
+    justify-content: flex-end;
   }
 }
 </style>

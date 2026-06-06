@@ -164,9 +164,15 @@
       "archiveConfirmTitle": "Vragenlijst archiveren?",
       "archiveConfirmBody": "{name} neemt geen inzendingen meer aan. Je kunt 'm later herstellen.",
       "archived": "Vragenlijst gearchiveerd",
-      "archiveFail": "Archiveren mislukt",
+      "archiveFail": "Archiveren mislukt"
+    },
+    "share": {
       "copyLink": "Link kopiëren",
-      "linkCopied": "Link gekopieerd"
+      "linkCopied": "Link gekopieerd",
+      "copyQr": "QR kopiëren",
+      "qrCopied": "QR gekopieerd",
+      "qrDownloaded": "QR gedownload",
+      "qrCopyFail": "Kopiëren mislukt"
     },
     "archived": {
       "title": "Archief",
@@ -185,8 +191,6 @@
       "deleteFail": "Verwijderen mislukt"
     },
     "details": {
-      "copyLink": "Link kopiëren",
-      "linkCopied": "Link gekopieerd",
       "responsesTitle": "Inzendingen",
       "responses": "inzendingen",
       "noResponsesYet": "Nog geen inzendingen.",

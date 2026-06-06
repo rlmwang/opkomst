@@ -877,6 +877,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Form Qr
+         * @description QR SVG for one slug. Resolves the form first so a typo'd
+         *     slug 410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/forms/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
@@ -3461,6 +3482,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicFormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

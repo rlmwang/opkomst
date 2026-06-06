@@ -164,9 +164,15 @@
       "archiveConfirmTitle": "Archive form?",
       "archiveConfirmBody": "{name} will no longer accept submissions. You can restore it later.",
       "archived": "Form archived",
-      "archiveFail": "Archive failed",
+      "archiveFail": "Archive failed"
+    },
+    "share": {
       "copyLink": "Copy link",
-      "linkCopied": "Link copied"
+      "linkCopied": "Link copied",
+      "copyQr": "Copy QR",
+      "qrCopied": "QR copied",
+      "qrDownloaded": "QR downloaded",
+      "qrCopyFail": "Could not copy"
     },
     "archived": {
       "title": "Archived forms",
@@ -185,8 +191,6 @@
       "deleteFail": "Delete failed"
     },
     "details": {
-      "copyLink": "Copy link",
-      "linkCopied": "Link copied",
       "responsesTitle": "Responses",
       "responses": "responses",
       "noResponsesYet": "No responses yet.",

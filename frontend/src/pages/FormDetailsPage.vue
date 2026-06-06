@@ -5,19 +5,21 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import { ApiError } from "@/api/client";
+import { useFormClipboard } from "@/composables/useFormClipboard";
 import {
   fetchFormSubmissions,
   useForm,
   useFormSummary,
 } from "@/composables/useForms";
 import { filenameSlug } from "@/lib/filename-slug";
-import { publicFormUrl } from "@/lib/form-urls";
+import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 
 const props = defineProps<{ formId: string }>();
 
 const { t } = useI18n();
 const toasts = useToasts();
+const { copyLink, copyQr } = useFormClipboard();
 
 const formQuery = useForm(computed(() => props.formId));
 const form = computed(() => formQuery.data.value ?? null);
@@ -41,16 +43,6 @@ const otherError = computed(
 
 const summaryQuery = useFormSummary(computed(() => props.formId));
 const summary = computed(() => summaryQuery.data.value ?? null);
-
-async function copyLink() {
-  if (!form.value) return;
-  try {
-    await navigator.clipboard.writeText(publicFormUrl(form.value.slug));
-    toasts.success(t("forms.details.linkCopied"));
-  } catch {
-    /* clipboard unavailable */
-  }
-}
 
 // --- CSV export ---------------------------------------------------
 // One row per submission. Columns: submission id + submission
@@ -115,29 +107,46 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
     </AppCard>
 
     <template v-else-if="form">
+      <!-- Overview card mirrors ``EventDetailsPage``: title row,
+           body grid with text on the left (public URL + copy +
+           edit) and the QR thumbnail on the right (clickable to
+           copy the QR PNG to the clipboard). -->
       <AppCard :stack="false" class="overview">
         <h1>
           {{ form.name }}
           <span v-if="form.chapter_name" class="chip">{{ form.chapter_name }}</span>
         </h1>
-        <div class="link-row">
-          <a :href="publicFormUrl(form.slug)" target="_blank" rel="noopener">
-            {{ publicFormUrl(form.slug) }}
-          </a>
-          <Button
-            icon="pi pi-copy"
-            size="small"
-            severity="secondary"
-            text
-            v-tooltip.top="t('forms.details.copyLink')"
-            :aria-label="t('forms.details.copyLink')"
-            @click="copyLink"
-          />
-        </div>
-        <div>
-          <router-link :to="`/forms/${form.id}/edit`">
-            <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-          </router-link>
+        <div class="overview-body">
+          <div class="overview-text">
+            <div class="link-row">
+              <a :href="publicFormUrl(form.slug)" target="_blank" rel="noopener">
+                {{ publicFormUrl(form.slug) }}
+              </a>
+              <Button
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                text
+                v-tooltip.top="t('forms.share.copyLink')"
+                :aria-label="t('forms.share.copyLink')"
+                @click="copyLink(form.slug)"
+              />
+            </div>
+            <div>
+              <router-link :to="`/forms/${form.id}/edit`">
+                <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
+              </router-link>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('forms.share.copyQr')"
+            :aria-label="t('forms.share.copyQr')"
+            @click="copyQr(form.slug)"
+          >
+            <img :src="formQrUrl(form.slug)" alt="" class="qr" />
+          </button>
         </div>
       </AppCard>
 
@@ -224,6 +233,11 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
   margin-top: 0.5rem;
   color: var(--brand-red);
 }
+/* Mirrors ``EventDetailsPage``'s overview card: title row + a
+ * ``overview-body`` grid with ``1fr auto`` so the QR sits flush
+ * right and the text wraps to fill the left column. Below
+ * 480px the QR drops underneath the text (same breakpoint the
+ * event page uses). */
 .overview {
   display: flex;
   flex-direction: column;
@@ -246,6 +260,18 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
   vertical-align: middle;
   white-space: nowrap;
 }
+.overview-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: start;
+}
+.overview-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
 .link-row {
   display: flex;
   align-items: center;
@@ -257,6 +283,32 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.qr-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.qr-button:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.qr {
+  width: 96px;
+  height: 96px;
+  background: white;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  padding: 0.375rem;
+  display: block;
+}
+@media (max-width: 480px) {
+  .overview-body {
+    grid-template-columns: 1fr;
+  }
 }
 
 .summary-header {

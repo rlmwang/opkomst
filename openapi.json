@@ -4346,6 +4346,47 @@
         ]
       }
     },
+    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form Qr",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
     "/api/v1/forms/by-slug/{slug}/submit": {
       "post": {
         "description": "Accept one public submission. Validates each answer\nagainst its question's stored kind. Skipped optional\nquestions are simply absent from the stored rows; skipped\nrequired questions 400.\n\nReturns the random ``submission_id`` so the client can\nconfirm the submit landed. Nothing in the response links the\nsubmission back to the submitter \u2014 same privacy contract as\nthe post-event feedback flow.",

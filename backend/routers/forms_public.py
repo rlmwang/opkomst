@@ -1,6 +1,6 @@
 """Public-by-slug surfaces for one form.
 
-Two endpoints, both keyed by the public 8-char slug, both
+Three endpoints, all keyed by the public 8-char slug, all
 unauthenticated. Split out of the main forms router for the same
 reason ``events_public.py`` exists: zero shared auth + scope code
 with the chapter-scoped organiser CRUD, so keeping the two halves
@@ -11,17 +11,28 @@ together would invite a leaky-private mistake.
   limited; anyone with the slug may submit; per-kind validation
   applies; the response is the random ``submission_id`` only
   (no link back to the submitter).
+* ``GET /by-slug/{slug}/qr.svg`` — QR code that resolves to
+  ``PUBLIC_BASE_URL/f/{slug}``. Mirrors the events QR endpoint
+  one-to-one — same SVG-path rendering, same per-process LRU,
+  same 24h browser cache.
 
-Archived forms 410 on both — same shape the post-event feedback
-flow uses for an expired token.
+Archived forms 410 on the JSON + submit endpoints; QR is served
+for any live form (archived forms aren't displayed anywhere
+that surfaces the QR).
 """
 
+import io
 import secrets
+from functools import lru_cache
 
+import qrcode
+import qrcode.image.svg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..database import get_db
 from ..models import Form, FormQuestion, FormResponse
 from ..schemas.forms import (
@@ -31,6 +42,10 @@ from ..schemas.forms import (
     PublicFormOut,
 )
 from ..services.rate_limit import Limits, limiter
+
+# Public-facing base URL — validated at import time (HttpUrl),
+# never empty. Same constant ``events_public.py`` uses.
+PUBLIC_BASE_URL = str(settings.public_base_url).rstrip("/")
 
 logger = structlog.get_logger()
 
@@ -51,6 +66,32 @@ def _resolve_form(db: Session, slug: str) -> Form:
 
 def _form_questions(db: Session, form_id: str) -> list[FormQuestion]:
     return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
+
+
+@lru_cache(maxsize=256)
+def _render_qr(slug: str) -> bytes:
+    """Generate the QR SVG for one form slug. Same shape as the
+    events QR helper: SVG-path rendering is pure-Python (no PIL),
+    transparent background, per-process LRU caches repeat fetches."""
+    target = f"{PUBLIC_BASE_URL}/f/{slug}"
+    qr = qrcode.QRCode(box_size=10, border=2, image_factory=qrcode.image.svg.SvgPathImage)
+    qr.add_data(target)
+    qr.make(fit=True)
+    buf = io.BytesIO()
+    qr.make_image().save(buf)
+    return buf.getvalue()
+
+
+@router.get("/by-slug/{slug}/qr.svg")
+def get_form_qr(slug: str, db: Session = Depends(get_db)) -> Response:
+    """QR SVG for one slug. Resolves the form first so a typo'd
+    slug 410s rather than 200ing with a wrong-target QR."""
+    form = _resolve_form(db, slug)
+    return Response(
+        content=_render_qr(form.slug),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/by-slug/{slug}", response_model=PublicFormOut)
