@@ -32,12 +32,19 @@ from starlette.responses import Response
 # documented in CLAUDE.md.
 CSP = (
     "default-src 'self'; "
-    "img-src 'self' data: blob: https://*.tile.openstreetmap.org; "
+    # ``raw.githubusercontent.com`` is the event-image CDN; URLs
+    # written to ``event.image_url`` always point at that host.
+    "img-src 'self' data: blob: "
+    "https://*.tile.openstreetmap.org "
+    "https://raw.githubusercontent.com; "
     "style-src 'self' 'unsafe-inline'; "
     "script-src 'self'; "
+    # Sentry's regional ingest endpoint for browser-side error
+    # reporting. Matches ``VITE_SENTRY_DSN`` (de.sentry.io org).
     "connect-src 'self' "
     "https://api.pdok.nl "
-    "https://*.tile.openstreetmap.org; "
+    "https://*.tile.openstreetmap.org "
+    "https://*.ingest.de.sentry.io; "
     "font-src 'self' data:; "
     "frame-ancestors 'none'; "
     "form-action 'self'; "
