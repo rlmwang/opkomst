@@ -1014,71 +1014,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/member-survey/form": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Form
-         * @description Public: returns the static structure of the form. The
-         *     client owns all rendering; this endpoint exists so the set
-         *     of barrier keys stays a server-side constant the client
-         *     cannot drift from.
-         */
-        get: operations["get_form_api_v1_member_survey_form_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/member-survey/responses": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Submit Response */
-        post: operations["submit_response_api_v1_member_survey_responses_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/member-survey/results": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Results
-         * @description Admin-only aggregate of every response submitted so far.
-         *
-         *     Returns the raw response list too — the volume is small
-         *     (one questionnaire, occasional new-members days) and the
-         *     admin page renders both rating bars + the per-respondent
-         *     open-text answers from the same payload.
-         */
-        get: operations["get_results_api_v1_member_survey_results_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/whatsapp/heartbeat": {
         parameters: {
             query?: never;
@@ -1868,78 +1803,6 @@ export interface components {
             token: string;
         };
         /**
-         * MemberSurveyFormOut
-         * @description Public structure of the new-members survey form. The client
-         *     resolves all prompts and labels via i18n keyed off ``barriers``;
-         *     the server only enumerates which barrier identifiers are valid.
-         */
-        MemberSurveyFormOut: {
-            /** Barriers */
-            barriers: string[];
-        };
-        /**
-         * MemberSurveyResponseOut
-         * @description One response row as the admin results page consumes it.
-         */
-        MemberSurveyResponseOut: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** First Name */
-            first_name: string | null;
-            /** Id */
-            id: string;
-            /** Q1 Connected */
-            q1_connected: number;
-            /** Q2 Clarity */
-            q2_clarity: number;
-            /** Q3 Likelihood */
-            q3_likelihood: number;
-            /** Q4 Barriers */
-            q4_barriers: string[];
-            /** Q4 Other Text */
-            q4_other_text: string | null;
-            /** Q5 Helps */
-            q5_helps: string | null;
-            /** Q6 Anything Else */
-            q6_anything_else: string | null;
-        };
-        /** MemberSurveyResultsOut */
-        MemberSurveyResultsOut: {
-            /** Barrier Counts */
-            barrier_counts: {
-                [key: string]: number;
-            };
-            q1_connected: components["schemas"]["RatingBreakdown"];
-            q2_clarity: components["schemas"]["RatingBreakdown"];
-            q3_likelihood: components["schemas"]["RatingBreakdown"];
-            /** Response Count */
-            response_count: number;
-            /** Responses */
-            responses: components["schemas"]["MemberSurveyResponseOut"][];
-        };
-        /** MemberSurveySubmitIn */
-        MemberSurveySubmitIn: {
-            /** First Name */
-            first_name?: string | null;
-            /** Q1 Connected */
-            q1_connected: number;
-            /** Q2 Clarity */
-            q2_clarity: number;
-            /** Q3 Likelihood */
-            q3_likelihood: number;
-            /** Q4 Barriers */
-            q4_barriers?: string[];
-            /** Q4 Other Text */
-            q4_other_text?: string | null;
-            /** Q5 Helps */
-            q5_helps?: string | null;
-            /** Q6 Anything Else */
-            q6_anything_else?: string | null;
-        };
-        /**
          * PendingCountOut
          * @description Tiny DTO for the navbar's pending-approval indicator. Admin-
          *     only — surfacing this to organisers would just be noise.
@@ -1978,13 +1841,6 @@ export interface components {
             pairingCode?: string | null;
             /** Qr */
             qr?: string | null;
-        };
-        /** RatingBreakdown */
-        RatingBreakdown: {
-            /** Average */
-            average: number | null;
-            /** Distribution */
-            distribution: number[];
         };
         /**
          * RenameUserRequest
@@ -3873,92 +3729,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSummaryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_form_api_v1_member_survey_form_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemberSurveyFormOut"];
-                };
-            };
-        };
-    };
-    submit_response_api_v1_member_survey_responses_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MemberSurveySubmitIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_results_api_v1_member_survey_results_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemberSurveyResultsOut"];
                 };
             };
             /** @description Validation Error */

@@ -19,7 +19,6 @@ from .routers import feedback as feedback_router
 from .routers import forms as forms_router
 from .routers import forms_public as forms_public_router
 from .routers import health as health_router
-from .routers import member_survey as member_survey_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import whatsapp as whatsapp_router
@@ -116,7 +115,6 @@ app.include_router(feedback_router.router)
 # a form id and 404.
 app.include_router(forms_public_router.router)
 app.include_router(forms_router.router)
-app.include_router(member_survey_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
 

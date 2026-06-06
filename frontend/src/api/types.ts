@@ -66,13 +66,6 @@ export type FeedbackSummary = S["FeedbackSummaryOut"];
 export type FeedbackSubmission = S["FeedbackSubmissionOut"];
 export type EmailHealth = S["EmailHealthOut"];
 
-// --- Member survey (new-members feedback) ---
-export type MemberSurveyForm = S["MemberSurveyFormOut"];
-export type MemberSurveySubmit = S["MemberSurveySubmitIn"];
-export type MemberSurveyResults = S["MemberSurveyResultsOut"];
-export type MemberSurveyResponse = S["MemberSurveyResponseOut"];
-export type RatingBreakdown = S["RatingBreakdown"];
-
 // --- Channel-keyed maps. The generated schema types EmailHealth as
 // the per-channel struct; the FeedbackSummary-side keying lives in
 // ``email_health: {[k: string]: EmailHealth}`` which we narrow at

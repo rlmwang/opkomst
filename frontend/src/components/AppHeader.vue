@@ -57,14 +57,6 @@ const topTabs = computed<TopTab[]>(() => {
       isActive: (p) => p === "/users" || p === "/chapters",
     });
   }
-  if (auth.isAdmin) {
-    tabs.push({
-      key: "memberFeedback",
-      to: "/member-feedback",
-      label: t("header.memberFeedback"),
-      isActive: (p) => p === "/member-feedback",
-    });
-  }
   if (auth.isAdmin && auth.whatsappAvailable) {
     tabs.push({
       key: "whatsapp",

@@ -16,7 +16,6 @@
     "archive": "Archief",
     "users": "Gebruikers",
     "chapters": "Afdelingen",
-    "memberFeedback": "Feedback",
     "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen"
@@ -88,71 +87,6 @@
       "of": "van {total}",
       "sendStatus": "Verzending",
       "download": "Resultaten downloaden (.csv)"
-    }
-  },
-  "memberSurvey": {
-    "title": "Feedback Nieuwe Ledendag",
-    "intro": "Naar aanleiding van de nieuwe ledendag hebben we zes korte vragen.",
-    "namePlaceholder": "Voornaam",
-    "nameNote": "Optioneel. Laat leeg als je liever anoniem reageert.",
-    "submit": "Versturen",
-    "submitting": "Even geduld…",
-    "thanks": "Bedankt! Je antwoorden zijn binnen.",
-    "thanksBody": "We nemen ze mee in de planning voor de afdeling.",
-    "loadFail": "De vragenlijst kon niet geladen worden.",
-    "submitFail": "Versturen lukte niet. Probeer het zo opnieuw.",
-    "q1": {
-      "prompt": "Voel je je verbonden met de partij?",
-      "labelLow": "nauwelijks",
-      "labelHigh": "sterk"
-    },
-    "q2": {
-      "prompt": "Is het duidelijk in welke vorm je lid wilt zijn van de partij?",
-      "labelLow": "geen idee",
-      "labelHigh": "glashelder"
-    },
-    "q3": {
-      "prompt": "Is het waarschijnlijk dat je de komende maanden actief wordt of blijft?",
-      "labelLow": "onwaarschijnlijk",
-      "labelHigh": "zeker"
-    },
-    "q4": {
-      "prompt": "Wat weerhoudt je er momenteel van om meer actief te worden?",
-      "hint": "Meerdere antwoorden mogelijk.",
-      "otherLabel": "Anders, namelijk",
-      "otherPlaceholder": "Optioneel"
-    },
-    "q5": {
-      "prompt": "Wat zou je helpen om meer betrokken te raken?",
-      "placeholder": "Optioneel"
-    },
-    "q6": {
-      "prompt": "Wil je nog iets kwijt over de RSP?",
-      "placeholder": "Optioneel"
-    },
-    "barriers": {
-      "no_time": "Geen tijd",
-      "distance_or_cost": "Reisafstand of kosten",
-      "lacks_knowledge": "Kennis of ervaring",
-      "no_clear_step": "Geen concrete vervolgstap",
-      "knows_no_one": "Ken nog (bijna) niemand",
-      "nobody_asked": "Niemand heeft het me gevraagd",
-      "not_for_me": "Niets voor mij",
-      "doubts_impact": "Kan geen écht verschil maken"
-    },
-    "results": {
-      "title": "Feedback Nieuwe Ledendag",
-      "subtitle": "Resultaten van de feedbackvragenlijst voor nieuwe leden.",
-      "formLink": "Open de vragenlijst",
-      "formLinkHint": "Deel deze link met nieuwe leden zodat ze de vragenlijst kunnen invullen.",
-      "responseCount": "{n} reacties",
-      "noResponses": "Nog geen reacties.",
-      "barriersTitle": "Wat houdt mensen tegen?",
-      "responsesTitle": "Per inzending",
-      "anonymous": "anoniem",
-      "noBarriers": "Geen barrières aangevinkt.",
-      "noOpen": "—",
-      "submittedAt": "Ingediend op"
     }
   },
   "auth": {
