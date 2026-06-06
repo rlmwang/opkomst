@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import { ApiError } from "@/api/client";
 import {
   fetchFormSubmissions,
   useForm,
@@ -20,6 +21,23 @@ const toasts = useToasts();
 
 const formQuery = useForm(computed(() => props.formId));
 const form = computed(() => formQuery.data.value ?? null);
+
+// ``loaded`` flips true once the query has resolved either way —
+// data OR error. Without this the page would sit on the
+// skeleton forever for a bad / deleted form id.
+const loaded = computed(() => !formQuery.isPending.value);
+
+// Distinguish "form genuinely doesn't exist for this organiser"
+// (404 — wrong chapter, wrong id, or deleted) from a generic
+// fetch failure (network blip, 5xx). The first state gets a
+// dedicated "not found" card; the second falls back to a
+// generic message.
+const notFound = computed(
+  () => formQuery.error.value instanceof ApiError && formQuery.error.value.status === 404,
+);
+const otherError = computed(
+  () => formQuery.error.value && !(notFound.value),
+);
 
 const summaryQuery = useFormSummary(computed(() => props.formId));
 const summary = computed(() => summaryQuery.data.value ?? null);
@@ -85,8 +103,18 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
 </script>
 
 <template>
-  <DetailsPageShell :loaded="!!form" :skeleton-rows="4">
-    <template v-if="form">
+  <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
+    <AppCard v-if="notFound" :stack="false">
+      <h2>{{ t("forms.details.notFoundTitle") }}</h2>
+      <p class="muted">{{ t("forms.details.notFoundBody") }}</p>
+      <router-link to="/forms" class="back-link">{{ t("forms.details.backToList") }}</router-link>
+    </AppCard>
+
+    <AppCard v-else-if="otherError" :stack="false">
+      <p>{{ t("forms.details.loadFailed") }}</p>
+    </AppCard>
+
+    <template v-else-if="form">
       <AppCard :stack="false" class="overview">
         <h1>
           {{ form.name }}
@@ -191,6 +219,11 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
 </template>
 
 <style scoped>
+.back-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--brand-red);
+}
 .overview {
   display: flex;
   flex-direction: column;

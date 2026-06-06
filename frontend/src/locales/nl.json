@@ -262,7 +262,11 @@
       "csvSubmittedAt": "submitted_at",
       "qResponses": "{n} reacties",
       "qAverage": "gemiddeld {avg}",
-      "noTextResponses": "Geen tekstreacties."
+      "noTextResponses": "Geen tekstreacties.",
+      "notFoundTitle": "Vragenlijst niet gevonden",
+      "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
+      "loadFailed": "Kon deze vragenlijst niet laden.",
+      "backToList": "← Terug naar vragenlijsten"
     },
     "edit": {
       "newTitle": "Nieuwe vragenlijst",
@@ -281,7 +285,11 @@
       "questionsHeading": "Vragen",
       "questionsExplainer": "Voeg de vragen toe die je wilt stellen op de openbare vragenlijst.",
       "noQuestionsYet": "Nog geen vragen — voeg er hieronder één toe.",
-      "addQuestion": "Vraag toevoegen"
+      "addQuestion": "Vraag toevoegen",
+      "notFoundTitle": "Vragenlijst niet gevonden",
+      "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
+      "loadFailed": "Kon deze vragenlijst niet laden.",
+      "backToList": "← Terug naar vragenlijsten"
     },
     "question": {
       "promptPlaceholder": "Vraag",

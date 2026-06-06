@@ -5,8 +5,11 @@ import Select from "primevue/select";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import AppCard from "@/components/AppCard.vue";
+import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
+import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import {
   type FormCreate,
@@ -52,6 +55,19 @@ const submitting = ref(false);
 // pay one round-trip even when navigating back through the list.
 const existingQuery = computed(() => (props.formId ? props.formId : ""));
 const formQuery = isEdit.value ? useForm(existingQuery) : null;
+
+// Edit-mode error states. A bad / deleted form id used to leave
+// the page stuck on a half-rendered form-shell skeleton; surface
+// it as a not-found card with a back-link instead.
+const notFound = computed(
+  () =>
+    isEdit.value &&
+    formQuery?.error.value instanceof ApiError &&
+    formQuery.error.value.status === 404,
+);
+const otherError = computed(
+  () => isEdit.value && formQuery?.error.value && !notFound.value,
+);
 
 onMounted(() => {
   if (isEdit.value) return;
@@ -172,7 +188,32 @@ async function submit() {
 </script>
 
 <template>
+  <!-- 404 / generic error short-circuits — rendered with the bare
+       header + container instead of the form shell, because there's
+       no form to save and the Save/Cancel footer would be
+       misleading. -->
+  <template v-if="notFound">
+    <AppHeader />
+    <div class="container stack">
+      <AppCard>
+        <h2>{{ t("forms.edit.notFoundTitle") }}</h2>
+        <p class="muted">{{ t("forms.edit.notFoundBody") }}</p>
+        <router-link to="/forms" class="back-link">{{ t("forms.edit.backToList") }}</router-link>
+      </AppCard>
+    </div>
+  </template>
+
+  <template v-else-if="otherError">
+    <AppHeader />
+    <div class="container stack">
+      <AppCard>
+        <p>{{ t("forms.edit.loadFailed") }}</p>
+      </AppCard>
+    </div>
+  </template>
+
   <FormPageShell
+    v-else
     :title="isEdit ? t('forms.edit.editTitle') : t('forms.edit.newTitle')"
     :submit-label="isEdit ? t('forms.edit.save') : t('forms.edit.create')"
     :submitting="submitting"
@@ -267,5 +308,10 @@ async function submit() {
   border: 1px dashed var(--brand-border);
   border-radius: 8px;
   font-style: italic;
+}
+.back-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--brand-red);
 }
 </style>

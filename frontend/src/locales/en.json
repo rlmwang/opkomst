@@ -262,7 +262,11 @@
       "csvSubmittedAt": "submitted_at",
       "qResponses": "{n} responses",
       "qAverage": "average {avg}",
-      "noTextResponses": "No text responses."
+      "noTextResponses": "No text responses.",
+      "notFoundTitle": "Form not found",
+      "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
+      "loadFailed": "Could not load this form.",
+      "backToList": "← Back to forms"
     },
     "edit": {
       "newTitle": "New form",
@@ -281,7 +285,11 @@
       "questionsHeading": "Questions",
       "questionsExplainer": "Add the questions you want the public form to ask.",
       "noQuestionsYet": "No questions yet — add one below.",
-      "addQuestion": "Add question"
+      "addQuestion": "Add question",
+      "notFoundTitle": "Form not found",
+      "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
+      "loadFailed": "Could not load this form.",
+      "backToList": "← Back to forms"
     },
     "question": {
       "promptPlaceholder": "Question",
