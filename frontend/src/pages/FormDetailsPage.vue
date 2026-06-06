@@ -88,9 +88,16 @@ async function downloadCsv() {
   }
 }
 
-function bar(distribution: number[], idx: number): { width: string; count: number } {
-  const max = Math.max(...distribution, 1);
-  return { width: `${Math.round((distribution[idx] / max) * 100)}%`, count: distribution[idx] };
+/** Bar fill width as a percentage. The denominator is the
+ *  maximum value in the block, NOT the sum — so the tallest bar
+ *  always renders fully filled and the rest are visually
+ *  proportional to it. For rating questions ``values`` is the
+ *  per-bucket distribution; for choice questions it's the per-
+ *  option count list. Same call shape across kinds keeps the
+ *  template body symmetric. */
+function barWidth(values: number[], value: number): string {
+  const max = Math.max(...values, 1);
+  return `${Math.round((value / max) * 100)}%`;
 }
 </script>
 
@@ -185,14 +192,21 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
                   · {{ t("forms.details.qAverage", { avg: q.rating_average.toFixed(1) }) }}
                 </template>
               </p>
+              <!-- ``.bars`` is the single grid container so all
+                   bar tracks within a block share the same width
+                   (label + count columns auto-size to the widest
+                   entry across the whole block, then ``1fr``
+                   for the track makes every bar the same length).
+                   Label / track / count are direct grid items
+                   (no per-row wrapper). -->
               <div class="bars">
-                <div v-for="i in 5" :key="i" class="bar-row">
+                <template v-for="i in 5" :key="i">
                   <span class="bar-label">{{ i }}</span>
                   <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: bar(q.rating_distribution, i - 1).width }" />
+                    <div class="bar-fill" :style="{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }" />
                   </div>
                   <span class="bar-count">{{ q.rating_distribution[i - 1] }}</span>
-                </div>
+                </template>
               </div>
             </template>
 
@@ -208,16 +222,16 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
             <template v-else-if="(q.kind === 'single_choice' || q.kind === 'multi_choice') && q.choice_counts">
               <p class="muted q-meta">{{ t("forms.details.qResponses", { n: q.response_count }) }}</p>
               <div class="bars">
-                <div v-for="(count, label) in q.choice_counts" :key="label" class="bar-row">
+                <template v-for="(count, label) in q.choice_counts" :key="label">
                   <span class="bar-label choice-label">{{ label }}</span>
                   <div class="bar-track">
                     <div
                       class="bar-fill"
-                      :style="{ width: q.response_count > 0 ? `${Math.round((count / q.response_count) * 100)}%` : '0%' }"
+                      :style="{ width: barWidth(Object.values(q.choice_counts), count) }"
                     />
                   </div>
                   <span class="bar-count">{{ count }}</span>
-                </div>
+                </template>
               </div>
             </template>
           </div>
@@ -358,19 +372,26 @@ function bar(distribution: number[], idx: number): { width: string; count: numbe
 }
 .q-prompt { margin: 0 0 0.5rem; font-weight: 600; }
 .q-meta { margin: 0 0 0.5rem; }
-.bars { display: flex; flex-direction: column; gap: 0.25rem; }
-.bar-row {
+/* One grid per question block — the label column auto-sizes to
+ * the widest entry IN THIS BLOCK and every track gets the same
+ * remaining ``1fr`` width. That gives the two visual guarantees
+ * the data needs: bars are comparable within a question (same
+ * length), and the tallest bar fully fills (denominator is the
+ * max in the block, not the response count). */
+.bars {
   display: grid;
   grid-template-columns: minmax(1.25rem, max-content) 1fr 2.5rem;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem 0.5rem;
   font-size: 0.875rem;
 }
 .bar-label { color: var(--brand-text-muted); }
 .choice-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Long option labels wrap rather than ellipsis-truncate — the
+   * organiser wrote them, the respondent picked them, and
+   * hiding part of a label undermines what the bar is showing. */
+  overflow-wrap: anywhere;
+  max-width: 14rem;
 }
 .bar-track {
   height: 0.625rem;
