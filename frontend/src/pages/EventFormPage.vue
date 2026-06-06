@@ -531,7 +531,13 @@ async function submit() {
         <div v-else-if="imageUrl" class="image-preview">
           <img :src="imageUrl" :alt="t('event.imageAlt')" />
           <div class="image-actions">
+            <!-- ``type="button"`` is load-bearing on every Button in
+                 this form: PrimeVue 4 dropped the type="button"
+                 default it shipped in v3, so a bare <Button> inside
+                 a <form> renders as type=submit and double-fires
+                 the @submit handler alongside @click. -->
             <Button
+              type="button"
               :label="t('event.imageReplace')"
               icon="pi pi-refresh"
               size="small"
@@ -540,6 +546,7 @@ async function submit() {
               @click="pickImage"
             />
             <Button
+              type="button"
               :label="t('event.imageRemove')"
               icon="pi pi-trash"
               size="small"
@@ -552,6 +559,7 @@ async function submit() {
         </div>
         <Button
           v-else
+          type="button"
           :label="imageUploading ? t('event.imageUploading') : t('event.imageUpload')"
           icon="pi pi-upload"
           severity="secondary"
@@ -585,6 +593,7 @@ async function submit() {
               @keydown.enter.prevent="addSource"
             />
             <Button
+              type="button"
               icon="pi pi-plus"
               size="small"
               severity="secondary"
@@ -612,6 +621,7 @@ async function submit() {
               @keydown.enter.prevent="addHelp"
             />
             <Button
+              type="button"
               icon="pi pi-plus"
               size="small"
               severity="secondary"
