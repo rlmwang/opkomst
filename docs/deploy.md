@@ -237,6 +237,19 @@ LOCAL_MODE=
 EVOLUTION_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=opkomst-blast
+
+# Event-image storage. Optional. When OWNER + NAME + TOKEN are
+# all set, organisers can upload a 4:3 hero image per event;
+# images PUT to the GitHub Contents API and serve from
+# ``raw.githubusercontent.com``. Repo must be public. The PAT
+# only needs ``contents: write`` on this one repo so a leak's
+# blast radius is bounded to that repo's history. Leave unset to
+# hide the picker and have the upload route return 503. BRANCH
+# defaults to ``main``.
+GITHUB_IMAGES_REPO_OWNER=
+GITHUB_IMAGES_REPO_NAME=
+GITHUB_IMAGES_BRANCH=main
+GITHUB_IMAGES_TOKEN=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module

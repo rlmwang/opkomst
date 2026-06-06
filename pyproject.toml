@@ -19,11 +19,19 @@ dependencies = [
     "pyjwt>=2.10",
     "structlog>=24",
     "cryptography>=44",
-    # No ``[pil]`` extra — the QR endpoint serves SVG, rendered
-    # via ``qrcode.image.svg`` which is pure Python. Dropping
-    # Pillow saves ~5 MB of wheels + the ``libjpeg62-turbo`` apt
-    # dep we used to need for it.
+    # The QR endpoint serves SVG via ``qrcode.image.svg`` which is
+    # pure Python — Pillow isn't needed for that. It IS needed by
+    # ``services/event_image.py`` (organiser-uploaded photos go
+    # through EXIF rotate + center-crop + JPEG re-encode before
+    # being PUT to GitHub). Modern manylinux Pillow wheels bundle
+    # libjpeg/libpng so the slim base image needs no extra apt
+    # deps for either path.
     "qrcode>=8",
+    "pillow>=11",
+    # ``UploadFile`` / multipart form parsing on the event-image
+    # upload endpoint. FastAPI imports it lazily; without this
+    # dep the first multipart request raises a 500.
+    "python-multipart>=0.0.20",
     "nanoid>=2",
     "uuid-utils>=0.10",
     "jinja2>=3.1",

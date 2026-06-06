@@ -103,10 +103,22 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     # (event names with quotes, ampersands, angle brackets).
     # ``quote=True`` is the default and is what we need for
     # values inside attributes.
+    # OG image: when the organiser uploaded a hero image use that
+    # (gives every share a real event-specific card); otherwise fall
+    # back to the favicon so parsers still get *something*.
+    og_image = event.image_url or _OG_IMAGE_URL
+    # Hero uploads are 4:5 portrait; favicon is square. Modern
+    # previewers (WhatsApp, Telegram, Signal, Discord, iMessage)
+    # render the large-image card for portrait sources too; older
+    # Twitter clients crop wider than ideal but the alternative is
+    # the tiny ``summary`` thumbnail. Hint large-image for any
+    # uploaded hero.
+    twitter_card_type = "summary_large_image" if event.image_url else "summary"
+
     et = html.escape(title, quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
-    ei = html.escape(_OG_IMAGE_URL, quote=True)
+    ei = html.escape(og_image, quote=True)
     en = html.escape(event.name, quote=True)
 
     return (
@@ -118,7 +130,7 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
         f'    <meta property="og:url" content="{eu}">\n'
         f'    <meta property="og:site_name" content="opkomst.nu">\n'
         f'    <meta property="og:image" content="{ei}">\n'
-        f'    <meta name="twitter:card" content="summary">\n'
+        f'    <meta name="twitter:card" content="{twitter_card_type}">\n'
         f'    <meta name="twitter:title" content="{en}">\n'
         f'    <meta name="twitter:description" content="{ed}">\n'
         f'    <meta name="twitter:image" content="{ei}">'
@@ -326,6 +338,17 @@ def mount(app: FastAPI) -> None:
         # the public mini-app; this handler covers everything
         # else. We serve ``index.html`` for unknown paths so the
         # admin client-side router can render its 404 page.
+        #
+        # ``index.html`` MUST NOT be browser-cached. Vite emits
+        # content-hashed asset names (``main-AbCd1234.js``) which
+        # the immutable mount above caches for a year; the manifest
+        # in ``index.html`` is the only thing pinning a session to
+        # a specific build. If a browser keeps a stale ``index.html``
+        # after a redeploy, every chunk lookup 404s and the SPA
+        # crashes with "disallowed MIME type" because FastAPI's
+        # 404 body is JSON. ``no-store`` keeps the manifest fresh
+        # on every navigation; the immutable assets keep loads
+        # fast on warm visits.
         if full_path.startswith("api/") or full_path == "health":
             raise HTTPException(status_code=404, detail="Not found")
         # Resolve the requested path and require it to live under
@@ -336,7 +359,7 @@ def mount(app: FastAPI) -> None:
         try:
             candidate.relative_to(dist_resolved)
         except ValueError:
-            return FileResponse(_DIST / "index.html")
+            return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})
         if candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(_DIST / "index.html")
+        return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})

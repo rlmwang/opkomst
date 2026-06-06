@@ -8,6 +8,7 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { ApiError } from "@/api/client";
 import EditableList from "@/components/EditableList.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
@@ -15,8 +16,10 @@ import { chapterList, useChapters } from "@/composables/useChapters";
 import {
   eventList,
   useCreateEvent,
+  useDeleteEventImage,
   useEventList,
   useUpdateEvent,
+  useUploadEventImage,
 } from "@/composables/useEvents";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useToasts } from "@/lib/toasts";
@@ -34,7 +37,62 @@ const eventsQuery = useEventList();
 const events = eventList(eventsQuery);
 const createMutation = useCreateEvent();
 const updateMutation = useUpdateEvent();
+const uploadImageMutation = useUploadEventImage();
+const deleteImageMutation = useDeleteEventImage();
 const auth = useAuthStore();
+
+// Live ``image_url`` for the event being edited; ``null`` in
+// create mode (the upload endpoint needs an event id, so the
+// picker is hidden until the event has been saved at least
+// once). The two mutations write back through the cache, but
+// keeping a local ref means the preview updates instantly even
+// while the cache invalidation round-trips.
+const imageUrl = ref<string | null>(null);
+const imageUploading = ref(false);
+const imageInput = ref<HTMLInputElement | null>(null);
+
+function pickImage(): void {
+  imageInput.value?.click();
+}
+
+async function onImageSelected(ev: Event): Promise<void> {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";  // allow re-picking the same file
+  if (!file || !props.eventId) return;
+  imageUploading.value = true;
+  try {
+    const updated = await uploadImageMutation.mutateAsync({
+      eventId: props.eventId,
+      file,
+    });
+    imageUrl.value = updated.image_url;
+    toasts.success(t("event.imageUploaded"));
+  } catch (err) {
+    toasts.error(`${t("event.imageUploadFailed")}: ${describeError(err)}`);
+  } finally {
+    imageUploading.value = false;
+  }
+}
+
+async function removeImage(): Promise<void> {
+  if (!props.eventId) return;
+  imageUploading.value = true;
+  try {
+    const updated = await deleteImageMutation.mutateAsync(props.eventId);
+    imageUrl.value = updated.image_url;
+  } catch (err) {
+    toasts.error(`${t("event.imageRemoveFailed")}: ${describeError(err)}`);
+  } finally {
+    imageUploading.value = false;
+  }
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof ApiError) return `${err.status} ${err.message}`;
+  if (err instanceof Error && err.message) return err.message;
+  return "unknown";
+}
 
 const isEdit = computed(() => Boolean(props.eventId));
 
@@ -109,6 +167,11 @@ const newSource = ref("");
 // the question on the public form.
 const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
+// Instagram handle of the artist credited on the hero image.
+// Stored without ``@``; the backend's schema validator strips
+// one if present, so paste-friendliness on the form side is
+// fine.
+const imageArtistInstagram = ref("");
 const feedbackEnabled = ref(true);
 const reminderEnabled = ref(true);
 // Default to the organiser's UI locale — they can override per-event
@@ -139,6 +202,7 @@ interface FormDraft {
   feedbackEnabled: boolean;
   reminderEnabled: boolean;
   eventLocale: "nl" | "en";
+  imageArtistInstagram: string;
 }
 
 function snapshot(): FormDraft {
@@ -159,6 +223,7 @@ function snapshot(): FormDraft {
     feedbackEnabled: feedbackEnabled.value,
     reminderEnabled: reminderEnabled.value,
     eventLocale: eventLocale.value,
+    imageArtistInstagram: imageArtistInstagram.value,
   };
 }
 
@@ -179,6 +244,7 @@ function applyDraft(d: FormDraft) {
   feedbackEnabled.value = d.feedbackEnabled;
   reminderEnabled.value = d.reminderEnabled ?? true;
   eventLocale.value = d.eventLocale ?? "nl";
+  imageArtistInstagram.value = d.imageArtistInstagram ?? "";
 }
 
 const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
@@ -188,7 +254,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   sources: [
     name, chapterId, topic, location, latitude, longitude, eventDate, startTime, endTime,
     sources, newSource, helpOptions, newHelp,
-    feedbackEnabled, reminderEnabled, eventLocale,
+    feedbackEnabled, reminderEnabled, eventLocale, imageArtistInstagram,
   ],
 });
 
@@ -302,6 +368,8 @@ onMounted(async () => {
     feedbackEnabled.value = existing.feedback_enabled;
     reminderEnabled.value = existing.reminder_enabled;
     eventLocale.value = existing.locale;
+    imageUrl.value = existing.image_url;
+    imageArtistInstagram.value = existing.image_artist_instagram ?? "";
   } else {
     // Create mode — prefill the chapter dropdown.
     //   1. ``?chapter=…`` from the dashboard's filter ("New event"
@@ -375,6 +443,7 @@ async function submit() {
       feedback_enabled: feedbackEnabled.value,
       reminder_enabled: reminderEnabled.value,
       locale: eventLocale.value,
+      image_artist_instagram: imageArtistInstagram.value.trim() || null,
     };
     const result =
       isEdit.value && props.eventId
@@ -449,6 +518,66 @@ async function submit() {
       </section>
 
       <section class="form-section">
+        <h2 class="section-heading">{{ t("event.imageHeading") }}</h2>
+        <!-- Hidden native picker — triggered by the Button below so
+             we keep PrimeVue's visual language across the form. -->
+        <input
+          ref="imageInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style="display: none"
+          @change="onImageSelected"
+        />
+        <div v-if="!isEdit" class="muted">{{ t("event.imageCreateFirst") }}</div>
+        <div v-else-if="imageUrl" class="image-preview">
+          <img :src="imageUrl" :alt="t('event.imageAlt')" />
+          <div class="image-actions">
+            <!-- ``type="button"`` is load-bearing on every Button in
+                 this form: PrimeVue 4 dropped the type="button"
+                 default it shipped in v3, so a bare <Button> inside
+                 a <form> renders as type=submit and double-fires
+                 the @submit handler alongside @click. -->
+            <Button
+              type="button"
+              :label="t('event.imageReplace')"
+              icon="pi pi-refresh"
+              size="small"
+              severity="secondary"
+              :disabled="imageUploading"
+              @click="pickImage"
+            />
+            <Button
+              type="button"
+              :label="t('event.imageRemove')"
+              icon="pi pi-trash"
+              size="small"
+              severity="secondary"
+              text
+              :disabled="imageUploading"
+              @click="removeImage"
+            />
+          </div>
+        </div>
+        <Button
+          v-else
+          type="button"
+          :label="imageUploading ? t('event.imageUploading') : t('event.imageUpload')"
+          icon="pi pi-upload"
+          severity="secondary"
+          :loading="imageUploading"
+          @click="pickImage"
+        />
+        <!-- Artist credit. Empty = no credit shown anywhere. The
+             backend's schema validator strips a leading ``@`` if
+             the organiser pasted the handle including it. -->
+        <InputText
+          v-model="imageArtistInstagram"
+          :placeholder="t('event.imageArtistPlaceholder')"
+          fluid
+        />
+      </section>
+
+      <section class="form-section">
         <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
         <p class="muted section-explainer">{{ t("event.sourcesExplainer") }}</p>
         <EditableList
@@ -465,6 +594,7 @@ async function submit() {
               @keydown.enter.prevent="addSource"
             />
             <Button
+              type="button"
               icon="pi pi-plus"
               size="small"
               severity="secondary"
@@ -492,6 +622,7 @@ async function submit() {
               @keydown.enter.prevent="addHelp"
             />
             <Button
+              type="button"
               icon="pi pi-plus"
               size="small"
               severity="secondary"
@@ -574,4 +705,29 @@ async function submit() {
 .section-explainer {
   margin: -0.25rem 0 0.25rem;
 }
+/* 4:5 portrait hero-image preview on the form. ``max-width`` caps
+ * the preview so it doesn't dominate the form on desktop — the
+ * public sign-up page uses the same value (see PublicEvent.vue);
+ * the emails render the full 1200x1500 inside the email card. */
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.image-preview img {
+  display: block;
+  max-width: 320px;
+  aspect-ratio: 4 / 5;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.image-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+/* Footer (Cancel + Save buttons) is owned by FormPageShell —
+ * see ``FormPageShell.vue::.form-footer``. */
 </style>

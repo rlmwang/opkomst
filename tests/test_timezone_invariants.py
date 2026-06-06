@@ -5,8 +5,8 @@ wall-clock values (what the organiser types in the form). The
 dispatcher and reapers compare those naive values against
 ``now_wallclock()`` — the naive Amsterdam-local representation of
 the current instant. These property tests fuzz a wide range of
-offsets to verify each channel's in-window decision matches a
-hand-rolled wall-clock reference.
+seeded offsets to verify each channel's in-window decision matches
+a hand-rolled wall-clock reference.
 
 Guards against future regressions where someone reaches for
 ``datetime.now(UTC)`` instead of ``now_wallclock()`` in a window
@@ -37,8 +37,8 @@ from tests._helpers.db_reset import truncate_all
 # the Amsterdam-local naive equivalent under the same freeze. Late
 # April is CEST (UTC+2) so the wall-clock equivalent is 14:00, but
 # the test never hard-codes that — it reads it back via
-# ``now_wallclock()`` under the freeze and does its math relative
-# to that.
+# ``now_wallclock()`` under the same freeze and does its math
+# relative to that.
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
 
 
@@ -103,8 +103,8 @@ def _seed_event_and_signup(
 
 @given(offset_minutes=st.integers(min_value=-7 * 24 * 60, max_value=7 * 24 * 60))
 def test_reminder_window_check(offset_minutes: int, fake_email) -> None:
-    """Reminder fires iff ``now < starts_at <= now + 72h`` in
-    wall-clock terms."""
+    """Reminder fires iff ``now < starts_at <= now+72h`` in wall-
+    clock terms."""
     fake_email.reset()
     _setup_clean_db()
 
@@ -153,12 +153,12 @@ def test_feedback_window_check(offset_minutes: int, fake_email) -> None:
 
 @given(offset_minutes=st.integers(min_value=-30 * 24 * 60, max_value=30 * 24 * 60))
 def test_post_event_feedback_window(offset_minutes: int, fake_email) -> None:
-    """``reap_expired`` finalises FEEDBACK rows iff the event
-    ended ≥``POST_EVENT_PURGE_DELAY`` ago in wall-clock terms.
+    """``reap_expired`` finalises FEEDBACK rows iff the event ended
+    ≥``POST_EVENT_PURGE_DELAY`` ago in wall-clock terms.
 
     The seed inserts only a FEEDBACK row (no REMINDER) so the
-    REMINDER predicate (``starts_at <= now``) doesn't confound
-    the FEEDBACK assertion — the merged reaper fires on either
+    REMINDER predicate (``starts_at <= now``) doesn't confound the
+    FEEDBACK assertion — the merged reaper fires on either
     predicate."""
     fake_email.reset()
     _setup_clean_db()

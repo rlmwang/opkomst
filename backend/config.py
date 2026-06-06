@@ -81,6 +81,17 @@ class Settings(BaseSettings):
     evolution_api_key: _OptionalSecret = None
     evolution_instance: _OptionalStr = None
 
+    # ---- Event-image storage (GitHub Contents API) -------------
+    # Optional: when unset, the upload route returns 503 and the
+    # frontend hides the picker. All four must be set together —
+    # the validator below enforces it. The repo must be public so
+    # ``raw.githubusercontent.com`` serves the file without auth.
+
+    github_images_repo_owner: _OptionalStr = None
+    github_images_repo_name: _OptionalStr = None
+    github_images_branch: str = "main"
+    github_images_token: _OptionalSecret = None
+
     sentry_dsn: _OptionalStr = None
     sentry_environment: str = "production"
     sentry_traces_sample_rate: float = 0.0
@@ -112,6 +123,34 @@ class Settings(BaseSettings):
             if missing:
                 raise ValueError(f"EMAIL_BACKEND=smtp requires {', '.join(m.upper() for m in missing)}")
         return self
+
+    @model_validator(mode="after")
+    def github_images_all_or_none(self) -> "Settings":
+        """The four GitHub-storage fields are a group: enabling the
+        feature with only some of them set is a misconfiguration the
+        upload route can't recover from at runtime."""
+        fields = (
+            "github_images_repo_owner",
+            "github_images_repo_name",
+            "github_images_token",
+        )
+        present = [name for name in fields if getattr(self, name) not in (None, "")]
+        if present and len(present) != len(fields):
+            missing = [name for name in fields if name not in present]
+            raise ValueError(
+                f"event-image storage requires all of {', '.join(f.upper() for f in fields)}; "
+                f"missing: {', '.join(m.upper() for m in missing)}"
+            )
+        return self
+
+    @property
+    def event_images_enabled(self) -> bool:
+        """True iff the GitHub storage group is fully configured."""
+        return bool(
+            self.github_images_repo_owner
+            and self.github_images_repo_name
+            and self.github_images_token
+        )
 
 
 # Single import-time instance. Tests that need to override values

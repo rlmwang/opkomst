@@ -1,6 +1,12 @@
 {% extends "nl/_event_base.html" %}
 {% set subject = event_name + " – bijna zover" %}
 {% block content %}
+{% if image_url %}
+<img src="{{ image_url }}" alt="{{ event_name }}" width="544" height="680" style="display:block; width:100%; max-width:544px; height:auto; margin:0 0 6px; border-radius:8px; border:0;">
+{% if image_artist_instagram %}
+<p class="muted" style="margin:0 0 18px; font-size:12px;">Ontwerp: <a href="https://instagram.com/{{ image_artist_instagram }}">@{{ image_artist_instagram }}</a></p>
+{% endif %}
+{% endif %}
 <p>Hoi! Je hebt je aangemeld voor <strong>{{ event_name }}</strong>, en het is bijna zover:</p>
 <div class="details">
   <h3>{{ event_name }}</h3>

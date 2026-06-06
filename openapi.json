@@ -32,6 +32,20 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "Body_upload_event_image_api_v1_events__event_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_event_image_api_v1_events__event_id__image_post",
+        "type": "object"
+      },
       "ChapterArchiveRequest": {
         "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
         "properties": {
@@ -304,6 +318,18 @@
             "title": "Help Options",
             "type": "array"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
           "latitude": {
             "anyOf": [
               {
@@ -445,6 +471,28 @@
             "title": "Id",
             "type": "string"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "latitude": {
             "anyOf": [
               {
@@ -532,6 +580,8 @@
           "locale",
           "chapter_id",
           "chapter_name",
+          "image_url",
+          "image_artist_instagram",
           "attendee_count",
           "archived"
         ],
@@ -3641,6 +3691,132 @@
         "summary": "Feedback Summary",
         "tags": [
           "feedback"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/image": {
+      "delete": {
+        "description": "Clear the image reference. The file in the repo is left\nalone; the lifecycle answer is \"leave it\" so we never need a\nGitHub round-trip to remove.",
+        "operationId": "delete_event_image_api_v1_events__event_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event Image",
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/event_image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/event_image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "operationId": "upload_event_image_api_v1_events__event_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_event_image_api_v1_events__event_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Event Image",
+        "tags": [
+          "events"
         ]
       }
     },

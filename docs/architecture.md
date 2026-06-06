@@ -88,7 +88,7 @@ All under `/api/v1/`.
 | `auth.py` | login-link (request — branches on whether email is registered), login (redeem login token), complete-registration (redeem registration token + supply name), /me | public POST + bearer; rate-limited |
 | `admin.py` | list users, approve (multi-chapter), set-chapters (replace full membership set), promote, demote, rename, delete | admin |
 | `chapters.py` | list, create, patch (name + city), archive, restore, usage | mixed |
-| `events.py` | list, list-archived, create, by-slug, qr.svg, update, archive, restore, send-emails-now (per channel), stats, signups | scoped to user's chapter set; ``?chapter_id=`` narrows the list to one chapter (validated against the user's set) |
+| `events.py` | list, list-archived, create, by-slug, qr.svg, update, archive, restore, send-emails-now (per channel), stats, signups, image upload (4:3 hero, PUT to GitHub Contents API → ``raw.githubusercontent.com``; 503 when ``GITHUB_IMAGES_*`` unset), image delete | scoped to user's chapter set; ``?chapter_id=`` narrows the list to one chapter (validated against the user's set) |
 | `signups.py` | public POST | none (public); rate-limited |
 | `feedback.py` | questions list, public form GET, public submit, organiser summary, organiser submissions list (CSV source) | mixed; rate-limited on public submit |
 | `forms.py` | list, list-archived, create, get, update (diff-applies the question payload), archive, restore, delete-only-when-archived, summary, submissions (CSV source) | scoped to user's chapter set; same lifecycle shape as events.py |

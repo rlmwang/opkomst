@@ -219,6 +219,23 @@ function askTriggerNow(channel: EmailChannel) {
           {{ event.name }}
           <span v-if="event.chapter_name" class="event-chapter-chip">{{ event.chapter_name }}</span>
         </h1>
+        <!-- Hero image + artist credit. Same 4:5 crop attendees
+             see; click the image to open the raw file (useful for
+             "I need to forward this to someone"). Editing happens
+             on the event form, not here. -->
+        <figure v-if="event.image_url" class="event-image-figure">
+          <a :href="event.image_url" target="_blank" rel="noopener">
+            <img :src="event.image_url" :alt="event.name" class="event-image" />
+          </a>
+          <figcaption v-if="event.image_artist_instagram" class="muted event-image-credit">
+            {{ t("event.imageCredit") }}
+            <a
+              :href="`https://instagram.com/${event.image_artist_instagram}`"
+              target="_blank"
+              rel="noopener"
+            >@{{ event.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="overview-body">
           <div class="overview-text">
             <p class="muted overview-meta">
@@ -439,6 +456,30 @@ function askTriggerNow(channel: EmailChannel) {
   margin: 0;
   /* Long names wrap mid-word rather than overflow. */
   overflow-wrap: anywhere;
+}
+/* 4:5 hero on the organiser's overview card. ``max-width: 320px``
+ * matches the form preview — a quick glance for the organiser,
+ * not a hero spread. */
+.event-image-figure {
+  margin: 0 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.event-image-figure img {
+  display: block;
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.event-image-credit {
+  font-size: 0.75rem;
+}
+.event-image-credit a {
+  color: inherit;
+  text-decoration: underline;
 }
 /* Body row: meta + URL+copy on the left, QR on the right. The QR
  * starts at the same vertical position as the meta line. */
