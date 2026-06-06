@@ -114,6 +114,40 @@ describe("useAdmin composables", () => {
     expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
   });
 
+  it("useRemoveUser skips the non-array pending-count cache entry", async () => {
+    // Regression: the pending-count query lives at
+    // ``["admin", "users", "pending-count"]`` so it matches the
+    // ``["admin", "users"]`` prefix that the optimistic
+    // ``setQueriesData`` call uses. Its data is ``{count: N}``,
+    // not ``User[]``. An unguarded ``old?.filter`` throws there,
+    // the mutation rejects in onMutate, and the DELETE never
+    // leaves the browser — that's the prod bug "Verwijderen
+    // mislukt with no DELETE in the access log".
+    const { useRemoveUser } = await import("@/composables/useAdmin");
+    queryClient.setQueryData(
+      ["admin", "users", { pending: false }],
+      [{ id: "u1", name: "A" }, { id: "u2", name: "B" }],
+    );
+    queryClient.setQueryData(["admin", "users", "pending-count"], { count: 2 });
+    mockDel.mockResolvedValueOnce(undefined as never);
+
+    const m = withSetup(() => useRemoveUser());
+    await m.mutateAsync("u1");
+
+    // The DELETE actually fires.
+    expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
+    // The list-shaped cache reflects the optimistic removal.
+    const list = queryClient.getQueryData<{ id: string }[]>([
+      "admin",
+      "users",
+      { pending: false },
+    ]);
+    expect(list?.map((u) => u.id)).toEqual(["u2"]);
+    // The non-list cache is untouched.
+    expect(queryClient.getQueryData(["admin", "users", "pending-count"]))
+      .toEqual({ count: 2 });
+  });
+
   it("useRemoveUser rolls every cached users-list back on failure", async () => {
     const { useRemoveUser } = await import("@/composables/useAdmin");
 
