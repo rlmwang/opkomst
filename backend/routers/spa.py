@@ -215,6 +215,17 @@ def mount(app: FastAPI) -> None:
         # the public mini-app; this handler covers everything
         # else. We serve ``index.html`` for unknown paths so the
         # admin client-side router can render its 404 page.
+        #
+        # ``index.html`` MUST NOT be browser-cached. Vite emits
+        # content-hashed asset names (``main-AbCd1234.js``) which
+        # the immutable mount above caches for a year; the manifest
+        # in ``index.html`` is the only thing pinning a session to
+        # a specific build. If a browser keeps a stale ``index.html``
+        # after a redeploy, every chunk lookup 404s and the SPA
+        # crashes with "disallowed MIME type" because FastAPI's
+        # 404 body is JSON. ``no-store`` keeps the manifest fresh
+        # on every navigation; the immutable assets keep loads
+        # fast on warm visits.
         if full_path.startswith("api/") or full_path == "health":
             raise HTTPException(status_code=404, detail="Not found")
         # Resolve the requested path and require it to live under
@@ -225,7 +236,7 @@ def mount(app: FastAPI) -> None:
         try:
             candidate.relative_to(dist_resolved)
         except ValueError:
-            return FileResponse(_DIST / "index.html")
+            return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})
         if candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(_DIST / "index.html")
+        return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})
