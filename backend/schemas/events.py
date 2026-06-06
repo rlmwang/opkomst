@@ -23,9 +23,24 @@ class EventCreate(BaseModel):
     location: str = Field(min_length=1, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+    # Naive wall-clock — the user typed a date+time into a form and
+    # that's what we store. A tz suffix on the wire is a frontend
+    # bug; reject it loudly instead of silently normalising, so we
+    # can't accidentally drift back into "the email shows UTC".
     starts_at: datetime
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
+
+    @field_validator("starts_at", "ends_at")
+    @classmethod
+    def _must_be_naive(cls, v: datetime) -> datetime:
+        if v.tzinfo is not None:
+            raise ValueError(
+                "Event datetimes must be naive (Europe/Amsterdam wall clock); "
+                "send 'YYYY-MM-DDTHH:MM:SS' without a Z/offset."
+            )
+        return v
+
     # Optional list of "I can help with" tasks. Defaults to empty —
     # an event with no help_options doesn't render the question on
     # the public form.

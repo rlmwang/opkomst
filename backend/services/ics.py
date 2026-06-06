@@ -28,8 +28,14 @@ Notable robustness choices:
 """
 
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from ..models import Event
+
+# Event datetimes are naive Europe/Amsterdam wall clock (see
+# ``models/events.py``). ICS DTSTART/DTEND need an absolute UTC
+# instant, so we attach the zone here at the export boundary.
+_AMS = ZoneInfo("Europe/Amsterdam")
 
 
 def _escape(text: str) -> str:
@@ -65,8 +71,11 @@ def _fold(line: str) -> str:
 
 def _fmt_utc(dt: datetime) -> str:
     """Format as UTC date-time (RFC 5545 FORM #2, ``Z`` suffix).
-    Every column is now ``TIMESTAMPTZ`` so the value is always
-    tz-aware; convert to UTC before formatting."""
+    Event timestamps are naive wall-clock Europe/Amsterdam — attach
+    the zone before converting to UTC. System timestamps (DTSTAMP)
+    pass through tz-aware and just need ``astimezone(UTC)``."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_AMS)
     return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 

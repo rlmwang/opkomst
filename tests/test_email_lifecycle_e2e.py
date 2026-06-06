@@ -334,10 +334,12 @@ def test_e2e_smtp_failure_wipes_via_failed_path(db: Any, client: Any, fake_email
         fresh.close()
 
 
-def test_e2e_signup_writes_aware_utc_starts_at_to_db(db: Any, client: Any, clock: Any) -> None:
-    """Verify the timezone contract end-to-end. Every datetime
-    column is now ``TIMESTAMPTZ``; the value round-trips as
-    tz-aware UTC."""
+def test_e2e_signup_writes_naive_wallclock_starts_at_to_db(db: Any, client: Any, clock: Any) -> None:
+    """Verify the naive-wall-clock contract end-to-end. Event
+    datetime columns are ``TIMESTAMP`` (no tz) and round-trip as
+    the Europe/Amsterdam wall clock the organiser typed —
+    ``datetime.now(UTC)`` is two hours off and must never be
+    compared against ``Event.starts_at``."""
     clock.set("2026-04-28T12:00:00+00:00")
     e = make_event(db, starts_in=timedelta(days=2))
     db.commit()
@@ -351,8 +353,6 @@ def test_e2e_signup_writes_aware_utc_starts_at_to_db(db: Any, client: Any, clock
 
         ev = fresh.query(EventModel).filter_by(id=e.id).first()
         assert ev is not None
-        assert ev.starts_at.tzinfo is not None
-        expected = datetime(2026, 4, 30, 12, 0, tzinfo=UTC)
-        assert abs((ev.starts_at - expected).total_seconds()) < 5
+        assert ev.starts_at.tzinfo is None
     finally:
         fresh.close()

@@ -205,6 +205,15 @@ function combine(date: Date, time: Date): Date {
   return d;
 }
 
+// Backend stores event datetimes as naive wall-clock (the user
+// types 18:00, we send 18:00, the email later shows 18:00). The
+// usual ``.toISOString()`` would convert to UTC and lose that.
+// ``sv-SE`` locale gives ``YYYY-MM-DD HH:MM:SS`` from local time;
+// swap the space for ``T`` to get ISO 8601 without a zone suffix.
+function naiveISO(d: Date): string {
+  return d.toLocaleString("sv-SE").replace(" ", "T");
+}
+
 function addSource() {
   const v = newSource.value.trim();
   if (!v || sources.value.includes(v)) return;
@@ -360,8 +369,8 @@ async function submit() {
       location: trimmedLocation,
       latitude: latitude.value,
       longitude: longitude.value,
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
+      starts_at: naiveISO(startsAt),
+      ends_at: naiveISO(endsAt),
       source_options: sources.value,
       help_options: helpOptions.value,
       feedback_enabled: feedbackEnabled.value,

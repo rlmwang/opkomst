@@ -35,8 +35,16 @@ class Event(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Naive wall-clock timestamps. The organiser types a date+time
+    # in the form; that's what we store and that's what we display
+    # back. We do no timezone math anywhere — the app is Dutch-only
+    # and the implicit frame is Europe/Amsterdam wall clock. Only
+    # the ICS export and the Google-Calendar URL attach a zone (at
+    # the boundary) because external calendar imports need an
+    # absolute instant. Compare against
+    # ``services.events.now_wallclock`` (NOT ``datetime.now(UTC)``).
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     # Optional list of "I can help with" tasks (e.g. opbouwen / afbreken).
     # Empty list means the question isn't shown on the public form.

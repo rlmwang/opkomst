@@ -51,6 +51,7 @@ from sqlalchemy.orm import Session
 from ..database import SessionLocal
 from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, FeedbackToken
 from . import encryption
+from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 
 logger = structlog.get_logger()
@@ -414,7 +415,7 @@ def run_once(channel: EmailChannel) -> int:
     predicate (e.g. "starts in <72h" for reminder).
 
     Sized by ``EMAIL_BATCH_SIZE`` (default 200)."""
-    now = datetime.now(UTC)
+    now = now_wallclock()
     cdef = CHANNELS[channel]
     return _run_with_filter(
         channel,
@@ -511,7 +512,7 @@ def reap_expired() -> int:
     worker sweep finalises rows long before they hit this reaper.
     A non-zero return is a signal that something else is broken;
     the warning log surfaces it."""
-    now = datetime.now(UTC)
+    now = now_wallclock()
     feedback_cutoff = now - POST_EVENT_PURGE_DELAY
     db = SessionLocal()
     try:
