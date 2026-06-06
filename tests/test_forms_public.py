@@ -248,6 +248,30 @@ def test_submit_then_summary_reflects_response(client, organiser_headers):
     assert body["questions"][0]["rating_distribution"] == [0, 0, 0, 0, 1]
 
 
+def test_submit_rate_limit_fires(client, organiser_headers):
+    """``PUBLIC_FEEDBACK`` limit on the public submit endpoint
+    (20/hour). The 21st submission from the same IP within the
+    window must 429.
+
+    The test relies on ``client`` fixture's ``limiter.reset()``
+    on setup — the limiter is in-process and a clean budget
+    starts at zero. Each successful submit consumes one slot
+    against the same form/IP pair."""
+    form = _create(client, organiser_headers, questions=[
+        {"kind": "rating", "prompt": "S", "required": True},
+    ])
+    qid = form["questions"][0]["id"]
+    body = {"answers": [{"question_id": qid, "answer_int": 5}]}
+
+    # 20 should sail through; 21st must 429. ``test_login_link_rate_limit``
+    # uses the same shape against a 5/hour route.
+    for _ in range(20):
+        r = client.post(f"/api/v1/forms/by-slug/{form['slug']}/submit", json=body)
+        assert r.status_code == 201, r.text
+    r = client.post(f"/api/v1/forms/by-slug/{form['slug']}/submit", json=body)
+    assert r.status_code == 429
+
+
 def test_submit_then_csv_source_includes_row(client, organiser_headers):
     form = _create(client, organiser_headers, questions=[
         {"kind": "rating", "prompt": "Score", "required": True},
