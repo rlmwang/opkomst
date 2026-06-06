@@ -11,7 +11,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
     "alembic>=1.13",
-    "pydantic[email]>=2.11",
+    "pydantic[email]>=2.13.4",
     "pydantic-settings>=2.6",
     # JWT signing/verifying. ``pyjwt`` is the canonical library
     # and is actively maintained; ``python-jose`` has had security
