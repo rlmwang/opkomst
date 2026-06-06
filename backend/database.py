@@ -137,6 +137,8 @@ def warmup() -> None:
             locale="nl",
             chapter_id=None,
             chapter_name=None,
+            image_url=None,
+            image_artist_instagram=None,
             attendee_count=0,
             archived=False,
         ).model_dump_json()

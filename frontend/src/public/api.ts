@@ -20,6 +20,8 @@ export interface PublicEvent {
   reminder_enabled: boolean;
   locale: string;
   archived: boolean;
+  image_url: string | null;
+  image_artist_instagram: string | null;
 }
 
 export interface SignupPayload {

@@ -35,6 +35,22 @@ class Event(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Public URL of the event's 4:3 hero image. Hosted in a GitHub
+    # repo (raw.githubusercontent.com/.../events/{id}/{ts}.jpg);
+    # uploads go through ``services/event_image.py`` which crops,
+    # resizes, and PUTs via the GitHub Contents API. Null = the
+    # public sign-up page / details page render without a hero
+    # image and the OG card falls back to the favicon. Replacing
+    # an image overwrites this URL — old files stay in the repo's
+    # history by design.
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Instagram handle of the artist who made the hero image — we
+    # outsource a lot of the artwork to young artists, this is the
+    # credit line. Stored without the leading ``@`` so URLs are
+    # straightforward; the schema validator strips one if present.
+    # Null when no credit is set; the public page / emails just
+    # skip rendering the caption.
+    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Naive wall-clock timestamps. The organiser types a date+time
     # in the form; that's what we store and that's what we display
     # back. We do no timezone math anywhere — the app is Dutch-only

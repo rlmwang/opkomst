@@ -655,6 +655,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Event Image
+         * @description Upload (or replace) the event's hero image. The bytes go
+         *     through ``services/event_image.py`` — validated, EXIF-rotated,
+         *     cropped to 4:3, resized to 1200x900, JPEG-re-encoded — and
+         *     PUT to the configured GitHub repo. ``event.image_url`` is set
+         *     to the resulting ``raw.githubusercontent.com`` URL.
+         *
+         *     Replacing an image overwrites ``image_url`` with the new
+         *     path; the previous file stays in the repo's history by
+         *     design (see ``services/event_image.py``).
+         *
+         *     Returns the updated ``EventOut`` so the caller's Vue Query
+         *     cache patches in-place without an extra refetch.
+         */
+        post: operations["upload_event_image_api_v1_events__event_id__image_post"];
+        /**
+         * Delete Event Image
+         * @description Clear the image reference. The file in the repo is left
+         *     alone; the lifecycle answer is "leave it" so we never need a
+         *     GitHub round-trip to remove.
+         */
+        delete: operations["delete_event_image_api_v1_events__event_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/restore": {
         parameters: {
             query?: never;
@@ -1066,6 +1103,11 @@ export interface components {
             token: string;
             user: components["schemas"]["UserOut"];
         };
+        /** Body_upload_event_image_api_v1_events__event_id__image_post */
+        Body_upload_event_image_api_v1_events__event_id__image_post: {
+            /** File */
+            file: string;
+        };
         /**
          * ChapterArchiveRequest
          * @description Optional reassignment targets when archiving a chapter.
@@ -1190,6 +1232,8 @@ export interface components {
             feedback_enabled: boolean;
             /** Help Options */
             help_options?: string[];
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /** Latitude */
             latitude?: number | null;
             /**
@@ -1240,6 +1284,10 @@ export interface components {
             help_options: string[];
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram: string | null;
+            /** Image Url */
+            image_url: string | null;
             /** Latitude */
             latitude: number | null;
             /**
@@ -2764,6 +2812,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_event_image_api_v1_events__event_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_event_image_api_v1_events__event_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_image_api_v1_events__event_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
                 };
             };
             /** @description Validation Error */

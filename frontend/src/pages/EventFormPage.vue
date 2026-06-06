@@ -16,8 +16,10 @@ import { chapterList, useChapters } from "@/composables/useChapters";
 import {
   eventList,
   useCreateEvent,
+  useDeleteEventImage,
   useEventList,
   useUpdateEvent,
+  useUploadEventImage,
 } from "@/composables/useEvents";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useToasts } from "@/lib/toasts";
@@ -35,7 +37,56 @@ const eventsQuery = useEventList();
 const events = eventList(eventsQuery);
 const createMutation = useCreateEvent();
 const updateMutation = useUpdateEvent();
+const uploadImageMutation = useUploadEventImage();
+const deleteImageMutation = useDeleteEventImage();
 const auth = useAuthStore();
+
+// Live ``image_url`` for the event being edited; ``null`` in
+// create mode (the upload endpoint needs an event id, so the
+// picker is hidden until the event has been saved at least
+// once). The two mutations write back through the cache, but
+// keeping a local ref means the preview updates instantly even
+// while the cache invalidation round-trips.
+const imageUrl = ref<string | null>(null);
+const imageUploading = ref(false);
+const imageInput = ref<HTMLInputElement | null>(null);
+
+function pickImage(): void {
+  imageInput.value?.click();
+}
+
+async function onImageSelected(ev: Event): Promise<void> {
+  const input = ev.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";  // allow re-picking the same file
+  if (!file || !props.eventId) return;
+  imageUploading.value = true;
+  try {
+    const updated = await uploadImageMutation.mutateAsync({
+      eventId: props.eventId,
+      file,
+    });
+    imageUrl.value = updated.image_url;
+    toasts.success(t("event.imageUploaded"));
+  } catch {
+    toasts.error(t("event.imageUploadFailed"));
+  } finally {
+    imageUploading.value = false;
+  }
+}
+
+async function removeImage(): Promise<void> {
+  if (!props.eventId) return;
+  imageUploading.value = true;
+  try {
+    const updated = await deleteImageMutation.mutateAsync(props.eventId);
+    imageUrl.value = updated.image_url;
+  } catch {
+    toasts.error(t("event.imageRemoveFailed"));
+  } finally {
+    imageUploading.value = false;
+  }
+}
 
 const isEdit = computed(() => Boolean(props.eventId));
 
@@ -110,6 +161,11 @@ const newSource = ref("");
 // the question on the public form.
 const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
+// Instagram handle of the artist credited on the hero image.
+// Stored without ``@``; the backend's schema validator strips
+// one if present, so paste-friendliness on the form side is
+// fine.
+const imageArtistInstagram = ref("");
 const feedbackEnabled = ref(true);
 const reminderEnabled = ref(true);
 // Default to the organiser's UI locale — they can override per-event
@@ -140,6 +196,7 @@ interface FormDraft {
   feedbackEnabled: boolean;
   reminderEnabled: boolean;
   eventLocale: "nl" | "en";
+  imageArtistInstagram: string;
 }
 
 function snapshot(): FormDraft {
@@ -160,6 +217,7 @@ function snapshot(): FormDraft {
     feedbackEnabled: feedbackEnabled.value,
     reminderEnabled: reminderEnabled.value,
     eventLocale: eventLocale.value,
+    imageArtistInstagram: imageArtistInstagram.value,
   };
 }
 
@@ -180,6 +238,7 @@ function applyDraft(d: FormDraft) {
   feedbackEnabled.value = d.feedbackEnabled;
   reminderEnabled.value = d.reminderEnabled ?? true;
   eventLocale.value = d.eventLocale ?? "nl";
+  imageArtistInstagram.value = d.imageArtistInstagram ?? "";
 }
 
 const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
@@ -189,7 +248,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   sources: [
     name, chapterId, topic, location, latitude, longitude, eventDate, startTime, endTime,
     sources, newSource, helpOptions, newHelp,
-    feedbackEnabled, reminderEnabled, eventLocale,
+    feedbackEnabled, reminderEnabled, eventLocale, imageArtistInstagram,
   ],
 });
 
@@ -303,6 +362,8 @@ onMounted(async () => {
     feedbackEnabled.value = existing.feedback_enabled;
     reminderEnabled.value = existing.reminder_enabled;
     eventLocale.value = existing.locale;
+    imageUrl.value = existing.image_url;
+    imageArtistInstagram.value = existing.image_artist_instagram ?? "";
   } else {
     // Create mode — prefill the chapter dropdown.
     //   1. ``?chapter=…`` from the dashboard's filter ("New event"
@@ -376,6 +437,7 @@ async function submit() {
       feedback_enabled: feedbackEnabled.value,
       reminder_enabled: reminderEnabled.value,
       locale: eventLocale.value,
+      image_artist_instagram: imageArtistInstagram.value.trim() || null,
     };
     const result =
       isEdit.value && props.eventId
@@ -445,6 +507,60 @@ async function submit() {
             fluid
           />
         </div>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("event.imageHeading") }}</h2>
+        <p class="muted section-explainer">{{ t("event.imageExplainer") }}</p>
+        <!-- Hidden native picker — triggered by the Button below so
+             we keep PrimeVue's visual language across the form. -->
+        <input
+          ref="imageInput"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style="display: none"
+          @change="onImageSelected"
+        />
+        <div v-if="!isEdit" class="muted">{{ t("event.imageCreateFirst") }}</div>
+        <div v-else-if="imageUrl" class="image-preview">
+          <img :src="imageUrl" :alt="t('event.imageAlt')" />
+          <div class="image-actions">
+            <Button
+              :label="t('event.imageReplace')"
+              icon="pi pi-refresh"
+              size="small"
+              severity="secondary"
+              :disabled="imageUploading"
+              @click="pickImage"
+            />
+            <Button
+              :label="t('event.imageRemove')"
+              icon="pi pi-trash"
+              size="small"
+              severity="secondary"
+              text
+              :disabled="imageUploading"
+              @click="removeImage"
+            />
+          </div>
+        </div>
+        <Button
+          v-else
+          :label="imageUploading ? t('event.imageUploading') : t('event.imageUpload')"
+          icon="pi pi-upload"
+          severity="secondary"
+          :loading="imageUploading"
+          @click="pickImage"
+        />
+        <!-- Artist credit. Empty = no credit shown anywhere. The
+             backend's schema validator strips a leading ``@`` if
+             the organiser pasted the handle including it. -->
+        <InputText
+          v-model="imageArtistInstagram"
+          :placeholder="t('event.imageArtistPlaceholder')"
+          fluid
+        />
+        <p class="muted toggle-help">{{ t("event.imageArtistHelp") }}</p>
       </section>
 
       <section class="form-section">
@@ -583,6 +699,29 @@ async function submit() {
  * unit, then the section's normal 0.75rem gap kicks in below. */
 .section-explainer {
   margin: -0.25rem 0 0.25rem;
+}
+/* 4:3 hero-image preview on the form. ``max-width`` caps the
+ * preview so it doesn't dominate the form on desktop — the
+ * public sign-up page uses the same value (see PublicEvent.vue);
+ * the emails render the full 1200x900 inside the email card. */
+.image-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.image-preview img {
+  display: block;
+  max-width: 320px;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.image-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 /* Same shape as AppDialog's footer — Cancel + primary action,
  * right-aligned, matched gap. The ``margin-top`` separates the

@@ -67,3 +67,32 @@ export const del = <T>(path: string, body?: unknown) =>
     method: "DELETE",
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+/** ``POST`` a multipart form with a single ``file`` part. Used by
+ * the event-image upload route. The default ``Content-Type:
+ * application/json`` is dropped — ``fetch`` infers
+ * ``multipart/form-data; boundary=…`` from the ``FormData`` body
+ * and a manual override would corrupt it. */
+export async function postFile<T>(path: string, file: File): Promise<T> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const headers: Record<string, string> = {};
+  if (_token) headers["Authorization"] = `Bearer ${_token}`;
+  const resp = await fetch(path, { method: "POST", body: fd, headers });
+  if (resp.status === 401) clearToken();
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    let body: unknown = undefined;
+    try {
+      body = await resp.json();
+      if (body && typeof (body as { detail?: unknown }).detail === "string") {
+        detail = (body as { detail: string }).detail;
+      }
+    } catch {
+      /* non-JSON */
+    }
+    throw new ApiError(resp.status, detail, body);
+  }
+  if (resp.status === 204) return undefined as T;
+  return (await resp.json()) as T;
+}

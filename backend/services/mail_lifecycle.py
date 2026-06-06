@@ -161,6 +161,8 @@ def build_reminder_context(event: Event) -> dict[str, Any]:
         "event_time": _format_time_range(event.starts_at, event.ends_at),
         "location": event.location,
         "map_url": _osm_url(event),
+        "image_url": event.image_url,
+        "image_artist_instagram": event.image_artist_instagram,
     }
 
 
@@ -168,7 +170,11 @@ def build_feedback_context(event: Event) -> dict[str, Any]:
     """For the live worker the URL is appended in
     ``_process_one`` once the per-signup token is minted. The
     preview path passes a synthetic token in directly."""
-    return {"event_name": event.name}
+    return {
+        "event_name": event.name,
+        "image_url": event.image_url,
+        "image_artist_instagram": event.image_artist_instagram,
+    }
 
 
 # --- Channel definition table -------------------------------------

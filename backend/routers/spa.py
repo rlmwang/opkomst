@@ -93,10 +93,18 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     # (event names with quotes, ampersands, angle brackets).
     # ``quote=True`` is the default and is what we need for
     # values inside attributes.
+    # OG image: when the organiser uploaded a hero image use that
+    # (gives every share a real event-specific card); otherwise fall
+    # back to the favicon so parsers still get *something*.
+    og_image = event.image_url or _OG_IMAGE_URL
+    # Hero uploads are 4:3; favicon is square. Hint the card shape
+    # so previewers (WhatsApp especially) don't crop oddly.
+    twitter_card_type = "summary_large_image" if event.image_url else "summary"
+
     et = html.escape(title, quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
-    ei = html.escape(_OG_IMAGE_URL, quote=True)
+    ei = html.escape(og_image, quote=True)
     en = html.escape(event.name, quote=True)
 
     return (
@@ -108,7 +116,7 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
         f'    <meta property="og:url" content="{eu}">\n'
         f'    <meta property="og:site_name" content="opkomst.nu">\n'
         f'    <meta property="og:image" content="{ei}">\n'
-        f'    <meta name="twitter:card" content="summary">\n'
+        f'    <meta name="twitter:card" content="{twitter_card_type}">\n'
         f'    <meta name="twitter:title" content="{en}">\n'
         f'    <meta name="twitter:description" content="{ed}">\n'
         f'    <meta name="twitter:image" content="{ei}">'

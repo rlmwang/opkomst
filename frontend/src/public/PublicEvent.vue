@@ -305,6 +305,25 @@ watch(event, (e) => {
 
     <template v-else>
       <div class="card event-header">
+        <!-- 4:3 hero, capped at 200px tall so the form stays
+             above the fold on desktop. The image is null until
+             the organiser uploads one; mobile gets the
+             natural width-constrained render. -->
+        <figure v-if="event?.image_url" class="event-image-figure">
+          <img
+            :src="event.image_url"
+            :alt="event.name"
+            class="event-image"
+          />
+          <figcaption v-if="event.image_artist_instagram" class="event-image-credit muted">
+            {{ t.imageCredit }}
+            <a
+              :href="`https://instagram.com/${event.image_artist_instagram}`"
+              target="_blank"
+              rel="noopener"
+            >@{{ event.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="event-title">
           <h1 v-if="event">{{ event.name }}</h1>
           <h1 v-else class="skeleton-line skeleton-title" aria-hidden="true"></h1>
@@ -658,6 +677,30 @@ watch(event, (e) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+/* 4:3 hero, height-capped so the sign-up form stays above
+ * the fold on desktop. The source is server-cropped to 4:3
+ * (services/event_image.py) so no ``object-fit`` is needed. */
+.event-image-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.event-image {
+  display: block;
+  max-height: 200px;
+  width: auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+.event-image-credit {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+.event-image-credit a {
+  color: inherit;
+  text-decoration: underline;
 }
 .event-title h1 {
   margin: 0;
