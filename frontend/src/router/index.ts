@@ -13,6 +13,16 @@ const routes = [
   { path: "/events/:eventId/edit", component: () => import("@/pages/EventFormPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/events/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true } },
   { path: "/events/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  // Forms — standalone questionnaires (no relation to Events).
+  // Same chapter-scoped four-page experience: active list /
+  // archived list / details / edit. The public fill-out lives
+  // at /f/:slug and is unauthenticated.
+  { path: "/forms", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/forms/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/f/:slug", component: () => import("@/pages/PublicFormPage.vue"), props: true },
   // ``/e/:slug`` is no longer in the admin SPA router — it's
   // served by the backend as a separate Vue mini-app
   // (``frontend/public-event.html`` + ``src/public/``) with the

@@ -42,6 +42,20 @@ export type SignupSummary = S["SignupSummaryOut"];
 export type SignupCreate = S["SignupCreate"];
 export type SignupAck = S["SignupAck"];
 
+// --- Forms (standalone questionnaires) ---
+export type FormOut = S["FormOut"];
+export type FormCreate = S["FormCreate"];
+export type FormUpdate = S["FormUpdate"];
+export type FormQuestionIn = S["FormQuestionIn"];
+export type FormQuestionOut = S["FormQuestionOut"];
+export type PublicFormOut = S["PublicFormOut"];
+export type FormAnswerIn = S["FormAnswerIn"];
+export type FormSubmit = S["FormSubmitIn"];
+export type FormSubmitAck = S["FormSubmitAck"];
+export type FormQuestionSummary = S["FormQuestionSummary"];
+export type FormSummary = S["FormSummaryOut"];
+export type FormSubmission = S["FormSubmissionOut"];
+
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];
 export type FeedbackQuestion = S["FeedbackQuestionOut"];
