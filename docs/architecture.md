@@ -44,6 +44,7 @@ admin-driven change history.
 | Model | Notes |
 |---|---|
 | `Event` | `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. Slug is unique across the table — archive doesn't free the slug since it may be in bookmarks. `locale` drives the public sign-up page language and the feedback email language. |
+| `Form` | Standalone questionnaire. Same `archived_at` shape as `Event`; same chapter scoping. No relation to `Event`. `slug` is unique across the table; public fill-out lives at `/f/:slug`. |
 
 ### Append-only / row-id-stable
 
@@ -56,6 +57,8 @@ admin-driven change history.
 | `FeedbackQuestion` | The five fixed questions, keyed for i18n. |
 | `FeedbackToken` | One-time URL-safe token. `signup_id` + `event_id` FKs. Deleted on response submit or send-failure. |
 | `FeedbackResponse` | `event_id`, `question_id`, `submission_id` (random per submission). **No link to signup** by design — privacy invariant. |
+| `FormQuestion` | Per-form question rows. `form_id` FK (`ON DELETE CASCADE`). `kind` is one of `rating` / `text` / `short_text` / `single_choice` / `multi_choice`; the enum is enforced at the schema layer and the public submit handler. `options` is a JSON list for the two choice kinds; `low_label` / `high_label` are the optional scale captions for `rating`. Diff-applied by id on update — renaming or reordering doesn't reset the row's identity, so its responses stay attached. |
+| `FormResponse` | One row per (submission, question). `submission_id` is a random per-submission token with **no link** to any user or session — same privacy invariant as `FeedbackResponse`. `form_id` cascades; `question_id` also cascades, so an organiser dropping a question deletes the responses to it. |
 | `AuditLog` | `actor_id` / `target_id` reference `User.id` (no FK so a soft-deleted user's history survives). Records approve / promote / demote / assign_chapter / delete. |
 
 ## Privacy invariants (enforced at multiple layers)
@@ -88,6 +91,8 @@ All under `/api/v1/`.
 | `events.py` | list, list-archived, create, by-slug, qr.svg, update, archive, restore, send-emails-now (per channel), stats, signups | scoped to user's chapter set; ``?chapter_id=`` narrows the list to one chapter (validated against the user's set) |
 | `signups.py` | public POST | none (public); rate-limited |
 | `feedback.py` | questions list, public form GET, public submit, organiser summary, organiser submissions list (CSV source) | mixed; rate-limited on public submit |
+| `forms.py` | list, list-archived, create, get, update (diff-applies the question payload), archive, restore, delete-only-when-archived, summary, submissions (CSV source) | scoped to user's chapter set; same lifecycle shape as events.py |
+| `forms_public.py` | public form fetch by slug, public submit | none (public); rate-limited on submit; archived forms 410 |
 
 ## Frontend page graph
 
@@ -102,8 +107,13 @@ All under `/api/v1/`.
 | EventDetailsPage | `/events/:id/details` | approved (overview + signups + per-submission CSV export) |
 | ArchivedEventsPage | `/events/archived` | approved |
 | QuestionnairePreviewPage | `/questionnaire` | approved |
-| PublicEventPage | `/e/:slug` | public (locale follows event) |
+| PublicEventPage | `/e/:slug` | public (locale follows event; served by ``spa.py`` as a separate mini-app — payload + OG meta inlined into the HTML) |
 | FeedbackPage | `/e/:slug/feedback?t=` | public (locale follows event) |
+| FormListPage | `/forms` | required (active forms list; reuses ``ListPageView``) |
+| ArchivedFormsPage | `/forms/archived` | approved |
+| FormEditPage | `/forms/new`, `/forms/:id/edit` | approved (name + chapter + locale + question editor; reuses ``FormPageShell``) |
+| FormDetailsPage | `/forms/:id/details` | approved (overview + per-question response aggregates + CSV export; reuses ``DetailsPageShell``) |
+| PublicFormPage | `/f/:slug` | public (separate mini-app; same inlined-payload + OG-meta shape as ``/e/:slug``) |
 
 ## Email pipeline
 
