@@ -286,12 +286,21 @@ async def upload_event_image(
     Returns the updated ``EventOut`` so the caller's Vue Query
     cache patches in-place without an extra refetch."""
     if not settings.event_images_enabled:
+        logger.warning("event_image_upload_disabled", event_id=event_id, actor_id=user.id)
         raise HTTPException(status_code=503, detail="Event-image storage is not configured")
     event = access.get_event_for_user(db, event_id, user)
     raw = await file.read()
     try:
         jpeg = event_image.process_upload(raw)
     except event_image.ImageProcessingError as exc:
+        logger.warning(
+            "event_image_process_failed",
+            event_id=event.id,
+            actor_id=user.id,
+            content_type=file.content_type,
+            raw_bytes=len(raw),
+            reason=str(exc),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
@@ -301,6 +310,12 @@ async def upload_event_image(
             jpeg_bytes=jpeg,
         )
     except event_image.GithubUploadError as exc:
+        logger.warning(
+            "event_image_github_upload_failed",
+            event_id=event.id,
+            actor_id=user.id,
+            reason=str(exc),
+        )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     event.image_url = url
     db.commit()

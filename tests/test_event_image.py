@@ -68,10 +68,16 @@ def test_process_upload_rejects_empty() -> None:
         event_image.process_upload(b"")
 
 
-def test_process_upload_rejects_too_small() -> None:
-    data = _png_bytes(800, 600)
-    with pytest.raises(event_image.ImageProcessingError, match="at least 1200x900"):
-        event_image.process_upload(data)
+def test_process_upload_upscales_small_source() -> None:
+    """Small sources are upscaled rather than rejected — an organiser
+    with a sub-1200x900 flyer can still upload it. Output is always
+    1200x900 4:3 JPEG."""
+    from PIL import Image
+
+    jpeg = event_image.process_upload(_png_bytes(800, 600))
+    out = Image.open(io.BytesIO(jpeg))
+    assert (out.width, out.height) == (1200, 900)
+    assert out.format == "JPEG"
 
 
 # --- upload_to_github ------------------------------------------------

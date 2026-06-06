@@ -104,17 +104,13 @@ def process_upload(data: bytes) -> bytes:
             background.paste(img)
         img = background
 
-    # Center-crop to 4:3 (no letterboxing), then resize. ``fit``
-    # picks the largest 4:3 rectangle inside the source and scales
-    # it down — never up-scales (we'd just produce blurry output).
-    target_size = (_OUT_W, _OUT_H)
-    if img.width < _OUT_W or img.height < _OUT_H:
-        # Source is smaller than target on at least one axis;
-        # cropping first then upscaling would magnify artefacts.
-        # Reject — the organiser should upload something with
-        # enough pixels for a hero image.
-        raise ImageProcessingError(f"Image must be at least {_OUT_W}x{_OUT_H}; got {img.width}x{img.height}")
-    img = ImageOps.fit(img, target_size, Image.Resampling.LANCZOS, centering=(0.5, 0.5))
+    # Center-crop to 4:3 (no letterboxing), then resize to target.
+    # ``fit`` picks the largest 4:3 rectangle inside the source and
+    # resamples it to 1200x900 — upscaling if the source is smaller
+    # on either axis. LANCZOS + JPEG q=85 hides upscale fuzz well
+    # enough at hero-card size, and rejecting small images just
+    # leaves the organiser staring at a 400 they can't act on.
+    img = ImageOps.fit(img, (_OUT_W, _OUT_H), Image.Resampling.LANCZOS, centering=(0.5, 0.5))
 
     out = io.BytesIO()
     img.save(out, format="JPEG", quality=_JPEG_QUALITY, optimize=True, progressive=True)
