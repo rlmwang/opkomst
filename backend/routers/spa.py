@@ -5,12 +5,16 @@ The hashed ``assets/`` directory mounts with a 1-year ``immutable``
 ``Cache-Control`` header (filenames are content-hashed by Vite, so
 a changed file ships under a new URL).
 
-Two HTML entry points:
+Three HTML entry points:
 
 * ``/e/{slug}`` — the public sign-up mini-app (``public-event.html``).
   The handler looks the event up server-side and injects the
   payload into the HTML as ``window.__OPKOMST_EVENT__`` so the
   Vue mini-app has data on first paint, no API round-trip needed.
+* ``/f/{slug}`` — the public form mini-app (``public-form.html``).
+  Same shape as the event handler one level down: payload inlined
+  as ``window.__OPKOMST_FORM__``; per-form ``<head>`` metadata
+  for link-preview cards.
 * every other non-/api path — the admin SPA (``index.html``); the
   client-side router takes it from there.
 
@@ -32,9 +36,10 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Event
+from ..models import Event, Form
 from ..services import event_stats
 from ..services import events as events_svc
+from ..services import forms as forms_svc
 
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -52,6 +57,11 @@ _SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
 # ever grows the same shape.
 _INJECTION_MARKER = "<!-- OPKOMST_EVENT_INJECTION -->"
 _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
+# Distinct payload marker for the form mini-app — the head-meta
+# marker is shared (same ``<!-- OPKOMST_HEAD_INJECTION -->``)
+# because the per-page head metadata serves the same role on both
+# pages.
+_FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # Static OG image — same favicon the browser tab uses, lives at
@@ -98,6 +108,41 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     eu = html.escape(canonical_url, quote=True)
     ei = html.escape(_OG_IMAGE_URL, quote=True)
     en = html.escape(event.name, quote=True)
+
+    return (
+        f"<title>{et}</title>\n"
+        f'    <meta name="description" content="{ed}">\n'
+        f'    <meta property="og:title" content="{en}">\n'
+        f'    <meta property="og:description" content="{ed}">\n'
+        f'    <meta property="og:type" content="website">\n'
+        f'    <meta property="og:url" content="{eu}">\n'
+        f'    <meta property="og:site_name" content="opkomst.nu">\n'
+        f'    <meta property="og:image" content="{ei}">\n'
+        f'    <meta name="twitter:card" content="summary">\n'
+        f'    <meta name="twitter:title" content="{en}">\n'
+        f'    <meta name="twitter:description" content="{ed}">\n'
+        f'    <meta name="twitter:image" content="{ei}">'
+    )
+
+
+def _build_form_head_meta(form: Form | None, slug: str) -> str:
+    """Per-form ``<head>`` markup: page title + Open Graph +
+    Twitter Card tags. Same shape as ``_build_head_meta`` for
+    events; the form description is just "{name} · opkomst.nu"
+    since forms don't have a topic / location / date the way
+    events do."""
+    if form is None:
+        return "<title>opkomst.nu</title>"
+
+    title = f"{form.name} — opkomst.nu"
+    description = form.name
+    canonical_url = f"{_PUBLIC_BASE}/f/{slug}"
+
+    et = html.escape(title, quote=True)
+    ed = html.escape(description, quote=True)
+    eu = html.escape(canonical_url, quote=True)
+    ei = html.escape(_OG_IMAGE_URL, quote=True)
+    en = html.escape(form.name, quote=True)
 
     return (
         f"<title>{et}</title>\n"
@@ -185,6 +230,80 @@ def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
     )
 
 
+def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
+    """Render ``public-form.html`` with the form payload inlined.
+
+    Mirror of ``_serve_public_event``: one query, inline the
+    ``PublicFormOut`` shape (id + name + locale + questions) into
+    ``window.__OPKOMST_FORM__`` so the mini-app paints without an
+    API round-trip. Archived forms inline ``null``; the mini-app
+    renders the same "no longer available" message it would on a
+    410 from the JSON endpoint.
+
+    The cache window matches the events route — 60 s browser +
+    shared cache with ``stale-while-revalidate`` — and the
+    trade-off is the same: organiser edits to a form's question
+    set take up to 60 s to surface to new visitors via the
+    inlined data."""
+    public_html_path = _DIST / "public-form.html"
+    if not public_html_path.is_file():
+        # Build artefact missing — fall back to the admin SPA so
+        # at least something loads. The admin router no longer
+        # has a ``/f/:slug`` route so the user lands on the SPA's
+        # 404 page, which is the right thing for a malformed
+        # local dev setup.
+        return HTMLResponse(
+            (_DIST / "index.html").read_text(encoding="utf-8"),
+            headers={"Cache-Control": "no-store"},
+        )
+
+    if _SLUG_RE.match(slug):
+        form = forms_svc.get_form_by_slug_any(db, slug)
+    else:
+        form = None
+
+    if form is None:
+        payload: object | None = None
+    else:
+        # Inline the slim PublicFormOut shape — the mini-app's
+        # ``PublicForm`` type expects id, name, locale, questions.
+        # Anything else (chapter info, created_at) would be dead
+        # weight on the wire.
+        from ..models import FormQuestion
+
+        questions = db.query(FormQuestion).filter(FormQuestion.form_id == form.id).order_by(FormQuestion.ordinal).all()
+        payload = {
+            "id": form.id,
+            "name": form.name,
+            "locale": form.locale,
+            "questions": [
+                {
+                    "id": q.id,
+                    "ordinal": q.ordinal,
+                    "kind": q.kind,
+                    "prompt": q.prompt,
+                    "required": q.required,
+                    "options": q.options,
+                    "low_label": q.low_label,
+                    "high_label": q.high_label,
+                }
+                for q in questions
+            ],
+        }
+
+    inlined = "<script>window.__OPKOMST_FORM__ = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
+    head_meta = _build_form_head_meta(form, slug)
+    rendered = (
+        public_html_path.read_text(encoding="utf-8")
+        .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
+        .replace(_FORM_INJECTION_MARKER, inlined, 1)
+    )
+    return HTMLResponse(
+        rendered,
+        headers={"Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300"},
+    )
+
+
 def mount(app: FastAPI) -> None:
     if not _DIST.is_dir():
         return
@@ -195,6 +314,10 @@ def mount(app: FastAPI) -> None:
     @app.get("/e/{slug}", include_in_schema=False)
     def _public_event(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_event(slug, db)
+
+    @app.get("/f/{slug}", include_in_schema=False)
+    def _public_form(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_form(slug, db)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def _spa_fallback(full_path: str) -> FileResponse:

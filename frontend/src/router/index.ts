@@ -22,7 +22,11 @@ const routes = [
   { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/f/:slug", component: () => import("@/pages/PublicFormPage.vue"), props: true },
+  // ``/f/:slug`` is NOT in the admin SPA router — it's served by
+  // the backend as a separate Vue mini-app (``public-form.html``
+  // + ``src/public_form/``) with the form payload inlined into
+  // the HTML response. Same pattern as ``/e/:slug``; see
+  // ``backend/routers/spa.py``.
   // ``/e/:slug`` is no longer in the admin SPA router — it's
   // served by the backend as a separate Vue mini-app
   // (``frontend/public-event.html`` + ``src/public/``) with the

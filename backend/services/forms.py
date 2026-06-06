@@ -36,6 +36,22 @@ ALLOWED_KINDS: Final[frozenset[str]] = frozenset({"rating", "text", "short_text"
 _CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice"})
 
 
+def get_form_by_slug_any(db: Session, slug: str) -> Form | None:
+    """Slug lookup that includes archived forms — used by the
+    public HTML route in ``routers/spa.py``. Returns ``None`` when
+    the slug is unknown OR the form is archived: the public mini-
+    app treats both as "no longer available", matching how the
+    public JSON endpoint 410s on both. Mirrors how
+    ``events_svc.get_event_by_slug_any`` is used by
+    ``_serve_public_event`` (events choose to render archived
+    events with a banner; forms don't have a meaningful "archived
+    but viewable" mode, so a single null pathway is correct)."""
+    form = db.query(Form).filter(Form.slug == slug).first()
+    if form is None or form.archived_at is not None:
+        return None
+    return form
+
+
 def get_form_for_user(db: Session, form_id: str, user: User) -> Form:
     """Fetch a form by id, scoped to the user's chapter set. 404
     if missing, in a chapter the user can't see, or the user has
