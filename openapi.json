@@ -824,6 +824,529 @@
         "title": "FeedbackSummaryOut",
         "type": "object"
       },
+      "FormAnswerIn": {
+        "description": "One answered question on the public submit payload. Exactly\none answer-shaped field is meaningful per kind; the server\nvalidates the right field is populated against the question's\nstored kind, and ignores the others.",
+        "properties": {
+          "answer_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Choices"
+          },
+          "answer_int": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Int"
+          },
+          "answer_text": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Text"
+          },
+          "question_id": {
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id"
+        ],
+        "title": "FormAnswerIn",
+        "type": "object"
+      },
+      "FormCreate": {
+        "description": "Organiser create payload.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionIn"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "FormCreate",
+        "type": "object"
+      },
+      "FormOut": {
+        "description": "Organiser-side DTO. Returns the slug + archived flag the\nfrontend list page sorts on, plus the full question list for\nthe edit page to pre-populate without an extra round-trip.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at"
+        ],
+        "title": "FormOut",
+        "type": "object"
+      },
+      "FormQuestionIn": {
+        "description": "One question on the create / update payload. ``id`` is null\nfor newly-added rows; existing questions carry their server-\nassigned uuid so the diff-apply on update matches by id (and\nthe row's responses stay attached across a prompt edit).\n``ordinal`` is not on this shape \u2014 the server re-numbers from\ninput order, which means reordering on the frontend is just\n\"send back in the new order\".",
+        "properties": {
+          "high_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Label"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "enum": [
+              "rating",
+              "text",
+              "short_text",
+              "single_choice",
+              "multi_choice"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "low_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Label"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Options",
+            "type": "array"
+          },
+          "prompt": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "prompt"
+        ],
+        "title": "FormQuestionIn",
+        "type": "object"
+      },
+      "FormQuestionOut": {
+        "description": "Question shape on the wire. Organiser endpoints + the\npublic-by-slug endpoint both return this; the public form\nrenders ``prompt`` / ``options`` / ``low_label`` / ``high_label``\nverbatim. ``ordinal`` is server-assigned (1..N).",
+        "properties": {
+          "high_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Label"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "low_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Label"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "kind",
+          "prompt",
+          "required",
+          "options"
+        ],
+        "title": "FormQuestionOut",
+        "type": "object"
+      },
+      "FormQuestionSummary": {
+        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.",
+        "properties": {
+          "choice_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice Counts"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_distribution": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Distribution"
+          },
+          "response_count": {
+            "title": "Response Count",
+            "type": "integer"
+          },
+          "texts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texts"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "kind",
+          "prompt",
+          "response_count"
+        ],
+        "title": "FormQuestionSummary",
+        "type": "object"
+      },
+      "FormSubmissionOut": {
+        "description": "One submission as a flat row for the CSV export. ``answers``\nis keyed by question id; values match the kind: int for\nrating, string for text/short_text, list[str] for choice\nkinds. Missing answers are absent from the dict.\n\n``submission_id`` is the random per-submission token with no\nlink back to the submitter \u2014 same privacy contract as the\npost-event feedback CSV.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "created_at",
+          "answers"
+        ],
+        "title": "FormSubmissionOut",
+        "type": "object"
+      },
+      "FormSubmitAck": {
+        "description": "Public submit response. No identifying information \u2014 the\nhandler returns the random submission_id only so the client\ncan confirm the submission landed without holding onto state\nserver-side.",
+        "properties": {
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id"
+        ],
+        "title": "FormSubmitAck",
+        "type": "object"
+      },
+      "FormSubmitIn": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswerIn"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "FormSubmitIn",
+        "type": "object"
+      },
+      "FormSummaryOut": {
+        "description": "Organiser summary endpoint. ``submission_count`` is the\nnumber of distinct fill-outs; per-question aggregates explain\nwhat each question collected.",
+        "properties": {
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionSummary"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_count",
+          "questions"
+        ],
+        "title": "FormSummaryOut",
+        "type": "object"
+      },
+      "FormUpdate": {
+        "description": "Same shape as create. Kept as a distinct class so the\nOpenAPI schema distinguishes the two endpoints even though\nthe body is identical.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionIn"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "FormUpdate",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1145,6 +1668,42 @@
           "count"
         ],
         "title": "PendingCountOut",
+        "type": "object"
+      },
+      "PublicFormOut": {
+        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\nlocale + questions in display order.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "locale",
+          "questions"
+        ],
+        "title": "PublicFormOut",
         "type": "object"
       },
       "QrResponse": {
@@ -3808,6 +4367,709 @@
         "summary": "Submit Feedback",
         "tags": [
           "feedback"
+        ]
+      }
+    },
+    "/api/v1/forms": {
+      "get": {
+        "operationId": "list_forms_api_v1_forms_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormOut"
+                  },
+                  "title": "Response List Forms Api V1 Forms Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Forms",
+        "tags": [
+          "forms"
+        ]
+      },
+      "post": {
+        "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
+        "operationId": "create_form_api_v1_forms_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/archived": {
+      "get": {
+        "operationId": "list_archived_forms_api_v1_forms_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormOut"
+                  },
+                  "title": "Response List Archived Forms Api V1 Forms Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Forms",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_form_api_v1_forms_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-slug/{slug}/submit": {
+      "post": {
+        "description": "Accept one public submission. Validates each answer\nagainst its question's stored kind. Skipped optional\nquestions are simply absent from the stored rows; skipped\nrequired questions 400.\n\nReturns the random ``submission_id`` so the client can\nconfirm the submit landed. Nothing in the response links the\nsubmission back to the submitter \u2014 same privacy contract as\nthe post-event feedback flow.",
+        "operationId": "submit_form_api_v1_forms_by_slug__slug__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormSubmitAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}": {
+      "delete": {
+        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "operationId": "delete_form_api_v1_forms__form_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Form",
+        "tags": [
+          "forms"
+        ]
+      },
+      "get": {
+        "operationId": "get_form_api_v1_forms__form_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form",
+        "tags": [
+          "forms"
+        ]
+      },
+      "put": {
+        "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
+        "operationId": "update_form_api_v1_forms__form_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/archive": {
+      "post": {
+        "operationId": "archive_form_api_v1_forms__form_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/restore": {
+      "post": {
+        "operationId": "restore_form_api_v1_forms__form_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/submissions": {
+      "get": {
+        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "operationId": "form_submissions_api_v1_forms__form_id__submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormSubmissionOut"
+                  },
+                  "title": "Response Form Submissions Api V1 Forms  Form Id  Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/summary": {
+      "get": {
+        "operationId": "form_summary_api_v1_forms__form_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Summary",
+        "tags": [
+          "forms"
         ]
       }
     },

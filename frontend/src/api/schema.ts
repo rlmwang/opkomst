@@ -819,6 +819,201 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Forms */
+        get: operations["list_forms_api_v1_forms_get"];
+        put?: never;
+        /**
+         * Create Form
+         * @description Create a new form. Questions are optional — a blank form
+         *     can be saved and the question list filled in on the edit
+         *     page afterwards. Caller-supplied ``chapter_id`` must be in
+         *     the user's live membership set.
+         */
+        post: operations["create_form_api_v1_forms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Forms */
+        get: operations["list_archived_forms_api_v1_forms_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Form */
+        get: operations["get_public_form_api_v1_forms_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-slug/{slug}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Form
+         * @description Accept one public submission. Validates each answer
+         *     against its question's stored kind. Skipped optional
+         *     questions are simply absent from the stored rows; skipped
+         *     required questions 400.
+         *
+         *     Returns the random ``submission_id`` so the client can
+         *     confirm the submit landed. Nothing in the response links the
+         *     submission back to the submitter — same privacy contract as
+         *     the post-event feedback flow.
+         */
+        post: operations["submit_form_api_v1_forms_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Form */
+        get: operations["get_form_api_v1_forms__form_id__get"];
+        /**
+         * Update Form
+         * @description Update a form. Chapter changes are allowed (organiser might
+         *     have picked the wrong chapter at create time) but the new one
+         *     still has to be in the user's set. Questions are diff-applied
+         *     by id — see ``services/forms.apply_questions``.
+         */
+        put: operations["update_form_api_v1_forms__form_id__put"];
+        post?: never;
+        /**
+         * Delete Form
+         * @description Hard-delete an archived form. Refuses if the form isn't
+         *     archived first — accidentally hard-deleting a live form with
+         *     responses would be a data-loss footgun. Cascades through
+         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
+         *     CASCADEs in the schema.
+         */
+        delete: operations["delete_form_api_v1_forms__form_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Form */
+        post: operations["archive_form_api_v1_forms__form_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Form */
+        post: operations["restore_form_api_v1_forms__form_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions
+         * @description Per-submission rows, keyed by question id. CSV consumers
+         *     map columns by question id; a separate lookup against the
+         *     questions list gives them the prompt text.
+         *
+         *     Privacy: ``submission_id`` is a random per-submission token
+         *     with no link back to whoever submitted — same contract as
+         *     the post-event feedback CSV.
+         */
+        get: operations["form_submissions_api_v1_forms__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Form Summary */
+        get: operations["form_summary_api_v1_forms__form_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/member-survey/form": {
         parameters: {
             query?: never;
@@ -1391,6 +1586,235 @@ export interface components {
             /** Submission Count */
             submission_count: number;
         };
+        /**
+         * FormAnswerIn
+         * @description One answered question on the public submit payload. Exactly
+         *     one answer-shaped field is meaningful per kind; the server
+         *     validates the right field is populated against the question's
+         *     stored kind, and ignores the others.
+         */
+        FormAnswerIn: {
+            /** Answer Choices */
+            answer_choices?: string[] | null;
+            /** Answer Int */
+            answer_int?: number | null;
+            /** Answer Text */
+            answer_text?: string | null;
+            /** Question Id */
+            question_id: string;
+        };
+        /**
+         * FormCreate
+         * @description Organiser create payload.
+         */
+        FormCreate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionIn"][];
+        };
+        /**
+         * FormOut
+         * @description Organiser-side DTO. Returns the slug + archived flag the
+         *     frontend list page sorts on, plus the full question list for
+         *     the edit page to pre-populate without an extra round-trip.
+         */
+        FormOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionOut"][];
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * FormQuestionIn
+         * @description One question on the create / update payload. ``id`` is null
+         *     for newly-added rows; existing questions carry their server-
+         *     assigned uuid so the diff-apply on update matches by id (and
+         *     the row's responses stay attached across a prompt edit).
+         *     ``ordinal`` is not on this shape — the server re-numbers from
+         *     input order, which means reordering on the frontend is just
+         *     "send back in the new order".
+         */
+        FormQuestionIn: {
+            /** High Label */
+            high_label?: string | null;
+            /** Id */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice";
+            /** Low Label */
+            low_label?: string | null;
+            /** Options */
+            options?: string[];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+        };
+        /**
+         * FormQuestionOut
+         * @description Question shape on the wire. Organiser endpoints + the
+         *     public-by-slug endpoint both return this; the public form
+         *     renders ``prompt`` / ``options`` / ``low_label`` / ``high_label``
+         *     verbatim. ``ordinal`` is server-assigned (1..N).
+         */
+        FormQuestionOut: {
+            /** High Label */
+            high_label?: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Low Label */
+            low_label?: string | null;
+            /** Options */
+            options: string[];
+            /** Ordinal */
+            ordinal: number;
+            /** Prompt */
+            prompt: string;
+            /** Required */
+            required: boolean;
+        };
+        /**
+         * FormQuestionSummary
+         * @description Per-question aggregate on the organiser details page.
+         *     Shape mirrors the post-event feedback summary:
+         *
+         *     * ``rating`` — ``rating_distribution`` (5-bucket counts) +
+         *       ``rating_average``.
+         *     * ``text`` / ``short_text`` — ``texts`` (newest first).
+         *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
+         *       keyed by option string.
+         */
+        FormQuestionSummary: {
+            /** Choice Counts */
+            choice_counts?: {
+                [key: string]: number;
+            } | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Prompt */
+            prompt: string;
+            /** Rating Average */
+            rating_average?: number | null;
+            /** Rating Distribution */
+            rating_distribution?: number[] | null;
+            /** Response Count */
+            response_count: number;
+            /** Texts */
+            texts?: string[] | null;
+        };
+        /**
+         * FormSubmissionOut
+         * @description One submission as a flat row for the CSV export. ``answers``
+         *     is keyed by question id; values match the kind: int for
+         *     rating, string for text/short_text, list[str] for choice
+         *     kinds. Missing answers are absent from the dict.
+         *
+         *     ``submission_id`` is the random per-submission token with no
+         *     link back to the submitter — same privacy contract as the
+         *     post-event feedback CSV.
+         */
+        FormSubmissionOut: {
+            /** Answers */
+            answers: {
+                [key: string]: number | string | string[];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Submission Id */
+            submission_id: string;
+        };
+        /**
+         * FormSubmitAck
+         * @description Public submit response. No identifying information — the
+         *     handler returns the random submission_id only so the client
+         *     can confirm the submission landed without holding onto state
+         *     server-side.
+         */
+        FormSubmitAck: {
+            /** Submission Id */
+            submission_id: string;
+        };
+        /** FormSubmitIn */
+        FormSubmitIn: {
+            /** Answers */
+            answers: components["schemas"]["FormAnswerIn"][];
+        };
+        /**
+         * FormSummaryOut
+         * @description Organiser summary endpoint. ``submission_count`` is the
+         *     number of distinct fill-outs; per-question aggregates explain
+         *     what each question collected.
+         */
+        FormSummaryOut: {
+            /** Questions */
+            questions: components["schemas"]["FormQuestionSummary"][];
+            /** Submission Count */
+            submission_count: number;
+        };
+        /**
+         * FormUpdate
+         * @description Same shape as create. Kept as a distinct class so the
+         *     OpenAPI schema distinguishes the two endpoints even though
+         *     the body is identical.
+         */
+        FormUpdate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionIn"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1523,6 +1947,25 @@ export interface components {
         PendingCountOut: {
             /** Count */
             count: number;
+        };
+        /**
+         * PublicFormOut
+         * @description What the public fill-out page (``/f/{slug}``) reads. No
+         *     chapter id, no internal timestamps — just the form name +
+         *     locale + questions in display order.
+         */
+        PublicFormOut: {
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions: components["schemas"]["FormQuestionOut"][];
         };
         /**
          * QrResponse
@@ -3030,6 +3473,406 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_forms_api_v1_forms_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_form_api_v1_forms_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_forms_api_v1_forms_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_form_api_v1_forms_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicFormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_form_api_v1_forms_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSubmitAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_api_v1_forms__form_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_form_api_v1_forms__form_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_form_api_v1_forms__form_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_form_api_v1_forms__form_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_form_api_v1_forms__form_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_submissions_api_v1_forms__form_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_summary_api_v1_forms__form_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSummaryOut"];
                 };
             };
             /** @description Validation Error */
