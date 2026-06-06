@@ -2,14 +2,12 @@
 import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import MultiSelect from "primevue/multiselect";
-import Select from "primevue/select";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
-import AppSkeleton from "@/components/AppSkeleton.vue";
-import SearchInput from "@/components/SearchInput.vue";
+import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useSetUserChapters } from "@/composables/useAdmin";
 import { type Chapter, chapterList, useChapters } from "@/composables/useChapters";
@@ -130,20 +128,11 @@ watch(eventsQuery.isError, (isError) => {
   if (isError) toasts.error(t("dashboard.loadFailed"));
 });
 
-const query = ref("");
 const loaded = computed(() => !auth.isApproved || !eventsQuery.isPending.value);
 
 const sortedEvents = computed(() =>
   [...events.value].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
 );
-
-const filteredEvents = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  if (!q) return sortedEvents.value;
-  return sortedEvents.value.filter(
-    (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
-  );
-});
 
 function askArchive(e: EventOut) {
   confirms.ask({
@@ -165,82 +154,85 @@ function askArchive(e: EventOut) {
 </script>
 
 <template>
-  <AppHeader />
-  <div class="container stack">
-    <h1>{{ t("dashboard.title") }}</h1>
-    <p class="muted">{{ t("dashboard.intro") }}</p>
-
-    <AppCard v-if="!auth.isApproved">
-      <h2>{{ t("dashboard.pendingTitle") }}</h2>
-      <p>{{ t("dashboard.pendingBody") }}</p>
-    </AppCard>
-
-    <!-- Approved-but-no-chapter banner. The signup flow doesn't
-         ask for a chapter (deliberate — chapter names would
-         leak pre-auth). Pick inline so the first-time path is
-         one click: select chapters, hit Save, and the banner
-         dissolves into a populated events list. -->
-    <AppCard v-else-if="noChapters">
-      <h2>{{ t("dashboard.noChaptersTitle") }}</h2>
-      <p class="muted">{{ t("dashboard.noChaptersBody") }}</p>
-      <div class="onboarding-picker">
-        <MultiSelect
-          v-model="onboardingPicks"
-          :options="allChapters"
-          option-label="name"
-          :placeholder="t('dashboard.noChaptersPlaceholder')"
-          display="chip"
-          filter
-          fluid
-        />
-        <Button
-          :label="t('dashboard.noChaptersCta')"
-          :disabled="onboardingPicks.length === 0"
-          :loading="onboardingSubmitting"
-          @click="submitOnboardingChapters"
-        />
-      </div>
-    </AppCard>
-
-    <template v-else>
-      <div class="actions-row">
-        <router-link
-          :to="{
-            path: '/events/new',
-            query: chapterFilter ? { chapter: chapterFilter } : undefined,
-          }"
-        >
-          <Button :label="t('dashboard.newEvent')" icon="pi pi-plus" />
-        </router-link>
-        <Select
-          :model-value="chapterFilter"
-          :options="[{ id: null, name: t('dashboard.chapterFilterAll') }, ...chapterOptions]"
-          option-label="name"
-          option-value="id"
-          :placeholder="t('dashboard.chapterFilterAll')"
-          class="chapter-filter"
-          @update:model-value="setChapterFilter"
-        />
-        <SearchInput
-          v-model="query"
-          :placeholder="t('dashboard.searchPlaceholder')"
-          class="search"
-        />
-      </div>
-
-      <AppSkeleton v-if="!loaded" :rows="3" cards />
-
-      <AppCard v-else-if="sortedEvents.length === 0" :stack="false">
-        <p class="muted">{{ t("dashboard.empty") }}</p>
+  <!-- Pre-list short-circuits. Both branches render their own
+       AppHeader + page-title chrome rather than the shell's,
+       because the shell unconditionally renders the
+       actions-row + list, which neither state has any business
+       showing. -->
+  <template v-if="!auth.isApproved">
+    <AppHeader />
+    <div class="container stack">
+      <h1>{{ t("dashboard.title") }}</h1>
+      <p class="muted">{{ t("dashboard.intro") }}</p>
+      <AppCard>
+        <h2>{{ t("dashboard.pendingTitle") }}</h2>
+        <p>{{ t("dashboard.pendingBody") }}</p>
       </AppCard>
+    </div>
+  </template>
 
-      <p v-else-if="filteredEvents.length === 0" class="muted">
-        {{ t("dashboard.noMatches") }}
-      </p>
+  <template v-else-if="noChapters">
+    <AppHeader />
+    <div class="container stack">
+      <h1>{{ t("dashboard.title") }}</h1>
+      <p class="muted">{{ t("dashboard.intro") }}</p>
+      <!-- Approved-but-no-chapter banner. The signup flow doesn't
+           ask for a chapter (deliberate — chapter names would
+           leak pre-auth). Pick inline so the first-time path is
+           one click: select chapters, hit Save, and the banner
+           dissolves into a populated events list. -->
+      <AppCard>
+        <h2>{{ t("dashboard.noChaptersTitle") }}</h2>
+        <p class="muted">{{ t("dashboard.noChaptersBody") }}</p>
+        <div class="onboarding-picker">
+          <MultiSelect
+            v-model="onboardingPicks"
+            :options="allChapters"
+            option-label="name"
+            :placeholder="t('dashboard.noChaptersPlaceholder')"
+            display="chip"
+            filter
+            fluid
+          />
+          <Button
+            :label="t('dashboard.noChaptersCta')"
+            :disabled="onboardingPicks.length === 0"
+            :loading="onboardingSubmitting"
+            @click="submitOnboardingChapters"
+          />
+        </div>
+      </AppCard>
+    </div>
+  </template>
 
+  <ListPageView
+    v-else
+    :title="t('dashboard.title')"
+    :intro="t('dashboard.intro')"
+    :items="sortedEvents"
+    :loaded="loaded"
+    :chapter-filter="chapterFilter"
+    :chapter-options="chapterOptions"
+    :search-placeholder="t('dashboard.searchPlaceholder')"
+    :search-keys="(e: EventOut) => [e.name, e.location]"
+    :empty-copy="t('dashboard.empty')"
+    :no-matches-copy="t('dashboard.noMatches')"
+    :skeleton-rows="3"
+    @update:chapter-filter="setChapterFilter"
+  >
+    <template #actions-leading>
+      <router-link
+        :to="{
+          path: '/events/new',
+          query: chapterFilter ? { chapter: chapterFilter } : undefined,
+        }"
+      >
+        <Button :label="t('dashboard.newEvent')" icon="pi pi-plus" />
+      </router-link>
+    </template>
+
+    <template #row="{ item: e }">
       <AppCard
-        v-for="e in filteredEvents"
-        :key="e.id"
         :stack="false"
         class="event-card"
         @mouseenter="prefetchDetails(e.id)"
@@ -297,7 +289,7 @@ function askArchive(e: EventOut) {
         </div>
       </AppCard>
     </template>
-  </div>
+  </ListPageView>
 </template>
 
 <style scoped>
@@ -311,16 +303,6 @@ function askArchive(e: EventOut) {
 .onboarding-picker :deep(.p-multiselect) {
   flex: 1;
   min-width: 0;
-}
-.actions-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-.actions-row .search {
-  flex: 1;
-  max-width: 24rem;
-  margin-left: auto;
 }
 .event-card {
   display: grid;
@@ -348,9 +330,6 @@ function askArchive(e: EventOut) {
   font-size: 0.75rem;
   white-space: nowrap;
   vertical-align: baseline;
-}
-.chapter-filter {
-  min-width: 12rem;
 }
 
 .event-side {

@@ -8,9 +8,8 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import AppCard from "@/components/AppCard.vue";
-import AppHeader from "@/components/AppHeader.vue";
 import EditableList from "@/components/EditableList.vue";
+import FormPageShell from "@/components/FormPageShell.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import {
@@ -395,11 +394,13 @@ async function submit() {
 </script>
 
 <template>
-  <AppHeader />
-  <div class="container">
-    <AppCard tag="form" novalidate @submit.prevent="submit">
-      <h1>{{ isEdit ? t("event.editTitle") : t("event.newTitle") }}</h1>
-
+  <FormPageShell
+    :title="isEdit ? t('event.editTitle') : t('event.newTitle')"
+    :submit-label="isEdit ? t('event.save') : t('event.create')"
+    :submitting="submitting"
+    @submit="submit"
+    @cancel="cancel"
+  >
       <section class="form-section">
         <InputText v-model="name" :placeholder="t('event.name')" fluid />
         <Textarea
@@ -530,18 +531,7 @@ async function submit() {
         />
       </section>
 
-      <div class="form-footer">
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          text
-          type="button"
-          @click="cancel"
-        />
-        <Button type="submit" :label="isEdit ? t('event.save') : t('event.create')" :loading="submitting" />
-      </div>
-    </AppCard>
-  </div>
+  </FormPageShell>
 </template>
 
 <style scoped>
@@ -583,15 +573,5 @@ async function submit() {
  * unit, then the section's normal 0.75rem gap kicks in below. */
 .section-explainer {
   margin: -0.25rem 0 0.25rem;
-}
-/* Same shape as AppDialog's footer — Cancel + primary action,
- * right-aligned, matched gap. The ``margin-top`` separates the
- * footer from the last section so Cancel / Submit don't feel
- * glued to the locale picker. */
-.form-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
 }
 </style>

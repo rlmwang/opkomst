@@ -3,8 +3,8 @@ import Button from "primevue/button";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
-import AppHeader from "@/components/AppHeader.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
+import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import {
   eventList,
   type SignupSummary,
@@ -207,16 +207,13 @@ function askTriggerNow(channel: EmailChannel) {
 </script>
 
 <template>
-  <AppHeader />
-  <div class="container stack">
-    <!-- Only block render on ``event`` itself: it usually lives in
-         the events-list cache when arriving from the dashboard, so
-         the overview paints immediately. ``stats`` / ``summary``
-         each show a localised skeleton inside their own card —
-         the page no longer waits on the slowest fetch. -->
-    <AppSkeleton v-if="!event" :rows="4" cards />
-
-    <template v-else>
+  <!-- Only block render on ``event`` itself: it usually lives in
+       the events-list cache when arriving from the dashboard, so
+       the overview paints immediately. ``stats`` / ``summary``
+       each show a localised skeleton inside their own card —
+       the page no longer waits on the slowest fetch. -->
+  <DetailsPageShell :loaded="!!event" :skeleton-rows="4">
+    <template v-if="event">
 <AppCard :stack="false" class="overview">
         <h1>
           {{ event.name }}
@@ -428,7 +425,7 @@ function askTriggerNow(channel: EmailChannel) {
         </AppCard>
       </template>
     </template>
-  </div>
+  </DetailsPageShell>
 </template>
 
 <style scoped>

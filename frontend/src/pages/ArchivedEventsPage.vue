@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import Select from "primevue/select";
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
-import AppHeader from "@/components/AppHeader.vue";
-import AppSkeleton from "@/components/AppSkeleton.vue";
-import SearchInput from "@/components/SearchInput.vue";
+import ListPageView from "@/components/ListPageView.vue";
 import {
   type EventOut,
   useArchivedEvents,
@@ -66,16 +63,7 @@ watch(archivedQuery.isError, (isError) => {
   if (isError) toasts.error(t("archived.loadFailed"));
 });
 
-const query = ref("");
 const loaded = computed(() => !archivedQuery.isPending.value);
-
-const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  if (!q) return archived.value;
-  return archived.value.filter(
-    (e) => e.name.toLowerCase().includes(q) || e.location.toLowerCase().includes(q),
-  );
-});
 
 async function restore(e: EventOut) {
   try {
@@ -88,60 +76,46 @@ async function restore(e: EventOut) {
 </script>
 
 <template>
-  <AppHeader />
-  <div class="container stack">
-    <h1>{{ t("archived.title") }}</h1>
-    <p class="muted">{{ t("archived.intro") }}</p>
-
-    <div class="actions-row">
-      <Select
-        :model-value="chapterFilter"
-        :options="[{ id: null, name: t('dashboard.chapterFilterAll') }, ...chapterOptions]"
-        option-label="name"
-        option-value="id"
-        :placeholder="t('dashboard.chapterFilterAll')"
-        class="chapter-filter"
-        @update:model-value="setChapterFilter"
-      />
-      <SearchInput
-        v-model="query"
-        :placeholder="t('archived.searchPlaceholder')"
-        class="search"
-      />
-    </div>
-
-    <AppSkeleton v-if="!loaded" :rows="2" cards />
-
-    <AppCard v-else-if="archived.length === 0" :stack="false">
-      <p class="muted">{{ t("archived.empty") }}</p>
-    </AppCard>
-
-    <p v-else-if="filtered.length === 0" class="muted">{{ t("archived.noMatches") }}</p>
-
-    <AppCard v-for="e in filtered" :key="e.id" :stack="false" class="row">
-      <div>
-        <h3>
-          {{ e.name }}
-          <span v-if="e.chapter_name" class="event-chapter-chip">{{ e.chapter_name }}</span>
-        </h3>
-        <p class="muted">
-          {{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}
-        </p>
-      </div>
-      <div class="row-actions">
-        <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restore(e)" />
-        <Button
-          icon="pi pi-trash"
-          size="small"
-          severity="secondary"
-          text
-          v-tooltip.top="t('archived.delete')"
-          :aria-label="t('archived.delete')"
-          @click="askDelete(e)"
-        />
-      </div>
-    </AppCard>
-  </div>
+  <ListPageView
+    :title="t('archived.title')"
+    :intro="t('archived.intro')"
+    :items="archived"
+    :loaded="loaded"
+    :chapter-filter="chapterFilter"
+    :chapter-options="chapterOptions"
+    :search-placeholder="t('archived.searchPlaceholder')"
+    :search-keys="(e: EventOut) => [e.name, e.location]"
+    :empty-copy="t('archived.empty')"
+    :no-matches-copy="t('archived.noMatches')"
+    :skeleton-rows="2"
+    @update:chapter-filter="setChapterFilter"
+  >
+    <template #row="{ item: e }">
+      <AppCard :stack="false" class="row">
+        <div>
+          <h3>
+            {{ e.name }}
+            <span v-if="e.chapter_name" class="event-chapter-chip">{{ e.chapter_name }}</span>
+          </h3>
+          <p class="muted">
+            {{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}
+          </p>
+        </div>
+        <div class="row-actions">
+          <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restore(e)" />
+          <Button
+            icon="pi pi-trash"
+            size="small"
+            severity="secondary"
+            text
+            v-tooltip.top="t('archived.delete')"
+            :aria-label="t('archived.delete')"
+            @click="askDelete(e)"
+          />
+        </div>
+      </AppCard>
+    </template>
+  </ListPageView>
 </template>
 
 <style scoped>
@@ -156,21 +130,6 @@ async function restore(e: EventOut) {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-}
-.actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
-.actions-row .search {
-  flex: 1;
-  min-width: 0;
-  max-width: 24rem;
-  margin-left: auto;
-}
-.chapter-filter {
-  min-width: 12rem;
 }
 .event-chapter-chip {
   display: inline-flex;
