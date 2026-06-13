@@ -320,6 +320,16 @@ async function submit() {
 </template>
 
 <style scoped>
+/* Pin the inline date picker to a constant 6-week height (weekday
+ * header + 6 rows) so navigating between 5- and 6-row months doesn't
+ * shift the page. The day-view table sits at the top of the
+ * container; a shorter month leaves the 6th-row slot empty rather
+ * than collapsing. Row height = the theme's date-cell height + its
+ * vertical padding (falls back to Aura's values). */
+:deep(.p-datepicker-calendar-container) {
+  min-height: calc((var(--p-datepicker-date-height, 2.5rem) + var(--p-datepicker-date-padding, 0.25rem) * 2) * 7);
+}
+
 .form-section {
   display: flex;
   flex-direction: column;
