@@ -220,6 +220,10 @@ app.use(VueQueryPlugin, { queryClient });
 app.use(i18n);
 app.use(router);
 app.use(PrimeVue, {
+  // Week starts on Monday across every PrimeVue date picker — matches
+  // our own public MonthCalendar and Dutch convention. Deep-merged
+  // into the default locale (mergeKeys), so day/month names are kept.
+  locale: { firstDayOfWeek: 1 },
   theme: {
     preset: OpkomstPreset,
     options: {
