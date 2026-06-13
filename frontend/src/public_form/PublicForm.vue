@@ -141,8 +141,10 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
-    <PublicNotice v-else-if="status === 'submitted'" :title="c.thanks" :message="f.thanksBody" />
 
+    <!-- ``ready`` and ``submitted`` both keep the title/info card; on
+         submit the form is replaced by a thanks card below it, same
+         shape as the events confirmation. -->
     <template v-else-if="form">
       <div class="card title-card">
         <PublicHero
@@ -154,9 +156,15 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
         <p v-if="form.description" class="muted">{{ form.description }}</p>
       </div>
 
-      <Disclosure :locale="locale" />
+      <div v-if="status === 'submitted'" class="card stack thanks-card">
+        <h2>{{ c.thanks }}</h2>
+        <p class="muted">{{ f.thanksBody }}</p>
+      </div>
 
-      <form class="card stack form-card" novalidate @submit.prevent="submit">
+      <template v-else>
+        <Disclosure :locale="locale" />
+
+        <form class="card stack form-card" novalidate @submit.prevent="submit">
         <!-- Pseudonym first, mirroring the events sign-up form. -->
         <input
           v-model="displayName"
@@ -241,7 +249,8 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
             {{ submitting ? c.submitting : c.submit }}
           </button>
         </div>
-      </form>
+        </form>
+      </template>
     </template>
   </PublicShell>
 </template>
@@ -249,6 +258,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 <style scoped>
 .muted { color: var(--brand-text-muted); margin: 0.5rem 0 0; }
 .title-card h1 { margin: 0; overflow-wrap: anywhere; }
+.thanks-card h2 { margin: 0; }
 .form-card { display: flex; flex-direction: column; gap: 1.25rem; }
 .q-block { display: flex; flex-direction: column; gap: 0.5rem; }
 .prompt { font-weight: 600; font-size: 1.0625rem; line-height: 1.4; }

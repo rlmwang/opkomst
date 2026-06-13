@@ -53,6 +53,7 @@ const name = ref("");
 const description = ref("");
 const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
+const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const formLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 const questions = ref<QuestionDraft[]>([]);
 const submitting = ref(false);
@@ -248,6 +249,9 @@ async function submit() {
       isEdit.value && props.formId
         ? await updateMutation.mutateAsync({ formId: props.formId, payload: wirePayload })
         : await createMutation.mutateAsync(wirePayload);
+    // Upload a create-mode held image to the freshly-created row
+    // (no-op in edit mode / when nothing was picked).
+    await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
     void router.push(`/forms/${result.id}/details`);
   } catch {
@@ -312,6 +316,7 @@ async function submit() {
     </section>
 
     <ImageField
+      ref="imageField"
       resource="forms"
       :entity-id="props.formId ?? null"
       v-model:image-url="imageUrl"

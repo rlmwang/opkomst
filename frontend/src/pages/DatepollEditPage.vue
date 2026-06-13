@@ -48,6 +48,7 @@ const name = ref("");
 const description = ref("");
 const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
+const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const pollLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 // Candidate dates as ``Date`` objects (PrimeVue multiple-select).
 const selectedDates = ref<Date[]>([]);
@@ -204,6 +205,7 @@ async function submit() {
       isEdit.value && props.datepollId
         ? await updateMutation.mutateAsync({ datepollId: props.datepollId, payload: wirePayload })
         : await createMutation.mutateAsync(wirePayload);
+    await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
     void router.push(`/datepolls/${result.id}/details`);
   } catch {
@@ -264,6 +266,7 @@ async function submit() {
     </section>
 
     <ImageField
+      ref="imageField"
       resource="datepolls"
       :entity-id="props.datepollId ?? null"
       v-model:image-url="imageUrl"

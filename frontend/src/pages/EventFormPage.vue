@@ -41,6 +41,7 @@ const auth = useAuthStore();
 // mode. Bound to the shared ImageField, which owns the upload/remove
 // flow and writes back here so the preview updates instantly.
 const imageUrl = ref<string | null>(null);
+const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 
 const isEdit = computed(() => Boolean(props.eventId));
 
@@ -397,6 +398,9 @@ async function submit() {
       isEdit.value && props.eventId
         ? await updateMutation.mutateAsync({ eventId: props.eventId, payload })
         : await createMutation.mutateAsync(payload);
+    // Upload a create-mode held image to the freshly-created row
+    // (no-op in edit mode / when nothing was picked).
+    await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
     void router.push(`/events/${result.id}/details`);
   } catch {
@@ -466,6 +470,7 @@ async function submit() {
       </section>
 
       <ImageField
+        ref="imageField"
         resource="events"
         :entity-id="props.eventId ?? null"
         v-model:image-url="imageUrl"

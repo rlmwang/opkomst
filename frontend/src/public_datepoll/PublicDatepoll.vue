@@ -128,8 +128,10 @@ async function submit(): Promise<void> {
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
-    <PublicNotice v-else-if="status === 'submitted'" :title="c.thanks" :message="d.thanksBody" />
 
+    <!-- ``ready`` and ``submitted`` both keep the title/info card; on
+         submit the body is replaced by a thanks card below it, same
+         shape as the events confirmation. -->
     <template v-else-if="poll">
       <div class="card title-card">
         <PublicHero
@@ -141,10 +143,16 @@ async function submit(): Promise<void> {
         <p v-if="poll.description" class="muted">{{ poll.description }}</p>
       </div>
 
-      <Disclosure :locale="locale" />
+      <div v-if="status === 'submitted'" class="card stack thanks-card">
+        <h2>{{ c.thanks }}</h2>
+        <p class="muted">{{ d.thanksBody }}</p>
+      </div>
 
-      <!-- Pseudonym first, mirroring the events sign-up form. -->
-      <div class="card">
+      <template v-else>
+        <Disclosure :locale="locale" />
+
+        <!-- Pseudonym first, mirroring the events sign-up form. -->
+        <div class="card">
         <input v-model="displayName" class="textfield" type="text" :placeholder="c.displayName" maxlength="100" />
       </div>
 
@@ -182,12 +190,13 @@ async function submit(): Promise<void> {
         />
       </div>
 
-      <div class="card submit-card">
-        <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
-        <button type="button" class="btn-primary" :disabled="submitting" @click="submit">
-          {{ submitting ? c.submitting : c.submit }}
-        </button>
-      </div>
+        <div class="card submit-card">
+          <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
+          <button type="button" class="btn-primary" :disabled="submitting" @click="submit">
+            {{ submitting ? c.submitting : c.submit }}
+          </button>
+        </div>
+      </template>
     </template>
   </PublicShell>
 </template>
@@ -195,6 +204,7 @@ async function submit(): Promise<void> {
 <style scoped>
 .muted { color: var(--brand-text-muted); }
 .title-card h1 { margin: 0; overflow-wrap: anywhere; }
+.thanks-card h2 { margin: 0; }
 .title-card .muted { margin: 0.5rem 0 0; }
 .intro { margin: 0 0 0.75rem; }
 .textfield {
