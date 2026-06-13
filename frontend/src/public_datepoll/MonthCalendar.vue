@@ -55,6 +55,11 @@ const grid = computed<Cell[]>(() => {
     const candidate = key in props.cells;
     out.push({ day: d, iso: key, state: candidate ? props.cells[key] : null, candidate });
   }
+  // Pad with trailing blanks to a constant 6 rows (42 cells) so a
+  // 5-row month is the same height as a 6-row one — otherwise the
+  // page jumps as months of different lengths sit next to / below
+  // each other.
+  while (out.length < 42) out.push({ day: null, iso: null, state: null, candidate: false });
   return out;
 });
 </script>

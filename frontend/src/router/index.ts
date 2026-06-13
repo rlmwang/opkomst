@@ -72,4 +72,31 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   return true;
 });
 
+// Pages are lazy ``() => import(...)``. When a route's chunk fails to
+// load — almost always a stale build after a redeploy: the open tab
+// holds an ``index.html`` referencing chunk hashes the new build
+// replaced, so the dynamic import 404s — the navigation aborts and
+// the view goes blank until a manual refresh. Detect that specific
+// failure and do the refresh automatically, landing on the intended
+// path. ``sessionStorage`` guards against a reload loop if the chunk
+// is genuinely gone (not just stale).
+router.onError((error: unknown, to: RouteLocationNormalized) => {
+  const message = error instanceof Error ? error.message : String(error);
+  const isChunkLoadError =
+    /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically imported module/i.test(
+      message,
+    );
+  if (!isChunkLoadError) return;
+  const key = `chunk-reload:${to.fullPath}`;
+  if (sessionStorage.getItem(key)) return; // already tried — avoid a loop
+  sessionStorage.setItem(key, "1");
+  window.location.assign(to.fullPath);
+});
+
+// Clear the one-shot reload guard once a navigation actually lands,
+// so a later genuine stale-chunk hit can recover again.
+router.afterEach((to: RouteLocationNormalized) => {
+  sessionStorage.removeItem(`chunk-reload:${to.fullPath}`);
+});
+
 export default router;
