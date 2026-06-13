@@ -8,13 +8,13 @@ defineProps<{ title?: string; message: string }>();
 
 <template>
   <div class="card notice">
-    <h1 v-if="title">{{ title }}</h1>
+    <h2 v-if="title">{{ title }}</h2>
     <p class="muted">{{ message }}</p>
   </div>
 </template>
 
 <style scoped>
 .notice { text-align: center; }
-.notice h1 { margin: 0 0 0.5rem; }
+.notice h2 { margin: 0 0 0.5rem; }
 .muted { color: var(--brand-text-muted); margin: 0; }
 </style>
