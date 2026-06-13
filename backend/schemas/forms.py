@@ -23,6 +23,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from .common import DisplayName
 from .events import Locale
 
 QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice"]
@@ -69,6 +70,7 @@ class FormCreate(BaseModel):
 
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
     locale: Locale = "nl"
     # Optional on create — an organiser can save a draft form with
     # no questions and add them on the edit page afterwards. On
@@ -112,20 +114,22 @@ class FormListOut(BaseModel):
 
 
 class FormOut(FormListOut):
-    """Single-form DTO. The list-row fields plus the full question
-    list, so the details / edit pages pre-populate without an
-    extra round-trip."""
+    """Single-form DTO. The list-row fields plus the description and
+    the full question list, so the details / edit pages pre-populate
+    without an extra round-trip."""
 
+    description: str | None = None
     questions: list[FormQuestionOut] = Field(default_factory=list)
 
 
 class PublicFormOut(BaseModel):
     """What the public fill-out page (``/f/{slug}``) reads. No
     chapter id, no internal timestamps — just the form name +
-    locale + questions in display order."""
+    description + locale + questions in display order."""
 
     id: str
     name: str
+    description: str | None = None
     locale: Locale
     questions: list[FormQuestionOut]
 
@@ -143,6 +147,9 @@ class FormAnswerIn(BaseModel):
 
 
 class FormSubmitIn(BaseModel):
+    # Optional pseudonym (real or not), shared primitive — same
+    # contract as the event sign-up name.
+    display_name: DisplayName
     answers: list[FormAnswerIn]
 
 
@@ -197,5 +204,6 @@ class FormSubmissionOut(BaseModel):
     post-event feedback CSV."""
 
     submission_id: str
+    display_name: str | None
     created_at: datetime
     answers: dict[str, int | str | list[str]]

@@ -401,6 +401,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datepolls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Datepolls */
+        get: operations["list_datepolls_api_v1_datepolls_get"];
+        put?: never;
+        /**
+         * Create Datepoll
+         * @description Create a poll. Candidate dates are optional at create — a blank
+         *     poll can be saved and dates added on the edit page. The
+         *     caller-supplied ``chapter_id`` must be in the user's set.
+         */
+        post: operations["create_datepoll_api_v1_datepolls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Datepolls */
+        get: operations["list_archived_datepolls_api_v1_datepolls_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Datepoll */
+        get: operations["get_public_datepoll_api_v1_datepolls_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Datepoll Qr
+         * @description QR SVG for one slug. Resolves the poll first so a typo'd slug
+         *     410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Datepoll
+         * @description Accept one public submission. Each answer's ``datepoll_date_id``
+         *     must belong to this poll; availability is constrained to the
+         *     tri-state at the schema layer. Duplicate dates collapse (last
+         *     wins). At least one answered date is required.
+         *
+         *     Returns a bare 201 — nothing identifies the submission to the
+         *     client; there is no read-back endpoint.
+         */
+        post: operations["submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Datepoll */
+        get: operations["get_datepoll_api_v1_datepolls__datepoll_id__get"];
+        /**
+         * Update Datepoll
+         * @description Update a poll. Chapter changes are allowed but the new one must
+         *     be in the user's set. Dates are diff-applied on ``on_date`` — see
+         *     ``services/datepolls.apply_dates``.
+         */
+        put: operations["update_datepoll_api_v1_datepolls__datepoll_id__put"];
+        post?: never;
+        /**
+         * Delete Datepoll
+         * @description Hard-delete an archived poll. Refuses unless archived first —
+         *     deleting a live poll with responses would be a data-loss footgun.
+         *     Cascades through dates / submissions / responses via the FK
+         *     ON DELETE CASCADEs.
+         */
+        delete: operations["delete_datepoll_api_v1_datepolls__datepoll_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Datepoll */
+        post: operations["archive_datepoll_api_v1_datepolls__datepoll_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Datepoll */
+        post: operations["restore_datepoll_api_v1_datepolls__datepoll_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datepoll Submissions
+         * @description Per-submission rows, keyed by date id. CSV source.
+         *
+         *     Privacy: the submission id is opaque and the only respondent
+         *     identifier is the self-chosen pseudonym.
+         */
+        get: operations["datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datepoll Summary */
+        get: operations["datepoll_summary_api_v1_datepolls__datepoll_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -1353,6 +1561,235 @@ export interface components {
             token: string;
         };
         /**
+         * DatepollAnswerIn
+         * @description One answered date on the public submit payload.
+         */
+        DatepollAnswerIn: {
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "yes" | "no" | "maybe";
+            /** Comment */
+            comment?: string | null;
+            /** Datepoll Date Id */
+            datepoll_date_id: string;
+        };
+        /**
+         * DatepollCreate
+         * @description Organiser create payload.
+         */
+        DatepollCreate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateIn"][];
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
+         * DatepollDateIn
+         * @description One candidate date on the create / update payload. The natural
+         *     key is ``on_date`` — the editor sends a set of dates, never row
+         *     ids, so there is no ``id`` field; ``apply_dates`` diffs on
+         *     ``on_date`` and preserves the responses of dates that stay.
+         */
+        DatepollDateIn: {
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /** DatepollDateOut */
+        DatepollDateOut: {
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
+         * DatepollDateSummary
+         * @description Per-date aggregate on the organiser details page.
+         */
+        DatepollDateSummary: {
+            /** Comments */
+            comments?: string[];
+            /** Id */
+            id: string;
+            /** Maybe */
+            maybe: number;
+            /** No */
+            no: number;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Yes */
+            yes: number;
+        };
+        /**
+         * DatepollListOut
+         * @description List-row DTO. Scalars plus a computed date summary
+         *     (``date_count`` + earliest/latest), so a row is useful without
+         *     shipping every date — mirrors how ``EventOut`` carries
+         *     ``attendee_count`` rather than the signup list.
+         */
+        DatepollListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Count */
+            date_count: number;
+            /** First Date */
+            first_date?: string | null;
+            /** Id */
+            id: string;
+            /** Last Date */
+            last_date?: string | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * DatepollOut
+         * @description Single-poll DTO — the list fields plus the description and the
+         *     full candidate-date list (sorted by ``on_date``).
+         */
+        DatepollOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Count */
+            date_count: number;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateOut"][];
+            /** Description */
+            description?: string | null;
+            /** First Date */
+            first_date?: string | null;
+            /** Id */
+            id: string;
+            /** Last Date */
+            last_date?: string | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * DatepollSubmissionOut
+         * @description One submission as a flat row for the CSV export. ``answers`` and
+         *     ``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is
+         *     the self-chosen pseudonym (NULL = anonymous) — same privacy
+         *     contract as the event sign-up name.
+         */
+        DatepollSubmissionOut: {
+            /** Answers */
+            answers: {
+                [key: string]: string;
+            };
+            /** Comments */
+            comments: {
+                [key: string]: string;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Submission Id */
+            submission_id: string;
+        };
+        /**
+         * DatepollSubmitIn
+         * @description Public submission. ``display_name`` is the shared pseudonym
+         *     primitive (optional, <=100, real-or-not). ``answers`` carries one
+         *     entry per date the respondent set a state for.
+         */
+        DatepollSubmitIn: {
+            /** Answers */
+            answers: components["schemas"]["DatepollAnswerIn"][];
+            /** Display Name */
+            display_name?: string | null;
+        };
+        /**
+         * DatepollSummaryOut
+         * @description Organiser summary. ``submission_count`` is the number of
+         *     fill-outs; ``best_date_id`` is the most-yes date (tie-break:
+         *     fewest no), or ``None`` when there are no responses.
+         */
+        DatepollSummaryOut: {
+            /** Best Date Id */
+            best_date_id?: string | null;
+            /** Dates */
+            dates: components["schemas"]["DatepollDateSummary"][];
+            /** Submission Count */
+            submission_count: number;
+        };
+        /**
+         * DatepollUpdate
+         * @description Same shape as create. Distinct class so OpenAPI distinguishes
+         *     the two endpoints even though the body is identical.
+         */
+        DatepollUpdate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateIn"][];
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
          * EmailHealthOut
          * @description Aggregate of one channel's email delivery status across an
          *     event's signups. Counts always sum to ``signup_count``.
@@ -1614,6 +2051,8 @@ export interface components {
         FormCreate: {
             /** Chapter Id */
             chapter_id: string;
+            /** Description */
+            description?: string | null;
             /**
              * Locale
              * @default nl
@@ -1661,9 +2100,9 @@ export interface components {
         };
         /**
          * FormOut
-         * @description Single-form DTO. The list-row fields plus the full question
-         *     list, so the details / edit pages pre-populate without an
-         *     extra round-trip.
+         * @description Single-form DTO. The list-row fields plus the description and
+         *     the full question list, so the details / edit pages pre-populate
+         *     without an extra round-trip.
          */
         FormOut: {
             /** Archived */
@@ -1677,6 +2116,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Description */
+            description?: string | null;
             /** Id */
             id: string;
             /**
@@ -1802,6 +2243,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Display Name */
+            display_name: string | null;
             /** Submission Id */
             submission_id: string;
         };
@@ -1820,6 +2263,8 @@ export interface components {
         FormSubmitIn: {
             /** Answers */
             answers: components["schemas"]["FormAnswerIn"][];
+            /** Display Name */
+            display_name?: string | null;
         };
         /**
          * FormSummaryOut
@@ -1842,6 +2287,8 @@ export interface components {
         FormUpdate: {
             /** Chapter Id */
             chapter_id: string;
+            /** Description */
+            description?: string | null;
             /**
              * Locale
              * @default nl
@@ -1915,12 +2362,33 @@ export interface components {
             count: number;
         };
         /**
+         * PublicDatepollOut
+         * @description What the public fill-out page (``/d/{slug}``) reads.
+         */
+        PublicDatepollOut: {
+            /** Dates */
+            dates: components["schemas"]["DatepollDateOut"][];
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
          * PublicFormOut
          * @description What the public fill-out page (``/f/{slug}``) reads. No
          *     chapter id, no internal timestamps — just the form name +
-         *     locale + questions in display order.
+         *     description + locale + questions in display order.
          */
         PublicFormOut: {
+            /** Description */
+            description?: string | null;
             /** Id */
             id: string;
             /**
@@ -2707,6 +3175,437 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChapterUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_datepolls_api_v1_datepolls_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_datepoll_api_v1_datepolls_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_datepolls_api_v1_datepolls_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_datepoll_api_v1_datepolls_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_datepoll_api_v1_datepolls__datepoll_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_datepoll_api_v1_datepolls__datepoll_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_datepoll_api_v1_datepolls__datepoll_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_datepoll_api_v1_datepolls__datepoll_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_datepoll_api_v1_datepolls__datepoll_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datepoll_summary_api_v1_datepolls__datepoll_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollSummaryOut"];
                 };
             };
             /** @description Validation Error */

@@ -130,9 +130,7 @@ def test_status_when_configured(client, admin_headers, monkeypatch) -> None:
 
 
 @respx.mock
-def test_status_returns_unknown_when_evolution_unreachable(
-    client, admin_headers, monkeypatch
-) -> None:
+def test_status_returns_unknown_when_evolution_unreachable(client, admin_headers, monkeypatch) -> None:
     """If the Evolution host can't be reached (DNS failure,
     container down, wrong network), ``/status`` must return 200
     with ``state=unknown`` rather than 500. ``fetchMe`` calls
@@ -191,9 +189,7 @@ def test_watchdog_tears_down_when_stale(client, admin_headers, monkeypatch) -> N
     # Pretend the page last heartbeated 12 minutes ago, longer
     # than ``_WATCHDOG_GRACE`` (10 minutes in prod) so the
     # tear-down branch fires.
-    monkeypatch.setattr(
-        wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(minutes=12)
-    )
+    monkeypatch.setattr(wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(minutes=12))
     respx.get("http://evo.test/instance/connectionState/test-instance").mock(
         return_value=httpx.Response(200, json={"instance": {"state": "open"}})
     )
@@ -228,9 +224,7 @@ def test_watchdog_quiet_when_fresh(client, admin_headers, monkeypatch) -> None:
 def test_heartbeat_bumps_last_seen(client, admin_headers, monkeypatch) -> None:
     _configure(monkeypatch)
     # Stale to start.
-    monkeypatch.setattr(
-        wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(seconds=999)
-    )
+    monkeypatch.setattr(wa, "_last_seen", _dt.datetime.now(_dt.UTC) - _dt.timedelta(seconds=999))
     respx.get("http://evo.test/instance/connectionState/test-instance").mock(
         return_value=httpx.Response(200, json={"instance": {"state": "close"}})
     )
@@ -253,9 +247,7 @@ def test_qr_happy_path(client, admin_headers, monkeypatch) -> None:
     code. ``ensure_instance()`` is hit first; we mock it as
     already-existing (409)."""
     _configure(monkeypatch)
-    respx.post("http://evo.test/instance/create").mock(
-        return_value=httpx.Response(409, json={"error": "exists"})
-    )
+    respx.post("http://evo.test/instance/create").mock(return_value=httpx.Response(409, json={"error": "exists"}))
     respx.get("http://evo.test/instance/connect/test-instance").mock(
         return_value=httpx.Response(
             200,
@@ -336,12 +328,8 @@ def test_send_text_tears_down_zombie_session(monkeypatch) -> None:
     respx.post("http://evo.test/message/sendText/test-instance").mock(
         return_value=httpx.Response(500, json={"error": "boom"})
     )
-    logout_route = respx.post("http://evo.test/instance/logout/test-instance").mock(
-        return_value=httpx.Response(200)
-    )
-    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(
-        return_value=httpx.Response(200)
-    )
+    logout_route = respx.post("http://evo.test/instance/logout/test-instance").mock(return_value=httpx.Response(200))
+    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(return_value=httpx.Response(200))
 
     async def run() -> None:
         for _ in range(3):
@@ -369,12 +357,8 @@ def test_send_text_resets_failure_counter_on_success(monkeypatch) -> None:
         httpx.Response(500),
         httpx.Response(500),
     ]
-    respx.post("http://evo.test/message/sendText/test-instance").mock(
-        side_effect=responses
-    )
-    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(
-        return_value=httpx.Response(200)
-    )
+    respx.post("http://evo.test/message/sendText/test-instance").mock(side_effect=responses)
+    delete_route = respx.delete("http://evo.test/instance/delete/test-instance").mock(return_value=httpx.Response(200))
 
     async def run() -> None:
         for i in range(5):
@@ -395,9 +379,7 @@ def test_send_text_raises_on_timeout(monkeypatch) -> None:
     import asyncio
 
     _configure(monkeypatch)
-    respx.post("http://evo.test/message/sendText/test-instance").mock(
-        side_effect=httpx.ReadTimeout("slow")
-    )
+    respx.post("http://evo.test/message/sendText/test-instance").mock(side_effect=httpx.ReadTimeout("slow"))
     with pytest.raises(wa.WhatsAppUpstreamError) as excinfo:
         asyncio.run(wa.send_text("31612345678", "hi"))
     assert excinfo.value.kind == "timeout"

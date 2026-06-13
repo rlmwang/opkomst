@@ -117,13 +117,9 @@ def test_reminder_window_check(offset_minutes: int, fake_email) -> None:
     delta = timedelta(minutes=offset_minutes)
     in_window = timedelta(0) < delta <= timedelta(hours=72)
     if in_window:
-        assert n == 1, (
-            f"expected fire: starts_at={starts_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert n == 1, f"expected fire: starts_at={starts_at} wall_now={wall_now} offset={offset_minutes}m"
     else:
-        assert n == 0, (
-            f"expected skip: starts_at={starts_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert n == 0, f"expected skip: starts_at={starts_at} wall_now={wall_now} offset={offset_minutes}m"
 
 
 @given(offset_minutes=st.integers(min_value=-7 * 24 * 60, max_value=7 * 24 * 60))
@@ -142,13 +138,9 @@ def test_feedback_window_check(offset_minutes: int, fake_email) -> None:
 
     in_window = timedelta(minutes=offset_minutes) <= -FEEDBACK_DELAY
     if in_window:
-        assert n == 1, (
-            f"expected fire: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert n == 1, f"expected fire: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
     else:
-        assert n == 0, (
-            f"expected skip: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert n == 0, f"expected skip: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
 
 
 @given(offset_minutes=st.integers(min_value=-30 * 24 * 60, max_value=30 * 24 * 60))
@@ -172,10 +164,6 @@ def test_post_event_feedback_window(offset_minutes: int, fake_email) -> None:
 
     expected = timedelta(minutes=offset_minutes) <= -POST_EVENT_PURGE_DELAY
     if expected:
-        assert wiped >= 1, (
-            f"expected reap: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert wiped >= 1, f"expected reap: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
     else:
-        assert wiped == 0, (
-            f"expected skip: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"
-        )
+        assert wiped == 0, f"expected skip: ends_at={ends_at} wall_now={wall_now} offset={offset_minutes}m"

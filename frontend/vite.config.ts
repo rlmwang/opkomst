@@ -65,8 +65,29 @@ function publicFormDevRoute(): Plugin {
   };
 }
 
+/**
+ * Dev-only middleware: route ``/d/{slug}`` to ``public-datepoll.html``.
+ * Mirrors the event/form dev routes one-to-one for the datepoll
+ * mini-app.
+ */
+function publicDatepollDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-datepoll-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? "";
+        if (/^\/d\/[^/?#]+/.test(url.split("?")[0])) {
+          req.url = "/public-datepoll.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute()],
+  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute(), publicDatepollDevRoute()],
   test: {
     // happy-dom for component / Vue-Query composables (need a DOM
     // for ``app.mount(document.createElement(...))``); pure-utility
@@ -109,6 +130,10 @@ export default defineConfig({
         // gzip instead of the admin SPA's ~200 KB.
         publicForm: fileURLToPath(
           new URL("./public-form.html", import.meta.url),
+        ),
+        // Same split again: dedicated bundle graph for ``/d/{slug}``.
+        publicDatepoll: fileURLToPath(
+          new URL("./public-datepoll.html", import.meta.url),
         ),
       },
       output: {

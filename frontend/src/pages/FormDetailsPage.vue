@@ -59,12 +59,12 @@ async function exportCsv() {
     const ids = questions.map((q) => q.id);
     const prompts = questions.map((q) => q.prompt);
     const header = [
-      t("forms.details.csvSubmissionId"),
+      t("forms.details.csvName"),
       t("forms.details.csvSubmittedAt"),
       ...prompts,
     ];
     const rows = submissions.map((s) => [
-      s.submission_id,
+      s.display_name ?? t("forms.details.anonymous"),
       s.created_at,
       ...ids.map((id) => {
         const v = s.answers[id];

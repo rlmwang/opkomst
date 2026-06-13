@@ -57,6 +57,7 @@ def create_form(
     form = Form(
         slug=new_slug(),
         name=data.name,
+        description=data.description,
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
@@ -129,6 +130,7 @@ def update_form(
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
     form.name = data.name
+    form.description = data.description
     form.chapter_id = data.chapter_id
     form.locale = data.locale
     forms_svc.apply_questions(db, form.id, data.questions)

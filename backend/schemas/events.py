@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import LowercaseEmail
+from .common import DisplayName, LowercaseEmail
 
 # Two-letter ISO language tag. Drives both the public sign-up
 # page's UI language and the locale of the feedback email sent
@@ -159,8 +159,9 @@ class SignupSummaryOut(BaseModel):
 
 class SignupCreate(BaseModel):
     # Only ``party_size`` is genuinely required — visitors can sign
-    # up anonymously and skip the source question.
-    display_name: str | None = Field(default=None, max_length=100)
+    # up anonymously and skip the source question. ``display_name`` is
+    # the shared pseudonym primitive (optional, <=100, real-or-not).
+    display_name: DisplayName
     party_size: int = Field(ge=1, le=50)
     source_choice: str | None = None
     # Subset of the event's help_options the attendee opted into. Empty

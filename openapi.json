@@ -266,6 +266,541 @@
         "title": "CompleteRegistrationRequest",
         "type": "object"
       },
+      "DatepollAnswerIn": {
+        "description": "One answered date on the public submit payload.",
+        "properties": {
+          "availability": {
+            "enum": [
+              "yes",
+              "no",
+              "maybe"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "datepoll_date_id": {
+            "title": "Datepoll Date Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datepoll_date_id",
+          "availability"
+        ],
+        "title": "DatepollAnswerIn",
+        "type": "object"
+      },
+      "DatepollCreate": {
+        "description": "Organiser create payload.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateIn"
+            },
+            "maxItems": 60,
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "DatepollCreate",
+        "type": "object"
+      },
+      "DatepollDateIn": {
+        "description": "One candidate date on the create / update payload. The natural\nkey is ``on_date`` \u2014 the editor sends a set of dates, never row\nids, so there is no ``id`` field; ``apply_dates`` diffs on\n``on_date`` and preserves the responses of dates that stay.",
+        "properties": {
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on_date"
+        ],
+        "title": "DatepollDateIn",
+        "type": "object"
+      },
+      "DatepollDateOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "on_date"
+        ],
+        "title": "DatepollDateOut",
+        "type": "object"
+      },
+      "DatepollDateSummary": {
+        "description": "Per-date aggregate on the organiser details page.",
+        "properties": {
+          "comments": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Comments",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "maybe": {
+            "title": "Maybe",
+            "type": "integer"
+          },
+          "no": {
+            "title": "No",
+            "type": "integer"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "yes": {
+            "title": "Yes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "on_date",
+          "yes",
+          "maybe",
+          "no"
+        ],
+        "title": "DatepollDateSummary",
+        "type": "object"
+      },
+      "DatepollListOut": {
+        "description": "List-row DTO. Scalars plus a computed date summary\n(``date_count`` + earliest/latest), so a row is useful without\nshipping every date \u2014 mirrors how ``EventOut`` carries\n``attendee_count`` rather than the signup list.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date_count": {
+            "title": "Date Count",
+            "type": "integer"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Date"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Date"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "date_count"
+        ],
+        "title": "DatepollListOut",
+        "type": "object"
+      },
+      "DatepollOut": {
+        "description": "Single-poll DTO \u2014 the list fields plus the description and the\nfull candidate-date list (sorted by ``on_date``).",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date_count": {
+            "title": "Date Count",
+            "type": "integer"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateOut"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Date"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Date"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "date_count"
+        ],
+        "title": "DatepollOut",
+        "type": "object"
+      },
+      "DatepollSubmissionOut": {
+        "description": "One submission as a flat row for the CSV export. ``answers`` and\n``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is\nthe self-chosen pseudonym (NULL = anonymous) \u2014 same privacy\ncontract as the event sign-up name.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "comments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Comments",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "display_name",
+          "created_at",
+          "answers",
+          "comments"
+        ],
+        "title": "DatepollSubmissionOut",
+        "type": "object"
+      },
+      "DatepollSubmitIn": {
+        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``answers`` carries one\nentry per date the respondent set a state for.",
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollAnswerIn"
+            },
+            "maxItems": 60,
+            "title": "Answers",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "DatepollSubmitIn",
+        "type": "object"
+      },
+      "DatepollSummaryOut": {
+        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_date_id`` is the most-yes date (tie-break:\nfewest no), or ``None`` when there are no responses.",
+        "properties": {
+          "best_date_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Date Id"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateSummary"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_count",
+          "dates"
+        ],
+        "title": "DatepollSummaryOut",
+        "type": "object"
+      },
+      "DatepollUpdate": {
+        "description": "Same shape as create. Distinct class so OpenAPI distinguishes\nthe two endpoints even though the body is identical.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateIn"
+            },
+            "maxItems": 60,
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "DatepollUpdate",
+        "type": "object"
+      },
       "EmailHealthOut": {
         "description": "Aggregate of one channel's email delivery status across an\nevent's signups. Counts always sum to ``signup_count``.",
         "properties": {
@@ -935,6 +1470,18 @@
             "title": "Chapter Id",
             "type": "string"
           },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "locale": {
             "default": "nl",
             "enum": [
@@ -1034,7 +1581,7 @@
         "type": "object"
       },
       "FormOut": {
-        "description": "Single-form DTO. The list-row fields plus the full question\nlist, so the details / edit pages pre-populate without an\nextra round-trip.",
+        "description": "Single-form DTO. The list-row fields plus the description and\nthe full question list, so the details / edit pages pre-populate\nwithout an extra round-trip.",
         "properties": {
           "archived": {
             "title": "Archived",
@@ -1066,6 +1613,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "id": {
             "title": "Id",
@@ -1363,6 +1921,17 @@
             "title": "Created At",
             "type": "string"
           },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
           "submission_id": {
             "title": "Submission Id",
             "type": "string"
@@ -1370,6 +1939,7 @@
         },
         "required": [
           "submission_id",
+          "display_name",
           "created_at",
           "answers"
         ],
@@ -1398,6 +1968,18 @@
             },
             "title": "Answers",
             "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
           }
         },
         "required": [
@@ -1434,6 +2016,18 @@
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           },
           "locale": {
             "default": "nl",
@@ -1554,9 +2148,67 @@
         "title": "PendingCountOut",
         "type": "object"
       },
-      "PublicFormOut": {
-        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\nlocale + questions in display order.",
+      "PublicDatepollOut": {
+        "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateOut"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "locale",
+          "dates"
+        ],
+        "title": "PublicDatepollOut",
+        "type": "object"
+      },
+      "PublicFormOut": {
+        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + locale + questions in display order.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -2998,6 +3650,748 @@
         "summary": "Chapter Usage",
         "tags": [
           "chapters"
+        ]
+      }
+    },
+    "/api/v1/datepolls": {
+      "get": {
+        "operationId": "list_datepolls_api_v1_datepolls_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollListOut"
+                  },
+                  "title": "Response List Datepolls Api V1 Datepolls Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Datepolls",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "post": {
+        "description": "Create a poll. Candidate dates are optional at create \u2014 a blank\npoll can be saved and dates added on the edit page. The\ncaller-supplied ``chapter_id`` must be in the user's set.",
+        "operationId": "create_datepoll_api_v1_datepolls_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/archived": {
+      "get": {
+        "operationId": "list_archived_datepolls_api_v1_datepolls_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollListOut"
+                  },
+                  "title": "Response List Archived Datepolls Api V1 Datepolls Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Datepolls",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_datepoll_api_v1_datepolls_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the poll first so a typo'd slug\n410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Datepoll Qr",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}/submit": {
+      "post": {
+        "description": "Accept one public submission. Each answer's ``datepoll_date_id``\nmust belong to this poll; availability is constrained to the\ntri-state at the schema layer. Duplicate dates collapse (last\nwins). At least one answered date is required.\n\nReturns a bare 201 \u2014 nothing identifies the submission to the\nclient; there is no read-back endpoint.",
+        "operationId": "submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}": {
+      "delete": {
+        "description": "Hard-delete an archived poll. Refuses unless archived first \u2014\ndeleting a live poll with responses would be a data-loss footgun.\nCascades through dates / submissions / responses via the FK\nON DELETE CASCADEs.",
+        "operationId": "delete_datepoll_api_v1_datepolls__datepoll_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "get": {
+        "operationId": "get_datepoll_api_v1_datepolls__datepoll_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "put": {
+        "description": "Update a poll. Chapter changes are allowed but the new one must\nbe in the user's set. Dates are diff-applied on ``on_date`` \u2014 see\n``services/datepolls.apply_dates``.",
+        "operationId": "update_datepoll_api_v1_datepolls__datepoll_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/archive": {
+      "post": {
+        "operationId": "archive_datepoll_api_v1_datepolls__datepoll_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/restore": {
+      "post": {
+        "operationId": "restore_datepoll_api_v1_datepolls__datepoll_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/submissions": {
+      "get": {
+        "description": "Per-submission rows, keyed by date id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
+        "operationId": "datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollSubmissionOut"
+                  },
+                  "title": "Response Datepoll Submissions Api V1 Datepolls  Datepoll Id  Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Submissions",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/summary": {
+      "get": {
+        "operationId": "datepoll_summary_api_v1_datepolls__datepoll_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Summary",
+        "tags": [
+          "datepolls"
         ]
       }
     },

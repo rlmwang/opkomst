@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
+import Textarea from "primevue/textarea";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -48,6 +49,7 @@ const userChapterOptions = computed(() => {
 });
 
 const name = ref("");
+const description = ref("");
 const formLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 const questions = ref<QuestionDraft[]>([]);
 const submitting = ref(false);
@@ -92,6 +94,7 @@ watch(
   (existing) => {
     if (!existing) return;
     name.value = existing.name;
+    description.value = existing.description ?? "";
     formLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
     questions.value = (existing.questions ?? []).map((q) => ({
@@ -118,6 +121,7 @@ const draftKey = computed(() => `form-edit-draft:${props.formId ?? "new"}`);
 
 interface FormEditDraft {
   name: string;
+  description: string;
   chapterId: string | null;
   formLocale: "nl" | "en";
   questions: QuestionDraft[];
@@ -126,6 +130,7 @@ interface FormEditDraft {
 function snapshot(): FormEditDraft {
   return {
     name: name.value,
+    description: description.value,
     chapterId: chapterId.value,
     formLocale: formLocale.value,
     questions: questions.value,
@@ -134,6 +139,7 @@ function snapshot(): FormEditDraft {
 
 function applyDraft(d: FormEditDraft): void {
   name.value = d.name;
+  description.value = d.description ?? "";
   chapterId.value = d.chapterId ?? null;
   formLocale.value = d.formLocale ?? "nl";
   questions.value = (d.questions ?? []).map((q) => ({ ...q, options: [...(q.options ?? [])] }));
@@ -143,7 +149,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormEditDraft>({
   key: draftKey,
   snapshot,
   apply: applyDraft,
-  sources: [name, chapterId, formLocale, questions],
+  sources: [name, description, chapterId, formLocale, questions],
 });
 
 // Restore at most once — the edit-mode hydration watch can fire more
@@ -215,6 +221,7 @@ async function submit() {
     const wirePayload: FormCreate | FormUpdate = {
       chapter_id: chapterId.value,
       name: trimmedName,
+      description: description.value.trim() || null,
       locale: formLocale.value,
       questions: questions.value.map(
         (q): FormQuestionIn => ({
@@ -277,6 +284,13 @@ async function submit() {
   >
     <section class="form-section">
       <InputText v-model="name" :placeholder="t('forms.edit.namePlaceholder')" fluid />
+      <Textarea
+        v-model="description"
+        :placeholder="t('forms.edit.descriptionPlaceholder')"
+        rows="2"
+        auto-resize
+        fluid
+      />
       <Select
         v-model="chapterId"
         :options="userChapterOptions"

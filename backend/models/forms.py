@@ -60,6 +60,9 @@ class Form(UUIDMixin, TimestampMixin, Base):
     # unchanged.
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional blurb shown on the public page under the name — same
+    # role as the event topic / datepoll description.
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ISO language tag — drives the public form's UI language.
     # Two-letter codes only today; widen the Literal to add a region.
     locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
@@ -113,20 +116,26 @@ class FormQuestion(UUIDMixin, TimestampMixin, Base):
     )
 
 
+class FormSubmission(UUIDMixin, TimestampMixin, Base):
+    """One fill-out. Holds the self-chosen pseudonym
+    (``display_name``, NULL = anonymous) and groups the per-question
+    answer rows. Same parent-submission shape as ``Signup`` /
+    ``DatepollSubmission`` — the only respondent identifier is the
+    pseudonym, real or not."""
+
+    __tablename__ = "form_submissions"
+
+    form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
+    display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class FormResponse(UUIDMixin, TimestampMixin, Base):
-    """One answer. Multiple rows per submission, one per answered
-    question. Tied to the form only — never to the submitter.
+    """One answer — one row per answered question, FK'd to the parent
+    ``form_submissions`` row that carries the pseudonym.
 
-    ``submission_id`` is a random per-submission token that groups
-    the rows for one fill-out together. Nothing maps it back to a
-    person; knowing the slug grants permission to submit, and the
-    server stores no identifier beyond what the questions
-    themselves collect.
-
-    Cascades on form_id and question_id both: deleting a form
-    deletes its responses; an organiser dropping a question
-    deletes the responses to it (organiser opts in to that by
-    deleting)."""
+    Cascades on form_id and question_id both: deleting a form deletes
+    its responses; an organiser dropping a question deletes the
+    responses to it (organiser opts in to that by deleting)."""
 
     __tablename__ = "form_responses"
 
@@ -137,7 +146,12 @@ class FormResponse(UUIDMixin, TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    submission_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    submission_id: Mapped[str] = mapped_column(
+        Text,
+        ForeignKey("form_submissions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     answer_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
     answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     # JSON list of chosen option strings. ``single_choice`` carries

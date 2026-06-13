@@ -35,9 +35,13 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]]) -> dict[
 
 
 def test_public_get_returns_questions(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "How was it?", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "How was it?", "required": True},
+        ],
+    )
     r = client.get(f"/api/v1/forms/by-slug/{form['slug']}")
     assert r.status_code == 200
     body = r.json()
@@ -52,9 +56,13 @@ def test_public_get_unknown_slug_410s(client):
 
 
 def test_public_get_archived_form_410s(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "X", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "X", "required": True},
+        ],
+    )
     client.post(f"/api/v1/forms/{form['id']}/archive", headers=organiser_headers)
     r = client.get(f"/api/v1/forms/by-slug/{form['slug']}")
     assert r.status_code == 410
@@ -64,9 +72,13 @@ def test_public_get_archived_form_410s(client, organiser_headers):
 
 
 def test_submit_rating_happy_path(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "Score", "required": True, "low_label": "Bad", "high_label": "Good"},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True, "low_label": "Bad", "high_label": "Good"},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -77,9 +89,13 @@ def test_submit_rating_happy_path(client, organiser_headers):
 
 
 def test_submit_rating_out_of_range_422s(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "Score", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -91,20 +107,74 @@ def test_submit_rating_out_of_range_422s(client, organiser_headers):
 
 
 def test_submit_required_skipped_400s(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "Score", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
     r = client.post(f"/api/v1/forms/by-slug/{form['slug']}/submit", json={"answers": []})
     assert r.status_code == 400
+
+
+# --- pseudonym -------------------------------------------------------
+
+
+def test_submit_stores_pseudonym(client, organiser_headers):
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
+    qid = form["questions"][0]["id"]
+    client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={
+            "display_name": "Sam",
+            "answers": [{"question_id": qid, "answer_int": 4}],
+        },
+    )
+    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    assert len(subs) == 1
+    assert subs[0]["display_name"] == "Sam"
+    assert subs[0]["answers"][qid] == 4
+
+
+def test_submit_anonymous_pseudonym_is_null(client, organiser_headers):
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
+    qid = form["questions"][0]["id"]
+    # whitespace-only collapses to anonymous (shared DisplayName primitive)
+    client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={
+            "display_name": "  ",
+            "answers": [{"question_id": qid, "answer_int": 4}],
+        },
+    )
+    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    assert subs[0]["display_name"] is None
 
 
 # --- text / short_text ----------------------------------------------
 
 
 def test_submit_text_happy_path(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "text", "prompt": "Comments", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "text", "prompt": "Comments", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -122,9 +192,13 @@ def test_submit_text_happy_path(client, organiser_headers):
 
 
 def test_submit_short_text_whitespace_only_treated_as_skipped(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "short_text", "prompt": "Name", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "short_text", "prompt": "Name", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -138,9 +212,13 @@ def test_submit_short_text_whitespace_only_treated_as_skipped(client, organiser_
 
 
 def test_submit_single_choice_happy_path(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -156,9 +234,13 @@ def test_submit_single_choice_happy_path(client, organiser_headers):
 
 
 def test_submit_single_choice_rejects_value_not_in_options(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -168,9 +250,13 @@ def test_submit_single_choice_rejects_value_not_in_options(client, organiser_hea
 
 
 def test_submit_single_choice_rejects_more_than_one(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -183,9 +269,13 @@ def test_submit_single_choice_rejects_more_than_one(client, organiser_headers):
 
 
 def test_submit_multi_choice_dedupes(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -201,9 +291,13 @@ def test_submit_multi_choice_dedupes(client, organiser_headers):
 
 
 def test_submit_multi_choice_rejects_unknown_option(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -213,9 +307,13 @@ def test_submit_multi_choice_rejects_unknown_option(client, organiser_headers):
 
 
 def test_submit_optional_multi_choice_empty_is_skipped(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+        ],
+    )
     qid = form["questions"][0]["id"]
     r = client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -233,9 +331,13 @@ def test_submit_optional_multi_choice_empty_is_skipped(client, organiser_headers
 
 
 def test_submit_then_summary_reflects_response(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "Score", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
@@ -257,9 +359,13 @@ def test_submit_rate_limit_fires(client, organiser_headers):
     on setup — the limiter is in-process and a clean budget
     starts at zero. Each successful submit consumes one slot
     against the same form/IP pair."""
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "S", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "S", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     body = {"answers": [{"question_id": qid, "answer_int": 5}]}
 
@@ -273,9 +379,13 @@ def test_submit_rate_limit_fires(client, organiser_headers):
 
 
 def test_submit_then_csv_source_includes_row(client, organiser_headers):
-    form = _create(client, organiser_headers, questions=[
-        {"kind": "rating", "prompt": "Score", "required": True},
-    ])
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "rating", "prompt": "Score", "required": True},
+        ],
+    )
     qid = form["questions"][0]["id"]
     client.post(
         f"/api/v1/forms/by-slug/{form['slug']}/submit",

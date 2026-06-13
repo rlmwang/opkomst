@@ -57,6 +57,19 @@ export type FormQuestionSummary = S["FormQuestionSummary"];
 export type FormSummary = S["FormSummaryOut"];
 export type FormSubmission = S["FormSubmissionOut"];
 
+// --- Datepolls (dates-only availability polls) ---
+export type DatepollOut = S["DatepollOut"];
+export type DatepollListOut = S["DatepollListOut"];
+export type DatepollCreate = S["DatepollCreate"];
+export type DatepollUpdate = S["DatepollUpdate"];
+export type DatepollDateIn = S["DatepollDateIn"];
+export type DatepollDateOut = S["DatepollDateOut"];
+export type PublicDatepollOut = S["PublicDatepollOut"];
+export type DatepollSubmit = S["DatepollSubmitIn"];
+export type DatepollSummary = S["DatepollSummaryOut"];
+export type DatepollDateSummary = S["DatepollDateSummary"];
+export type DatepollSubmission = S["DatepollSubmissionOut"];
+
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];
 export type FeedbackQuestion = S["FeedbackQuestionOut"];

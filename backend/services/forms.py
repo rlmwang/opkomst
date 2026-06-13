@@ -22,10 +22,10 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 from typing import TYPE_CHECKING, Final, get_args
 
 from fastapi import HTTPException
-from sqlalchemy import distinct, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Form, FormQuestion, FormResponse
+from ..models import Chapter, Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
     FormListOut,
     FormOut,
@@ -196,17 +196,19 @@ def to_out(db: Session, form: Form) -> FormOut:
         chapter_name=chapter_name,
         archived=form.archived_at is not None,
         created_at=form.created_at,
+        description=form.description,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
 
 
 def to_public_out(db: Session, form: Form) -> PublicFormOut:
-    """Public by-slug DTO: name + locale + questions in display
-    order, nothing internal. Used by the public JSON endpoint and
-    the server-rendered mini-app shell."""
+    """Public by-slug DTO: name + description + locale + questions in
+    display order, nothing internal. Used by the public JSON endpoint
+    and the server-rendered mini-app shell."""
     return PublicFormOut(
         id=form.id,
         name=form.name,
+        description=form.description,
         locale=form.locale,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
@@ -216,10 +218,8 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
 
 
 def submission_count(db: Session, form_id: str) -> int:
-    """Distinct submission ids for the form."""
-    return (
-        db.query(func.count(distinct(FormResponse.submission_id))).filter(FormResponse.form_id == form_id).scalar() or 0
-    )
+    """Number of fill-outs (parent submission rows) for the form."""
+    return db.query(func.count(FormSubmission.id)).filter(FormSubmission.form_id == form_id).scalar() or 0
 
 
 def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
@@ -323,38 +323,35 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
 
 def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
     """Per-submission rows for the CSV export, keyed by question id.
-    One ``FormSubmissionOut`` per distinct ``submission_id``; the
-    answer value matches the question kind (int / str / list[str]).
+    One ``FormSubmissionOut`` per fill-out, carrying the pseudonym
+    (``display_name``, NULL = anonymous); the answer value matches the
+    question kind (int / str / list[str]).
 
-    Privacy: ``submission_id`` is a random per-submission token with
-    no link back to the submitter — same contract as the post-event
-    feedback CSV."""
+    Privacy: the submission id is opaque and the only respondent
+    identifier is the self-chosen pseudonym."""
     kinds = {q.id: q.kind for q in _questions(db, form_id)}
-    rows = (
-        db.query(FormResponse)
-        .filter(FormResponse.form_id == form_id)
-        .order_by(FormResponse.submission_id, FormResponse.created_at)
-        .all()
-    )
-
-    grouped: dict[str, dict[str, int | str | list[str]]] = {}
-    created: dict[str, object] = {}
-    for r in rows:
+    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
+    if not subs:
+        return []
+    sub_ids = [s.id for s in subs]
+    answers: dict[str, dict[str, int | str | list[str]]] = {sid: {} for sid in sub_ids}
+    for r in db.query(FormResponse).filter(FormResponse.submission_id.in_(sub_ids)).all():
         kind = kinds.get(r.question_id)
         if kind is None:
             continue
-        bucket = grouped.setdefault(r.submission_id, {})
-        # First row for a submission carries its canonical timestamp
-        # (rows insert in question order within the same ms).
-        created.setdefault(r.submission_id, r.created_at)
         if kind == "rating" and r.answer_int is not None:
-            bucket[r.question_id] = r.answer_int
+            answers[r.submission_id][r.question_id] = r.answer_int
         elif kind in ("text", "short_text") and r.answer_text is not None:
-            bucket[r.question_id] = r.answer_text
+            answers[r.submission_id][r.question_id] = r.answer_text
         elif kind in _CHOICE_KINDS and r.answer_choices is not None:
-            bucket[r.question_id] = list(r.answer_choices)
+            answers[r.submission_id][r.question_id] = list(r.answer_choices)
 
     return [
-        FormSubmissionOut(submission_id=sid, created_at=created[sid], answers=ans)  # type: ignore[arg-type]
-        for sid, ans in grouped.items()
+        FormSubmissionOut(
+            submission_id=s.id,
+            display_name=s.display_name,
+            created_at=s.created_at,
+            answers=answers[s.id],
+        )
+        for s in subs
     ]

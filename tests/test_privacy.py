@@ -195,3 +195,35 @@ def test_encryption_decrypt_signature():
     blob = encryption.encrypt(plain)
     assert isinstance(blob, bytes)
     assert encryption.decrypt(blob) == plain
+
+
+def test_datepoll_modules_touch_no_email_surfaces():
+    """Datepolls collect no PII and send no email. Static check: none
+    of the datepoll modules import the encryption or mail machinery —
+    so the feature physically can't grow an email/decrypt path without
+    a reviewer seeing a new import here."""
+    import pathlib
+
+    backend_dir = pathlib.Path(__file__).resolve().parent.parent / "backend"
+    banned = ("encryption", "mail", "mail_lifecycle")
+    for name in (
+        "models/datepolls.py",
+        "schemas/datepolls.py",
+        "services/datepolls.py",
+        "routers/datepolls.py",
+        "routers/datepolls_public.py",
+    ):
+        text = (backend_dir / name).read_text(encoding="utf-8")
+        for mod in banned:
+            assert f"import {mod}" not in text and f"from .{mod}" not in text, f"{name} imports {mod}"
+
+
+def test_datepoll_response_has_no_identity_column():
+    """``DatepollResponse`` carries no email / IP / fingerprint — the
+    only respondent identifier in the system is the self-chosen
+    pseudonym on ``DatepollSubmission.display_name``."""
+    from backend.models import DatepollResponse
+
+    cols = set(DatepollResponse.__table__.columns.keys())
+    banned = {"email", "encrypted_email", "ip", "ip_address", "fingerprint", "user_id", "signup_id"}
+    assert cols.isdisjoint(banned), cols & banned

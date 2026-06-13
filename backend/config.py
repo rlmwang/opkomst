@@ -146,11 +146,7 @@ class Settings(BaseSettings):
     @property
     def event_images_enabled(self) -> bool:
         """True iff the GitHub storage group is fully configured."""
-        return bool(
-            self.github_images_repo_owner
-            and self.github_images_repo_name
-            and self.github_images_token
-        )
+        return bool(self.github_images_repo_owner and self.github_images_repo_name and self.github_images_token)
 
 
 # Single import-time instance. Tests that need to override values

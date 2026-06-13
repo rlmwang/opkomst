@@ -19,6 +19,7 @@ export interface PublicFormQuestion {
 export interface PublicForm {
   id: string;
   name: string;
+  description: string | null;
   locale: "nl" | "en";
   questions: PublicFormQuestion[];
 }
@@ -31,6 +32,7 @@ export interface SubmitAnswer {
 }
 
 export interface SubmitPayload {
+  display_name?: string | null;
   answers: SubmitAnswer[];
 }
 

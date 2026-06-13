@@ -1,65 +1,31 @@
 /**
- * Inline i18n for the public form mini-app. Strings live here
- * rather than in ``src/locales/{nl,en}.json`` because the mini-
- * app deliberately ships without vue-i18n (~18 KB gzip we'd be
- * using ~0% of). The admin SPA's ``forms.public.*`` keys cover
- * the same surface for the rare in-app "preview" scenario; keep
- * the wording in lockstep.
+ * Form-specific strings for the public form mini-app. The shared page
+ * chrome (loading / unavailable / load-failed / submit / pseudonym /
+ * disclosure) lives in ``@/public_shared/strings``; only the bits
+ * unique to a questionnaire live here.
  */
 
-export type Locale = "nl" | "en";
+import type { Locale } from "@/public_shared/strings";
 
-interface Strings {
-  loading: string;
-  unavailable: string;
-  loadFailed: string;
-  submit: string;
-  submitting: string;
-  submitFail: string;
-  thanks: string;
+export interface FormStrings {
   thanksBody: string;
   required: string;
   missingRequiredPrefix: string;
 }
 
-const dict: Record<Locale, Strings> = {
+const dict: Record<Locale, FormStrings> = {
   nl: {
-    loading: "Laden…",
-    unavailable: "Deze vragenlijst is niet meer beschikbaar.",
-    loadFailed: "Kon de vragenlijst niet laden.",
-    submit: "Versturen",
-    submitting: "Versturen…",
-    submitFail: "Versturen mislukt. Probeer het opnieuw.",
-    thanks: "Bedankt!",
-    thanksBody: "Je inzending is opgeslagen.",
+    thanksBody: "Je inzending is binnen.",
     required: "verplicht",
     missingRequiredPrefix: "Vul deze verplichte vraag in:",
   },
   en: {
-    loading: "Loading…",
-    unavailable: "This form is no longer available.",
-    loadFailed: "Could not load the form.",
-    submit: "Submit",
-    submitting: "Submitting…",
-    submitFail: "Submitting failed. Please try again.",
-    thanks: "Thank you!",
-    thanksBody: "Your response has been recorded.",
+    thanksBody: "Your response is in.",
     required: "required",
     missingRequiredPrefix: "Please answer this required question:",
   },
 };
 
-export function pickLocale(formLocale: string | undefined): Locale {
-  // ``?lang=`` URL override beats the form's own locale; useful
-  // for share-with-an-English-speaking-friend cases without
-  // touching the organiser-side setting. Mirrors the events
-  // mini-app's behaviour.
-  const url = new URL(window.location.href);
-  const override = url.searchParams.get("lang");
-  if (override === "nl" || override === "en") return override;
-  return formLocale === "en" ? "en" : "nl";
-}
-
-export function strings(locale: Locale): Strings {
+export function formStrings(locale: Locale): FormStrings {
   return dict[locale];
 }

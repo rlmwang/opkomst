@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
+import PublicNotice from "@/public_shared/PublicNotice.vue";
+import { chromeStrings } from "@/public_shared/strings";
 import BrandMark from "./BrandMark.vue";
 import BrandedSelect from "./BrandedSelect.vue";
 import { ApiError, type PublicEvent, fetchEventBySlug, postSignup } from "./api";
@@ -53,6 +55,9 @@ watch(event, (e) => {
   if (e) locale.value = pickLocale(e.locale);
 });
 const t = computed(() => strings(locale.value));
+// Shared chrome copy (the false-url / error screens) so the public
+// pages read identically across events / forms / datepolls.
+const c = computed(() => chromeStrings(locale.value));
 
 function setLocale(next: Locale) {
   locale.value = next;
@@ -290,18 +295,11 @@ watch(event, (e) => {
       </div>
     </header>
 
-    <div v-if="loadFailed" class="card">
-      <p>{{ t.loadFailed }}</p>
-    </div>
+    <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
 
-    <div v-else-if="notFound" class="card">
-      <p>{{ t.notFound }}</p>
-    </div>
+    <PublicNotice v-else-if="notFound" :message="c.unavailable" />
 
-    <div v-else-if="event?.archived" class="card">
-      <h1>{{ event.name }}</h1>
-      <p class="muted archived-note">{{ t.archived }}</p>
-    </div>
+    <PublicNotice v-else-if="event?.archived" :title="event.name" :message="c.unavailable" />
 
     <template v-else>
       <div class="card event-header">

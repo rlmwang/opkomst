@@ -21,8 +21,6 @@ for any live form (archived forms aren't displayed anywhere
 that surfaces the QR).
 """
 
-import secrets
-
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -30,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Form, FormQuestion, FormResponse
+from ..models import Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
     FormSubmitAck,
     FormSubmitIn,
@@ -154,13 +152,15 @@ def submit_form(
         if q.required and q.id not in submitted:
             raise HTTPException(status_code=400, detail=f"Question {q.id} is required.")
 
-    submission_id = secrets.token_urlsafe(16)
+    submission = FormSubmission(form_id=form.id, display_name=data.display_name)
+    db.add(submission)
+    db.flush()  # need submission.id for the response rows
     for qid, fields in submitted.items():
         db.add(
             FormResponse(
                 form_id=form.id,
                 question_id=qid,
-                submission_id=submission_id,
+                submission_id=submission.id,
                 answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
                 answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
                 answer_choices=fields.get("answer_choices"),  # type: ignore[arg-type]
@@ -168,5 +168,5 @@ def submit_form(
         )
 
     db.commit()
-    logger.info("form_submitted", form_id=form.id, submission_id=submission_id)
-    return FormSubmitAck(submission_id=submission_id)
+    logger.info("form_submitted", form_id=form.id, submission_id=submission.id)
+    return FormSubmitAck(submission_id=submission.id)

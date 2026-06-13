@@ -11,6 +11,7 @@
   "header": {
     "events": "Events",
     "forms": "Forms",
+    "datepolls": "Date polls",
     "admin": "Admin",
     "active": "Active",
     "archive": "Archive",
@@ -135,7 +136,7 @@
     "loadFailed": "Could not load events"
   },
   "archived": {
-    "title": "Archive",
+    "title": "Archived events",
     "intro": "Archived events. Open an event by restoring it.",
     "empty": "No archived events.",
     "searchPlaceholder": "Search by name or location",
@@ -204,7 +205,9 @@
       "notFoundTitle": "Form not found",
       "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
       "loadFailed": "Could not load this form.",
-      "backToList": "← Back to forms"
+      "backToList": "← Back to forms",
+      "csvName": "Name",
+      "anonymous": "Anonymous"
     },
     "edit": {
       "newTitle": "New form",
@@ -227,7 +230,8 @@
       "notFoundTitle": "Form not found",
       "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
       "loadFailed": "Could not load this form.",
-      "backToList": "← Back to forms"
+      "backToList": "← Back to forms",
+      "descriptionPlaceholder": "Description (optional)"
     },
     "question": {
       "promptPlaceholder": "Question",
@@ -254,6 +258,94 @@
       "submitFail": "Submitting failed. Please try again.",
       "loadFailed": "Could not load the form.",
       "unavailable": "This form is no longer available."
+    }
+  },
+  "datepolls": {
+    "list": {
+      "title": "Date polls",
+      "intro": "Find a date that works. Propose dates, share the link, let people pick.",
+      "newDatepoll": "New date poll",
+      "searchPlaceholder": "Search by name",
+      "empty": "No date polls yet.",
+      "noMatches": "No date polls match your search.",
+      "loadFailed": "Could not load date polls.",
+      "details": "Details",
+      "archive": "Archive",
+      "archiveConfirmTitle": "Archive this date poll?",
+      "archiveConfirmBody": "\"{name}\" will move to the archive. You can restore it later.",
+      "archived": "Date poll archived",
+      "archiveFail": "Could not archive the date poll.",
+      "dateCount": "{n} dates",
+      "noDates": "No dates yet"
+    },
+    "share": {
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied",
+      "copyQr": "Copy QR",
+      "qrCopied": "QR copied",
+      "qrDownloaded": "QR downloaded",
+      "qrCopyFail": "Could not copy"
+    },
+    "archived": {
+      "title": "Archived date polls",
+      "intro": "Restore a date poll to make it live again, or delete it for good.",
+      "empty": "No archived date polls.",
+      "searchPlaceholder": "Search by name",
+      "noMatches": "No archived date polls match your search.",
+      "loadFailed": "Could not load archived date polls.",
+      "restore": "Restore",
+      "restored": "\"{name}\" restored",
+      "restoreFail": "Could not restore the date poll.",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete this date poll?",
+      "deleteConfirmBody": "\"{name}\" and all its responses will be permanently deleted. This cannot be undone.",
+      "deleteOk": "\"{name}\" deleted",
+      "deleteFail": "Could not delete the date poll."
+    },
+    "edit": {
+      "newTitle": "New date poll",
+      "editTitle": "Edit date poll",
+      "save": "Save",
+      "create": "Create date poll",
+      "saveFailed": "Save failed",
+      "namePlaceholder": "What are we scheduling?",
+      "descriptionPlaceholder": "Description (optional)",
+      "chapterPlaceholder": "Chapter",
+      "fillName": "Fill in a name",
+      "fillChapter": "Pick a chapter",
+      "localeHeading": "Language",
+      "localeExplainer": "The language of the public poll page.",
+      "localeNl": "Dutch",
+      "localeEn": "English",
+      "datesHeading": "Candidate dates",
+      "datesExplainer": "Pick the dates people can choose between.",
+      "noDatesYet": "No dates yet — add them in the calendar.",
+      "datesSelected": "{n} selected",
+      "removeDate": "Remove date",
+      "notFoundTitle": "Date poll not found",
+      "notFoundBody": "This date poll doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
+      "loadFailed": "Could not load this date poll.",
+      "backToList": "← Back to date polls"
+    },
+    "details": {
+      "anonymous": "Anonymous",
+      "respondent": "Respondent",
+      "resultsTitle": "Responses",
+      "responses": "responses",
+      "noResponsesYet": "No responses yet.",
+      "exportCsv": "Export CSV",
+      "csvFail": "Could not export the CSV.",
+      "csvName": "Name",
+      "csvSubmittedAt": "Submitted at",
+      "csvComments": "Comments",
+      "best": "Best",
+      "yes": "Yes",
+      "maybe": "Maybe",
+      "no": "No",
+      "notFoundTitle": "Date poll not found",
+      "notFoundBody": "This date poll doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
+      "loadFailed": "Could not load this date poll.",
+      "backToList": "← Back to date polls"
     }
   },
   "admin": {

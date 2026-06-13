@@ -36,7 +36,8 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Event, Form
+from ..models import Datepoll, Event, Form
+from ..services import datepolls as datepolls_svc
 from ..services import event_stats
 from ..services import events as events_svc
 from ..services import forms as forms_svc
@@ -62,6 +63,7 @@ _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
 # because the per-page head metadata serves the same role on both
 # pages.
 _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
+_DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # Static OG image — same favicon the browser tab uses, lives at
@@ -149,6 +151,20 @@ def _build_form_head_meta(form: Form | None, slug: str) -> str:
     )
 
 
+def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
+    """Per-datepoll link-preview ``<head>``. Description is the poll's
+    blurb if set, else its name; favicon card."""
+    if poll is None:
+        return "<title>opkomst.nu</title>"
+    return _og_head(
+        name=poll.name,
+        description=poll.description or poll.name,
+        canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
+        og_image=_OG_IMAGE_URL,
+        twitter_card="summary",
+    )
+
+
 class _ImmutableStatic(StaticFiles):
     async def get_response(self, path: str, scope: Scope):  # type: ignore[no-untyped-def]
         response = await super().get_response(path, scope)
@@ -157,118 +173,88 @@ class _ImmutableStatic(StaticFiles):
         return response
 
 
-def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
-    """Render ``public-event.html`` with the event payload inlined.
+def _serve_public_app(
+    *,
+    html_name: str,
+    window_var: str,
+    payload_marker: str,
+    payload: object | None,
+    head_meta: str,
+) -> HTMLResponse:
+    """Render one public mini-app shell with its payload inlined.
 
-    Visitor flow without inlining: load HTML → parse JS → fetch
-    event by slug → render. With inlining: load HTML (event data
-    already in the response body) → parse JS → render. One round-
-    trip eliminated; the form is interactive as soon as the JS
-    parses.
+    The three public surfaces (event sign-up, form, datepoll) share
+    this body: load the prebuilt HTML, inject the per-page ``<head>``
+    metadata + the JSON payload (so the page is interactive on first
+    paint, no API round-trip), and serve it with the 60 s
+    ``stale-while-revalidate`` window. The rendered HTML is identical
+    for every visitor between two organiser edits, so a shared cache
+    (Coolify/Traefik or a future CDN) keeps the common case off the
+    DB; the trade-off is that an organiser edit takes up to 60 s to
+    surface to new visitors via the inlined data.
 
-    Response carries ``Cache-Control: public, s-maxage=60,
-    stale-while-revalidate=300`` — same window the
-    ``/api/v1/events/by-slug/{slug}`` JSON endpoint uses. The
-    rendered HTML is identical for every visitor between two
-    organiser edits, so a 60 s shared cache (Coolify/Traefik or
-    any CDN that fronts the app) keeps the common case off the
-    DB; ``stale-while-revalidate`` serves the warm payload after
-    expiry while one background fetch refreshes. Trade-off: an
-    organiser edit takes up to 60 s to surface to new visitors
-    via the inlined data."""
-    public_html_path = _DIST / "public-event.html"
+    Each caller resolves its own entity and decides the archived
+    policy (events inline the archived event's payload to render a
+    banner; forms/datepolls inline ``null`` so the mini-app shows
+    "no longer available"). When the build artefact is missing
+    (local dev without a frontend build) we fall back to the admin
+    SPA shell, uncached."""
+    public_html_path = _DIST / html_name
     if not public_html_path.is_file():
-        # Build artefact missing — fall back to the SPA shell so
-        # at least the admin app loads, and let the client-side
-        # router (if it ever picks up /e/:slug again) render
-        # something sane.
         return HTMLResponse(
             (_DIST / "index.html").read_text(encoding="utf-8"),
             headers={"Cache-Control": "no-store"},
         )
-
-    if _SLUG_RE.match(slug):
-        event = events_svc.get_event_by_slug_any(db, slug)
-        payload: object | None = (
-            json.loads(event_stats.to_out(db, event).model_dump_json()) if event is not None else None
-        )
-    else:
-        event = None
-        payload = None
-
-    inlined = "<script>window.__OPKOMST_EVENT__ = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
-    head_meta = _build_head_meta(event, slug)
+    inlined = f"<script>window.{window_var} = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
         .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
-        .replace(_INJECTION_MARKER, inlined, 1)
+        .replace(payload_marker, inlined, 1)
     )
-    # Cache the response. ``max-age`` is the browser cache;
-    # ``s-maxage`` covers any shared cache that fronts us
-    # (Coolify/Traefik or a future CDN); ``stale-while-revalidate``
-    # serves the warm payload after expiry while one background
-    # fetch refreshes. Without ``max-age`` the browser hits the
-    # server on every reload — Coolify doesn't currently run a CDN
-    # in front, so the shared-cache window alone bought nothing on
-    # repeat reloads. Trade-off: an organiser edit takes up to 60 s
-    # to surface to new visitors via the inlined data; acceptable
-    # since edits during an active sign-up window are rare.
     return HTMLResponse(
         rendered,
         headers={"Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300"},
+    )
+
+
+def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
+    # Events render archived events with a banner, so inline the
+    # archived event's payload (allow_archived) rather than null.
+    event = events_svc.get_event_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    payload = json.loads(event_stats.to_out(db, event).model_dump_json()) if event is not None else None
+    return _serve_public_app(
+        html_name="public-event.html",
+        window_var="__OPKOMST_EVENT__",
+        payload_marker=_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_head_meta(event, slug),
     )
 
 
 def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
-    """Render ``public-form.html`` with the form payload inlined.
-
-    Mirror of ``_serve_public_event``: one query, inline the
-    ``PublicFormOut`` shape (id + name + locale + questions) into
-    ``window.__OPKOMST_FORM__`` so the mini-app paints without an
-    API round-trip. Archived forms inline ``null``; the mini-app
-    renders the same "no longer available" message it would on a
-    410 from the JSON endpoint.
-
-    The cache window matches the events route — 60 s browser +
-    shared cache with ``stale-while-revalidate`` — and the
-    trade-off is the same: organiser edits to a form's question
-    set take up to 60 s to surface to new visitors via the
-    inlined data."""
-    public_html_path = _DIST / "public-form.html"
-    if not public_html_path.is_file():
-        # Build artefact missing — fall back to the admin SPA so
-        # at least something loads. The admin router no longer
-        # has a ``/f/:slug`` route so the user lands on the SPA's
-        # 404 page, which is the right thing for a malformed
-        # local dev setup.
-        return HTMLResponse(
-            (_DIST / "index.html").read_text(encoding="utf-8"),
-            headers={"Cache-Control": "no-store"},
-        )
-
-    if _SLUG_RE.match(slug):
-        form = forms_svc.get_form_by_slug_any(db, slug)
-    else:
-        form = None
-
-    # Inline the slim ``PublicFormOut`` shape (id + name + locale +
-    # questions) — same projection the JSON endpoint returns, so the
-    # mini-app's ``PublicForm`` type matches without a third
-    # hand-maintained copy. Archived / unknown slugs inline ``null``.
-    payload: object | None = (
-        json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
+    # Archived/unknown forms inline null; the mini-app shows the same
+    # "no longer available" state it would on a 410.
+    form = forms_svc.get_form_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
+    return _serve_public_app(
+        html_name="public-form.html",
+        window_var="__OPKOMST_FORM__",
+        payload_marker=_FORM_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_form_head_meta(form, slug),
     )
 
-    inlined = "<script>window.__OPKOMST_FORM__ = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
-    head_meta = _build_form_head_meta(form, slug)
-    rendered = (
-        public_html_path.read_text(encoding="utf-8")
-        .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
-        .replace(_FORM_INJECTION_MARKER, inlined, 1)
-    )
-    return HTMLResponse(
-        rendered,
-        headers={"Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300"},
+
+def _serve_public_datepoll(slug: str, db: Session) -> HTMLResponse:
+    # Archived/unknown polls inline null, same as forms.
+    poll = datepolls_svc.get_datepoll_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
+    return _serve_public_app(
+        html_name="public-datepoll.html",
+        window_var="__OPKOMST_DATEPOLL__",
+        payload_marker=_DATEPOLL_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_datepoll_head_meta(poll, slug),
     )
 
 
@@ -286,6 +272,10 @@ def mount(app: FastAPI) -> None:
     @app.get("/f/{slug}", include_in_schema=False)
     def _public_form(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_form(slug, db)
+
+    @app.get("/d/{slug}", include_in_schema=False)
+    def _public_datepoll(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_datepoll(slug, db)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def _spa_fallback(full_path: str) -> FileResponse:

@@ -124,9 +124,7 @@ def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
             jpeg_bytes=b"\xff\xd8\xff",
         )
 
-    assert url == (
-        "https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/ev1/1700000000000.jpg"
-    )
+    assert url == ("https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/ev1/1700000000000.jpg")
     assert captured["url"] == (
         "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/events/ev1/1700000000000.jpg"
     )
@@ -205,9 +203,7 @@ def test_upload_route_returns_503_when_storage_disabled(client, organiser_header
     assert r.status_code == 503
 
 
-def test_upload_route_persists_url_and_returns_event(
-    client, organiser_headers, github_enabled
-) -> None:
+def test_upload_route_persists_url_and_returns_event(client, organiser_headers, github_enabled) -> None:
     e = _new_event(client, organiser_headers)
     fake_url = "https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/x/1.jpg"
     with patch.object(event_image, "upload_to_github", return_value=fake_url):
@@ -231,9 +227,7 @@ def test_upload_route_400s_on_bad_image(client, organiser_headers, github_enable
     assert r.status_code == 400
 
 
-def test_upload_route_502s_on_github_failure(
-    client, organiser_headers, github_enabled
-) -> None:
+def test_upload_route_502s_on_github_failure(client, organiser_headers, github_enabled) -> None:
     e = _new_event(client, organiser_headers)
     with patch.object(
         event_image,

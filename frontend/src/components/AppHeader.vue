@@ -51,6 +51,12 @@ const topTabs = computed<TopTab[]>(() => {
       isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
     });
     tabs.push({
+      key: "datepolls",
+      to: "/datepolls",
+      label: t("header.datepolls"),
+      isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
+    });
+    tabs.push({
       key: "admin",
       to: "/users",
       label: t("header.admin"),
@@ -90,6 +96,12 @@ const subtabs = computed<Subtab[]>(() => {
     return [
       { to: "/forms", label: t("header.active") },
       { to: "/forms/archived", label: t("header.archive") },
+    ];
+  }
+  if (p === "/datepolls" || p === "/datepolls/archived") {
+    return [
+      { to: "/datepolls", label: t("header.active") },
+      { to: "/datepolls/archived", label: t("header.archive") },
     ];
   }
   if (p === "/users" || p === "/chapters") {

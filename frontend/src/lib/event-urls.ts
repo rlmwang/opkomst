@@ -1,10 +1,11 @@
+import { publicUrl, qrUrl } from "@/lib/public-urls";
+
 /** Public sign-up URL for an event slug. The QR code points here. */
 export function publicEventUrl(slug: string): string {
-  return `${window.location.origin}/e/${slug}`;
+  return publicUrl("e", slug);
 }
 
-/** SVG endpoint for the event's QR code. Same origin so the image
- * inherits whatever auth state the dashboard already has. */
+/** SVG endpoint for the event's QR code. */
 export function eventQrUrl(slug: string): string {
-  return `/api/v1/events/by-slug/${slug}/qr.svg`;
+  return qrUrl("events", slug);
 }
