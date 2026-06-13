@@ -4,8 +4,8 @@ import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
+import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
-import BrandMark from "./BrandMark.vue";
 import BrandedSelect from "./BrandedSelect.vue";
 import { ApiError, type PublicEvent, fetchEventBySlug, postSignup } from "./api";
 import { type Locale, pickLocale, strings } from "./i18n";
@@ -58,11 +58,6 @@ const t = computed(() => strings(locale.value));
 // Shared chrome copy (the false-url / error screens) so the public
 // pages read identically across events / forms / datepolls.
 const c = computed(() => chromeStrings(locale.value));
-
-function setLocale(next: Locale) {
-  locale.value = next;
-  document.documentElement.lang = next;
-}
 
 // --- form state — survives a refresh on flaky mobile connections ---
 const draftKey = `signup-draft:${slug}`;
@@ -263,7 +258,7 @@ async function submit() {
 }
 
 onMounted(() => {
-  document.documentElement.lang = locale.value;
+  // ``document.documentElement.lang`` is owned by PublicShell now.
   document.title = event.value?.name ? `${event.value.name} — opkomst.nu` : "opkomst.nu";
 });
 watch(event, (e) => {
@@ -272,29 +267,7 @@ watch(event, (e) => {
 </script>
 
 <template>
-  <div class="container stack">
-    <header class="public-header">
-      <BrandMark />
-      <div class="lang-switcher" role="group" aria-label="Language">
-        <button
-          type="button"
-          class="flag"
-          :class="{ active: locale === 'nl' }"
-          aria-label="Nederlands"
-          title="Nederlands"
-          @click="setLocale('nl')"
-        >🇳🇱</button>
-        <button
-          type="button"
-          class="flag"
-          :class="{ active: locale === 'en' }"
-          aria-label="English"
-          title="English"
-          @click="setLocale('en')"
-        >🇬🇧</button>
-      </div>
-    </header>
-
+  <PublicShell v-model:locale="locale">
     <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
 
     <PublicNotice v-else-if="notFound" :message="c.unavailable" />
@@ -514,48 +487,11 @@ watch(event, (e) => {
         </div>
       </form>
     </template>
-  </div>
+  </PublicShell>
 </template>
 
 <style scoped>
-/* Header — same shape as components/PublicHeader.vue. */
-.public-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
-  flex-wrap: wrap;
-}
-
-.lang-switcher {
-  display: flex;
-  gap: 0.25rem;
-  background: var(--brand-surface);
-  border: 1px solid var(--brand-border);
-  border-radius: 999px;
-  padding: 0.25rem;
-}
-.flag {
-  background: none;
-  border: 2px solid transparent;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: 999px;
-  font-size: 1.1rem;
-  line-height: 1;
-  opacity: 0.4;
-  filter: grayscale(0.6);
-  transition: opacity 120ms, filter 120ms, border-color 120ms, background 120ms;
-}
-.flag:hover { opacity: 0.85; filter: grayscale(0.2); }
-.flag.active {
-  opacity: 1;
-  filter: none;
-  background: var(--brand-bg);
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 1px var(--brand-red);
-}
+/* Header + language switcher now live in the shared PublicShell. */
 
 /* Form layout — copied verbatim from the original
  * PublicEventPage.vue. */
