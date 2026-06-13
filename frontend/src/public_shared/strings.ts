@@ -30,6 +30,7 @@ export interface ChromeStrings {
   explainerTitle: string;
   explainerBody: string;
   explainerLink: string;
+  imageCredit: string;
 }
 
 const chrome: Record<Locale, ChromeStrings> = {
@@ -45,6 +46,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerTitle: "Privacy & open source",
     explainerBody: "We slaan geen e-mailadres of tracking op. De code is open source:",
     explainerLink: "bekijk de broncode",
+    imageCredit: "Ontwerp:",
   },
   en: {
     loading: "Loading…",
@@ -58,6 +60,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerTitle: "Privacy & open source",
     explainerBody: "We store no email address and no tracking. The code is open source:",
     explainerLink: "view the source",
+    imageCredit: "Design:",
   },
 };
 

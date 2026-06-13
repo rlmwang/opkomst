@@ -242,3 +242,11 @@ def test_summary_other_chapter_404s(client, admin_headers, organiser_headers):
     other = _create_form(client, admin_headers, name="Theirs", chapter_id=other_chapter)
     r = client.get(f"/api/v1/forms/{other['id']}/summary", headers=organiser_headers)
     assert r.status_code == 404
+
+
+def test_image_delete_404_when_no_image(client, organiser_headers):
+    """The image endpoints are wired + chapter-scoped. Deleting when
+    there's no image 404s (no GitHub round-trip)."""
+    form = _create_form(client, organiser_headers)
+    r = client.delete(f"/api/v1/forms/{form['id']}/image", headers=organiser_headers)
+    assert r.status_code == 404

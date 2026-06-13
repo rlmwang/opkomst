@@ -100,6 +100,13 @@ async function exportCsv() {
           {{ form.name }}
           <span v-if="form.chapter_name" class="chip">{{ form.chapter_name }}</span>
         </h1>
+        <figure v-if="form.image_url" class="detail-image">
+          <img :src="form.image_url" :alt="form.name" />
+          <figcaption v-if="form.image_artist_instagram" class="muted">
+            {{ t("imageField.credit") }}
+            <a :href="`https://instagram.com/${form.image_artist_instagram}`" target="_blank" rel="noopener">@{{ form.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="overview-body">
           <div class="overview-text">
             <div class="link-row">
@@ -238,6 +245,16 @@ async function exportCsv() {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.detail-image { margin: 0; }
+.detail-image img {
+  display: block;
+  max-width: 200px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+}
+.detail-image figcaption { margin-top: 0.375rem; font-size: 0.8125rem; }
 .chip {
   display: inline-flex;
   align-items: center;

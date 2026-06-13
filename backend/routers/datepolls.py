@@ -12,10 +12,11 @@ Public-by-slug surfaces live in ``routers/datepolls_public.py``.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
+from ..config import settings
 from ..database import get_db
 from ..models import Datepoll, User
 from ..schemas.datepolls import (
@@ -28,6 +29,7 @@ from ..schemas.datepolls import (
 )
 from ..services import access
 from ..services import datepolls as datepolls_svc
+from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -52,6 +54,7 @@ def create_datepoll(
         slug=new_slug(),
         name=data.name,
         description=data.description,
+        image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
@@ -124,6 +127,7 @@ def update_datepoll(
 
     poll.name = data.name
     poll.description = data.description
+    poll.image_artist_instagram = data.image_artist_instagram
     poll.chapter_id = data.chapter_id
     poll.locale = data.locale
     datepolls_svc.apply_dates(db, poll.id, data.dates)
@@ -187,6 +191,55 @@ def delete_datepoll(
     db.delete(poll)
     db.commit()
     logger.info("datepoll_deleted", datepoll_id=datepoll_id, actor_id=user.id)
+
+
+@router.post("/{datepoll_id}/image", response_model=DatepollOut)
+@limiter.limit(Limits.ORG_RARE)
+async def upload_datepoll_image(
+    request: Request,
+    datepoll_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> DatepollOut:
+    """Upload (or replace) the poll's hero image — same 4:5 GitHub
+    pipeline as events (``services/image.py``)."""
+    if not settings.event_images_enabled:
+        raise HTTPException(status_code=503, detail="Image storage is not configured")
+    poll = access.get_datepoll_for_user(db, datepoll_id, user)
+    raw = await file.read()
+    timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
+    try:
+        poll.image_url = image_svc.replace_entity_image(
+            folder="datepolls", entity_id=poll.id, raw=raw, timestamp_ms=timestamp_ms
+        )
+    except image_svc.ImageProcessingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except image_svc.GithubUploadError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(poll)
+    logger.info("datepoll_image_uploaded", datepoll_id=poll.id, actor_id=user.id)
+    return datepolls_svc.to_out(db, poll)
+
+
+@router.delete("/{datepoll_id}/image", response_model=DatepollOut)
+@limiter.limit(Limits.ORG_RARE)
+def delete_datepoll_image(
+    request: Request,
+    datepoll_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> DatepollOut:
+    """Clear the image reference. The file in the repo is left alone."""
+    poll = access.get_datepoll_for_user(db, datepoll_id, user)
+    if poll.image_url is None:
+        raise HTTPException(status_code=404, detail="No image to delete")
+    poll.image_url = None
+    db.commit()
+    db.refresh(poll)
+    logger.info("datepoll_image_deleted", datepoll_id=poll.id, actor_id=user.id)
+    return datepolls_svc.to_out(db, poll)
 
 
 @router.get("/{datepoll_id}/summary", response_model=DatepollSummaryOut)

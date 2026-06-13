@@ -8,6 +8,20 @@
     "error": "Something went wrong",
     "invalidEmail": "That email address looks wrong"
   },
+  "imageField": {
+    "heading": "Image",
+    "createFirst": "Save first; then you can upload an image.",
+    "upload": "Upload image",
+    "uploading": "Uploading…",
+    "replace": "Replace",
+    "remove": "Remove",
+    "alt": "Image",
+    "artistPlaceholder": "Designer's Instagram (optional)",
+    "uploaded": "Image updated",
+    "uploadFailed": "Upload failed",
+    "removeFailed": "Remove failed",
+    "credit": "Design:"
+  },
   "header": {
     "events": "Events",
     "forms": "Forms",

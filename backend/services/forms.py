@@ -197,6 +197,8 @@ def to_out(db: Session, form: Form) -> FormOut:
         archived=form.archived_at is not None,
         created_at=form.created_at,
         description=form.description,
+        image_url=form.image_url,
+        image_artist_instagram=form.image_artist_instagram,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
 
@@ -209,6 +211,8 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
         id=form.id,
         name=form.name,
         description=form.description,
+        image_url=form.image_url,
+        image_artist_instagram=form.image_artist_instagram,
         locale=form.locale,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )

@@ -9,6 +9,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
+import ImageField from "@/components/ImageField.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import {
@@ -45,6 +46,8 @@ const userChapterOptions = computed(() => {
 
 const name = ref("");
 const description = ref("");
+const imageUrl = ref<string | null>(null);
+const imageArtistInstagram = ref("");
 const pollLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 // Candidate dates as ``Date`` objects (PrimeVue multiple-select).
 const selectedDates = ref<Date[]>([]);
@@ -97,6 +100,8 @@ watch(
     if (!existing) return;
     name.value = existing.name;
     description.value = existing.description ?? "";
+    imageUrl.value = existing.image_url ?? null;
+    imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     pollLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
     selectedDates.value = (existing.dates ?? []).map((d) => fromISODate(d.on_date));
@@ -111,6 +116,7 @@ const draftKey = computed(() => `datepoll-edit-draft:${props.datepollId ?? "new"
 interface DatepollDraft {
   name: string;
   description: string;
+  imageArtistInstagram: string;
   chapterId: string | null;
   pollLocale: "nl" | "en";
   dates: string[];
@@ -120,6 +126,7 @@ function snapshot(): DatepollDraft {
   return {
     name: name.value,
     description: description.value,
+    imageArtistInstagram: imageArtistInstagram.value,
     chapterId: chapterId.value,
     pollLocale: pollLocale.value,
     dates: sortedISODates.value,
@@ -129,6 +136,7 @@ function snapshot(): DatepollDraft {
 function applyDraft(d: DatepollDraft): void {
   name.value = d.name;
   description.value = d.description ?? "";
+  imageArtistInstagram.value = d.imageArtistInstagram ?? "";
   chapterId.value = d.chapterId ?? null;
   pollLocale.value = d.pollLocale ?? "nl";
   selectedDates.value = (d.dates ?? []).map(fromISODate);
@@ -138,7 +146,7 @@ const { loadDraft, clearDraft } = useFormDraft<DatepollDraft>({
   key: draftKey,
   snapshot,
   apply: applyDraft,
-  sources: [name, description, chapterId, pollLocale, selectedDates],
+  sources: [name, description, imageArtistInstagram, chapterId, pollLocale, selectedDates],
 });
 
 let draftRestored = false;
@@ -188,6 +196,7 @@ async function submit() {
       chapter_id: chapterId.value,
       name: trimmedName,
       description: description.value.trim() || null,
+      image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: pollLocale.value,
       dates: sortedISODates.value.map((iso) => ({ on_date: iso })),
     };
@@ -254,20 +263,12 @@ async function submit() {
       />
     </section>
 
-    <section class="form-section">
-      <h2 class="section-heading">{{ t("datepolls.edit.localeHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("datepolls.edit.localeExplainer") }}</p>
-      <Select
-        v-model="pollLocale"
-        :options="[
-          { value: 'nl', label: t('datepolls.edit.localeNl') },
-          { value: 'en', label: t('datepolls.edit.localeEn') },
-        ]"
-        option-label="label"
-        option-value="value"
-        fluid
-      />
-    </section>
+    <ImageField
+      resource="datepolls"
+      :entity-id="props.datepollId ?? null"
+      v-model:image-url="imageUrl"
+      v-model:artist="imageArtistInstagram"
+    />
 
     <section class="form-section">
       <h2 class="section-heading">{{ t("datepolls.edit.datesHeading") }}</h2>
@@ -296,6 +297,21 @@ async function submit() {
           </ul>
         </div>
       </div>
+    </section>
+
+    <section class="form-section">
+      <h2 class="section-heading">{{ t("datepolls.edit.localeHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("datepolls.edit.localeExplainer") }}</p>
+      <Select
+        v-model="pollLocale"
+        :options="[
+          { value: 'nl', label: t('datepolls.edit.localeNl') },
+          { value: 'en', label: t('datepolls.edit.localeEn') },
+        ]"
+        option-label="label"
+        option-value="value"
+        fluid
+      />
     </section>
   </FormPageShell>
 </template>

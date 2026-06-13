@@ -17,10 +17,11 @@ delete-when-archived, summary, submissions CSV source.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
+from ..config import settings
 from ..database import get_db
 from ..models import Form, User
 from ..schemas.forms import (
@@ -33,6 +34,7 @@ from ..schemas.forms import (
 )
 from ..services import access
 from ..services import forms as forms_svc
+from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -58,6 +60,7 @@ def create_form(
         slug=new_slug(),
         name=data.name,
         description=data.description,
+        image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
@@ -131,6 +134,7 @@ def update_form(
 
     form.name = data.name
     form.description = data.description
+    form.image_artist_instagram = data.image_artist_instagram
     form.chapter_id = data.chapter_id
     form.locale = data.locale
     forms_svc.apply_questions(db, form.id, data.questions)
@@ -195,6 +199,55 @@ def delete_form(
     db.delete(form)
     db.commit()
     logger.info("form_deleted", form_id=form_id, actor_id=user.id)
+
+
+@router.post("/{form_id}/image", response_model=FormOut)
+@limiter.limit(Limits.ORG_RARE)
+async def upload_form_image(
+    request: Request,
+    form_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> FormOut:
+    """Upload (or replace) the form's hero image — same 4:5 GitHub
+    pipeline as events (``services/image.py``)."""
+    if not settings.event_images_enabled:
+        raise HTTPException(status_code=503, detail="Image storage is not configured")
+    form = access.get_form_for_user(db, form_id, user)
+    raw = await file.read()
+    timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
+    try:
+        form.image_url = image_svc.replace_entity_image(
+            folder="forms", entity_id=form.id, raw=raw, timestamp_ms=timestamp_ms
+        )
+    except image_svc.ImageProcessingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except image_svc.GithubUploadError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(form)
+    logger.info("form_image_uploaded", form_id=form.id, actor_id=user.id)
+    return forms_svc.to_out(db, form)
+
+
+@router.delete("/{form_id}/image", response_model=FormOut)
+@limiter.limit(Limits.ORG_RARE)
+def delete_form_image(
+    request: Request,
+    form_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> FormOut:
+    """Clear the image reference. The file in the repo is left alone."""
+    form = access.get_form_for_user(db, form_id, user)
+    if form.image_url is None:
+        raise HTTPException(status_code=404, detail="No image to delete")
+    form.image_url = None
+    db.commit()
+    db.refresh(form)
+    logger.info("form_image_deleted", form_id=form.id, actor_id=user.id)
+    return forms_svc.to_out(db, form)
 
 
 @router.get("/{form_id}/summary", response_model=FormSummaryOut)

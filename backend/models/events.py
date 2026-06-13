@@ -37,7 +37,7 @@ class Event(UUIDMixin, TimestampMixin, Base):
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Public URL of the event's 4:5 hero image. Hosted in a GitHub
     # repo (raw.githubusercontent.com/.../events/{id}/{ts}.jpg);
-    # uploads go through ``services/event_image.py`` which crops,
+    # uploads go through ``services/image.py`` which crops,
     # resizes, and PUTs via the GitHub Contents API. Null = the
     # public sign-up page / details page render without a hero
     # image and the OG card falls back to the favicon. Replacing

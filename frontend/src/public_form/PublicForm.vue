@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
+import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
@@ -144,6 +145,11 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
     <template v-else-if="form">
       <div class="card title-card">
+        <PublicHero
+          :image-url="form.image_url"
+          :artist="form.image_artist_instagram"
+          :credit-label="c.imageCredit"
+        />
         <h1>{{ form.name }}</h1>
         <p v-if="form.description" class="muted">{{ form.description }}</p>
       </div>

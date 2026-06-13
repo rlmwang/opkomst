@@ -25,7 +25,8 @@ from ..config import settings
 from ..database import get_db
 from ..models import EmailChannel, Event, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
-from ..services import access, event_image, event_stats, mail_lifecycle
+from ..services import access, event_stats, mail_lifecycle
+from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -259,14 +260,14 @@ async def upload_event_image(
     user: User = Depends(require_approved),
 ) -> EventOut:
     """Upload (or replace) the event's hero image. The bytes go
-    through ``services/event_image.py`` — validated, EXIF-rotated,
+    through ``services/image.py`` — validated, EXIF-rotated,
     cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
     PUT to the configured GitHub repo. ``event.image_url`` is set
     to the resulting ``raw.githubusercontent.com`` URL.
 
     Replacing an image overwrites ``image_url`` with the new
     path; the previous file stays in the repo's history by
-    design (see ``services/event_image.py``).
+    design (see ``services/image.py``).
 
     Returns the updated ``EventOut`` so the caller's Vue Query
     cache patches in-place without an extra refetch."""
@@ -276,8 +277,8 @@ async def upload_event_image(
     event = access.get_event_for_user(db, event_id, user)
     raw = await file.read()
     try:
-        jpeg = event_image.process_upload(raw)
-    except event_image.ImageProcessingError as exc:
+        jpeg = image_svc.process_upload(raw)
+    except image_svc.ImageProcessingError as exc:
         logger.warning(
             "event_image_process_failed",
             event_id=event.id,
@@ -289,12 +290,13 @@ async def upload_event_image(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
-        url = event_image.upload_to_github(
-            event_id=event.id,
+        url = image_svc.upload_to_github(
+            folder="events",
+            entity_id=event.id,
             timestamp_ms=timestamp_ms,
             jpeg_bytes=jpeg,
         )
-    except event_image.GithubUploadError as exc:
+    except image_svc.GithubUploadError as exc:
         logger.warning(
             "event_image_github_upload_failed",
             event_id=event.id,

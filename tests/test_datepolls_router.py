@@ -99,3 +99,9 @@ def test_summary_tallies_and_best_date(client, organiser_headers):
     assert by_id[d0]["yes"] == 2 and by_id[d0]["no"] == 0
     assert by_id[d1]["yes"] == 1 and by_id[d1]["no"] == 1
     assert summary["best_date_id"] == d0
+
+
+def test_image_delete_404_when_no_image(client, organiser_headers):
+    poll = _create(client, organiser_headers, dates=["2026-09-01"])
+    r = client.delete(f"/api/v1/datepolls/{poll['id']}/image", headers=organiser_headers)
+    assert r.status_code == 404

@@ -135,6 +135,8 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         first_date=dates[0].on_date if dates else None,
         last_date=dates[-1].on_date if dates else None,
         description=poll.description,
+        image_url=poll.image_url,
+        image_artist_instagram=poll.image_artist_instagram,
         dates=[DatepollDateOut.model_validate(d) for d in dates],
     )
 
@@ -146,6 +148,8 @@ def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
         id=poll.id,
         name=poll.name,
         description=poll.description,
+        image_url=poll.image_url,
+        image_artist_instagram=poll.image_artist_instagram,
         locale=poll.locale,
         dates=[DatepollDateOut.model_validate(d) for d in _dates(db, poll.id)],
     )

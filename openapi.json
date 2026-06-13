@@ -32,6 +32,20 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post",
+        "type": "object"
+      },
       "Body_upload_event_image_api_v1_events__event_id__image_post": {
         "properties": {
           "file": {
@@ -44,6 +58,20 @@
           "file"
         ],
         "title": "Body_upload_event_image_api_v1_events__event_id__image_post",
+        "type": "object"
+      },
+      "Body_upload_form_image_api_v1_forms__form_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_form_image_api_v1_forms__form_id__image_post",
         "type": "object"
       },
       "ChapterArchiveRequest": {
@@ -329,6 +357,18 @@
             ],
             "title": "Description"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
           "locale": {
             "default": "nl",
             "enum": [
@@ -597,6 +637,28 @@
             "title": "Id",
             "type": "string"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "last_date": {
             "anyOf": [
               {
@@ -777,6 +839,18 @@
               }
             ],
             "title": "Description"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
           },
           "locale": {
             "default": "nl",
@@ -1482,6 +1556,18 @@
             ],
             "title": "Description"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
           "locale": {
             "default": "nl",
             "enum": [
@@ -1628,6 +1714,28 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
           },
           "locale": {
             "enum": [
@@ -2029,6 +2137,18 @@
             ],
             "title": "Description"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
           "locale": {
             "default": "nl",
             "enum": [
@@ -2173,6 +2293,28 @@
             "title": "Id",
             "type": "string"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "locale": {
             "enum": [
               "nl",
@@ -2196,7 +2338,7 @@
         "type": "object"
       },
       "PublicFormOut": {
-        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + locale + questions in display order.",
+        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + image + locale + questions in display order.",
         "properties": {
           "description": {
             "anyOf": [
@@ -2212,6 +2354,28 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
           },
           "locale": {
             "enum": [
@@ -4216,6 +4380,132 @@
         ]
       }
     },
+    "/api/v1/datepolls/{datepoll_id}/image": {
+      "delete": {
+        "description": "Clear the image reference. The file in the repo is left alone.",
+        "operationId": "delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Datepoll Image",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the poll's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
+        "operationId": "upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Datepoll Image",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
     "/api/v1/datepolls/{datepoll_id}/restore": {
       "post": {
         "operationId": "restore_datepoll_api_v1_datepolls__datepoll_id__restore_post",
@@ -5215,7 +5505,7 @@
         ]
       },
       "post": {
-        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/event_image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/event_image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
         "operationId": "upload_event_image_api_v1_events__event_id__image_post",
         "parameters": [
           {
@@ -6306,6 +6596,132 @@
           }
         },
         "summary": "Archive Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/image": {
+      "delete": {
+        "description": "Clear the image reference. The file in the repo is left alone.",
+        "operationId": "delete_form_image_api_v1_forms__form_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Form Image",
+        "tags": [
+          "forms"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
+        "operationId": "upload_form_image_api_v1_forms__form_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_form_image_api_v1_forms__form_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Form Image",
         "tags": [
           "forms"
         ]

@@ -8,6 +8,20 @@
     "error": "Er ging iets mis",
     "invalidEmail": "Dit e-mailadres lijkt niet te kloppen"
   },
+  "imageField": {
+    "heading": "Afbeelding",
+    "createFirst": "Sla eerst op; daarna kun je een afbeelding uploaden.",
+    "upload": "Afbeelding uploaden",
+    "uploading": "Uploaden…",
+    "replace": "Vervangen",
+    "remove": "Verwijderen",
+    "alt": "Afbeelding",
+    "artistPlaceholder": "Instagram van de maker (optioneel)",
+    "uploaded": "Afbeelding bijgewerkt",
+    "uploadFailed": "Uploaden mislukt",
+    "removeFailed": "Verwijderen mislukt",
+    "credit": "Ontwerp:"
+  },
   "header": {
     "events": "Evenementen",
     "forms": "Vragenlijsten",

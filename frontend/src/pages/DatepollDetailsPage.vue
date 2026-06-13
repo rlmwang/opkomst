@@ -110,6 +110,13 @@ async function exportCsv() {
           <span v-if="poll.chapter_name" class="chip">{{ poll.chapter_name }}</span>
         </h1>
         <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
+        <figure v-if="poll.image_url" class="detail-image">
+          <img :src="poll.image_url" :alt="poll.name" />
+          <figcaption v-if="poll.image_artist_instagram" class="muted">
+            {{ t("imageField.credit") }}
+            <a :href="`https://instagram.com/${poll.image_artist_instagram}`" target="_blank" rel="noopener">@{{ poll.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="overview-body">
           <div class="overview-text">
             <div class="link-row">
@@ -234,6 +241,16 @@ async function exportCsv() {
 .overview { display: flex; flex-direction: column; gap: 0.5rem; }
 .overview h1 { margin: 0; overflow-wrap: anywhere; }
 .description { margin: 0; }
+.detail-image { margin: 0; }
+.detail-image img {
+  display: block;
+  max-width: 200px;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+}
+.detail-image figcaption { margin-top: 0.375rem; font-size: 0.8125rem; }
 .chip {
   display: inline-flex; align-items: center; margin-left: 0.5rem;
   padding: 0.125rem 0.625rem; border-radius: 999px;

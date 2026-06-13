@@ -56,6 +56,10 @@ class Datepoll(UUIDMixin, TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional 4:5 hero image (GitHub-hosted raw URL) + artist credit,
+    # same shape and pipeline as Event (services/image.py).
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ISO language tag — drives the public poll's UI language.
     locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
     created_by: Mapped[str] = mapped_column(

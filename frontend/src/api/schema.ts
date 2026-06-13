@@ -552,6 +552,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datepolls/{datepoll_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Datepoll Image
+         * @description Upload (or replace) the poll's hero image — same 4:5 GitHub
+         *     pipeline as events (``services/image.py``).
+         */
+        post: operations["upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"];
+        /**
+         * Delete Datepoll Image
+         * @description Clear the image reference. The file in the repo is left alone.
+         */
+        delete: operations["delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepolls/{datepoll_id}/restore": {
         parameters: {
             query?: never;
@@ -875,14 +900,14 @@ export interface paths {
         /**
          * Upload Event Image
          * @description Upload (or replace) the event's hero image. The bytes go
-         *     through ``services/event_image.py`` — validated, EXIF-rotated,
+         *     through ``services/image.py`` — validated, EXIF-rotated,
          *     cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
          *     PUT to the configured GitHub repo. ``event.image_url`` is set
          *     to the resulting ``raw.githubusercontent.com`` URL.
          *
          *     Replacing an image overwrites ``image_url`` with the new
          *     path; the previous file stays in the repo's history by
-         *     design (see ``services/event_image.py``).
+         *     design (see ``services/image.py``).
          *
          *     Returns the updated ``EventOut`` so the caller's Vue Query
          *     cache patches in-place without an extra refetch.
@@ -1220,6 +1245,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/forms/{form_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Form Image
+         * @description Upload (or replace) the form's hero image — same 4:5 GitHub
+         *     pipeline as events (``services/image.py``).
+         */
+        post: operations["upload_form_image_api_v1_forms__form_id__image_post"];
+        /**
+         * Delete Form Image
+         * @description Clear the image reference. The file in the repo is left alone.
+         */
+        delete: operations["delete_form_image_api_v1_forms__form_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/forms/{form_id}/restore": {
         parameters: {
             query?: never;
@@ -1462,8 +1512,18 @@ export interface components {
             token: string;
             user: components["schemas"]["UserOut"];
         };
+        /** Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post */
+        Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_event_image_api_v1_events__event_id__image_post */
         Body_upload_event_image_api_v1_events__event_id__image_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_form_image_api_v1_forms__form_id__image_post */
+        Body_upload_form_image_api_v1_forms__form_id__image_post: {
             /** File */
             file: string;
         };
@@ -1586,6 +1646,8 @@ export interface components {
             dates?: components["schemas"]["DatepollDateIn"][];
             /** Description */
             description?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /**
              * Locale
              * @default nl
@@ -1704,6 +1766,10 @@ export interface components {
             first_date?: string | null;
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
             /** Last Date */
             last_date?: string | null;
             /**
@@ -1780,6 +1846,8 @@ export interface components {
             dates?: components["schemas"]["DatepollDateIn"][];
             /** Description */
             description?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /**
              * Locale
              * @default nl
@@ -2053,6 +2121,8 @@ export interface components {
             chapter_id: string;
             /** Description */
             description?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /**
              * Locale
              * @default nl
@@ -2120,6 +2190,10 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
             /**
              * Locale
              * @enum {string}
@@ -2289,6 +2363,8 @@ export interface components {
             chapter_id: string;
             /** Description */
             description?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /**
              * Locale
              * @default nl
@@ -2372,6 +2448,10 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
             /**
              * Locale
              * @enum {string}
@@ -2384,13 +2464,17 @@ export interface components {
          * PublicFormOut
          * @description What the public fill-out page (``/f/{slug}``) reads. No
          *     chapter id, no internal timestamps — just the form name +
-         *     description + locale + questions in display order.
+         *     description + image + locale + questions in display order.
          */
         PublicFormOut: {
             /** Description */
             description?: string | null;
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
             /**
              * Locale
              * @enum {string}
@@ -3488,6 +3572,76 @@ export interface operations {
         };
     };
     archive_datepoll_api_v1_datepolls__datepoll_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -4714,6 +4868,76 @@ export interface operations {
         };
     };
     archive_form_api_v1_forms__form_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_form_image_api_v1_forms__form_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_form_image_api_v1_forms__form_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_form_image_api_v1_forms__form_id__image_delete: {
         parameters: {
             query?: never;
             header?: {

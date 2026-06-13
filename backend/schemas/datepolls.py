@@ -15,7 +15,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName
+from .common import DisplayName, InstagramHandle
 from .events import Locale
 
 Availability = Literal["yes", "no", "maybe"]
@@ -42,6 +42,7 @@ class DatepollCreate(BaseModel):
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     dates: list[DatepollDateIn] = Field(default_factory=list, max_length=60)
 
@@ -83,6 +84,8 @@ class DatepollOut(DatepollListOut):
     full candidate-date list (sorted by ``on_date``)."""
 
     description: str | None = None
+    image_url: str | None = None
+    image_artist_instagram: str | None = None
     dates: list[DatepollDateOut] = Field(default_factory=list)
 
 
@@ -92,6 +95,8 @@ class PublicDatepollOut(BaseModel):
     id: str
     name: str
     description: str | None = None
+    image_url: str | None = None
+    image_artist_instagram: str | None = None
     locale: Locale
     dates: list[DatepollDateOut]
 

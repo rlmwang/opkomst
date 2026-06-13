@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from pydantic import AfterValidator, EmailStr, Field
+from pydantic import AfterValidator, BeforeValidator, EmailStr, Field
 
 
 def _to_lower(v: str) -> str:
@@ -25,3 +25,22 @@ def _clean_pseudonym(v: str | None) -> str | None:
 # name so the two can't drift; the frontend renders NULL as a localised
 # "Anonymous".
 DisplayName = Annotated[str | None, Field(default=None, max_length=100), AfterValidator(_clean_pseudonym)]
+
+
+def _clean_instagram_handle(v: str | None) -> str | None:
+    """Strip whitespace, drop a leading ``@``, treat empty as null, and
+    enforce Instagram's character set so a typo can't land in a public
+    URL. Shared by the image-credit field on events / forms / datepolls."""
+    if v is None:
+        return None
+    v = v.strip().lstrip("@")
+    if not v:
+        return None
+    if not all(c.isalnum() or c in "._" for c in v):
+        raise ValueError("Instagram handle may only contain letters, digits, '.', and '_'.")
+    return v
+
+
+# Optional Instagram handle crediting the image's designer. Shared by
+# the hero-image block on all three organiser-authored entities.
+InstagramHandle = Annotated[str | None, Field(default=None, max_length=30), BeforeValidator(_clean_instagram_handle)]

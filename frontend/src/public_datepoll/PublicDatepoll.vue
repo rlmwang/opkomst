@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
+import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
@@ -131,6 +132,11 @@ async function submit(): Promise<void> {
 
     <template v-else-if="poll">
       <div class="card title-card">
+        <PublicHero
+          :image-url="poll.image_url"
+          :artist="poll.image_artist_instagram"
+          :credit-label="c.imageCredit"
+        />
         <h1>{{ poll.name }}</h1>
         <p v-if="poll.description" class="muted">{{ poll.description }}</p>
       </div>

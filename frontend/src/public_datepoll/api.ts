@@ -16,6 +16,8 @@ export interface PublicDatepoll {
   id: string;
   name: string;
   description: string | null;
+  image_url: string | null;
+  image_artist_instagram: string | null;
   locale: "nl" | "en";
   dates: PublicDatepollDate[];
 }

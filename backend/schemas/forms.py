@@ -23,7 +23,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName
+from .common import DisplayName, InstagramHandle
 from .events import Locale
 
 QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice"]
@@ -71,6 +71,7 @@ class FormCreate(BaseModel):
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     # Optional on create — an organiser can save a draft form with
     # no questions and add them on the edit page afterwards. On
@@ -119,17 +120,21 @@ class FormOut(FormListOut):
     without an extra round-trip."""
 
     description: str | None = None
+    image_url: str | None = None
+    image_artist_instagram: str | None = None
     questions: list[FormQuestionOut] = Field(default_factory=list)
 
 
 class PublicFormOut(BaseModel):
     """What the public fill-out page (``/f/{slug}``) reads. No
     chapter id, no internal timestamps — just the form name +
-    description + locale + questions in display order."""
+    description + image + locale + questions in display order."""
 
     id: str
     name: str
     description: str | None = None
+    image_url: str | None = None
+    image_artist_instagram: str | None = None
     locale: Locale
     questions: list[FormQuestionOut]
 

@@ -13,7 +13,7 @@ from pydantic import SecretStr
 
 from backend.database import SessionLocal
 from backend.models import Event
-from backend.services import event_image
+from backend.services import image as event_image
 
 # --- process_upload --------------------------------------------------
 
@@ -119,7 +119,8 @@ def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
 
     with patch.object(httpx, "put", side_effect=fake_put):
         url = event_image.upload_to_github(
-            event_id="ev1",
+            folder="events",
+            entity_id="ev1",
             timestamp_ms=1700000000000,
             jpeg_bytes=b"\xff\xd8\xff",
         )
@@ -135,7 +136,7 @@ def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
 
 def test_upload_to_github_raises_when_disabled() -> None:
     with pytest.raises(event_image.GithubUploadError, match="not configured"):
-        event_image.upload_to_github(event_id="x", timestamp_ms=0, jpeg_bytes=b"j")
+        event_image.upload_to_github(folder="events", entity_id="x", timestamp_ms=0, jpeg_bytes=b"j")
 
 
 def test_upload_to_github_raises_on_non_2xx(github_enabled) -> None:
@@ -144,7 +145,7 @@ def test_upload_to_github_raises_on_non_2xx(github_enabled) -> None:
 
     with patch.object(httpx, "put", side_effect=fake_put):
         with pytest.raises(event_image.GithubUploadError, match="422"):
-            event_image.upload_to_github(event_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
+            event_image.upload_to_github(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
 
 
 def test_upload_to_github_raises_on_network_error(github_enabled) -> None:
@@ -153,7 +154,7 @@ def test_upload_to_github_raises_on_network_error(github_enabled) -> None:
 
     with patch.object(httpx, "put", side_effect=fake_put):
         with pytest.raises(event_image.GithubUploadError, match="failed"):
-            event_image.upload_to_github(event_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
+            event_image.upload_to_github(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
 
 
 # --- HTTP routes -----------------------------------------------------

@@ -9,6 +9,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
+import ImageField from "@/components/ImageField.vue";
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
@@ -50,6 +51,8 @@ const userChapterOptions = computed(() => {
 
 const name = ref("");
 const description = ref("");
+const imageUrl = ref<string | null>(null);
+const imageArtistInstagram = ref("");
 const formLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 const questions = ref<QuestionDraft[]>([]);
 const submitting = ref(false);
@@ -95,6 +98,8 @@ watch(
     if (!existing) return;
     name.value = existing.name;
     description.value = existing.description ?? "";
+    imageUrl.value = existing.image_url ?? null;
+    imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     formLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
     questions.value = (existing.questions ?? []).map((q) => ({
@@ -122,6 +127,7 @@ const draftKey = computed(() => `form-edit-draft:${props.formId ?? "new"}`);
 interface FormEditDraft {
   name: string;
   description: string;
+  imageArtistInstagram: string;
   chapterId: string | null;
   formLocale: "nl" | "en";
   questions: QuestionDraft[];
@@ -131,6 +137,7 @@ function snapshot(): FormEditDraft {
   return {
     name: name.value,
     description: description.value,
+    imageArtistInstagram: imageArtistInstagram.value,
     chapterId: chapterId.value,
     formLocale: formLocale.value,
     questions: questions.value,
@@ -140,6 +147,7 @@ function snapshot(): FormEditDraft {
 function applyDraft(d: FormEditDraft): void {
   name.value = d.name;
   description.value = d.description ?? "";
+  imageArtistInstagram.value = d.imageArtistInstagram ?? "";
   chapterId.value = d.chapterId ?? null;
   formLocale.value = d.formLocale ?? "nl";
   questions.value = (d.questions ?? []).map((q) => ({ ...q, options: [...(q.options ?? [])] }));
@@ -149,7 +157,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormEditDraft>({
   key: draftKey,
   snapshot,
   apply: applyDraft,
-  sources: [name, description, chapterId, formLocale, questions],
+  sources: [name, description, imageArtistInstagram, chapterId, formLocale, questions],
 });
 
 // Restore at most once — the edit-mode hydration watch can fire more
@@ -222,6 +230,7 @@ async function submit() {
       chapter_id: chapterId.value,
       name: trimmedName,
       description: description.value.trim() || null,
+      image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: formLocale.value,
       questions: questions.value.map(
         (q): FormQuestionIn => ({
@@ -302,20 +311,12 @@ async function submit() {
       />
     </section>
 
-    <section class="form-section">
-      <h2 class="section-heading">{{ t("forms.edit.localeHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("forms.edit.localeExplainer") }}</p>
-      <Select
-        v-model="formLocale"
-        :options="[
-          { value: 'nl', label: t('forms.edit.localeNl') },
-          { value: 'en', label: t('forms.edit.localeEn') },
-        ]"
-        option-label="label"
-        option-value="value"
-        fluid
-      />
-    </section>
+    <ImageField
+      resource="forms"
+      :entity-id="props.formId ?? null"
+      v-model:image-url="imageUrl"
+      v-model:artist="imageArtistInstagram"
+    />
 
     <section class="form-section">
       <h2 class="section-heading">{{ t("forms.edit.questionsHeading") }}</h2>
@@ -345,6 +346,21 @@ async function submit() {
         icon="pi pi-plus"
         severity="secondary"
         @click="addQuestion"
+      />
+    </section>
+
+    <section class="form-section">
+      <h2 class="section-heading">{{ t("forms.edit.localeHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("forms.edit.localeExplainer") }}</p>
+      <Select
+        v-model="formLocale"
+        :options="[
+          { value: 'nl', label: t('forms.edit.localeNl') },
+          { value: 'en', label: t('forms.edit.localeEn') },
+        ]"
+        option-label="label"
+        option-value="value"
+        fluid
       />
     </section>
   </FormPageShell>

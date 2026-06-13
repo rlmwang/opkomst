@@ -63,6 +63,10 @@ class Form(UUIDMixin, TimestampMixin, Base):
     # Optional blurb shown on the public page under the name — same
     # role as the event topic / datepoll description.
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional 4:5 hero image (GitHub-hosted raw URL) + artist credit,
+    # same shape and pipeline as Event (services/image.py).
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ISO language tag — drives the public form's UI language.
     # Two-letter codes only today; widen the Literal to add a region.
     locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")

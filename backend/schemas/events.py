@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName, LowercaseEmail
+from .common import DisplayName, InstagramHandle, LowercaseEmail
 
 # Two-letter ISO language tag. Drives both the public sign-up
 # page's UI language and the locale of the feedback email sent
@@ -31,11 +31,10 @@ class EventCreate(BaseModel):
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
 
-    # Instagram handle of the artist credited on the hero image.
-    # Optional. Stored without the leading ``@`` — see the validator
-    # below. ``EventOut`` carries it back unchanged so the public
-    # page / details page / emails render a uniform credit line.
-    image_artist_instagram: str | None = Field(default=None, max_length=30)
+    # Instagram handle of the artist credited on the hero image —
+    # shared primitive (optional, leading ``@`` stripped, charset
+    # enforced). ``EventOut`` carries it back unchanged.
+    image_artist_instagram: InstagramHandle
 
     @field_validator("starts_at", "ends_at")
     @classmethod
@@ -45,22 +44,6 @@ class EventCreate(BaseModel):
                 "Event datetimes must be naive (Europe/Amsterdam wall clock); "
                 "send 'YYYY-MM-DDTHH:MM:SS' without a Z/offset."
             )
-        return v
-
-    @field_validator("image_artist_instagram", mode="before")
-    @classmethod
-    def _clean_instagram_handle(cls, v: str | None) -> str | None:
-        """Strip whitespace, drop a leading ``@`` if present, treat
-        empty as null. Enforce Instagram's character set so a typo
-        like a space or slash doesn't end up in a public URL."""
-        if v is None:
-            return None
-        v = v.strip().lstrip("@")
-        if not v:
-            return None
-        # Instagram's documented rule: letters, digits, dot, underscore.
-        if not all(c.isalnum() or c in "._" for c in v):
-            raise ValueError("Instagram handle may only contain letters, digits, '.', and '_'.")
         return v
 
     # Optional list of "I can help with" tasks. Defaults to empty —
