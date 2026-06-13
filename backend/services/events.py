@@ -12,9 +12,26 @@ Public slug lookups come in two flavours:
   for an archived event.
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from sqlalchemy.orm import Session
 
 from ..models import Event
+
+# Single source of truth: ``Event.starts_at`` / ``ends_at`` are
+# naive timestamps in Europe/Amsterdam wall clock (see the model
+# docstring). Comparisons against "now" must be in the same frame
+# — never ``datetime.now(UTC)``, that's two hours off and was the
+# whole reason reminder emails sent the wrong time.
+_AMS = ZoneInfo("Europe/Amsterdam")
+
+
+def now_wallclock() -> datetime:
+    """Naive Europe/Amsterdam wall-clock 'now'. Independent of the
+    server / container TZ so dev machines and the production
+    container behave the same."""
+    return datetime.now(_AMS).replace(tzinfo=None)
 
 
 def get_public_event_by_slug(db: Session, slug: str) -> Event | None:

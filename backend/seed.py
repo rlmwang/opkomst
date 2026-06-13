@@ -13,7 +13,7 @@ Python constants in ``services.feedback_questions``. There is no
 """
 
 import secrets
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import structlog
 from sqlalchemy.orm import Session
@@ -33,6 +33,7 @@ from .models import (
 from .services import chapters as chapters_svc
 from .services import encryption
 from .services import user_chapters as user_chapters_svc
+from .services.events import now_wallclock
 from .services.slug import new_slug
 
 logger = structlog.get_logger()
@@ -135,7 +136,11 @@ def run_local_demo() -> None:
             user_chapters_svc.add_to_chapter(db, organiser.id, utrecht_id)
         db.flush()
 
-        now = datetime.now(UTC)
+        # ``now_wallclock()`` is the wall-clock frame ``Event.starts_at``
+        # lives in. ``datetime.now(UTC)`` would land seeded demo
+        # events two hours off (the bug the lifecycle docstrings now
+        # call out by name).
+        now = now_wallclock()
         sources = ["Flyer", "Mond-tot-mond", "Social media"]
         help_options = ["Opbouwen", "Afbreken"]
 

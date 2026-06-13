@@ -94,7 +94,9 @@ export function useRenameUser() {
         .getQueriesData<User[]>({ queryKey: USERS_KEY })
         .map(([key, data]) => ({ key, data }));
       qc.setQueriesData<User[]>({ queryKey: USERS_KEY }, (old) =>
-        old?.map((u) => (u.id === vars.userId ? { ...u, name: vars.name } : u)),
+        Array.isArray(old)
+          ? old.map((u) => (u.id === vars.userId ? { ...u, name: vars.name } : u))
+          : old,
       );
       return { snapshots };
     },
@@ -120,7 +122,9 @@ function roleToggleMutation(targetRole: "admin" | "organiser", endpoint: "promot
         .getQueriesData<User[]>({ queryKey: USERS_KEY })
         .map(([key, data]) => ({ key, data }));
       qc.setQueriesData<User[]>({ queryKey: USERS_KEY }, (old) =>
-        old?.map((u) => (u.id === userId ? { ...u, role: targetRole } : u)),
+        Array.isArray(old)
+          ? old.map((u) => (u.id === userId ? { ...u, role: targetRole } : u))
+          : old,
       );
       return { snapshots };
     },
@@ -142,12 +146,22 @@ export function useRemoveUser() {
       // Optimistic: drop the row immediately. ``cancelQueries``
       // prevents an in-flight refetch from clobbering the
       // intermediate state.
+      //
+      // ``USERS_KEY = ["admin", "users"]`` is a prefix matcher,
+      // and the pending-count query lives at
+      // ``["admin", "users", "pending-count"]`` so it gets caught
+      // too — but its cached data is ``{count: number}``, not
+      // ``User[]``. ``Array.isArray`` guards the updater so we
+      // only transform the actual list-shaped entries. Without
+      // this the call throws ``filter is not a function``,
+      // ``mutateAsync`` rejects, the toast says
+      // "Verwijderen mislukt", and ``del`` never even runs.
       await qc.cancelQueries({ queryKey: USERS_KEY });
       const snapshots = qc
         .getQueriesData<User[]>({ queryKey: USERS_KEY })
         .map(([key, data]) => ({ key, data }));
       qc.setQueriesData<User[]>({ queryKey: USERS_KEY }, (old) =>
-        old?.filter((u) => u.id !== userId),
+        Array.isArray(old) ? old.filter((u) => u.id !== userId) : old,
       );
       return { snapshots };
     },

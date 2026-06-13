@@ -241,6 +241,53 @@ defending intermediate versions.
 *Where:* CLAUDE.md rule #1; the seven R1–R7 commit prefixes in
 ``git log`` are the chronicle of clean breaks.
 
+## 17. Submission shape follows the data, not a template
+
+How a respondent's answers are stored is dictated by the shape of
+the data, and the rule is uniform across features:
+
+- A respondent answering a **fixed, small attribute set** gets one
+  flat row — ``Signup`` (``display_name``, ``party_size``,
+  ``source_choice``, ``help_choices``).
+- A respondent answering an **organiser-defined item set** gets one
+  row per (submission, item) — ``FeedbackResponse`` /
+  ``FormResponse`` (one row per answered question) and
+  ``DatepollResponse`` (one row per answered date).
+- A **parent submission row exists iff there is per-submission data
+  to hold.** Forms and datepolls collect an optional pseudonym, so
+  they get one (``FormSubmission`` / ``DatepollSubmission``,
+  carrying ``display_name``) — the same reason ``Signup`` carries
+  it. Post-event **feedback** carries no pseudonym (it is anonymous
+  by the email-wipe contract), so it has no parent row: its
+  ``submission_id`` is a bare grouping token. The rule is the test —
+  identity present ⇒ parent row; truly anonymous ⇒ token only.
+
+The submission identifier is opaque and has **no read-back path** in
+any feature (no ``GET .../submissions/{id}``); it groups rows
+server-side and nothing more. Edit-diffs over an item set match on
+the item's natural key (``question.id`` where the editor tracks ids;
+``datepoll_date.on_date`` where it doesn't), never on a fabricated
+client id.
+
+*Why:* the three shapes look different but are one rule applied to
+different data — so a reviewer can tell at a glance whether a new
+"responses" table is shaped right, and the privacy posture (no
+parent row without a reason, no hidden linkage, no read-back) is
+consistent rather than per-feature folklore. The tempting
+"unify everything into one generic ``submission``/``response`` EAV
+table" is the wrong alignment: it would drop the FKs, kill the typed
+aggregates (``question_aggregates`` / ``date_aggregates``), and add a
+``resource_type`` discriminator that's exactly where a cross-feature
+leak would hide.
+
+*Where:* ``backend/models/events.py`` (``Signup``),
+``backend/models/feedback.py`` (``FeedbackResponse``, bare
+``submission_id`` token, no parent — anonymous), ``backend/models/
+forms.py`` + ``backend/models/datepolls.py`` (``*Submission`` parent
+rows carrying ``display_name``), ``docs/design-forms.md`` +
+``docs/design-datepolls.md``, and the shared ``DisplayName`` primitive
+in ``backend/schemas/common.py``.
+
 ## Reflection
 
 The codebase as it stands honours every principle above without

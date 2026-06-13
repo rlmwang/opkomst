@@ -49,7 +49,7 @@ class Limits:
     AUTH = "5/hour"  # /auth/login-link (per IP)
     LOGIN_REDEEM = "20/minute"  # /auth/login (token redemption)
     PUBLIC_SIGNUP = "30/hour"  # /events/by-slug/{slug}/signups
-    PUBLIC_FEEDBACK = "20/hour"  # /feedback/{token}/submit
+    PUBLIC_SUBMIT = "20/hour"  # public questionnaire submits: /feedback/{token}/submit + /forms/by-slug/{slug}/submit
 
     # Authenticated routine writes — comfortable for normal use,
     # bounds runaway scripts. Used for PATCH/PUT, admin

@@ -150,7 +150,15 @@ def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LO
     from .branding import APP_NAME
 
     resolved_locale = locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
-    context = {**context, "locale": resolved_locale, "app_name": APP_NAME}
+    # ``public_base_url`` is needed by templates that load the RSP
+    # logo from the SPA root (``/rsp-logo.png``); inject it here so
+    # individual call sites don't have to remember.
+    context = {
+        **context,
+        "locale": resolved_locale,
+        "app_name": APP_NAME,
+        "public_base_url": str(settings.public_base_url).rstrip("/"),
+    }
 
     env = _get_env()
     template = env.get_template(f"{resolved_locale}/{template_name}")

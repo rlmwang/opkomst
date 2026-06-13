@@ -105,14 +105,15 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -fsS http://localhost:8000/health || exit 1
 
-# Two workers halves GIL contention — sync routes run in a thread
-# pool, so a CPU-heavy span on one worker (Pydantic validation,
-# response serialisation) doesn't stall an unrelated request as
-# easily. Diagnosed via Server-Timing telemetry: PUTs landing at
-# ~300 ms with only ~30 ms in DB, no fresh connection involved,
-# pointed at handler-side serialisation. Override via
-# ``WEB_CONCURRENCY`` env if needed.
-ENV WEB_CONCURRENCY=2
+# One worker. Earlier we ran two for GIL relief (Server-Timing
+# telemetry showed handler-side Pydantic serialisation taking
+# ~300 ms on PUTs), but on the small-VPS deploy memory dominates
+# wall-clock cost: each uvicorn worker carries ~150–200 MB of
+# Python + SQLAlchemy + Pydantic + Sentry state, and swap thrash
+# at 90 % memory pressure was the real cause of slow responses,
+# not GIL contention. Override via the ``WEB_CONCURRENCY`` env
+# if the deployment ever moves to a box with headroom to spare.
+ENV WEB_CONCURRENCY=1
 
 # The image's default CMD is the API. Scheduled email sweeps run
 # as cron-style one-shots via ``python -m backend.cli ...`` — see

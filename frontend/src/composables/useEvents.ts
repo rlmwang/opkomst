@@ -14,7 +14,7 @@
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
 import { type MaybeRef, unref } from "vue";
 
-import { del, post, put } from "@/api/client";
+import { del, post, postFile, put } from "@/api/client";
 import { listOf, useApiQuery } from "@/api/queries";
 import type { EventCreate, EventOut, EventStats, SignupSummary } from "@/api/types";
 
@@ -113,6 +113,44 @@ export function useUpdateEvent() {
     },
     onError: (_err, _vars, ctx) =>
       qc.setQueryData(["events", "active"], ctx?.snap),
+    onSettled: () => invalidateLists(qc),
+  });
+}
+
+/** Upload (or replace) the event's hero image. Returns the
+ * server's fresh ``EventOut`` so consumers can patch caches
+ * without an extra refetch. Failures bubble up — the page's
+ * ``useGuardedMutation`` wrapper renders the toast. */
+export function useUploadEventImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { eventId: string; file: File }) =>
+      postFile<EventOut>(`/api/v1/events/${vars.eventId}/image`, vars.file),
+    onSuccess: (event) => {
+      // Patch every list cache in place so the new image_url is
+      // visible without waiting for a refetch.
+      qc.setQueriesData<EventOut[]>({ queryKey: ["events"] }, (old) =>
+        Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
+      );
+      qc.setQueryData(["events", "by-slug", event.slug], event);
+    },
+    onSettled: () => invalidateLists(qc),
+  });
+}
+
+/** Clear the event's image. The file in the GitHub repo is left
+ * alone (see ``backend/services/event_image.py``) — this only
+ * nulls ``image_url`` on the row. */
+export function useDeleteEventImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: string) => del<EventOut>(`/api/v1/events/${eventId}/image`),
+    onSuccess: (event) => {
+      qc.setQueriesData<EventOut[]>({ queryKey: ["events"] }, (old) =>
+        Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
+      );
+      qc.setQueryData(["events", "by-slug", event.slug], event);
+    },
     onSettled: () => invalidateLists(qc),
   });
 }

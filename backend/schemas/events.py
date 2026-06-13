@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import LowercaseEmail
+from .common import DisplayName, LowercaseEmail
 
 # Two-letter ISO language tag. Drives both the public sign-up
 # page's UI language and the locale of the feedback email sent
@@ -23,9 +23,46 @@ class EventCreate(BaseModel):
     location: str = Field(min_length=1, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+    # Naive wall-clock — the user typed a date+time into a form and
+    # that's what we store. A tz suffix on the wire is a frontend
+    # bug; reject it loudly instead of silently normalising, so we
+    # can't accidentally drift back into "the email shows UTC".
     starts_at: datetime
     ends_at: datetime
     source_options: list[str] = Field(min_length=1)
+
+    # Instagram handle of the artist credited on the hero image.
+    # Optional. Stored without the leading ``@`` — see the validator
+    # below. ``EventOut`` carries it back unchanged so the public
+    # page / details page / emails render a uniform credit line.
+    image_artist_instagram: str | None = Field(default=None, max_length=30)
+
+    @field_validator("starts_at", "ends_at")
+    @classmethod
+    def _must_be_naive(cls, v: datetime) -> datetime:
+        if v.tzinfo is not None:
+            raise ValueError(
+                "Event datetimes must be naive (Europe/Amsterdam wall clock); "
+                "send 'YYYY-MM-DDTHH:MM:SS' without a Z/offset."
+            )
+        return v
+
+    @field_validator("image_artist_instagram", mode="before")
+    @classmethod
+    def _clean_instagram_handle(cls, v: str | None) -> str | None:
+        """Strip whitespace, drop a leading ``@`` if present, treat
+        empty as null. Enforce Instagram's character set so a typo
+        like a space or slash doesn't end up in a public URL."""
+        if v is None:
+            return None
+        v = v.strip().lstrip("@")
+        if not v:
+            return None
+        # Instagram's documented rule: letters, digits, dot, underscore.
+        if not all(c.isalnum() or c in "._" for c in v):
+            raise ValueError("Instagram handle may only contain letters, digits, '.', and '_'.")
+        return v
+
     # Optional list of "I can help with" tasks. Defaults to empty —
     # an event with no help_options doesn't render the question on
     # the public form.
@@ -70,6 +107,16 @@ class EventOut(BaseModel):
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
+    # Public URL of the event's hero image (4:5 JPEG hosted on
+    # GitHub). Null if the organiser hasn't uploaded one. ``EventCreate``
+    # has no parallel field — image uploads go through their own
+    # endpoint (``POST /events/{id}/image``), separate from the
+    # rest of the event payload.
+    image_url: str | None
+    # Instagram handle credited on the hero image. Stored without
+    # the leading ``@``; consumers render it as a link to
+    # ``https://instagram.com/{handle}``.
+    image_artist_instagram: str | None
     # Total attendees: ``SUM(party_size)``, not the row count of
     # signups. Renamed from the misleading ``signup_count`` —
     # the value was always headcount but the name + UI label
@@ -112,8 +159,9 @@ class SignupSummaryOut(BaseModel):
 
 class SignupCreate(BaseModel):
     # Only ``party_size`` is genuinely required — visitors can sign
-    # up anonymously and skip the source question.
-    display_name: str | None = Field(default=None, max_length=100)
+    # up anonymously and skip the source question. ``display_name`` is
+    # the shared pseudonym primitive (optional, <=100, real-or-not).
+    display_name: DisplayName
     party_size: int = Field(ge=1, le=50)
     source_choice: str | None = None
     # Subset of the event's help_options the attendee opted into. Empty

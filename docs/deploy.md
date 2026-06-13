@@ -122,6 +122,40 @@ In Coolify:
    - Postgres version: 16
    - DB / user / password: pick any. Coolify gives you a
      ``DATABASE_URL`` once it's running.
+   - **Custom Postgres command** (Coolify → service → Configuration
+     → "Custom Postgres command"): paste the small-VPS tuning
+     stanza below. Postgres' defaults assume a few GB of RAM all
+     to itself; on a 512 MB VPS shared with the API they burn
+     through memory you don't have. Skip this if the database
+     box has ≥4 GB free.
+
+     ```
+     postgres
+       -c shared_buffers=64MB
+       -c effective_cache_size=128MB
+       -c work_mem=2MB
+       -c maintenance_work_mem=32MB
+       -c max_connections=20
+       -c wal_buffers=2MB
+     ```
+
+     The numbers (rationale below) cap PG's resident set at
+     roughly ``shared_buffers + (max_connections × ~10 MB)`` ≈
+     265 MB worst case, vs. 400+ MB on defaults.
+     * ``shared_buffers=64MB`` — main page cache. Default
+       ``128MB`` is a quarter of a 512 MB VPS on its own.
+     * ``effective_cache_size=128MB`` — planner hint, not an
+       allocation. Default 4 GB lies to the planner about how
+       much OS-level disk cache it can count on.
+     * ``work_mem=2MB`` — per-sort/-hash budget. We run
+       small SELECTs; 2 MB is plenty and caps the worst case
+       (a dashboard load with several joins) at single-digit
+       MB.
+     * ``max_connections=20`` — each backend process eats
+       ~10 MB resident. With ``WEB_CONCURRENCY=1`` the app
+       opens ≤5; the cron sweeps add 1 each, peaking around 7.
+       20 leaves room for ``psql`` debugging without anyone
+       paying for 100 idle slots.
 3. **+ New Resource → Application → Public Repository**:
    - URL: your fork of opkomst on GitHub.
    - Build pack: Dockerfile (Coolify auto-detects ``./Dockerfile``).
@@ -186,7 +220,12 @@ RETENTION_DAYS=30
 
 # Single-replica deploy → memory:// is correct for slowapi state.
 RATE_LIMIT_STORAGE_URI=memory://
-WEB_CONCURRENCY=2
+# One uvicorn worker. The Dockerfile default is also 1; this is
+# here so the deployer can bump it if the VPS gets RAM to spare.
+# Each worker holds ~150–200 MB of Python + SQLAlchemy +
+# Pydantic + Sentry state, so on a 512 MB VPS doubling workers
+# halves your effective free memory.
+WEB_CONCURRENCY=1
 
 # LOCAL_MODE seeds two demo accounts. Leave UNSET in production.
 LOCAL_MODE=
@@ -198,6 +237,19 @@ LOCAL_MODE=
 EVOLUTION_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=opkomst-blast
+
+# Event-image storage. Optional. When OWNER + NAME + TOKEN are
+# all set, organisers can upload a 4:3 hero image per event;
+# images PUT to the GitHub Contents API and serve from
+# ``raw.githubusercontent.com``. Repo must be public. The PAT
+# only needs ``contents: write`` on this one repo so a leak's
+# blast radius is bounded to that repo's history. Leave unset to
+# hide the picker and have the upload route return 503. BRANCH
+# defaults to ``main``.
+GITHUB_IMAGES_REPO_OWNER=
+GITHUB_IMAGES_REPO_NAME=
+GITHUB_IMAGES_BRANCH=main
+GITHUB_IMAGES_TOKEN=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module

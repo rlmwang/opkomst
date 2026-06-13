@@ -18,8 +18,15 @@ The whole code base is open source — anyone can verify what the server does wi
 cp .env.example .env
 # Edit .env to set JWT_SECRET, EMAIL_ENCRYPTION_KEY, etc.
 make db-up
+uv run alembic -c backend/alembic.ini upgrade head   # migrations do NOT run on boot
 set -a && source .env && set +a && uv run uvicorn backend.main:app --reload
 ```
+
+The data lives in Postgres (`make db-up`, port 5433), not a local file —
+there is no SQLite, so `rm -f *.db` resets nothing. Migrations are never
+applied automatically; a fresh database has no tables until you run
+`alembic upgrade head`. Booting the app does **not** seed any accounts
+(see Local mode).
 
 Frontend dev server:
 
@@ -29,13 +36,15 @@ cd frontend && npm install && npm run dev
 
 ## Local mode
 
-Set `LOCAL_MODE=1` in `.env`, then run the seeder once to populate two test accounts and two demo events:
+Set `LOCAL_MODE=1` in `.env`. The seeder populates two test accounts and two demo events; it does not run on boot, so call it explicitly. Clean bootstrap in one line — **wipes the database**, applies migrations, seeds, and starts the server:
 
 ```bash
-uv run python -m backend.cli seed-demo
+set -a && source .env && set +a && make db-reset && uv run alembic -c backend/alembic.ini upgrade head && uv run python -m backend.cli seed-demo && uv run uvicorn backend.main:app --reload
 ```
 
-The seeder is idempotent — it never touches rows it didn't create — so re-running it is safe. It refuses to run unless `LOCAL_MODE=1`, so a stray invocation against prod can't fabricate fake users.
+`make db-reset` drops and recreates the Postgres volume (`docker compose down -v`), so this always produces a freshly-seeded database. For routine restarts that **keep** your data, use `make db-up` instead and drop the `seed-demo` step.
+
+Heads-up: the seeder never touches rows it didn't create. So if you ever signed in as `admin@local.dev` *before* seeding, you created a plain unapproved account, and a later `seed-demo` will leave it as-is (still "awaiting approval"). `make db-reset` is the clean fix. It refuses to run unless `LOCAL_MODE=1`, so a stray invocation against prod can't fabricate fake users.
 
 | Email                  | Role      |
 |------------------------|-----------|

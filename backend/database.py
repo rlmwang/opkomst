@@ -25,16 +25,22 @@ engine = create_engine(
     # min) keeps connections alive long enough that user pauses
     # between actions don't force a fresh TCP handshake every
     # time — keepalives above keep the socket healthy through
-    # NAT idle, and pre_ping handles the rare PG-side close. The
-    # earlier 240 s recycle was paranoid: telemetry showed users
-    # pausing 5–10 min between actions paid the new-connection
-    # cost every single time. ``pool_size`` bumped to 10 (default
-    # 5) so a four-parallel-GET dashboard load doesn't exhaust the
-    # pool and serialize on checkout.
+    # NAT idle, and pre_ping handles the rare PG-side close.
+    #
+    # ``pool_size=2, max_overflow=3`` gives each worker up to 5
+    # concurrent PG connections, which covers the worst real
+    # burst (four-parallel-GET dashboard load + a stray health
+    # probe) without paying for capacity nobody uses. The earlier
+    # ``pool_size=10, max_overflow=20`` was sized for an imagined
+    # peak: every idle slot still costs an open socket + a
+    # backend process on the postgres side (~10 MB resident
+    # each), which adds up fast on a 512 MB VPS. With
+    # ``WEB_CONCURRENCY=1`` the whole app needs ≤5 PG backends,
+    # well under postgres' default ``max_connections=100``.
     pool_pre_ping=True,
     pool_recycle=1800,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=2,
+    max_overflow=3,
     connect_args={
         "keepalives": 1,
         "keepalives_idle": 30,
@@ -131,6 +137,8 @@ def warmup() -> None:
             locale="nl",
             chapter_id=None,
             chapter_name=None,
+            image_url=None,
+            image_artist_instagram=None,
             attendee_count=0,
             archived=False,
         ).model_dump_json()

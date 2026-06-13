@@ -13,6 +13,29 @@ const routes = [
   { path: "/events/:eventId/edit", component: () => import("@/pages/EventFormPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/events/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true } },
   { path: "/events/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  // Forms — standalone questionnaires (no relation to Events).
+  // Same chapter-scoped four-page experience: active list /
+  // archived list / details / edit. The public fill-out lives
+  // at /f/:slug and is unauthenticated.
+  { path: "/forms", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/forms/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  // Datepolls — dates-only availability polls (no relation to
+  // Events/Forms). Same chapter-scoped four-page experience; the
+  // public fill-out lives at /d/:slug and is unauthenticated
+  // (served by the backend mini-app, not this router).
+  { path: "/datepolls", component: () => import("@/pages/DatepollListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/datepolls/archived", component: () => import("@/pages/ArchivedDatepollsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepolls/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepolls/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  // ``/f/:slug`` is NOT in the admin SPA router — it's served by
+  // the backend as a separate Vue mini-app (``public-form.html``
+  // + ``src/public_form/``) with the form payload inlined into
+  // the HTML response. Same pattern as ``/e/:slug``; see
+  // ``backend/routers/spa.py``.
   // ``/e/:slug`` is no longer in the admin SPA router — it's
   // served by the backend as a separate Vue mini-app
   // (``frontend/public-event.html`` + ``src/public/``) with the
@@ -21,11 +44,6 @@ const routes = [
   // the admin bundle because it's a one-off form gated on a
   // single-use token, low traffic.
   { path: "/e/:slug/feedback", component: () => import("@/pages/FeedbackPage.vue"), props: true },
-  // Public new-members feedback survey. ``/s/nieuwe-leden`` is the
-  // short URL we share with attendees of a nieuwe-ledendag.
-  { path: "/s/nieuwe-leden", component: () => import("@/pages/MemberSurveyPage.vue") },
-  // Admin-only results page for the same survey.
-  { path: "/member-feedback", component: () => import("@/pages/MemberSurveyResultsPage.vue"), meta: { requiresAuth: true, requiresAdmin: true } },
   // Admin-only WhatsApp blast tool (Evolution API proxy).
   // ``requiresWhatsApp`` redirects to /events when the EVOLUTION_*
   // env vars aren't all set on the server, so direct URL pokes

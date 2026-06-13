@@ -35,8 +35,32 @@ class Event(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Public URL of the event's 4:5 hero image. Hosted in a GitHub
+    # repo (raw.githubusercontent.com/.../events/{id}/{ts}.jpg);
+    # uploads go through ``services/event_image.py`` which crops,
+    # resizes, and PUTs via the GitHub Contents API. Null = the
+    # public sign-up page / details page render without a hero
+    # image and the OG card falls back to the favicon. Replacing
+    # an image overwrites this URL — old files stay in the repo's
+    # history by design.
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Instagram handle of the artist who made the hero image — we
+    # outsource a lot of the artwork to young artists, this is the
+    # credit line. Stored without the leading ``@`` so URLs are
+    # straightforward; the schema validator strips one if present.
+    # Null when no credit is set; the public page / emails just
+    # skip rendering the caption.
+    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Naive wall-clock timestamps. The organiser types a date+time
+    # in the form; that's what we store and that's what we display
+    # back. We do no timezone math anywhere — the app is Dutch-only
+    # and the implicit frame is Europe/Amsterdam wall clock. Only
+    # the ICS export and the Google-Calendar URL attach a zone (at
+    # the boundary) because external calendar imports need an
+    # absolute instant. Compare against
+    # ``services.events.now_wallclock`` (NOT ``datetime.now(UTC)``).
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     # Optional list of "I can help with" tasks (e.g. opbouwen / afbreken).
     # Empty list means the question isn't shown on the public form.

@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -10,6 +8,7 @@ from ..models import EmailChannel, EmailDispatch, EmailStatus, Signup, User
 from ..schemas.events import SignupAck, SignupCreate
 from ..services import access, encryption
 from ..services import events as events_svc
+from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -43,7 +42,7 @@ def create_signup(
     # creating a row for that case would just be debt for the
     # reaper to clean up later. Feedback applies whenever its
     # toggle is on.
-    event_in_future = event.starts_at > datetime.now(UTC)
+    event_in_future = event.starts_at > now_wallclock()
 
     has_email = bool(data.email)
     channels: list[EmailChannel] = []

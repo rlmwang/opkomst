@@ -32,6 +32,20 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "Body_upload_event_image_api_v1_events__event_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_event_image_api_v1_events__event_id__image_post",
+        "type": "object"
+      },
       "ChapterArchiveRequest": {
         "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
         "properties": {
@@ -252,6 +266,541 @@
         "title": "CompleteRegistrationRequest",
         "type": "object"
       },
+      "DatepollAnswerIn": {
+        "description": "One answered date on the public submit payload.",
+        "properties": {
+          "availability": {
+            "enum": [
+              "yes",
+              "no",
+              "maybe"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "datepoll_date_id": {
+            "title": "Datepoll Date Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datepoll_date_id",
+          "availability"
+        ],
+        "title": "DatepollAnswerIn",
+        "type": "object"
+      },
+      "DatepollCreate": {
+        "description": "Organiser create payload.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateIn"
+            },
+            "maxItems": 60,
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "DatepollCreate",
+        "type": "object"
+      },
+      "DatepollDateIn": {
+        "description": "One candidate date on the create / update payload. The natural\nkey is ``on_date`` \u2014 the editor sends a set of dates, never row\nids, so there is no ``id`` field; ``apply_dates`` diffs on\n``on_date`` and preserves the responses of dates that stay.",
+        "properties": {
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on_date"
+        ],
+        "title": "DatepollDateIn",
+        "type": "object"
+      },
+      "DatepollDateOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "on_date"
+        ],
+        "title": "DatepollDateOut",
+        "type": "object"
+      },
+      "DatepollDateSummary": {
+        "description": "Per-date aggregate on the organiser details page.",
+        "properties": {
+          "comments": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Comments",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "maybe": {
+            "title": "Maybe",
+            "type": "integer"
+          },
+          "no": {
+            "title": "No",
+            "type": "integer"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "yes": {
+            "title": "Yes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "on_date",
+          "yes",
+          "maybe",
+          "no"
+        ],
+        "title": "DatepollDateSummary",
+        "type": "object"
+      },
+      "DatepollListOut": {
+        "description": "List-row DTO. Scalars plus a computed date summary\n(``date_count`` + earliest/latest), so a row is useful without\nshipping every date \u2014 mirrors how ``EventOut`` carries\n``attendee_count`` rather than the signup list.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date_count": {
+            "title": "Date Count",
+            "type": "integer"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Date"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Date"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "date_count"
+        ],
+        "title": "DatepollListOut",
+        "type": "object"
+      },
+      "DatepollOut": {
+        "description": "Single-poll DTO \u2014 the list fields plus the description and the\nfull candidate-date list (sorted by ``on_date``).",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "date_count": {
+            "title": "Date Count",
+            "type": "integer"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateOut"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Date"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Date"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "date_count"
+        ],
+        "title": "DatepollOut",
+        "type": "object"
+      },
+      "DatepollSubmissionOut": {
+        "description": "One submission as a flat row for the CSV export. ``answers`` and\n``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is\nthe self-chosen pseudonym (NULL = anonymous) \u2014 same privacy\ncontract as the event sign-up name.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "comments": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Comments",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "display_name",
+          "created_at",
+          "answers",
+          "comments"
+        ],
+        "title": "DatepollSubmissionOut",
+        "type": "object"
+      },
+      "DatepollSubmitIn": {
+        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``answers`` carries one\nentry per date the respondent set a state for.",
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollAnswerIn"
+            },
+            "maxItems": 60,
+            "title": "Answers",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "DatepollSubmitIn",
+        "type": "object"
+      },
+      "DatepollSummaryOut": {
+        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_date_id`` is the most-yes date (tie-break:\nfewest no), or ``None`` when there are no responses.",
+        "properties": {
+          "best_date_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Date Id"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateSummary"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_count",
+          "dates"
+        ],
+        "title": "DatepollSummaryOut",
+        "type": "object"
+      },
+      "DatepollUpdate": {
+        "description": "Same shape as create. Distinct class so OpenAPI distinguishes\nthe two endpoints even though the body is identical.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateIn"
+            },
+            "maxItems": 60,
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "DatepollUpdate",
+        "type": "object"
+      },
       "EmailHealthOut": {
         "description": "Aggregate of one channel's email delivery status across an\nevent's signups. Counts always sum to ``signup_count``.",
         "properties": {
@@ -303,6 +852,18 @@
             },
             "title": "Help Options",
             "type": "array"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
           },
           "latitude": {
             "anyOf": [
@@ -445,6 +1006,28 @@
             "title": "Id",
             "type": "string"
           },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
           "latitude": {
             "anyOf": [
               {
@@ -532,6 +1115,8 @@
           "locale",
           "chapter_id",
           "chapter_name",
+          "image_url",
+          "image_artist_instagram",
           "attendee_count",
           "archived"
         ],
@@ -824,6 +1409,656 @@
         "title": "FeedbackSummaryOut",
         "type": "object"
       },
+      "FormAnswerIn": {
+        "description": "One answered question on the public submit payload. Exactly\none answer-shaped field is meaningful per kind; the server\nvalidates the right field is populated against the question's\nstored kind, and ignores the others.",
+        "properties": {
+          "answer_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Choices"
+          },
+          "answer_int": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Int"
+          },
+          "answer_text": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Text"
+          },
+          "question_id": {
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id"
+        ],
+        "title": "FormAnswerIn",
+        "type": "object"
+      },
+      "FormCreate": {
+        "description": "Organiser create payload.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionIn"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "FormCreate",
+        "type": "object"
+      },
+      "FormListOut": {
+        "description": "Organiser list-row DTO. Carries only the scalar fields the\nactive / archived list pages render \u2014 slug, chapter name, the\narchived flag, the timestamp they sort on. Deliberately omits\nthe question list: a list of N forms would otherwise drag N\nquestion sets over the wire that the list view never shows\n(mirrors how ``EventOut`` carries ``attendee_count`` rather\nthan the signup list).",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at"
+        ],
+        "title": "FormListOut",
+        "type": "object"
+      },
+      "FormOut": {
+        "description": "Single-form DTO. The list-row fields plus the description and\nthe full question list, so the details / edit pages pre-populate\nwithout an extra round-trip.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at"
+        ],
+        "title": "FormOut",
+        "type": "object"
+      },
+      "FormQuestionIn": {
+        "description": "One question on the create / update payload. ``id`` is null\nfor newly-added rows; existing questions carry their server-\nassigned uuid so the diff-apply on update matches by id (and\nthe row's responses stay attached across a prompt edit).\n``ordinal`` is not on this shape \u2014 the server re-numbers from\ninput order, which means reordering on the frontend is just\n\"send back in the new order\".",
+        "properties": {
+          "high_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Label"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "enum": [
+              "rating",
+              "text",
+              "short_text",
+              "single_choice",
+              "multi_choice"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "low_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Label"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Options",
+            "type": "array"
+          },
+          "prompt": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "required": {
+            "default": true,
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "kind",
+          "prompt"
+        ],
+        "title": "FormQuestionIn",
+        "type": "object"
+      },
+      "FormQuestionOut": {
+        "description": "Question shape on the wire. Organiser endpoints + the\npublic-by-slug endpoint both return this; the public form\nrenders ``prompt`` / ``options`` / ``low_label`` / ``high_label``\nverbatim. ``ordinal`` is server-assigned (1..N).",
+        "properties": {
+          "high_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Label"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "low_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Label"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "kind",
+          "prompt",
+          "required",
+          "options"
+        ],
+        "title": "FormQuestionOut",
+        "type": "object"
+      },
+      "FormQuestionSummary": {
+        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.",
+        "properties": {
+          "choice_counts": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice Counts"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "rating_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Average"
+          },
+          "rating_distribution": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating Distribution"
+          },
+          "response_count": {
+            "title": "Response Count",
+            "type": "integer"
+          },
+          "texts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Texts"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "kind",
+          "prompt",
+          "response_count"
+        ],
+        "title": "FormQuestionSummary",
+        "type": "object"
+      },
+      "FormSubmissionOut": {
+        "description": "One submission as a flat row for the CSV export. ``answers``\nis keyed by question id; values match the kind: int for\nrating, string for text/short_text, list[str] for choice\nkinds. Missing answers are absent from the dict.\n\n``submission_id`` is the random per-submission token with no\nlink back to the submitter \u2014 same privacy contract as the\npost-event feedback CSV.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "display_name",
+          "created_at",
+          "answers"
+        ],
+        "title": "FormSubmissionOut",
+        "type": "object"
+      },
+      "FormSubmitAck": {
+        "description": "Public submit response. No identifying information \u2014 the\nhandler returns the random submission_id only so the client\ncan confirm the submission landed without holding onto state\nserver-side.",
+        "properties": {
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id"
+        ],
+        "title": "FormSubmitAck",
+        "type": "object"
+      },
+      "FormSubmitIn": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/FormAnswerIn"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "FormSubmitIn",
+        "type": "object"
+      },
+      "FormSummaryOut": {
+        "description": "Organiser summary endpoint. ``submission_count`` is the\nnumber of distinct fill-outs; per-question aggregates explain\nwhat each question collected.",
+        "properties": {
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionSummary"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submission_count",
+          "questions"
+        ],
+        "title": "FormSummaryOut",
+        "type": "object"
+      },
+      "FormUpdate": {
+        "description": "Same shape as create. Kept as a distinct class so the\nOpenAPI schema distinguishes the two endpoints even though\nthe body is identical.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionIn"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name"
+        ],
+        "title": "FormUpdate",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -899,240 +2134,6 @@
         "title": "LoginRequest",
         "type": "object"
       },
-      "MemberSurveyFormOut": {
-        "description": "Public structure of the new-members survey form. The client\nresolves all prompts and labels via i18n keyed off ``barriers``;\nthe server only enumerates which barrier identifiers are valid.",
-        "properties": {
-          "barriers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Barriers",
-            "type": "array"
-          }
-        },
-        "required": [
-          "barriers"
-        ],
-        "title": "MemberSurveyFormOut",
-        "type": "object"
-      },
-      "MemberSurveyResponseOut": {
-        "description": "One response row as the admin results page consumes it.",
-        "properties": {
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "first_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First Name"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "q1_connected": {
-            "title": "Q1 Connected",
-            "type": "integer"
-          },
-          "q2_clarity": {
-            "title": "Q2 Clarity",
-            "type": "integer"
-          },
-          "q3_likelihood": {
-            "title": "Q3 Likelihood",
-            "type": "integer"
-          },
-          "q4_barriers": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Q4 Barriers",
-            "type": "array"
-          },
-          "q4_other_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q4 Other Text"
-          },
-          "q5_helps": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q5 Helps"
-          },
-          "q6_anything_else": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q6 Anything Else"
-          }
-        },
-        "required": [
-          "id",
-          "created_at",
-          "first_name",
-          "q1_connected",
-          "q2_clarity",
-          "q3_likelihood",
-          "q4_barriers",
-          "q4_other_text",
-          "q5_helps",
-          "q6_anything_else"
-        ],
-        "title": "MemberSurveyResponseOut",
-        "type": "object"
-      },
-      "MemberSurveyResultsOut": {
-        "properties": {
-          "barrier_counts": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Barrier Counts",
-            "type": "object"
-          },
-          "q1_connected": {
-            "$ref": "#/components/schemas/RatingBreakdown"
-          },
-          "q2_clarity": {
-            "$ref": "#/components/schemas/RatingBreakdown"
-          },
-          "q3_likelihood": {
-            "$ref": "#/components/schemas/RatingBreakdown"
-          },
-          "response_count": {
-            "title": "Response Count",
-            "type": "integer"
-          },
-          "responses": {
-            "items": {
-              "$ref": "#/components/schemas/MemberSurveyResponseOut"
-            },
-            "title": "Responses",
-            "type": "array"
-          }
-        },
-        "required": [
-          "response_count",
-          "q1_connected",
-          "q2_clarity",
-          "q3_likelihood",
-          "barrier_counts",
-          "responses"
-        ],
-        "title": "MemberSurveyResultsOut",
-        "type": "object"
-      },
-      "MemberSurveySubmitIn": {
-        "properties": {
-          "first_name": {
-            "anyOf": [
-              {
-                "maxLength": 80,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First Name"
-          },
-          "q1_connected": {
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "title": "Q1 Connected",
-            "type": "integer"
-          },
-          "q2_clarity": {
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "title": "Q2 Clarity",
-            "type": "integer"
-          },
-          "q3_likelihood": {
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "title": "Q3 Likelihood",
-            "type": "integer"
-          },
-          "q4_barriers": {
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 20,
-            "title": "Q4 Barriers",
-            "type": "array"
-          },
-          "q4_other_text": {
-            "anyOf": [
-              {
-                "maxLength": 500,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q4 Other Text"
-          },
-          "q5_helps": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q5 Helps"
-          },
-          "q6_anything_else": {
-            "anyOf": [
-              {
-                "maxLength": 2000,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Q6 Anything Else"
-          }
-        },
-        "required": [
-          "q1_connected",
-          "q2_clarity",
-          "q3_likelihood"
-        ],
-        "title": "MemberSurveySubmitIn",
-        "type": "object"
-      },
       "PendingCountOut": {
         "description": "Tiny DTO for the navbar's pending-approval indicator. Admin-\nonly \u2014 surfacing this to organisers would just be noise.",
         "properties": {
@@ -1145,6 +2146,100 @@
           "count"
         ],
         "title": "PendingCountOut",
+        "type": "object"
+      },
+      "PublicDatepollOut": {
+        "description": "What the public fill-out page (``/d/{slug}``) reads.",
+        "properties": {
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollDateOut"
+            },
+            "title": "Dates",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "locale",
+          "dates"
+        ],
+        "title": "PublicDatepollOut",
+        "type": "object"
+      },
+      "PublicFormOut": {
+        "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + locale + questions in display order.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/FormQuestionOut"
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "locale",
+          "questions"
+        ],
+        "title": "PublicFormOut",
         "type": "object"
       },
       "QrResponse": {
@@ -1174,34 +2269,6 @@
           }
         },
         "title": "QrResponse",
-        "type": "object"
-      },
-      "RatingBreakdown": {
-        "properties": {
-          "average": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Average"
-          },
-          "distribution": {
-            "items": {
-              "type": "integer"
-            },
-            "title": "Distribution",
-            "type": "array"
-          }
-        },
-        "required": [
-          "average",
-          "distribution"
-        ],
-        "title": "RatingBreakdown",
         "type": "object"
       },
       "RenameUserRequest": {
@@ -2586,6 +3653,748 @@
         ]
       }
     },
+    "/api/v1/datepolls": {
+      "get": {
+        "operationId": "list_datepolls_api_v1_datepolls_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollListOut"
+                  },
+                  "title": "Response List Datepolls Api V1 Datepolls Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Datepolls",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "post": {
+        "description": "Create a poll. Candidate dates are optional at create \u2014 a blank\npoll can be saved and dates added on the edit page. The\ncaller-supplied ``chapter_id`` must be in the user's set.",
+        "operationId": "create_datepoll_api_v1_datepolls_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/archived": {
+      "get": {
+        "operationId": "list_archived_datepolls_api_v1_datepolls_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollListOut"
+                  },
+                  "title": "Response List Archived Datepolls Api V1 Datepolls Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Datepolls",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_datepoll_api_v1_datepolls_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicDatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the poll first so a typo'd slug\n410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Datepoll Qr",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-slug/{slug}/submit": {
+      "post": {
+        "description": "Accept one public submission. Each answer's ``datepoll_date_id``\nmust belong to this poll; availability is constrained to the\ntri-state at the schema layer. Duplicate dates collapse (last\nwins). At least one answered date is required.\n\nReturns a bare 201 \u2014 nothing identifies the submission to the\nclient; there is no read-back endpoint.",
+        "operationId": "submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}": {
+      "delete": {
+        "description": "Hard-delete an archived poll. Refuses unless archived first \u2014\ndeleting a live poll with responses would be a data-loss footgun.\nCascades through dates / submissions / responses via the FK\nON DELETE CASCADEs.",
+        "operationId": "delete_datepoll_api_v1_datepolls__datepoll_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "get": {
+        "operationId": "get_datepoll_api_v1_datepolls__datepoll_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "put": {
+        "description": "Update a poll. Chapter changes are allowed but the new one must\nbe in the user's set. Dates are diff-applied on ``on_date`` \u2014 see\n``services/datepolls.apply_dates``.",
+        "operationId": "update_datepoll_api_v1_datepolls__datepoll_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/archive": {
+      "post": {
+        "operationId": "archive_datepoll_api_v1_datepolls__datepoll_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/restore": {
+      "post": {
+        "operationId": "restore_datepoll_api_v1_datepolls__datepoll_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/submissions": {
+      "get": {
+        "description": "Per-submission rows, keyed by date id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
+        "operationId": "datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DatepollSubmissionOut"
+                  },
+                  "title": "Response Datepoll Submissions Api V1 Datepolls  Datepoll Id  Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Submissions",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/summary": {
+      "get": {
+        "operationId": "datepoll_summary_api_v1_datepolls__datepoll_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Summary",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
     "/api/v1/events": {
       "get": {
         "operationId": "list_events_api_v1_events_get",
@@ -3347,6 +5156,132 @@
         ]
       }
     },
+    "/api/v1/events/{event_id}/image": {
+      "delete": {
+        "description": "Clear the image reference. The file in the repo is left\nalone; the lifecycle answer is \"leave it\" so we never need a\nGitHub round-trip to remove.",
+        "operationId": "delete_event_image_api_v1_events__event_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Event Image",
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/event_image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/event_image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "operationId": "upload_event_image_api_v1_events__event_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_event_image_api_v1_events__event_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Event Image",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/api/v1/events/{event_id}/restore": {
       "post": {
         "operationId": "restore_event_api_v1_events__event_id__restore_post",
@@ -3811,78 +5746,26 @@
         ]
       }
     },
-    "/api/v1/member-survey/form": {
+    "/api/v1/forms": {
       "get": {
-        "description": "Public: returns the static structure of the form. The\nclient owns all rendering; this endpoint exists so the set\nof barrier keys stays a server-side constant the client\ncannot drift from.",
-        "operationId": "get_form_api_v1_member_survey_form_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MemberSurveyFormOut"
+        "operationId": "list_forms_api_v1_forms_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
                 }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Form",
-        "tags": [
-          "member-survey"
-        ]
-      }
-    },
-    "/api/v1/member-survey/responses": {
-      "post": {
-        "operationId": "submit_response_api_v1_member_survey_responses_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MemberSurveySubmitIn"
-              }
+              ],
+              "title": "Chapter Id"
             }
           },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Submit Response Api V1 Member Survey Responses Post",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Submit Response",
-        "tags": [
-          "member-survey"
-        ]
-      }
-    },
-    "/api/v1/member-survey/results": {
-      "get": {
-        "description": "Admin-only aggregate of every response submitted so far.\n\nReturns the raw response list too \u2014 the volume is small\n(one questionnaire, occasional new-members days) and the\nadmin page renders both rating bars + the per-respondent\nopen-text answers from the same payload.",
-        "operationId": "get_results_api_v1_member_survey_results_get",
-        "parameters": [
           {
             "in": "header",
             "name": "authorization",
@@ -3905,7 +5788,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MemberSurveyResultsOut"
+                  "items": {
+                    "$ref": "#/components/schemas/FormListOut"
+                  },
+                  "title": "Response List Forms Api V1 Forms Get",
+                  "type": "array"
                 }
               }
             },
@@ -3922,9 +5809,684 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Results",
+        "summary": "List Forms",
         "tags": [
-          "member-survey"
+          "forms"
+        ]
+      },
+      "post": {
+        "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
+        "operationId": "create_form_api_v1_forms_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/archived": {
+      "get": {
+        "operationId": "list_archived_forms_api_v1_forms_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormListOut"
+                  },
+                  "title": "Response List Archived Forms Api V1 Forms Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Forms",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_form_api_v1_forms_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form Qr",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-slug/{slug}/submit": {
+      "post": {
+        "description": "Accept one public submission. Validates each answer\nagainst its question's stored kind. Skipped optional\nquestions are simply absent from the stored rows; skipped\nrequired questions 400.\n\nReturns the random ``submission_id`` so the client can\nconfirm the submit landed. Nothing in the response links the\nsubmission back to the submitter \u2014 same privacy contract as\nthe post-event feedback flow.",
+        "operationId": "submit_form_api_v1_forms_by_slug__slug__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormSubmitAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}": {
+      "delete": {
+        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "operationId": "delete_form_api_v1_forms__form_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Form",
+        "tags": [
+          "forms"
+        ]
+      },
+      "get": {
+        "operationId": "get_form_api_v1_forms__form_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form",
+        "tags": [
+          "forms"
+        ]
+      },
+      "put": {
+        "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
+        "operationId": "update_form_api_v1_forms__form_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/archive": {
+      "post": {
+        "operationId": "archive_form_api_v1_forms__form_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/restore": {
+      "post": {
+        "operationId": "restore_form_api_v1_forms__form_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/submissions": {
+      "get": {
+        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "operationId": "form_submissions_api_v1_forms__form_id__submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormSubmissionOut"
+                  },
+                  "title": "Response Form Submissions Api V1 Forms  Form Id  Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/summary": {
+      "get": {
+        "operationId": "form_summary_api_v1_forms__form_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Summary",
+        "tags": [
+          "forms"
         ]
       }
     },

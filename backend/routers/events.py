@@ -17,15 +17,15 @@ where they can be unit-tested without a router fixture.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import ColumnElement
 
 from ..auth import require_approved
+from ..config import settings
 from ..database import get_db
 from ..models import EmailChannel, Event, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
-from ..services import access, event_stats, mail_lifecycle
+from ..services import access, event_image, event_stats, mail_lifecycle
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -65,6 +65,7 @@ def create_event(
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
+        image_artist_instagram=data.image_artist_instagram,
     )
     db.add(event)
     db.commit()
@@ -78,20 +79,6 @@ def create_event(
     return event_stats.to_out(db, event)
 
 
-def _list_filter(db: Session, user: User, chapter_id: str | None) -> ColumnElement[bool]:
-    """Build the WHERE clause for an event list. ``chapter_id`` is
-    the optional UI filter; without it we return every event in
-    the user's full chapter set. The clause goes through
-    ``access.event_scope_filter`` so the access rule (admins
-    see everything, organisers scoped to memberships) is
-    centralised."""
-    base = access.event_scope_filter(db, user)
-    if chapter_id is None:
-        return base
-    access.assert_user_can_assign_chapter(db, user, chapter_id)
-    return Event.chapter_id == chapter_id
-
-
 @router.get("", response_model=list[EventOut])
 def list_events(
     chapter_id: str | None = None,
@@ -100,7 +87,7 @@ def list_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(_list_filter(db, user, chapter_id), Event.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_(None))
         .order_by(Event.starts_at.desc())
         .all()
     )
@@ -115,7 +102,7 @@ def list_archived_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(_list_filter(db, user, chapter_id), Event.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_not(None))
         .order_by(Event.created_at.desc())
         .all()
     )
@@ -245,6 +232,7 @@ def update_event(
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled
     event.locale = data.locale
+    event.image_artist_instagram = data.image_artist_instagram
 
     # Toggle-off cleanup: when an organiser disables a channel,
     # delete pending dispatches for it and wipe ciphertext for
@@ -258,6 +246,90 @@ def update_event(
     db.commit()
     db.refresh(event)
     logger.info("event_updated", event_id=event.id, actor_id=user.id)
+    return event_stats.to_out(db, event)
+
+
+@router.post("/{event_id}/image", response_model=EventOut)
+@limiter.limit(Limits.ORG_RARE)
+async def upload_event_image(
+    request: Request,
+    event_id: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    """Upload (or replace) the event's hero image. The bytes go
+    through ``services/event_image.py`` — validated, EXIF-rotated,
+    cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
+    PUT to the configured GitHub repo. ``event.image_url`` is set
+    to the resulting ``raw.githubusercontent.com`` URL.
+
+    Replacing an image overwrites ``image_url`` with the new
+    path; the previous file stays in the repo's history by
+    design (see ``services/event_image.py``).
+
+    Returns the updated ``EventOut`` so the caller's Vue Query
+    cache patches in-place without an extra refetch."""
+    if not settings.event_images_enabled:
+        logger.warning("event_image_upload_disabled", event_id=event_id, actor_id=user.id)
+        raise HTTPException(status_code=503, detail="Event-image storage is not configured")
+    event = access.get_event_for_user(db, event_id, user)
+    raw = await file.read()
+    try:
+        jpeg = event_image.process_upload(raw)
+    except event_image.ImageProcessingError as exc:
+        logger.warning(
+            "event_image_process_failed",
+            event_id=event.id,
+            actor_id=user.id,
+            content_type=file.content_type,
+            raw_bytes=len(raw),
+            reason=str(exc),
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
+    try:
+        url = event_image.upload_to_github(
+            event_id=event.id,
+            timestamp_ms=timestamp_ms,
+            jpeg_bytes=jpeg,
+        )
+    except event_image.GithubUploadError as exc:
+        logger.warning(
+            "event_image_github_upload_failed",
+            event_id=event.id,
+            actor_id=user.id,
+            reason=str(exc),
+        )
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    event.image_url = url
+    db.commit()
+    db.refresh(event)
+    logger.info("event_image_uploaded", event_id=event.id, actor_id=user.id)
+    return event_stats.to_out(db, event)
+
+
+@router.delete("/{event_id}/image", response_model=EventOut)
+@limiter.limit(Limits.ORG_RARE)
+def delete_event_image(
+    request: Request,
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    """Clear the image reference. The file in the repo is left
+    alone; the lifecycle answer is "leave it" so we never need a
+    GitHub round-trip to remove."""
+    event = access.get_event_for_user(db, event_id, user)
+    if event.image_url is None:
+        # 404 over 204 so the frontend can distinguish "no-op" from
+        # "succeeded"; the user clicked Delete on a row that
+        # already had nothing.
+        raise HTTPException(status_code=404, detail="No image to delete")
+    event.image_url = None
+    db.commit()
+    db.refresh(event)
+    logger.info("event_image_deleted", event_id=event.id, actor_id=user.id)
     return event_stats.to_out(db, event)
 
 

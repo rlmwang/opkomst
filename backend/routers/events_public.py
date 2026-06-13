@@ -15,11 +15,6 @@ organiser CRUD.
   the dispatcher would render for that channel.
 """
 
-import io
-from functools import lru_cache
-
-import qrcode
-import qrcode.image.svg
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -34,6 +29,7 @@ from ..services import events as events_svc
 from ..services.feedback_questions import QUESTIONS
 from ..services.ics import build_event_ics
 from ..services.mail import build_url, render
+from ..services.qr import render_qr
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
@@ -101,31 +97,11 @@ def get_event_ics(slug: str, db: Session = Depends(get_db)) -> Response:
     )
 
 
-@lru_cache(maxsize=256)
-def _render_qr(slug: str) -> bytes:
-    """Generate the QR SVG for one slug. SVG-path rendering is
-    pure-Python (no PIL), produces ~1–2 KB of markup that scales
-    losslessly, and is transparent by default — dark modules are
-    ``<path>`` elements, the background is empty, so the QR sits
-    on whatever surface composites it.
-
-    Per-process LRU keeps repeat fetches at memory speed; 256
-    entries caps roughly N events per worker, any organiser with
-    that many events has bigger concerns."""
-    target = f"{PUBLIC_BASE_URL}/e/{slug}"
-    qr = qrcode.QRCode(box_size=10, border=2, image_factory=qrcode.image.svg.SvgPathImage)
-    qr.add_data(target)
-    qr.make(fit=True)
-    buf = io.BytesIO()
-    qr.make_image().save(buf)
-    return buf.getvalue()
-
-
 @router.get("/by-slug/{slug}/qr.svg")
 def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
     event = _resolve_event(db, slug)
     return Response(
-        content=_render_qr(event.slug),
+        content=render_qr(f"{PUBLIC_BASE_URL}/e/{event.slug}"),
         media_type="image/svg+xml",
         # Browser-side cache complements the in-process LRU: 24h
         # turns repeat dashboard visits into 304 Not Modified.

@@ -3,6 +3,8 @@ import { computed, onMounted, ref, watch } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
+import PublicNotice from "@/public_shared/PublicNotice.vue";
+import { chromeStrings } from "@/public_shared/strings";
 import BrandMark from "./BrandMark.vue";
 import BrandedSelect from "./BrandedSelect.vue";
 import { ApiError, type PublicEvent, fetchEventBySlug, postSignup } from "./api";
@@ -53,6 +55,9 @@ watch(event, (e) => {
   if (e) locale.value = pickLocale(e.locale);
 });
 const t = computed(() => strings(locale.value));
+// Shared chrome copy (the false-url / error screens) so the public
+// pages read identically across events / forms / datepolls.
+const c = computed(() => chromeStrings(locale.value));
 
 function setLocale(next: Locale) {
   locale.value = next;
@@ -290,21 +295,33 @@ watch(event, (e) => {
       </div>
     </header>
 
-    <div v-if="loadFailed" class="card">
-      <p>{{ t.loadFailed }}</p>
-    </div>
+    <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
 
-    <div v-else-if="notFound" class="card">
-      <p>{{ t.notFound }}</p>
-    </div>
+    <PublicNotice v-else-if="notFound" :message="c.unavailable" />
 
-    <div v-else-if="event?.archived" class="card">
-      <h1>{{ event.name }}</h1>
-      <p class="muted archived-note">{{ t.archived }}</p>
-    </div>
+    <PublicNotice v-else-if="event?.archived" :title="event.name" :message="c.unavailable" />
 
     <template v-else>
       <div class="card event-header">
+        <!-- 4:5 portrait hero, capped at 400px tall so the form
+             stays roughly above the fold on desktop. The image is
+             null until the organiser uploads one; mobile gets the
+             natural width-constrained render. -->
+        <figure v-if="event?.image_url" class="event-image-figure">
+          <img
+            :src="event.image_url"
+            :alt="event.name"
+            class="event-image"
+          />
+          <figcaption v-if="event.image_artist_instagram" class="event-image-credit muted">
+            {{ t.imageCredit }}
+            <a
+              :href="`https://instagram.com/${event.image_artist_instagram}`"
+              target="_blank"
+              rel="noopener"
+            >@{{ event.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="event-title">
           <h1 v-if="event">{{ event.name }}</h1>
           <h1 v-else class="skeleton-line skeleton-title" aria-hidden="true"></h1>
@@ -658,6 +675,32 @@ watch(event, (e) => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+/* 4:5 portrait hero. ``max-height`` keeps it tall enough to be
+ * readable on a phone (320px wide at 4:5) without pushing the
+ * sign-up form completely below the fold on desktop. The source
+ * is server-cropped to 4:5 (services/event_image.py) so no
+ * ``object-fit`` is needed. */
+.event-image-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.event-image {
+  display: block;
+  max-height: 400px;
+  width: auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+.event-image-credit {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+.event-image-credit a {
+  color: inherit;
+  text-decoration: underline;
 }
 .event-title h1 {
   margin: 0;

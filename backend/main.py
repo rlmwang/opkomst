@@ -13,11 +13,14 @@ from .database import engine
 from .routers import admin as admin_router
 from .routers import auth as auth_router
 from .routers import chapters as chapters_router
+from .routers import datepolls as datepolls_router
+from .routers import datepolls_public as datepolls_public_router
 from .routers import events as events_router
 from .routers import events_public as events_public_router
 from .routers import feedback as feedback_router
+from .routers import forms as forms_router
+from .routers import forms_public as forms_public_router
 from .routers import health as health_router
-from .routers import member_survey as member_survey_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import whatsapp as whatsapp_router
@@ -108,7 +111,14 @@ app.include_router(events_router.router)
 app.include_router(events_public_router.router)
 app.include_router(signups_router.router)
 app.include_router(feedback_router.router)
-app.include_router(member_survey_router.router)
+# Public-by-slug routes mount BEFORE the organiser router so the
+# /by-slug/{slug} match wins over the organiser router's
+# /{form_id} catch-all — otherwise FastAPI would try "by-slug" as
+# a form id and 404.
+app.include_router(forms_public_router.router)
+app.include_router(forms_router.router)
+app.include_router(datepolls_public_router.router)
+app.include_router(datepolls_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
 

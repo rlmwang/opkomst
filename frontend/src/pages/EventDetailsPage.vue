@@ -3,8 +3,8 @@ import Button from "primevue/button";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
-import AppHeader from "@/components/AppHeader.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
+import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import {
   eventList,
   type SignupSummary,
@@ -17,8 +17,9 @@ import {
 import { useEventClipboard } from "@/composables/useEventClipboard";
 import { useGuardedMutation } from "@/composables/useGuardedMutation";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
+import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { formatDateTime } from "@/lib/format";
+import { barWidth, formatDateTime } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { useToasts } from "@/lib/toasts";
 import {
@@ -127,13 +128,7 @@ function questionPrompt(key: string): string {
 // headers are the localised prompts so an organiser opening the CSV
 // in their language gets readable headers without joining to the
 // questions table.
-function csvEscape(v: unknown): string {
-  const s = String(v ?? "");
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-async function downloadCsv() {
+async function exportCsv() {
   if (!event.value || !summary.value) return;
   try {
     const submissions = await fetchFeedbackSubmissions(props.eventId);
@@ -143,29 +138,15 @@ async function downloadCsv() {
       s.submission_id,
       ...keys.map((k) => s.answers[k] ?? ""),
     ]);
-    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
-    // BOM so Excel reads UTF-8 correctly (otherwise Dutch diacritics
-    // mojibake on Windows).
-    const blob = new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
     // ``{YYYY-MM-DD}-{name-slug}-{entity-id}.csv`` — date first so
     // the file sorts chronologically next to other event exports;
     // entity id last as the canonical disambiguator.
     const date = event.value.starts_at.slice(0, 10);
     const slug = filenameSlug(event.value.name);
-    a.download = `${date}-${slug}-${event.value.id}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`${date}-${slug}-${event.value.id}.csv`, [header, ...rows]);
   } catch {
     toasts.error(t("feedback.summary.csvFail"));
   }
-}
-
-function bar(distribution: number[], idx: number): { width: string; count: number } {
-  const max = Math.max(...distribution, 1);
-  return { width: `${Math.round((distribution[idx] / max) * 100)}%`, count: distribution[idx] };
 }
 
 const CHANNELS: EmailChannel[] = ["reminder", "feedback"];
@@ -207,21 +188,35 @@ function askTriggerNow(channel: EmailChannel) {
 </script>
 
 <template>
-  <AppHeader />
-  <div class="container stack">
-    <!-- Only block render on ``event`` itself: it usually lives in
-         the events-list cache when arriving from the dashboard, so
-         the overview paints immediately. ``stats`` / ``summary``
-         each show a localised skeleton inside their own card —
-         the page no longer waits on the slowest fetch. -->
-    <AppSkeleton v-if="!event" :rows="4" cards />
-
-    <template v-else>
+  <!-- Only block render on ``event`` itself: it usually lives in
+       the events-list cache when arriving from the dashboard, so
+       the overview paints immediately. ``stats`` / ``summary``
+       each show a localised skeleton inside their own card —
+       the page no longer waits on the slowest fetch. -->
+  <DetailsPageShell :loaded="!!event" :skeleton-rows="4">
+    <template v-if="event">
 <AppCard :stack="false" class="overview">
         <h1>
           {{ event.name }}
           <span v-if="event.chapter_name" class="event-chapter-chip">{{ event.chapter_name }}</span>
         </h1>
+        <!-- Hero image + artist credit. Same 4:5 crop attendees
+             see; click the image to open the raw file (useful for
+             "I need to forward this to someone"). Editing happens
+             on the event form, not here. -->
+        <figure v-if="event.image_url" class="event-image-figure">
+          <a :href="event.image_url" target="_blank" rel="noopener">
+            <img :src="event.image_url" :alt="event.name" class="event-image" />
+          </a>
+          <figcaption v-if="event.image_artist_instagram" class="muted event-image-credit">
+            {{ t("event.imageCredit") }}
+            <a
+              :href="`https://instagram.com/${event.image_artist_instagram}`"
+              target="_blank"
+              rel="noopener"
+            >@{{ event.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
         <div class="overview-body">
           <div class="overview-text">
             <p class="muted overview-meta">
@@ -343,7 +338,7 @@ function askTriggerNow(channel: EmailChannel) {
               text
               icon="pi pi-download"
               :disabled="!summary || summary.submission_count === 0"
-              @click="downloadCsv"
+              @click="exportCsv"
             />
             <a
               v-if="event"
@@ -373,7 +368,7 @@ function askTriggerNow(channel: EmailChannel) {
                 <div v-for="i in 5" :key="i" class="bar-row">
                   <span class="bar-label">{{ i }}</span>
                   <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: bar(q.rating_distribution, i - 1).width }" />
+                    <div class="bar-fill" :style="{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }" />
                   </div>
                   <span class="bar-count">{{ q.rating_distribution[i - 1] }}</span>
                 </div>
@@ -428,7 +423,7 @@ function askTriggerNow(channel: EmailChannel) {
         </AppCard>
       </template>
     </template>
-  </div>
+  </DetailsPageShell>
 </template>
 
 <style scoped>
@@ -442,6 +437,30 @@ function askTriggerNow(channel: EmailChannel) {
   margin: 0;
   /* Long names wrap mid-word rather than overflow. */
   overflow-wrap: anywhere;
+}
+/* 4:5 hero on the organiser's overview card. ``max-width: 320px``
+ * matches the form preview — a quick glance for the organiser,
+ * not a hero spread. */
+.event-image-figure {
+  margin: 0 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.event-image-figure img {
+  display: block;
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.event-image-credit {
+  font-size: 0.75rem;
+}
+.event-image-credit a {
+  color: inherit;
+  text-decoration: underline;
 }
 /* Body row: meta + URL+copy on the left, QR on the right. The QR
  * starts at the same vertical position as the meta line. */

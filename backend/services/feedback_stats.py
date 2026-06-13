@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..models import EmailChannel, EmailDispatch, FeedbackResponse, Signup
 from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary
 from .feedback_questions import QUESTIONS
+from .ratings import rating_distribution
 
 
 def submission_count(db: Session, event_id: str) -> int:
@@ -81,16 +82,7 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
                 .group_by(FeedbackResponse.answer_int)
                 .all()
             )
-            distribution = [0, 0, 0, 0, 0]
-            total = 0
-            weighted = 0
-            for value, count in rows:
-                idx = int(value) - 1
-                if 0 <= idx < 5:
-                    distribution[idx] = int(count)
-                    total += int(count)
-                    weighted += int(value) * int(count)
-            avg = (weighted / total) if total else None
+            distribution, total, avg = rating_distribution([(v, c) for v, c in rows])
             summaries.append(
                 FeedbackQuestionSummary(
                     key=q.key,

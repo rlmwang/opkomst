@@ -1,9 +1,20 @@
 {# Shared chrome for the two public-facing event emails (reminder +
    feedback): identical disclaimer + footer, so the prose can't
    drift between channels. Channel-specific templates extend this
-   and only fill ``content``. #}
+   and only fill ``content``.
+
+   Attendees see RSP branding (logo + link to rsp.nu), not the
+   opkomst.nu tooling brand — they signed up for an RSP event,
+   not for the dashboard. The logo image is served by the SPA at
+   ``/rsp-logo.png`` so it's reachable wherever the deployment
+   lives without hardcoding a host. #}
 {% extends "base.html" %}
+{% block logo %}
+<a href="https://rsp.nu">
+  <img src="{{ public_base_url }}/rsp-logo.png" alt="RSP" width="80" height="80" style="display:block; margin:0 auto; border:0;">
+</a>
+{% endblock %}
 {% block disclaimer %}
 <p class="muted">Je krijgt deze mail omdat je je adres bij je aanmelding hebt achtergelaten. We bewaren het versleuteld en verwijderen het zodra alle mails rond dit evenement verstuurd zijn. De code van deze app is <a href="https://github.com/rlmwang/opkomst">openbaar in te zien</a>.</p>
 {% endblock %}
-{% block footer %}{{ app_name }} – voor het organiseren van RSP-evenementen{% endblock %}
+{% block footer %}<a href="https://rsp.nu">rsp.nu</a>{% endblock %}

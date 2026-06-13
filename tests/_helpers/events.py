@@ -4,11 +4,12 @@ The slug counter avoids the uuid7-derived collision tests hit
 when the clock is frozen.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from backend.models import Chapter, Event, User
+from backend.services.events import now_wallclock
 
 _slug_counter = 0
 
@@ -62,8 +63,7 @@ def make_event(
     created_by: str | None = None,
 ) -> Event:
     """Insert an Event row directly. Tests work on the row state."""
-    now = datetime.now(UTC)
-    starts_at = now + starts_in
+    starts_at = now_wallclock() + starts_in
     chapter_id = chapter_id or "chapter-x"
     created_by = created_by or "user-x"
     _ensure_test_chapter(db, chapter_id)

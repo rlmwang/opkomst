@@ -66,6 +66,8 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             locale=e.locale,
             chapter_id=e.chapter_id,
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,
+            image_url=e.image_url,
+            image_artist_instagram=e.image_artist_instagram,
             attendee_count=int(totals.get(e.id, 0)),
             archived=e.archived_at is not None,
         )

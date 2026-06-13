@@ -401,6 +401,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datepolls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Datepolls */
+        get: operations["list_datepolls_api_v1_datepolls_get"];
+        put?: never;
+        /**
+         * Create Datepoll
+         * @description Create a poll. Candidate dates are optional at create — a blank
+         *     poll can be saved and dates added on the edit page. The
+         *     caller-supplied ``chapter_id`` must be in the user's set.
+         */
+        post: operations["create_datepoll_api_v1_datepolls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Datepolls */
+        get: operations["list_archived_datepolls_api_v1_datepolls_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Datepoll */
+        get: operations["get_public_datepoll_api_v1_datepolls_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Datepoll Qr
+         * @description QR SVG for one slug. Resolves the poll first so a typo'd slug
+         *     410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-slug/{slug}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Datepoll
+         * @description Accept one public submission. Each answer's ``datepoll_date_id``
+         *     must belong to this poll; availability is constrained to the
+         *     tri-state at the schema layer. Duplicate dates collapse (last
+         *     wins). At least one answered date is required.
+         *
+         *     Returns a bare 201 — nothing identifies the submission to the
+         *     client; there is no read-back endpoint.
+         */
+        post: operations["submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Datepoll */
+        get: operations["get_datepoll_api_v1_datepolls__datepoll_id__get"];
+        /**
+         * Update Datepoll
+         * @description Update a poll. Chapter changes are allowed but the new one must
+         *     be in the user's set. Dates are diff-applied on ``on_date`` — see
+         *     ``services/datepolls.apply_dates``.
+         */
+        put: operations["update_datepoll_api_v1_datepolls__datepoll_id__put"];
+        post?: never;
+        /**
+         * Delete Datepoll
+         * @description Hard-delete an archived poll. Refuses unless archived first —
+         *     deleting a live poll with responses would be a data-loss footgun.
+         *     Cascades through dates / submissions / responses via the FK
+         *     ON DELETE CASCADEs.
+         */
+        delete: operations["delete_datepoll_api_v1_datepolls__datepoll_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Datepoll */
+        post: operations["archive_datepoll_api_v1_datepolls__datepoll_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Datepoll */
+        post: operations["restore_datepoll_api_v1_datepolls__datepoll_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datepoll Submissions
+         * @description Per-submission rows, keyed by date id. CSV source.
+         *
+         *     Privacy: the submission id is opaque and the only respondent
+         *     identifier is the self-chosen pseudonym.
+         */
+        get: operations["datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datepoll Summary */
+        get: operations["datepoll_summary_api_v1_datepolls__datepoll_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -655,6 +863,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Event Image
+         * @description Upload (or replace) the event's hero image. The bytes go
+         *     through ``services/event_image.py`` — validated, EXIF-rotated,
+         *     cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
+         *     PUT to the configured GitHub repo. ``event.image_url`` is set
+         *     to the resulting ``raw.githubusercontent.com`` URL.
+         *
+         *     Replacing an image overwrites ``image_url`` with the new
+         *     path; the previous file stays in the repo's history by
+         *     design (see ``services/event_image.py``).
+         *
+         *     Returns the updated ``EventOut`` so the caller's Vue Query
+         *     cache patches in-place without an extra refetch.
+         */
+        post: operations["upload_event_image_api_v1_events__event_id__image_post"];
+        /**
+         * Delete Event Image
+         * @description Clear the image reference. The file in the repo is left
+         *     alone; the lifecycle answer is "leave it" so we never need a
+         *     GitHub round-trip to remove.
+         */
+        delete: operations["delete_event_image_api_v1_events__event_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/restore": {
         parameters: {
             query?: never;
@@ -819,21 +1064,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/member-survey/form": {
+    "/api/v1/forms": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        /** List Forms */
+        get: operations["list_forms_api_v1_forms_get"];
+        put?: never;
         /**
-         * Get Form
-         * @description Public: returns the static structure of the form. The
-         *     client owns all rendering; this endpoint exists so the set
-         *     of barrier keys stays a server-side constant the client
-         *     cannot drift from.
+         * Create Form
+         * @description Create a new form. Questions are optional — a blank form
+         *     can be saved and the question list filled in on the edit
+         *     page afterwards. Caller-supplied ``chapter_id`` must be in
+         *     the user's live membership set.
          */
-        get: operations["get_form_api_v1_member_survey_form_get"];
+        post: operations["create_form_api_v1_forms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Forms */
+        get: operations["list_archived_forms_api_v1_forms_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -842,7 +1105,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/member-survey/responses": {
+    "/api/v1/forms/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Form */
+        get: operations["get_public_form_api_v1_forms_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Form Qr
+         * @description QR SVG for one slug. Resolves the form first so a typo'd
+         *     slug 410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -851,15 +1152,92 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Response */
-        post: operations["submit_response_api_v1_member_survey_responses_post"];
+        /**
+         * Submit Form
+         * @description Accept one public submission. Validates each answer
+         *     against its question's stored kind. Skipped optional
+         *     questions are simply absent from the stored rows; skipped
+         *     required questions 400.
+         *
+         *     Returns the random ``submission_id`` so the client can
+         *     confirm the submit landed. Nothing in the response links the
+         *     submission back to the submitter — same privacy contract as
+         *     the post-event feedback flow.
+         */
+        post: operations["submit_form_api_v1_forms_by_slug__slug__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/member-survey/results": {
+    "/api/v1/forms/{form_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Form */
+        get: operations["get_form_api_v1_forms__form_id__get"];
+        /**
+         * Update Form
+         * @description Update a form. Chapter changes are allowed (organiser might
+         *     have picked the wrong chapter at create time) but the new one
+         *     still has to be in the user's set. Questions are diff-applied
+         *     by id — see ``services/forms.apply_questions``.
+         */
+        put: operations["update_form_api_v1_forms__form_id__put"];
+        post?: never;
+        /**
+         * Delete Form
+         * @description Hard-delete an archived form. Refuses if the form isn't
+         *     archived first — accidentally hard-deleting a live form with
+         *     responses would be a data-loss footgun. Cascades through
+         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
+         *     CASCADEs in the schema.
+         */
+        delete: operations["delete_form_api_v1_forms__form_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Form */
+        post: operations["archive_form_api_v1_forms__form_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Form */
+        post: operations["restore_form_api_v1_forms__form_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -867,15 +1245,33 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Results
-         * @description Admin-only aggregate of every response submitted so far.
+         * Form Submissions
+         * @description Per-submission rows, keyed by question id. CSV consumers
+         *     map columns by question id; a separate lookup against the
+         *     questions list gives them the prompt text.
          *
-         *     Returns the raw response list too — the volume is small
-         *     (one questionnaire, occasional new-members days) and the
-         *     admin page renders both rating bars + the per-respondent
-         *     open-text answers from the same payload.
+         *     Privacy: ``submission_id`` is a random per-submission token
+         *     with no link back to whoever submitted — same contract as
+         *     the post-event feedback CSV.
          */
-        get: operations["get_results_api_v1_member_survey_results_get"];
+        get: operations["form_submissions_api_v1_forms__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Form Summary */
+        get: operations["form_summary_api_v1_forms__form_id__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1066,6 +1462,11 @@ export interface components {
             token: string;
             user: components["schemas"]["UserOut"];
         };
+        /** Body_upload_event_image_api_v1_events__event_id__image_post */
+        Body_upload_event_image_api_v1_events__event_id__image_post: {
+            /** File */
+            file: string;
+        };
         /**
          * ChapterArchiveRequest
          * @description Optional reassignment targets when archiving a chapter.
@@ -1160,6 +1561,235 @@ export interface components {
             token: string;
         };
         /**
+         * DatepollAnswerIn
+         * @description One answered date on the public submit payload.
+         */
+        DatepollAnswerIn: {
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "yes" | "no" | "maybe";
+            /** Comment */
+            comment?: string | null;
+            /** Datepoll Date Id */
+            datepoll_date_id: string;
+        };
+        /**
+         * DatepollCreate
+         * @description Organiser create payload.
+         */
+        DatepollCreate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateIn"][];
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
+         * DatepollDateIn
+         * @description One candidate date on the create / update payload. The natural
+         *     key is ``on_date`` — the editor sends a set of dates, never row
+         *     ids, so there is no ``id`` field; ``apply_dates`` diffs on
+         *     ``on_date`` and preserves the responses of dates that stay.
+         */
+        DatepollDateIn: {
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /** DatepollDateOut */
+        DatepollDateOut: {
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
+         * DatepollDateSummary
+         * @description Per-date aggregate on the organiser details page.
+         */
+        DatepollDateSummary: {
+            /** Comments */
+            comments?: string[];
+            /** Id */
+            id: string;
+            /** Maybe */
+            maybe: number;
+            /** No */
+            no: number;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Yes */
+            yes: number;
+        };
+        /**
+         * DatepollListOut
+         * @description List-row DTO. Scalars plus a computed date summary
+         *     (``date_count`` + earliest/latest), so a row is useful without
+         *     shipping every date — mirrors how ``EventOut`` carries
+         *     ``attendee_count`` rather than the signup list.
+         */
+        DatepollListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Count */
+            date_count: number;
+            /** First Date */
+            first_date?: string | null;
+            /** Id */
+            id: string;
+            /** Last Date */
+            last_date?: string | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * DatepollOut
+         * @description Single-poll DTO — the list fields plus the description and the
+         *     full candidate-date list (sorted by ``on_date``).
+         */
+        DatepollOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Date Count */
+            date_count: number;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateOut"][];
+            /** Description */
+            description?: string | null;
+            /** First Date */
+            first_date?: string | null;
+            /** Id */
+            id: string;
+            /** Last Date */
+            last_date?: string | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * DatepollSubmissionOut
+         * @description One submission as a flat row for the CSV export. ``answers`` and
+         *     ``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is
+         *     the self-chosen pseudonym (NULL = anonymous) — same privacy
+         *     contract as the event sign-up name.
+         */
+        DatepollSubmissionOut: {
+            /** Answers */
+            answers: {
+                [key: string]: string;
+            };
+            /** Comments */
+            comments: {
+                [key: string]: string;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Submission Id */
+            submission_id: string;
+        };
+        /**
+         * DatepollSubmitIn
+         * @description Public submission. ``display_name`` is the shared pseudonym
+         *     primitive (optional, <=100, real-or-not). ``answers`` carries one
+         *     entry per date the respondent set a state for.
+         */
+        DatepollSubmitIn: {
+            /** Answers */
+            answers: components["schemas"]["DatepollAnswerIn"][];
+            /** Display Name */
+            display_name?: string | null;
+        };
+        /**
+         * DatepollSummaryOut
+         * @description Organiser summary. ``submission_count`` is the number of
+         *     fill-outs; ``best_date_id`` is the most-yes date (tie-break:
+         *     fewest no), or ``None`` when there are no responses.
+         */
+        DatepollSummaryOut: {
+            /** Best Date Id */
+            best_date_id?: string | null;
+            /** Dates */
+            dates: components["schemas"]["DatepollDateSummary"][];
+            /** Submission Count */
+            submission_count: number;
+        };
+        /**
+         * DatepollUpdate
+         * @description Same shape as create. Distinct class so OpenAPI distinguishes
+         *     the two endpoints even though the body is identical.
+         */
+        DatepollUpdate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Dates */
+            dates?: components["schemas"]["DatepollDateIn"][];
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
          * EmailHealthOut
          * @description Aggregate of one channel's email delivery status across an
          *     event's signups. Counts always sum to ``signup_count``.
@@ -1190,6 +1820,8 @@ export interface components {
             feedback_enabled: boolean;
             /** Help Options */
             help_options?: string[];
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
             /** Latitude */
             latitude?: number | null;
             /**
@@ -1240,6 +1872,10 @@ export interface components {
             help_options: string[];
             /** Id */
             id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram: string | null;
+            /** Image Url */
+            image_url: string | null;
             /** Latitude */
             latitude: number | null;
             /**
@@ -1391,6 +2027,279 @@ export interface components {
             /** Submission Count */
             submission_count: number;
         };
+        /**
+         * FormAnswerIn
+         * @description One answered question on the public submit payload. Exactly
+         *     one answer-shaped field is meaningful per kind; the server
+         *     validates the right field is populated against the question's
+         *     stored kind, and ignores the others.
+         */
+        FormAnswerIn: {
+            /** Answer Choices */
+            answer_choices?: string[] | null;
+            /** Answer Int */
+            answer_int?: number | null;
+            /** Answer Text */
+            answer_text?: string | null;
+            /** Question Id */
+            question_id: string;
+        };
+        /**
+         * FormCreate
+         * @description Organiser create payload.
+         */
+        FormCreate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionIn"][];
+        };
+        /**
+         * FormListOut
+         * @description Organiser list-row DTO. Carries only the scalar fields the
+         *     active / archived list pages render — slug, chapter name, the
+         *     archived flag, the timestamp they sort on. Deliberately omits
+         *     the question list: a list of N forms would otherwise drag N
+         *     question sets over the wire that the list view never shows
+         *     (mirrors how ``EventOut`` carries ``attendee_count`` rather
+         *     than the signup list).
+         */
+        FormListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * FormOut
+         * @description Single-form DTO. The list-row fields plus the description and
+         *     the full question list, so the details / edit pages pre-populate
+         *     without an extra round-trip.
+         */
+        FormOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionOut"][];
+            /** Slug */
+            slug: string;
+        };
+        /**
+         * FormQuestionIn
+         * @description One question on the create / update payload. ``id`` is null
+         *     for newly-added rows; existing questions carry their server-
+         *     assigned uuid so the diff-apply on update matches by id (and
+         *     the row's responses stay attached across a prompt edit).
+         *     ``ordinal`` is not on this shape — the server re-numbers from
+         *     input order, which means reordering on the frontend is just
+         *     "send back in the new order".
+         */
+        FormQuestionIn: {
+            /** High Label */
+            high_label?: string | null;
+            /** Id */
+            id?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice";
+            /** Low Label */
+            low_label?: string | null;
+            /** Options */
+            options?: string[];
+            /** Prompt */
+            prompt: string;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+        };
+        /**
+         * FormQuestionOut
+         * @description Question shape on the wire. Organiser endpoints + the
+         *     public-by-slug endpoint both return this; the public form
+         *     renders ``prompt`` / ``options`` / ``low_label`` / ``high_label``
+         *     verbatim. ``ordinal`` is server-assigned (1..N).
+         */
+        FormQuestionOut: {
+            /** High Label */
+            high_label?: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Low Label */
+            low_label?: string | null;
+            /** Options */
+            options: string[];
+            /** Ordinal */
+            ordinal: number;
+            /** Prompt */
+            prompt: string;
+            /** Required */
+            required: boolean;
+        };
+        /**
+         * FormQuestionSummary
+         * @description Per-question aggregate on the organiser details page.
+         *     Shape mirrors the post-event feedback summary:
+         *
+         *     * ``rating`` — ``rating_distribution`` (5-bucket counts) +
+         *       ``rating_average``.
+         *     * ``text`` / ``short_text`` — ``texts`` (newest first).
+         *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
+         *       keyed by option string.
+         */
+        FormQuestionSummary: {
+            /** Choice Counts */
+            choice_counts?: {
+                [key: string]: number;
+            } | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Ordinal */
+            ordinal: number;
+            /** Prompt */
+            prompt: string;
+            /** Rating Average */
+            rating_average?: number | null;
+            /** Rating Distribution */
+            rating_distribution?: number[] | null;
+            /** Response Count */
+            response_count: number;
+            /** Texts */
+            texts?: string[] | null;
+        };
+        /**
+         * FormSubmissionOut
+         * @description One submission as a flat row for the CSV export. ``answers``
+         *     is keyed by question id; values match the kind: int for
+         *     rating, string for text/short_text, list[str] for choice
+         *     kinds. Missing answers are absent from the dict.
+         *
+         *     ``submission_id`` is the random per-submission token with no
+         *     link back to the submitter — same privacy contract as the
+         *     post-event feedback CSV.
+         */
+        FormSubmissionOut: {
+            /** Answers */
+            answers: {
+                [key: string]: number | string | string[];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Submission Id */
+            submission_id: string;
+        };
+        /**
+         * FormSubmitAck
+         * @description Public submit response. No identifying information — the
+         *     handler returns the random submission_id only so the client
+         *     can confirm the submission landed without holding onto state
+         *     server-side.
+         */
+        FormSubmitAck: {
+            /** Submission Id */
+            submission_id: string;
+        };
+        /** FormSubmitIn */
+        FormSubmitIn: {
+            /** Answers */
+            answers: components["schemas"]["FormAnswerIn"][];
+            /** Display Name */
+            display_name?: string | null;
+        };
+        /**
+         * FormSummaryOut
+         * @description Organiser summary endpoint. ``submission_count`` is the
+         *     number of distinct fill-outs; per-question aggregates explain
+         *     what each question collected.
+         */
+        FormSummaryOut: {
+            /** Questions */
+            questions: components["schemas"]["FormQuestionSummary"][];
+            /** Submission Count */
+            submission_count: number;
+        };
+        /**
+         * FormUpdate
+         * @description Same shape as create. Kept as a distinct class so the
+         *     OpenAPI schema distinguishes the two endpoints even though
+         *     the body is identical.
+         */
+        FormUpdate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions?: components["schemas"]["FormQuestionIn"][];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1444,78 +2353,6 @@ export interface components {
             token: string;
         };
         /**
-         * MemberSurveyFormOut
-         * @description Public structure of the new-members survey form. The client
-         *     resolves all prompts and labels via i18n keyed off ``barriers``;
-         *     the server only enumerates which barrier identifiers are valid.
-         */
-        MemberSurveyFormOut: {
-            /** Barriers */
-            barriers: string[];
-        };
-        /**
-         * MemberSurveyResponseOut
-         * @description One response row as the admin results page consumes it.
-         */
-        MemberSurveyResponseOut: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** First Name */
-            first_name: string | null;
-            /** Id */
-            id: string;
-            /** Q1 Connected */
-            q1_connected: number;
-            /** Q2 Clarity */
-            q2_clarity: number;
-            /** Q3 Likelihood */
-            q3_likelihood: number;
-            /** Q4 Barriers */
-            q4_barriers: string[];
-            /** Q4 Other Text */
-            q4_other_text: string | null;
-            /** Q5 Helps */
-            q5_helps: string | null;
-            /** Q6 Anything Else */
-            q6_anything_else: string | null;
-        };
-        /** MemberSurveyResultsOut */
-        MemberSurveyResultsOut: {
-            /** Barrier Counts */
-            barrier_counts: {
-                [key: string]: number;
-            };
-            q1_connected: components["schemas"]["RatingBreakdown"];
-            q2_clarity: components["schemas"]["RatingBreakdown"];
-            q3_likelihood: components["schemas"]["RatingBreakdown"];
-            /** Response Count */
-            response_count: number;
-            /** Responses */
-            responses: components["schemas"]["MemberSurveyResponseOut"][];
-        };
-        /** MemberSurveySubmitIn */
-        MemberSurveySubmitIn: {
-            /** First Name */
-            first_name?: string | null;
-            /** Q1 Connected */
-            q1_connected: number;
-            /** Q2 Clarity */
-            q2_clarity: number;
-            /** Q3 Likelihood */
-            q3_likelihood: number;
-            /** Q4 Barriers */
-            q4_barriers?: string[];
-            /** Q4 Other Text */
-            q4_other_text?: string | null;
-            /** Q5 Helps */
-            q5_helps?: string | null;
-            /** Q6 Anything Else */
-            q6_anything_else?: string | null;
-        };
-        /**
          * PendingCountOut
          * @description Tiny DTO for the navbar's pending-approval indicator. Admin-
          *     only — surfacing this to organisers would just be noise.
@@ -1523,6 +2360,46 @@ export interface components {
         PendingCountOut: {
             /** Count */
             count: number;
+        };
+        /**
+         * PublicDatepollOut
+         * @description What the public fill-out page (``/d/{slug}``) reads.
+         */
+        PublicDatepollOut: {
+            /** Dates */
+            dates: components["schemas"]["DatepollDateOut"][];
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+        };
+        /**
+         * PublicFormOut
+         * @description What the public fill-out page (``/f/{slug}``) reads. No
+         *     chapter id, no internal timestamps — just the form name +
+         *     description + locale + questions in display order.
+         */
+        PublicFormOut: {
+            /** Description */
+            description?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Questions */
+            questions: components["schemas"]["FormQuestionOut"][];
         };
         /**
          * QrResponse
@@ -1535,13 +2412,6 @@ export interface components {
             pairingCode?: string | null;
             /** Qr */
             qr?: string | null;
-        };
-        /** RatingBreakdown */
-        RatingBreakdown: {
-            /** Average */
-            average: number | null;
-            /** Distribution */
-            distribution: number[];
         };
         /**
          * RenameUserRequest
@@ -2318,6 +3188,437 @@ export interface operations {
             };
         };
     };
+    list_datepolls_api_v1_datepolls_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_datepoll_api_v1_datepolls_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_datepolls_api_v1_datepolls_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_datepoll_api_v1_datepolls_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicDatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_datepoll_api_v1_datepolls__datepoll_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_datepoll_api_v1_datepolls__datepoll_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_datepoll_api_v1_datepolls__datepoll_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_datepoll_api_v1_datepolls__datepoll_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_datepoll_api_v1_datepolls__datepoll_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datepoll_summary_api_v1_datepolls__datepoll_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_events_api_v1_events_get: {
         parameters: {
             query?: {
@@ -2777,6 +4078,76 @@ export interface operations {
             };
         };
     };
+    upload_event_image_api_v1_events__event_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_event_image_api_v1_events__event_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_image_api_v1_events__event_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_event_api_v1_events__event_id__restore_post: {
         parameters: {
             query?: never;
@@ -3043,64 +4414,11 @@ export interface operations {
             };
         };
     };
-    get_form_api_v1_member_survey_form_get: {
+    list_forms_api_v1_forms_get: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemberSurveyFormOut"];
-                };
+            query?: {
+                chapter_id?: string | null;
             };
-        };
-    };
-    submit_response_api_v1_member_survey_responses_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MemberSurveySubmitIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_results_api_v1_member_survey_results_get: {
-        parameters: {
-            query?: never;
             header?: {
                 authorization?: string | null;
             };
@@ -3115,7 +4433,405 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MemberSurveyResultsOut"];
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_form_api_v1_forms_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_forms_api_v1_forms_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_form_api_v1_forms_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicFormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_form_api_v1_forms_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSubmitAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_api_v1_forms__form_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_form_api_v1_forms__form_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_form_api_v1_forms__form_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_form_api_v1_forms__form_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_form_api_v1_forms__form_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_submissions_api_v1_forms__form_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_summary_api_v1_forms__form_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSummaryOut"];
                 };
             };
             /** @description Validation Error */

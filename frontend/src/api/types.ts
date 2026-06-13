@@ -42,6 +42,34 @@ export type SignupSummary = S["SignupSummaryOut"];
 export type SignupCreate = S["SignupCreate"];
 export type SignupAck = S["SignupAck"];
 
+// --- Forms (standalone questionnaires) ---
+export type FormOut = S["FormOut"];
+export type FormListOut = S["FormListOut"];
+export type FormCreate = S["FormCreate"];
+export type FormUpdate = S["FormUpdate"];
+export type FormQuestionIn = S["FormQuestionIn"];
+export type FormQuestionOut = S["FormQuestionOut"];
+export type PublicFormOut = S["PublicFormOut"];
+export type FormAnswerIn = S["FormAnswerIn"];
+export type FormSubmit = S["FormSubmitIn"];
+export type FormSubmitAck = S["FormSubmitAck"];
+export type FormQuestionSummary = S["FormQuestionSummary"];
+export type FormSummary = S["FormSummaryOut"];
+export type FormSubmission = S["FormSubmissionOut"];
+
+// --- Datepolls (dates-only availability polls) ---
+export type DatepollOut = S["DatepollOut"];
+export type DatepollListOut = S["DatepollListOut"];
+export type DatepollCreate = S["DatepollCreate"];
+export type DatepollUpdate = S["DatepollUpdate"];
+export type DatepollDateIn = S["DatepollDateIn"];
+export type DatepollDateOut = S["DatepollDateOut"];
+export type PublicDatepollOut = S["PublicDatepollOut"];
+export type DatepollSubmit = S["DatepollSubmitIn"];
+export type DatepollSummary = S["DatepollSummaryOut"];
+export type DatepollDateSummary = S["DatepollDateSummary"];
+export type DatepollSubmission = S["DatepollSubmissionOut"];
+
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];
 export type FeedbackQuestion = S["FeedbackQuestionOut"];
@@ -51,13 +79,6 @@ export type FeedbackQuestionSummary = S["FeedbackQuestionSummary"];
 export type FeedbackSummary = S["FeedbackSummaryOut"];
 export type FeedbackSubmission = S["FeedbackSubmissionOut"];
 export type EmailHealth = S["EmailHealthOut"];
-
-// --- Member survey (new-members feedback) ---
-export type MemberSurveyForm = S["MemberSurveyFormOut"];
-export type MemberSurveySubmit = S["MemberSurveySubmitIn"];
-export type MemberSurveyResults = S["MemberSurveyResultsOut"];
-export type MemberSurveyResponse = S["MemberSurveyResponseOut"];
-export type RatingBreakdown = S["RatingBreakdown"];
 
 // --- Channel-keyed maps. The generated schema types EmailHealth as
 // the per-channel struct; the FeedbackSummary-side keying lives in

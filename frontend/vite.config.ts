@@ -38,8 +38,56 @@ function publicEventDevRoute(): Plugin {
   };
 }
 
+/**
+ * Dev-only middleware: route ``/f/{slug}`` to ``public-form.html``.
+ *
+ * Mirrors ``publicEventDevRoute`` one-to-one for the forms
+ * mini-app. In production ``backend/routers/spa.py`` handles
+ * ``/f/{slug}`` by reading the built ``public-form.html`` off
+ * ``frontend/dist`` and injecting ``window.__OPKOMST_FORM__``
+ * before serving. The dev server has no equivalent — without
+ * this rewrite ``/f/foo`` would fall through to the admin SPA's
+ * ``index.html`` and the form mini-app would never mount.
+ */
+function publicFormDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-form-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? "";
+        if (/^\/f\/[^/?#]+/.test(url.split("?")[0])) {
+          req.url = "/public-form.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
+/**
+ * Dev-only middleware: route ``/d/{slug}`` to ``public-datepoll.html``.
+ * Mirrors the event/form dev routes one-to-one for the datepoll
+ * mini-app.
+ */
+function publicDatepollDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-datepoll-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? "";
+        if (/^\/d\/[^/?#]+/.test(url.split("?")[0])) {
+          req.url = "/public-datepoll.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue(), publicEventDevRoute()],
+  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute(), publicDatepollDevRoute()],
   test: {
     // happy-dom for component / Vue-Query composables (need a DOM
     // for ``app.mount(document.createElement(...))``); pure-utility
@@ -63,19 +111,29 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // Two HTML entry points → two independent bundle graphs. The
-      // public-event mini-app at ``/e/{slug}`` ships only what its
-      // form needs (Vue + the form component + a tiny inline i18n
-      // dict + raw fetch). No PrimeVue, no Pinia, no Vue Query,
-      // no router. Target wire weight: ~30 KB gzip vs the admin
-      // SPA's ~200 KB. Backend's ``/e/{slug}`` handler serves the
-      // built ``public-event.html`` (with event data inlined),
-      // every other path falls through to the admin SPA's
-      // ``index.html``.
+      // Three HTML entry points → three independent bundle graphs.
+      // The two public mini-apps at ``/e/{slug}`` and ``/f/{slug}``
+      // ship only what their form needs (Vue + the form component
+      // + a tiny inline i18n dict + raw fetch). No PrimeVue, no
+      // Pinia, no Vue Query, no router. Target wire weight:
+      // ~30 KB gzip each vs the admin SPA's ~200 KB. Backend
+      // routes serve the built ``public-event.html`` /
+      // ``public-form.html`` (with payload inlined); every other
+      // path falls through to the admin SPA's ``index.html``.
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
         publicEvent: fileURLToPath(
           new URL("./public-event.html", import.meta.url),
+        ),
+        // Same split as ``publicEvent``: dedicated bundle graph
+        // for ``/f/{slug}`` so public visitors land on ~30 KB
+        // gzip instead of the admin SPA's ~200 KB.
+        publicForm: fileURLToPath(
+          new URL("./public-form.html", import.meta.url),
+        ),
+        // Same split again: dedicated bundle graph for ``/d/{slug}``.
+        publicDatepoll: fileURLToPath(
+          new URL("./public-datepoll.html", import.meta.url),
         ),
       },
       output: {
