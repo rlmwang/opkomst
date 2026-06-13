@@ -1626,10 +1626,44 @@ export interface components {
             questions?: components["schemas"]["FormQuestionIn"][];
         };
         /**
+         * FormListOut
+         * @description Organiser list-row DTO. Carries only the scalar fields the
+         *     active / archived list pages render — slug, chapter name, the
+         *     archived flag, the timestamp they sort on. Deliberately omits
+         *     the question list: a list of N forms would otherwise drag N
+         *     question sets over the wire that the list view never shows
+         *     (mirrors how ``EventOut`` carries ``attendee_count`` rather
+         *     than the signup list).
+         */
+        FormListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+        };
+        /**
          * FormOut
-         * @description Organiser-side DTO. Returns the slug + archived flag the
-         *     frontend list page sorts on, plus the full question list for
-         *     the edit page to pre-populate without an extra round-trip.
+         * @description Single-form DTO. The list-row fields plus the full question
+         *     list, so the details / edit pages pre-populate without an
+         *     extra round-trip.
          */
         FormOut: {
             /** Archived */
@@ -3500,7 +3534,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormOut"][];
+                    "application/json": components["schemas"]["FormListOut"][];
                 };
             };
             /** @description Validation Error */
@@ -3568,7 +3602,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormOut"][];
+                    "application/json": components["schemas"]["FormListOut"][];
                 };
             };
             /** @description Validation Error */

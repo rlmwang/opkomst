@@ -1,71 +1,32 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
+import { useArchivedList } from "@/composables/useArchivedList";
 import {
-  type FormOut,
+  type FormListOut,
   useArchivedForms,
   useDeleteForm,
   useRestoreForm,
 } from "@/composables/useForms";
-import { useGuardedMutation } from "@/composables/useGuardedMutation";
-import { useToasts } from "@/lib/toasts";
-import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
-const toasts = useToasts();
-const auth = useAuthStore();
-const router = useRouter();
-const route = useRoute();
 
-const chapterFilter = computed<string | null>(() => {
-  const v = route.query.chapter;
-  return typeof v === "string" && v ? v : null;
+const {
+  chapterFilter,
+  setChapterFilter,
+  chapterOptions,
+  archived,
+  loaded,
+  restoreItem,
+  askDelete,
+} = useArchivedList({
+  query: (chapterId) => useArchivedForms({ chapterId }),
+  restore: useRestoreForm(),
+  remove: useDeleteForm(),
+  prefix: "forms.archived",
 });
-
-function setChapterFilter(value: string | null) {
-  void router.replace({
-    query: { ...route.query, chapter: value ?? undefined },
-  });
-}
-
-const chapterOptions = computed(() => auth.user?.chapters ?? []);
-
-const archivedQuery = useArchivedForms({ chapterId: chapterFilter });
-const archived = computed<FormOut[]>(() => archivedQuery.data.value ?? []);
-const restoreMutation = useRestoreForm();
-const deleteMutation = useDeleteForm();
-
-const askDelete = useGuardedMutation(deleteMutation, (f: FormOut) => ({
-  vars: f.id,
-  ok: t("forms.archived.deleteOk", { name: f.name }),
-  fail: t("forms.archived.deleteFail"),
-  confirm: {
-    header: t("forms.archived.deleteConfirmTitle"),
-    message: t("forms.archived.deleteConfirmBody", { name: f.name }),
-    icon: "pi pi-exclamation-triangle",
-    rejectLabel: t("common.cancel"),
-    acceptLabel: t("forms.archived.delete"),
-  },
-}));
-
-watch(archivedQuery.isError, (isError) => {
-  if (isError) toasts.error(t("forms.archived.loadFailed"));
-});
-
-const loaded = computed(() => !archivedQuery.isPending.value);
-
-async function restore(f: FormOut) {
-  try {
-    await restoreMutation.mutateAsync(f.id);
-    toasts.success(t("forms.archived.restored", { name: f.name }));
-  } catch {
-    toasts.error(t("forms.archived.restoreFail"));
-  }
-}
 </script>
 
 <template>
@@ -77,7 +38,7 @@ async function restore(f: FormOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('forms.archived.searchPlaceholder')"
-    :search-keys="(f: FormOut) => [f.name]"
+    :search-keys="(f: FormListOut) => [f.name]"
     :empty-copy="t('forms.archived.empty')"
     :no-matches-copy="t('forms.archived.noMatches')"
     :skeleton-rows="2"
@@ -92,7 +53,7 @@ async function restore(f: FormOut) {
           </h3>
         </div>
         <div class="row-actions">
-          <Button :label="t('forms.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restore(f)" />
+          <Button :label="t('forms.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(f)" />
           <Button
             icon="pi pi-trash"
             size="small"

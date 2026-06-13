@@ -91,10 +91,14 @@ class FormUpdate(FormCreate):
     the body is identical."""
 
 
-class FormOut(BaseModel):
-    """Organiser-side DTO. Returns the slug + archived flag the
-    frontend list page sorts on, plus the full question list for
-    the edit page to pre-populate without an extra round-trip."""
+class FormListOut(BaseModel):
+    """Organiser list-row DTO. Carries only the scalar fields the
+    active / archived list pages render — slug, chapter name, the
+    archived flag, the timestamp they sort on. Deliberately omits
+    the question list: a list of N forms would otherwise drag N
+    question sets over the wire that the list view never shows
+    (mirrors how ``EventOut`` carries ``attendee_count`` rather
+    than the signup list)."""
 
     id: str
     slug: str
@@ -104,6 +108,14 @@ class FormOut(BaseModel):
     chapter_name: str | None
     archived: bool
     created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class FormOut(FormListOut):
+    """Single-form DTO. The list-row fields plus the full question
+    list, so the details / edit pages pre-populate without an
+    extra round-trip."""
+
     questions: list[FormQuestionOut] = Field(default_factory=list)
 
 

@@ -965,8 +965,76 @@
         "title": "FormCreate",
         "type": "object"
       },
+      "FormListOut": {
+        "description": "Organiser list-row DTO. Carries only the scalar fields the\nactive / archived list pages render \u2014 slug, chapter name, the\narchived flag, the timestamp they sort on. Deliberately omits\nthe question list: a list of N forms would otherwise drag N\nquestion sets over the wire that the list view never shows\n(mirrors how ``EventOut`` carries ``attendee_count`` rather\nthan the signup list).",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at"
+        ],
+        "title": "FormListOut",
+        "type": "object"
+      },
       "FormOut": {
-        "description": "Organiser-side DTO. Returns the slug + archived flag the\nfrontend list page sorts on, plus the full question list for\nthe edit page to pre-populate without an extra round-trip.",
+        "description": "Single-form DTO. The list-row fields plus the full question\nlist, so the details / edit pages pre-populate without an\nextra round-trip.",
         "properties": {
           "archived": {
             "title": "Archived",
@@ -4327,7 +4395,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/FormOut"
+                    "$ref": "#/components/schemas/FormListOut"
                   },
                   "title": "Response List Forms Api V1 Forms Get",
                   "type": "array"
@@ -4454,7 +4522,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/FormOut"
+                    "$ref": "#/components/schemas/FormListOut"
                   },
                   "title": "Response List Archived Forms Api V1 Forms Archived Get",
                   "type": "array"

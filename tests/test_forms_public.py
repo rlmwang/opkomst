@@ -249,7 +249,7 @@ def test_submit_then_summary_reflects_response(client, organiser_headers):
 
 
 def test_submit_rate_limit_fires(client, organiser_headers):
-    """``PUBLIC_FEEDBACK`` limit on the public submit endpoint
+    """``PUBLIC_SUBMIT`` limit on the public submit endpoint
     (20/hour). The 21st submission from the same IP within the
     window must 429.
 

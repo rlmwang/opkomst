@@ -3,13 +3,13 @@ import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
+import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
 import { useFormClipboard } from "@/composables/useFormClipboard";
-import { type FormOut, formList, useArchiveForm, useFormList } from "@/composables/useForms";
+import { type FormListOut, formList, useArchiveForm, useFormList } from "@/composables/useForms";
 import { useConfirms } from "@/lib/confirms";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
@@ -19,23 +19,12 @@ const { t } = useI18n();
 const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
-const router = useRouter();
-const route = useRoute();
 const qc = useQueryClient();
 const { copyLink, copyQr } = useFormClipboard();
 
 // Chapter filter — same URL-param shape as Events so the filter
 // survives navigation between active and archived list pages.
-const chapterFilter = computed<string | null>(() => {
-  const v = route.query.chapter;
-  return typeof v === "string" && v ? v : null;
-});
-
-function setChapterFilter(value: string | null) {
-  void router.replace({
-    query: { ...route.query, chapter: value ?? undefined },
-  });
-}
+const { chapterFilter, setChapterFilter, chapterOptions } = useChapterUrlFilter();
 
 const formsQuery = useFormList({
   enabled: computed(() => auth.isApproved),
@@ -43,8 +32,6 @@ const formsQuery = useFormList({
 });
 const forms = formList(formsQuery);
 const archiveMutation = useArchiveForm();
-
-const chapterOptions = computed(() => auth.user?.chapters ?? []);
 
 // Pending approval + no-chapters short-circuits — mirror Dashboard
 // exactly: neither state has any business showing the list shell.
@@ -81,7 +68,7 @@ function prefetchDetails(formId: string) {
   });
 }
 
-function askArchive(f: FormOut) {
+function askArchive(f: FormListOut) {
   confirms.ask({
     header: t("forms.list.archiveConfirmTitle"),
     message: t("forms.list.archiveConfirmBody", { name: f.name }),
@@ -136,7 +123,7 @@ function askArchive(f: FormOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('forms.list.searchPlaceholder')"
-    :search-keys="(f: FormOut) => [f.name]"
+    :search-keys="(f: FormListOut) => [f.name]"
     :empty-copy="t('forms.list.empty')"
     :no-matches-copy="t('forms.list.noMatches')"
     :skeleton-rows="2"

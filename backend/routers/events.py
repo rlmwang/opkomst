@@ -19,7 +19,6 @@ from datetime import UTC, datetime
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
-from sqlalchemy.sql import ColumnElement
 
 from ..auth import require_approved
 from ..config import settings
@@ -80,20 +79,6 @@ def create_event(
     return event_stats.to_out(db, event)
 
 
-def _list_filter(db: Session, user: User, chapter_id: str | None) -> ColumnElement[bool]:
-    """Build the WHERE clause for an event list. ``chapter_id`` is
-    the optional UI filter; without it we return every event in
-    the user's full chapter set. The clause goes through
-    ``access.event_scope_filter`` so the access rule (admins
-    see everything, organisers scoped to memberships) is
-    centralised."""
-    base = access.event_scope_filter(db, user)
-    if chapter_id is None:
-        return base
-    access.assert_user_can_assign_chapter(db, user, chapter_id)
-    return Event.chapter_id == chapter_id
-
-
 @router.get("", response_model=list[EventOut])
 def list_events(
     chapter_id: str | None = None,
@@ -102,7 +87,7 @@ def list_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(_list_filter(db, user, chapter_id), Event.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_(None))
         .order_by(Event.starts_at.desc())
         .all()
     )
@@ -117,7 +102,7 @@ def list_archived_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(_list_filter(db, user, chapter_id), Event.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_not(None))
         .order_by(Event.created_at.desc())
         .all()
     )

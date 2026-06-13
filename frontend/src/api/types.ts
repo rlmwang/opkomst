@@ -44,6 +44,7 @@ export type SignupAck = S["SignupAck"];
 
 // --- Forms (standalone questionnaires) ---
 export type FormOut = S["FormOut"];
+export type FormListOut = S["FormListOut"];
 export type FormCreate = S["FormCreate"];
 export type FormUpdate = S["FormUpdate"];
 export type FormQuestionIn = S["FormQuestionIn"];

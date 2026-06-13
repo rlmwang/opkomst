@@ -21,12 +21,8 @@ for any live form (archived forms aren't displayed anywhere
 that surfaces the QR).
 """
 
-import io
 import secrets
-from functools import lru_cache
 
-import qrcode
-import qrcode.image.svg
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -36,11 +32,12 @@ from ..config import settings
 from ..database import get_db
 from ..models import Form, FormQuestion, FormResponse
 from ..schemas.forms import (
-    FormQuestionOut,
     FormSubmitAck,
     FormSubmitIn,
     PublicFormOut,
 )
+from ..services import forms as forms_svc
+from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
 # Public-facing base URL — validated at import time (HttpUrl),
@@ -68,27 +65,13 @@ def _form_questions(db: Session, form_id: str) -> list[FormQuestion]:
     return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
 
 
-@lru_cache(maxsize=256)
-def _render_qr(slug: str) -> bytes:
-    """Generate the QR SVG for one form slug. Same shape as the
-    events QR helper: SVG-path rendering is pure-Python (no PIL),
-    transparent background, per-process LRU caches repeat fetches."""
-    target = f"{PUBLIC_BASE_URL}/f/{slug}"
-    qr = qrcode.QRCode(box_size=10, border=2, image_factory=qrcode.image.svg.SvgPathImage)
-    qr.add_data(target)
-    qr.make(fit=True)
-    buf = io.BytesIO()
-    qr.make_image().save(buf)
-    return buf.getvalue()
-
-
 @router.get("/by-slug/{slug}/qr.svg")
 def get_form_qr(slug: str, db: Session = Depends(get_db)) -> Response:
     """QR SVG for one slug. Resolves the form first so a typo'd
     slug 410s rather than 200ing with a wrong-target QR."""
     form = _resolve_form(db, slug)
     return Response(
-        content=_render_qr(form.slug),
+        content=render_qr(f"{PUBLIC_BASE_URL}/f/{form.slug}"),
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=86400"},
     )
@@ -96,18 +79,11 @@ def get_form_qr(slug: str, db: Session = Depends(get_db)) -> Response:
 
 @router.get("/by-slug/{slug}", response_model=PublicFormOut)
 def get_public_form(slug: str, db: Session = Depends(get_db)) -> PublicFormOut:
-    form = _resolve_form(db, slug)
-    questions = _form_questions(db, form.id)
-    return PublicFormOut(
-        id=form.id,
-        name=form.name,
-        locale=form.locale,
-        questions=[FormQuestionOut.model_validate(q) for q in questions],
-    )
+    return forms_svc.to_public_out(db, _resolve_form(db, slug))
 
 
 @router.post("/by-slug/{slug}/submit", response_model=FormSubmitAck, status_code=201)
-@limiter.limit(Limits.PUBLIC_FEEDBACK)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
 def submit_form(
     request: Request,
     slug: str,

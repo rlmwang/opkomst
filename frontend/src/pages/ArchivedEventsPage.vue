@@ -1,78 +1,33 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
+import { useArchivedList } from "@/composables/useArchivedList";
 import {
   type EventOut,
   useArchivedEvents,
   useDeleteEvent,
   useRestoreEvent,
 } from "@/composables/useEvents";
-import { useGuardedMutation } from "@/composables/useGuardedMutation";
 import { formatDateTime } from "@/lib/format";
-import { useToasts } from "@/lib/toasts";
-import { useAuthStore } from "@/stores/auth";
 
 const { t, locale } = useI18n();
-const toasts = useToasts();
-const auth = useAuthStore();
-const router = useRouter();
-const route = useRoute();
 
-// Chapter filter state — same shape as the dashboard so the URL
-// param survives navigation between active and archived lists.
-const chapterFilter = computed<string | null>(() => {
-  const v = route.query.chapter;
-  return typeof v === "string" && v ? v : null;
+const {
+  chapterFilter,
+  setChapterFilter,
+  chapterOptions,
+  archived,
+  loaded,
+  restoreItem,
+  askDelete,
+} = useArchivedList({
+  query: (chapterId) => useArchivedEvents({ chapterId }),
+  restore: useRestoreEvent(),
+  remove: useDeleteEvent(),
+  prefix: "archived",
 });
-
-function setChapterFilter(value: string | null) {
-  void router.replace({
-    query: { ...route.query, chapter: value ?? undefined },
-  });
-}
-
-const chapterOptions = computed(() => auth.user?.chapters ?? []);
-
-const archivedQuery = useArchivedEvents({ chapterId: chapterFilter });
-const archived = computed<EventOut[]>(() => archivedQuery.data.value ?? []);
-const restoreMutation = useRestoreEvent();
-const deleteMutation = useDeleteEvent();
-
-// Hard-delete is irreversible. Setup-time wiring (per
-// useGuardedMutation contract); the click handler just calls the
-// returned function with the event row so the confirm copy can
-// quote the event name.
-const askDelete = useGuardedMutation(deleteMutation, (e: EventOut) => ({
-  vars: e.id,
-  ok: t("archived.deleteOk", { name: e.name }),
-  fail: t("archived.deleteFail"),
-  confirm: {
-    header: t("archived.deleteConfirmTitle"),
-    message: t("archived.deleteConfirmBody", { name: e.name }),
-    icon: "pi pi-exclamation-triangle",
-    rejectLabel: t("common.cancel"),
-    acceptLabel: t("archived.delete"),
-  },
-}));
-
-watch(archivedQuery.isError, (isError) => {
-  if (isError) toasts.error(t("archived.loadFailed"));
-});
-
-const loaded = computed(() => !archivedQuery.isPending.value);
-
-async function restore(e: EventOut) {
-  try {
-    await restoreMutation.mutateAsync(e.id);
-    toasts.success(t("archived.restored", { name: e.name }));
-  } catch {
-    toasts.error(t("archived.restoreFail"));
-  }
-}
 </script>
 
 <template>
@@ -102,7 +57,7 @@ async function restore(e: EventOut) {
           </p>
         </div>
         <div class="row-actions">
-          <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restore(e)" />
+          <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(e)" />
           <Button
             icon="pi pi-trash"
             size="small"

@@ -32,6 +32,7 @@ from typing import Literal
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -97,6 +98,19 @@ class FormQuestion(UUIDMixin, TimestampMixin, Base):
     options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     low_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     high_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # DB-level backstop for the kind vocabulary. The canonical set
+    # is the ``QuestionKind`` literal in ``schemas/forms.py`` (the
+    # API contract); this constraint makes a malformed row
+    # unrepresentable even if a write path ever skipped the
+    # schema-layer validation. Keep the two in sync when adding a
+    # kind — the schema-drift CI gate doesn't cover this CHECK.
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('rating', 'text', 'short_text', 'single_choice', 'multi_choice')",
+            name="ck_form_questions_kind",
+        ),
+    )
 
 
 class FormResponse(UUIDMixin, TimestampMixin, Base):

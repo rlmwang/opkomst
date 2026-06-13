@@ -71,16 +71,40 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 _OG_IMAGE_URL = f"{_PUBLIC_BASE}/favicon.png"
 
 
-def _build_head_meta(event: Event | None, slug: str) -> str:
-    """Per-event ``<head>`` markup: page title + Open Graph +
-    Twitter Card tags. Drives the link-preview cards rendered by
-    WhatsApp, Facebook, iMessage, Slack, Twitter, LinkedIn — all
-    of which scrape ``og:title`` / ``og:description`` /
-    ``og:image`` from the served HTML.
+def _og_head(*, name: str, description: str, canonical_url: str, og_image: str, twitter_card: str) -> str:
+    """Shared ``<head>`` markup: page title + Open Graph + Twitter
+    Card tags. Drives the link-preview cards rendered by WhatsApp,
+    Facebook, iMessage, Slack, Twitter, LinkedIn — all of which
+    scrape ``og:title`` / ``og:description`` / ``og:image`` from
+    the served HTML. ``html.escape(..., quote=True)`` covers the
+    HTML-attribute injection surface (names with quotes, ampersands,
+    angle brackets)."""
+    et = html.escape(f"{name} — opkomst.nu", quote=True)
+    ed = html.escape(description, quote=True)
+    eu = html.escape(canonical_url, quote=True)
+    ei = html.escape(og_image, quote=True)
+    en = html.escape(name, quote=True)
+    return (
+        f"<title>{et}</title>\n"
+        f'    <meta name="description" content="{ed}">\n'
+        f'    <meta property="og:title" content="{en}">\n'
+        f'    <meta property="og:description" content="{ed}">\n'
+        f'    <meta property="og:type" content="website">\n'
+        f'    <meta property="og:url" content="{eu}">\n'
+        f'    <meta property="og:site_name" content="opkomst.nu">\n'
+        f'    <meta property="og:image" content="{ei}">\n'
+        f'    <meta name="twitter:card" content="{twitter_card}">\n'
+        f'    <meta name="twitter:title" content="{en}">\n'
+        f'    <meta name="twitter:description" content="{ed}">\n'
+        f'    <meta name="twitter:image" content="{ei}">'
+    )
 
-    For unknown slugs (event is None) only the bare site title
-    is emitted; sharing a 404 link is rare enough that elaborate
-    fallback metadata isn't worth the bytes."""
+
+def _build_head_meta(event: Event | None, slug: str) -> str:
+    """Per-event link-preview ``<head>``. For unknown slugs (event
+    is None) only the bare site title is emitted; sharing a 404
+    link is rare enough that elaborate fallback metadata isn't
+    worth the bytes."""
     if event is None:
         return "<title>opkomst.nu</title>"
 
@@ -96,79 +120,32 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     if len(description) > 200:
         description = description[:197] + "…"
 
-    title = f"{event.name} — opkomst.nu"
-    canonical_url = f"{_PUBLIC_BASE}/e/{slug}"
-
-    # ``html.escape`` covers the HTML-attribute injection surface
-    # (event names with quotes, ampersands, angle brackets).
-    # ``quote=True`` is the default and is what we need for
-    # values inside attributes.
     # OG image: when the organiser uploaded a hero image use that
     # (gives every share a real event-specific card); otherwise fall
-    # back to the favicon so parsers still get *something*.
-    og_image = event.image_url or _OG_IMAGE_URL
-    # Hero uploads are 4:5 portrait; favicon is square. Modern
-    # previewers (WhatsApp, Telegram, Signal, Discord, iMessage)
-    # render the large-image card for portrait sources too; older
-    # Twitter clients crop wider than ideal but the alternative is
-    # the tiny ``summary`` thumbnail. Hint large-image for any
-    # uploaded hero.
-    twitter_card_type = "summary_large_image" if event.image_url else "summary"
-
-    et = html.escape(title, quote=True)
-    ed = html.escape(description, quote=True)
-    eu = html.escape(canonical_url, quote=True)
-    ei = html.escape(og_image, quote=True)
-    en = html.escape(event.name, quote=True)
-
-    return (
-        f"<title>{et}</title>\n"
-        f'    <meta name="description" content="{ed}">\n'
-        f'    <meta property="og:title" content="{en}">\n'
-        f'    <meta property="og:description" content="{ed}">\n'
-        f'    <meta property="og:type" content="website">\n'
-        f'    <meta property="og:url" content="{eu}">\n'
-        f'    <meta property="og:site_name" content="opkomst.nu">\n'
-        f'    <meta property="og:image" content="{ei}">\n'
-        f'    <meta name="twitter:card" content="{twitter_card_type}">\n'
-        f'    <meta name="twitter:title" content="{en}">\n'
-        f'    <meta name="twitter:description" content="{ed}">\n'
-        f'    <meta name="twitter:image" content="{ei}">'
+    # back to the favicon so parsers still get *something*. Hero
+    # uploads are 4:5 portrait — hint the large-image card; the
+    # square favicon gets the tiny ``summary`` thumbnail.
+    return _og_head(
+        name=event.name,
+        description=description,
+        canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
+        og_image=event.image_url or _OG_IMAGE_URL,
+        twitter_card="summary_large_image" if event.image_url else "summary",
     )
 
 
 def _build_form_head_meta(form: Form | None, slug: str) -> str:
-    """Per-form ``<head>`` markup: page title + Open Graph +
-    Twitter Card tags. Same shape as ``_build_head_meta`` for
-    events; the form description is just "{name} · opkomst.nu"
-    since forms don't have a topic / location / date the way
-    events do."""
+    """Per-form link-preview ``<head>``. Forms have no topic /
+    location / date, so the description is just the form name and
+    the card always falls back to the favicon."""
     if form is None:
         return "<title>opkomst.nu</title>"
-
-    title = f"{form.name} — opkomst.nu"
-    description = form.name
-    canonical_url = f"{_PUBLIC_BASE}/f/{slug}"
-
-    et = html.escape(title, quote=True)
-    ed = html.escape(description, quote=True)
-    eu = html.escape(canonical_url, quote=True)
-    ei = html.escape(_OG_IMAGE_URL, quote=True)
-    en = html.escape(form.name, quote=True)
-
-    return (
-        f"<title>{et}</title>\n"
-        f'    <meta name="description" content="{ed}">\n'
-        f'    <meta property="og:title" content="{en}">\n'
-        f'    <meta property="og:description" content="{ed}">\n'
-        f'    <meta property="og:type" content="website">\n'
-        f'    <meta property="og:url" content="{eu}">\n'
-        f'    <meta property="og:site_name" content="opkomst.nu">\n'
-        f'    <meta property="og:image" content="{ei}">\n'
-        f'    <meta name="twitter:card" content="summary">\n'
-        f'    <meta name="twitter:title" content="{en}">\n'
-        f'    <meta name="twitter:description" content="{ed}">\n'
-        f'    <meta name="twitter:image" content="{ei}">'
+    return _og_head(
+        name=form.name,
+        description=form.name,
+        canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
+        og_image=_OG_IMAGE_URL,
+        twitter_card="summary",
     )
 
 
@@ -274,34 +251,13 @@ def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
     else:
         form = None
 
-    if form is None:
-        payload: object | None = None
-    else:
-        # Inline the slim PublicFormOut shape — the mini-app's
-        # ``PublicForm`` type expects id, name, locale, questions.
-        # Anything else (chapter info, created_at) would be dead
-        # weight on the wire.
-        from ..models import FormQuestion
-
-        questions = db.query(FormQuestion).filter(FormQuestion.form_id == form.id).order_by(FormQuestion.ordinal).all()
-        payload = {
-            "id": form.id,
-            "name": form.name,
-            "locale": form.locale,
-            "questions": [
-                {
-                    "id": q.id,
-                    "ordinal": q.ordinal,
-                    "kind": q.kind,
-                    "prompt": q.prompt,
-                    "required": q.required,
-                    "options": q.options,
-                    "low_label": q.low_label,
-                    "high_label": q.high_label,
-                }
-                for q in questions
-            ],
-        }
+    # Inline the slim ``PublicFormOut`` shape (id + name + locale +
+    # questions) — same projection the JSON endpoint returns, so the
+    # mini-app's ``PublicForm`` type matches without a third
+    # hand-maintained copy. Archived / unknown slugs inline ``null``.
+    payload: object | None = (
+        json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
+    )
 
     inlined = "<script>window.__OPKOMST_FORM__ = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
     head_meta = _build_form_head_meta(form, slug)

@@ -68,6 +68,25 @@ def test_edit_in_place_preserves_id(client, organiser_headers):
     assert out["questions"][0]["prompt"] == "New"
 
 
+def test_db_check_constraint_rejects_unknown_kind(client, organiser_headers):
+    """The schema layer validates ``kind`` on every write, but the
+    DB CHECK (``ck_form_questions_kind``) is the backstop that makes
+    a malformed row unrepresentable. Inserting one directly must
+    raise rather than persist."""
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    form = _create(client, organiser_headers)
+    db = SessionLocal()
+    try:
+        db.add(FormQuestion(form_id=form["id"], ordinal=1, kind="bogus", prompt="x", required=True, options=[]))
+        with pytest.raises(IntegrityError):
+            db.commit()
+    finally:
+        db.rollback()
+        db.close()
+
+
 def test_reordering_by_input_order(client, organiser_headers):
     form = _create(client, organiser_headers, questions=[
         {"kind": "rating", "prompt": "Q1", "required": True},

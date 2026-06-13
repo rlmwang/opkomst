@@ -11,6 +11,7 @@ import FormPageShell from "@/components/FormPageShell.vue";
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useFormDraft } from "@/composables/useFormDraft";
 import {
   type FormCreate,
   type FormQuestionIn,
@@ -79,6 +80,8 @@ onMounted(() => {
   } else if (auth.user?.chapters?.length === 1) {
     chapterId.value = auth.user.chapters[0].id;
   }
+  // Restore the draft last so it wins over the chapter prefill.
+  restoreDraftOnce();
 });
 
 // Edit-mode: copy the existing form into the local refs once the
@@ -100,9 +103,59 @@ watch(
       low_label: q.low_label ?? null,
       high_label: q.high_label ?? null,
     }));
+    // Restore the mid-edit draft after server hydration so the
+    // user's unsaved edits win over the stored form.
+    restoreDraftOnce();
   },
   { immediate: true },
 );
+
+// --- Draft persistence ---------------------------------------------
+// Mirrors EventFormPage: mid-edit state survives a refresh or
+// accidental tab close. Keyed by form id (``new`` for create) so two
+// tabs don't clobber each other. Cleared on successful save + cancel.
+const draftKey = computed(() => `form-edit-draft:${props.formId ?? "new"}`);
+
+interface FormEditDraft {
+  name: string;
+  chapterId: string | null;
+  formLocale: "nl" | "en";
+  questions: QuestionDraft[];
+}
+
+function snapshot(): FormEditDraft {
+  return {
+    name: name.value,
+    chapterId: chapterId.value,
+    formLocale: formLocale.value,
+    questions: questions.value,
+  };
+}
+
+function applyDraft(d: FormEditDraft): void {
+  name.value = d.name;
+  chapterId.value = d.chapterId ?? null;
+  formLocale.value = d.formLocale ?? "nl";
+  questions.value = (d.questions ?? []).map((q) => ({ ...q, options: [...(q.options ?? [])] }));
+}
+
+const { loadDraft, clearDraft } = useFormDraft<FormEditDraft>({
+  key: draftKey,
+  snapshot,
+  apply: applyDraft,
+  sources: [name, chapterId, formLocale, questions],
+});
+
+// Restore at most once — the edit-mode hydration watch can fire more
+// than once, but the draft should only ever override the first
+// (initial) hydration, never re-clobber later user edits.
+let draftRestored = false;
+function restoreDraftOnce(): void {
+  if (draftRestored) return;
+  draftRestored = true;
+  const draft = loadDraft();
+  if (draft) applyDraft(draft);
+}
 
 // --- Question list helpers -----------------------------------------
 
@@ -136,6 +189,7 @@ function setQuestion(index: number, next: QuestionDraft): void {
 // --- Cancel / submit -----------------------------------------------
 
 function cancel(): void {
+  clearDraft();
   if (isEdit.value && props.formId) {
     void router.push(`/forms/${props.formId}/details`);
   } else {
@@ -178,6 +232,7 @@ async function submit() {
       isEdit.value && props.formId
         ? await updateMutation.mutateAsync({ formId: props.formId, payload: wirePayload })
         : await createMutation.mutateAsync(wirePayload);
+    clearDraft();
     void router.push(`/forms/${result.id}/details`);
   } catch {
     toasts.error(t("forms.edit.saveFailed"));

@@ -11,7 +11,9 @@ import {
   useForm,
   useFormSummary,
 } from "@/composables/useForms";
+import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
+import { barWidth } from "@/lib/format";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 
@@ -49,13 +51,7 @@ const summary = computed(() => summaryQuery.data.value ?? null);
 // time + one per question (organiser-authored prompt as the
 // header). Question headers come from the form's question list
 // rather than the summary's so empty forms don't crash here.
-function csvEscape(v: unknown): string {
-  const s = String(v ?? "");
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-async function downloadCsv() {
+async function exportCsv() {
   if (!form.value) return;
   try {
     const submissions = await fetchFormSubmissions(props.formId);
@@ -75,29 +71,10 @@ async function downloadCsv() {
         return Array.isArray(v) ? v.join("; ") : (v ?? "");
       }),
     ]);
-    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
-    const blob = new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${filenameSlug(form.value.name)}-${form.value.id}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`${filenameSlug(form.value.name)}-${form.value.id}.csv`, [header, ...rows]);
   } catch {
     toasts.error(t("forms.details.csvFail"));
   }
-}
-
-/** Bar fill width as a percentage. The denominator is the
- *  maximum value in the block, NOT the sum — so the tallest bar
- *  always renders fully filled and the rest are visually
- *  proportional to it. For rating questions ``values`` is the
- *  per-bucket distribution; for choice questions it's the per-
- *  option count list. Same call shape across kinds keeps the
- *  template body symmetric. */
-function barWidth(values: number[], value: number): string {
-  const max = Math.max(...values, 1);
-  return `${Math.round((value / max) * 100)}%`;
 }
 </script>
 
@@ -168,7 +145,7 @@ function barWidth(values: number[], value: number): string {
               text
               icon="pi pi-download"
               :disabled="!summary || summary.submission_count === 0"
-              @click="downloadCsv"
+              @click="exportCsv"
             />
             <div v-if="summary" class="count-pill">
               <span class="count">{{ summary.submission_count }}</span>

@@ -104,7 +104,7 @@ def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackForm
 
 
 @router.post("/feedback/{token}/submit", status_code=201)
-@limiter.limit(Limits.PUBLIC_FEEDBACK)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
 def submit_feedback(
     request: Request,
     token: str,

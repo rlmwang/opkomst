@@ -1,3 +1,12 @@
+/** Bar-fill width as a percentage of the largest value in the set.
+ *  The denominator is the max (not the sum), so the tallest bar
+ *  always renders fully filled and the rest are proportional to it.
+ *  Shared by the rating + choice summary bars on both details pages. */
+export function barWidth(values: number[], value: number): string {
+  const max = Math.max(...values, 1);
+  return `${Math.round((value / max) * 100)}%`;
+}
+
 /** ICU locale tag for the active i18n locale. ``"en"`` → en-GB so
  * dates render as "27 April 2026" rather than US "April 27, 2026". */
 export function localeTag(locale: string): string {

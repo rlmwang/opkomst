@@ -18,6 +18,7 @@ import { del, get, post, put } from "@/api/client";
 import { listOf, useApiQuery } from "@/api/queries";
 import type {
   FormCreate,
+  FormListOut,
   FormOut,
   FormQuestionIn,
   FormQuestionOut,
@@ -31,6 +32,7 @@ import type {
 
 export type {
   FormCreate,
+  FormListOut,
   FormOut,
   FormQuestionIn,
   FormQuestionOut,
@@ -56,7 +58,7 @@ export function useFormList(
     chapterId?: MaybeRef<string | null>;
   } = {},
 ) {
-  return useApiQuery<FormOut[]>(
+  return useApiQuery<FormListOut[]>(
     () => ["forms", "active", { chapter: unref(opts.chapterId) ?? null }],
     () => {
       const cid = unref(opts.chapterId);
@@ -68,12 +70,12 @@ export function useFormList(
   );
 }
 
-export const formList = listOf<FormOut>;
+export const formList = listOf<FormListOut>;
 
 export function useArchivedForms(
   opts: { chapterId?: MaybeRef<string | null> } = {},
 ) {
-  return useApiQuery<FormOut[]>(
+  return useApiQuery<FormListOut[]>(
     () => ["forms", "archived", { chapter: unref(opts.chapterId) ?? null }],
     () => {
       const cid = unref(opts.chapterId);
