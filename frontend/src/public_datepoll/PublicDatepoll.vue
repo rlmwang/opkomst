@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
+import EditLink from "@/public_shared/EditLink.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -10,7 +11,9 @@ import {
   type PublicDatepoll,
   ApiError,
   fetchDatepollBySlug,
+  fetchSubmission,
   postSubmission,
+  putSubmission,
 } from "./api";
 import { datepollStrings, formatLongDate } from "./i18n";
 import DateRow from "./DateRow.vue";
@@ -27,6 +30,14 @@ const d = computed(() => datepollStrings(locale.value));
 const displayName = ref("");
 const submitting = ref(false);
 const errorMsg = ref("");
+
+// ``?s={token}`` puts the page in edit mode: pre-fill from the existing
+// submission and PUT instead of POST on save.
+const editToken = new URL(window.location.href).searchParams.get("s");
+const savedToken = ref<string | null>(null);
+const editUrl = computed(() =>
+  savedToken.value ? `${window.location.origin}/d/${slug()}?s=${savedToken.value}` : "",
+);
 
 // One answers map keyed by ISO date — the single source of truth both
 // the calendar and the list bind to.
@@ -45,21 +56,28 @@ function hydrate(p: PublicDatepoll): void {
     answers[dt.on_date] = { availability: null, comment: "" };
     idByIso[dt.on_date] = dt.id;
   }
-  status.value = "ready";
+}
+
+async function prefillFromSubmission(p: PublicDatepoll): Promise<void> {
+  const sub = await fetchSubmission(editToken!);
+  displayName.value = sub.display_name ?? "";
+  for (const dt of p.dates) {
+    const v = sub.answers[dt.id];
+    if (v) answers[dt.on_date] = { availability: v.availability, comment: v.comment ?? "" };
+  }
 }
 
 onMounted(async () => {
   const inlined = window.__OPKOMST_DATEPOLL__;
-  if (inlined !== undefined) {
-    if (inlined === null) {
-      status.value = "unavailable";
-      return;
-    }
-    hydrate(inlined);
+  if (inlined === null) {
+    status.value = "unavailable";
     return;
   }
   try {
-    hydrate(await fetchDatepollBySlug(slug()));
+    const loaded = inlined ?? (await fetchDatepollBySlug(slug()));
+    hydrate(loaded);
+    if (editToken) await prefillFromSubmission(loaded);
+    status.value = "ready";
   } catch (e) {
     status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
   }
@@ -105,11 +123,15 @@ async function submit(): Promise<void> {
     return;
   }
   submitting.value = true;
+  const body = { display_name: displayName.value.trim() || null, answers: picked };
   try {
-    await postSubmission(slug(), {
-      display_name: displayName.value.trim() || null,
-      answers: picked,
-    });
+    if (editToken) {
+      await putSubmission(editToken, body);
+      savedToken.value = editToken;
+    } else {
+      const ack = await postSubmission(slug(), body);
+      savedToken.value = ack.edit_token;
+    }
     status.value = "submitted";
   } catch (e) {
     if (e instanceof ApiError && e.status === 410) {
@@ -143,10 +165,13 @@ async function submit(): Promise<void> {
         <p v-if="poll.description" class="muted">{{ poll.description }}</p>
       </div>
 
-      <div v-if="status === 'submitted'" class="card stack thanks-card">
-        <h2>{{ c.thanks }}</h2>
-        <p class="muted">{{ d.thanksBody }}</p>
-      </div>
+      <template v-if="status === 'submitted'">
+        <div class="card stack thanks-card">
+          <h2>{{ c.thanks }}</h2>
+          <p class="muted">{{ d.thanksBody }}</p>
+        </div>
+        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
+      </template>
 
       <template v-else>
         <Disclosure :locale="locale" />

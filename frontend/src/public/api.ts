@@ -32,6 +32,30 @@ export interface SignupPayload {
   email: string | null;
 }
 
+export interface SignupAck {
+  /** Secret edit-link token, returned once. Not recoverable later. */
+  edit_token: string;
+}
+
+/** A signup's current editable values, for pre-filling the edit form.
+ *  Email is never returned — it isn't reachable from a signup. */
+export interface SignupValues {
+  display_name: string | null;
+  party_size: number;
+  source_choice: string | null;
+  help_choices: string[];
+}
+
+/** The edit payload omits email: the address lives on decoupled
+ *  dispatch rows with no link back to the signup, so it can't be
+ *  changed here. */
+export interface SignupEditPayload {
+  display_name: string | null;
+  party_size: number;
+  source_choice: string | null;
+  help_choices: string[];
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -50,7 +74,7 @@ export async function fetchEventBySlug(slug: string): Promise<PublicEvent> {
 export async function postSignup(
   slug: string,
   payload: SignupPayload,
-): Promise<void> {
+): Promise<SignupAck> {
   const r = await fetch(
     `/api/v1/events/by-slug/${encodeURIComponent(slug)}/signups`,
     {
@@ -60,6 +84,26 @@ export async function postSignup(
     },
   );
   if (!r.ok) throw new ApiError(`signup failed (${r.status})`, r.status);
+  return (await r.json()) as SignupAck;
+}
+
+export async function fetchSignup(token: string): Promise<SignupValues> {
+  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`);
+  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
+  return (await r.json()) as SignupValues;
+}
+
+export async function putSignup(
+  token: string,
+  payload: SignupEditPayload,
+): Promise<SignupValues> {
+  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new ApiError(`update failed (${r.status})`, r.status);
+  return (await r.json()) as SignupValues;
 }
 
 declare global {

@@ -166,6 +166,39 @@ class SignupCreate(BaseModel):
 
 class SignupAck(BaseModel):
     """Public response after a successful signup. Returns nothing
-    identifying — just confirms the booking landed."""
+    identifying — just confirms the booking landed, plus the secret
+    edit-link token (shown once so the page can render the magic
+    edit link; never stored raw, never recoverable)."""
 
     status: str = "ok"
+    edit_token: str
+
+
+class SignupEditIn(BaseModel):
+    """Edit payload for an existing signup, reached via the edit-link
+    token. The non-email fields only — ``EmailDispatch`` carries no
+    ``signup_id`` (principle #2), so the email can't be reached from a
+    signup and isn't editable here."""
+
+    display_name: DisplayName
+    party_size: int = Field(ge=1, le=50)
+    source_choice: str | None = None
+    help_choices: list[str] = Field(default_factory=list)
+
+    @field_validator("help_choices")
+    @classmethod
+    def _validate_help_choices(cls, v: list[str]) -> list[str]:
+        cleaned = [c.strip() for c in v if c.strip()]
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("Help choices must be unique")
+        return cleaned
+
+
+class SignupEditOut(BaseModel):
+    """Current values of a signup, for pre-filling the edit form. No
+    email (never readable from a signup)."""
+
+    display_name: str | None
+    party_size: int
+    source_choice: str | None
+    help_choices: list[str]

@@ -118,6 +118,29 @@ class DatepollSubmitIn(BaseModel):
     answers: list[DatepollAnswerIn] = Field(max_length=60)
 
 
+class DatepollSubmitAck(BaseModel):
+    """Public submit response — the secret edit-link token, returned
+    once so the page can render the magic edit link (never stored
+    raw, never recoverable)."""
+
+    edit_token: str
+
+
+class DatepollEditValue(BaseModel):
+    """One date's prior answer, for pre-filling the edit form."""
+
+    availability: Availability
+    comment: str | None = None
+
+
+class DatepollEditOut(BaseModel):
+    """Current values of a submission, for pre-filling the edit form
+    (reached via the edit-link token). ``answers`` keyed by date id."""
+
+    display_name: str | None
+    answers: dict[str, DatepollEditValue]
+
+
 class DatepollDateSummary(BaseModel):
     """Per-date aggregate on the organiser details page."""
 

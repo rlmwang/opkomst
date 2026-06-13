@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
+import EditLink from "@/public_shared/EditLink.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -11,11 +12,16 @@ import {
   type PublicFormQuestion,
   type SubmitAnswer,
   fetchFormBySlug,
+  fetchSubmission,
   postSubmission,
+  putSubmission,
 } from "./api";
 import { formStrings } from "./i18n";
 
 const slug = window.location.pathname.replace(/^\/f\//, "").split("/")[0];
+// ``?s={token}`` puts the page in edit mode: pre-fill from the existing
+// submission and PUT instead of POST on save.
+const editToken = new URL(window.location.href).searchParams.get("s");
 
 const form = ref<PublicForm | null>(null);
 const status = ref<"loading" | "ready" | "unavailable" | "load-failed" | "submitted">("loading");
@@ -29,29 +35,44 @@ const f = computed(() => formStrings(locale.value));
 // sign-up name. Empty → anonymous.
 const displayName = ref("");
 
+// Token to surface on the confirmation screen (the edit link). On a
+// fresh submit it's the freshly-minted token; on an edit it's the one
+// from the URL (reusable while the form is live).
+const savedToken = ref<string | null>(null);
+const editUrl = computed(() =>
+  savedToken.value ? `${window.location.origin}/f/${slug}?s=${savedToken.value}` : "",
+);
+
 onMounted(async () => {
   const inlined = window.__OPKOMST_FORM__;
   if (inlined === null) {
     status.value = "unavailable";
     return;
   }
-  if (inlined !== undefined) {
-    form.value = inlined;
-    locale.value = pickLocale(inlined.locale);
-    status.value = "ready";
-    initAnswers(inlined);
-    return;
-  }
   try {
-    const fetched = await fetchFormBySlug(slug);
-    form.value = fetched;
-    locale.value = pickLocale(fetched.locale);
+    const loaded = inlined ?? (await fetchFormBySlug(slug));
+    form.value = loaded;
+    locale.value = pickLocale(loaded.locale);
+    initAnswers(loaded);
+    if (editToken) await prefillFromSubmission(loaded);
     status.value = "ready";
-    initAnswers(fetched);
   } catch (e) {
     status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
   }
 });
+
+async function prefillFromSubmission(form_: PublicForm): Promise<void> {
+  const sub = await fetchSubmission(editToken!);
+  displayName.value = sub.display_name ?? "";
+  for (const q of form_.questions) {
+    const v = sub.answers[q.id];
+    if (v === undefined) continue;
+    if (q.kind === "rating") answers.value[q.id] = { answer_int: typeof v === "number" ? v : null };
+    else if (q.kind === "text" || q.kind === "short_text")
+      answers.value[q.id] = { answer_text: typeof v === "string" ? v : "" };
+    else answers.value[q.id] = { answer_choices: Array.isArray(v) ? v : [] };
+  }
+}
 
 // --- Answer state ------------------------------------------------
 
@@ -123,8 +144,15 @@ async function submit() {
     return { question_id: q.id, answer_choices: a.answer_choices ?? [] };
   });
 
+  const body = { display_name: displayName.value.trim() || null, answers: payload };
   try {
-    await postSubmission(slug, { display_name: displayName.value.trim() || null, answers: payload });
+    if (editToken) {
+      await putSubmission(editToken, body);
+      savedToken.value = editToken;
+    } else {
+      const ack = await postSubmission(slug, body);
+      savedToken.value = ack.edit_token;
+    }
     status.value = "submitted";
   } catch (e) {
     submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
@@ -156,10 +184,13 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
         <p v-if="form.description" class="muted">{{ form.description }}</p>
       </div>
 
-      <div v-if="status === 'submitted'" class="card stack thanks-card">
-        <h2>{{ c.thanks }}</h2>
-        <p class="muted">{{ f.thanksBody }}</p>
-      </div>
+      <template v-if="status === 'submitted'">
+        <div class="card stack thanks-card">
+          <h2>{{ c.thanks }}</h2>
+          <p class="muted">{{ f.thanksBody }}</p>
+        </div>
+        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
+      </template>
 
       <template v-else>
         <Disclosure :locale="locale" />

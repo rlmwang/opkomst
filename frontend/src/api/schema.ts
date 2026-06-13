@@ -490,15 +490,36 @@ export interface paths {
         put?: never;
         /**
          * Submit Datepoll
-         * @description Accept one public submission. Each answer's ``datepoll_date_id``
-         *     must belong to this poll; availability is constrained to the
-         *     tri-state at the schema layer. Duplicate dates collapse (last
-         *     wins). At least one answered date is required.
-         *
-         *     Returns a bare 201 — nothing identifies the submission to the
-         *     client; there is no read-back endpoint.
+         * @description Accept one public submission. Mints a secret edit-link token
+         *     (raw returned once; only its hash stored) so the respondent can
+         *     revisit and edit.
          */
         post: operations["submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Datepoll Submission
+         * @description Current values of a submission, for pre-filling the edit form.
+         */
+        get: operations["get_datepoll_submission_api_v1_datepolls_by_token__token__get"];
+        /**
+         * Update Datepoll Submission
+         * @description Update a submission in place via its edit-link token. Replaces
+         *     the per-date answers and the pseudonym.
+         */
+        put: operations["update_datepoll_submission_api_v1_datepolls_by_token__token__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -794,6 +815,33 @@ export interface paths {
         put?: never;
         /** Create Signup */
         post: operations["create_signup_api_v1_events_by_slug__slug__signups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Signup
+         * @description Current values of a signup, for pre-filling the edit form.
+         *     Email is never returned (it isn't reachable from a signup).
+         */
+        get: operations["get_signup_api_v1_events_by_token__token__get"];
+        /**
+         * Update Signup
+         * @description Update a signup's non-email fields via its edit-link token.
+         *     Email + dispatch rows are untouched — there is no path from a
+         *     signup to its encrypted address (principle #2).
+         */
+        put: operations["update_signup_api_v1_events_by_token__token__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1179,17 +1227,38 @@ export interface paths {
         put?: never;
         /**
          * Submit Form
-         * @description Accept one public submission. Validates each answer
-         *     against its question's stored kind. Skipped optional
-         *     questions are simply absent from the stored rows; skipped
-         *     required questions 400.
-         *
-         *     Returns the random ``submission_id`` so the client can
-         *     confirm the submit landed. Nothing in the response links the
-         *     submission back to the submitter — same privacy contract as
-         *     the post-event feedback flow.
+         * @description Accept one public submission. Mints a secret edit-link token
+         *     (raw returned once; only its hash stored) so the respondent can
+         *     revisit and edit. Nothing in the response links the submission
+         *     back to a person beyond the self-chosen pseudonym.
          */
         post: operations["submit_form_api_v1_forms_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Form Submission
+         * @description Current values of a submission, for pre-filling the edit form.
+         *     Gated by the secret token (the link).
+         */
+        get: operations["get_form_submission_api_v1_forms_by_token__token__get"];
+        /**
+         * Update Form Submission
+         * @description Update a submission in place via its edit-link token. Replaces
+         *     the submission's answer rows and the pseudonym.
+         */
+        put: operations["update_form_submission_api_v1_forms_by_token__token__put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1703,6 +1772,32 @@ export interface components {
             yes: number;
         };
         /**
+         * DatepollEditOut
+         * @description Current values of a submission, for pre-filling the edit form
+         *     (reached via the edit-link token). ``answers`` keyed by date id.
+         */
+        DatepollEditOut: {
+            /** Answers */
+            answers: {
+                [key: string]: components["schemas"]["DatepollEditValue"];
+            };
+            /** Display Name */
+            display_name: string | null;
+        };
+        /**
+         * DatepollEditValue
+         * @description One date's prior answer, for pre-filling the edit form.
+         */
+        DatepollEditValue: {
+            /**
+             * Availability
+             * @enum {string}
+             */
+            availability: "yes" | "no" | "maybe";
+            /** Comment */
+            comment?: string | null;
+        };
+        /**
          * DatepollListOut
          * @description List-row DTO. Scalars plus a computed date summary
          *     (``date_count`` + earliest/latest), so a row is useful without
@@ -1807,6 +1902,16 @@ export interface components {
             display_name: string | null;
             /** Submission Id */
             submission_id: string;
+        };
+        /**
+         * DatepollSubmitAck
+         * @description Public submit response — the secret edit-link token, returned
+         *     once so the page can render the magic edit link (never stored
+         *     raw, never recoverable).
+         */
+        DatepollSubmitAck: {
+            /** Edit Token */
+            edit_token: string;
         };
         /**
          * DatepollSubmitIn
@@ -2135,6 +2240,20 @@ export interface components {
             questions?: components["schemas"]["FormQuestionIn"][];
         };
         /**
+         * FormEditOut
+         * @description Current values of a submission, for pre-filling the edit form
+         *     (reached via the edit-link token). ``answers`` keyed by question
+         *     id — same shape as the CSV row's answers.
+         */
+        FormEditOut: {
+            /** Answers */
+            answers: {
+                [key: string]: number | string | string[];
+            };
+            /** Display Name */
+            display_name: string | null;
+        };
+        /**
          * FormListOut
          * @description Organiser list-row DTO. Carries only the scalar fields the
          *     active / archived list pages render — slug, chapter name, the
@@ -2324,12 +2443,14 @@ export interface components {
         };
         /**
          * FormSubmitAck
-         * @description Public submit response. No identifying information — the
-         *     handler returns the random submission_id only so the client
-         *     can confirm the submission landed without holding onto state
-         *     server-side.
+         * @description Public submit response. ``submission_id`` confirms the
+         *     submission landed; ``edit_token`` is the secret edit-link token,
+         *     returned once so the page can render the magic edit link (never
+         *     stored raw, never recoverable).
          */
         FormSubmitAck: {
+            /** Edit Token */
+            edit_token: string;
             /** Submission Id */
             submission_id: string;
         };
@@ -2539,9 +2660,13 @@ export interface components {
         /**
          * SignupAck
          * @description Public response after a successful signup. Returns nothing
-         *     identifying — just confirms the booking landed.
+         *     identifying — just confirms the booking landed, plus the secret
+         *     edit-link token (shown once so the page can render the magic
+         *     edit link; never stored raw, never recoverable).
          */
         SignupAck: {
+            /** Edit Token */
+            edit_token: string;
             /**
              * Status
              * @default ok
@@ -2560,6 +2685,38 @@ export interface components {
             party_size: number;
             /** Source Choice */
             source_choice?: string | null;
+        };
+        /**
+         * SignupEditIn
+         * @description Edit payload for an existing signup, reached via the edit-link
+         *     token. The non-email fields only — ``EmailDispatch`` carries no
+         *     ``signup_id`` (principle #2), so the email can't be reached from a
+         *     signup and isn't editable here.
+         */
+        SignupEditIn: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Help Choices */
+            help_choices?: string[];
+            /** Party Size */
+            party_size: number;
+            /** Source Choice */
+            source_choice?: string | null;
+        };
+        /**
+         * SignupEditOut
+         * @description Current values of a signup, for pre-filling the edit form. No
+         *     email (never readable from a signup).
+         */
+        SignupEditOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Help Choices */
+            help_choices: string[];
+            /** Party Size */
+            party_size: number;
+            /** Source Choice */
+            source_choice: string | null;
         };
         /**
          * SignupSummaryOut
@@ -3456,7 +3613,73 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["DatepollSubmitAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_datepoll_submission_api_v1_datepolls_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollEditOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_datepoll_submission_api_v1_datepolls_by_token__token__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatepollSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollEditOut"];
                 };
             };
             /** @description Validation Error */
@@ -4052,6 +4275,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignupAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_signup_api_v1_events_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupEditOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_signup_api_v1_events_by_token__token__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupEditOut"];
                 };
             };
             /** @description Validation Error */
@@ -4753,6 +5042,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSubmitAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_submission_api_v1_forms_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormEditOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_form_submission_api_v1_forms_by_token__token__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormEditOut"];
                 };
             };
             /** @description Validation Error */

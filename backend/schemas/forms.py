@@ -159,12 +159,22 @@ class FormSubmitIn(BaseModel):
 
 
 class FormSubmitAck(BaseModel):
-    """Public submit response. No identifying information — the
-    handler returns the random submission_id only so the client
-    can confirm the submission landed without holding onto state
-    server-side."""
+    """Public submit response. ``submission_id`` confirms the
+    submission landed; ``edit_token`` is the secret edit-link token,
+    returned once so the page can render the magic edit link (never
+    stored raw, never recoverable)."""
 
     submission_id: str
+    edit_token: str
+
+
+class FormEditOut(BaseModel):
+    """Current values of a submission, for pre-filling the edit form
+    (reached via the edit-link token). ``answers`` keyed by question
+    id — same shape as the CSV row's answers."""
+
+    display_name: str | None
+    answers: dict[str, int | str | list[str]]
 
 
 class FormQuestionSummary(BaseModel):

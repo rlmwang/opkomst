@@ -104,6 +104,9 @@ class DatepollSubmission(UUIDMixin, TimestampMixin, Base):
         Text, ForeignKey("datepolls.id", ondelete="CASCADE"), nullable=False, index=True
     )
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # SHA-256 of the respondent's secret edit-link token (raw never
+    # stored, organiser never sees it). See ``services/edit_token.py``.
+    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
 
 
 class DatepollResponse(UUIDMixin, TimestampMixin, Base):

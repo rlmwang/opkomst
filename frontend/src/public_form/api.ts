@@ -38,6 +38,20 @@ export interface SubmitPayload {
   answers: SubmitAnswer[];
 }
 
+export interface SubmitAck {
+  submission_id: string;
+  /** Secret edit-link token, returned once. Not recoverable later. */
+  edit_token: string;
+}
+
+/** A submission's current values, for pre-filling the edit form. The
+ *  answer value is shaped per question kind: number (rating), string
+ *  (text), or string[] (choices). */
+export interface FormSubmissionValues {
+  display_name: string | null;
+  answers: Record<string, number | string | string[]>;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -56,7 +70,7 @@ export async function fetchFormBySlug(slug: string): Promise<PublicForm> {
 export async function postSubmission(
   slug: string,
   payload: SubmitPayload,
-): Promise<void> {
+): Promise<SubmitAck> {
   const r = await fetch(
     `/api/v1/forms/by-slug/${encodeURIComponent(slug)}/submit`,
     {
@@ -66,6 +80,26 @@ export async function postSubmission(
     },
   );
   if (!r.ok) throw new ApiError(`submit failed (${r.status})`, r.status);
+  return (await r.json()) as SubmitAck;
+}
+
+export async function fetchSubmission(token: string): Promise<FormSubmissionValues> {
+  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}`);
+  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
+  return (await r.json()) as FormSubmissionValues;
+}
+
+export async function putSubmission(
+  token: string,
+  payload: SubmitPayload,
+): Promise<FormSubmissionValues> {
+  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new ApiError(`update failed (${r.status})`, r.status);
+  return (await r.json()) as FormSubmissionValues;
 }
 
 declare global {

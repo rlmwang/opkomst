@@ -33,6 +33,18 @@ export interface SubmitPayload {
   answers: SubmitAnswer[];
 }
 
+export interface SubmitAck {
+  /** Secret edit-link token, returned once. Not recoverable later. */
+  edit_token: string;
+}
+
+/** A submission's current values, keyed by datepoll-date id, for
+ *  pre-filling the edit form. */
+export interface DatepollSubmissionValues {
+  display_name: string | null;
+  answers: Record<string, { availability: Availability; comment: string | null }>;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -48,13 +60,30 @@ export async function fetchDatepollBySlug(slug: string): Promise<PublicDatepoll>
   return (await r.json()) as PublicDatepoll;
 }
 
-export async function postSubmission(slug: string, payload: SubmitPayload): Promise<void> {
+export async function postSubmission(slug: string, payload: SubmitPayload): Promise<SubmitAck> {
   const r = await fetch(`/api/v1/datepolls/by-slug/${encodeURIComponent(slug)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!r.ok) throw new ApiError(`submit failed (${r.status})`, r.status);
+  return (await r.json()) as SubmitAck;
+}
+
+export async function fetchSubmission(token: string): Promise<DatepollSubmissionValues> {
+  const r = await fetch(`/api/v1/datepolls/by-token/${encodeURIComponent(token)}`);
+  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
+  return (await r.json()) as DatepollSubmissionValues;
+}
+
+export async function putSubmission(token: string, payload: SubmitPayload): Promise<DatepollSubmissionValues> {
+  const r = await fetch(`/api/v1/datepolls/by-token/${encodeURIComponent(token)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new ApiError(`update failed (${r.status})`, r.status);
+  return (await r.json()) as DatepollSubmissionValues;
 }
 
 declare global {

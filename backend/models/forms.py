@@ -131,6 +131,9 @@ class FormSubmission(UUIDMixin, TimestampMixin, Base):
 
     form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # SHA-256 of the respondent's secret edit-link token (raw never
+    # stored, organiser never sees it). See ``services/edit_token.py``.
+    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
 
 
 class FormResponse(UUIDMixin, TimestampMixin, Base):

@@ -468,6 +468,65 @@
         "title": "DatepollDateSummary",
         "type": "object"
       },
+      "DatepollEditOut": {
+        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` keyed by date id.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DatepollEditValue"
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "display_name",
+          "answers"
+        ],
+        "title": "DatepollEditOut",
+        "type": "object"
+      },
+      "DatepollEditValue": {
+        "description": "One date's prior answer, for pre-filling the edit form.",
+        "properties": {
+          "availability": {
+            "enum": [
+              "yes",
+              "no",
+              "maybe"
+            ],
+            "title": "Availability",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "required": [
+          "availability"
+        ],
+        "title": "DatepollEditValue",
+        "type": "object"
+      },
       "DatepollListOut": {
         "description": "List-row DTO. Scalars plus a computed date summary\n(``date_count`` + earliest/latest), so a row is useful without\nshipping every date \u2014 mirrors how ``EventOut`` carries\n``attendee_count`` rather than the signup list.",
         "properties": {
@@ -748,6 +807,20 @@
           "comments"
         ],
         "title": "DatepollSubmissionOut",
+        "type": "object"
+      },
+      "DatepollSubmitAck": {
+        "description": "Public submit response \u2014 the secret edit-link token, returned\nonce so the page can render the magic edit link (never stored\nraw, never recoverable).",
+        "properties": {
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edit_token"
+        ],
+        "title": "DatepollSubmitAck",
         "type": "object"
       },
       "DatepollSubmitIn": {
@@ -1598,6 +1671,48 @@
         "title": "FormCreate",
         "type": "object"
       },
+      "FormEditOut": {
+        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` keyed by question\nid \u2014 same shape as the CSV row's answers.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "required": [
+          "display_name",
+          "answers"
+        ],
+        "title": "FormEditOut",
+        "type": "object"
+      },
       "FormListOut": {
         "description": "Organiser list-row DTO. Carries only the scalar fields the\nactive / archived list pages render \u2014 slug, chapter name, the\narchived flag, the timestamp they sort on. Deliberately omits\nthe question list: a list of N forms would otherwise drag N\nquestion sets over the wire that the list view never shows\n(mirrors how ``EventOut`` carries ``attendee_count`` rather\nthan the signup list).",
         "properties": {
@@ -2055,15 +2170,20 @@
         "type": "object"
       },
       "FormSubmitAck": {
-        "description": "Public submit response. No identifying information \u2014 the\nhandler returns the random submission_id only so the client\ncan confirm the submission landed without holding onto state\nserver-side.",
+        "description": "Public submit response. ``submission_id`` confirms the\nsubmission landed; ``edit_token`` is the secret edit-link token,\nreturned once so the page can render the magic edit link (never\nstored raw, never recoverable).",
         "properties": {
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          },
           "submission_id": {
             "title": "Submission Id",
             "type": "string"
           }
         },
         "required": [
-          "submission_id"
+          "submission_id",
+          "edit_token"
         ],
         "title": "FormSubmitAck",
         "type": "object"
@@ -2506,14 +2626,21 @@
         "type": "object"
       },
       "SignupAck": {
-        "description": "Public response after a successful signup. Returns nothing\nidentifying \u2014 just confirms the booking landed.",
+        "description": "Public response after a successful signup. Returns nothing\nidentifying \u2014 just confirms the booking landed, plus the secret\nedit-link token (shown once so the page can render the magic\nedit link; never stored raw, never recoverable).",
         "properties": {
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          },
           "status": {
             "default": "ok",
             "title": "Status",
             "type": "string"
           }
         },
+        "required": [
+          "edit_token"
+        ],
         "title": "SignupAck",
         "type": "object"
       },
@@ -2572,6 +2699,98 @@
           "party_size"
         ],
         "title": "SignupCreate",
+        "type": "object"
+      },
+      "SignupEditIn": {
+        "description": "Edit payload for an existing signup, reached via the edit-link\ntoken. The non-email fields only \u2014 ``EmailDispatch`` carries no\n``signup_id`` (principle #2), so the email can't be reached from a\nsignup and isn't editable here.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
+          "party_size": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "source_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Choice"
+          }
+        },
+        "required": [
+          "party_size"
+        ],
+        "title": "SignupEditIn",
+        "type": "object"
+      },
+      "SignupEditOut": {
+        "description": "Current values of a signup, for pre-filling the edit form. No\nemail (never readable from a signup).",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          },
+          "source_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Choice"
+          }
+        },
+        "required": [
+          "display_name",
+          "party_size",
+          "source_choice",
+          "help_choices"
+        ],
+        "title": "SignupEditOut",
         "type": "object"
       },
       "SignupSummaryOut": {
@@ -4098,7 +4317,7 @@
     },
     "/api/v1/datepolls/by-slug/{slug}/submit": {
       "post": {
-        "description": "Accept one public submission. Each answer's ``datepoll_date_id``\nmust belong to this poll; availability is constrained to the\ntri-state at the schema layer. Duplicate dates collapse (last\nwins). At least one answered date is required.\n\nReturns a bare 201 \u2014 nothing identifies the submission to the\nclient; there is no read-back endpoint.",
+        "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\nrevisit and edit.",
         "operationId": "submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post",
         "parameters": [
           {
@@ -4125,7 +4344,9 @@
           "201": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollSubmitAck"
+                }
               }
             },
             "description": "Successful Response"
@@ -4142,6 +4363,100 @@
           }
         },
         "summary": "Submit Datepoll",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/by-token/{token}": {
+      "get": {
+        "description": "Current values of a submission, for pre-filling the edit form.",
+        "operationId": "get_datepoll_submission_api_v1_datepolls_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Datepoll Submission",
+        "tags": [
+          "datepolls"
+        ]
+      },
+      "put": {
+        "description": "Update a submission in place via its edit-link token. Replaces\nthe per-date answers and the pseudonym.",
+        "operationId": "update_datepoll_submission_api_v1_datepolls_by_token__token__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatepollSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Datepoll Submission",
         "tags": [
           "datepolls"
         ]
@@ -5144,6 +5459,100 @@
           }
         },
         "summary": "Create Signup",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/by-token/{token}": {
+      "get": {
+        "description": "Current values of a signup, for pre-filling the edit form.\nEmail is never returned (it isn't reachable from a signup).",
+        "operationId": "get_signup_api_v1_events_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Signup",
+        "tags": [
+          "signups"
+        ]
+      },
+      "put": {
+        "description": "Update a signup's non-email fields via its edit-link token.\nEmail + dispatch rows are untouched \u2014 there is no path from a\nsignup to its encrypted address (principle #2).",
+        "operationId": "update_signup_api_v1_events_by_token__token__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignupEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignupEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Signup",
         "tags": [
           "signups"
         ]
@@ -6317,7 +6726,7 @@
     },
     "/api/v1/forms/by-slug/{slug}/submit": {
       "post": {
-        "description": "Accept one public submission. Validates each answer\nagainst its question's stored kind. Skipped optional\nquestions are simply absent from the stored rows; skipped\nrequired questions 400.\n\nReturns the random ``submission_id`` so the client can\nconfirm the submit landed. Nothing in the response links the\nsubmission back to the submitter \u2014 same privacy contract as\nthe post-event feedback flow.",
+        "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\nrevisit and edit. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
         "operationId": "submit_form_api_v1_forms_by_slug__slug__submit_post",
         "parameters": [
           {
@@ -6363,6 +6772,100 @@
           }
         },
         "summary": "Submit Form",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-token/{token}": {
+      "get": {
+        "description": "Current values of a submission, for pre-filling the edit form.\nGated by the secret token (the link).",
+        "operationId": "get_form_submission_api_v1_forms_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form Submission",
+        "tags": [
+          "forms"
+        ]
+      },
+      "put": {
+        "description": "Update a submission in place via its edit-link token. Replaces\nthe submission's answer rows and the pseudonym.",
+        "operationId": "update_form_submission_api_v1_forms_by_token__token__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormEditOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Form Submission",
         "tags": [
           "forms"
         ]

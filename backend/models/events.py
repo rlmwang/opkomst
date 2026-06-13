@@ -106,6 +106,10 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     # into (e.g. ["opbouwen"]). Empty when the event has no help_options
     # configured or the attendee skipped the question.
     help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # SHA-256 of the respondent's secret edit-link token (raw token
+    # never stored). Grants edit access to this one signup; never
+    # exposed to the organiser. See ``services/edit_token.py``.
+    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
     # No email column on this table. The encrypted recipient address
     # lives on ``EmailDispatch.encrypted_email`` — one copy per
     # (signup, channel) row the email applies to. Absence of a

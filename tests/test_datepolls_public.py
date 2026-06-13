@@ -44,7 +44,7 @@ def test_public_get_archived_410s(client, organiser_headers):
     assert client.get(f"/api/v1/datepolls/by-slug/{poll['slug']}").status_code == 410
 
 
-def test_submit_happy_path_201_no_body(client, organiser_headers):
+def test_submit_happy_path_returns_edit_token(client, organiser_headers):
     poll = _create(client, organiser_headers, ["2026-08-01", "2026-08-02"])
     d0 = poll["dates"][0]["id"]
     r = client.post(
@@ -55,7 +55,7 @@ def test_submit_happy_path_201_no_body(client, organiser_headers):
         },
     )
     assert r.status_code == 201
-    assert r.content in (b"", b"null")  # bare 201, no payload
+    assert r.json()["edit_token"]  # the secret edit-link token, returned once
     subs = client.get(f"/api/v1/datepolls/{poll['id']}/submissions", headers=organiser_headers).json()
     assert len(subs) == 1
     assert subs[0]["display_name"] == "Alex"

@@ -30,10 +30,13 @@ from ..config import settings
 from ..database import get_db
 from ..models import Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
+    FormAnswerIn,
+    FormEditOut,
     FormSubmitAck,
     FormSubmitIn,
     PublicFormOut,
 )
+from ..services import edit_token
 from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
@@ -80,29 +83,13 @@ def get_public_form(slug: str, db: Session = Depends(get_db)) -> PublicFormOut:
     return forms_svc.to_public_out(db, _resolve_form(db, slug))
 
 
-@router.post("/by-slug/{slug}/submit", response_model=FormSubmitAck, status_code=201)
-@limiter.limit(Limits.PUBLIC_SUBMIT)
-def submit_form(
-    request: Request,
-    slug: str,
-    data: FormSubmitIn,
-    db: Session = Depends(get_db),
-) -> FormSubmitAck:
-    """Accept one public submission. Validates each answer
-    against its question's stored kind. Skipped optional
-    questions are simply absent from the stored rows; skipped
-    required questions 400.
-
-    Returns the random ``submission_id`` so the client can
-    confirm the submit landed. Nothing in the response links the
-    submission back to the submitter — same privacy contract as
-    the post-event feedback flow."""
-    form = _resolve_form(db, slug)
-    questions = _form_questions(db, form.id)
+def _build_submitted(questions: list[FormQuestion], answers: list[FormAnswerIn]) -> dict[str, dict[str, object]]:
+    """Per-kind validation of a public answer payload → ``{question_id:
+    fields}``. Skipped optional questions are absent; a skipped
+    required question 400s. Shared by submit + edit."""
     by_id = {q.id: q for q in questions}
-
     submitted: dict[str, dict[str, object]] = {}
-    for ans in data.answers:
+    for ans in answers:
         q = by_id.get(ans.question_id)
         if not q:
             raise HTTPException(status_code=400, detail="Unknown question_id")
@@ -120,15 +107,9 @@ def submit_form(
             if not choices:
                 continue
             if len(choices) != 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Question {q.id} expects one choice.",
-                )
+                raise HTTPException(status_code=400, detail=f"Question {q.id} expects one choice.")
             if choices[0] not in q.options:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Question {q.id}: choice not in options.",
-                )
+                raise HTTPException(status_code=400, detail=f"Question {q.id}: choice not in options.")
             submitted[q.id] = {"answer_choices": list(choices)}
         elif q.kind == "multi_choice":
             choices = ans.answer_choices or []
@@ -136,12 +117,8 @@ def submit_form(
                 continue
             invalid = [c for c in choices if c not in q.options]
             if invalid:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Question {q.id}: choices not in options: {invalid}",
-                )
-            # Drop duplicates while preserving order — multi-choice
-            # is a set semantically.
+                raise HTTPException(status_code=400, detail=f"Question {q.id}: choices not in options: {invalid}")
+            # Drop duplicates while preserving order — multi-choice is a set.
             seen: set[str] = set()
             unique = [c for c in choices if not (c in seen or seen.add(c))]
             submitted[q.id] = {"answer_choices": unique}
@@ -151,22 +128,95 @@ def submit_form(
     for q in questions:
         if q.required and q.id not in submitted:
             raise HTTPException(status_code=400, detail=f"Question {q.id} is required.")
+    return submitted
 
-    submission = FormSubmission(form_id=form.id, display_name=data.display_name)
-    db.add(submission)
-    db.flush()  # need submission.id for the response rows
+
+def _write_responses(db: Session, form_id: str, submission_id: str, submitted: dict[str, dict[str, object]]) -> None:
     for qid, fields in submitted.items():
         db.add(
             FormResponse(
-                form_id=form.id,
+                form_id=form_id,
                 question_id=qid,
-                submission_id=submission.id,
+                submission_id=submission_id,
                 answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
                 answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
                 answer_choices=fields.get("answer_choices"),  # type: ignore[arg-type]
             )
         )
 
+
+def _answers_for(db: Session, submission_id: str) -> dict[str, object]:
+    out: dict[str, object] = {}
+    for r in db.query(FormResponse).filter(FormResponse.submission_id == submission_id).all():
+        if r.answer_int is not None:
+            out[r.question_id] = r.answer_int
+        elif r.answer_text is not None:
+            out[r.question_id] = r.answer_text
+        elif r.answer_choices is not None:
+            out[r.question_id] = list(r.answer_choices)
+    return out
+
+
+def _submission_by_token(db: Session, token: str) -> FormSubmission:
+    """Resolve an edit-link token to its submission. 404 if the token
+    doesn't match; 410 if the form is no longer public (archived)."""
+    sub = db.query(FormSubmission).filter(FormSubmission.edit_token_hash == edit_token.hash_edit_token(token)).first()
+    if sub is None:
+        raise HTTPException(status_code=404, detail="This edit link is not valid.")
+    form = db.query(Form).filter(Form.id == sub.form_id).first()
+    if form is None or form.archived_at is not None:
+        raise HTTPException(status_code=410, detail="This form is no longer available.")
+    return sub
+
+
+@router.post("/by-slug/{slug}/submit", response_model=FormSubmitAck, status_code=201)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
+def submit_form(
+    request: Request,
+    slug: str,
+    data: FormSubmitIn,
+    db: Session = Depends(get_db),
+) -> FormSubmitAck:
+    """Accept one public submission. Mints a secret edit-link token
+    (raw returned once; only its hash stored) so the respondent can
+    revisit and edit. Nothing in the response links the submission
+    back to a person beyond the self-chosen pseudonym."""
+    form = _resolve_form(db, slug)
+    submitted = _build_submitted(_form_questions(db, form.id), data.answers)
+
+    raw_token, token_hash = edit_token.new_edit_token()
+    submission = FormSubmission(form_id=form.id, display_name=data.display_name, edit_token_hash=token_hash)
+    db.add(submission)
+    db.flush()  # need submission.id for the response rows
+    _write_responses(db, form.id, submission.id, submitted)
     db.commit()
     logger.info("form_submitted", form_id=form.id, submission_id=submission.id)
-    return FormSubmitAck(submission_id=submission.id)
+    return FormSubmitAck(submission_id=submission.id, edit_token=raw_token)
+
+
+@router.get("/by-token/{token}", response_model=FormEditOut)
+def get_form_submission(token: str, db: Session = Depends(get_db)) -> FormEditOut:
+    """Current values of a submission, for pre-filling the edit form.
+    Gated by the secret token (the link)."""
+    sub = _submission_by_token(db, token)
+    return FormEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+
+
+@router.put("/by-token/{token}", response_model=FormEditOut)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
+def update_form_submission(
+    request: Request,
+    token: str,
+    data: FormSubmitIn,
+    db: Session = Depends(get_db),
+) -> FormEditOut:
+    """Update a submission in place via its edit-link token. Replaces
+    the submission's answer rows and the pseudonym."""
+    sub = _submission_by_token(db, token)
+    submitted = _build_submitted(_form_questions(db, sub.form_id), data.answers)
+    db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
+    sub.display_name = data.display_name
+    _write_responses(db, sub.form_id, sub.id, submitted)
+    db.commit()
+    logger.info("form_submission_edited", form_id=sub.form_id, submission_id=sub.id)
+    return FormEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]

@@ -31,6 +31,10 @@ export interface ChromeStrings {
   explainerBody: string;
   explainerLink: string;
   imageCredit: string;
+  editPrompt: string;
+  editWarning: string;
+  copy: string;
+  copied: string;
 }
 
 const chrome: Record<Locale, ChromeStrings> = {
@@ -47,6 +51,10 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerBody: "We slaan geen e-mailadres of tracking op. De code is open source:",
     explainerLink: "bekijk de broncode",
     imageCredit: "Ontwerp:",
+    editPrompt: "Wil je dit later aanpassen? Bewaar dan deze link:",
+    editWarning: "Sla 'm op voordat je deze pagina sluit, want we kunnen de link niet opnieuw sturen.",
+    copy: "Kopiëren",
+    copied: "Gekopieerd",
   },
   en: {
     loading: "Loading…",
@@ -61,6 +69,10 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerBody: "We store no email address and no tracking. The code is open source:",
     explainerLink: "view the source",
     imageCredit: "Design:",
+    editPrompt: "Want to change this later? Keep this link:",
+    editWarning: "Save it before you close this page — we can't send the link again.",
+    copy: "Copy",
+    copied: "Copied",
   },
 };
 

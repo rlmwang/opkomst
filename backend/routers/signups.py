@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..database import get_db
-from ..models import EmailChannel, EmailDispatch, EmailStatus, Signup, User
-from ..schemas.events import SignupAck, SignupCreate
-from ..services import access, encryption
+from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Signup, User
+from ..schemas.events import SignupAck, SignupCreate, SignupEditIn, SignupEditOut
+from ..services import access, edit_token, encryption
 from ..services import events as events_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
@@ -51,12 +51,14 @@ def create_signup(
     if has_email and event.reminder_enabled and event_in_future:
         channels.append(EmailChannel.REMINDER)
 
+    raw_token, token_hash = edit_token.new_edit_token()
     signup = Signup(
         event_id=event.id,
         display_name=data.display_name,
         party_size=data.party_size,
         source_choice=data.source_choice,
         help_choices=data.help_choices,
+        edit_token_hash=token_hash,
     )
     db.add(signup)
 
@@ -83,7 +85,70 @@ def create_signup(
         party_size=data.party_size,
         channels=[c.value for c in channels],
     )
-    return SignupAck()
+    return SignupAck(edit_token=raw_token)
+
+
+def _signup_by_token(db: Session, token: str) -> Signup:
+    """Resolve an edit-link token to its signup. 404 if no match; 410
+    if the event is archived or already over (editing headcount for a
+    past event is moot). The signup carries no email and no key to its
+    dispatch rows, so this read-back can't reach the address."""
+    signup = db.query(Signup).filter(Signup.edit_token_hash == edit_token.hash_edit_token(token)).first()
+    if signup is None:
+        raise HTTPException(status_code=404, detail="This edit link is not valid.")
+    event = db.query(Event).filter(Event.id == signup.event_id).first()
+    if event is None or event.archived_at is not None or event.ends_at <= now_wallclock():
+        raise HTTPException(status_code=410, detail="This event is no longer open for changes.")
+    return signup
+
+
+@router.get("/by-token/{token}", response_model=SignupEditOut)
+def get_signup(token: str, db: Session = Depends(get_db)) -> SignupEditOut:
+    """Current values of a signup, for pre-filling the edit form.
+    Email is never returned (it isn't reachable from a signup)."""
+    signup = _signup_by_token(db, token)
+    return SignupEditOut(
+        display_name=signup.display_name,
+        party_size=signup.party_size,
+        source_choice=signup.source_choice,
+        help_choices=signup.help_choices,
+    )
+
+
+@router.put("/by-token/{token}", response_model=SignupEditOut)
+@limiter.limit(Limits.PUBLIC_SIGNUP)
+def update_signup(
+    request: Request,
+    token: str,
+    data: SignupEditIn,
+    db: Session = Depends(get_db),
+) -> SignupEditOut:
+    """Update a signup's non-email fields via its edit-link token.
+    Email + dispatch rows are untouched — there is no path from a
+    signup to its encrypted address (principle #2)."""
+    signup = _signup_by_token(db, token)
+    event = db.query(Event).filter(Event.id == signup.event_id).first()
+    assert event is not None  # _signup_by_token already proved it
+    if data.source_choice is not None and data.source_choice not in event.source_options:
+        raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
+    invalid_help = [c for c in data.help_choices if c not in event.help_options]
+    if invalid_help:
+        raise HTTPException(
+            status_code=400,
+            detail=f"help_choices must be a subset of the event's help_options: {invalid_help}",
+        )
+    signup.display_name = data.display_name
+    signup.party_size = data.party_size
+    signup.source_choice = data.source_choice
+    signup.help_choices = data.help_choices
+    db.commit()
+    logger.info("signup_edited", event_id=signup.event_id, signup_id=signup.id)
+    return SignupEditOut(
+        display_name=signup.display_name,
+        party_size=signup.party_size,
+        source_choice=signup.source_choice,
+        help_choices=signup.help_choices,
+    )
 
 
 @router.delete("/{event_id}/signups/{signup_id}", status_code=204)

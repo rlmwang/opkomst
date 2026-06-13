@@ -3,14 +3,21 @@ import { computed, onMounted, ref, watch } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
+import EditLink from "@/public_shared/EditLink.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
 import BrandedSelect from "./BrandedSelect.vue";
-import { ApiError, type PublicEvent, fetchEventBySlug, postSignup } from "./api";
+import { ApiError, type PublicEvent, fetchEventBySlug, fetchSignup, postSignup, putSignup } from "./api";
 import { type Locale, pickLocale, strings } from "./i18n";
 
 const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
+// ``?s={token}`` puts the page in edit mode: pre-fill the existing
+// signup and PUT instead of POST. Email is never editable (no path
+// from a signup to its decoupled dispatch rows), so the email field
+// is hidden in this mode.
+const editToken = new URL(window.location.href).searchParams.get("s");
+const editing = editToken !== null;
 
 // Server-side-injected event payload. Synchronous, no round-trip
 // on first paint — ``backend/routers/spa.py`` writes
@@ -115,6 +122,33 @@ function clearDraft() {
 const submitting = ref(false);
 const submitted = ref(false);
 const errorMsg = ref<string | null>(null);
+
+// Token to surface on the confirmation screen (the edit link). Fresh
+// submit → freshly-minted token; edit → the same token from the URL
+// (reusable while the event is open).
+const savedToken = ref<string | null>(null);
+const editUrl = computed(() =>
+  savedToken.value ? `${window.location.origin}/e/${slug}?s=${savedToken.value}` : "",
+);
+
+if (editing) {
+  // Pre-fill from the server, overriding any leftover draft. Email is
+  // not returned and stays blank (the field is hidden anyway).
+  fetchSignup(editToken!)
+    .then((s) => {
+      displayName.value = s.display_name ?? "";
+      partySize.value = s.party_size;
+      sourceChoice.value = s.source_choice;
+      helpChoices.value = s.help_choices;
+    })
+    .catch((err) => {
+      if (err instanceof ApiError && (err.status === 404 || err.status === 410)) {
+        notFound.value = true;
+      } else {
+        loadFailed.value = true;
+      }
+    });
+}
 
 const emailFieldShown = computed(
   () => Boolean(event.value && (event.value.feedback_enabled || event.value.reminder_enabled)),
@@ -241,13 +275,24 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    await postSignup(slug, {
-      display_name: trimmedName || null,
-      party_size: partySize.value,
-      source_choice: sourceChoice.value,
-      help_choices: helpChoices.value,
-      email: trimmedEmail || null,
-    });
+    if (editing) {
+      await putSignup(editToken!, {
+        display_name: trimmedName || null,
+        party_size: partySize.value,
+        source_choice: sourceChoice.value,
+        help_choices: helpChoices.value,
+      });
+      savedToken.value = editToken;
+    } else {
+      const ack = await postSignup(slug, {
+        display_name: trimmedName || null,
+        party_size: partySize.value,
+        source_choice: sourceChoice.value,
+        help_choices: helpChoices.value,
+        email: trimmedEmail || null,
+      });
+      savedToken.value = ack.edit_token;
+    }
     submitted.value = true;
     clearDraft();
   } catch {
@@ -375,12 +420,15 @@ watch(event, (e) => {
         </details>
       </div>
 
-      <div v-if="submitted" class="card stack">
-        <h2>{{ t.thanks }}</h2>
-        <p class="muted">
-          {{ event?.feedback_enabled ? t.thanksBody : t.thanksBodyNoEmail }}
-        </p>
-      </div>
+      <template v-if="submitted">
+        <div class="card stack">
+          <h2>{{ t.thanks }}</h2>
+          <p class="muted">
+            {{ event?.feedback_enabled ? t.thanksBody : t.thanksBodyNoEmail }}
+          </p>
+        </div>
+        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
+      </template>
 
       <form
         v-else
@@ -453,7 +501,7 @@ watch(event, (e) => {
             :aria-label="t.sourcePlaceholder"
           />
           <input
-            v-if="!event || emailFieldShown"
+            v-if="!editing && (!event || emailFieldShown)"
             v-model="email"
             type="email"
             class="input"
