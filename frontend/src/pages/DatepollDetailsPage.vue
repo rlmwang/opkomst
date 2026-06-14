@@ -77,6 +77,26 @@ function pct(value: number): string {
   return total ? `${Math.round((value / total) * 100)}%` : "0%";
 }
 
+// Rank the top three slots by the same rule the backend uses for the
+// winner (most yes, tie-break fewest no); only slots with ≥1 yes rank.
+// Shown as a 1st/2nd/3rd chip in front of each slot (chronological)
+// row; a reserved-width slot keeps the labels aligned.
+const rankById = computed<Record<string, number>>(() => {
+  const ranked = [...(summary.value?.slots ?? [])]
+    .filter((s) => s.yes > 0)
+    .sort((a, b) => b.yes - a.yes || a.no - b.no)
+    .slice(0, 3);
+  const map: Record<string, number> = {};
+  ranked.forEach((s, i) => {
+    map[s.id] = i + 1;
+  });
+  return map;
+});
+function rankLabel(id: string): string {
+  const r = rankById.value[id];
+  return r ? t(`datepolls.details.rank${r}`) : "";
+}
+
 async function exportCsv() {
   if (!poll.value || !summary.value) return;
   try {
@@ -199,10 +219,10 @@ async function exportCsv() {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in summary.slots" :key="s.id" :class="{ best: s.id === summary.best_slot_id }">
+              <tr v-for="s in summary.slots" :key="s.id">
                 <td class="slot-col">
+                  <span class="rank" :class="rankById[s.id] ? `r${rankById[s.id]}` : ''">{{ rankLabel(s.id) }}</span>
                   {{ slotHeading(s) }}
-                  <span v-if="s.id === summary.best_slot_id" class="best-badge">{{ t("datepolls.details.best") }}</span>
                 </td>
                 <td v-for="kind in (['yes', 'maybe', 'no'] as const)" :key="kind" class="bar-cell">
                   <div class="bar-track"><div class="bar-fill" :class="kind" :style="{ width: pct(s[kind]) }" /></div>
@@ -302,15 +322,26 @@ async function exportCsv() {
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
 }
-.tally .slot-col { white-space: nowrap; font-weight: 600; }
-.tally tbody tr.best .slot-col { color: #1f7a3c; }
-.tally tbody tr.best { background: rgba(31, 122, 60, 0.06); }
-.tally tbody tr.best td:first-child { border-radius: 8px 0 0 8px; }
-.tally tbody tr.best td:last-child { border-radius: 0 8px 8px 0; }
-.best-badge {
-  margin-left: 0.5rem; padding: 0.0625rem 0.5rem; border-radius: 999px;
-  background: #1f7a3c; color: white; font-size: 0.6875rem; font-weight: 600;
+.tally .slot-col { white-space: nowrap; }
+/* Reserved-width rank chip in front of the slot label so all labels
+ * align whether or not the row is ranked. */
+.rank {
+  display: inline-block;
+  width: 2.25rem;
+  margin-right: 0.5rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
+.rank.r1, .rank.r2, .rank.r3 {
+  border-radius: 999px;
+  padding: 0.0625rem 0;
+  color: #fff;
+}
+.rank.r1 { background: #1f7a3c; }
+.rank.r2 { background: #8a8f98; }
+.rank.r3 { background: #b8763a; }
 /* Bar cell: a track that fills the column width + a fixed count. */
 .bar-cell { width: 30%; }
 .bar-track {
