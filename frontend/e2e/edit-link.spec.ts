@@ -54,8 +54,8 @@ test("visitor edits a signup via the magic link on the confirmation page", async
     timeout: 5_000,
   });
 
-  // The edit link is the readonly field inside the EditLink card.
-  const editUrl = await v.locator(".link-field").inputValue();
+  // The edit link is the anchor inside the EditLink card.
+  const editUrl = (await v.locator(".edit-link .link").getAttribute("href")) ?? "";
   expect(editUrl).toContain(`/e/${event.slug}?s=`);
 
   // --- reopen the link: prior answer pre-filled, editable ---
@@ -69,5 +69,5 @@ test("visitor edits a signup via the magic link on the confirmation page", async
     timeout: 5_000,
   });
   // Same token still resolves (reusable while the event is open).
-  await expect(e.locator(".link-field")).toHaveValue(editUrl);
+  await expect(e.locator(".edit-link .link")).toHaveAttribute("href", editUrl);
 });
