@@ -327,13 +327,13 @@ async function exportCsv() {
 /* Per-slot tally table — borderless, minimal. One row per slot;
  * yes/maybe/no cells each hold a proportional bar + count. */
 .tally { width: 100%; border-collapse: collapse; }
-.tally th, .tally td { padding: 0.45rem 0.625rem; text-align: left; vertical-align: middle; }
+.tally th, .tally td { padding: 0.3rem 0.4rem; text-align: left; vertical-align: middle; }
 .tally thead th {
   font-weight: 500;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
 }
-.tally .slot-col { white-space: nowrap; }
+.tally .slot-col { white-space: nowrap; font-size: 0.8125rem; }
 /* Reserved-width rank chip in front of the slot label so all labels
  * align whether or not the row is ranked. */
 .rank {
@@ -366,22 +366,22 @@ async function exportCsv() {
 .bar-cell.combo { width: 44%; }
 .bar-track {
   display: inline-flex;
-  width: calc(100% - 1.9rem);
+  width: calc(100% - 1.4rem);
   height: 0.625rem;
   background: var(--brand-border);
   border-radius: 999px;
   overflow: hidden;
   vertical-align: middle;
 }
-.combo .bar-track { width: calc(100% - 3.5rem); }
+.combo .bar-track { width: calc(100% - 2.7rem); }
 .bar-fill { height: 100%; }
 .bar-fill.yes { background: #1f7a3c; }
 .bar-fill.maybe { background: #c98a00; }
 .bar-fill.no { background: var(--brand-text-muted); }
 .bar-count {
   display: inline-block;
-  width: 1.5rem;
-  margin-left: 0.25rem;
+  width: 1.15rem;
+  margin-left: 0.15rem;
   text-align: right;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
