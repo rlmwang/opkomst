@@ -16,9 +16,9 @@ import { del, get, post, put } from "@/api/client";
 import { listOf, useApiQuery } from "@/api/queries";
 import type {
   DatepollCreate,
-  DatepollDateOut,
   DatepollListOut,
   DatepollOut,
+  DatepollSlotOut,
   DatepollSubmission,
   DatepollSummary,
   DatepollUpdate,
@@ -27,9 +27,9 @@ import type {
 
 export type {
   DatepollCreate,
-  DatepollDateOut,
   DatepollListOut,
   DatepollOut,
+  DatepollSlotOut,
   DatepollSubmission,
   DatepollSummary,
   DatepollUpdate,

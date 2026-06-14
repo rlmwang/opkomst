@@ -55,6 +55,14 @@ function shortDate(iso: string): string {
   });
 }
 
+// A slot's column/heading label: the short date, plus the time range
+// when it's a timed slot (whole-day slots show the date alone — no
+// "whole day" label).
+function slotHeading(s: { on_date: string; start_time?: string | null; end_time?: string | null }): string {
+  const times = s.start_time && s.end_time ? ` ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}` : "";
+  return shortDate(s.on_date) + times;
+}
+
 function nameOf(s: DatepollSubmission): string {
   return s.display_name ?? t("datepolls.details.anonymous");
 }
@@ -65,25 +73,19 @@ async function exportCsv() {
   if (!poll.value || !summary.value) return;
   try {
     const rows = await fetchDatepollSubmissions(props.datepollId);
-    const dates = summary.value.dates;
+    const slots = summary.value.slots;
     const header = [
       t("datepolls.details.csvName"),
       t("datepolls.details.csvSubmittedAt"),
-      ...dates.map((d) => shortDate(d.on_date)),
-      t("datepolls.details.csvComments"),
+      ...slots.map(slotHeading),
+      t("datepolls.details.csvNote"),
     ];
-    const body = rows.map((s) => {
-      const comments = dates
-        .filter((d) => s.comments[d.id])
-        .map((d) => `${shortDate(d.on_date)}: ${s.comments[d.id]}`)
-        .join(" | ");
-      return [
-        nameOf(s),
-        s.created_at,
-        ...dates.map((d) => s.answers[d.id] ?? ""),
-        comments,
-      ];
-    });
+    const body = rows.map((s) => [
+      nameOf(s),
+      s.created_at,
+      ...slots.map((sl) => s.answers[sl.id] ?? ""),
+      s.note ?? "",
+    ]);
     downloadCsv(`${filenameSlug(poll.value.name)}-${poll.value.id}.csv`, [header, ...body]);
   } catch {
     toasts.error(t("datepolls.details.csvFail"));
@@ -176,16 +178,16 @@ async function exportCsv() {
         </p>
 
         <template v-else>
-          <!-- Per-date tallies, winning date highlighted. -->
+          <!-- Per-slot tallies, winning slot highlighted. -->
           <div
-            v-for="d in summary.dates"
-            :key="d.id"
+            v-for="s in summary.slots"
+            :key="s.id"
             class="date-block"
-            :class="{ best: d.id === summary.best_date_id }"
+            :class="{ best: s.id === summary.best_slot_id }"
           >
             <p class="date-head">
-              {{ shortDate(d.on_date) }}
-              <span v-if="d.id === summary.best_date_id" class="best-badge">{{ t("datepolls.details.best") }}</span>
+              {{ slotHeading(s) }}
+              <span v-if="s.id === summary.best_slot_id" class="best-badge">{{ t("datepolls.details.best") }}</span>
             </p>
             <div class="bars">
               <template v-for="kind in (['yes', 'maybe', 'no'] as const)" :key="kind">
@@ -194,14 +196,19 @@ async function exportCsv() {
                   <div
                     class="bar-fill"
                     :class="kind"
-                    :style="{ width: barWidth([d.yes, d.maybe, d.no], d[kind]) }"
+                    :style="{ width: barWidth([s.yes, s.maybe, s.no], s[kind]) }"
                   />
                 </div>
-                <span class="bar-count">{{ d[kind] }}</span>
+                <span class="bar-count">{{ s[kind] }}</span>
               </template>
             </div>
-            <ul v-if="d.comments?.length" class="comments">
-              <li v-for="(c, i) in d.comments" :key="i">{{ c }}</li>
+          </div>
+
+          <!-- Submission notes (one optional note per respondent). -->
+          <div v-if="summary.notes?.length" class="notes-section">
+            <h3>{{ t("datepolls.details.notesTitle") }}</h3>
+            <ul class="comments">
+              <li v-for="(n, i) in summary.notes" :key="i">{{ n }}</li>
             </ul>
           </div>
 
@@ -211,21 +218,22 @@ async function exportCsv() {
               <thead>
                 <tr>
                   <th class="who">{{ t("datepolls.details.respondent") }}</th>
-                  <th v-for="d in summary.dates" :key="d.id">{{ shortDate(d.on_date) }}</th>
+                  <th v-for="s in summary.slots" :key="s.id">{{ slotHeading(s) }}</th>
+                  <th class="note-col">{{ t("datepolls.details.note") }}</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="s in subs" :key="s.submission_id">
-                  <td class="who">{{ nameOf(s) }}</td>
+                <tr v-for="sub in subs" :key="sub.submission_id">
+                  <td class="who">{{ nameOf(sub) }}</td>
                   <td
-                    v-for="d in summary.dates"
-                    :key="d.id"
+                    v-for="s in summary.slots"
+                    :key="s.id"
                     class="cell"
-                    :class="s.answers[d.id] ?? 'none'"
-                    :title="s.comments[d.id] || undefined"
+                    :class="sub.answers[s.id] ?? 'none'"
                   >
-                    {{ s.answers[d.id] ? AVAIL_GLYPH[s.answers[d.id]] : "" }}<span v-if="s.comments[d.id]" class="has-comment">*</span>
+                    {{ sub.answers[s.id] ? AVAIL_GLYPH[sub.answers[s.id]] : "" }}
                   </td>
+                  <td class="note-col">{{ sub.note }}</td>
                 </tr>
               </tbody>
             </table>
@@ -298,13 +306,15 @@ async function exportCsv() {
 .bar-count { text-align: right; color: var(--brand-text-muted); }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
+.notes-section { border-top: 1px solid var(--brand-border); padding-top: 1.25rem; margin-top: 1.25rem; }
+.notes-section h3 { margin: 0 0 0.25rem; font-size: 0.9375rem; }
 
 .grid-wrap { margin-top: 1.5rem; overflow-x: auto; }
 .grid { border-collapse: collapse; font-size: 0.8125rem; }
 .grid th, .grid td { border: 1px solid var(--brand-border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
 .grid th.who, .grid td.who { text-align: left; position: sticky; left: 0; background: var(--brand-surface); }
+.grid th.note-col, .grid td.note-col { text-align: left; white-space: normal; min-width: 8rem; max-width: 16rem; }
 .cell.yes { background: rgba(31, 122, 60, 0.18); }
 .cell.maybe { background: rgba(201, 138, 0, 0.18); }
 .cell.no { background: rgba(0, 0, 0, 0.05); color: var(--brand-text-muted); }
-.has-comment { color: var(--brand-red); font-weight: 700; }
 </style>

@@ -15,8 +15,7 @@ import {
   postSubmission,
   putSubmission,
 } from "./api";
-import { datepollStrings, formatLongDate } from "./i18n";
-import DateRow from "./DateRow.vue";
+import { datepollStrings, formatTimeRange } from "./i18n";
 import MonthCalendar from "./MonthCalendar.vue";
 
 type Status = "loading" | "ready" | "unavailable" | "load-failed" | "submitted";
@@ -28,6 +27,7 @@ const c = computed(() => chromeStrings(locale.value));
 const d = computed(() => datepollStrings(locale.value));
 
 const displayName = ref("");
+const note = ref("");
 const submitting = ref(false);
 const errorMsg = ref("");
 
@@ -39,10 +39,9 @@ const editUrl = computed(() =>
   savedToken.value ? `${window.location.origin}/d/${slug()}?s=${savedToken.value}` : "",
 );
 
-// One answers map keyed by ISO date — the single source of truth both
-// the calendar and the list bind to.
-const answers = reactive<Record<string, { availability: Availability | null; comment: string }>>({});
-const idByIso: Record<string, string> = {};
+// One answers map keyed by slot id — the single source of truth the
+// inline calendar binds to (``null`` = unset).
+const answers = reactive<Record<string, Availability | null>>({});
 
 const slug = (): string => {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -52,18 +51,15 @@ const slug = (): string => {
 function hydrate(p: PublicDatepoll): void {
   poll.value = p;
   locale.value = pickLocale(p.locale);
-  for (const dt of p.dates) {
-    answers[dt.on_date] = { availability: null, comment: "" };
-    idByIso[dt.on_date] = dt.id;
-  }
+  for (const s of p.slots) answers[s.id] = null;
 }
 
-async function prefillFromSubmission(p: PublicDatepoll): Promise<void> {
+async function prefillFromSubmission(): Promise<void> {
   const sub = await fetchSubmission(editToken!);
   displayName.value = sub.display_name ?? "";
-  for (const dt of p.dates) {
-    const v = sub.answers[dt.id];
-    if (v) answers[dt.on_date] = { availability: v.availability, comment: v.comment ?? "" };
+  note.value = sub.note ?? "";
+  for (const [slotId, availability] of Object.entries(sub.answers)) {
+    if (slotId in answers) answers[slotId] = availability;
   }
 }
 
@@ -76,20 +72,32 @@ onMounted(async () => {
   try {
     const loaded = inlined ?? (await fetchDatepollBySlug(slug()));
     hydrate(loaded);
-    if (editToken) await prefillFromSubmission(loaded);
+    if (editToken) await prefillFromSubmission();
     status.value = "ready";
   } catch (e) {
     status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
   }
 });
 
-const sortedIsos = computed(() => poll.value?.dates.map((dt) => dt.on_date).slice().sort() ?? []);
+// Slots come pre-sorted (date, then whole-day before timed, then start
+// time). Group them by day for the calendar cells, and derive the
+// distinct months to render.
+const slotsByIso = computed<Record<string, { id: string; label: string | null }[]>>(() => {
+  const out: Record<string, { id: string; label: string | null }[]> = {};
+  for (const s of poll.value?.slots ?? []) {
+    (out[s.on_date] ??= []).push({
+      id: s.id,
+      label: s.start_time && s.end_time ? formatTimeRange(s.start_time, s.end_time) : null,
+    });
+  }
+  return out;
+});
 
 const months = computed(() => {
   const seen = new Set<string>();
   const out: { year: number; month: number }[] = [];
-  for (const iso of sortedIsos.value) {
-    const [y, m] = iso.split("-").map(Number);
+  for (const s of poll.value?.slots ?? []) {
+    const [y, m] = s.on_date.split("-").map(Number);
     const key = `${y}-${m}`;
     if (!seen.has(key)) {
       seen.add(key);
@@ -99,31 +107,22 @@ const months = computed(() => {
   return out;
 });
 
-const cells = computed<Record<string, Availability | null>>(() =>
-  Object.fromEntries(sortedIsos.value.map((iso) => [iso, answers[iso].availability])),
-);
-
 const CYCLE: (Availability | null)[] = [null, "yes", "maybe", "no"];
-function toggle(iso: string): void {
-  const cur = answers[iso].availability;
-  answers[iso].availability = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+function toggle(slotId: string): void {
+  answers[slotId] = CYCLE[(CYCLE.indexOf(answers[slotId]) + 1) % CYCLE.length];
 }
 
 async function submit(): Promise<void> {
   errorMsg.value = "";
-  const picked = sortedIsos.value
-    .filter((iso) => answers[iso].availability !== null)
-    .map((iso) => ({
-      datepoll_date_id: idByIso[iso],
-      availability: answers[iso].availability as Availability,
-      comment: answers[iso].comment.trim() || null,
-    }));
+  const picked = Object.entries(answers)
+    .filter(([, a]) => a !== null)
+    .map(([slotId, a]) => ({ datepoll_slot_id: slotId, availability: a as Availability }));
   if (picked.length === 0) {
     errorMsg.value = d.value.pickOne;
     return;
   }
   submitting.value = true;
-  const body = { display_name: displayName.value.trim() || null, answers: picked };
+  const body = { display_name: displayName.value.trim() || null, note: note.value.trim() || null, answers: picked };
   try {
     if (editToken) {
       await putSubmission(editToken, body);
@@ -178,42 +177,32 @@ async function submit(): Promise<void> {
 
         <!-- Pseudonym first, mirroring the events sign-up form. -->
         <div class="card">
-        <input v-model="displayName" class="textfield" type="text" :placeholder="c.displayName" maxlength="100" />
-      </div>
+          <input v-model="displayName" class="textfield" type="text" :placeholder="c.displayName" maxlength="100" />
+        </div>
 
-      <div class="card">
-        <p class="intro muted">{{ d.intro }}</p>
-        <p class="legend">
-          <span class="legend-label">{{ d.legend }}</span>
-          <span class="swatch yes">{{ d.yes }}</span>
-          <span class="swatch maybe">{{ d.maybe }}</span>
-          <span class="swatch no">{{ d.no }}</span>
-        </p>
-        <div class="months">
+        <div class="card">
+          <p class="intro muted">{{ d.intro }}</p>
+          <p class="legend">
+            <span class="legend-label">{{ d.legend }}</span>
+            <span class="swatch yes">{{ d.yes }}</span>
+            <span class="swatch maybe">{{ d.maybe }}</span>
+            <span class="swatch no">{{ d.no }}</span>
+          </p>
           <MonthCalendar
             v-for="m in months"
             :key="`${m.year}-${m.month}`"
             :year="m.year"
             :month="m.month"
-            :cells="cells"
+            :slots-by-iso="slotsByIso"
+            :answers="answers"
             :locale="locale"
             @toggle="toggle"
           />
         </div>
-      </div>
 
-      <div class="card">
-        <DateRow
-          v-for="iso in sortedIsos"
-          :key="iso"
-          :label="formatLongDate(iso, locale)"
-          :state="answers[iso].availability"
-          :comment="answers[iso].comment"
-          :t="d"
-          @update:state="(v) => (answers[iso].availability = v)"
-          @update:comment="(v) => (answers[iso].comment = v)"
-        />
-      </div>
+        <div class="card">
+          <input v-model="note" class="textfield" type="text" :placeholder="d.notePlaceholder" maxlength="280" />
+        </div>
 
         <div class="card submit-card">
           <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
@@ -248,18 +237,9 @@ async function submit(): Promise<void> {
 .swatch.yes { background: #1f7a3c; }
 .swatch.maybe { background: #c98a00; }
 .swatch.no { background: #6b6b6b; }
-/* Two months side by side; cells stay square (aspect-ratio in
- * MonthCalendar), wrapping to the next row beyond two and collapsing
- * to one column on narrow screens. */
-.months {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem 1.25rem;
-}
-.months :deep(.month) { margin-bottom: 0; }
-@media (max-width: 480px) {
-  .months { grid-template-columns: 1fr; }
-}
+/* Each month renders at full content width, stacked vertically — the
+ * cells are wide enough to hold their time-slot pills inline. */
+.card :deep(.month):last-child { margin-bottom: 0; }
 .submit-card { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
 .error { color: var(--brand-red); margin: 0; }
 .btn-primary {

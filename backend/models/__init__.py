@@ -1,5 +1,5 @@
 from .chapters import Chapter
-from .datepolls import Datepoll, DatepollDate, DatepollResponse, DatepollSubmission
+from .datepolls import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from .email_dispatch import EmailChannel, EmailDispatch, EmailStatus
 from .events import Event, Signup
 from .feedback import FeedbackResponse, FeedbackToken
@@ -9,8 +9,8 @@ from .users import LoginToken, RegistrationToken, User, UserChapter
 __all__ = [
     "Chapter",
     "Datepoll",
-    "DatepollDate",
     "DatepollResponse",
+    "DatepollSlot",
     "DatepollSubmission",
     "EmailChannel",
     "EmailDispatch",

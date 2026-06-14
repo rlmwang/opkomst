@@ -7,9 +7,12 @@
 
 export type Availability = "yes" | "no" | "maybe";
 
-export interface PublicDatepollDate {
+export interface PublicDatepollSlot {
   id: string;
   on_date: string; // YYYY-MM-DD
+  // Whole-day slot ⇒ both null; timed slot ⇒ both "HH:MM[:SS]".
+  start_time: string | null;
+  end_time: string | null;
 }
 
 export interface PublicDatepoll {
@@ -19,17 +22,17 @@ export interface PublicDatepoll {
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: "nl" | "en";
-  dates: PublicDatepollDate[];
+  slots: PublicDatepollSlot[];
 }
 
 export interface SubmitAnswer {
-  datepoll_date_id: string;
+  datepoll_slot_id: string;
   availability: Availability;
-  comment?: string | null;
 }
 
 export interface SubmitPayload {
   display_name?: string | null;
+  note?: string | null;
   answers: SubmitAnswer[];
 }
 
@@ -38,11 +41,12 @@ export interface SubmitAck {
   edit_token: string;
 }
 
-/** A submission's current values, keyed by datepoll-date id, for
- *  pre-filling the edit form. */
+/** A submission's current values for pre-filling the edit form:
+ *  availability keyed by slot id, plus the whole-submission note. */
 export interface DatepollSubmissionValues {
   display_name: string | null;
-  answers: Record<string, { availability: Availability; comment: string | null }>;
+  note: string | null;
+  answers: Record<string, Availability>;
 }
 
 export class ApiError extends Error {

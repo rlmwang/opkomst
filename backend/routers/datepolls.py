@@ -46,8 +46,8 @@ def create_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    """Create a poll. Candidate dates are optional at create — a blank
-    poll can be saved and dates added on the edit page. The
+    """Create a poll. Candidate slots are optional at create — a blank
+    poll can be saved and slots added on the edit page. The
     caller-supplied ``chapter_id`` must be in the user's set."""
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
     poll = Datepoll(
@@ -60,9 +60,9 @@ def create_datepoll(
         created_by=user.id,
     )
     db.add(poll)
-    db.flush()  # Need poll.id for the date rows below.
-    if data.dates:
-        datepolls_svc.apply_dates(db, poll.id, data.dates)
+    db.flush()  # Need poll.id for the slot rows below.
+    if data.slots:
+        datepolls_svc.apply_slots(db, poll.id, data.slots)
     db.commit()
     db.refresh(poll)
     logger.info("datepoll_created", datepoll_id=poll.id, actor_id=user.id, chapter_id=data.chapter_id)
@@ -119,8 +119,9 @@ def update_datepoll(
     user: User = Depends(require_approved),
 ) -> DatepollOut:
     """Update a poll. Chapter changes are allowed but the new one must
-    be in the user's set. Dates are diff-applied on ``on_date`` — see
-    ``services/datepolls.apply_dates``."""
+    be in the user's set. Slots are diff-applied on
+    ``(on_date, start_time, end_time)`` — see
+    ``services/datepolls.apply_slots``."""
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
     if data.chapter_id != poll.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
@@ -130,7 +131,7 @@ def update_datepoll(
     poll.image_artist_instagram = data.image_artist_instagram
     poll.chapter_id = data.chapter_id
     poll.locale = data.locale
-    datepolls_svc.apply_dates(db, poll.id, data.dates)
+    datepolls_svc.apply_slots(db, poll.id, data.slots)
     db.commit()
     db.refresh(poll)
     logger.info("datepoll_updated", datepoll_id=poll.id, actor_id=user.id)
@@ -249,11 +250,12 @@ def datepoll_summary(
     user: User = Depends(require_approved),
 ) -> DatepollSummaryOut:
     access.get_datepoll_for_user(db, datepoll_id, user)
-    dates, best_date_id = datepolls_svc.date_aggregates(db, datepoll_id)
+    slots, best_slot_id, notes = datepolls_svc.slot_aggregates(db, datepoll_id)
     return DatepollSummaryOut(
         submission_count=datepolls_svc.submission_count(db, datepoll_id),
-        dates=dates,
-        best_date_id=best_date_id,
+        slots=slots,
+        best_slot_id=best_slot_id,
+        notes=notes,
     )
 
 
@@ -263,7 +265,7 @@ def datepoll_submissions(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollSubmissionOut]:
-    """Per-submission rows, keyed by date id. CSV source.
+    """Per-submission rows, keyed by slot id. CSV source.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""

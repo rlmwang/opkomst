@@ -295,7 +295,7 @@
         "type": "object"
       },
       "DatepollAnswerIn": {
-        "description": "One answered date on the public submit payload.",
+        "description": "One answered slot on the public submit payload.",
         "properties": {
           "availability": {
             "enum": [
@@ -306,25 +306,13 @@
             "title": "Availability",
             "type": "string"
           },
-          "comment": {
-            "anyOf": [
-              {
-                "maxLength": 280,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comment"
-          },
-          "datepoll_date_id": {
-            "title": "Datepoll Date Id",
+          "datepoll_slot_id": {
+            "title": "Datepoll Slot Id",
             "type": "string"
           }
         },
         "required": [
-          "datepoll_date_id",
+          "datepoll_slot_id",
           "availability"
         ],
         "title": "DatepollAnswerIn",
@@ -336,14 +324,6 @@
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"
-          },
-          "dates": {
-            "items": {
-              "$ref": "#/components/schemas/DatepollDateIn"
-            },
-            "maxItems": 60,
-            "title": "Dates",
-            "type": "array"
           },
           "description": {
             "anyOf": [
@@ -383,6 +363,14 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSlotIn"
+            },
+            "maxItems": 200,
+            "title": "Slots",
+            "type": "array"
           }
         },
         "required": [
@@ -392,88 +380,17 @@
         "title": "DatepollCreate",
         "type": "object"
       },
-      "DatepollDateIn": {
-        "description": "One candidate date on the create / update payload. The natural\nkey is ``on_date`` \u2014 the editor sends a set of dates, never row\nids, so there is no ``id`` field; ``apply_dates`` diffs on\n``on_date`` and preserves the responses of dates that stay.",
-        "properties": {
-          "on_date": {
-            "format": "date",
-            "title": "On Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "on_date"
-        ],
-        "title": "DatepollDateIn",
-        "type": "object"
-      },
-      "DatepollDateOut": {
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "on_date": {
-            "format": "date",
-            "title": "On Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "on_date"
-        ],
-        "title": "DatepollDateOut",
-        "type": "object"
-      },
-      "DatepollDateSummary": {
-        "description": "Per-date aggregate on the organiser details page.",
-        "properties": {
-          "comments": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Comments",
-            "type": "array"
-          },
-          "id": {
-            "title": "Id",
-            "type": "string"
-          },
-          "maybe": {
-            "title": "Maybe",
-            "type": "integer"
-          },
-          "no": {
-            "title": "No",
-            "type": "integer"
-          },
-          "on_date": {
-            "format": "date",
-            "title": "On Date",
-            "type": "string"
-          },
-          "yes": {
-            "title": "Yes",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id",
-          "on_date",
-          "yes",
-          "maybe",
-          "no"
-        ],
-        "title": "DatepollDateSummary",
-        "type": "object"
-      },
       "DatepollEditOut": {
-        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` keyed by date id.",
+        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` maps slot id \u2192\navailability; ``note`` is the whole-submission note.",
         "properties": {
           "answers": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/DatepollEditValue"
+              "enum": [
+                "yes",
+                "no",
+                "maybe"
+              ],
+              "type": "string"
             },
             "title": "Answers",
             "type": "object"
@@ -488,6 +405,17 @@
               }
             ],
             "title": "Display Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
         "required": [
@@ -497,38 +425,8 @@
         "title": "DatepollEditOut",
         "type": "object"
       },
-      "DatepollEditValue": {
-        "description": "One date's prior answer, for pre-filling the edit form.",
-        "properties": {
-          "availability": {
-            "enum": [
-              "yes",
-              "no",
-              "maybe"
-            ],
-            "title": "Availability",
-            "type": "string"
-          },
-          "comment": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comment"
-          }
-        },
-        "required": [
-          "availability"
-        ],
-        "title": "DatepollEditValue",
-        "type": "object"
-      },
       "DatepollListOut": {
-        "description": "List-row DTO. Scalars plus a computed date summary\n(``date_count`` + earliest/latest), so a row is useful without\nshipping every date \u2014 mirrors how ``EventOut`` carries\n``attendee_count`` rather than the signup list.",
+        "description": "List-row DTO. Scalars plus a computed date summary\n(``date_count`` = distinct candidate days + earliest/latest), so a\nrow is useful without shipping every slot \u2014 mirrors how\n``EventOut`` carries ``attendee_count`` rather than the signup\nlist.",
         "properties": {
           "archived": {
             "title": "Archived",
@@ -625,7 +523,7 @@
         "type": "object"
       },
       "DatepollOut": {
-        "description": "Single-poll DTO \u2014 the list fields plus the description and the\nfull candidate-date list (sorted by ``on_date``).",
+        "description": "Single-poll DTO \u2014 the list fields plus the description and the\nfull candidate-slot list (sorted by date then start time).",
         "properties": {
           "archived": {
             "title": "Archived",
@@ -661,13 +559,6 @@
           "date_count": {
             "title": "Date Count",
             "type": "integer"
-          },
-          "dates": {
-            "items": {
-              "$ref": "#/components/schemas/DatepollDateOut"
-            },
-            "title": "Dates",
-            "type": "array"
           },
           "description": {
             "anyOf": [
@@ -742,6 +633,13 @@
             "title": "Name",
             "type": "string"
           },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSlotOut"
+            },
+            "title": "Slots",
+            "type": "array"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -761,21 +659,155 @@
         "title": "DatepollOut",
         "type": "object"
       },
+      "DatepollSlotIn": {
+        "description": "One candidate slot on the create / update payload. The natural\nkey is ``(on_date, start_time, end_time)`` \u2014 the editor sends a set\nof slots, never row ids, so there is no ``id`` field;\n``apply_slots`` diffs on that triple and preserves the responses of\nslots that stay. Whole-day = both times NULL; timed = both set with\n``end > start``.",
+        "properties": {
+          "end_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          }
+        },
+        "required": [
+          "on_date"
+        ],
+        "title": "DatepollSlotIn",
+        "type": "object"
+      },
+      "DatepollSlotOut": {
+        "properties": {
+          "end_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          }
+        },
+        "required": [
+          "id",
+          "on_date"
+        ],
+        "title": "DatepollSlotOut",
+        "type": "object"
+      },
+      "DatepollSlotSummary": {
+        "description": "Per-slot aggregate on the organiser details page.",
+        "properties": {
+          "end_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "maybe": {
+            "title": "Maybe",
+            "type": "integer"
+          },
+          "no": {
+            "title": "No",
+            "type": "integer"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "format": "time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "yes": {
+            "title": "Yes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "on_date",
+          "yes",
+          "maybe",
+          "no"
+        ],
+        "title": "DatepollSlotSummary",
+        "type": "object"
+      },
       "DatepollSubmissionOut": {
-        "description": "One submission as a flat row for the CSV export. ``answers`` and\n``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is\nthe self-chosen pseudonym (NULL = anonymous) \u2014 same privacy\ncontract as the event sign-up name.",
+        "description": "One submission as a flat row for the CSV export. ``answers`` is\nkeyed by ``datepoll_slot_id``. ``display_name`` is the self-chosen\npseudonym (NULL = anonymous) \u2014 same privacy contract as the event\nsign-up name; ``note`` is the optional whole-submission note.",
         "properties": {
           "answers": {
             "additionalProperties": {
               "type": "string"
             },
             "title": "Answers",
-            "type": "object"
-          },
-          "comments": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Comments",
             "type": "object"
           },
           "created_at": {
@@ -794,6 +826,17 @@
             ],
             "title": "Display Name"
           },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
           "submission_id": {
             "title": "Submission Id",
             "type": "string"
@@ -802,9 +845,9 @@
         "required": [
           "submission_id",
           "display_name",
+          "note",
           "created_at",
-          "answers",
-          "comments"
+          "answers"
         ],
         "title": "DatepollSubmissionOut",
         "type": "object"
@@ -824,13 +867,13 @@
         "type": "object"
       },
       "DatepollSubmitIn": {
-        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``answers`` carries one\nentry per date the respondent set a state for.",
+        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``note`` is one optional\nfree-text note on the whole submission. ``answers`` carries one\nentry per slot the respondent set a state for.",
         "properties": {
           "answers": {
             "items": {
               "$ref": "#/components/schemas/DatepollAnswerIn"
             },
-            "maxItems": 60,
+            "maxItems": 200,
             "title": "Answers",
             "type": "array"
           },
@@ -845,6 +888,18 @@
               }
             ],
             "title": "Display Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 280,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
         "required": [
@@ -854,9 +909,9 @@
         "type": "object"
       },
       "DatepollSummaryOut": {
-        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_date_id`` is the most-yes date (tie-break:\nfewest no), or ``None`` when there are no responses.",
+        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_slot_id`` is the most-yes slot (tie-break:\nfewest no), or ``None`` when there are no responses. ``notes`` are\nthe non-empty submission notes, newest first.",
         "properties": {
-          "best_date_id": {
+          "best_slot_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -865,13 +920,20 @@
                 "type": "null"
               }
             ],
-            "title": "Best Date Id"
+            "title": "Best Slot Id"
           },
-          "dates": {
+          "notes": {
             "items": {
-              "$ref": "#/components/schemas/DatepollDateSummary"
+              "type": "string"
             },
-            "title": "Dates",
+            "title": "Notes",
+            "type": "array"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSlotSummary"
+            },
+            "title": "Slots",
             "type": "array"
           },
           "submission_count": {
@@ -881,7 +943,7 @@
         },
         "required": [
           "submission_count",
-          "dates"
+          "slots"
         ],
         "title": "DatepollSummaryOut",
         "type": "object"
@@ -892,14 +954,6 @@
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"
-          },
-          "dates": {
-            "items": {
-              "$ref": "#/components/schemas/DatepollDateIn"
-            },
-            "maxItems": 60,
-            "title": "Dates",
-            "type": "array"
           },
           "description": {
             "anyOf": [
@@ -939,6 +993,14 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSlotIn"
+            },
+            "maxItems": 200,
+            "title": "Slots",
+            "type": "array"
           }
         },
         "required": [
@@ -2391,13 +2453,6 @@
       "PublicDatepollOut": {
         "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
-          "dates": {
-            "items": {
-              "$ref": "#/components/schemas/DatepollDateOut"
-            },
-            "title": "Dates",
-            "type": "array"
-          },
           "description": {
             "anyOf": [
               {
@@ -2446,13 +2501,20 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSlotOut"
+            },
+            "title": "Slots",
+            "type": "array"
           }
         },
         "required": [
           "id",
           "name",
           "locale",
-          "dates"
+          "slots"
         ],
         "title": "PublicDatepollOut",
         "type": "object"
@@ -4105,7 +4167,7 @@
         ]
       },
       "post": {
-        "description": "Create a poll. Candidate dates are optional at create \u2014 a blank\npoll can be saved and dates added on the edit page. The\ncaller-supplied ``chapter_id`` must be in the user's set.",
+        "description": "Create a poll. Candidate slots are optional at create \u2014 a blank\npoll can be saved and slots added on the edit page. The\ncaller-supplied ``chapter_id`` must be in the user's set.",
         "operationId": "create_datepoll_api_v1_datepolls_post",
         "parameters": [
           {
@@ -4411,7 +4473,7 @@
         ]
       },
       "put": {
-        "description": "Update a submission in place via its edit-link token. Replaces\nthe per-date answers and the pseudonym.",
+        "description": "Update a submission in place via its edit-link token. Replaces\nthe per-slot answers, the pseudonym, and the note.",
         "operationId": "update_datepoll_submission_api_v1_datepolls_by_token__token__put",
         "parameters": [
           {
@@ -4570,7 +4632,7 @@
         ]
       },
       "put": {
-        "description": "Update a poll. Chapter changes are allowed but the new one must\nbe in the user's set. Dates are diff-applied on ``on_date`` \u2014 see\n``services/datepolls.apply_dates``.",
+        "description": "Update a poll. Chapter changes are allowed but the new one must\nbe in the user's set. Slots are diff-applied on\n``(on_date, start_time, end_time)`` \u2014 see\n``services/datepolls.apply_slots``.",
         "operationId": "update_datepoll_api_v1_datepolls__datepoll_id__put",
         "parameters": [
           {
@@ -4881,7 +4943,7 @@
     },
     "/api/v1/datepolls/{datepoll_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by date id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
+        "description": "Per-submission rows, keyed by slot id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
         "operationId": "datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get",
         "parameters": [
           {

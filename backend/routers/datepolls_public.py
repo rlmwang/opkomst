@@ -22,10 +22,9 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Datepoll, DatepollDate, DatepollResponse, DatepollSubmission
+from ..models import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from ..schemas.datepolls import (
     DatepollEditOut,
-    DatepollEditValue,
     DatepollSubmitAck,
     DatepollSubmitIn,
     PublicDatepollOut,
@@ -68,30 +67,28 @@ def get_public_datepoll(slug: str, db: Session = Depends(get_db)) -> PublicDatep
     return datepolls_svc.to_public_out(db, _resolve_datepoll(db, slug))
 
 
-def _build_by_date(db: Session, poll_id: str, data: DatepollSubmitIn) -> dict[str, tuple[str, str | None]]:
-    """Validate a submit/edit payload against the poll's dates →
-    ``{date_id: (availability, comment)}``. Duplicate dates collapse
-    (last wins); ≥1 answered date required. Shared by submit + edit."""
-    valid_date_ids = {row[0] for row in db.query(DatepollDate.id).filter(DatepollDate.datepoll_id == poll_id).all()}
-    by_date: dict[str, tuple[str, str | None]] = {}
+def _build_by_slot(db: Session, poll_id: str, data: DatepollSubmitIn) -> dict[str, str]:
+    """Validate a submit/edit payload against the poll's slots →
+    ``{slot_id: availability}``. Duplicate slots collapse (last wins);
+    ≥1 answered slot required. Shared by submit + edit."""
+    valid_slot_ids = {row[0] for row in db.query(DatepollSlot.id).filter(DatepollSlot.datepoll_id == poll_id).all()}
+    by_slot: dict[str, str] = {}
     for ans in data.answers:
-        if ans.datepoll_date_id not in valid_date_ids:
-            raise HTTPException(status_code=400, detail="Unknown datepoll_date_id")
-        comment = (ans.comment or "").strip() or None
-        by_date[ans.datepoll_date_id] = (ans.availability, comment)
-    if not by_date:
-        raise HTTPException(status_code=400, detail="Pick a state for at least one date.")
-    return by_date
+        if ans.datepoll_slot_id not in valid_slot_ids:
+            raise HTTPException(status_code=400, detail="Unknown datepoll_slot_id")
+        by_slot[ans.datepoll_slot_id] = ans.availability
+    if not by_slot:
+        raise HTTPException(status_code=400, detail="Pick a state for at least one slot.")
+    return by_slot
 
 
-def _write_responses(db: Session, submission_id: str, by_date: dict[str, tuple[str, str | None]]) -> None:
-    for date_id, (availability, comment) in by_date.items():
+def _write_responses(db: Session, submission_id: str, by_slot: dict[str, str]) -> None:
+    for slot_id, availability in by_slot.items():
         db.add(
             DatepollResponse(
                 submission_id=submission_id,
-                datepoll_date_id=date_id,
+                datepoll_slot_id=slot_id,
                 availability=availability,
-                comment=comment,
             )
         )
 
@@ -112,9 +109,9 @@ def _submission_by_token(db: Session, token: str) -> DatepollSubmission:
     return sub
 
 
-def _answers_for(db: Session, submission_id: str) -> dict[str, DatepollEditValue]:
+def _answers_for(db: Session, submission_id: str) -> dict[str, str]:
     return {
-        r.datepoll_date_id: DatepollEditValue(availability=r.availability, comment=r.comment)  # type: ignore[arg-type]
+        r.datepoll_slot_id: r.availability
         for r in db.query(DatepollResponse).filter(DatepollResponse.submission_id == submission_id).all()
     }
 
@@ -131,15 +128,20 @@ def submit_datepoll(
     (raw returned once; only its hash stored) so the respondent can
     revisit and edit."""
     poll = _resolve_datepoll(db, slug)
-    by_date = _build_by_date(db, poll.id, data)
+    by_slot = _build_by_slot(db, poll.id, data)
 
     raw_token, token_hash = edit_token.new_edit_token()
-    submission = DatepollSubmission(datepoll_id=poll.id, display_name=data.display_name, edit_token_hash=token_hash)
+    submission = DatepollSubmission(
+        datepoll_id=poll.id,
+        display_name=data.display_name,
+        note=data.note,
+        edit_token_hash=token_hash,
+    )
     db.add(submission)
     db.flush()
-    _write_responses(db, submission.id, by_date)
+    _write_responses(db, submission.id, by_slot)
     db.commit()
-    logger.info("datepoll_submitted", datepoll_id=poll.id, submission_id=submission.id, answers=len(by_date))
+    logger.info("datepoll_submitted", datepoll_id=poll.id, submission_id=submission.id, answers=len(by_slot))
     return DatepollSubmitAck(edit_token=raw_token)
 
 
@@ -147,7 +149,7 @@ def submit_datepoll(
 def get_datepoll_submission(token: str, db: Session = Depends(get_db)) -> DatepollEditOut:
     """Current values of a submission, for pre-filling the edit form."""
     sub = _submission_by_token(db, token)
-    return DatepollEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))
+    return DatepollEditOut(display_name=sub.display_name, note=sub.note, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
 
 
 @router.put("/by-token/{token}", response_model=DatepollEditOut)
@@ -159,12 +161,13 @@ def update_datepoll_submission(
     db: Session = Depends(get_db),
 ) -> DatepollEditOut:
     """Update a submission in place via its edit-link token. Replaces
-    the per-date answers and the pseudonym."""
+    the per-slot answers, the pseudonym, and the note."""
     sub = _submission_by_token(db, token)
-    by_date = _build_by_date(db, sub.datepoll_id, data)
+    by_slot = _build_by_slot(db, sub.datepoll_id, data)
     db.query(DatepollResponse).filter(DatepollResponse.submission_id == sub.id).delete()
     sub.display_name = data.display_name
-    _write_responses(db, sub.id, by_date)
+    sub.note = data.note
+    _write_responses(db, sub.id, by_slot)
     db.commit()
     logger.info("datepoll_submission_edited", datepoll_id=sub.datepoll_id, submission_id=sub.id)
-    return DatepollEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))
+    return DatepollEditOut(display_name=sub.display_name, note=sub.note, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]

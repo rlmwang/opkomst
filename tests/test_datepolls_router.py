@@ -18,26 +18,26 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, dates: list[str] | None = None, name: str = "Test poll") -> dict[str, Any]:
     body: dict[str, Any] = {"chapter_id": _chapter_id(client, headers), "name": name, "locale": "nl"}
     if dates is not None:
-        body["dates"] = [{"on_date": d} for d in dates]
+        body["slots"] = [{"on_date": d} for d in dates]
     r = client.post("/api/v1/datepolls", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
 
-def test_create_returns_sorted_dates(client, organiser_headers):
+def test_create_returns_sorted_slots(client, organiser_headers):
     poll = _create(client, organiser_headers, dates=["2026-07-03", "2026-07-01", "2026-07-02"])
-    assert [d["on_date"] for d in poll["dates"]] == ["2026-07-01", "2026-07-02", "2026-07-03"]
+    assert [s["on_date"] for s in poll["slots"]] == ["2026-07-01", "2026-07-02", "2026-07-03"]
     assert poll["date_count"] == 3
     assert poll["first_date"] == "2026-07-01"
     assert poll["last_date"] == "2026-07-03"
 
 
-def test_list_row_omits_raw_dates_but_carries_summary(client, organiser_headers):
+def test_list_row_omits_raw_slots_but_carries_summary(client, organiser_headers):
     _create(client, organiser_headers, dates=["2026-07-01", "2026-07-05"])
     rows = client.get("/api/v1/datepolls", headers=organiser_headers).json()
     assert len(rows) == 1
     row = rows[0]
-    assert "dates" not in row
+    assert "slots" not in row
     assert row["date_count"] == 2
     assert row["first_date"] == "2026-07-01"
     assert row["last_date"] == "2026-07-05"
@@ -64,23 +64,23 @@ def test_cross_chapter_is_404(client, organiser_headers, admin_headers, db):
     other = Chapter(name="Other chapter")
     db.add(other)
     db.commit()
-    body = {"chapter_id": other.id, "name": "Hidden", "locale": "nl", "dates": []}
+    body = {"chapter_id": other.id, "name": "Hidden", "locale": "nl", "slots": []}
     poll = client.post("/api/v1/datepolls", headers=admin_headers, json=body).json()
     # Organiser (not a member of ``other``) gets 404, not 403.
     assert client.get(f"/api/v1/datepolls/{poll['id']}", headers=organiser_headers).status_code == 404
 
 
-def test_summary_tallies_and_best_date(client, organiser_headers):
+def test_summary_tallies_and_best_slot(client, organiser_headers):
     poll = _create(client, organiser_headers, dates=["2026-07-01", "2026-07-02"])
-    d0, d1 = poll["dates"][0]["id"], poll["dates"][1]["id"]
+    d0, d1 = poll["slots"][0]["id"], poll["slots"][1]["id"]
     slug = poll["slug"]
     # Two yes on d0, one yes + one no on d1.
     client.post(
         f"/api/v1/datepolls/by-slug/{slug}/submit",
         json={
             "answers": [
-                {"datepoll_date_id": d0, "availability": "yes"},
-                {"datepoll_date_id": d1, "availability": "yes"},
+                {"datepoll_slot_id": d0, "availability": "yes"},
+                {"datepoll_slot_id": d1, "availability": "yes"},
             ],
         },
     )
@@ -88,17 +88,17 @@ def test_summary_tallies_and_best_date(client, organiser_headers):
         f"/api/v1/datepolls/by-slug/{slug}/submit",
         json={
             "answers": [
-                {"datepoll_date_id": d0, "availability": "yes"},
-                {"datepoll_date_id": d1, "availability": "no"},
+                {"datepoll_slot_id": d0, "availability": "yes"},
+                {"datepoll_slot_id": d1, "availability": "no"},
             ],
         },
     )
     summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 2
-    by_id = {d["id"]: d for d in summary["dates"]}
+    by_id = {s["id"]: s for s in summary["slots"]}
     assert by_id[d0]["yes"] == 2 and by_id[d0]["no"] == 0
     assert by_id[d1]["yes"] == 1 and by_id[d1]["no"] == 1
-    assert summary["best_date_id"] == d0
+    assert summary["best_slot_id"] == d0
 
 
 def test_image_delete_404_when_no_image(client, organiser_headers):

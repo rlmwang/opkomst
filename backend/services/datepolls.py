@@ -1,33 +1,38 @@
 """Datepolls-feature service helpers.
 
 Mirrors ``services/forms.py``: ``enrich`` / ``to_out`` /
-``to_public_out`` DTO projections, ``apply_dates`` (the candidate-date
-diff, matched on the natural key ``on_date``), and the organiser-side
-reads ``date_aggregates`` / ``submission_count`` / ``submissions``.
+``to_public_out`` DTO projections, ``apply_slots`` (the candidate-slot
+diff, matched on the natural key ``(on_date, start_time, end_time)``),
+and the organiser-side reads ``slot_aggregates`` /
+``submission_count`` / ``submissions``.
 
 Chapter-scoped lookups live in ``services.access``
 (``get_datepoll_for_user`` / ``datepoll_scope_filter``).
 """
 
-from datetime import date
+from datetime import date, time
 from typing import TYPE_CHECKING, Final, get_args
 
-from sqlalchemy import func
+from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Datepoll, DatepollDate, DatepollResponse, DatepollSubmission
+from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from ..schemas.datepolls import (
     Availability,
-    DatepollDateOut,
-    DatepollDateSummary,
     DatepollListOut,
     DatepollOut,
+    DatepollSlotOut,
+    DatepollSlotSummary,
     DatepollSubmissionOut,
     PublicDatepollOut,
 )
 
 if TYPE_CHECKING:
-    from ..schemas.datepolls import DatepollDateIn
+    from ..schemas.datepolls import DatepollSlotIn
+
+# Sort key for a slot's natural ordering: by date, then whole-day
+# (no start time) before timed, then by start time.
+_SlotKey = tuple[date, time | None, time | None]
 
 # Single source of truth for the tri-state, derived from the literal.
 ALLOWED_AVAILABILITY: Final[frozenset[str]] = frozenset(get_args(Availability))
@@ -44,20 +49,35 @@ def get_datepoll_by_slug_any(db: Session, slug: str) -> Datepoll | None:
     return poll
 
 
-def apply_dates(db: Session, datepoll_id: str, dates: list["DatepollDateIn"]) -> None:
-    """Diff-apply the candidate-date set, matched on ``on_date``. New
-    dates insert; dates still present are left untouched (so their
-    responses survive an edit); dates absent from the payload are
-    deleted (the FK cascade takes their responses). Caller commits."""
-    existing = {d.on_date: d for d in db.query(DatepollDate).filter(DatepollDate.datepoll_id == datepoll_id).all()}
-    wanted: set[date] = {d.on_date for d in dates}
+def _slot_key(on_date: date, start_time: time | None, end_time: time | None) -> _SlotKey:
+    return (on_date, start_time, end_time)
 
-    for on_date in wanted:
-        if on_date not in existing:
-            db.add(DatepollDate(datepoll_id=datepoll_id, on_date=on_date))
 
-    for on_date, row in existing.items():
-        if on_date not in wanted:
+def apply_slots(db: Session, datepoll_id: str, slots: list["DatepollSlotIn"]) -> None:
+    """Diff-apply the candidate-slot set, matched on the natural key
+    ``(on_date, start_time, end_time)``. New slots insert; slots still
+    present are left untouched (so their responses survive an edit);
+    slots absent from the payload are deleted (the FK cascade takes
+    their responses). Caller commits."""
+    existing = {
+        _slot_key(s.on_date, s.start_time, s.end_time): s
+        for s in db.query(DatepollSlot).filter(DatepollSlot.datepoll_id == datepoll_id).all()
+    }
+    wanted = {_slot_key(s.on_date, s.start_time, s.end_time): s for s in slots}
+
+    for key, s in wanted.items():
+        if key not in existing:
+            db.add(
+                DatepollSlot(
+                    datepoll_id=datepoll_id,
+                    on_date=s.on_date,
+                    start_time=s.start_time,
+                    end_time=s.end_time,
+                )
+            )
+
+    for key, row in existing.items():
+        if key not in wanted:
             db.delete(row)
     db.flush()
 
@@ -81,15 +101,17 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
     names = _chapter_names(db, {p.chapter_id for p in polls if p.chapter_id})
     poll_ids = [p.id for p in polls]
     summary: dict[str, tuple[int, date | None, date | None]] = {}
+    # ``date_count`` counts distinct candidate days, not slots — a day
+    # with three time-slots is still one day in the list summary.
     rows = (
         db.query(
-            DatepollDate.datepoll_id,
-            func.count(DatepollDate.id),
-            func.min(DatepollDate.on_date),
-            func.max(DatepollDate.on_date),
+            DatepollSlot.datepoll_id,
+            func.count(distinct(DatepollSlot.on_date)),
+            func.min(DatepollSlot.on_date),
+            func.max(DatepollSlot.on_date),
         )
-        .filter(DatepollDate.datepoll_id.in_(poll_ids))
-        .group_by(DatepollDate.datepoll_id)
+        .filter(DatepollSlot.datepoll_id.in_(poll_ids))
+        .group_by(DatepollSlot.datepoll_id)
         .all()
     )
     for pid, count, first, last in rows:
@@ -113,15 +135,23 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
     ]
 
 
-def _dates(db: Session, datepoll_id: str) -> list[DatepollDate]:
-    return db.query(DatepollDate).filter(DatepollDate.datepoll_id == datepoll_id).order_by(DatepollDate.on_date).all()
+def _slots(db: Session, datepoll_id: str) -> list[DatepollSlot]:
+    """Candidate slots in display order: by date, then whole-day
+    (NULL start) before timed, then by start time."""
+    return (
+        db.query(DatepollSlot)
+        .filter(DatepollSlot.datepoll_id == datepoll_id)
+        .order_by(DatepollSlot.on_date, DatepollSlot.start_time.nulls_first())
+        .all()
+    )
 
 
 def to_out(db: Session, poll: Datepoll) -> DatepollOut:
     """Single-poll organiser DTO: list-row fields + description + the
-    full candidate-date list. One chapter lookup + one date query."""
+    full candidate-slot list. One chapter lookup + one slot query."""
     chapter_name = _chapter_names(db, {poll.chapter_id}).get(poll.chapter_id) if poll.chapter_id else None
-    dates = _dates(db, poll.id)
+    slots = _slots(db, poll.id)
+    days = sorted({s.on_date for s in slots})
     return DatepollOut(
         id=poll.id,
         slug=poll.slug,
@@ -131,19 +161,19 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         chapter_name=chapter_name,
         archived=poll.archived_at is not None,
         created_at=poll.created_at,
-        date_count=len(dates),
-        first_date=dates[0].on_date if dates else None,
-        last_date=dates[-1].on_date if dates else None,
+        date_count=len(days),
+        first_date=days[0] if days else None,
+        last_date=days[-1] if days else None,
         description=poll.description,
         image_url=poll.image_url,
         image_artist_instagram=poll.image_artist_instagram,
-        dates=[DatepollDateOut.model_validate(d) for d in dates],
+        slots=[DatepollSlotOut.model_validate(s) for s in slots],
     )
 
 
 def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
     """Public by-slug DTO: name + description + locale + candidate
-    dates in display order, nothing internal."""
+    slots in display order, nothing internal."""
     return PublicDatepollOut(
         id=poll.id,
         name=poll.name,
@@ -151,7 +181,7 @@ def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
         image_url=poll.image_url,
         image_artist_instagram=poll.image_artist_instagram,
         locale=poll.locale,
-        dates=[DatepollDateOut.model_validate(d) for d in _dates(db, poll.id)],
+        slots=[DatepollSlotOut.model_validate(s) for s in _slots(db, poll.id)],
     )
 
 
@@ -164,58 +194,58 @@ def submission_count(db: Session, datepoll_id: str) -> int:
     )
 
 
-def date_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollDateSummary], str | None]:
-    """Per-date yes/maybe/no tallies + date-attached comments (newest
-    first), and the winning date id (most yes, tie-break fewest no,
-    ``None`` when there are no responses at all)."""
-    dates = _dates(db, datepoll_id)
-    date_ids = [d.id for d in dates]
-    if not date_ids:
-        return [], None
+def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSummary], str | None, list[str]]:
+    """Per-slot yes/maybe/no tallies, the winning slot id (most yes,
+    tie-break fewest no, ``None`` when there are no responses at all),
+    and the submission notes (newest first). Comments are no longer
+    per-slot — a respondent leaves one note on the whole submission."""
+    slots = _slots(db, datepoll_id)
+    slot_ids = [s.id for s in slots]
+    if not slot_ids:
+        return [], None, []
 
-    tally: dict[str, dict[str, int]] = {did: {"yes": 0, "no": 0, "maybe": 0} for did in date_ids}
+    tally: dict[str, dict[str, int]] = {sid: {"yes": 0, "no": 0, "maybe": 0} for sid in slot_ids}
     count_rows = (
-        db.query(DatepollResponse.datepoll_date_id, DatepollResponse.availability, func.count(DatepollResponse.id))
-        .filter(DatepollResponse.datepoll_date_id.in_(date_ids))
-        .group_by(DatepollResponse.datepoll_date_id, DatepollResponse.availability)
+        db.query(DatepollResponse.datepoll_slot_id, DatepollResponse.availability, func.count(DatepollResponse.id))
+        .filter(DatepollResponse.datepoll_slot_id.in_(slot_ids))
+        .group_by(DatepollResponse.datepoll_slot_id, DatepollResponse.availability)
         .all()
     )
-    for date_id, availability, count in count_rows:
-        if availability in tally[date_id]:
-            tally[date_id][availability] = int(count)
-
-    comments: dict[str, list[str]] = {did: [] for did in date_ids}
-    comment_rows = (
-        db.query(DatepollResponse.datepoll_date_id, DatepollResponse.comment)
-        .filter(DatepollResponse.datepoll_date_id.in_(date_ids), DatepollResponse.comment.is_not(None))
-        .order_by(DatepollResponse.created_at.desc())
-        .all()
-    )
-    for date_id, comment in comment_rows:
-        comments[date_id].append(comment)
+    for slot_id, availability, count in count_rows:
+        if availability in tally[slot_id]:
+            tally[slot_id][availability] = int(count)
 
     summaries = [
-        DatepollDateSummary(
-            id=d.id,
-            on_date=d.on_date,
-            yes=tally[d.id]["yes"],
-            maybe=tally[d.id]["maybe"],
-            no=tally[d.id]["no"],
-            comments=comments[d.id],
+        DatepollSlotSummary(
+            id=s.id,
+            on_date=s.on_date,
+            start_time=s.start_time,
+            end_time=s.end_time,
+            yes=tally[s.id]["yes"],
+            maybe=tally[s.id]["maybe"],
+            no=tally[s.id]["no"],
         )
-        for d in dates
+        for s in slots
     ]
 
     total_responses = sum(s.yes + s.maybe + s.no for s in summaries)
-    best_date_id: str | None = None
+    best_slot_id: str | None = None
     if total_responses:
         best = max(summaries, key=lambda s: (s.yes, -s.no))
-        best_date_id = best.id
-    return summaries, best_date_id
+        best_slot_id = best.id
+
+    note_rows = (
+        db.query(DatepollSubmission.note)
+        .filter(DatepollSubmission.datepoll_id == datepoll_id, DatepollSubmission.note.is_not(None))
+        .order_by(DatepollSubmission.created_at.desc())
+        .all()
+    )
+    notes = [n for (n,) in note_rows]
+    return summaries, best_slot_id, notes
 
 
 def submissions(db: Session, datepoll_id: str) -> list[DatepollSubmissionOut]:
-    """Per-submission rows for the CSV export, keyed by date id.
+    """Per-submission rows for the CSV export, keyed by slot id.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen ``display_name`` (NULL = anonymous).
@@ -230,19 +260,16 @@ def submissions(db: Session, datepoll_id: str) -> list[DatepollSubmissionOut]:
         return []
     sub_ids = [s.id for s in subs]
     answers: dict[str, dict[str, str]] = {sid: {} for sid in sub_ids}
-    comments: dict[str, dict[str, str]] = {sid: {} for sid in sub_ids}
     for r in db.query(DatepollResponse).filter(DatepollResponse.submission_id.in_(sub_ids)).all():
-        answers[r.submission_id][r.datepoll_date_id] = r.availability
-        if r.comment is not None:
-            comments[r.submission_id][r.datepoll_date_id] = r.comment
+        answers[r.submission_id][r.datepoll_slot_id] = r.availability
 
     return [
         DatepollSubmissionOut(
             submission_id=s.id,
             display_name=s.display_name,
+            note=s.note,
             created_at=s.created_at,
             answers=answers[s.id],
-            comments=comments[s.id],
         )
         for s in subs
     ]

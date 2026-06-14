@@ -8,13 +8,16 @@ out what is shared versus genuinely new.
 
 ## 1. What it is
 
-A **Datepoll** is a dates-only availability poll (think Doodle, but
-no time-slots — whole calendar dates only). An organiser proposes a
-set of candidate dates; anyone with the public link picks **yes /
-maybe / no** per date by toggling cells in a calendar, optionally
-leaves a short pseudonym, and can attach a one-line comment to any
-date. The organiser sees a results grid and per-date tallies to pick
-the winning date.
+A **Datepoll** is an availability poll (think Doodle). An organiser
+proposes a set of candidate **slots** — each a calendar date with an
+optional time range, so a slot is either a whole day or a timed
+window like 19:00–21:00. Anyone with the public link picks **yes /
+maybe / no** per slot by toggling it inline in a full-width month
+calendar, optionally leaves a short pseudonym, and can add **one
+optional note** on the whole submission. The organiser sees a results
+grid and per-slot tallies to pick the winning slot. A poll with only
+whole-day slots is the original dates-only Doodle — time-slots are a
+pure generalisation, not a separate mode.
 
 Non-goals (v1): time-slots within a day, respondent re-editing after
 submit, account-gated voting, notifications/emails of any kind.
@@ -114,28 +117,33 @@ datepolls
   created_at / updated_at
   index ix_datepolls_archived_chapter (archived_at, chapter_id)   -- mirrors forms/events list index
 
-datepoll_dates
+datepoll_slots
   id            uuid pk
   datepoll_id   text not null fk datepolls(id) on delete cascade   -- indexed
-  on_date       date not null                  -- a whole calendar date, no time, no tz
-  unique (datepoll_id, on_date)                 -- a date can't appear twice in one poll
-  -- display order is by on_date ASC; no ordinal column (unlike form questions).
-  -- on_date is the natural key the edit diff matches on (see apply_dates, §7.1) —
-  -- the editor's calendar yields dates, not row ids, so there's no client id to match.
+  on_date       date not null                  -- a whole calendar date, no tz
+  start_time    time null                      -- both NULL = whole-day slot;
+  end_time      time null                      --   both set (end > start) = timed slot
+  unique (datepoll_id, on_date, start_time, end_time) NULLS NOT DISTINCT
+                                                -- a slot can't appear twice; NULLS NOT
+                                                -- DISTINCT makes the whole-day slot
+                                                -- unique per day (PG 15+)
+  -- display order is on_date ASC, then start_time (whole-day first).
+  -- (on_date, start_time, end_time) is the natural key the edit diff matches on
+  -- (see apply_slots, §7.1) — the editor yields slots, not row ids.
 
 datepoll_submissions
   id            uuid pk                          -- this IS the submission identifier
   datepoll_id   text not null fk datepolls(id) on delete cascade   -- indexed
   display_name  text null                        -- pseudonym, real-or-not, NULL = anonymous
+  note          text null                        -- one optional note on the whole submission
   created_at / updated_at
 
 datepoll_responses
   id            uuid pk
   submission_id text not null fk datepoll_submissions(id) on delete cascade   -- indexed
-  datepoll_date_id text not null fk datepoll_dates(id) on delete cascade      -- indexed
+  datepoll_slot_id text not null fk datepoll_slots(id) on delete cascade      -- indexed
   availability  text not null                    -- 'yes' | 'no' | 'maybe'
-  comment       text null                        -- optional one-line note on this date
-  unique (submission_id, datepoll_date_id)        -- one answer per (respondent, date)
+  unique (submission_id, datepoll_slot_id)        -- one answer per (respondent, slot)
   check ck_datepoll_responses_availability (availability in ('yes','no','maybe'))
 ```
 
@@ -149,16 +157,18 @@ Design notes:
   (`ck_datepoll_responses_availability`, hand-written in the
   migration since Alembic doesn't autodetect CHECKs) makes a bad row
   unrepresentable.
-- **A `datepoll_response` row exists only for an answered cell.** An
-  unset date for a respondent = no row (treated as "no opinion").
-  Submit stores a row when `availability` is set **or** `comment` is
-  non-empty; a comment-only cell defaults `availability='maybe'`?
-  No — see §15, decided as: a row requires an explicit `availability`;
-  a comment without a yes/no/maybe is dropped (keeps the grid
-  unambiguous).
-- **`on_date` is a naive calendar `Date`**, not a datetime — this
-  feature is dates-only by definition, so there is no timezone/
-  wall-clock subtlety like Events have.
+- **A `datepoll_response` row exists only for an answered slot.** An
+  unset slot for a respondent = no row (treated as "no opinion"). A
+  row requires an explicit `availability`. There is no per-response
+  comment: a respondent leaves **one optional `note` on the whole
+  submission** (`datepoll_submissions.note`), aggregated for the
+  organiser as a notes list rather than scattered per slot.
+- **A slot is `(on_date, start_time, end_time)`.** Both times NULL =
+  a whole-day slot (the original dates-only poll); both set
+  (`end > start`) = a timed slot. A day carries either one whole-day
+  slot or N timed slots — never both. `on_date`/`start_time`/
+  `end_time` are naive calendar/wall values (no tz); the feature has
+  no timezone subtlety like Events.
 - **The submission/response split follows one rule across the app, not
   a copy of forms.** The shared rule (written up in
   `docs/principles-architecture.md`): a respondent answering a
@@ -178,10 +188,10 @@ One file per concern, mirroring Forms one-to-one.
 
 ```
 backend/
-  models/datepolls.py        Datepoll, DatepollDate, DatepollSubmission, DatepollResponse
+  models/datepolls.py        Datepoll, DatepollSlot, DatepollSubmission, DatepollResponse
   schemas/datepolls.py       DTOs + Availability literal (the kind-enum analogue)
-  services/datepolls.py      enrich / to_out / to_public_out / apply_dates /
-                             date_aggregates / submissions   (mirror services/forms.py)
+  services/datepolls.py      enrich / to_out / to_public_out / apply_slots /
+                             slot_aggregates / submissions   (mirror services/forms.py)
   routers/datepolls.py       chapter-scoped CRUD + organiser reads
   routers/datepolls_public.py  public by-slug fetch + submit + qr.svg
   alembic/versions/...       one migration: 4 tables, enum CHECK, unique + FK cascades
@@ -207,12 +217,12 @@ backend/
   (already named generically in the forms pass); CRUD uses
   `ORG_RARE` / `ORG_WRITE`; the rate-limit audit test picks the new
   mutators up automatically.
-- **Diff-apply** — `apply_dates` is the `apply_questions` pattern but
-  matched on the **natural key `on_date`**, not a client id: insert
-  dates whose `on_date` is new, keep (and so preserve the responses
-  of) dates still present, delete rows whose `on_date` dropped out of
+- **Diff-apply** — `apply_slots` is the `apply_questions` pattern but
+  matched on the **natural key `(on_date, start_time, end_time)`**, not
+  a client id: insert slots that are new, keep (and so preserve the
+  responses of) slots still present, delete rows that dropped out of
   the payload (cascade takes their responses). The editor sends a set
-  of dates, never row ids, so `DatepollDateIn` carries no `id` (§7.1).
+  of slots, never row ids, so `DatepollSlotIn` carries no `id` (§7.1).
 - **DTO split** — `DatepollListOut` vs `DatepollOut` (adds the date
   list + description), exactly like `FormListOut`/`FormOut`. Following
   the **Events** precedent (`EventOut.attendee_count` is a computed
@@ -226,8 +236,8 @@ backend/
   does. Extract the grouping into a small shared helper (or mirror it
   deliberately); the typed per-feature queries that feed it stay
   separate.
-- **Aggregation math** — per-date tallies are simple counts; no
-  shared `ratings.py` needed, but `date_aggregates` lives in the
+- **Aggregation math** — per-slot tallies are simple counts; no
+  shared `ratings.py` needed, but `slot_aggregates` lives in the
   service (unit-testable without a router fixture), same as
   `forms_svc.question_aggregates`.
 
@@ -283,7 +293,9 @@ Public (unauthenticated, by slug):
 | Method | Path | Returns | Limit |
 |---|---|---|---|
 | GET | `/api/v1/datepolls/by-slug/{slug}` | `PublicDatepollOut` | — |
-| POST | `/api/v1/datepolls/by-slug/{slug}/submit` | 201, no body | `PUBLIC_SUBMIT` |
+| POST | `/api/v1/datepolls/by-slug/{slug}/submit` | `DatepollSubmitAck` (edit_token) | `PUBLIC_SUBMIT` |
+| GET | `/api/v1/datepolls/by-token/{token}` | `DatepollEditOut` | — |
+| PUT | `/api/v1/datepolls/by-token/{token}` | `DatepollEditOut` | `PUBLIC_SUBMIT` |
 | GET | `/api/v1/datepolls/by-slug/{slug}/qr.svg` | image/svg+xml | — |
 
 ### 7.1 Key schemas
@@ -291,77 +303,82 @@ Public (unauthenticated, by slug):
 ```python
 Availability = Literal["yes", "no", "maybe"]
 
-class DatepollDateIn(BaseModel):       # create/update payload
-    on_date: date                      # the natural key; no client id (apply_dates diffs on on_date)
+class DatepollSlotIn(BaseModel):       # create/update payload
+    on_date: date                      # natural key part 1; no client id (apply_slots diffs on the triple)
+    start_time: time | None = None     # both None = whole-day; both set (end > start) = timed.
+    end_time: time | None = None       #   a model_validator enforces both-or-neither + end > start.
 
 class DatepollCreate(BaseModel):
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     locale: Locale = "nl"
-    dates: list[DatepollDateIn] = Field(default_factory=list, max_length=60)
+    slots: list[DatepollSlotIn] = Field(default_factory=list, max_length=200)
 
 class DatepollUpdate(DatepollCreate): ...     # distinct class for OpenAPI clarity
 
-class DatepollListOut(BaseModel):      # list rows — scalars + computed date summary, no raw dates
+class DatepollListOut(BaseModel):      # list rows — scalars + computed date summary, no raw slots
     id, slug, name, locale, chapter_id, chapter_name, archived, created_at
-    date_count: int                    # computed in enrich (batched), like EventOut.attendee_count
-    first_date: date | None            # earliest / latest candidate, so the row shows a range
+    date_count: int                    # distinct candidate DAYS (not slots), computed in enrich (batched)
+    first_date: date | None            # earliest / latest candidate day, so the row shows a range
     last_date: date | None
 
-class DatepollOut(DatepollListOut):    # single — adds the candidate date list + description
+class DatepollOut(DatepollListOut):    # single — adds the candidate slot list + description
     description: str | None
-    dates: list[DatepollDateOut]       # {id, on_date}, sorted by on_date
+    slots: list[DatepollSlotOut]       # {id, on_date, start_time, end_time}, sorted (day, then start)
 
 class PublicDatepollOut(BaseModel):    # what /by-slug renders
     id, name, description, locale
-    dates: list[DatepollDateOut]
+    slots: list[DatepollSlotOut]
 
 # --- public submit ---
 class DatepollAnswerIn(BaseModel):
-    datepoll_date_id: str
+    datepoll_slot_id: str
     availability: Availability
-    comment: str | None = Field(default=None, max_length=280)
 
 class DatepollSubmitIn(BaseModel):
     display_name: DisplayName          # shared primitive (schemas/common.py): optional, <=100, real-or-not
+    note: str | None = Field(default=None, max_length=280)   # one note on the whole submission
     answers: list[DatepollAnswerIn]
 
-# No ack model: the submit endpoint returns a bare 201. The opaque
-# submission id is never handed to the public client (data
-# minimisation — the client has no use for it and there is no
-# read-back endpoint).
+class DatepollSubmitAck(BaseModel):
+    edit_token: str                    # secret edit-link token, returned once (see docs/design-edit-link.md)
 
 # --- organiser reads ---
-class DatepollDateSummary(BaseModel):
+class DatepollSlotSummary(BaseModel):
     id: str
     on_date: date
+    start_time: time | None
+    end_time: time | None
     yes: int
     maybe: int
     no: int
-    comments: list[str]                # date-attached comments, newest first
 
 class DatepollSummaryOut(BaseModel):
     submission_count: int
-    dates: list[DatepollDateSummary]   # in on_date order
-    best_date_id: str | None           # most yeses, tie-break fewest no
+    slots: list[DatepollSlotSummary]   # in (day, then start) order
+    best_slot_id: str | None           # most yeses, tie-break fewest no
+    notes: list[str]                   # submission notes, newest first
 
 class DatepollSubmissionOut(BaseModel):    # one CSV row per respondent
     submission_id: str
     display_name: str | None
+    note: str | None                   # the whole-submission note
     created_at: datetime
-    answers: dict[str, str]            # keyed by datepoll_date_id -> availability
-    comments: dict[str, str]           # keyed by datepoll_date_id -> comment
+    answers: dict[str, str]            # keyed by datepoll_slot_id -> availability
 ```
 
 Submit handler validation (same skeleton as `forms_public.submit_form`,
 adapted to the parent/child shape): resolve the live poll (410 if
-archived/unknown); reject any `datepoll_date_id` not on this poll
-(400); validate `availability` against `ALLOWED_AVAILABILITY`; drop
-comment-only cells; create one `DatepollSubmission` + N
-`DatepollResponse` rows in one commit; return a bare **201** (no body,
-no id — see §3). No required-field gate beyond "at least one answered
-date" (a poll with zero answers is a no-op — 400).
+archived/unknown); reject any `datepoll_slot_id` not on this poll
+(400); `availability` is constrained by the `Availability` literal at
+the schema boundary; create one `DatepollSubmission` (with the optional
+`note` + a minted edit-link token) + N `DatepollResponse` rows in one
+commit; return `DatepollSubmitAck(edit_token=...)` — the raw token,
+once, for the magic edit link (see `docs/design-edit-link.md`). No
+required-field gate beyond "at least one answered slot" (a poll with
+zero answers is a no-op — 400). Editing rides the by-token GET/PUT,
+same as events/forms.
 
 ## 8. Organiser frontend
 
@@ -391,27 +408,28 @@ far.
 - **`DatepollEditPage.vue`** — `FormPageShell` + `useFormDraft`
   (draft persistence, `datepoll-edit-draft:{id|new}`) +
   `useChapterUrlFilter`-derived chapter prefill. Sections: name,
-  optional description, chapter select, locale select, and the
-  **date picker** — a PrimeVue `DatePicker` in `selectionMode="multiple"`
-  `inline` for choosing candidate dates, plus a removable chip list of
-  the chosen dates (sorted). Selected dates map to `DatepollDateIn`
-  (existing dates keep their id so responses survive an edit;
-  removing a date cascades its responses, an explicit organiser
-  choice). The PrimeVue DatePicker is already a dependency (the
-  `primevue-datepicker` chunk ships today).
+  optional description, chapter select, image, locale select, and the
+  **slot picker** — a PrimeVue `DatePicker` in `selectionMode="multiple"`
+  `inline` for choosing candidate days, then **one card per chosen day**
+  holding that day's time-slots: removable `start–end` pills plus an
+  `+ time-slot` add-row (two native `<input type="time">`). A day with
+  no time-slots stays whole-day (no label). The payload (`DatepollSlotIn`)
+  emits one slot per range, or a single whole-day slot for a day with
+  none; existing slots keep their id (matched on the natural key) so
+  responses survive an edit.
 - **`DatepollDetailsPage.vue`** — overview card (title, chapter chip,
   public link + copy, QR, edit button) identical to
   `FormDetailsPage`, plus the **results view**:
-  - **Per-date tally bars** reusing `barWidth` (`lib/format.ts`):
-    three stacked counts (yes / maybe / no) per date, the winning
-    date highlighted.
-  - **Grid** (rows = pseudonymous submissions, columns = dates):
-    cells colour-coded yes/maybe/no, comment shown on hover/expand.
-    Horizontally scrollable for many dates.
+  - **Per-slot tally bars** reusing `barWidth` (`lib/format.ts`):
+    three stacked counts (yes / maybe / no) per slot (date + time
+    range when timed), the winning slot highlighted.
+  - **Notes** — the submission notes, listed newest-first.
+  - **Grid** (rows = pseudonymous submissions, columns = slots, plus a
+    trailing note column): cells colour-coded yes/maybe/no.
+    Horizontally scrollable for many slots.
   - **CSV export** via the shared `downloadCsv` (`lib/csv-export.ts`):
-    header `submission_id, name, submitted_at, {each date}`, one row
-    per submission; a date column holds `yes/maybe/no`, and a comment,
-    if any, is appended in a paired `"{date} — comment"` column.
+    header `name, submitted_at, {each slot}, note`, one row per
+    submission; a slot column holds `yes/maybe/no`.
     Filename `${filenameSlug(name)}-${id}.csv`.
 
 ### 8.3 Nav & routing
@@ -434,58 +452,47 @@ the payload inlined for first-paint and a 60 s
 `stale-while-revalidate` cache window — identical mechanics to the
 event/form public pages.
 
-### 9.1 The core UX: synced calendar + list
+### 9.1 The core UX: one inline full-width month grid
 
-The fill-out surface has **two views of the same state**, stacked, and
-kept in sync live — toggling a day in either view updates the other
-instantly because both bind to one client-side answers map
-(`Record<datepoll_date_id, { availability, comment }>`).
+The fill-out surface is a **single full-width month calendar** (one
+per spanned month, stacked vertically) with the slots living **inline
+in the day cells** — no separate list, no popover. All state binds to
+one client-side answers map (`Record<datepoll_slot_id, Availability |
+null>`).
 
-**Top — per-month calendar (overview + fast toggling).**
-
-- Render the month(s) that contain candidate dates (one mini-calendar
-  per month if they straddle months), each a 7-column grid with
-  weekday headers.
-- Non-candidate days render greyed and inert. Candidate days are
-  interactive cells showing their current state via colour **and** an
-  icon (not colour-only — accessibility): unset → yes → maybe → no →
-  unset on tap. A compact legend sits above the calendar.
-- This view is for the at-a-glance overview and quick toggling; it
-  shows the choice state but **not** the comment inputs (kept
-  uncluttered).
-
-**Below — the candidate-date list (toggling + comments).**
-
-- Every candidate date as its own row, in `on_date` order, each
-  showing the formatted date + weekday.
-- Each row carries the **same tri-state toggle** (a segmented
-  yes/maybe/no control, clearer for keyboard/screen-reader use than
-  the calendar cell) and a **one-line comment input**.
-- Tapping a row's toggle updates the calendar cell above, and vice
-  versa — one source of truth, no drift.
+- Render the month(s) that contain candidate slots at full content
+  width, each a 7-column grid with Monday-first weekday headers.
+- Non-candidate days render greyed and inert.
+- A **whole-day candidate** is the day cell itself: one tri-state
+  toggle (day number + colour + glyph), cycling unset → yes → maybe →
+  no on tap. No "whole day" label — a dates-only poll looks exactly
+  like the original.
+- A **timed day** shows the day number plus a stacked **pill per
+  slot**, each its own tri-state toggle labelled with the compact time
+  range (`19:00–21:00` → `19–21`). State shown via colour **and** a
+  glyph (not colour-only — accessibility). A compact legend sits above
+  the calendar.
 
 **Shared chrome.**
 
-- A single optional **pseudonym field** (placeholder "Naam (mag
-  verzonnen zijn)" / "Name (can be made up)") and a **submit** button.
-- States: loading → fillable → submitted ("thanks") → unavailable
-  (410). Same state machine as `PublicForm`.
-- Open-source disclosure + privacy one-liner ("we slaan geen e-mail
-  of tracking op") in the footer, consistent with the other public
-  surfaces.
+- An optional **pseudonym field**, one optional **note** input on the
+  whole submission, and a **submit** button.
+- States: loading → fillable → submitted ("thanks" + the magic edit
+  link) → unavailable (410). Same state machine + `EditLink` as the
+  other public surfaces.
+- Open-source disclosure + privacy one-liner in the footer, consistent
+  with the other public surfaces.
 
-Comments are optional and independent of the yes/maybe/no choice, but
-a comment only persists for a date that also has an availability set
-(§5/§15) — so a respondent who types a note must also pick a state for
-that day. On submit the answers map is flattened to `answers:
-[{datepoll_date_id, availability, comment}]` (dropping unset dates)
-and posted with `display_name` to `/by-slug/{slug}/submit`. On 201 the
-page shows the thank-you state; there is no edit-back (v1, one-shot).
+On submit the answers map is flattened to `answers:
+[{datepoll_slot_id, availability}]` (dropping unset slots) and posted
+with `display_name` + `note` to `/by-slug/{slug}/submit`. The ack
+carries the edit token; the page shows the thank-you state and the
+edit link. Reopening `?s={token}` pre-fills and PUTs (edit-while-live).
 
-Component split: a `MonthCalendar.vue` (renders one month, emits
-toggle for a candidate day) reused once per spanned month, and a
-`DateRow.vue` (toggle + comment) for the list; `PublicDatepoll.vue`
-owns the shared answers map and wires both.
+Component split: a `MonthCalendar.vue` (renders one full-width month,
+draws each candidate day's slots inline, emits toggle for a slot)
+reused once per spanned month; `PublicDatepoll.vue` owns the shared
+answers map + note and wires submit/edit.
 
 ## 10. i18n
 
@@ -541,13 +548,16 @@ Mirror the forms test files:
   chapter), archive/restore/delete-guard, list batching (no N+1),
   `DatepollListOut` carries the computed `date_count`/range but not
   the raw date list.
-- `test_datepoll_dates.py` — `apply_dates` add/edit-in-place/delete-
-  cascade/dedup; the unique `(datepoll_id, on_date)` rejects dupes;
-  the `availability` CHECK rejects a bad direct insert.
+- `test_datepoll_slots.py` — `apply_slots` add/edit-in-place/delete-
+  cascade; timed-slot round-trip + ordering; the unique
+  `(datepoll_id, on_date, start_time, end_time)` (NULLS NOT DISTINCT)
+  rejects dupes incl. two whole-day slots on a day; the `availability`
+  CHECK rejects a bad direct insert; schema rejects inverted / half-
+  open time ranges.
 - `test_datepolls_public.py` — by-slug 410 on archived/unknown,
-  submit happy path, unknown-date 400, comment-only-cell dropped,
-  `PUBLIC_SUBMIT` rate limit fires, anonymous (`display_name=null`)
-  submission stored as anonymous.
+  submit happy path (returns edit_token, note stored on the
+  submission), unknown-slot 400, `PUBLIC_SUBMIT` rate limit fires,
+  anonymous (`display_name=null`) submission stored as anonymous.
 - `test_privacy.py` extension — assert the datepoll modules import
   none of `encryption` / `mail*`, and that `DatepollResponse` has no
   email/IP column (a structural check, cheap insurance).
@@ -563,12 +573,13 @@ flag, no backfill, no cron registration.
 ## 15. Decisions taken (confirm)
 
 1. **Name / URL:** `Datepoll` / `/d/`. (confirmed)
-2. **One-shot submit, minimal ack.** (confirmed) — the endpoint
-   returns a bare 201; the opaque submission id is never returned to
-   the public client and no endpoint resolves it back (data
-   minimisation, §3). Token-based editing is the obvious phase 2; the
-   parent submission row makes it additive (nullable token column + 2
-   endpoints + a reaper), no reshape.
+2. **Submit returns an edit-link token** (superseded the original
+   "bare 201, no ack" decision once the magic edit link shipped across
+   all three public surfaces — see `docs/design-edit-link.md`). The
+   parent submission row carries the hashed token + the note; the by-
+   token GET/PUT let a respondent revisit and edit while the poll is
+   live. There is still no organiser-facing read-back of a submission
+   id.
 3. **Pseudonym = Events contract via a shared primitive:** optional,
    nullable `display_name`, `max_length=100`, `NULL` → "Anonymous" in
    the UI, defined once as `DisplayName` in `schemas/common.py` and
@@ -578,20 +589,24 @@ flag, no backfill, no cron registration.
    defined item sets (forms/datepolls), a parent submission row iff
    there's per-submission data — so forms stays table-less (an empty
    parent would only invite future PII) while datepolls get one for
-   the pseudonym. Edit-diff keys on the natural key (`on_date`), not a
-   client id. Written up in `docs/principles-architecture.md`.
-4. **Comments are per (respondent, date) cell**, one short line each,
-   and only persist for a date that also has a yes/maybe/no set. (my
-   call — flag if you wanted a single per-respondent comment or
-   cross-respondent threaded notes instead.)
-5. **Public UX is a synced two-view surface** (§9.1): a per-month
-   calendar on top for overview + fast tap-to-cycle toggling, and a
-   candidate-date list below for the same toggling plus per-date
-   comment inputs, both bound to one answers map so they update
-   live. (confirmed)
+   the pseudonym + note. Edit-diff keys on the natural key
+   (`(on_date, start_time, end_time)`), not a client id. Written up in
+   `docs/principles-architecture.md`.
+4. **One optional note per submission** (superseded the original
+   "per (respondent, date) cell comment" decision when time-slots
+   landed — a comment per slot was too noisy in the inline grid). The
+   note lives on `DatepollSubmission`; the organiser sees a notes list.
+5. **Public UX is one inline full-width month grid** (§9.1):
+   slots live inside the day cells (whole-day = the cell itself, timed
+   = a pill per slot), all bound to one answers map. (Superseded the
+   original synced calendar-plus-list two-view design.)
+7. **Slots, not just dates** — a candidate is `(on_date, start_time,
+   end_time)`, NULL times = whole-day. A day has one whole-day slot or
+   N timed slots, never both; the dates-only poll is the all-whole-day
+   case. Edit-diff keys on the `(on_date, start_time, end_time)` triple.
 
 ## 16. Out of scope (future)
 
-Respondent edit-via-token; auto-archive past-dated polls; time-slots;
-per-date capacity limits; exporting the winning date straight into a
-new Event.
+Auto-archive past-dated polls; per-slot capacity limits; exporting the
+winning slot straight into a new Event. (Respondent edit-via-token and
+time-slots, originally listed here, have since shipped.)

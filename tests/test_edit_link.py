@@ -81,7 +81,10 @@ def _create_poll(client: Any, headers: Any) -> dict[str, Any]:
         "chapter_id": _chapter_id(client, headers),
         "name": "EL poll",
         "locale": "nl",
-        "dates": [{"on_date": "2027-09-01"}, {"on_date": "2027-09-02"}],
+        "slots": [
+            {"on_date": "2027-09-01"},
+            {"on_date": "2027-09-02", "start_time": "19:00", "end_time": "21:00"},
+        ],
     }
     r = client.post("/api/v1/datepolls", headers=headers, json=body)
     assert r.status_code == 201, r.text
@@ -90,30 +93,32 @@ def _create_poll(client: Any, headers: Any) -> dict[str, Any]:
 
 def test_datepoll_edit_roundtrip(client, organiser_headers):
     poll = _create_poll(client, organiser_headers)
-    d0, d1 = poll["dates"][0]["id"], poll["dates"][1]["id"]
+    d0, d1 = poll["slots"][0]["id"], poll["slots"][1]["id"]
     token = client.post(
         f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
-        json={"display_name": "Sam", "answers": [{"datepoll_date_id": d0, "availability": "yes"}]},
+        json={"display_name": "Sam", "note": "first", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
     ).json()["edit_token"]
 
     pre = client.get(f"/api/v1/datepolls/by-token/{token}").json()
-    assert pre["answers"][d0]["availability"] == "yes"
+    assert pre["answers"][d0] == "yes"
+    assert pre["note"] == "first"
 
     r = client.put(
         f"/api/v1/datepolls/by-token/{token}",
         json={
             "display_name": "Sam",
+            "note": "changed my mind",
             "answers": [
-                {"datepoll_date_id": d0, "availability": "no"},
-                {"datepoll_date_id": d1, "availability": "maybe", "comment": "tentative"},
+                {"datepoll_slot_id": d0, "availability": "no"},
+                {"datepoll_slot_id": d1, "availability": "maybe"},
             ],
         },
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["answers"][d0]["availability"] == "no"
-    assert body["answers"][d1]["availability"] == "maybe"
-    assert body["answers"][d1]["comment"] == "tentative"
+    assert body["answers"][d0] == "no"
+    assert body["answers"][d1] == "maybe"
+    assert body["note"] == "changed my mind"
 
     summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 1

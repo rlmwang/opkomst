@@ -252,11 +252,13 @@ the data, and the rule is uniform across features:
 - A respondent answering an **organiser-defined item set** gets one
   row per (submission, item) — ``FeedbackResponse`` /
   ``FormResponse`` (one row per answered question) and
-  ``DatepollResponse`` (one row per answered date).
+  ``DatepollResponse`` (one row per answered slot, where a slot is a
+  date with an optional time range).
 - A **parent submission row exists iff there is per-submission data
   to hold.** Forms and datepolls collect an optional pseudonym, so
   they get one (``FormSubmission`` / ``DatepollSubmission``,
-  carrying ``display_name``) — the same reason ``Signup`` carries
+  carrying ``display_name`` — and, for datepolls, one optional
+  whole-submission ``note``) — the same reason ``Signup`` carries
   it. Post-event **feedback** carries no pseudonym (it is anonymous
   by the email-wipe contract), so it has no parent row: its
   ``submission_id`` is a bare grouping token. The rule is the test —
@@ -266,8 +268,8 @@ The submission identifier is opaque and has **no read-back path** in
 any feature (no ``GET .../submissions/{id}``); it groups rows
 server-side and nothing more. Edit-diffs over an item set match on
 the item's natural key (``question.id`` where the editor tracks ids;
-``datepoll_date.on_date`` where it doesn't), never on a fabricated
-client id.
+a datepoll slot's ``(on_date, start_time, end_time)`` where it
+doesn't), never on a fabricated client id.
 
 *Why:* the three shapes look different but are one rule applied to
 different data — so a reviewer can tell at a glance whether a new

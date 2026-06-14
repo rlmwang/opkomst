@@ -413,8 +413,8 @@ export interface paths {
         put?: never;
         /**
          * Create Datepoll
-         * @description Create a poll. Candidate dates are optional at create — a blank
-         *     poll can be saved and dates added on the edit page. The
+         * @description Create a poll. Candidate slots are optional at create — a blank
+         *     poll can be saved and slots added on the edit page. The
          *     caller-supplied ``chapter_id`` must be in the user's set.
          */
         post: operations["create_datepoll_api_v1_datepolls_post"];
@@ -516,7 +516,7 @@ export interface paths {
         /**
          * Update Datepoll Submission
          * @description Update a submission in place via its edit-link token. Replaces
-         *     the per-date answers and the pseudonym.
+         *     the per-slot answers, the pseudonym, and the note.
          */
         put: operations["update_datepoll_submission_api_v1_datepolls_by_token__token__put"];
         post?: never;
@@ -538,8 +538,9 @@ export interface paths {
         /**
          * Update Datepoll
          * @description Update a poll. Chapter changes are allowed but the new one must
-         *     be in the user's set. Dates are diff-applied on ``on_date`` — see
-         *     ``services/datepolls.apply_dates``.
+         *     be in the user's set. Slots are diff-applied on
+         *     ``(on_date, start_time, end_time)`` — see
+         *     ``services/datepolls.apply_slots``.
          */
         put: operations["update_datepoll_api_v1_datepolls__datepoll_id__put"];
         post?: never;
@@ -624,7 +625,7 @@ export interface paths {
         };
         /**
          * Datepoll Submissions
-         * @description Per-submission rows, keyed by date id. CSV source.
+         * @description Per-submission rows, keyed by slot id. CSV source.
          *
          *     Privacy: the submission id is opaque and the only respondent
          *     identifier is the self-chosen pseudonym.
@@ -1691,7 +1692,7 @@ export interface components {
         };
         /**
          * DatepollAnswerIn
-         * @description One answered date on the public submit payload.
+         * @description One answered slot on the public submit payload.
          */
         DatepollAnswerIn: {
             /**
@@ -1699,10 +1700,8 @@ export interface components {
              * @enum {string}
              */
             availability: "yes" | "no" | "maybe";
-            /** Comment */
-            comment?: string | null;
-            /** Datepoll Date Id */
-            datepoll_date_id: string;
+            /** Datepoll Slot Id */
+            datepoll_slot_id: string;
         };
         /**
          * DatepollCreate
@@ -1711,8 +1710,6 @@ export interface components {
         DatepollCreate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Dates */
-            dates?: components["schemas"]["DatepollDateIn"][];
             /** Description */
             description?: string | null;
             /** Image Artist Instagram */
@@ -1725,84 +1722,32 @@ export interface components {
             locale: "nl" | "en";
             /** Name */
             name: string;
-        };
-        /**
-         * DatepollDateIn
-         * @description One candidate date on the create / update payload. The natural
-         *     key is ``on_date`` — the editor sends a set of dates, never row
-         *     ids, so there is no ``id`` field; ``apply_dates`` diffs on
-         *     ``on_date`` and preserves the responses of dates that stay.
-         */
-        DatepollDateIn: {
-            /**
-             * On Date
-             * Format: date
-             */
-            on_date: string;
-        };
-        /** DatepollDateOut */
-        DatepollDateOut: {
-            /** Id */
-            id: string;
-            /**
-             * On Date
-             * Format: date
-             */
-            on_date: string;
-        };
-        /**
-         * DatepollDateSummary
-         * @description Per-date aggregate on the organiser details page.
-         */
-        DatepollDateSummary: {
-            /** Comments */
-            comments?: string[];
-            /** Id */
-            id: string;
-            /** Maybe */
-            maybe: number;
-            /** No */
-            no: number;
-            /**
-             * On Date
-             * Format: date
-             */
-            on_date: string;
-            /** Yes */
-            yes: number;
+            /** Slots */
+            slots?: components["schemas"]["DatepollSlotIn"][];
         };
         /**
          * DatepollEditOut
          * @description Current values of a submission, for pre-filling the edit form
-         *     (reached via the edit-link token). ``answers`` keyed by date id.
+         *     (reached via the edit-link token). ``answers`` maps slot id →
+         *     availability; ``note`` is the whole-submission note.
          */
         DatepollEditOut: {
             /** Answers */
             answers: {
-                [key: string]: components["schemas"]["DatepollEditValue"];
+                [key: string]: "yes" | "no" | "maybe";
             };
             /** Display Name */
             display_name: string | null;
-        };
-        /**
-         * DatepollEditValue
-         * @description One date's prior answer, for pre-filling the edit form.
-         */
-        DatepollEditValue: {
-            /**
-             * Availability
-             * @enum {string}
-             */
-            availability: "yes" | "no" | "maybe";
-            /** Comment */
-            comment?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /**
          * DatepollListOut
          * @description List-row DTO. Scalars plus a computed date summary
-         *     (``date_count`` + earliest/latest), so a row is useful without
-         *     shipping every date — mirrors how ``EventOut`` carries
-         *     ``attendee_count`` rather than the signup list.
+         *     (``date_count`` = distinct candidate days + earliest/latest), so a
+         *     row is useful without shipping every slot — mirrors how
+         *     ``EventOut`` carries ``attendee_count`` rather than the signup
+         *     list.
          */
         DatepollListOut: {
             /** Archived */
@@ -1837,7 +1782,7 @@ export interface components {
         /**
          * DatepollOut
          * @description Single-poll DTO — the list fields plus the description and the
-         *     full candidate-date list (sorted by ``on_date``).
+         *     full candidate-slot list (sorted by date then start time).
          */
         DatepollOut: {
             /** Archived */
@@ -1853,8 +1798,6 @@ export interface components {
             created_at: string;
             /** Date Count */
             date_count: number;
-            /** Dates */
-            dates?: components["schemas"]["DatepollDateOut"][];
             /** Description */
             description?: string | null;
             /** First Date */
@@ -1874,23 +1817,78 @@ export interface components {
             locale: "nl" | "en";
             /** Name */
             name: string;
+            /** Slots */
+            slots?: components["schemas"]["DatepollSlotOut"][];
             /** Slug */
             slug: string;
         };
         /**
+         * DatepollSlotIn
+         * @description One candidate slot on the create / update payload. The natural
+         *     key is ``(on_date, start_time, end_time)`` — the editor sends a set
+         *     of slots, never row ids, so there is no ``id`` field;
+         *     ``apply_slots`` diffs on that triple and preserves the responses of
+         *     slots that stay. Whole-day = both times NULL; timed = both set with
+         *     ``end > start``.
+         */
+        DatepollSlotIn: {
+            /** End Time */
+            end_time?: string | null;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Start Time */
+            start_time?: string | null;
+        };
+        /** DatepollSlotOut */
+        DatepollSlotOut: {
+            /** End Time */
+            end_time?: string | null;
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Start Time */
+            start_time?: string | null;
+        };
+        /**
+         * DatepollSlotSummary
+         * @description Per-slot aggregate on the organiser details page.
+         */
+        DatepollSlotSummary: {
+            /** End Time */
+            end_time?: string | null;
+            /** Id */
+            id: string;
+            /** Maybe */
+            maybe: number;
+            /** No */
+            no: number;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Start Time */
+            start_time?: string | null;
+            /** Yes */
+            yes: number;
+        };
+        /**
          * DatepollSubmissionOut
-         * @description One submission as a flat row for the CSV export. ``answers`` and
-         *     ``comments`` are keyed by ``datepoll_date_id``. ``display_name`` is
-         *     the self-chosen pseudonym (NULL = anonymous) — same privacy
-         *     contract as the event sign-up name.
+         * @description One submission as a flat row for the CSV export. ``answers`` is
+         *     keyed by ``datepoll_slot_id``. ``display_name`` is the self-chosen
+         *     pseudonym (NULL = anonymous) — same privacy contract as the event
+         *     sign-up name; ``note`` is the optional whole-submission note.
          */
         DatepollSubmissionOut: {
             /** Answers */
             answers: {
-                [key: string]: string;
-            };
-            /** Comments */
-            comments: {
                 [key: string]: string;
             };
             /**
@@ -1900,6 +1898,8 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string | null;
+            /** Note */
+            note: string | null;
             /** Submission Id */
             submission_id: string;
         };
@@ -1916,26 +1916,32 @@ export interface components {
         /**
          * DatepollSubmitIn
          * @description Public submission. ``display_name`` is the shared pseudonym
-         *     primitive (optional, <=100, real-or-not). ``answers`` carries one
-         *     entry per date the respondent set a state for.
+         *     primitive (optional, <=100, real-or-not). ``note`` is one optional
+         *     free-text note on the whole submission. ``answers`` carries one
+         *     entry per slot the respondent set a state for.
          */
         DatepollSubmitIn: {
             /** Answers */
             answers: components["schemas"]["DatepollAnswerIn"][];
             /** Display Name */
             display_name?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /**
          * DatepollSummaryOut
          * @description Organiser summary. ``submission_count`` is the number of
-         *     fill-outs; ``best_date_id`` is the most-yes date (tie-break:
-         *     fewest no), or ``None`` when there are no responses.
+         *     fill-outs; ``best_slot_id`` is the most-yes slot (tie-break:
+         *     fewest no), or ``None`` when there are no responses. ``notes`` are
+         *     the non-empty submission notes, newest first.
          */
         DatepollSummaryOut: {
-            /** Best Date Id */
-            best_date_id?: string | null;
-            /** Dates */
-            dates: components["schemas"]["DatepollDateSummary"][];
+            /** Best Slot Id */
+            best_slot_id?: string | null;
+            /** Notes */
+            notes?: string[];
+            /** Slots */
+            slots: components["schemas"]["DatepollSlotSummary"][];
             /** Submission Count */
             submission_count: number;
         };
@@ -1947,8 +1953,6 @@ export interface components {
         DatepollUpdate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Dates */
-            dates?: components["schemas"]["DatepollDateIn"][];
             /** Description */
             description?: string | null;
             /** Image Artist Instagram */
@@ -1961,6 +1965,8 @@ export interface components {
             locale: "nl" | "en";
             /** Name */
             name: string;
+            /** Slots */
+            slots?: components["schemas"]["DatepollSlotIn"][];
         };
         /**
          * EmailHealthOut
@@ -2563,8 +2569,6 @@ export interface components {
          * @description What the public fill-out page (``/d/{slug}``) reads.
          */
         PublicDatepollOut: {
-            /** Dates */
-            dates: components["schemas"]["DatepollDateOut"][];
             /** Description */
             description?: string | null;
             /** Id */
@@ -2580,6 +2584,8 @@ export interface components {
             locale: "nl" | "en";
             /** Name */
             name: string;
+            /** Slots */
+            slots: components["schemas"]["DatepollSlotOut"][];
         };
         /**
          * PublicFormOut

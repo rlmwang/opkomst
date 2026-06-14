@@ -13,36 +13,47 @@ export interface DatepollStrings {
   yes: string;
   maybe: string;
   no: string;
-  commentPlaceholder: string;
+  notePlaceholder: string;
   pickOne: string;
   thanksBody: string;
 }
 
 const dict: Record<Locale, DatepollStrings> = {
   nl: {
-    intro: "Tik op een datum om je beschikbaarheid aan te geven.",
+    intro: "Tik om je beschikbaarheid aan te geven.",
     legend: "Tik om te wisselen:",
     yes: "Ja",
     maybe: "Misschien",
     no: "Nee",
-    commentPlaceholder: "Opmerking (optioneel)",
-    pickOne: "Kies bij minstens één datum je beschikbaarheid.",
+    notePlaceholder: "Opmerking (optioneel)",
+    pickOne: "Geef bij minstens één moment je beschikbaarheid aan.",
     thanksBody: "Je reactie is binnen.",
   },
   en: {
-    intro: "Tap a date to set your availability.",
+    intro: "Tap to set your availability.",
     legend: "Tap to cycle:",
     yes: "Yes",
     maybe: "Maybe",
     no: "No",
-    commentPlaceholder: "Comment (optional)",
-    pickOne: "Set your availability for at least one date.",
+    notePlaceholder: "Note (optional)",
+    pickOne: "Set your availability for at least one option.",
     thanksBody: "Your response is in.",
   },
 };
 
 export function datepollStrings(locale: Locale): DatepollStrings {
   return dict[locale];
+}
+
+/** A slot's time range, compact enough for a calendar cell: drop the
+ *  minutes when they're ``:00`` (``19:00:00`` → ``19``), keep them
+ *  otherwise (``19:30:00`` → ``19:30``). ``19:00–21:00`` → ``19–21``. */
+function hourMin(t: string): string {
+  const [h, m] = t.split(":");
+  return m === "00" ? h : `${h}:${m}`;
+}
+export function formatTimeRange(start: string, end: string): string {
+  return `${hourMin(start)}–${hourMin(end)}`;
 }
 
 /** Long human-readable date for the list rows: ``Monday 27 April``. */
