@@ -15,7 +15,7 @@ import {
 import { datepollQrUrl, publicDatepollUrl } from "@/lib/datepoll-urls";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { barWidth, localeTag } from "@/lib/format";
+import { localeTag } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
 
 const props = defineProps<{ datepollId: string }>();
@@ -68,6 +68,14 @@ function nameOf(s: DatepollSubmission): string {
 }
 
 const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" };
+
+// Bar width as a share of all respondents, so the three columns are
+// comparable row-to-row (a full bar = everyone) and the winning slot
+// reads at a glance.
+function pct(value: number): string {
+  const total = summary.value?.submission_count ?? 0;
+  return total ? `${Math.round((value / total) * 100)}%` : "0%";
+}
 
 async function exportCsv() {
   if (!poll.value || !summary.value) return;
@@ -178,31 +186,31 @@ async function exportCsv() {
         </p>
 
         <template v-else>
-          <!-- Per-slot tallies, winning slot highlighted. -->
-          <div
-            v-for="s in summary.slots"
-            :key="s.id"
-            class="date-block"
-            :class="{ best: s.id === summary.best_slot_id }"
-          >
-            <p class="date-head">
-              {{ slotHeading(s) }}
-              <span v-if="s.id === summary.best_slot_id" class="best-badge">{{ t("datepolls.details.best") }}</span>
-            </p>
-            <div class="bars">
-              <template v-for="kind in (['yes', 'maybe', 'no'] as const)" :key="kind">
-                <span class="bar-label" :class="kind">{{ t(`datepolls.details.${kind}`) }}</span>
-                <div class="bar-track">
-                  <div
-                    class="bar-fill"
-                    :class="kind"
-                    :style="{ width: barWidth([s.yes, s.maybe, s.no], s[kind]) }"
-                  />
-                </div>
-                <span class="bar-count">{{ s[kind] }}</span>
-              </template>
-            </div>
-          </div>
+          <!-- Per-slot tallies as a borderless 4-column table: slot,
+               then a colored bar + count for yes / maybe / no. Winning
+               slot highlighted. -->
+          <table class="tally">
+            <thead>
+              <tr>
+                <th class="slot-col" />
+                <th>{{ t("datepolls.details.yes") }}</th>
+                <th>{{ t("datepolls.details.maybe") }}</th>
+                <th>{{ t("datepolls.details.no") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="s in summary.slots" :key="s.id" :class="{ best: s.id === summary.best_slot_id }">
+                <td class="slot-col">
+                  {{ slotHeading(s) }}
+                  <span v-if="s.id === summary.best_slot_id" class="best-badge">{{ t("datepolls.details.best") }}</span>
+                </td>
+                <td v-for="kind in (['yes', 'maybe', 'no'] as const)" :key="kind" class="bar-cell">
+                  <div class="bar-track"><div class="bar-fill" :class="kind" :style="{ width: pct(s[kind]) }" /></div>
+                  <span class="bar-count">{{ s[kind] }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           <!-- Submission notes (one optional note per respondent). -->
           <div v-if="summary.notes?.length" class="notes-section">
@@ -285,25 +293,48 @@ async function exportCsv() {
 .count-pill .count { font-weight: 700; font-size: 1.25rem; line-height: 1; color: var(--brand-red); }
 .count-pill .label { font-size: 0.75rem; color: var(--brand-text-muted); }
 
-.date-block { border-top: 1px solid var(--brand-border); padding-top: 1.25rem; margin-top: 1.25rem; }
-.date-block:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
-.date-block.best { background: rgba(31, 122, 60, 0.06); border-radius: 8px; padding: 0.75rem; }
-.date-head { margin: 0 0 0.5rem; font-weight: 600; }
+/* Per-slot tally table — borderless, minimal. One row per slot;
+ * yes/maybe/no cells each hold a proportional bar + count. */
+.tally { width: 100%; border-collapse: collapse; }
+.tally th, .tally td { padding: 0.45rem 0.625rem; text-align: left; vertical-align: middle; }
+.tally thead th {
+  font-weight: 500;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
+}
+.tally .slot-col { white-space: nowrap; font-weight: 600; }
+.tally tbody tr.best .slot-col { color: #1f7a3c; }
+.tally tbody tr.best { background: rgba(31, 122, 60, 0.06); }
+.tally tbody tr.best td:first-child { border-radius: 8px 0 0 8px; }
+.tally tbody tr.best td:last-child { border-radius: 0 8px 8px 0; }
 .best-badge {
   margin-left: 0.5rem; padding: 0.0625rem 0.5rem; border-radius: 999px;
   background: #1f7a3c; color: white; font-size: 0.6875rem; font-weight: 600;
 }
-.bars {
-  display: grid; grid-template-columns: minmax(3.5rem, max-content) 1fr 2rem;
-  align-items: center; gap: 0.3rem 0.5rem; font-size: 0.875rem;
+/* Bar cell: a track that fills the column width + a fixed count. */
+.bar-cell { width: 30%; }
+.bar-track {
+  display: inline-block;
+  width: calc(100% - 1.75rem);
+  height: 0.625rem;
+  background: var(--brand-border);
+  border-radius: 999px;
+  overflow: hidden;
+  vertical-align: middle;
 }
-.bar-label { color: var(--brand-text-muted); }
-.bar-track { height: 0.625rem; background: var(--brand-border); border-radius: 999px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 999px; }
 .bar-fill.yes { background: #1f7a3c; }
 .bar-fill.maybe { background: #c98a00; }
 .bar-fill.no { background: var(--brand-text-muted); }
-.bar-count { text-align: right; color: var(--brand-text-muted); }
+.bar-count {
+  display: inline-block;
+  width: 1.5rem;
+  margin-left: 0.25rem;
+  text-align: right;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
+  vertical-align: middle;
+}
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
 .notes-section { border-top: 1px solid var(--brand-border); padding-top: 1.25rem; margin-top: 1.25rem; }
