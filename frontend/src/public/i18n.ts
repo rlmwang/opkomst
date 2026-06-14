@@ -85,7 +85,7 @@ const dict: Record<Locale, Strings> = {
     explainerNoEmail: "We vragen verder geen contactgegevens.",
     explainerSource: "De code van deze app is",
     explainerLink: "openbaar in te zien",
-    imageCredit: "Beeld door",
+    imageCredit: "Ontwerp:",
   },
   en: {
     loading: "Loading…",
@@ -128,7 +128,7 @@ const dict: Record<Locale, Strings> = {
     explainerNoEmail: "We're not asking for any contact details for this event.",
     explainerSource: "The full source code of this app is",
     explainerLink: "openly available",
-    imageCredit: "Artwork by",
+    imageCredit: "Design:",
   },
 };
 
