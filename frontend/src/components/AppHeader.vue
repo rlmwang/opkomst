@@ -56,19 +56,22 @@ const topTabs = computed<TopTab[]>(() => {
       label: t("header.datepolls"),
       isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
     });
-    tabs.push({
-      key: "admin",
-      to: "/users",
-      label: t("header.admin"),
-      isActive: (p) => p === "/users" || p === "/chapters",
-    });
   }
+  // WhatsApp sits left of Admin, so push it first.
   if (auth.isAdmin && auth.whatsappAvailable) {
     tabs.push({
       key: "whatsapp",
       to: "/admin/whatsapp",
       label: t("header.whatsapp"),
       isActive: (p) => p === "/admin/whatsapp",
+    });
+  }
+  if (auth.isApproved) {
+    tabs.push({
+      key: "admin",
+      to: "/users",
+      label: t("header.admin"),
+      isActive: (p) => p === "/users" || p === "/chapters",
     });
   }
   return tabs;
