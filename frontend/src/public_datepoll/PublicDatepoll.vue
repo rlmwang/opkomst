@@ -142,6 +142,9 @@ async function submit(): Promise<void> {
       const ack = await postSubmission(slug(), body);
       savedToken.value = ack.edit_token;
     }
+    // Rewrite the URL to the edit link (no reload) so a refresh lands
+    // the visitor back on their editable submission.
+    if (editUrl.value) window.history.replaceState(null, "", editUrl.value);
     status.value = "submitted";
   } catch (e) {
     if (e instanceof ApiError && e.status === 410) {

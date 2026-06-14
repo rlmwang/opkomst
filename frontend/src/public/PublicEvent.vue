@@ -293,6 +293,10 @@ async function submit() {
       });
       savedToken.value = ack.edit_token;
     }
+    // Rewrite the URL to the edit link (no reload) so a panicked
+    // refresh lands the visitor back on their editable submission
+    // rather than a blank new form.
+    if (editUrl.value) window.history.replaceState(null, "", editUrl.value);
     submitted.value = true;
     clearDraft();
   } catch {
