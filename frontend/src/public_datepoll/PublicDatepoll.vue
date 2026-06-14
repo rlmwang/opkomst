@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
@@ -30,6 +30,15 @@ const displayName = ref("");
 const note = ref("");
 const submitting = ref(false);
 const errorMsg = ref("");
+
+// Auto-grow the note textarea to fit its content (no manual drag).
+const noteEl = ref<HTMLTextAreaElement | null>(null);
+function growNote(): void {
+  const el = noteEl.value;
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 // ``?s={token}`` puts the page in edit mode: pre-fill from the existing
 // submission and PUT instead of POST on save.
@@ -74,6 +83,8 @@ onMounted(async () => {
     hydrate(loaded);
     if (editToken) await prefillFromSubmission();
     status.value = "ready";
+    await nextTick();
+    growNote(); // fit a pre-filled note on first paint
   } catch (e) {
     status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
   }
@@ -175,15 +186,24 @@ async function submit(): Promise<void> {
       <template v-else>
         <Disclosure :locale="locale" />
 
-        <!-- Pseudonym first, mirroring the events sign-up form. -->
-        <div class="card">
+        <!-- Pseudonym + the optional note up top, mirroring the events
+             sign-up form. The note auto-grows to its content. -->
+        <div class="card name-card">
           <input v-model="displayName" class="textfield" type="text" :placeholder="c.displayName" maxlength="100" />
+          <textarea
+            ref="noteEl"
+            v-model="note"
+            class="textfield note"
+            :placeholder="d.notePlaceholder"
+            maxlength="280"
+            rows="2"
+            @input="growNote"
+          />
         </div>
 
         <div class="card">
-          <p class="intro muted">{{ d.intro }}</p>
           <p class="legend">
-            <span class="legend-label">{{ d.legend }}</span>
+            <span class="intro-text">{{ d.intro }}</span>
             <span class="swatch yes">{{ d.yes }}</span>
             <span class="swatch maybe">{{ d.maybe }}</span>
             <span class="swatch no">{{ d.no }}</span>
@@ -198,10 +218,6 @@ async function submit(): Promise<void> {
             :locale="locale"
             @toggle="toggle"
           />
-        </div>
-
-        <div class="card">
-          <input v-model="note" class="textfield" type="text" :placeholder="d.notePlaceholder" maxlength="280" />
         </div>
 
         <div class="card submit-card">
@@ -220,19 +236,30 @@ async function submit(): Promise<void> {
 .title-card h1 { margin: 0; overflow-wrap: anywhere; }
 .thanks-card h2 { margin: 0; }
 .title-card .muted { margin: 0.5rem 0 0; }
-.intro { margin: 0 0 0.75rem; }
+.intro-text { color: var(--brand-text-muted); margin-right: auto; }
+/* Text boxes match the public form's (--brand-surface, 1rem) so the
+ * three public pages read identically. */
 .textfield {
   width: 100%;
   box-sizing: border-box;
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--brand-border);
   border-radius: 8px;
-  background: var(--brand-bg);
+  background: var(--brand-surface);
   color: var(--brand-text);
-  font: inherit;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
 }
-.legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 1rem; font-size: 0.8125rem; }
-.legend-label { color: var(--brand-text-muted); }
+.textfield:focus {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 0;
+  border-color: var(--brand-red);
+}
+.name-card { display: flex; flex-direction: column; gap: 0.625rem; }
+/* Note grows with its content via JS; no manual drag handle. */
+.note { resize: none; overflow: hidden; }
+.legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.75rem; font-size: 0.8125rem; }
 .swatch { padding: 0.125rem 0.5rem; border-radius: 999px; color: #fff; }
 .swatch.yes { background: #1f7a3c; }
 .swatch.maybe { background: #c98a00; }

@@ -9,7 +9,6 @@ import type { Locale } from "@/public_shared/strings";
 
 export interface DatepollStrings {
   intro: string;
-  legend: string;
   yes: string;
   maybe: string;
   no: string;
@@ -21,7 +20,6 @@ export interface DatepollStrings {
 const dict: Record<Locale, DatepollStrings> = {
   nl: {
     intro: "Tik om je beschikbaarheid aan te geven.",
-    legend: "Tik om te wisselen:",
     yes: "Ja",
     maybe: "Misschien",
     no: "Nee",
@@ -31,7 +29,6 @@ const dict: Record<Locale, DatepollStrings> = {
   },
   en: {
     intro: "Tap to set your availability.",
-    legend: "Tap to cycle:",
     yes: "Yes",
     maybe: "Maybe",
     no: "No",
