@@ -13,6 +13,7 @@ import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useLocationField } from "@/composables/useLocationField";
 import {
   eventList,
   useCreateEvent,
@@ -59,21 +60,18 @@ const userChapterOptions = computed(() => {
   return chapters.value.filter((c) => memberIds.has(c.id));
 });
 
-// Bias address suggestions toward the chosen chapter's home
-// city. Resolved from the chapters store rather than the cached
-// auth.user copy so a chapter that gets a city assigned mid-session
-// flows through without a re-login.
-const chapterBias = computed<{ lat: number | null; lon: number | null }>(() => {
-  if (!chapterId.value) return { lat: null, lon: null };
-  const a = chapters.value.find((x) => x.id === chapterId.value);
-  return { lat: a?.city_lat ?? null, lon: a?.city_lon ?? null };
-});
+// Location + coords + chapter-city geocoder bias — shared with the
+// datepoll editor via ``useLocationField``. Bias resolves from the
+// chapters store rather than the cached auth.user copy so a chapter
+// that gets a city assigned mid-session flows through without a
+// re-login.
+const { location, latitude, longitude, chapterBias, setCoords } = useLocationField(
+  () => chapterId.value,
+  () => chapters.value,
+);
 
 const name = ref("");
 const topic = ref("");
-const location = ref("");
-const latitude = ref<number | null>(null);
-const longitude = ref<number | null>(null);
 const eventDate = ref<Date | null>(null);
 // Most events run in the evening — pre-fill 20:00 / 22:00 so the
 // organiser only has to pick the date and tweak if needed. The date
@@ -446,7 +444,7 @@ async function submit() {
           :longitude="longitude"
           :bias-lat="chapterBias.lat"
           :bias-lon="chapterBias.lon"
-          @update:coords="(c) => { latitude = c.latitude; longitude = c.longitude; }"
+          @update:coords="setCoords"
         />
         <DatePicker v-model="eventDate" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
         <div class="time-row">

@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import { ApiError } from "@/api/client";
+import { mapLink } from "@/lib/map-link";
 import { useDatepollClipboard } from "@/composables/useDatepollClipboard";
 import {
   type DatepollSubmission,
@@ -152,6 +153,16 @@ async function exportCsv() {
           <span v-if="poll.chapter_name" class="chip">{{ poll.chapter_name }}</span>
         </h1>
         <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
+        <a
+          v-if="poll.location"
+          class="location"
+          :href="mapLink({ location: poll.location, latitude: poll.latitude ?? null, longitude: poll.longitude ?? null })"
+          target="_blank"
+          rel="noopener"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          {{ poll.location }}
+        </a>
         <figure v-if="poll.image_url" class="detail-image">
           <img :src="poll.image_url" :alt="poll.name" />
           <figcaption v-if="poll.image_artist_instagram" class="muted">
@@ -303,6 +314,17 @@ async function exportCsv() {
 .overview { display: flex; flex-direction: column; gap: 0.5rem; }
 .overview h1 { margin: 0; overflow-wrap: anywhere; }
 .description { margin: 0; }
+.location {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: fit-content;
+  color: var(--brand-red);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+.location:hover { text-decoration: underline; }
+.location svg { flex: none; }
 .detail-image { margin: 0; }
 .detail-image img {
   display: block;

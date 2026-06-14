@@ -61,6 +61,9 @@ class DatepollCreate(BaseModel):
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    location: str | None = Field(default=None, max_length=200)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     slots: list[DatepollSlotIn] = Field(default_factory=list, max_length=200)
@@ -103,6 +106,9 @@ class DatepollOut(DatepollListOut):
     full candidate-slot list (sorted by date then start time)."""
 
     description: str | None = None
+    location: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
     slots: list[DatepollSlotOut] = Field(default_factory=list)
@@ -114,6 +120,9 @@ class PublicDatepollOut(BaseModel):
     id: str
     name: str
     description: str | None = None
+    location: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
     locale: Locale

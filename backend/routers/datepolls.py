@@ -54,6 +54,9 @@ def create_datepoll(
         slug=new_slug(),
         name=data.name,
         description=data.description,
+        location=data.location,
+        latitude=data.latitude,
+        longitude=data.longitude,
         image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
         chapter_id=data.chapter_id,
@@ -128,6 +131,9 @@ def update_datepoll(
 
     poll.name = data.name
     poll.description = data.description
+    poll.location = data.location
+    poll.latitude = data.latitude
+    poll.longitude = data.longitude
     poll.image_artist_instagram = data.image_artist_instagram
     poll.chapter_id = data.chapter_id
     poll.locale = data.locale

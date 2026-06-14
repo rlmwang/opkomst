@@ -10,8 +10,10 @@ import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
+import LocationPicker from "@/components/LocationPicker.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useLocationField } from "@/composables/useLocationField";
 import {
   type DatepollCreate,
   type DatepollUpdate,
@@ -43,6 +45,12 @@ const userChapterOptions = computed(() => {
   const memberIds = new Set((auth.user?.chapters ?? []).map((c) => c.id));
   return chapters.value.filter((c) => memberIds.has(c.id));
 });
+
+// Optional location, shared with the event form via useLocationField.
+const { location, latitude, longitude, chapterBias, setCoords, set } = useLocationField(
+  () => chapterId.value,
+  () => chapters.value,
+);
 
 // Drop a restored chapter the user can't actually assign — e.g. a
 // localStorage draft saved before a DB reseed gave chapters new ids.
@@ -251,6 +259,7 @@ watch(
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     pollLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
+    set(existing.location ?? null, existing.latitude ?? null, existing.longitude ?? null);
     const existingSlots = existing.slots ?? [];
     selectedDates.value = [...new Set(existingSlots.map((s) => s.on_date))].map(fromISODate);
     for (const k of Object.keys(slots)) delete slots[k];
@@ -270,6 +279,9 @@ const draftKey = computed(() => `datepoll-edit-draft:${props.datepollId ?? "new"
 interface DatepollDraft {
   name: string;
   description: string;
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
   imageArtistInstagram: string;
   chapterId: string | null;
   pollLocale: "nl" | "en";
@@ -283,6 +295,9 @@ function snapshot(): DatepollDraft {
   return {
     name: name.value,
     description: description.value,
+    location: location.value,
+    latitude: latitude.value,
+    longitude: longitude.value,
     imageArtistInstagram: imageArtistInstagram.value,
     chapterId: chapterId.value,
     pollLocale: pollLocale.value,
@@ -296,6 +311,7 @@ function snapshot(): DatepollDraft {
 function applyDraft(d: DatepollDraft): void {
   name.value = d.name;
   description.value = d.description ?? "";
+  set(d.location ?? null, d.latitude ?? null, d.longitude ?? null);
   imageArtistInstagram.value = d.imageArtistInstagram ?? "";
   chapterId.value = d.chapterId ?? null;
   pollLocale.value = d.pollLocale ?? "nl";
@@ -314,6 +330,9 @@ const { loadDraft, clearDraft } = useFormDraft<DatepollDraft>({
   sources: [
     name,
     description,
+    location,
+    latitude,
+    longitude,
     imageArtistInstagram,
     chapterId,
     pollLocale,
@@ -379,6 +398,9 @@ async function submit() {
       chapter_id: chapterId.value,
       name: trimmedName,
       description: description.value.trim() || null,
+      location: location.value.trim() || null,
+      latitude: latitude.value,
+      longitude: longitude.value,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: pollLocale.value,
       slots: slotsPayload,
@@ -444,6 +466,14 @@ async function submit() {
         :placeholder="t('datepolls.edit.chapterPlaceholder')"
         :disabled="userChapterOptions.length === 1 && chapterId !== null"
         fluid
+      />
+      <LocationPicker
+        v-model="location"
+        :latitude="latitude"
+        :longitude="longitude"
+        :bias-lat="chapterBias.lat"
+        :bias-lon="chapterBias.lon"
+        @update:coords="setCoords"
       />
     </section>
 

@@ -1714,12 +1714,18 @@ export interface components {
             description?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
+            /** Latitude */
+            latitude?: number | null;
             /**
              * Locale
              * @default nl
              * @enum {string}
              */
             locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
             /** Name */
             name: string;
             /** Slots */
@@ -1810,11 +1816,17 @@ export interface components {
             image_url?: string | null;
             /** Last Date */
             last_date?: string | null;
+            /** Latitude */
+            latitude?: number | null;
             /**
              * Locale
              * @enum {string}
              */
             locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
             /** Name */
             name: string;
             /** Slots */
@@ -1958,12 +1970,18 @@ export interface components {
             description?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
+            /** Latitude */
+            latitude?: number | null;
             /**
              * Locale
              * @default nl
              * @enum {string}
              */
             locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
             /** Name */
             name: string;
             /** Slots */
@@ -2578,11 +2596,17 @@ export interface components {
             image_artist_instagram?: string | null;
             /** Image Url */
             image_url?: string | null;
+            /** Latitude */
+            latitude?: number | null;
             /**
              * Locale
              * @enum {string}
              */
             locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
             /** Name */
             name: string;
             /** Slots */

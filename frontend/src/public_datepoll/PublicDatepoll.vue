@@ -15,6 +15,7 @@ import {
   postSubmission,
   putSubmission,
 } from "./api";
+import { mapLink } from "@/lib/map-link";
 import { datepollStrings, formatTimeRange } from "./i18n";
 import MonthCalendar from "./MonthCalendar.vue";
 
@@ -176,6 +177,16 @@ async function submit(): Promise<void> {
         />
         <h1>{{ poll.name }}</h1>
         <p v-if="poll.description" class="muted">{{ poll.description }}</p>
+        <a
+          v-if="poll.location"
+          class="location"
+          :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
+          target="_blank"
+          rel="noopener"
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+          {{ poll.location }}
+        </a>
       </div>
 
       <template v-if="status === 'submitted'">
@@ -239,6 +250,17 @@ async function submit(): Promise<void> {
 .title-card h1 { margin: 0; overflow-wrap: anywhere; }
 .thanks-card h2 { margin: 0; }
 .title-card .muted { margin: 0.5rem 0 0; }
+.location {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+  color: var(--brand-red);
+  text-decoration: none;
+  font-size: 0.9375rem;
+}
+.location:hover { text-decoration: underline; }
+.location svg { flex: none; }
 .intro-text { color: var(--brand-text-muted); margin-right: auto; }
 /* Text boxes match the public form's (--brand-surface, 1rem) so the
  * three public pages read identically. */

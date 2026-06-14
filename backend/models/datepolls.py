@@ -42,6 +42,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Text,
@@ -64,6 +65,12 @@ class Datepoll(UUIDMixin, TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional location (free text) + resolved coordinates, same shape
+    # as Event — but optional here, since a poll often settles the time
+    # before the place. Coords drive the public map link.
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Optional 4:5 hero image (GitHub-hosted raw URL) + artist credit,
     # same shape and pipeline as Event (services/image.py).
     image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
