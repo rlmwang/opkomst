@@ -357,7 +357,7 @@ class DatepollSlotSummary(BaseModel):
 class DatepollSummaryOut(BaseModel):
     submission_count: int
     slots: list[DatepollSlotSummary]   # in (day, then start) order
-    best_slot_id: str | None           # most yeses, tie-break fewest no
+    best_slot_id: str | None           # most yes, then most maybe, then most "not filled"; no ignored
     notes: list[str]                   # submission notes, newest first
 
 class DatepollSubmissionOut(BaseModel):    # one CSV row per respondent

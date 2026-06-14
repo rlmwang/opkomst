@@ -69,12 +69,15 @@ function nameOf(s: DatepollSubmission): string {
 
 const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" };
 
-// Bar width as a share of all respondents, so the three columns are
-// comparable row-to-row (a full bar = everyone) and the winning slot
-// reads at a glance.
-function pct(value: number): string {
-  const total = summary.value?.submission_count ?? 0;
-  return total ? `${Math.round((value / total) * 100)}%` : "0%";
+// Bar widths normalise within each group to its own busiest slot, so
+// the tallest bar is full-width and rows stay comparable. The combined
+// yes+maybe bar scales against the largest (yes+maybe); the "no" bar
+// scales against the largest "no", computed separately so a few no's
+// don't look tiny next to a popular slot's full availability bar.
+const maxYesMaybe = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.yes + s.maybe)));
+const maxNo = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.no)));
+function pctOf(value: number, max: number): string {
+  return `${Math.round((value / max) * 100)}%`;
 }
 
 // Rank the top three slots by the same rule the backend uses for the
@@ -82,9 +85,12 @@ function pct(value: number): string {
 // Shown as a 1st/2nd/3rd chip in front of each slot (chronological)
 // row; a reserved-width slot keeps the labels aligned.
 const rankById = computed<Record<string, number>>(() => {
+  const total = summary.value?.submission_count ?? 0;
+  const blanks = (s: { yes: number; maybe: number; no: number }) => total - s.yes - s.maybe - s.no;
   const ranked = [...(summary.value?.slots ?? [])]
     .filter((s) => s.yes > 0)
-    .sort((a, b) => b.yes - a.yes || a.no - b.no)
+    // Most yes, then most maybe, then most "not filled"; no is ignored.
+    .sort((a, b) => b.yes - a.yes || b.maybe - a.maybe || blanks(b) - blanks(a))
     .slice(0, 3);
   const map: Record<string, number> = {};
   ranked.forEach((s, i) => {
@@ -229,14 +235,14 @@ async function exportCsv() {
                 </td>
                 <td class="bar-cell combo">
                   <div class="bar-track">
-                    <div class="bar-fill yes" :style="{ width: pct(s.yes) }" />
-                    <div class="bar-fill maybe" :style="{ width: pct(s.maybe) }" />
+                    <div class="bar-fill yes" :style="{ width: pctOf(s.yes, maxYesMaybe) }" />
+                    <div class="bar-fill maybe" :style="{ width: pctOf(s.maybe, maxYesMaybe) }" />
                   </div>
                   <span class="bar-count yes">{{ s.yes }}</span>
                   <span class="bar-count maybe">{{ s.maybe }}</span>
                 </td>
                 <td class="bar-cell">
-                  <div class="bar-track"><div class="bar-fill no" :style="{ width: pct(s.no) }" /></div>
+                  <div class="bar-track"><div class="bar-fill no" :style="{ width: pctOf(s.no, maxNo) }" /></div>
                   <span class="bar-count">{{ s.no }}</span>
                 </td>
               </tr>
@@ -391,7 +397,7 @@ async function exportCsv() {
 .bar-count.maybe { color: #c98a00; }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
-.notes-section { border-top: 1px solid var(--brand-border); padding-top: 1.25rem; margin-top: 1.25rem; }
+.notes-section { margin-top: 1.25rem; }
 .notes-section h3 { margin: 0 0 0.25rem; font-size: 0.9375rem; }
 
 .grid-wrap { margin-top: 1.5rem; overflow-x: auto; }
@@ -399,7 +405,7 @@ async function exportCsv() {
 .grid th, .grid td { border: 1px solid var(--brand-border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
 .grid th.who, .grid td.who { text-align: left; position: sticky; left: 0; background: var(--brand-surface); }
 .grid th.note-col, .grid td.note-col { text-align: left; white-space: normal; min-width: 8rem; max-width: 16rem; }
-.cell.yes { background: rgba(31, 122, 60, 0.18); }
-.cell.maybe { background: rgba(201, 138, 0, 0.18); }
-.cell.no { background: rgba(0, 0, 0, 0.05); color: var(--brand-text-muted); }
+.cell.yes { background: #1f7a3c; color: #fff; }
+.cell.maybe { background: #c98a00; color: #fff; }
+.cell.no { background: #6b6b6b; color: #fff; }
 </style>

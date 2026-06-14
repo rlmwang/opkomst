@@ -909,7 +909,7 @@
         "type": "object"
       },
       "DatepollSummaryOut": {
-        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_slot_id`` is the most-yes slot (tie-break:\nfewest no), or ``None`` when there are no responses. ``notes`` are\nthe non-empty submission notes, newest first.",
+        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most\nmaybe, then most \"not filled\"; ``no`` is ignored), or ``None`` when\nthere are no responses. ``notes`` are the non-empty submission\nnotes, newest first.",
         "properties": {
           "best_slot_id": {
             "anyOf": [

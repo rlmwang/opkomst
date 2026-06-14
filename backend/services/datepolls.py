@@ -228,10 +228,17 @@ def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSum
         for s in slots
     ]
 
+    # Best slot: most yes, then most maybe, then most "not filled"
+    # (submissions that didn't answer this slot) — ``no`` is ignored,
+    # so an explicit no never helps a slot place. ``total_subs`` is the
+    # respondent pool the blanks are measured against.
+    total_subs = (
+        db.query(func.count(DatepollSubmission.id)).filter(DatepollSubmission.datepoll_id == datepoll_id).scalar() or 0
+    )
     total_responses = sum(s.yes + s.maybe + s.no for s in summaries)
     best_slot_id: str | None = None
     if total_responses:
-        best = max(summaries, key=lambda s: (s.yes, -s.no))
+        best = max(summaries, key=lambda s: (s.yes, s.maybe, total_subs - s.yes - s.maybe - s.no))
         best_slot_id = best.id
 
     note_rows = (

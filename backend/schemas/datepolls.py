@@ -170,9 +170,10 @@ class DatepollSlotSummary(BaseModel):
 
 class DatepollSummaryOut(BaseModel):
     """Organiser summary. ``submission_count`` is the number of
-    fill-outs; ``best_slot_id`` is the most-yes slot (tie-break:
-    fewest no), or ``None`` when there are no responses. ``notes`` are
-    the non-empty submission notes, newest first."""
+    fill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most
+    maybe, then most "not filled"; ``no`` is ignored), or ``None`` when
+    there are no responses. ``notes`` are the non-empty submission
+    notes, newest first."""
 
     submission_count: int
     slots: list[DatepollSlotSummary]
