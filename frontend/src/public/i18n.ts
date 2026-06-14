@@ -76,7 +76,7 @@ const dict: Record<Locale, Strings> = {
     thanksBody:
       "Tot dan! Heb je een mailadres achtergelaten? Dan krijg je de dag erna een korte feedbackmail; daarna gooien we je adres weg.",
     thanksBodyNoEmail: "Tot dan!",
-    explainerTitle: "Toelichting",
+    explainerTitle: "Privacy & open source",
     explainerIntro:
       "We vragen alleen wat we echt nodig hebben. Een schuilnaam mag – we tellen alleen koppen.",
     explainerEmailIntro:
@@ -118,7 +118,7 @@ const dict: Record<Locale, Strings> = {
     thanksBody:
       "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
     thanksBodyNoEmail: "See you then!",
-    explainerTitle: "Explainer",
+    explainerTitle: "Privacy & open source",
     explainerIntro:
       "We only ask for what we need. Your name can be a pseudonym — it just helps us with the head count.",
     explainerEmailIntro:
