@@ -206,15 +206,18 @@ async function exportCsv() {
         </p>
 
         <template v-else>
-          <!-- Per-slot tallies as a borderless 4-column table: slot,
-               then a colored bar + count for yes / maybe / no. Winning
-               slot highlighted. -->
+          <!-- Per-slot tallies, borderless. Yes + maybe share one
+               two-colour bar (green + amber) with their two coloured
+               counts after it; "no" is its own bar. Ranked rows lead
+               with a 1st/2nd/3rd chip. -->
           <table class="tally">
             <thead>
               <tr>
                 <th class="slot-col" />
-                <th>{{ t("datepolls.details.yes") }}</th>
-                <th>{{ t("datepolls.details.maybe") }}</th>
+                <th>
+                  <span class="hdr yes">{{ t("datepolls.details.yes") }}</span>
+                  <span class="hdr maybe">{{ t("datepolls.details.maybe") }}</span>
+                </th>
                 <th>{{ t("datepolls.details.no") }}</th>
               </tr>
             </thead>
@@ -224,9 +227,17 @@ async function exportCsv() {
                   <span class="rank" :class="rankById[s.id] ? `r${rankById[s.id]}` : ''">{{ rankLabel(s.id) }}</span>
                   {{ slotHeading(s) }}
                 </td>
-                <td v-for="kind in (['yes', 'maybe', 'no'] as const)" :key="kind" class="bar-cell">
-                  <div class="bar-track"><div class="bar-fill" :class="kind" :style="{ width: pct(s[kind]) }" /></div>
-                  <span class="bar-count">{{ s[kind] }}</span>
+                <td class="bar-cell combo">
+                  <div class="bar-track">
+                    <div class="bar-fill yes" :style="{ width: pct(s.yes) }" />
+                    <div class="bar-fill maybe" :style="{ width: pct(s.maybe) }" />
+                  </div>
+                  <span class="bar-count yes">{{ s.yes }}</span>
+                  <span class="bar-count maybe">{{ s.maybe }}</span>
+                </td>
+                <td class="bar-cell">
+                  <div class="bar-track"><div class="bar-fill no" :style="{ width: pct(s.no) }" /></div>
+                  <span class="bar-count">{{ s.no }}</span>
                 </td>
               </tr>
             </tbody>
@@ -342,18 +353,28 @@ async function exportCsv() {
 .rank.r1 { background: #1f7a3c; }
 .rank.r2 { background: #8a8f98; }
 .rank.r3 { background: #b8763a; }
-/* Bar cell: a track that fills the column width + a fixed count. */
-.bar-cell { width: 30%; }
+/* Coloured column headers for the combined yes/maybe bar. */
+.hdr { font-weight: 500; font-size: 0.8125rem; }
+.hdr + .hdr { margin-left: 0.5rem; }
+.hdr.yes { color: #1f7a3c; }
+.hdr.maybe { color: #c98a00; }
+
+/* Bar cell: a track that fills the column width + the count(s) after
+ * it. The combined cell stacks a green (yes) + amber (maybe) segment
+ * in one track and shows two coloured counts. */
+.bar-cell { width: 28%; }
+.bar-cell.combo { width: 44%; }
 .bar-track {
-  display: inline-block;
-  width: calc(100% - 1.75rem);
+  display: inline-flex;
+  width: calc(100% - 1.9rem);
   height: 0.625rem;
   background: var(--brand-border);
   border-radius: 999px;
   overflow: hidden;
   vertical-align: middle;
 }
-.bar-fill { height: 100%; border-radius: 999px; }
+.combo .bar-track { width: calc(100% - 3.5rem); }
+.bar-fill { height: 100%; }
 .bar-fill.yes { background: #1f7a3c; }
 .bar-fill.maybe { background: #c98a00; }
 .bar-fill.no { background: var(--brand-text-muted); }
@@ -366,6 +387,8 @@ async function exportCsv() {
   color: var(--brand-text-muted);
   vertical-align: middle;
 }
+.bar-count.yes { color: #1f7a3c; }
+.bar-count.maybe { color: #c98a00; }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
 .notes-section { border-top: 1px solid var(--brand-border); padding-top: 1.25rem; margin-top: 1.25rem; }
