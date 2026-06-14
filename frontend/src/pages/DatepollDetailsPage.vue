@@ -63,6 +63,12 @@ function slotHeading(s: { on_date: string; start_time?: string | null; end_time?
   return shortDate(s.on_date) + times;
 }
 
+// Just the time range (``19:00–21:00``), or "" for a whole-day slot —
+// used to render the time on its own line in the grid header.
+function slotTime(s: { start_time?: string | null; end_time?: string | null }): string {
+  return s.start_time && s.end_time ? `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}` : "";
+}
+
 function nameOf(s: DatepollSubmission): string {
   return s.display_name ?? t("datepolls.details.anonymous");
 }
@@ -263,7 +269,10 @@ async function exportCsv() {
               <thead>
                 <tr>
                   <th class="who">{{ t("datepolls.details.respondent") }}</th>
-                  <th v-for="s in summary.slots" :key="s.id">{{ slotHeading(s) }}</th>
+                  <th v-for="s in summary.slots" :key="s.id" class="slot-th">
+                    <div>{{ shortDate(s.on_date) }}</div>
+                    <div v-if="slotTime(s)" class="th-time">{{ slotTime(s) }}</div>
+                  </th>
                   <th class="note-col">{{ t("datepolls.details.note") }}</th>
                 </tr>
               </thead>
@@ -405,6 +414,10 @@ async function exportCsv() {
 .grid th, .grid td { border: 1px solid var(--brand-border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
 .grid th.who, .grid td.who { text-align: left; position: sticky; left: 0; background: var(--brand-surface); }
 .grid th.note-col, .grid td.note-col { text-align: left; white-space: normal; min-width: 8rem; max-width: 16rem; }
+/* Slot columns (everything between respondent and note) share one
+ * fixed width so they line up evenly. */
+.grid th.slot-th, .grid tbody td:not(.who):not(.note-col) { width: 4rem; }
+.grid th.slot-th .th-time { font-weight: 400; font-size: 0.75rem; color: var(--brand-text-muted); }
 .cell.yes { background: #1f7a3c; color: #fff; }
 .cell.maybe { background: #c98a00; color: #fff; }
 .cell.no { background: #6b6b6b; color: #fff; }
