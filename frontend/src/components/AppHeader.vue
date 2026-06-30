@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed } from "vue";
+import Popover from "primevue/popover";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import BrandMark from "@/components/BrandMark.vue";
@@ -34,7 +35,13 @@ interface TopTab {
   label: string;
   isActive: (path: string) => boolean;
 }
-const topTabs = computed<TopTab[]>(() => {
+
+// The three content workspaces collapse into a single
+// "Werkruimte" dropdown. Events is the only one an unapproved
+// organiser can reach, so the dropdown only materialises once
+// there's more than one entry — otherwise it renders as a plain
+// tab (see ``sectionAsTab`` below).
+const sectionTabs = computed<TopTab[]>(() => {
   const tabs: TopTab[] = [
     {
       key: "events",
@@ -57,6 +64,23 @@ const topTabs = computed<TopTab[]>(() => {
       isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
     });
   }
+  return tabs;
+});
+// Single-entry case (unapproved organiser): inline tab instead
+// of a one-item dropdown.
+const sectionAsTab = computed(() =>
+  sectionTabs.value.length === 1 ? sectionTabs.value[0] : null,
+);
+// Whichever workspace the current route belongs to — drives the
+// dropdown trigger label and its active styling.
+const activeSection = computed(() =>
+  sectionTabs.value.find((s) => s.isActive(route.path)) ?? null,
+);
+
+// The remaining top-level tabs that sit to the right of the
+// workspace dropdown.
+const topTabs = computed<TopTab[]>(() => {
+  const tabs: TopTab[] = [];
   // WhatsApp sits left of Admin, so push it first.
   if (auth.isAdmin && auth.whatsappAvailable) {
     tabs.push({
@@ -76,6 +100,15 @@ const topTabs = computed<TopTab[]>(() => {
   }
   return tabs;
 });
+
+const sectionMenu = ref<InstanceType<typeof Popover> | null>(null);
+function toggleSectionMenu(event: Event) {
+  sectionMenu.value?.toggle(event);
+}
+function navigateSection(to: string) {
+  sectionMenu.value?.hide();
+  void router.push(to);
+}
 
 // Subtabs derived from the current route. Empty array on routes
 // that don't sit under one of the parents with subtabs (Lid-
@@ -151,6 +184,38 @@ async function logout() {
           <span class="group-divider" aria-hidden="true" />
         </div>
         <div class="nav-group nav-tabs">
+          <!-- The three content workspaces, collapsed into one
+               dropdown. Falls back to a plain tab when only one
+               workspace is reachable (unapproved organiser). -->
+          <router-link
+            v-if="sectionAsTab"
+            :to="sectionAsTab.to"
+            :class="['top-tab', { active: sectionAsTab.isActive(route.path) }]"
+          >{{ sectionAsTab.label }}</router-link>
+          <template v-else>
+            <button
+              type="button"
+              class="top-tab section-trigger"
+              :class="{ active: activeSection }"
+              aria-haspopup="true"
+              @click="toggleSectionMenu"
+            >
+              {{ activeSection ? activeSection.label : t("header.workspace") }}
+              <span class="section-chevron" aria-hidden="true">▾</span>
+            </button>
+            <Popover ref="sectionMenu">
+              <div class="section-menu">
+                <button
+                  v-for="s in sectionTabs"
+                  :key="s.key"
+                  type="button"
+                  class="section-item"
+                  :class="{ active: s.isActive(route.path) }"
+                  @click="navigateSection(s.to)"
+                >{{ s.label }}</button>
+              </div>
+            </Popover>
+          </template>
           <router-link
             v-for="tab in topTabs"
             :key="tab.key"
@@ -219,6 +284,45 @@ nav a {
  * light up for /users and /chapters alike — router-link's own
  * active class only matches the tab's own ``to``. */
 .top-tab.active {
+  color: var(--brand-red);
+  font-weight: 600;
+}
+/* The workspace dropdown trigger is a <button> styled to sit
+ * flush with the router-link tabs around it. */
+.section-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--brand-text);
+}
+.section-chevron {
+  font-size: 0.7em;
+  line-height: 1;
+}
+.section-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+}
+.section-item {
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font: inherit;
+  cursor: pointer;
+  color: var(--brand-text);
+}
+.section-item:hover {
+  background: var(--brand-bg);
+}
+.section-item.active {
   color: var(--brand-red);
   font-weight: 600;
 }
