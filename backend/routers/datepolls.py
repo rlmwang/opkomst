@@ -27,7 +27,7 @@ from ..schemas.datepolls import (
     DatepollSummaryOut,
     DatepollUpdate,
 )
-from ..services import access
+from ..services import access, crud
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -153,12 +153,7 @@ def archive_datepoll(
     user: User = Depends(require_approved),
 ) -> DatepollOut:
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    if poll.archived_at is not None:
-        raise HTTPException(status_code=409, detail="Already archived")
-    poll.archived_at = datetime.now(UTC)
-    db.commit()
-    db.refresh(poll)
-    logger.info("datepoll_archived", datepoll_id=poll.id, actor_id=user.id)
+    crud.archive(db, poll, log_event="datepoll_archived", actor_id=user.id)
     return datepolls_svc.to_out(db, poll)
 
 
@@ -171,12 +166,7 @@ def restore_datepoll(
     user: User = Depends(require_approved),
 ) -> DatepollOut:
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    if poll.archived_at is None:
-        raise HTTPException(status_code=409, detail="Not archived")
-    poll.archived_at = None
-    db.commit()
-    db.refresh(poll)
-    logger.info("datepoll_restored", datepoll_id=poll.id, actor_id=user.id)
+    crud.restore(db, poll, log_event="datepoll_restored", actor_id=user.id)
     return datepolls_svc.to_out(db, poll)
 
 
@@ -193,11 +183,13 @@ def delete_datepoll(
     Cascades through dates / submissions / responses via the FK
     ON DELETE CASCADEs."""
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    if poll.archived_at is None:
-        raise HTTPException(status_code=409, detail="Archive the datepoll before deleting it")
-    db.delete(poll)
-    db.commit()
-    logger.info("datepoll_deleted", datepoll_id=datepoll_id, actor_id=user.id)
+    crud.hard_delete(
+        db,
+        poll,
+        log_event="datepoll_deleted",
+        actor_id=user.id,
+        conflict_detail="Archive the datepoll before deleting it",
+    )
 
 
 @router.post("/{datepoll_id}/image", response_model=DatepollOut)

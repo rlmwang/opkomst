@@ -32,7 +32,7 @@ from ..schemas.forms import (
     FormSummaryOut,
     FormUpdate,
 )
-from ..services import access
+from ..services import access, crud
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -153,12 +153,7 @@ def archive_form(
     user: User = Depends(require_approved),
 ) -> FormOut:
     form = access.get_form_for_user(db, form_id, user)
-    if form.archived_at is not None:
-        raise HTTPException(status_code=409, detail="Already archived")
-    form.archived_at = datetime.now(UTC)
-    db.commit()
-    db.refresh(form)
-    logger.info("form_archived", form_id=form.id, actor_id=user.id)
+    crud.archive(db, form, log_event="form_archived", actor_id=user.id)
     return forms_svc.to_out(db, form)
 
 
@@ -171,12 +166,7 @@ def restore_form(
     user: User = Depends(require_approved),
 ) -> FormOut:
     form = access.get_form_for_user(db, form_id, user)
-    if form.archived_at is None:
-        raise HTTPException(status_code=409, detail="Not archived")
-    form.archived_at = None
-    db.commit()
-    db.refresh(form)
-    logger.info("form_restored", form_id=form.id, actor_id=user.id)
+    crud.restore(db, form, log_event="form_restored", actor_id=user.id)
     return forms_svc.to_out(db, form)
 
 
@@ -194,11 +184,13 @@ def delete_form(
     ``form_questions`` / ``form_responses`` via the FK ON DELETE
     CASCADEs in the schema."""
     form = access.get_form_for_user(db, form_id, user)
-    if form.archived_at is None:
-        raise HTTPException(status_code=409, detail="Archive the form before deleting it")
-    db.delete(form)
-    db.commit()
-    logger.info("form_deleted", form_id=form_id, actor_id=user.id)
+    crud.hard_delete(
+        db,
+        form,
+        log_event="form_deleted",
+        actor_id=user.id,
+        conflict_detail="Archive the form before deleting it",
+    )
 
 
 @router.post("/{form_id}/image", response_model=FormOut)

@@ -25,7 +25,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import EmailChannel, Event, User
 from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
-from ..services import access, event_stats, mail_lifecycle
+from ..services import access, crud, event_stats, mail_lifecycle
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
@@ -119,12 +119,7 @@ def archive_event(
     user: User = Depends(require_approved),
 ) -> EventOut:
     event = access.get_event_for_user(db, event_id, user)
-    if event.archived_at is not None:
-        raise HTTPException(status_code=409, detail="Already archived")
-    event.archived_at = datetime.now(UTC)
-    db.commit()
-    db.refresh(event)
-    logger.info("event_archived", event_id=event.id, actor_id=user.id)
+    crud.archive(db, event, log_event="event_archived", actor_id=user.id)
     return event_stats.to_out(db, event)
 
 
@@ -137,12 +132,7 @@ def restore_event(
     user: User = Depends(require_approved),
 ) -> EventOut:
     event = access.get_event_for_user(db, event_id, user)
-    if event.archived_at is None:
-        raise HTTPException(status_code=409, detail="Not archived")
-    event.archived_at = None
-    db.commit()
-    db.refresh(event)
-    logger.info("event_restored", event_id=event.id, actor_id=user.id)
+    crud.restore(db, event, log_event="event_restored", actor_id=user.id)
     return event_stats.to_out(db, event)
 
 
@@ -161,11 +151,13 @@ def delete_event(
     ``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the
     schema; the row + its dependents go with one DELETE."""
     event = access.get_event_for_user(db, event_id, user)
-    if event.archived_at is None:
-        raise HTTPException(status_code=409, detail="Archive the event before deleting it")
-    db.delete(event)
-    db.commit()
-    logger.info("event_deleted", event_id=event_id, actor_id=user.id)
+    crud.hard_delete(
+        db,
+        event,
+        log_event="event_deleted",
+        actor_id=user.id,
+        conflict_detail="Archive the event before deleting it",
+    )
 
 
 @router.post("/{event_id}/send-emails/{channel}", status_code=200)
