@@ -407,7 +407,7 @@ async function submit() {
     };
     const result =
       isEdit.value && props.datepollId
-        ? await updateMutation.mutateAsync({ datepollId: props.datepollId, payload: wirePayload })
+        ? await updateMutation.mutateAsync({ id: props.datepollId, payload: wirePayload })
         : await createMutation.mutateAsync(wirePayload);
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();

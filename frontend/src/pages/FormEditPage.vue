@@ -247,7 +247,7 @@ async function submit() {
     };
     const result =
       isEdit.value && props.formId
-        ? await updateMutation.mutateAsync({ formId: props.formId, payload: wirePayload })
+        ? await updateMutation.mutateAsync({ id: props.formId, payload: wirePayload })
         : await createMutation.mutateAsync(wirePayload);
     // Upload a create-mode held image to the freshly-created row
     // (no-op in edit mode / when nothing was picked).

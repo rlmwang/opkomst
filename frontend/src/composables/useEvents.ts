@@ -16,47 +16,22 @@ import { type MaybeRef, unref } from "vue";
 
 import { del, post, postFile, put } from "@/api/client";
 import { listOf, useApiQuery } from "@/api/queries";
+import { createEntityCrud } from "@/composables/createEntityCrud";
 import type { EventCreate, EventOut, EventStats, SignupSummary } from "@/api/types";
 
 export type { EventCreate, EventOut, EventStats, SignupSummary };
 
-/** ``chapterId`` is the optional UI filter — ``null`` (or
- * undefined) means "every chapter the user belongs to". The
- * server applies the same predicate; we only ever send the
- * ``chapter_id`` query param when filtering. The query key
- * includes the filter so changing the dropdown produces a fresh
- * cache entry, not a clobber. */
-export function useEventList(opts: {
-  enabled?: MaybeRef<boolean>;
-  chapterId?: MaybeRef<string | null>;
-} = {}) {
-  return useApiQuery<EventOut[]>(
-    () => ["events", "active", { chapter: unref(opts.chapterId) ?? null }],
-    () => {
-      const cid = unref(opts.chapterId);
-      return cid
-        ? `/api/v1/events?chapter_id=${encodeURIComponent(cid)}`
-        : "/api/v1/events";
-    },
-    { enabled: opts.enabled },
-  );
-}
+// Events take the shared list/archived/create/restore from the factory
+// but keep their own *optimistic* update/archive/delete below (the
+// dashboard patches the cache inline; covered by composables.test.ts).
+const crud = createEntityCrud<EventOut, EventOut, EventCreate>({ resource: "events" });
 
+/** ``chapterId`` is the optional UI filter — ``null``/undefined means
+ * "every chapter the user belongs to"; the filter is in the query key so
+ * changing the dropdown produces a fresh cache entry, not a clobber. */
+export const useEventList = crud.useList;
 export const eventList = listOf<EventOut>;
-
-export function useArchivedEvents(opts: {
-  chapterId?: MaybeRef<string | null>;
-} = {}) {
-  return useApiQuery<EventOut[]>(
-    () => ["events", "archived", { chapter: unref(opts.chapterId) ?? null }],
-    () => {
-      const cid = unref(opts.chapterId);
-      return cid
-        ? `/api/v1/events/archived?chapter_id=${encodeURIComponent(cid)}`
-        : "/api/v1/events/archived";
-    },
-  );
-}
+export const useArchivedEvents = crud.useArchived;
 
 // ``useEventBySlug`` was removed when /e/:slug moved out of the
 // admin SPA into its own mini-app (see ``frontend/public-event.html``
@@ -78,17 +53,9 @@ export function useEventSignups(eventId: MaybeRef<string>) {
   );
 }
 
-const invalidateLists = (qc: ReturnType<typeof useQueryClient>) =>
-  qc.invalidateQueries({ queryKey: ["events"] });
+const invalidateLists = crud.invalidateLists;
 
-export function useCreateEvent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: EventCreate) =>
-      post<EventOut>("/api/v1/events", payload),
-    onSettled: () => invalidateLists(qc),
-  });
-}
+export const useCreateEvent = crud.useCreate;
 
 export function useUpdateEvent() {
   const qc = useQueryClient();
@@ -194,14 +161,7 @@ export function useDeleteEvent() {
   });
 }
 
-export function useRestoreEvent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (eventId: string) =>
-      post<EventOut>(`/api/v1/events/${eventId}/restore`),
-    onSettled: () => invalidateLists(qc),
-  });
-}
+export const useRestoreEvent = crud.useRestore;
 
 export function useSendEmailsNow() {
   const qc = useQueryClient();
