@@ -35,13 +35,11 @@ Privacy: the only identifier is the self-chosen pseudonym, exactly as
 of a submission id.
 """
 
-from datetime import date, datetime, time
-from typing import Literal
+from datetime import date, time
 
 from sqlalchemy import (
     CheckConstraint,
     Date,
-    DateTime,
     Float,
     ForeignKey,
     Index,
@@ -52,18 +50,18 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
-class Datepoll(UUIDMixin, TimestampMixin, Base):
+class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     """One dates-only poll. ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table and
     stays attached across archive/restore (same as Event/Form)."""
 
     __tablename__ = "datepolls"
 
-    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Spine (slug, name, image_url, image_artist_instagram, locale,
+    # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Optional location (free text) + resolved coordinates, same shape
     # as Event — but optional here, since a poll often settles the time
@@ -71,22 +69,6 @@ class Datepoll(UUIDMixin, TimestampMixin, Base):
     location: Mapped[str | None] = mapped_column(Text, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Optional 4:5 hero image (GitHub-hosted raw URL) + artist credit,
-    # same shape and pipeline as Event (services/image.py).
-    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # ISO language tag — drives the public poll's UI language.
-    locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
-    created_by: Mapped[str] = mapped_column(
-        Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
-    )
-    chapter_id: Mapped[str | None] = mapped_column(
-        Text,
-        ForeignKey("chapters.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     # Mirrors the events/forms list index.
     __table_args__ = (Index("ix_datepolls_archived_chapter", "archived_at", "chapter_id"),)

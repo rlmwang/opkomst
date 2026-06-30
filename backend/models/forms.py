@@ -26,14 +26,10 @@ Three tables:
   specific person).
 """
 
-from datetime import datetime
-from typing import Literal
-
 from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
-    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -42,10 +38,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
-class Form(UUIDMixin, TimestampMixin, Base):
+class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     """One questionnaire. ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table
     and stays attached to the row across archive/restore so a
@@ -54,32 +50,11 @@ class Form(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "forms"
 
-    # 8-char nanoid, public. Unique across all forms; archive
-    # doesn't free it because the slug may be in URLs the user
-    # bookmarked, and restoring expects the slug to come back
-    # unchanged.
-    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Spine (slug, name, image_url, image_artist_instagram, locale,
+    # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
     # Optional blurb shown on the public page under the name — same
     # role as the event topic / datepoll description.
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Optional 4:5 hero image (GitHub-hosted raw URL) + artist credit,
-    # same shape and pipeline as Event (services/image.py).
-    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # ISO language tag — drives the public form's UI language.
-    # Two-letter codes only today; widen the Literal to add a region.
-    locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
-    created_by: Mapped[str] = mapped_column(
-        Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
-    )
-    chapter_id: Mapped[str | None] = mapped_column(
-        Text,
-        ForeignKey("chapters.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.

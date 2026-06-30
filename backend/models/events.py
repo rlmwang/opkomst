@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Literal
 
 from sqlalchemy import (
     JSON,
@@ -14,10 +13,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
-class Event(UUIDMixin, TimestampMixin, Base):
+class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     """One event row. ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the
     table; archived events keep their slug (the public surface
@@ -25,32 +24,12 @@ class Event(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "events"
 
-    # 8-char nanoid, public. Unique across all events; archive
-    # doesn't free it because the slug may be in URLs the user
-    # bookmarked, and restoring expects the slug to come back
-    # unchanged.
-    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Spine (slug, name, image_url, image_artist_instagram, locale,
+    # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
     topic: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Public URL of the event's 4:5 hero image. Hosted in a GitHub
-    # repo (raw.githubusercontent.com/.../events/{id}/{ts}.jpg);
-    # uploads go through ``services/image.py`` which crops,
-    # resizes, and PUTs via the GitHub Contents API. Null = the
-    # public sign-up page / details page render without a hero
-    # image and the OG card falls back to the favicon. Replacing
-    # an image overwrites this URL — old files stay in the repo's
-    # history by design.
-    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Instagram handle of the artist who made the hero image — we
-    # outsource a lot of the artwork to young artists, this is the
-    # credit line. Stored without the leading ``@`` so URLs are
-    # straightforward; the schema validator strips one if present.
-    # Null when no credit is set; the public page / emails just
-    # skip rendering the caption.
-    image_artist_instagram: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Naive wall-clock timestamps. The organiser types a date+time
     # in the form; that's what we store and that's what we display
     # back. We do no timezone math anywhere — the app is Dutch-only
@@ -72,20 +51,6 @@ class Event(UUIDMixin, TimestampMixin, Base):
     # Independent of the feedback toggle — both can be on,
     # both can be off.
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # ISO language tag — drives the public-page UI language and the
-    # locale of the post-event feedback email. Two-letter codes
-    # only ('nl' / 'en') today; widen the Literal to add a region.
-    locale: Mapped[Literal["nl", "en"]] = mapped_column(Text, nullable=False, default="nl")
-    created_by: Mapped[str] = mapped_column(
-        Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
-    )
-    chapter_id: Mapped[str | None] = mapped_column(
-        Text,
-        ForeignKey("chapters.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     __table_args__ = (Index("ix_events_archived_chapter", "archived_at", "chapter_id"),)
 
