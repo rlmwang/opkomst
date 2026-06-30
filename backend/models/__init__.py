@@ -1,4 +1,5 @@
 from .chapters import Chapter
+from .chores import Chore, Enrollment, Roster, Shift, Volunteer
 from .datepolls import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from .email_dispatch import EmailChannel, EmailDispatch, EmailStatus
 from .events import Event, Signup
@@ -8,6 +9,7 @@ from .users import LoginToken, RegistrationToken, User, UserChapter
 
 __all__ = [
     "Chapter",
+    "Chore",
     "Datepoll",
     "DatepollResponse",
     "DatepollSlot",
@@ -15,6 +17,7 @@ __all__ = [
     "EmailChannel",
     "EmailDispatch",
     "EmailStatus",
+    "Enrollment",
     "Event",
     "FeedbackResponse",
     "FeedbackToken",
@@ -24,7 +27,10 @@ __all__ = [
     "FormSubmission",
     "LoginToken",
     "RegistrationToken",
+    "Roster",
+    "Shift",
     "Signup",
     "User",
     "UserChapter",
+    "Volunteer",
 ]

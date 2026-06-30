@@ -27,12 +27,12 @@ from sqlalchemy import false
 from sqlalchemy.orm import Mapped, Session
 from sqlalchemy.sql import ColumnElement
 
-from ..models import Chapter, Datepoll, Event, Form, User, UserChapter
+from ..models import Chapter, Datepoll, Event, Form, Roster, User, UserChapter
 
-# ``Event`` / ``Form`` / ``Datepoll`` each carry an ``id`` and a
-# chapter-scoping ``chapter_id`` — the only two columns the scope
+# ``Event`` / ``Form`` / ``Datepoll`` / ``Roster`` each carry an ``id``
+# and a chapter-scoping ``chapter_id`` — the only two columns the scope
 # rule touches.
-_Scoped = TypeVar("_Scoped", Event, Form, Datepoll)
+_Scoped = TypeVar("_Scoped", Event, Form, Datepoll, Roster)
 
 
 def chapter_ids_for_user(db: Session, user: User) -> set[str]:
@@ -139,3 +139,11 @@ def datepoll_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
 
 def get_datepoll_for_user(db: Session, datepoll_id: str, user: User) -> Datepoll:
     return get_scoped(db, Datepoll, datepoll_id, user, not_found="Datepoll not found")
+
+
+def roster_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
+    return scope_filter(db, user, Roster.chapter_id)
+
+
+def get_roster_for_user(db: Session, roster_id: str, user: User) -> Roster:
+    return get_scoped(db, Roster, roster_id, user, not_found="Roster not found")
