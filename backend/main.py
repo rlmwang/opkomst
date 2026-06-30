@@ -13,6 +13,7 @@ from .database import engine
 from .routers import admin as admin_router
 from .routers import auth as auth_router
 from .routers import chapters as chapters_router
+from .routers import chores as chores_router
 from .routers import datepolls as datepolls_router
 from .routers import datepolls_public as datepolls_public_router
 from .routers import events as events_router
@@ -119,6 +120,7 @@ app.include_router(forms_public_router.router)
 app.include_router(forms_router.router)
 app.include_router(datepolls_public_router.router)
 app.include_router(datepolls_router.router)
+app.include_router(chores_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
 

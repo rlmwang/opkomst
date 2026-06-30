@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from .events import Locale
+from .common import Locale
 
 
 class FeedbackQuestionOut(BaseModel):

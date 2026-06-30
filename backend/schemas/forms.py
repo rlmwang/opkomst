@@ -23,8 +23,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName, InstagramHandle
-from .events import Locale
+from .common import DisplayName, InstagramHandle, Locale
 
 QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice"]
 

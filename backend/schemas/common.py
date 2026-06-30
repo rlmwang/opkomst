@@ -1,6 +1,12 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BeforeValidator, EmailStr, Field
+
+# Two-letter ISO language tag. Drives the public-page UI language and,
+# where applicable, the locale of the email sent afterwards. Two values
+# today (nl / en); widen the literal if we ever localise per region.
+# Shared by every organiser-authored entity schema.
+Locale = Literal["nl", "en"]
 
 
 def _to_lower(v: str) -> str:

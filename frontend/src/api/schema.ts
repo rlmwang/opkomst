@@ -401,6 +401,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rosters */
+        get: operations["list_rosters_api_v1_chores_get"];
+        put?: never;
+        /**
+         * Create Roster
+         * @description Create a roster. Chores are optional at create — a blank roster
+         *     can be saved and chores added on the edit page. The caller-supplied
+         *     ``chapter_id`` must be in the user's set.
+         */
+        post: operations["create_roster_api_v1_chores_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Rosters */
+        get: operations["list_archived_rosters_api_v1_chores_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Roster */
+        get: operations["get_roster_api_v1_chores__roster_id__get"];
+        /**
+         * Update Roster
+         * @description Update a roster. Chapter changes are allowed but the new one must
+         *     be in the user's set. Chores are diff-applied on id; shrinking
+         *     ``period_weeks`` clamps now-out-of-range ``cycle_slots`` (the schema
+         *     validator handles the clamp).
+         */
+        put: operations["update_roster_api_v1_chores__roster_id__put"];
+        post?: never;
+        /**
+         * Delete Roster
+         * @description Hard-delete an archived roster. Refuses unless archived first —
+         *     deleting a live roster with volunteers/shifts would be a data-loss
+         *     footgun. Cascades through chores / volunteers / enrollments / shifts
+         *     via the FK ON DELETE CASCADEs.
+         */
+        delete: operations["delete_roster_api_v1_chores__roster_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Roster */
+        post: operations["archive_roster_api_v1_chores__roster_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Roster Image
+         * @description Upload (or replace) the roster's hero image — same 4:5 GitHub
+         *     pipeline as the other entities (``services/image.py``).
+         */
+        post: operations["upload_roster_image_api_v1_chores__roster_id__image_post"];
+        /**
+         * Delete Roster Image
+         * @description Clear the image reference. The file in the repo is left alone.
+         */
+        delete: operations["delete_roster_image_api_v1_chores__roster_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Roster */
+        post: operations["restore_roster_api_v1_chores__roster_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepolls": {
         parameters: {
             query?: never;
@@ -1597,6 +1727,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_roster_image_api_v1_chores__roster_id__image_post */
+        Body_upload_roster_image_api_v1_chores__roster_id__image_post: {
+            /** File */
+            file: string;
+        };
         /**
          * ChapterArchiveRequest
          * @description Optional reassignment targets when archiving a chapter.
@@ -1676,6 +1811,47 @@ export interface components {
             events: number;
             /** Users */
             users: number;
+        };
+        /**
+         * ChoreIn
+         * @description One chore on the create / update payload. ``id`` is null for a new
+         *     chore and set for an existing one (matched on update, like
+         *     ``FormQuestionIn``). ``cycle_slots`` are normalised (deduped, sorted,
+         *     range-checked) by the parent roster validator against ``period_weeks``.
+         */
+        ChoreIn: {
+            /** Cycle Slots */
+            cycle_slots?: number[];
+            /** Description */
+            description?: string | null;
+            /** Emoji */
+            emoji?: string | null;
+            /** Id */
+            id?: string | null;
+            /** Name */
+            name: string;
+            /**
+             * People Per Shift
+             * @default 1
+             */
+            people_per_shift: number;
+        };
+        /** ChoreOut */
+        ChoreOut: {
+            /** Cycle Slots */
+            cycle_slots: number[];
+            /** Description */
+            description?: string | null;
+            /** Emoji */
+            emoji?: string | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Ordinal */
+            ordinal: number;
+            /** People Per Shift */
+            people_per_shift: number;
         };
         /**
          * CompleteRegistrationRequest
@@ -2660,6 +2836,208 @@ export interface components {
             name: string;
         };
         /**
+         * RosterCreate
+         * @description Organiser create payload. Out-of-range ``cycle_slots`` raise 422.
+         */
+        RosterCreate: {
+            /** Anchor Monday */
+            anchor_monday?: string | null;
+            /** Chapter Id */
+            chapter_id: string;
+            /** Chores */
+            chores?: components["schemas"]["ChoreIn"][];
+            /** Description */
+            description?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Latitude */
+            latitude?: number | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Period Weeks
+             * @default 1
+             */
+            period_weeks: number;
+            /**
+             * Reminder Days Before
+             * @default 1
+             */
+            reminder_days_before: number;
+            /**
+             * Reminder Enabled
+             * @default true
+             */
+            reminder_enabled: boolean;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /**
+         * RosterListOut
+         * @description List-row DTO. Scalars + counts, no chore list — mirrors how the
+         *     other entities ship counts rather than the child collection.
+         */
+        RosterListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /** Chore Count */
+            chore_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Name */
+            name: string;
+            /** Period Weeks */
+            period_weeks: number;
+            /** Slug */
+            slug: string;
+            /** Volunteer Count */
+            volunteer_count: number;
+        };
+        /**
+         * RosterOut
+         * @description Single-roster DTO — list fields plus the recurrence config, the
+         *     optional location/image, and the full chore list (by ordinal).
+         */
+        RosterOut: {
+            /** Anchor Monday */
+            anchor_monday?: string | null;
+            /** Archived */
+            archived: boolean;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /** Chore Count */
+            chore_count: number;
+            /** Chores */
+            chores?: components["schemas"]["ChoreOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Description */
+            description?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /** Id */
+            id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Latitude */
+            latitude?: number | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
+            /** Name */
+            name: string;
+            /** Period Weeks */
+            period_weeks: number;
+            /** Reminder Days Before */
+            reminder_days_before: number;
+            /** Reminder Enabled */
+            reminder_enabled: boolean;
+            /** Slug */
+            slug: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /** Volunteer Count */
+            volunteer_count: number;
+        };
+        /**
+         * RosterUpdate
+         * @description Same body as create, but shrinking ``period_weeks`` drops (clamps)
+         *     now-out-of-range ``cycle_slots`` instead of rejecting the save.
+         */
+        RosterUpdate: {
+            /** Anchor Monday */
+            anchor_monday?: string | null;
+            /** Chapter Id */
+            chapter_id: string;
+            /** Chores */
+            chores?: components["schemas"]["ChoreIn"][];
+            /** Description */
+            description?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Latitude */
+            latitude?: number | null;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Period Weeks
+             * @default 1
+             */
+            period_weeks: number;
+            /**
+             * Reminder Days Before
+             * @default 1
+             */
+            reminder_days_before: number;
+            /**
+             * Reminder Enabled
+             * @default true
+             */
+            reminder_enabled: boolean;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /**
          * SendRequest
          * @description One outbound message. Phone normalisation happens client-side.
          */
@@ -3447,6 +3825,344 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChapterUsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rosters_api_v1_chores_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_roster_api_v1_chores_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RosterCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_rosters_api_v1_chores_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_roster_api_v1_chores__roster_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_roster_api_v1_chores__roster_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RosterUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_roster_api_v1_chores__roster_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_roster_api_v1_chores__roster_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_roster_image_api_v1_chores__roster_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_roster_image_api_v1_chores__roster_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_roster_image_api_v1_chores__roster_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_roster_api_v1_chores__roster_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
                 };
             };
             /** @description Validation Error */

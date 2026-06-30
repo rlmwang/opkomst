@@ -1,0 +1,184 @@
+"""Chapter-scoped chore-roster CRUD + recurrence validation.
+
+Mirrors ``test_datepolls_router.py``: create / list / get / update
+(chore reconcile) / archive / restore / delete-guard / scoping, plus
+the chores-specific recurrence rules (k>1 needs a Monday anchor;
+out-of-range cycle_slots reject on create but clamp on update).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+def _chapter_id(client: Any, headers: Any) -> str:
+    me = client.get("/api/v1/auth/me", headers=headers).json()
+    return me["chapters"][0]["id"]
+
+
+def _create(client: Any, headers: Any, **overrides: Any) -> Any:
+    body: dict[str, Any] = {
+        "chapter_id": _chapter_id(client, headers),
+        "name": "Bins roster",
+        "starts_on": "2026-01-05",
+    }
+    body.update(overrides)
+    return client.post("/api/v1/chores", headers=headers, json=body)
+
+
+# --- create / read ---------------------------------------------------
+
+
+def test_create_minimal(client, organiser_headers):
+    r = _create(client, organiser_headers, chores=[{"name": "Bins", "cycle_slots": [2, 4]}])
+    assert r.status_code == 201, r.text
+    roster = r.json()
+    assert roster["chore_count"] == 1
+    assert roster["volunteer_count"] == 0
+    assert roster["period_weeks"] == 1
+    assert roster["chores"][0]["cycle_slots"] == [2, 4]
+    assert roster["chores"][0]["ordinal"] == 1
+
+
+def test_list_row_omits_chores_but_carries_counts(client, organiser_headers):
+    _create(client, organiser_headers, chores=[{"name": "A", "cycle_slots": [1]}])
+    rows = client.get("/api/v1/chores", headers=organiser_headers).json()
+    assert len(rows) == 1
+    row = rows[0]
+    assert "chores" not in row
+    assert row["chore_count"] == 1
+    assert row["volunteer_count"] == 0
+    assert row["period_weeks"] == 1
+
+
+def test_cycle_slots_deduped_and_sorted(client, organiser_headers):
+    r = _create(client, organiser_headers, chores=[{"name": "A", "cycle_slots": [4, 2, 2]}])
+    assert r.json()["chores"][0]["cycle_slots"] == [2, 4]
+
+
+# --- recurrence validation -------------------------------------------
+
+
+def test_biweekly_requires_anchor(client, organiser_headers):
+    r = _create(client, organiser_headers, period_weeks=2)
+    assert r.status_code == 422
+
+
+def test_biweekly_anchor_must_be_monday(client, organiser_headers):
+    # 2026-01-06 is a Tuesday.
+    r = _create(client, organiser_headers, period_weeks=2, anchor_monday="2026-01-06")
+    assert r.status_code == 422
+
+
+def test_biweekly_ok_with_monday_anchor(client, organiser_headers):
+    r = _create(
+        client,
+        organiser_headers,
+        period_weeks=2,
+        anchor_monday="2026-01-05",
+        chores=[{"name": "Bins", "cycle_slots": [2, 9]}],
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["chores"][0]["cycle_slots"] == [2, 9]
+
+
+def test_out_of_range_cycle_slots_rejected_on_create(client, organiser_headers):
+    # k=1 → valid offsets are 0..6; 7 is out of range.
+    r = _create(client, organiser_headers, chores=[{"name": "A", "cycle_slots": [7]}])
+    assert r.status_code == 422
+
+
+# --- update / reconcile ----------------------------------------------
+
+
+def test_update_reconciles_chores(client, organiser_headers):
+    created = _create(
+        client,
+        organiser_headers,
+        chores=[{"name": "A", "cycle_slots": [2]}, {"name": "B", "cycle_slots": [4]}],
+    ).json()
+    a_id = next(c["id"] for c in created["chores"] if c["name"] == "A")
+
+    body = {
+        "chapter_id": created["chapter_id"],
+        "name": created["name"],
+        "starts_on": created["starts_on"],
+        "chores": [
+            {"id": a_id, "name": "A2", "cycle_slots": [2]},  # rename existing
+            {"name": "C", "cycle_slots": [1]},  # new (B dropped)
+        ],
+    }
+    r = client.put(f"/api/v1/chores/{created['id']}", headers=organiser_headers, json=body)
+    assert r.status_code == 200, r.text
+    chores = r.json()["chores"]
+    assert [c["name"] for c in chores] == ["A2", "C"]
+    assert [c["ordinal"] for c in chores] == [1, 2]
+    # A kept its id (update in place), B is gone.
+    assert any(c["id"] == a_id for c in chores)
+
+
+def test_shrink_k_clamps_out_of_range_slots_on_update(client, organiser_headers):
+    created = _create(
+        client,
+        organiser_headers,
+        period_weeks=2,
+        anchor_monday="2026-01-05",
+        chores=[{"name": "X", "cycle_slots": [2, 9]}],
+    ).json()
+    x_id = created["chores"][0]["id"]
+
+    body = {
+        "chapter_id": created["chapter_id"],
+        "name": created["name"],
+        "starts_on": created["starts_on"],
+        "period_weeks": 1,  # shrink k → offset 9 is now out of range
+        "anchor_monday": None,
+        "chores": [{"id": x_id, "name": "X", "cycle_slots": [2, 9]}],
+    }
+    r = client.put(f"/api/v1/chores/{created['id']}", headers=organiser_headers, json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["chores"][0]["cycle_slots"] == [2]  # 9 dropped
+
+
+# --- archive / restore / delete --------------------------------------
+
+
+def test_archive_restore_delete_flow(client, organiser_headers):
+    roster = _create(client, organiser_headers).json()
+    rid = roster["id"]
+
+    # Delete a live roster is refused.
+    assert client.delete(f"/api/v1/chores/{rid}", headers=organiser_headers).status_code == 409
+
+    assert client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers).status_code == 200
+    # Now it shows in archived, not active.
+    assert client.get("/api/v1/chores", headers=organiser_headers).json() == []
+    archived = client.get("/api/v1/chores/archived", headers=organiser_headers).json()
+    assert [r["id"] for r in archived] == [rid]
+
+    # Archive again → 409.
+    assert client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers).status_code == 409
+
+    assert client.post(f"/api/v1/chores/{rid}/restore", headers=organiser_headers).status_code == 200
+    # Archive then hard-delete.
+    client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers)
+    assert client.delete(f"/api/v1/chores/{rid}", headers=organiser_headers).status_code == 204
+    assert client.get(f"/api/v1/chores/{rid}", headers=organiser_headers).status_code == 404
+
+
+# --- scoping ---------------------------------------------------------
+
+
+def test_unknown_roster_is_404(client, organiser_headers):
+    assert client.get("/api/v1/chores/nonexistent", headers=organiser_headers).status_code == 404
+
+
+def test_roster_in_other_chapter_is_404_for_organiser(client, admin_headers, organiser_headers):
+    other = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Other chapter"}).json()
+    roster = client.post(
+        "/api/v1/chores",
+        headers=admin_headers,
+        json={"chapter_id": other["id"], "name": "Admin roster", "starts_on": "2026-01-05"},
+    ).json()
+    # Organiser is not a member of "Other chapter" → 404 (not 403).
+    assert client.get(f"/api/v1/chores/{roster['id']}", headers=organiser_headers).status_code == 404

@@ -1,15 +1,8 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName, InstagramHandle, LowercaseEmail
-
-# Two-letter ISO language tag. Drives both the public sign-up
-# page's UI language and the locale of the feedback email sent
-# afterwards. Two values today (nl / en); widen the literal if we
-# ever localise per region.
-Locale = Literal["nl", "en"]
+from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail
 
 
 class EventCreate(BaseModel):

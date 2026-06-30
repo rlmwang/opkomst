@@ -74,6 +74,20 @@
         "title": "Body_upload_form_image_api_v1_forms__form_id__image_post",
         "type": "object"
       },
+      "Body_upload_roster_image_api_v1_chores__roster_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_roster_image_api_v1_chores__roster_id__image_post",
+        "type": "object"
+      },
       "ChapterArchiveRequest": {
         "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
         "properties": {
@@ -272,6 +286,130 @@
           "events"
         ],
         "title": "ChapterUsageOut",
+        "type": "object"
+      },
+      "ChoreIn": {
+        "description": "One chore on the create / update payload. ``id`` is null for a new\nchore and set for an existing one (matched on update, like\n``FormQuestionIn``). ``cycle_slots`` are normalised (deduped, sorted,\nrange-checked) by the parent roster validator against ``period_weeks``.",
+        "properties": {
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 64,
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "emoji": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "people_per_shift": {
+            "default": 1,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "People Per Shift",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ChoreIn",
+        "type": "object"
+      },
+      "ChoreOut": {
+        "properties": {
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "emoji": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "people_per_shift": {
+            "title": "People Per Shift",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ordinal",
+          "cycle_slots",
+          "people_per_shift"
+        ],
+        "title": "ChoreOut",
         "type": "object"
       },
       "CompleteRegistrationRequest": {
@@ -2774,6 +2912,583 @@
         "title": "RenameUserRequest",
         "type": "object"
       },
+      "RosterCreate": {
+        "description": "Organiser create payload. Out-of-range ``cycle_slots`` raise 422.",
+        "properties": {
+          "anchor_monday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Monday"
+          },
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "chores": {
+            "items": {
+              "$ref": "#/components/schemas/ChoreIn"
+            },
+            "maxItems": 100,
+            "title": "Chores",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "default": 1,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "reminder_days_before": {
+            "default": 1,
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Reminder Days Before",
+            "type": "integer"
+          },
+          "reminder_enabled": {
+            "default": true,
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name",
+          "starts_on"
+        ],
+        "title": "RosterCreate",
+        "type": "object"
+      },
+      "RosterListOut": {
+        "description": "List-row DTO. Scalars + counts, no chore list \u2014 mirrors how the\nother entities ship counts rather than the child collection.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "chore_count": {
+            "title": "Chore Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "volunteer_count": {
+            "title": "Volunteer Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "period_weeks",
+          "chore_count",
+          "volunteer_count"
+        ],
+        "title": "RosterListOut",
+        "type": "object"
+      },
+      "RosterOut": {
+        "description": "Single-roster DTO \u2014 list fields plus the recurrence config, the\noptional location/image, and the full chore list (by ordinal).",
+        "properties": {
+          "anchor_monday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Monday"
+          },
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "chore_count": {
+            "title": "Chore Count",
+            "type": "integer"
+          },
+          "chores": {
+            "items": {
+              "$ref": "#/components/schemas/ChoreOut"
+            },
+            "title": "Chores",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "reminder_days_before": {
+            "title": "Reminder Days Before",
+            "type": "integer"
+          },
+          "reminder_enabled": {
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "volunteer_count": {
+            "title": "Volunteer Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "name",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "created_at",
+          "period_weeks",
+          "chore_count",
+          "volunteer_count",
+          "starts_on",
+          "reminder_enabled",
+          "reminder_days_before"
+        ],
+        "title": "RosterOut",
+        "type": "object"
+      },
+      "RosterUpdate": {
+        "description": "Same body as create, but shrinking ``period_weeks`` drops (clamps)\nnow-out-of-range ``cycle_slots`` instead of rejecting the save.",
+        "properties": {
+          "anchor_monday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Monday"
+          },
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "chores": {
+            "items": {
+              "$ref": "#/components/schemas/ChoreIn"
+            },
+            "maxItems": 100,
+            "title": "Chores",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "default": 1,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "reminder_days_before": {
+            "default": 1,
+            "maximum": 14.0,
+            "minimum": 0.0,
+            "title": "Reminder Days Before",
+            "type": "integer"
+          },
+          "reminder_enabled": {
+            "default": true,
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chapter_id",
+          "name",
+          "starts_on"
+        ],
+        "title": "RosterUpdate",
+        "type": "object"
+      },
       "SendRequest": {
         "description": "One outbound message. Phone normalisation happens client-side.",
         "properties": {
@@ -4237,6 +4952,619 @@
         "summary": "Chapter Usage",
         "tags": [
           "chapters"
+        ]
+      }
+    },
+    "/api/v1/chores": {
+      "get": {
+        "operationId": "list_rosters_api_v1_chores_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RosterListOut"
+                  },
+                  "title": "Response List Rosters Api V1 Chores Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rosters",
+        "tags": [
+          "chores"
+        ]
+      },
+      "post": {
+        "description": "Create a roster. Chores are optional at create \u2014 a blank roster\ncan be saved and chores added on the edit page. The caller-supplied\n``chapter_id`` must be in the user's set.",
+        "operationId": "create_roster_api_v1_chores_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RosterCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/archived": {
+      "get": {
+        "operationId": "list_archived_rosters_api_v1_chores_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RosterListOut"
+                  },
+                  "title": "Response List Archived Rosters Api V1 Chores Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Rosters",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}": {
+      "delete": {
+        "description": "Hard-delete an archived roster. Refuses unless archived first \u2014\ndeleting a live roster with volunteers/shifts would be a data-loss\nfootgun. Cascades through chores / volunteers / enrollments / shifts\nvia the FK ON DELETE CASCADEs.",
+        "operationId": "delete_roster_api_v1_chores__roster_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Roster",
+        "tags": [
+          "chores"
+        ]
+      },
+      "get": {
+        "operationId": "get_roster_api_v1_chores__roster_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Roster",
+        "tags": [
+          "chores"
+        ]
+      },
+      "put": {
+        "description": "Update a roster. Chapter changes are allowed but the new one must\nbe in the user's set. Chores are diff-applied on id; shrinking\n``period_weeks`` clamps now-out-of-range ``cycle_slots`` (the schema\nvalidator handles the clamp).",
+        "operationId": "update_roster_api_v1_chores__roster_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RosterUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/archive": {
+      "post": {
+        "operationId": "archive_roster_api_v1_chores__roster_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/image": {
+      "delete": {
+        "description": "Clear the image reference. The file in the repo is left alone.",
+        "operationId": "delete_roster_image_api_v1_chores__roster_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Roster Image",
+        "tags": [
+          "chores"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the roster's hero image \u2014 same 4:5 GitHub\npipeline as the other entities (``services/image.py``).",
+        "operationId": "upload_roster_image_api_v1_chores__roster_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_roster_image_api_v1_chores__roster_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Roster Image",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/restore": {
+      "post": {
+        "operationId": "restore_roster_api_v1_chores__roster_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Roster",
+        "tags": [
+          "chores"
         ]
       }
     },

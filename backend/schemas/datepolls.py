@@ -20,8 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import DisplayName, InstagramHandle
-from .events import Locale
+from .common import DisplayName, InstagramHandle, Locale
 
 Availability = Literal["yes", "no", "maybe"]
 
