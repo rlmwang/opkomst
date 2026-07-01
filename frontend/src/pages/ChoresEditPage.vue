@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import InputNumber from "primevue/inputnumber";
+import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Textarea from "primevue/textarea";
@@ -13,6 +13,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import ChoreEditor, { type ChoreDraft } from "@/components/ChoreEditor.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
+import NumberStepper from "@/components/NumberStepper.vue";
 import { ApiError } from "@/api/client";
 import type { ChoreIn, RosterCreate, RosterUpdate } from "@/api/types";
 import { chapterList, useChapters } from "@/composables/useChapters";
@@ -49,14 +50,31 @@ const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const rosterLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 const periodWeeks = ref(1);
-const anchorMonday = ref<string | null>(null);
-const startsOn = ref<string>("");
-const endsOn = ref<string | null>(null);
+const anchorMonday = ref<Date | null>(null);
+const startsOn = ref<Date | null>(null);
+const endsOn = ref<Date | null>(null);
 const reminderEnabled = ref(true);
 const reminderDaysBefore = ref(1);
 const choreListState = useOrderedList<ChoreDraft>();
 const chores = choreListState.items;
 const submitting = ref(false);
+
+const localeOptions = computed(() => [
+  { value: "nl", label: t("chores.edit.localeNl") },
+  { value: "en", label: t("chores.edit.localeEn") },
+]);
+
+// --- Date <-> "YYYY-MM-DD" (local, no UTC shift) --------------------
+function isoDate(d: Date | null): string | null {
+  if (!d) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function parseDate(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
 
 const existingQuery = computed(() => (props.rosterId ? props.rosterId : ""));
 const rosterQuery = isEdit.value ? useRoster(existingQuery) : null;
@@ -67,23 +85,12 @@ const notFound = computed(
     rosterQuery?.error.value instanceof ApiError &&
     rosterQuery.error.value.status === 404,
 );
-const otherError = computed(
-  () => isEdit.value && rosterQuery?.error.value && !notFound.value,
-);
-
-/** Local-time weekday check so a "YYYY-MM-DD" string isn't shifted by
- * UTC parsing. Monday === 1 in ``Date.getDay()``. */
-function isMonday(iso: string | null): boolean {
-  if (!iso) return false;
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return false;
-  return new Date(y, m - 1, d).getDay() === 1;
-}
+const otherError = computed(() => isEdit.value && rosterQuery?.error.value && !notFound.value);
 
 const anchorError = computed<string | null>(() => {
   if (periodWeeks.value <= 1) return null;
   if (!anchorMonday.value) return t("chores.edit.anchorRequired");
-  if (!isMonday(anchorMonday.value)) return t("chores.edit.anchorNotMonday");
+  if (anchorMonday.value.getDay() !== 1) return t("chores.edit.anchorNotMonday");
   return null;
 });
 
@@ -105,14 +112,9 @@ watch(periodWeeks, (next, prev) => {
   }
 });
 
-function todayIso(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 onMounted(() => {
   if (isEdit.value) return;
-  if (!startsOn.value) startsOn.value = todayIso();
+  if (!startsOn.value) startsOn.value = new Date();
   const queryChapter = (route.query.chapter as string | undefined) ?? null;
   const memberIds = new Set((auth.user?.chapters ?? []).map((c) => c.id));
   if (queryChapter && memberIds.has(queryChapter)) {
@@ -134,9 +136,9 @@ watch(
     rosterLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
     periodWeeks.value = existing.period_weeks;
-    anchorMonday.value = existing.anchor_monday ?? null;
-    startsOn.value = existing.starts_on;
-    endsOn.value = existing.ends_on ?? null;
+    anchorMonday.value = parseDate(existing.anchor_monday);
+    startsOn.value = parseDate(existing.starts_on);
+    endsOn.value = parseDate(existing.ends_on);
     reminderEnabled.value = existing.reminder_enabled;
     reminderDaysBefore.value = existing.reminder_days_before;
     chores.value = (existing.chores ?? []).map((c) => ({
@@ -152,7 +154,7 @@ watch(
   { immediate: true },
 );
 
-// --- Draft persistence ---------------------------------------------
+// --- Draft persistence (dates stored as ISO strings) ---------------
 const draftKey = computed(() => `chore-edit-draft:${props.rosterId ?? "new"}`);
 
 interface RosterEditDraft {
@@ -163,7 +165,7 @@ interface RosterEditDraft {
   rosterLocale: "nl" | "en";
   periodWeeks: number;
   anchorMonday: string | null;
-  startsOn: string;
+  startsOn: string | null;
   endsOn: string | null;
   reminderEnabled: boolean;
   reminderDaysBefore: number;
@@ -178,9 +180,9 @@ function snapshot(): RosterEditDraft {
     chapterId: chapterId.value,
     rosterLocale: rosterLocale.value,
     periodWeeks: periodWeeks.value,
-    anchorMonday: anchorMonday.value,
-    startsOn: startsOn.value,
-    endsOn: endsOn.value,
+    anchorMonday: isoDate(anchorMonday.value),
+    startsOn: isoDate(startsOn.value),
+    endsOn: isoDate(endsOn.value),
     reminderEnabled: reminderEnabled.value,
     reminderDaysBefore: reminderDaysBefore.value,
     chores: chores.value,
@@ -194,9 +196,9 @@ function applyDraft(d: RosterEditDraft): void {
   chapterId.value = d.chapterId ?? null;
   rosterLocale.value = d.rosterLocale ?? "nl";
   periodWeeks.value = d.periodWeeks ?? 1;
-  anchorMonday.value = d.anchorMonday ?? null;
-  startsOn.value = d.startsOn || todayIso();
-  endsOn.value = d.endsOn ?? null;
+  anchorMonday.value = parseDate(d.anchorMonday);
+  startsOn.value = parseDate(d.startsOn) ?? new Date();
+  endsOn.value = parseDate(d.endsOn);
   reminderEnabled.value = d.reminderEnabled ?? true;
   reminderDaysBefore.value = d.reminderDaysBefore ?? 1;
   chores.value = (d.chores ?? []).map((c) => ({ ...c, cycle_slots: [...(c.cycle_slots ?? [])] }));
@@ -291,9 +293,9 @@ async function submit() {
       latitude: null,
       longitude: null,
       period_weeks: periodWeeks.value,
-      anchor_monday: periodWeeks.value > 1 ? anchorMonday.value : null,
-      starts_on: startsOn.value,
-      ends_on: endsOn.value || null,
+      anchor_monday: periodWeeks.value > 1 ? isoDate(anchorMonday.value) : null,
+      starts_on: isoDate(startsOn.value) as string,
+      ends_on: isoDate(endsOn.value),
       reminder_enabled: reminderEnabled.value,
       reminder_days_before: reminderDaysBefore.value,
       chores: chores.value.map(
@@ -351,6 +353,7 @@ async function submit() {
     @submit="submit"
     @cancel="cancel"
   >
+    <!-- Basics -->
     <section class="form-section">
       <InputText v-model="name" :placeholder="t('chores.edit.namePlaceholder')" fluid />
       <Textarea
@@ -379,43 +382,41 @@ async function submit() {
       v-model:artist="imageArtistInstagram"
     />
 
-    <!-- Recurrence controls (roster-level, above the chore list). -->
+    <!-- Recurrence + run window -->
     <section class="form-section">
       <h2 class="section-heading">{{ t("chores.edit.recurrenceHeading") }}</h2>
       <p class="muted section-explainer">{{ t("chores.edit.recurrenceExplainer") }}</p>
 
-      <label class="field-row">
-        <span>{{ t("chores.edit.periodWeeks") }}</span>
-        <InputNumber v-model="periodWeeks" :min="1" :max="8" show-buttons button-layout="horizontal" />
-      </label>
-
-      <label v-if="periodWeeks > 1" class="field-row">
-        <span>{{ t("chores.edit.anchorMonday") }}</span>
-        <input type="date" class="date-input" v-model="anchorMonday" />
-      </label>
-      <p v-if="anchorError" class="field-error">{{ anchorError }}</p>
-
-      <div class="field-grid">
-        <label class="field-row">
-          <span>{{ t("chores.edit.startsOn") }}</span>
-          <input type="date" class="date-input" v-model="startsOn" />
-        </label>
-        <label class="field-row">
-          <span>{{ t("chores.edit.endsOn") }}</span>
-          <input type="date" class="date-input" v-model="endsOn" />
-        </label>
+      <div class="field">
+        <span class="field-label">{{ t("chores.edit.periodWeeks") }}</span>
+        <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
       </div>
 
-      <label class="toggle-row">
-        <ToggleSwitch v-model="reminderEnabled" />
-        <span>{{ t("chores.edit.reminderEnabled") }}</span>
-      </label>
-      <label v-if="reminderEnabled" class="field-row">
-        <span>{{ t("chores.edit.reminderDaysBefore") }}</span>
-        <InputNumber v-model="reminderDaysBefore" :min="0" :max="14" show-buttons button-layout="horizontal" />
-      </label>
+      <div v-if="periodWeeks > 1" class="field">
+        <span class="field-label">{{ t("chores.edit.anchorMonday") }}</span>
+        <DatePicker v-model="anchorMonday" date-format="dd-mm-yy" :placeholder="t('chores.edit.anchorMonday')" fluid />
+        <p v-if="anchorError" class="field-error">{{ anchorError }}</p>
+      </div>
+
+      <div class="date-row">
+        <div class="field">
+          <span class="field-label">{{ t("chores.edit.startsOn") }}</span>
+          <DatePicker v-model="startsOn" date-format="dd-mm-yy" :placeholder="t('chores.edit.startsOn')" fluid />
+        </div>
+        <div class="field">
+          <span class="field-label">{{ t("chores.edit.endsOn") }}</span>
+          <DatePicker
+            v-model="endsOn"
+            date-format="dd-mm-yy"
+            show-button-bar
+            :placeholder="t('chores.edit.endsOnPlaceholder')"
+            fluid
+          />
+        </div>
+      </div>
     </section>
 
+    <!-- Chores -->
     <section class="form-section">
       <h2 class="section-heading">{{ t("chores.edit.choresHeading") }}</h2>
       <p class="muted section-explainer">{{ t("chores.edit.choresExplainer") }}</p>
@@ -447,44 +448,54 @@ async function submit() {
         @click="addChore"
       />
     </section>
+
+    <!-- Reminders -->
+    <section class="form-section">
+      <h2 class="section-heading">{{ t("chores.edit.remindersHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
+
+      <label class="toggle-row" for="reminderToggle">
+        <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+        <strong>{{ t("chores.edit.reminderEnabled") }}</strong>
+      </label>
+
+      <div v-if="reminderEnabled" class="field">
+        <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
+        <NumberStepper
+          v-model="reminderDaysBefore"
+          :min="0"
+          :max="14"
+          :aria-label="t('chores.edit.reminderDaysBefore')"
+        />
+      </div>
+    </section>
+
+    <!-- Language -->
+    <section class="form-section">
+      <h2 class="section-heading">{{ t("chores.edit.languageHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("chores.edit.languageExplainer") }}</p>
+      <Select
+        v-model="rosterLocale"
+        :options="localeOptions"
+        option-label="label"
+        option-value="value"
+        fluid
+      />
+    </section>
   </FormPageShell>
 </template>
 
 <style scoped>
-.form-section {
+/* Shared form chrome (.form-section, .section-heading, .section-explainer,
+ * .toggle-row, .toggle-help, .field, .field-label) lives in
+ * ``src/assets/forms.css``. Only chore-specific rules stay here. */
+.date-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.section-heading { margin: 0; }
-.section-explainer { margin: 0; font-size: 0.875rem; }
-.field-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9375rem;
-}
-.field-row > span { min-width: 12rem; }
-.field-grid {
-  display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }
-.field-grid .field-row > span { min-width: 6rem; }
-.toggle-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9375rem;
-  align-self: flex-start;
-}
-.date-input {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font: inherit;
+.date-row .field {
+  flex: 1 1 12rem;
 }
 .field-error {
   margin: 0;
@@ -502,5 +513,9 @@ async function submit() {
   border-radius: 8px;
   text-align: center;
 }
-.back-link { display: inline-block; margin-top: 0.5rem; }
+.back-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--brand-red);
+}
 </style>

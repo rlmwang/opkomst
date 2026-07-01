@@ -14,6 +14,7 @@ import { i18n } from "./i18n";
 import router from "./router";
 import "primeicons/primeicons.css";
 import "./assets/theme.css";
+import "./assets/forms.css";
 
 // Brand palette anchored at primary.500 (#9f000b) and a warm-cream
 // surface scale that matches the app's hand-rolled --brand-bg /

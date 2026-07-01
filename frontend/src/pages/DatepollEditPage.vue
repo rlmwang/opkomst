@@ -648,22 +648,8 @@ async function submit() {
   min-height: calc((var(--p-datepicker-date-height, 2.5rem) + var(--p-datepicker-date-padding, 0.25rem) * 2) * 7);
 }
 
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.form-section + .form-section {
-  margin-top: 2.5rem;
-}
-.section-heading {
-  margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-}
-.section-explainer {
-  margin: -0.25rem 0 0.25rem;
-}
+/* Shared form chrome (.form-section, .section-heading,
+ * .section-explainer) lives in ``src/assets/forms.css``. */
 /* Calendar on top, the chosen-days list below — one card per day,
  * each holding its time-slots inline (a day with none stays whole-day,
  * no label). */

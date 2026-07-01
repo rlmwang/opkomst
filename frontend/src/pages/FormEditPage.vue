@@ -371,22 +371,8 @@ async function submit() {
 </template>
 
 <style scoped>
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.form-section + .form-section {
-  margin-top: 2.5rem;
-}
-.section-heading {
-  margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-}
-.section-explainer {
-  margin: -0.25rem 0 0.25rem;
-}
+/* Shared form chrome (.form-section, .section-heading,
+ * .section-explainer) lives in ``src/assets/forms.css``. */
 .questions-stack {
   display: flex;
   flex-direction: column;

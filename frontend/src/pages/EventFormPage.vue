@@ -564,44 +564,15 @@ async function submit() {
 </template>
 
 <style scoped>
-/* Each labelled block (basics / sources / help / questionnaire /
- * locale) is a ``form-section``. Inside the section, fields stack
- * with the standard 0.75rem gap; between sections we open up
- * 2.5rem of breathing room so a glance can pick out the groups
- * without reading every line. */
-.form-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.form-section + .form-section {
-  margin-top: 2.5rem;
-}
+/* Shared form chrome (.form-section, .section-heading,
+ * .section-explainer, .toggle-row, .toggle-help) lives in
+ * ``src/assets/forms.css``. Only event-specific rules stay here. */
 .time-row {
   display: flex;
   gap: 0.5rem;
 }
 .time-row > * {
   flex: 1;
-}
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  cursor: pointer;
-}
-.toggle-help {
-  font-size: 0.8125rem;
-}
-.section-heading {
-  margin: 0;
-  font-size: 1.0625rem;
-  font-weight: 600;
-}
-/* Tight under the heading so heading + intro read as a single
- * unit, then the section's normal 0.75rem gap kicks in below. */
-.section-explainer {
-  margin: -0.25rem 0 0.25rem;
 }
 /* Footer (Cancel + Save buttons) is owned by FormPageShell —
  * see ``FormPageShell.vue::.form-footer``. */

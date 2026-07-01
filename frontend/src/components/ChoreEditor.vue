@@ -10,11 +10,11 @@
  * ``QuestionEditor`` so both sit on the same ``useOrderedList`` parent.
  */
 import Button from "primevue/button";
-import InputNumber from "primevue/inputnumber";
 import InputText from "primevue/inputtext";
 import { useI18n } from "vue-i18n";
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
 import EmojiPicker from "@/components/EmojiPicker.vue";
+import NumberStepper from "@/components/NumberStepper.vue";
 
 export interface ChoreDraft {
   id: string | null;
@@ -116,17 +116,16 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
       />
     </div>
 
-    <label class="people-row">
-      <span>{{ t("chores.edit.peoplePerShift") }}</span>
-      <InputNumber
+    <div class="people-row">
+      <span class="field-label">{{ t("chores.edit.peoplePerShift") }}</span>
+      <NumberStepper
         :model-value="modelValue.people_per_shift"
         :min="1"
         :max="20"
-        show-buttons
-        button-layout="horizontal"
-        @update:model-value="(v) => patch('people_per_shift', v ?? 1)"
+        :aria-label="t('chores.edit.peoplePerShift')"
+        @update:model-value="(v) => patch('people_per_shift', v)"
       />
-    </label>
+    </div>
   </div>
 </template>
 

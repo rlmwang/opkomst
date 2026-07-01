@@ -1,0 +1,58 @@
+/*
+ * Shared chrome for the organiser edit forms (Event / Form / Datepoll /
+ * Roster). These classes used to be copy-pasted into each page's
+ * ``<style scoped>`` and drifted apart; this is the single source so
+ * every edit form groups + spaces its sections identically.
+ *
+ * Inside ``@layer app`` so PrimeVue's runtime styles aren't trampled
+ * (see main.ts + theme.css layer ordering).
+ */
+@layer app {
+  /* Each labelled block (basics / recurrence / reminders / language …)
+   * is a ``form-section``: fields stack with a 0.75rem gap; sections are
+   * separated by 2.5rem so a glance picks out the groups. */
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .form-section + .form-section {
+    margin-top: 2.5rem;
+  }
+
+  .section-heading {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 600;
+  }
+  /* Tight under the heading so heading + intro read as one unit, then
+   * the section's normal 0.75rem gap kicks in below. */
+  .section-explainer {
+    margin: -0.25rem 0 0.25rem;
+  }
+
+  /* Toggle: a ``ToggleSwitch`` + bold label on one row, with an optional
+   * muted help paragraph beneath. */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    cursor: pointer;
+  }
+  .toggle-help {
+    font-size: 0.8125rem;
+  }
+
+  /* A single labelled control: a small muted label stacked above its
+   * (usually fluid) input. For sections with several distinct fields
+   * that a placeholder alone can't name (e.g. the recurrence controls). */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .field-label {
+    font-size: 0.875rem;
+    color: var(--brand-text-muted);
+  }
+}

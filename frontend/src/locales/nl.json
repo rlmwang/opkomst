@@ -471,7 +471,14 @@
       "notFoundTitle": "Rooster niet gevonden",
       "notFoundBody": "Dit rooster bestaat niet (meer).",
       "backToList": "Terug naar roosters",
-      "loadFailed": "Kon het rooster niet laden."
+      "loadFailed": "Kon het rooster niet laden.",
+      "remindersHeading": "Herinneringen",
+      "remindersExplainer": "Stuur vrijwilligers een e-mail voordat ze aan de beurt zijn (alleen als ze een e-mailadres opgeven).",
+      "languageHeading": "Taal",
+      "languageExplainer": "Taal van de openbare pagina en de e-mails.",
+      "localeNl": "Nederlands",
+      "localeEn": "Engels",
+      "endsOnPlaceholder": "Geen einddatum"
     },
     "details": {
       "edit": "Bewerken",

@@ -471,7 +471,14 @@
       "notFoundTitle": "Roster not found",
       "notFoundBody": "This roster doesn't exist (any more).",
       "backToList": "Back to rosters",
-      "loadFailed": "Couldn't load the roster."
+      "loadFailed": "Couldn't load the roster.",
+      "remindersHeading": "Reminders",
+      "remindersExplainer": "Email volunteers before their turn (only if they add an email address).",
+      "languageHeading": "Language",
+      "languageExplainer": "Language of the public page and the emails.",
+      "localeNl": "Dutch",
+      "localeEn": "English",
+      "endsOnPlaceholder": "No end date"
     },
     "details": {
       "edit": "Edit",
