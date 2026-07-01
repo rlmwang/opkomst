@@ -36,7 +36,8 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Datepoll, Event, Form
+from ..models import Datepoll, Event, Form, Roster
+from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
 from ..services import event_stats
 from ..services import events as events_svc
@@ -64,6 +65,7 @@ _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
 # pages.
 _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
 _DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
+_CHORE_INJECTION_MARKER = "<!-- OPKOMST_CHORE_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # Static OG image — same favicon the browser tab uses, lives at
@@ -165,6 +167,20 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
     )
 
 
+def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
+    """Per-roster link-preview ``<head>``. Description is the roster's
+    blurb if set, else its name; favicon card."""
+    if roster is None:
+        return "<title>opkomst.nu</title>"
+    return _og_head(
+        name=roster.name,
+        description=roster.description or roster.name,
+        canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
+        og_image=_OG_IMAGE_URL,
+        twitter_card="summary",
+    )
+
+
 class _ImmutableStatic(StaticFiles):
     async def get_response(self, path: str, scope: Scope):  # type: ignore[no-untyped-def]
         response = await super().get_response(path, scope)
@@ -258,6 +274,19 @@ def _serve_public_datepoll(slug: str, db: Session) -> HTMLResponse:
     )
 
 
+def _serve_public_roster(slug: str, db: Session) -> HTMLResponse:
+    # Archived/unknown rosters inline null, same as forms/datepolls.
+    roster = chores_svc.get_roster_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
+    return _serve_public_app(
+        html_name="public-chore.html",
+        window_var="__OPKOMST_CHORE__",
+        payload_marker=_CHORE_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_roster_head_meta(roster, slug),
+    )
+
+
 def mount(app: FastAPI) -> None:
     if not _DIST.is_dir():
         return
@@ -276,6 +305,10 @@ def mount(app: FastAPI) -> None:
     @app.get("/d/{slug}", include_in_schema=False)
     def _public_datepoll(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_datepoll(slug, db)
+
+    @app.get("/c/{slug}", include_in_schema=False)
+    def _public_roster(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_roster(slug, db)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def _spa_fallback(full_path: str) -> FileResponse:

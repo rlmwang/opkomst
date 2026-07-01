@@ -1,0 +1,161 @@
+/**
+ * Public chore mini-app (``PublicChore.vue``): enrol payload shape,
+ * personal-mode rendering, and the shift actions. The bare-fetch api
+ * module is mocked; the roster payload is set on ``window`` as the
+ * backend would inline it.
+ */
+import { flushPromises, mount } from "@vue/test-utils";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import * as api from "@/public_chore/api";
+import PublicChore from "@/public_chore/PublicChore.vue";
+
+vi.mock("@/public_chore/api", () => ({
+  ApiError: class ApiError extends Error {},
+  fetchRosterBySlug: vi.fn(),
+  fetchPersonalPage: vi.fn(),
+  postEnrolment: vi.fn(),
+  putEnrolment: vi.fn(),
+  postShiftAction: vi.fn(),
+  postLeave: vi.fn(),
+}));
+
+const ROSTER = {
+  id: "r1",
+  name: "Bins roster",
+  description: null,
+  location: null,
+  latitude: null,
+  longitude: null,
+  image_url: null,
+  image_artist_instagram: null,
+  locale: "en" as const,
+  period_weeks: 1,
+  anchor_monday: null,
+  starts_on: "2026-01-05",
+  ends_on: null,
+  chores: [
+    { id: "c1", name: "Bins", description: null, cycle_slots: [2], people_per_shift: 1, emoji: null },
+    { id: "c2", name: "Sweep", description: null, cycle_slots: [4], people_per_shift: 1, emoji: null },
+  ],
+};
+
+function setUrl(path: string): void {
+  window.history.pushState({}, "", path);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.__OPKOMST_CHORE__ = structuredClone(ROSTER);
+});
+
+afterEach(() => {
+  window.__OPKOMST_CHORE__ = undefined;
+});
+
+describe("PublicChore enrol mode", () => {
+  it("submits the picked chores + name, no email", async () => {
+    setUrl("/c/abc12345");
+    vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    // Pick the first chore + type a name.
+    const checks = w.findAll('input[type="checkbox"]');
+    await checks[0].setValue(true); // c1
+    await w.find('input[type="text"]').setValue("Sam");
+    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
+    await flushPromises();
+
+    expect(api.postEnrolment).toHaveBeenCalledWith("abc12345", {
+      display_name: "Sam",
+      email: null,
+      email_reminders: false,
+      chore_ids: ["c1"],
+    });
+    // Confirmation screen with the edit link is shown.
+    expect(w.text()).toContain("You're signed up!");
+  });
+
+  it("includes email + reminders when provided", async () => {
+    setUrl("/c/abc12345");
+    vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    await w.findAll('input[type="checkbox"]')[0].setValue(true); // c1 pick
+    await w.find('input[type="email"]').setValue("sam@local.dev");
+    // The reminders checkbox is the last checkbox (after the two chores).
+    const boxes = w.findAll('input[type="checkbox"]');
+    await boxes[boxes.length - 1].setValue(true);
+    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
+    await flushPromises();
+
+    expect(api.postEnrolment).toHaveBeenCalledWith(
+      "abc12345",
+      expect.objectContaining({ email: "sam@local.dev", email_reminders: true, chore_ids: ["c1"] }),
+    );
+  });
+});
+
+describe("PublicChore personal mode", () => {
+  const PAGE = {
+    display_name: "Sam",
+    enrolled_chore_ids: ["c1"],
+    email_reminders: false,
+    has_email: false,
+    my_shifts: [{ id: "s1", chore_id: "c1", chore_name: "Bins", on_date: "2026-07-08", status: "scheduled" }],
+    open_shifts: [{ id: "s2", chore_id: "c2", chore_name: "Sweep", on_date: "2026-07-10", status: "open" }],
+  };
+
+  it("renders my turns + up-for-grabs", async () => {
+    setUrl("/c/abc12345?s=tok");
+    vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    expect(w.text()).toContain("My turns");
+    expect(w.text()).toContain("Bins");
+    expect(w.text()).toContain("Up for grabs");
+    expect(w.text()).toContain("Sweep");
+  });
+
+  it("done calls the endpoint and refetches the page", async () => {
+    setUrl("/c/abc12345?s=tok");
+    vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
+    vi.mocked(api.postShiftAction).mockResolvedValueOnce({ ...structuredClone(PAGE), my_shifts: [] });
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    await w.findAll("button").find((b) => b.text() === "Done")!.trigger("click");
+    await flushPromises();
+    expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s1", "done");
+  });
+
+  it("claim takes an open shift", async () => {
+    setUrl("/c/abc12345?s=tok");
+    vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
+    vi.mocked(api.postShiftAction).mockResolvedValueOnce(structuredClone(PAGE));
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    await w.findAll("button").find((b) => b.text() === "Take it on")!.trigger("click");
+    await flushPromises();
+    expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");
+  });
+
+  it("leave confirms then calls the endpoint", async () => {
+    setUrl("/c/abc12345?s=tok");
+    vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
+    vi.mocked(api.postLeave).mockResolvedValueOnce(undefined);
+    const confirmMock = vi.fn(() => true);
+    window.confirm = confirmMock;
+    const w = mount(PublicChore);
+    await flushPromises();
+
+    await w.findAll("button").find((b) => b.text() === "Leave")!.trigger("click");
+    await flushPromises();
+    expect(confirmMock).toHaveBeenCalled();
+    expect(api.postLeave).toHaveBeenCalledWith("tok");
+  });
+});

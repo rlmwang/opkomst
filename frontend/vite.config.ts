@@ -135,6 +135,10 @@ export default defineConfig({
         publicDatepoll: fileURLToPath(
           new URL("./public-datepoll.html", import.meta.url),
         ),
+        // Same split again: dedicated bundle graph for ``/c/{slug}``.
+        publicChore: fileURLToPath(
+          new URL("./public-chore.html", import.meta.url),
+        ),
       },
       output: {
         // Split heavy vendor libs into their own chunks. The main
