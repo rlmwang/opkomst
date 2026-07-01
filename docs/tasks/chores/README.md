@@ -4,25 +4,18 @@ Execution plan for `docs/design-chores.md`. Each task is self-contained, ships i
 and leaves the suite green. **`R*` tasks are DRY refactors** that extract a shared
 abstraction and migrate the existing three entities (Event/Form/Datepoll) onto it — each
 guarded by *no behaviour change + existing tests pass unedited* — so the chore code reuses
-it instead of becoming copy #4. Run top to bottom.
+it instead of becoming copy #4.
 
-| Order | Task | Layer | Consumed by / depends on |
+**The original series (R1→08) is complete** — each spec file was deleted as its task landed
+(one commit per task on `feat/chores`). Order shipped:
+`R1 → 01 → R2 → 02 → R3 → 03 → 04 → R4 → 05 → 06 → 07 → 08`. After 04 the organiser side is
+usable; after 07 volunteers self-manage email-free; 08 adds the optional reminders.
+
+### Follow-up tasks (post-series)
+
+| # | Task | Layer | Depends on |
 |---|---|---|---|
-| R1 | [Refactor: org-entity model spine mixin](chores-R1-model-spine-mixin.md) | backend (refactor) | → 01 |
-| 01 | [Data model + recurrence + access](chores-01-models.md) | backend | R1 |
-| R2 | [Refactor: archivable CRUD helper](chores-R2-archivable-crud-helper.md) | backend (refactor) | → 02 |
-| 02 | [Organiser CRUD API](chores-02-organiser-api.md) | backend | 01, R2 |
-| R3 | [Refactor: entity CRUD composable factory](chores-R3-entity-crud-factory.md) | frontend (refactor) | → 04 |
-| 03 | [Refactor: extract ordered-list editor](chores-03-ordered-list-refactor.md) | frontend (refactor) | → 04 |
-| 04 | [Admin frontend (rosters)](chores-04-admin-frontend.md) | frontend | 02, 03, R3 |
-| R4 | [Refactor: public slug/token resolver](chores-R4-public-resolver.md) | backend (refactor) | → 05 |
-| 05 | [Public enrolment backend](chores-05-enrolment-api.md) | backend | 02, R4 |
-| 06 | [Shift generation + fairness (roster-tick)](chores-06-roster-tick.md) | backend | 05 |
-| 07 | [Public mini-app](chores-07-public-frontend.md) | frontend | 05, 06 |
-| 08 | [Email reminders](chores-08-email-reminders.md) | backend | 06 |
-
-After 04 the organiser side is fully usable. After 07 volunteers can enrol and self-manage
-(email-free). 08 layers on the optional, disclosed reminders.
+| 09 | [Per-volunteer accountability stats](chores-09-accountability-stats.md) | backend + frontend | 06, 04 |
 
 **Already well-factored (the specs just reuse these — no work):** `useShareClipboard`,
 `useImageUpload(resource)` + `image_svc.replace_entity_image(folder)`, the page shells
