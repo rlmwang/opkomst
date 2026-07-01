@@ -108,6 +108,7 @@ const topTabs = computed<TopTab[]>(() => {
 });
 
 const sectionMenu = ref<InstanceType<typeof Popover> | null>(null);
+const sectionMenuOpen = ref(false);
 function toggleSectionMenu(event: Event) {
   sectionMenu.value?.toggle(event);
 }
@@ -210,12 +211,13 @@ async function logout() {
               class="top-tab section-trigger"
               :class="{ active: activeSection }"
               aria-haspopup="true"
+              :aria-expanded="sectionMenuOpen"
               @click="toggleSectionMenu"
             >
               {{ activeSection ? activeSection.label : t("header.workspace") }}
-              <span class="section-chevron" aria-hidden="true">▾</span>
+              <i class="pi pi-chevron-down section-chevron" aria-hidden="true"></i>
             </button>
-            <Popover ref="sectionMenu">
+            <Popover ref="sectionMenu" @show="sectionMenuOpen = true" @hide="sectionMenuOpen = false">
               <div class="section-menu">
                 <button
                   v-for="s in sectionTabs"
@@ -313,8 +315,13 @@ nav a {
   color: var(--brand-text);
 }
 .section-chevron {
-  font-size: 0.7em;
-  line-height: 1;
+  font-size: 0.8rem;
+  color: var(--brand-text-muted);
+  transition: transform 150ms ease;
+}
+/* Flip the chevron while the dropdown is open. */
+.section-trigger[aria-expanded="true"] .section-chevron {
+  transform: rotate(180deg);
 }
 .section-menu {
   display: flex;
