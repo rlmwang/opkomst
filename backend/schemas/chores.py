@@ -211,12 +211,50 @@ class PersonalOutlookOut(BaseModel):
     on_date: date
 
 
+class CoverableShiftOut(BaseModel):
+    """Someone else's confirmed shift, on a chore this volunteer is enrolled
+    for, that they can voluntarily cover."""
+
+    id: str
+    chore_id: str
+    chore_name: str
+    on_date: date
+    assignee_name: str | None
+
+
+class AvailabilityRange(BaseModel):
+    """An inclusive date range a volunteer is unavailable."""
+
+    start: date
+    end: date
+
+    @model_validator(mode="after")
+    def _validate(self) -> "AvailabilityRange":
+        if self.end < self.start:
+            raise ValueError("end must not be before start")
+        return self
+
+
+class AvailabilityIn(BaseModel):
+    ranges: list[AvailabilityRange] = Field(default_factory=list, max_length=100)
+
+
+class SwapIn(BaseModel):
+    """Trade two confirmed shifts: the caller's ``mine`` for someone else's
+    ``theirs``."""
+
+    mine_shift_id: str
+    theirs_shift_id: str
+
+
 class PersonalPageOut(BaseModel):
     """The volunteer's personal page. Never carries the email or its
     ciphertext — only whether one is on file (``has_email``).
 
     ``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**
-    window; ``outlook_shifts`` is the tentative projection beyond it."""
+    window; ``outlook_shifts`` is the tentative projection beyond it;
+    ``coverable_shifts`` are others' confirmed shifts this volunteer may
+    take over; ``availability`` is their current away ranges."""
 
     display_name: str | None
     enrolled_chore_ids: list[str]
@@ -225,6 +263,8 @@ class PersonalPageOut(BaseModel):
     my_shifts: list[PersonalShiftOut] = Field(default_factory=list)
     open_shifts: list[PersonalShiftOut] = Field(default_factory=list)
     outlook_shifts: list[PersonalOutlookOut] = Field(default_factory=list)
+    coverable_shifts: list[CoverableShiftOut] = Field(default_factory=list)
+    availability: list[AvailabilityRange] = Field(default_factory=list)
 
 
 class VolunteerSummaryOut(BaseModel):

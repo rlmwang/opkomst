@@ -13,9 +13,12 @@ shared auth/scope code with the chapter-scoped CRUD.
 * ``PUT  /by-token/{token}`` — edit enrolment (chores, name, reminders).
 * ``POST /by-token/{token}/leave`` — remove the volunteer (email gone).
 * ``POST /by-token/{token}/shifts/{id}/done`` — assignee marks it done.
-* ``POST /by-token/{token}/shifts/{id}/handoff`` — give it up; it reopens
+* ``POST /by-token/{token}/shifts/{id}/pass`` — "can't make it"; it reopens
   and is re-assigned to someone else.
+* ``POST /by-token/{token}/shifts/{id}/cover`` — take over another's shift.
 * ``POST /by-token/{token}/shifts/{id}/claim`` — take an open shift.
+* ``POST /by-token/{token}/swap`` — trade two confirmed shifts.
+* ``PUT  /by-token/{token}/availability`` — set away ranges.
 
 The email contract (§6): an address is used once (plaintext, transient)
 to send the welcome link, and retained (encrypted) only while the
@@ -32,13 +35,15 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Chore, Enrollment, Roster, Shift, Volunteer
+from ..models import Chore, Enrollment, Roster, Shift, Volunteer, VolunteerAvailability
 from ..schemas.chores import (
+    AvailabilityIn,
     EnrollAck,
     EnrollEditIn,
     EnrollIn,
     PersonalPageOut,
     PublicRosterOut,
+    SwapIn,
 )
 from ..services import chore_tick, edit_token, encryption, mail, public_access
 from ..services import chores as chores_svc
@@ -209,17 +214,17 @@ def mark_shift_done(
     return chores_svc.personal_page(db, volunteer)
 
 
-@router.post("/by-token/{token}/shifts/{shift_id}/handoff", response_model=PersonalPageOut)
+@router.post("/by-token/{token}/shifts/{shift_id}/pass", response_model=PersonalPageOut)
 @limiter.limit(Limits.PUBLIC_SIGNUP)
-def hand_off_shift(
+def pass_shift(
     request: Request,
     token: str,
     shift_id: str,
     db: Session = Depends(get_db),
 ) -> PersonalPageOut:
-    """Give up a shift. It reopens and is immediately re-assigned to
-    someone else (excluding the bailer); if nobody is eligible it stays
-    ``open`` for anyone to claim."""
+    """ "Can't make it": give up a confirmed shift. It reopens and is
+    immediately re-assigned to someone else (excluding the passer); if
+    nobody else is eligible it stays ``open`` for anyone to claim."""
     volunteer = _volunteer_by_token(db, token)
     shift = _shift_in_roster(db, shift_id, volunteer.roster_id)
     if shift.volunteer_id != volunteer.id:
@@ -233,6 +238,94 @@ def hand_off_shift(
     # reminder — the previous assignee's reminder must not suppress it.
     shift.reminder_sent_at = None
     chore_tick.reassign_shift(db, shift, exclude={volunteer.id})
+    db.commit()
+    return chores_svc.personal_page(db, volunteer)
+
+
+def _assert_enrolled(db: Session, volunteer_id: str, chore_id: str) -> None:
+    enrolled = (
+        db.query(Enrollment).filter(Enrollment.volunteer_id == volunteer_id, Enrollment.chore_id == chore_id).first()
+    )
+    if enrolled is None:
+        raise HTTPException(status_code=403, detail="You're not signed up for this chore.")
+
+
+@router.post("/by-token/{token}/shifts/{shift_id}/cover", response_model=PersonalPageOut)
+@limiter.limit(Limits.PUBLIC_SIGNUP)
+def cover_shift(
+    request: Request,
+    token: str,
+    shift_id: str,
+    db: Session = Depends(get_db),
+) -> PersonalPageOut:
+    """Voluntarily take over someone else's confirmed shift. One-way: the
+    coverer becomes the assignee and earns a favour credit (§7)."""
+    volunteer = _volunteer_by_token(db, token)
+    shift = _shift_in_roster(db, shift_id, volunteer.roster_id)
+    if shift.status != "scheduled" or shift.volunteer_id is None:
+        raise HTTPException(status_code=409, detail="That shift isn't up for cover.")
+    if shift.volunteer_id == volunteer.id:
+        raise HTTPException(status_code=400, detail="This is already your shift.")
+    _assert_enrolled(db, volunteer.id, shift.chore_id)
+    shift.volunteer_id = volunteer.id
+    shift.reminder_sent_at = None
+    chore_tick.record_event(
+        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="covered", shift_id=shift.id
+    )
+    db.commit()
+    return chores_svc.personal_page(db, volunteer)
+
+
+@router.post("/by-token/{token}/swap", response_model=PersonalPageOut)
+@limiter.limit(Limits.PUBLIC_SIGNUP)
+def swap_shifts(
+    request: Request,
+    token: str,
+    data: SwapIn,
+    db: Session = Depends(get_db),
+) -> PersonalPageOut:
+    """Trade two confirmed shifts: the caller's ``mine`` for another
+    volunteer's ``theirs``. Both must be eligible for the chore they
+    receive. Ledger-neutral (records ``assigned`` for each new holder)."""
+    volunteer = _volunteer_by_token(db, token)
+    mine = _shift_in_roster(db, data.mine_shift_id, volunteer.roster_id)
+    theirs = _shift_in_roster(db, data.theirs_shift_id, volunteer.roster_id)
+    if mine.volunteer_id != volunteer.id:
+        raise HTTPException(status_code=403, detail="The first shift isn't yours.")
+    if theirs.volunteer_id is None or theirs.volunteer_id == volunteer.id:
+        raise HTTPException(status_code=400, detail="The second shift isn't someone else's.")
+    if mine.status != "scheduled" or theirs.status != "scheduled":
+        raise HTTPException(status_code=409, detail="Both shifts must be confirmed.")
+    other_id = theirs.volunteer_id
+    _assert_enrolled(db, volunteer.id, theirs.chore_id)
+    _assert_enrolled(db, other_id, mine.chore_id)
+    mine.volunteer_id = other_id
+    theirs.volunteer_id = volunteer.id
+    mine.reminder_sent_at = None
+    theirs.reminder_sent_at = None
+    chore_tick.record_event(db, roster_id=volunteer.roster_id, volunteer_id=other_id, kind="assigned", shift_id=mine.id)
+    chore_tick.record_event(
+        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="assigned", shift_id=theirs.id
+    )
+    db.commit()
+    return chores_svc.personal_page(db, volunteer)
+
+
+@router.put("/by-token/{token}/availability", response_model=PersonalPageOut)
+@limiter.limit(Limits.PUBLIC_SIGNUP)
+def set_availability(
+    request: Request,
+    token: str,
+    data: AvailabilityIn,
+    db: Session = Depends(get_db),
+) -> PersonalPageOut:
+    """Replace the volunteer's away ranges. These exclude them from future
+    projection + pinning on those dates (§7); already-pinned confirmed
+    shifts are untouched."""
+    volunteer = _volunteer_by_token(db, token)
+    db.query(VolunteerAvailability).filter(VolunteerAvailability.volunteer_id == volunteer.id).delete()
+    for r in data.ranges:
+        db.add(VolunteerAvailability(volunteer_id=volunteer.id, start_date=r.start, end_date=r.end))
     db.commit()
     return chores_svc.personal_page(db, volunteer)
 

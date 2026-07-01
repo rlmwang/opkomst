@@ -142,7 +142,7 @@ def test_volunteer_list_leak_guard(client, organiser_headers):
     assert not (banned & set(row.keys())), set(row.keys())
 
 
-# --- shift actions (done / handoff / claim) --------------------------
+# --- shift actions (done / pass / cover / claim) --------------------------
 
 
 def _enrolled_token(client: Any, organiser_headers: Any) -> tuple[dict[str, Any], str, str]:
@@ -194,7 +194,7 @@ def test_done_only_by_assignee(client, organiser_headers, db):
     assert r.status_code == 403
 
 
-def test_handoff_reassigns_to_someone_else(client, organiser_headers, db):
+def test_pass_reassigns_to_someone_else(client, organiser_headers, db):
     roster, token, cid = _enrolled_token(client, organiser_headers)
     other = _enroll(client, roster["slug"], display_name="Other", chore_ids=[cid]).json()["edit_token"]
     _tick(db)
@@ -202,7 +202,7 @@ def test_handoff_reassigns_to_someone_else(client, organiser_headers, db):
     if not my:
         return
     shift_id = my[0]["id"]
-    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff")
+    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass")
     assert r.status_code == 200, r.text
     # The bailer no longer holds it.
     assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
@@ -236,3 +236,90 @@ def test_organiser_schedule_shows_stats_and_upcoming(client, organiser_headers, 
     assert sched["stats"]["done"] == 0 and sched["stats"]["missed"] == 0
     assert len(sched["confirmed"]) == sched["stats"]["scheduled"]
     assert {s["assignee_name"] for s in sched["confirmed"]} == {"Sam"}
+
+
+# --- cover / swap / availability (task 12) ---------------------------
+
+
+def test_cover_takes_over_and_records_covered(client, organiser_headers, db):
+    from backend.models import ShiftEvent
+
+    roster, _token_a, cid = _enrolled_token(client, organiser_headers)  # Sam
+    token_b = _enroll(client, roster["slug"], display_name="Bea", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    cov = client.get(f"/api/v1/chores/by-token/{token_b}").json()["coverable_shifts"]
+    if not cov:
+        return  # every shift happened to fall to Bea; nothing of Sam's to cover
+    sid = cov[0]["id"]
+    r = client.post(f"/api/v1/chores/by-token/{token_b}/shifts/{sid}/cover")
+    assert r.status_code == 200, r.text
+    assert sid in [s["id"] for s in r.json()["my_shifts"]]
+    assert db.query(ShiftEvent).filter(ShiftEvent.shift_id == sid, ShiftEvent.kind == "covered").count() == 1
+
+
+def test_cover_rejects_your_own_shift(client, organiser_headers, db):
+    _roster, token, _cid = _enrolled_token(client, organiser_headers)
+    _tick(db)
+    mine = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
+    if not mine:
+        return
+    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{mine[0]['id']}/cover")
+    assert r.status_code == 400
+
+
+def test_swap_trades_two_confirmed_shifts(client, organiser_headers, db):
+    roster, token_a, cid = _enrolled_token(client, organiser_headers)  # Sam
+    _enroll(client, roster["slug"], display_name="Bea", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    page_a = client.get(f"/api/v1/chores/by-token/{token_a}").json()
+    mine, theirs = page_a["my_shifts"], page_a["coverable_shifts"]
+    if not mine or not theirs:
+        return  # need one shift each to trade
+    r = client.post(
+        f"/api/v1/chores/by-token/{token_a}/swap",
+        json={"mine_shift_id": mine[0]["id"], "theirs_shift_id": theirs[0]["id"]},
+    )
+    assert r.status_code == 200, r.text
+    new_mine = [s["id"] for s in r.json()["my_shifts"]]
+    assert theirs[0]["id"] in new_mine and mine[0]["id"] not in new_mine
+
+
+def test_swap_rejects_a_shift_you_dont_hold(client, organiser_headers, db):
+    roster, token_a, cid = _enrolled_token(client, organiser_headers)
+    _enroll(client, roster["slug"], display_name="Bea", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    theirs = client.get(f"/api/v1/chores/by-token/{token_a}").json()["coverable_shifts"]
+    if not theirs:
+        return
+    # A tries to swap a shift that is not theirs as `mine`.
+    r = client.post(
+        f"/api/v1/chores/by-token/{token_a}/swap",
+        json={"mine_shift_id": theirs[0]["id"], "theirs_shift_id": theirs[0]["id"]},
+    )
+    assert r.status_code == 403
+
+
+def test_availability_excludes_from_new_pins(client, organiser_headers, db):
+    from datetime import date, timedelta
+
+    roster = _create_roster(client, organiser_headers)
+    cid = roster["chores"][0]["id"]
+    token = _enroll(client, roster["slug"], display_name="Sam", chore_ids=[cid]).json()["edit_token"]
+    away = {"ranges": [{"start": str(date.today()), "end": str(date.today() + timedelta(days=400))}]}
+    r = client.put(f"/api/v1/chores/by-token/{token}/availability", json=away)
+    assert r.status_code == 200, r.text
+    assert len(r.json()["availability"]) == 1
+    _tick(db)  # pins the window; Sam is away, so nothing is assigned to them
+    page = client.get(f"/api/v1/chores/by-token/{token}").json()
+    assert page["my_shifts"] == []
+    assert page["open_shifts"], "shifts still materialise, just unassigned"
+
+
+def test_availability_rejects_inverted_range(client, organiser_headers):
+    roster = _create_roster(client, organiser_headers)
+    token = _enroll(client, roster["slug"], display_name="Sam", chore_ids=[]).json()["edit_token"]
+    r = client.put(
+        f"/api/v1/chores/by-token/{token}/availability",
+        json={"ranges": [{"start": "2026-02-01", "end": "2026-01-01"}]},
+    )
+    assert r.status_code == 422

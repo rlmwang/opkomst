@@ -32,6 +32,41 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "AvailabilityIn": {
+        "properties": {
+          "ranges": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityRange"
+            },
+            "maxItems": 100,
+            "title": "Ranges",
+            "type": "array"
+          }
+        },
+        "title": "AvailabilityIn",
+        "type": "object"
+      },
+      "AvailabilityRange": {
+        "description": "An inclusive date range a volunteer is unavailable.",
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "AvailabilityRange",
+        "type": "object"
+      },
       "Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post": {
         "properties": {
           "file": {
@@ -430,6 +465,48 @@
           "name"
         ],
         "title": "CompleteRegistrationRequest",
+        "type": "object"
+      },
+      "CoverableShiftOut": {
+        "description": "Someone else's confirmed shift, on a chore this volunteer is enrolled\nfor, that they can voluntarily cover.",
+        "properties": {
+          "assignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Name"
+          },
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chore_id",
+          "chore_name",
+          "on_date",
+          "assignee_name"
+        ],
+        "title": "CoverableShiftOut",
         "type": "object"
       },
       "DatepollAnswerIn": {
@@ -2862,8 +2939,22 @@
         "type": "object"
       },
       "PersonalPageOut": {
-        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).\n\n``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**\nwindow; ``outlook_shifts`` is the tentative projection beyond it.",
+        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).\n\n``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**\nwindow; ``outlook_shifts`` is the tentative projection beyond it;\n``coverable_shifts`` are others' confirmed shifts this volunteer may\ntake over; ``availability`` is their current away ranges.",
         "properties": {
+          "availability": {
+            "items": {
+              "$ref": "#/components/schemas/AvailabilityRange"
+            },
+            "title": "Availability",
+            "type": "array"
+          },
+          "coverable_shifts": {
+            "items": {
+              "$ref": "#/components/schemas/CoverableShiftOut"
+            },
+            "title": "Coverable Shifts",
+            "type": "array"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -4267,6 +4358,25 @@
           "state"
         ],
         "title": "StatusResponse",
+        "type": "object"
+      },
+      "SwapIn": {
+        "description": "Trade two confirmed shifts: the caller's ``mine`` for someone else's\n``theirs``.",
+        "properties": {
+          "mine_shift_id": {
+            "title": "Mine Shift Id",
+            "type": "string"
+          },
+          "theirs_shift_id": {
+            "title": "Theirs Shift Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mine_shift_id",
+          "theirs_shift_id"
+        ],
+        "title": "SwapIn",
         "type": "object"
       },
       "UserOut": {
@@ -5934,6 +6044,59 @@
         ]
       }
     },
+    "/api/v1/chores/by-token/{token}/availability": {
+      "put": {
+        "description": "Replace the volunteer's away ranges. These exclude them from future\nprojection + pinning on those dates (\u00a77); already-pinned confirmed\nshifts are untouched.",
+        "operationId": "set_availability_api_v1_chores_by_token__token__availability_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AvailabilityIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Availability",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/by-token/{token}/leave": {
       "post": {
         "description": "Remove the volunteer. Enrolments cascade; the encrypted email goes\nwith the row; future shifts drop the assignee via SET NULL.",
@@ -6022,6 +6185,58 @@
         ]
       }
     },
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/cover": {
+      "post": {
+        "description": "Voluntarily take over someone else's confirmed shift. One-way: the\ncoverer becomes the assignee and earns a favour credit (\u00a77).",
+        "operationId": "cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shift_id",
+            "required": true,
+            "schema": {
+              "title": "Shift Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cover Shift",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
       "post": {
         "operationId": "mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post",
@@ -6073,10 +6288,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff": {
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass": {
       "post": {
-        "description": "Give up a shift. It reopens and is immediately re-assigned to\nsomeone else (excluding the bailer); if nobody is eligible it stays\n``open`` for anyone to claim.",
-        "operationId": "hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post",
+        "description": "\"Can't make it\": give up a confirmed shift. It reopens and is\nimmediately re-assigned to someone else (excluding the passer); if\nnobody else is eligible it stays ``open`` for anyone to claim.",
+        "operationId": "pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post",
         "parameters": [
           {
             "in": "path",
@@ -6119,7 +6334,60 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Hand Off Shift",
+        "summary": "Pass Shift",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}/swap": {
+      "post": {
+        "description": "Trade two confirmed shifts: the caller's ``mine`` for another\nvolunteer's ``theirs``. Both must be eligible for the chore they\nreceive. Ledger-neutral (records ``assigned`` for each new holder).",
+        "operationId": "swap_shifts_api_v1_chores_by_token__token__swap_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwapIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Swap Shifts",
         "tags": [
           "chores"
         ]

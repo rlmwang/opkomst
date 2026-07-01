@@ -15,9 +15,11 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer
+from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from ..schemas.chores import (
+    AvailabilityRange,
     ChoreOut,
+    CoverableShiftOut,
     OutlookShiftOut,
     PersonalOutlookOut,
     PersonalPageOut,
@@ -222,6 +224,35 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         )
         open_shifts = [_shift_out(s, name) for s, name in opens]
 
+    coverable: list[CoverableShiftOut] = []
+    if chore_ids:
+        rows = (
+            db.query(Shift, Chore.name, Volunteer.display_name)
+            .join(Chore, Chore.id == Shift.chore_id)
+            .outerjoin(Volunteer, Volunteer.id == Shift.volunteer_id)
+            .filter(
+                Shift.chore_id.in_(chore_ids),
+                Shift.status == "scheduled",
+                Shift.on_date >= today,
+                Shift.volunteer_id.is_not(None),
+                Shift.volunteer_id != volunteer.id,
+            )
+            .order_by(Shift.on_date, Shift.id)
+            .all()
+        )
+        coverable = [
+            CoverableShiftOut(id=s.id, chore_id=s.chore_id, chore_name=name, on_date=s.on_date, assignee_name=assignee)
+            for s, name, assignee in rows
+        ]
+
+    availability = [
+        AvailabilityRange(start=a.start_date, end=a.end_date)
+        for a in db.query(VolunteerAvailability)
+        .filter(VolunteerAvailability.volunteer_id == volunteer.id)
+        .order_by(VolunteerAvailability.start_date)
+        .all()
+    ]
+
     return PersonalPageOut(
         display_name=volunteer.display_name,
         enrolled_chore_ids=chore_ids,
@@ -230,6 +261,8 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         my_shifts=[_shift_out(s, name) for s, name in mine],
         open_shifts=open_shifts,
         outlook_shifts=_personal_outlook(db, volunteer, today),
+        coverable_shifts=coverable,
+        availability=availability,
     )
 
 

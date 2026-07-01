@@ -26,6 +26,21 @@ export interface ChoreStrings {
   markDone: string;
   cantMakeIt: string;
   claim: string;
+  coverHeading: string;
+  coverButton: string;
+  coverForName: string;
+  noCoverable: string;
+  outlookHeading: string;
+  outlookNote: string;
+  noOutlook: string;
+  availabilityHeading: string;
+  availabilityHint: string;
+  availabilityAdd: string;
+  availabilityRemove: string;
+  availabilitySave: string;
+  availabilityFrom: string;
+  availabilityTo: string;
+  availabilityEmpty: string;
   reminderState: string;
   leave: string;
   leaveConfirm: string;
@@ -57,6 +72,21 @@ const dict: Record<Locale, ChoreStrings> = {
     markDone: "Gedaan",
     cantMakeIt: "Kan niet — vind iemand anders",
     claim: "Overnemen",
+    coverHeading: "Voor iemand invallen",
+    coverButton: "Invallen",
+    coverForName: "Beurt van {name}",
+    noCoverable: "Geen beurten om voor in te vallen.",
+    outlookHeading: "Verwachte beurten",
+    outlookNote: "Voorlopig — dit kan nog veranderen.",
+    noOutlook: "Nog geen verwachte beurten.",
+    availabilityHeading: "Afwezigheid",
+    availabilityHint: "Geef periodes op waarin je niet kunt. Je wordt dan niet ingedeeld.",
+    availabilityAdd: "Periode toevoegen",
+    availabilityRemove: "Verwijderen",
+    availabilitySave: "Afwezigheid opslaan",
+    availabilityFrom: "Van",
+    availabilityTo: "Tot en met",
+    availabilityEmpty: "Je hebt geen afwezigheid opgegeven.",
     reminderState: "E-mailherinneringen",
     leave: "Afmelden",
     leaveConfirm: "Weet je zeker dat je je wilt afmelden? Je e-mailadres wordt verwijderd.",
@@ -86,6 +116,21 @@ const dict: Record<Locale, ChoreStrings> = {
     markDone: "Done",
     cantMakeIt: "Can't make it — find someone else",
     claim: "Take it on",
+    coverHeading: "Cover for someone",
+    coverButton: "Cover",
+    coverForName: "{name}'s turn",
+    noCoverable: "No turns to cover right now.",
+    outlookHeading: "Expected turns",
+    outlookNote: "Tentative — this may still change.",
+    noOutlook: "No expected turns yet.",
+    availabilityHeading: "Time off",
+    availabilityHint: "Add periods when you can't take part. You won't be scheduled then.",
+    availabilityAdd: "Add a period",
+    availabilityRemove: "Remove",
+    availabilitySave: "Save time off",
+    availabilityFrom: "From",
+    availabilityTo: "Until (inclusive)",
+    availabilityEmpty: "You haven't set any time off.",
     reminderState: "Email reminders",
     leave: "Leave",
     leaveConfirm: "Are you sure you want to leave? Your email will be deleted.",

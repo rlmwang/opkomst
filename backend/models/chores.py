@@ -152,6 +152,20 @@ class Enrollment(TimestampMixin, Base):
     __table_args__ = (PrimaryKeyConstraint("volunteer_id", "chore_id", name="pk_enrollments"),)
 
 
+class VolunteerAvailability(UUIDMixin, TimestampMixin, Base):
+    """A date range one volunteer is unavailable. Fed into the projection
+    and the pin step so an away volunteer is excluded from occurrences on
+    those dates (design §7 availability). Ranges are inclusive."""
+
+    __tablename__ = "volunteer_availability"
+
+    volunteer_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("volunteers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+
+
 class Shift(UUIDMixin, TimestampMixin, Base):
     """One materialised ``(chore, date, slot_index)`` occurrence. ``status``
     is the lifecycle: ``open`` (unassigned / up for grabs), ``scheduled``
@@ -189,9 +203,11 @@ class ShiftEvent(UUIDMixin, TimestampMixin, Base):
     state row can't. Rows die with the roster or the volunteer (CASCADE);
     ``shift_id`` is SET NULL so deleting a shift keeps the fact.
 
-    Kinds: ``assigned`` (auto-assigned by the tick), ``claimed`` (took an
-    open shift themselves), ``completed``, ``deferred`` (handed off),
-    ``missed`` (a scheduled shift they held passed undone)."""
+    Kinds (design §7 provenance): ``assigned`` (WRH-assigned by the tick),
+    ``claimed`` (took an open shift), ``covered`` (took over another's
+    confirmed shift), ``inherited`` (force-assigned a departed volunteer's
+    shift — task 13), ``completed``, ``deferred`` (passed), ``missed`` (a
+    scheduled shift they held passed undone)."""
 
     __tablename__ = "shift_events"
 
@@ -202,13 +218,13 @@ class ShiftEvent(UUIDMixin, TimestampMixin, Base):
         Text, ForeignKey("volunteers.id", ondelete="CASCADE"), nullable=False, index=True
     )
     shift_id: Mapped[str | None] = mapped_column(Text, ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True)
-    kind: Mapped[Literal["assigned", "claimed", "completed", "deferred", "missed"]] = mapped_column(
-        Text, nullable=False
+    kind: Mapped[Literal["assigned", "claimed", "covered", "inherited", "completed", "deferred", "missed"]] = (
+        mapped_column(Text, nullable=False)
     )
 
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('assigned', 'claimed', 'completed', 'deferred', 'missed')",
+            "kind IN ('assigned', 'claimed', 'covered', 'inherited', 'completed', 'deferred', 'missed')",
             name="ck_shift_events_kind",
         ),
     )

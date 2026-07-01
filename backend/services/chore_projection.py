@@ -90,14 +90,22 @@ def occurrences_between(
     return out
 
 
+def _available(volunteer_id: str, on_date: date, unavailable: Mapping[str, Sequence[tuple[date, date]]]) -> bool:
+    return not any(lo <= on_date <= hi for lo, hi in unavailable.get(volunteer_id, ()))
+
+
 def project(
     occurrences: Iterable[Occurrence],
     eligible_by_chore: Mapping[str, Sequence[str]],
     weights: Mapping[str, float],
+    unavailable: Mapping[str, Sequence[tuple[date, date]]] | None = None,
 ) -> list[ProjectedAssignment]:
     """Assign each occurrence via WRH. Slots of one ``(chore, date)`` are
-    filled by the top-ranked eligible volunteers; surplus slots (more
-    people than eligible) project to ``None`` (open)."""
+    filled by the top-ranked eligible volunteers who are **available** on
+    that date; surplus slots (more people than available) project to
+    ``None`` (open). ``unavailable`` maps volunteer id → inclusive away
+    ranges."""
+    away = unavailable or {}
     groups: dict[tuple[str, date], list[Occurrence]] = {}
     for occ in occurrences:
         groups.setdefault((occ.chore_id, occ.on_date), []).append(occ)
@@ -105,9 +113,8 @@ def project(
     out: list[ProjectedAssignment] = []
     for (chore_id, on_date), occs in groups.items():
         occs.sort(key=lambda o: o.slot_index)
-        ranked = assign_occurrence(
-            eligible_by_chore.get(chore_id, []), weights, chore_id=chore_id, on_date=on_date, count=len(occs)
-        )
+        eligible = [v for v in eligible_by_chore.get(chore_id, []) if _available(v, on_date, away)]
+        ranked = assign_occurrence(eligible, weights, chore_id=chore_id, on_date=on_date, count=len(occs))
         for i, occ in enumerate(occs):
             out.append(ProjectedAssignment(occurrence=occ, volunteer_id=ranked[i] if i < len(ranked) else None))
     return out

@@ -7,6 +7,7 @@ import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import {
+  type AvailabilityRange,
   type PersonalPage,
   type PublicRoster,
   type ShiftAction,
@@ -16,6 +17,7 @@ import {
   postEnrolment,
   postLeave,
   postShiftAction,
+  putAvailability,
   putEnrolment,
 } from "./api";
 import { choreStrings, formatCycle, formatLongDate } from "./i18n";
@@ -38,6 +40,7 @@ const savedFlash = ref(false);
 
 const personal = ref<PersonalPage | null>(null);
 const savedToken = ref<string | null>(null);
+const availDraft = ref<AvailabilityRange[]>([]);
 
 const editToken = new URL(window.location.href).searchParams.get("s");
 
@@ -82,6 +85,29 @@ function hydratePersonal(page: PersonalPage): void {
   displayName.value = page.display_name ?? "";
   emailReminders.value = page.email_reminders;
   for (const chore of chores.value) picked[chore.id] = page.enrolled_chore_ids.includes(chore.id);
+  availDraft.value = (page.availability ?? []).map((r) => ({ ...r }));
+}
+
+function addAvailRange(): void {
+  availDraft.value.push({ start: "", end: "" });
+}
+
+function removeAvailRange(index: number): void {
+  availDraft.value.splice(index, 1);
+}
+
+async function saveAvailability(): Promise<void> {
+  if (!editToken) return;
+  const ranges = availDraft.value.filter((r) => r.start && r.end);
+  busy.value = true;
+  errorMsg.value = "";
+  try {
+    hydratePersonal(await putAvailability(editToken, ranges));
+  } catch {
+    errorMsg.value = ch.value.actionFailed;
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function enrol(): Promise<void> {
@@ -189,7 +215,7 @@ async function leave(): Promise<void> {
                 <button type="button" class="btn" :disabled="busy" @click="act(s.id, 'done')">
                   {{ ch.markDone }}
                 </button>
-                <button type="button" class="btn ghost" :disabled="busy" @click="act(s.id, 'handoff')">
+                <button type="button" class="btn ghost" :disabled="busy" @click="act(s.id, 'pass')">
                   {{ ch.cantMakeIt }}
                 </button>
               </span>
@@ -211,6 +237,66 @@ async function leave(): Promise<void> {
               </button>
             </li>
           </ul>
+        </div>
+
+        <div class="card stack">
+          <h2>{{ ch.coverHeading }}</h2>
+          <p v-if="(personal.coverable_shifts ?? []).length === 0" class="muted">{{ ch.noCoverable }}</p>
+          <ul v-else class="shift-list">
+            <li v-for="s in personal.coverable_shifts ?? []" :key="s.id" class="shift-row">
+              <span class="shift-main">
+                <strong>{{ s.chore_name }}</strong>
+                <span class="muted">
+                  {{ formatLongDate(s.on_date, locale) }}
+                  <template v-if="s.assignee_name"> · {{ ch.coverForName.replace("{name}", s.assignee_name) }}</template>
+                </span>
+              </span>
+              <button type="button" class="btn ghost" :disabled="busy" @click="act(s.id, 'cover')">
+                {{ ch.coverButton }}
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card stack">
+          <h2>{{ ch.outlookHeading }}</h2>
+          <p class="muted">{{ ch.outlookNote }}</p>
+          <p v-if="(personal.outlook_shifts ?? []).length === 0" class="muted">{{ ch.noOutlook }}</p>
+          <ul v-else class="shift-list">
+            <li v-for="(s, i) in personal.outlook_shifts ?? []" :key="`${s.chore_id}-${s.on_date}-${i}`" class="shift-row">
+              <span class="shift-main">
+                <strong>{{ s.chore_name }}</strong>
+                <span class="muted">{{ formatLongDate(s.on_date, locale) }}</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card stack">
+          <h2>{{ ch.availabilityHeading }}</h2>
+          <p class="muted">{{ ch.availabilityHint }}</p>
+          <p v-if="availDraft.length === 0" class="muted">{{ ch.availabilityEmpty }}</p>
+          <div v-for="(r, i) in availDraft" :key="i" class="avail-row">
+            <label class="avail-field">
+              <span class="muted">{{ ch.availabilityFrom }}</span>
+              <input v-model="r.start" type="date" />
+            </label>
+            <label class="avail-field">
+              <span class="muted">{{ ch.availabilityTo }}</span>
+              <input v-model="r.end" type="date" />
+            </label>
+            <button type="button" class="btn ghost" :disabled="busy" @click="removeAvailRange(i)">
+              {{ ch.availabilityRemove }}
+            </button>
+          </div>
+          <div class="shift-actions">
+            <button type="button" class="btn ghost" :disabled="busy" @click="addAvailRange">
+              {{ ch.availabilityAdd }}
+            </button>
+            <button type="button" class="btn" :disabled="busy" @click="saveAvailability">
+              {{ ch.availabilitySave }}
+            </button>
+          </div>
         </div>
       </template>
 
@@ -318,6 +404,8 @@ h2 { margin: 0; font-size: 1.1rem; }
 }
 .shift-main { display: flex; flex-direction: column; }
 .shift-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.avail-row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.avail-field { display: flex; flex-direction: column; gap: 0.25rem; }
 .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .btn {
   padding: 0.5rem 0.875rem;

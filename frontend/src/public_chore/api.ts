@@ -40,6 +40,25 @@ export interface PersonalShift {
   status: string;
 }
 
+export interface PersonalOutlook {
+  chore_id: string;
+  chore_name: string;
+  on_date: string;
+}
+
+export interface CoverableShift {
+  id: string;
+  chore_id: string;
+  chore_name: string;
+  on_date: string;
+  assignee_name: string | null;
+}
+
+export interface AvailabilityRange {
+  start: string; // YYYY-MM-DD
+  end: string;
+}
+
 export interface PersonalPage {
   display_name: string | null;
   enrolled_chore_ids: string[];
@@ -47,6 +66,9 @@ export interface PersonalPage {
   has_email: boolean;
   my_shifts: PersonalShift[];
   open_shifts: PersonalShift[];
+  outlook_shifts?: PersonalOutlook[];
+  coverable_shifts?: CoverableShift[];
+  availability?: AvailabilityRange[];
 }
 
 export interface EnrollPayload {
@@ -67,7 +89,7 @@ export interface EnrollAck {
   edit_token: string;
 }
 
-export type ShiftAction = "done" | "handoff" | "claim";
+export type ShiftAction = "done" | "pass" | "cover" | "claim";
 
 export class ApiError extends Error {
   constructor(
@@ -117,6 +139,24 @@ export async function postShiftAction(token: string, shiftId: string, action: Sh
     { method: "POST" },
   );
   return readJson(r, action);
+}
+
+export async function postSwap(token: string, mineShiftId: string, theirsShiftId: string): Promise<PersonalPage> {
+  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}/swap`, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ mine_shift_id: mineShiftId, theirs_shift_id: theirsShiftId }),
+  });
+  return readJson(r, "swap");
+}
+
+export async function putAvailability(token: string, ranges: AvailabilityRange[]): Promise<PersonalPage> {
+  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}/availability`, {
+    method: "PUT",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ ranges }),
+  });
+  return readJson(r, "availability");
 }
 
 export async function postLeave(token: string): Promise<void> {

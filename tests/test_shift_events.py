@@ -145,7 +145,7 @@ def test_done_records_completed(client, organiser_headers, db):
     assert _volunteers(client, organiser_headers, roster["id"])["Sam"]["completed"] == 1
 
 
-def test_handoff_records_deferred_and_reassigns(client, organiser_headers, db):
+def test_pass_records_deferred_and_reassigns(client, organiser_headers, db):
     roster = _api_roster(client, organiser_headers)
     cid = roster["chores"][0]["id"]
     a = _enroll(client, roster["slug"], "A", cid)
@@ -154,7 +154,7 @@ def test_handoff_records_deferred_and_reassigns(client, organiser_headers, db):
     my = client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]
     if not my:
         return
-    client.post(f"/api/v1/chores/by-token/{a}/shifts/{my[0]['id']}/handoff")
+    client.post(f"/api/v1/chores/by-token/{a}/shifts/{my[0]['id']}/pass")
     vols = _volunteers(client, organiser_headers, roster["id"])
     assert vols["A"]["deferred"] == 1
     # B picked up the reassigned shift → their assigned count reflects it.

@@ -24,7 +24,7 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
-from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent
+from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from .chore_assignment import assign_occurrence, net_credit, weight_from_ledger
 from .chore_projection import ChoreSpec, Diff, Occurrence, PinnedShift, occurrences_between, project, reconcile
 
@@ -165,6 +165,20 @@ def _apply(db: Session, roster_id: str, diff: Diff, row_by_key: dict[Occurrence,
     return inserted
 
 
+def _unavailable(db: Session, roster_id: str) -> dict[str, list[tuple[date, date]]]:
+    """Per-volunteer away ranges for a roster (design §7 availability)."""
+    out: dict[str, list[tuple[date, date]]] = {}
+    rows = (
+        db.query(VolunteerAvailability.volunteer_id, VolunteerAvailability.start_date, VolunteerAvailability.end_date)
+        .join(Volunteer, Volunteer.id == VolunteerAvailability.volunteer_id)
+        .filter(Volunteer.roster_id == roster_id)
+        .all()
+    )
+    for vid, start, end in rows:
+        out.setdefault(vid, []).append((start, end))
+    return out
+
+
 def project_range(db: Session, roster: Roster, chores: list[Chore], start: date, end: date):
     """The projected assignments for one roster over ``[start, end]`` — the
     shared oracle behind both the tick's pin step and the read-side outlook,
@@ -177,7 +191,12 @@ def project_range(db: Session, roster: Roster, chores: list[Chore], start: date,
         start=start,
         end=end,
     )
-    return project(occ, _eligible_by_chore(db, [c.id for c in chores]), ledger_weights(db, roster.id))
+    return project(
+        occ,
+        _eligible_by_chore(db, [c.id for c in chores]),
+        ledger_weights(db, roster.id),
+        _unavailable(db, roster.id),
+    )
 
 
 def _pin_window(db: Session, roster: Roster, chores: list[Chore], today: date) -> int:

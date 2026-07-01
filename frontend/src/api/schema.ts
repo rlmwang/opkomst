@@ -514,6 +514,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/by-token/{token}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Availability
+         * @description Replace the volunteer's away ranges. These exclude them from future
+         *     projection + pinning on those dates (§7); already-pinned confirmed
+         *     shifts are untouched.
+         */
+        put: operations["set_availability_api_v1_chores_by_token__token__availability_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/by-token/{token}/leave": {
         parameters: {
             query?: never;
@@ -555,6 +577,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cover Shift
+         * @description Voluntarily take over someone else's confirmed shift. One-way: the
+         *     coverer becomes the assignee and earns a favour credit (§7).
+         */
+        post: operations["cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
         parameters: {
             query?: never;
@@ -572,7 +615,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff": {
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass": {
         parameters: {
             query?: never;
             header?: never;
@@ -582,12 +625,34 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Hand Off Shift
-         * @description Give up a shift. It reopens and is immediately re-assigned to
-         *     someone else (excluding the bailer); if nobody is eligible it stays
-         *     ``open`` for anyone to claim.
+         * Pass Shift
+         * @description "Can't make it": give up a confirmed shift. It reopens and is
+         *     immediately re-assigned to someone else (excluding the passer); if
+         *     nobody else is eligible it stays ``open`` for anyone to claim.
          */
-        post: operations["hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post"];
+        post: operations["pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-token/{token}/swap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Swap Shifts
+         * @description Trade two confirmed shifts: the caller's ``mine`` for another
+         *     volunteer's ``theirs``. Both must be eligible for the chore they
+         *     receive. Ledger-neutral (records ``assigned`` for each new holder).
+         */
+        post: operations["swap_shifts_api_v1_chores_by_token__token__swap_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1951,6 +2016,27 @@ export interface components {
             token: string;
             user: components["schemas"]["UserOut"];
         };
+        /** AvailabilityIn */
+        AvailabilityIn: {
+            /** Ranges */
+            ranges?: components["schemas"]["AvailabilityRange"][];
+        };
+        /**
+         * AvailabilityRange
+         * @description An inclusive date range a volunteer is unavailable.
+         */
+        AvailabilityRange: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+        };
         /** Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post */
         Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post: {
             /** File */
@@ -2104,6 +2190,26 @@ export interface components {
             name: string;
             /** Token */
             token: string;
+        };
+        /**
+         * CoverableShiftOut
+         * @description Someone else's confirmed shift, on a chore this volunteer is enrolled
+         *     for, that they can voluntarily cover.
+         */
+        CoverableShiftOut: {
+            /** Assignee Name */
+            assignee_name: string | null;
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
         };
         /**
          * DatepollAnswerIn
@@ -3083,9 +3189,15 @@ export interface components {
          *     ciphertext — only whether one is on file (``has_email``).
          *
          *     ``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**
-         *     window; ``outlook_shifts`` is the tentative projection beyond it.
+         *     window; ``outlook_shifts`` is the tentative projection beyond it;
+         *     ``coverable_shifts`` are others' confirmed shifts this volunteer may
+         *     take over; ``availability`` is their current away ranges.
          */
         PersonalPageOut: {
+            /** Availability */
+            availability?: components["schemas"]["AvailabilityRange"][];
+            /** Coverable Shifts */
+            coverable_shifts?: components["schemas"]["CoverableShiftOut"][];
             /** Display Name */
             display_name: string | null;
             /** Email Reminders */
@@ -3613,6 +3725,17 @@ export interface components {
              * @enum {string}
              */
             state: "open" | "connecting" | "close" | "unknown" | "not_configured";
+        };
+        /**
+         * SwapIn
+         * @description Trade two confirmed shifts: the caller's ``mine`` for someone else's
+         *     ``theirs``.
+         */
+        SwapIn: {
+            /** Mine Shift Id */
+            mine_shift_id: string;
+            /** Theirs Shift Id */
+            theirs_shift_id: string;
         };
         /** UserOut */
         UserOut: {
@@ -4588,6 +4711,41 @@ export interface operations {
             };
         };
     };
+    set_availability_api_v1_chores_by_token__token__availability_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvailabilityIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     leave_api_v1_chores_by_token__token__leave_post: {
         parameters: {
             query?: never;
@@ -4618,6 +4776,38 @@ export interface operations {
         };
     };
     claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                shift_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4681,7 +4871,7 @@ export interface operations {
             };
         };
     };
-    hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post: {
+    pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4692,6 +4882,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    swap_shifts_api_v1_chores_by_token__token__swap_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwapIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
