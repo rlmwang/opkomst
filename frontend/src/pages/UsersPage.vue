@@ -473,16 +473,6 @@ async function submitUserEdit() {
 .account-chapters .chapter-chip {
   flex-shrink: 0;
 }
-.chapter-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
 .admin-chip {
   display: inline-flex;
   align-items: center;

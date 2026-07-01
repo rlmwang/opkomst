@@ -49,7 +49,7 @@ const {
         <div>
           <h3>
             {{ f.name }}
-            <span v-if="f.chapter_name" class="event-chapter-chip">{{ f.chapter_name }}</span>
+            <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
           </h3>
         </div>
         <div class="row-actions">
@@ -81,17 +81,5 @@ const {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-}
-.event-chapter-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted);
-  font-size: 0.75rem;
-  white-space: nowrap;
-  vertical-align: baseline;
 }
 </style>

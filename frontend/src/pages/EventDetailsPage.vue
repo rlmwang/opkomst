@@ -198,7 +198,7 @@ function askTriggerNow(channel: EmailChannel) {
 <AppCard :stack="false" class="overview">
         <h1>
           {{ event.name }}
-          <span v-if="event.chapter_name" class="event-chapter-chip">{{ event.chapter_name }}</span>
+          <span v-if="event.chapter_name" class="chapter-chip">{{ event.chapter_name }}</span>
         </h1>
         <!-- Hero image + artist credit. Same 4:5 crop attendees
              see; click the image to open the raw file (useful for
@@ -475,19 +475,6 @@ function askTriggerNow(channel: EmailChannel) {
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
-}
-.event-chapter-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.625rem;
-  border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted);
-  font-size: 0.875rem;
-  font-weight: 400;
-  vertical-align: middle;
-  white-space: nowrap;
 }
 .overview-meta {
   margin: 0;

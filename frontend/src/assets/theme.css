@@ -76,6 +76,23 @@
     background: var(--brand-bg);
   }
 
+  /* Small pill showing the owning chapter's name next to an entity
+   * title. Shared by every list / archived / details page (it was
+   * copy-pasted into ~11 of them, half under the name
+   * ``event-chapter-chip``). */
+  .chapter-chip {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
+    color: var(--brand-text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    vertical-align: baseline;
+  }
+
   /* Page-header row: a primary heading on the left and an actions
    * cluster on the right (back button, edit button, etc). Identical
    * across DashboardPage / ArchivedEventsPage / EventDetailsPage —

@@ -193,17 +193,6 @@ function dateWindow(): string {
 }
 .overview-head h1 { margin: 0 0 0.25rem; }
 .description { margin: 0.5rem 0 0; }
-.chapter-chip {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.5rem;
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted);
-  font-size: 0.75rem;
-  vertical-align: baseline;
-}
 .share-row {
   display: flex;
   align-items: center;
