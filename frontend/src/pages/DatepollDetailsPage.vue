@@ -151,7 +151,7 @@ async function exportCsv() {
       <AppCard :stack="false" class="overview">
         <h1>
           {{ poll.name }}
-          <span v-if="poll.chapter_name" class="chip">{{ poll.chapter_name }}</span>
+          <span v-if="poll.chapter_name" class="chapter-chip">{{ poll.chapter_name }}</span>
         </h1>
         <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
         <a
@@ -341,26 +341,12 @@ async function exportCsv() {
   border: 1px solid var(--brand-border);
 }
 .detail-image figcaption { margin-top: 0.375rem; font-size: 0.8125rem; }
-.chip {
-  display: inline-flex; align-items: center; margin-left: 0.5rem;
-  padding: 0.125rem 0.625rem; border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted); font-size: 0.875rem; font-weight: 400;
-  vertical-align: middle; white-space: nowrap;
-}
-.overview-body { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: start; }
-.overview-text { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+/* .chip → shared .chapter-chip; .overview-body / .overview-text come
+ * from theme.css. Only the mobile stack override stays local. */
 @media (max-width: 480px) { .overview-body { grid-template-columns: 1fr; } }
 
 .summary-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .header-actions { display: flex; align-items: center; gap: 0.5rem; }
-.count-pill {
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0.125rem; padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--brand-border);
-  background: var(--brand-bg); min-width: 5rem;
-}
-.count-pill .count { font-weight: 700; font-size: 1.25rem; line-height: 1; color: var(--brand-red); }
-.count-pill .label { font-size: 0.75rem; color: var(--brand-text-muted); }
 
 /* Per-slot tally table — borderless, minimal. One row per slot;
  * yes/maybe/no cells each hold a proportional bar + count. */

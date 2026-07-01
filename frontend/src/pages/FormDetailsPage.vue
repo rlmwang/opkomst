@@ -243,28 +243,6 @@ async function exportCsv() {
   align-items: center;
   gap: 0.5rem;
 }
-.count-pill {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.125rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--brand-border);
-  background: var(--brand-bg);
-  min-width: 5rem;
-}
-.count-pill .count {
-  font-weight: 700;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--brand-red);
-}
-.count-pill .label {
-  font-size: 0.75rem;
-  color: var(--brand-text-muted);
-}
 
 .q-block {
   border-top: 1px solid var(--brand-border);

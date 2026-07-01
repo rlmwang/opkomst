@@ -507,10 +507,4 @@ async function submit() {
   flex-direction: column;
   gap: 0.75rem;
 }
-.empty {
-  padding: 0.75rem;
-  border: 1px dashed var(--brand-border);
-  border-radius: 8px;
-  text-align: center;
-}
 </style>

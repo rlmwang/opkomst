@@ -763,10 +763,4 @@ async function submit() {
   cursor: pointer;
 }
 .add-slot-btn:hover { border-color: var(--brand-red); color: var(--brand-red); }
-.empty {
-  padding: 0.875rem 1rem;
-  border: 1px dashed var(--brand-border);
-  border-radius: 8px;
-  font-style: italic;
-}
 </style>
