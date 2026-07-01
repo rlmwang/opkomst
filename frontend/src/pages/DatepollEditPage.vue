@@ -769,9 +769,4 @@ async function submit() {
   border-radius: 8px;
   font-style: italic;
 }
-.back-link {
-  display: inline-block;
-  margin-top: 0.5rem;
-  color: var(--brand-red);
-}
 </style>

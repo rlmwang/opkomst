@@ -479,42 +479,6 @@ function askTriggerNow(channel: EmailChannel) {
 .overview-meta {
   margin: 0;
 }
-/* The URL takes its natural width (truncated with an ellipsis if
- * it can't fit the column) with the copy button glued to its right;
- * leftover space falls clear of the QR. */
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  min-width: 0;
-}
-.link-row a {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.qr-button {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.qr-button:focus-visible {
-  outline: 2px solid var(--brand-red);
-  outline-offset: 2px;
-  border-radius: 8px;
-}
-.qr {
-  width: 96px;
-  height: 96px;
-  background: white;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  padding: 0.375rem;
-  display: block;
-}
 
 /* --- Signups card -------------------------------------------------- */
 /* Signups card header: title left, single attendee-count pill on

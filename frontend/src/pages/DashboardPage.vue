@@ -329,19 +329,6 @@ function askArchive(e: EventOut) {
 }
 .attendee-count { white-space: nowrap; }
 
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-}
-.link-row a {
-  font-size: 0.9375rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
 
 .actions {
   display: flex;
@@ -349,29 +336,6 @@ function askArchive(e: EventOut) {
   margin-top: auto;
 }
 
-.qr-button {
-  align-self: center;
-  line-height: 0;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: transform 120ms ease, box-shadow 120ms ease;
-}
-.qr-button:hover {
-  transform: scale(1.03);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.qr {
-  width: 96px;
-  height: 96px;
-  background: white;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  padding: 4px;
-  display: block;
-}
 
 @media (max-width: 540px) {
   .event-card {

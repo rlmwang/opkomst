@@ -200,35 +200,6 @@ function dateWindow(): string {
   gap: 1rem;
   margin-top: 0.75rem;
 }
-.link-row {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-}
-.qr-button {
-  line-height: 0;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 6px;
-}
-.qr {
-  width: 96px;
-  height: 96px;
-  background: white;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  padding: 4px;
-  display: block;
-}
-.link-row a {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
 .chore-list {
   list-style: none;
   margin: 0.5rem 0 0;

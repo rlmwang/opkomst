@@ -93,6 +93,60 @@
     vertical-align: baseline;
   }
 
+  /* Share cluster: the public URL row + copy button, and the clickable
+   * QR thumbnail. Repeated on every list / details / dashboard card that
+   * surfaces a public link (was copy-pasted into ~8 pages each). The
+   * AdminWhatsApp join QR is a different, larger control and keeps its
+   * own scoped ``.qr``. */
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+  }
+  .link-row a {
+    font-size: 0.9375rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .qr-button {
+    align-self: center;
+    line-height: 0;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+  }
+  .qr-button:hover {
+    transform: scale(1.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  .qr-button:focus-visible {
+    outline: 2px solid var(--brand-red);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+  .qr {
+    width: 96px;
+    height: 96px;
+    background: white;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    padding: 4px;
+    display: block;
+  }
+
+  /* "Back to list" link under a not-found / error card. */
+  .back-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: var(--brand-red);
+  }
+
   /* Page-header row: a primary heading on the left and an actions
    * cluster on the right (back button, edit button, etc). Identical
    * across DashboardPage / ArchivedEventsPage / EventDetailsPage —

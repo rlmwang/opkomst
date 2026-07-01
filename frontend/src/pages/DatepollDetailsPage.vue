@@ -310,7 +310,6 @@ async function exportCsv() {
 </template>
 
 <style scoped>
-.back-link { display: inline-block; margin-top: 0.5rem; color: var(--brand-red); }
 .overview { display: flex; flex-direction: column; gap: 0.5rem; }
 .overview h1 { margin: 0; overflow-wrap: anywhere; }
 .description { margin: 0; }
@@ -344,11 +343,6 @@ async function exportCsv() {
 }
 .overview-body { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: start; }
 .overview-text { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-.link-row { display: flex; align-items: center; gap: 0.375rem; min-width: 0; }
-.link-row a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.qr-button { background: none; border: none; padding: 0; cursor: pointer; flex-shrink: 0; }
-.qr-button:focus-visible { outline: 2px solid var(--brand-red); outline-offset: 2px; border-radius: 8px; }
-.qr { width: 96px; height: 96px; background: white; border: 1px solid var(--brand-border); border-radius: 6px; padding: 0.375rem; display: block; }
 @media (max-width: 480px) { .overview-body { grid-template-columns: 1fr; } }
 
 .summary-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
