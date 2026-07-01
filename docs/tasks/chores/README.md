@@ -15,7 +15,25 @@ usable; after 07 volunteers self-manage email-free; 08 adds the optional reminde
 
 | # | Task | Layer | Depends on |
 |---|---|---|---|
-| 09 | [Per-volunteer accountability stats](chores-09-accountability-stats.md) | backend + frontend | 06, 04 |
+| 09 | Per-volunteer accountability stats *(landed; spec deleted)* | backend + frontend | 06, 04 |
+
+### Scheduling redesign series (10→14)
+
+Addresses the revised `docs/design-chores.md` §7: occurrences become a **deterministic
+projection**, `Shift` rows a **sparse overlay** inside a configurable **commit horizon**,
+assignment goes **deterministic (WRH) + favour ledger**, and a `forming → running`
+lifecycle gate ends the bootstrap problem. Fixes the roster-edit **divergence bug** at the
+root (the old eager 28-day materialisation never pruned) and delivers the three product
+requirements: volunteers know what they're expected to do, it feels fair, and new
+volunteers fold in within a bounded horizon. Ship in order; each leaves the suite green.
+
+| # | Task | Layer | Depends on |
+|---|---|---|---|
+| 10 | [Deterministic assignment (WRH) + favour ledger](chores-10-deterministic-assignment.md) | backend | 06, 09 |
+| 11 | [Projection, commit horizon, roster lifecycle](chores-11-projection-commit-horizon.md) | backend (+FE reads) | 10 |
+| 12 | [Volunteer actions: pass/cover/swap/availability + confirmed-vs-outlook UI](chores-12-volunteer-actions.md) | backend + frontend | 11 |
+| 13 | [Membership change: removal static-patch, addition fold-in, disruption credit](chores-13-membership-change.md) | backend (+FE) | 11, 12 |
+| 14 | [Accountability: regular turns vs picked-up-for-others](chores-14-accountability-provenance.md) | backend + frontend | 09, 12, 13 |
 
 **Already well-factored (the specs just reuse these — no work):** `useShareClipboard`,
 `useImageUpload(resource)` + `image_svc.replace_entity_image(folder)`, the page shells

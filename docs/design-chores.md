@@ -1,18 +1,36 @@
 # Design proposal — Recurring chores (Dutch: Takenroosters)
 
-Status: proposal. A fourth organiser-owned entity alongside Event, DatePoll, and Form.
+Status: proposal, revised. A fourth organiser-owned entity alongside Event, DatePoll,
+and Form.
+
+> **Revision note (scheduling model).** The original design (see §7 as first written)
+> eagerly materialised every occurrence into a `Shift` row on a fixed 28-day horizon and
+> assigned them with a greedy, unseeded-random rule. That has two defects we are now
+> fixing: (a) editing the roster (start date, cycle length, cycle slots) silently
+> *diverges* from already-materialised rows, because generation is additive and never
+> prunes; (b) assignment is non-deterministic in production and cannot be projected
+> beyond the horizon, so volunteers cannot see or trust what is coming. The revised model
+> (§7) treats occurrences as a **deterministic projection** of the pattern, keeps `Shift`
+> rows only as a **sparse overlay** of state, and pins a **configurable commit horizon**
+> within which the schedule is reliable. This serves three requirements directly: a
+> volunteer always knows what they are expected to do, it feels fair, and a new volunteer
+> is folded into the real schedule within a bounded, tunable time.
 
 ## 1. What we're building
 
 An organiser creates a **roster** of **recurring chores**. Each chore is tied to one or
 more days within a repeating **k-week cycle** — weekly by default (k=1, "every Wednesday
 and Friday"), or biweekly / k-weekly (k>1, e.g. "the bins, every *other* Wednesday").
-k is set once for the whole roster, and when k>1 an anchor Monday pins which calendar week
-is "week A". The roster gets a public link. Anyone with the link **enrols** as a volunteer — a name (real or not),
-optionally an email — and ticks the chores they're willing to do. The system then
-**assigns** volunteers to concrete dated occurrences ("shifts") with a fairness rule, on
-a rolling horizon. When a shift comes up, the assigned volunteer can **mark it done** or
-**hand it off** ("can't make it — find someone else"), which reassigns it.
+k is set once for the whole roster, and when k>1 the cycle anchors on the first Monday
+on or after the roster's `starts_on` (derived, never stored), so "week 1" means a concrete
+calendar week across the whole roster. The roster gets a public link. Anyone with the link
+**enrols** as a volunteer (a name, real or not, optionally an email) and ticks the chores
+they're willing to do. The system then **assigns** volunteers to concrete dated
+occurrences ("shifts") with a deterministic fairness rule. Assignments are a *projection*
+of the pattern that anyone can see arbitrarily far ahead; only a near-term **commit
+horizon** is pinned and reliable. When a shift comes up, the assigned volunteer can **mark
+it done**, **pass** it ("can't make it, find someone else"), or **cover** someone else's,
+each of which is recorded and fed back into future fairness.
 
 The hard parts, and where this differs from the other three entities:
 
@@ -90,12 +108,24 @@ Roster-specific additions:
 - `period_weeks : int` (k ≥ 1, default 1) — the recurrence cycle length, **set once for
   the whole roster** (every chore shares the same k). k=1 is plain weekly; k=2 biweekly;
   etc.
-- `anchor_monday : Date | None` — the Monday that starts cycle index 0. **Required when
-  k > 1**, ignored (and nullable) when k = 1 (a 1-week cycle has nothing to anchor).
-  Validated to fall on a Monday.
-- `starts_on : Date` — first date shifts may be generated. Defaults to `anchor_monday`
-  when k > 1; bounds, but does not define, the periodicity.
-- `ends_on : Date | None` — last date; `NULL` = open-ended (rolling horizon).
+- `starts_on : Date` — first date shifts may be generated, and (for k > 1) the **derived
+  cycle anchor**: cycle week 0 is the first Monday on or after `starts_on`
+  (`recurrence.first_cycle_monday`, computed, never stored). There is no separate anchor
+  field; one date does both jobs. Python's negative modulo wraps the partial week between
+  `starts_on` and that first Monday onto the cycle's last week.
+- `ends_on : Date | None` — last date; `NULL` = open-ended.
+- `commit_horizon_days : int` (default e.g. 21) — how far ahead the schedule is **pinned
+  and reliable** (§7). Occurrences within `[today, today + commit_horizon_days]` are
+  materialised and never reshuffled; beyond it the schedule is a tentative projection.
+  This is the single knob that trades *stability* (long horizon: volunteers can plan far
+  ahead, but edits and new volunteers take longer to take effect) against *responsiveness*
+  (short horizon: the roster adapts fast, but only the near term is guaranteed). Must be
+  `≥ reminder_days_before` so every reminded shift is already pinned.
+- `activated_at : datetime | None` — the roster lifecycle gate (§7, "Bootstrap"). `NULL` =
+  **forming** (still gathering volunteers; the schedule is an all-tentative draft that
+  reflows freely and *nothing is pinned or promised*). Set = **running** (the organiser has
+  pressed "Start roster"; from here the tick pins the commit horizon and reminders fire).
+  One-way: a roster that has started does not fall back to forming.
 - `reminder_days_before : int` (default 1) — how many days before a shift we mail. Shifts
   are **date-only** (no clock time — a chore is "on Wednesday", not "Wednesday at 14:00"),
   so reminders can't use an hours-before offset. The reminder for a shift on `D` is sent on
@@ -137,18 +167,35 @@ Decisions baked into the shape:
   existing JSON-list idiom (`help_options`); the set is small and read-whole.
   Each value is validated `< 7 * roster.period_weeks`; shrinking k drops out-of-range
   slots (see frontend, §10).
-- **Shifts are materialised, not computed.** They must carry per-occurrence state
-  (assignee, done, handoff), so they have to be rows. A cron generates them on a rolling
-  horizon (default 28 days ahead) up to `ends_on`.
+- **Occurrences are projected; Shifts are a sparse overlay.** An occurrence
+  `(chore, date, slot)` is a pure function of the pattern (`recurrence.occurs_on`), so it
+  needs no row to *exist*. A `Shift` row exists only once an occurrence acquires **state**
+  that the pattern cannot derive: it has been pinned into the commit horizon (assigned),
+  reminded, marked done, passed, covered, or missed. This is the calendar RRULE +
+  per-instance-override model (RFC 5545). The natural key `(chore_id, on_date, slot_index)`
+  is itself derivable from the pattern, so an overlay row slots back into the projection
+  unambiguously. Consequences: editing the pattern cannot corrupt un-materialised future
+  occurrences (there is nothing to corrupt), lookahead is unbounded, and the table grows
+  with *activity*, not with time. See §7 for the three timeline zones and the pinning rule.
 - **One Shift = one person's duty.** A chore needing two people on a date
   (`people_per_shift = 2`) produces two Shift rows with `slot_index` 0 and 1. Keeps
   assignment, reminders, and handoff per-person and avoids an assignee join table.
 - **`volunteer_id` is `ON DELETE SET NULL`.** When a volunteer leaves we hard-delete the
-  Volunteer (and their email goes with it), past shifts keep `status='done'` with a null
-  assignee so completion stats survive anonymously; future `scheduled` shifts flip to
-  `open` and get reassigned on the next tick.
-- **`status='open'`** is the "up for grabs" state: unassigned and visible to all
+  Volunteer (and their email goes with it). Past overlay rows keep their outcome
+  (`done`/`missed`) with a null assignee so completion stats survive anonymously. Their
+  pinned future shifts inside the commit horizon are reassigned immediately (they are a
+  reliable promise someone must now cover); beyond the horizon nothing was materialised, so
+  the projection simply stops handing them occurrences (§7, incident table).
+- **`status='open'`** is the "up for grabs" state: an occurrence that was pinned but has no
+  assignee (nobody eligible, or the assignee passed and no cover was found), visible to all
   volunteers to claim from their personal page.
+- **The favour-credit ledger is derived, not a new table.** "Who covered for whom / who
+  passed / who inherited a departed volunteer's slot" is captured append-only in
+  `ShiftEvent`, whose `kind` records the **provenance** of each holding (regular `assigned`
+  vs pickups `claimed`/`covered`/`inherited`; plus `deferred`/`completed`/`missed`). The
+  fairness weight (§7) folds that log into a per-volunteer net-credit at read time, and the
+  same log drives the accountability display's regular-vs-picked-up split (§7 "Event log,
+  favour ledger, and accountability"). One source of truth, no second table to sync.
 
 ## 6. The email / privacy decision (the crux)
 
@@ -205,44 +252,129 @@ contract:
   `display_name` + enrolled-chore names + per-volunteer load only — **never** email,
   ciphertext, or token (same shape rule the signup-list test enforces).
 
-## 7. Lifecycle: generation, fairness, reminders, handoff
+## 7. Lifecycle: projection, fairness, commit horizon, reminders, actions
 
-### Generation + assignment ("roster tick", daily cron)
+The scheduling model rests on one split: **an occurrence's date is a deterministic
+function of the pattern; its assignment is a deterministic function of the pattern plus the
+current volunteer set plus the favour ledger.** Both can therefore be *projected* to any
+future date with no stored rows. We only persist a `Shift` row when an occurrence enters
+the reliable near-term window or someone acts on it.
 
-`python -m backend.cli roster-tick` does three things per live (non-archived) roster:
+### The three timeline zones
 
-1. **Extend** shifts: for every chore, for each date `D` in `[max(today, starts_on),
-   today+HORIZON]` (capped by `ends_on`) that **falls in the cycle** and has no Shift row
-   yet, create `people_per_shift` Shift rows (`status='open'`). Cycle membership:
-   - k = 1: `D.weekday() in cycle_slots`.
-   - k > 1: `offset = (D - anchor_monday).days % (7 * period_weeks)` (skip if
-     `D < anchor_monday`); include iff `offset in cycle_slots`.
+Every occurrence sits in exactly one zone relative to `today`:
 
-   The `% (7k)` math is why the anchor must be a Monday and why k is roster-wide: every
-   chore reads the same cycle origin, so "week A / week B" means the same calendar weeks
-   across the whole roster.
-2. **Assign** every `open` shift in the horizon to an eligible volunteer (one enrolled in
-   that chore) using the fairness rule below; on success `status='scheduled'`.
-3. **Reconcile the past**: shifts with `on_date < today` still `scheduled` flip to
-   `missed` (drives a "completion rate" stat and nudges fairness next round).
+| Zone | Range | Materialised? | Behaviour |
+|---|---|---|---|
+| **Frozen past** | `on_date < today` | Yes (rows) | Immutable history. Outcome recorded (`done`/`missed`/passed/covered). Stats read here. Never recomputed, never pruned. |
+| **Commit horizon** | `today … today + commit_horizon_days` | Yes (rows, "pinned") | The **reliable, promised** schedule. Assignments are frozen and will not reshuffle. Reminders fire here. All volunteer actions happen here. This is "your confirmed turns". |
+| **Projection** | `> today + commit_horizon_days` | No | Computed on demand from pattern + volunteers + ledger. **Tentative**: reshuffles freely and *correctly* as the roster is edited, volunteers join/leave, or the ledger moves. Shown as "likely, may change". |
 
-### Fairness rule (v1: greedy least-loaded, random tie-break)
+The zones move: each day the commit horizon's leading edge advances by one day, and the
+occurrences it crosses are **pinned** (materialised from the projection and frozen). That
+daily crossing is the only place a projected assignment becomes a promise.
 
-For each shift to assign, among volunteers enrolled in that chore:
+### Deterministic assignment (weighted rendezvous hashing)
 
-- compute `load` = count of their `scheduled` + `done` shifts in this roster;
-- pick uniformly at random among those with the **minimum** load;
-- soft constraints applied as tie-breakers / filters when alternatives exist: don't give
-  one person two shifts the same day; avoid the immediately-preceding occupant of the same
-  chore.
+For an occurrence `(chore, on_date, slot)` and each volunteer `v` enrolled in that chore
+and available on that date, compute a score
 
-This is simple, explainable ("everyone does roughly the same number, ties drawn fairly"),
-and stable: re-running the tick never reshuffles already-`scheduled` future shifts (we
-only fill `open` ones). Backend Python may use `random` freely. The function is pure over
-its inputs (eligible set + current loads), so it is unit-testable with a seeded RNG. Two
-alternatives I deliberately did **not** pick for v1: pure random (clusters unfairly) and
-strict round-robin (brittle when enrolments change mid-roster). Documented so we can swap
-later behind the same function boundary.
+```
+score(v) = weight(v) · H(v.id, chore.id, on_date, slot)     # H → uniform (0,1)
+```
+
+and take the top `people_per_shift` distinct volunteers by score. This is **weighted
+rendezvous (highest-random-weight) hashing**, and its properties are exactly what the
+requirements ask for:
+
+- **Deterministic.** Same inputs, same result. No stored assignment, no RNG state, none of
+  the current unseeded-`random` non-determinism. The projection is a pure computation.
+- **Projectable to infinity.** The score depends on the *calendar date*, not on any
+  running tally, so we can render "who is on, three months out" without materialising
+  anything.
+- **Robust to pattern edits.** Keyed on the real date: any date that is still an occurrence
+  after an edit to `starts_on` / `period_weeks` / `cycle_slots` keeps the same assignee.
+  Only genuinely added or removed dates change hands. This is what removes the divergence
+  bug at the root.
+- **Minimal disruption under membership change** (the rendezvous property, the crux of
+  "fold new volunteers in gradually"). Adding volunteer `v*` moves to them only the
+  occurrences where `v*` now has the top score, about `1/(L+1)` of them; every other
+  volunteer keeps every occurrence they had. Removing a volunteer reassigns *only* their
+  occurrences, to the next-highest scorer, leaving everyone else untouched. Contrast strict
+  round-robin (`index % L`), where a single join or leave reshuffles nearly the whole
+  future.
+
+### Fairness (equal expected share + a favour ledger)
+
+`weight(v)` is where fairness lives:
+
+- **Default equal weight** gives every eligible volunteer an equal *expected* share of a
+  chore's occurrences. Over a season the counts converge; we accept modest short-run
+  variance (WRH is not exact round-robin) in exchange for the stability above.
+- **The favour ledger tilts the weight** so realised imbalance self-corrects. Covering a
+  shift or doing extra earns credit; passing or being covered spends it. `weight(v)` is a
+  bounded function of net credit, so a volunteer who has done more is gently handed *fewer*
+  marginal future occurrences, and vice-versa. Because WRH only moves marginal occurrences
+  when a weight changes, the ledger nudges the schedule rather than churning it.
+
+This is the reconciliation of "predictable" and "feels fair": the far projection is a pure
+function of current state (predictable *given* that state, and self-correcting as the
+ledger moves), while the commit horizon is frozen. The fairness function stays **pure over
+its inputs** (eligible set, availability, ledger, and the occurrence key), so it is
+exhaustively unit-testable without any RNG seed.
+
+*Known limitations, documented not hidden:* WRH scores each `(chore, date, slot)`
+independently, so it does not by itself prevent one volunteer drawing two different chores
+on the same day, and it does not globally balance load *across* chores. Both are acceptable
+for v1; if needed they become a deterministic de-collision pass applied **only at pinning
+time** (inside the window, where we have the full near-term picture), never in the infinite
+projection.
+
+### Folding in new volunteers (bounded, predictable)
+
+A volunteer who enrols today immediately starts winning their fair share in the
+**projection**. They do not appear in the already-pinned commit horizon (those promises
+stand). They begin receiving *real* pinned turns as the horizon's edge rolls past them,
+i.e. **within `commit_horizon_days`** at the latest. That number is therefore the explicit,
+tunable answer to "how soon is a new volunteer folded in": a two-to-three-week default
+means a newcomer is doing real shifts within two to three weeks, without disturbing anyone
+else's confirmed schedule. An organiser who wants them in *sooner* can trigger an explicit
+"re-pin the window now" (re-materialise the current horizon from the fresh projection),
+accepting that some already-shown confirmed assignments change; the default is not to.
+
+### What a volunteer sees (managing expectations)
+
+The personal page shows two clearly separated tiers so a volunteer always knows what is
+expected of them:
+
+- **Confirmed** — the commit horizon. "These turns are yours. We will remind you." Pinned,
+  stable, actionable (mark done / pass / cover).
+- **Outlook** — the projection beyond the horizon. "Likely yours, may still change." Shown
+  greyed/labelled as tentative, not actionable, no reminders. Lets people plan ahead
+  honestly without us over-promising.
+
+### The roster tick (daily cron)
+
+`python -m backend.cli roster-tick`, per live (non-archived) roster, does only the work
+the projection cannot do lazily:
+
+1. **Pin the incoming edge** (running rosters only; a `forming` roster is skipped entirely,
+   nothing is pinned). For each occurrence now inside `[today, today + commit_horizon_days]`
+   (capped by `ends_on`) that has no `Shift` row, compute its WRH assignment (honouring
+   availability + ledger) and insert a pinned row: `status = 'scheduled'`, or `'open'` if
+   nobody is eligible. Additive and idempotent; it never touches an already-pinned row.
+2. **Prune stale pins (window-only).** If a pattern edit made a pinned occurrence that is
+   **not yet reminded and not yet acted on** no longer valid (date no longer occurs, slot
+   dropped, before `starts_on`), delete it. Reminded or acted rows are honoured commitments
+   and kept; the frozen past is never touched. Because this is bounded to the small window,
+   it is cheap and its semantics are crisp (an un-acted pin is just cache).
+3. **Reconcile the past.** Pinned `scheduled` rows with `on_date < today` that were never
+   marked done flip to `missed`, each recording a `missed` `ShiftEvent` (drives completion
+   stats and debits the ledger).
+
+Outside the horizon there is nothing to tick: no materialisation, no reconciliation, no
+divergence. The old fixed `HORIZON_DAYS = 28` constant is gone, replaced by the
+per-roster, semantically-meaningful `commit_horizon_days`.
 
 ### Reminders (hourly cron, lifecycle worker)
 
@@ -263,14 +395,204 @@ dispatch lifecycle. Chore reminders have none of those (no dispatch row, address
 window is per-Shift). A separate, smaller worker entry point is the clean fit and keeps
 `CHANNELS` honest.
 
-### Handoff / "can't make it"
+### Pass, cover, swap, and availability
 
-From the personal page, on an upcoming `scheduled` shift the volunteer hits "find someone
-else". The shift flips to `open` and is immediately re-assigned by the same fairness
-function, excluding the person who bailed; if no one else is eligible it stays `open` and
-shows as "up for grabs" on every volunteer's page (and, optionally later, a broadcast
-mail). "Mark done" sets `status='done'`, `done_at=now`. Both are ordinary authenticated-
-by-edit-token `PUT`s on the public router.
+Four volunteer actions, all from the personal token page. The first three act on a
+**confirmed** (pinned) occurrence; availability is the exception that reaches into the
+projection.
+
+- **Mark done.** `status = 'done'`, `done_at = now`, `completed` event. The one unambiguous
+  action.
+- **Pass ("I can't make it").** The pinned assignee opts out of one confirmed occurrence.
+  It is re-assigned by the same WRH function among the remaining eligible (excluding the
+  passer); if nobody is eligible it becomes `open` / "up for grabs" on every personal page.
+  Ledger: the passer spends a credit, the eventual coverer earns one. Events: `deferred` on
+  the passer, `assigned`/`claimed` on the coverer.
+- **Cover ("I'll take yours").** A volunteer voluntarily takes another's confirmed
+  occurrence. This is the answer to *"swap or extra task?"*: it is a **one-way extra task
+  for the coverer plus a favour credit**, not a forced immediate swap. Rationale: a forced
+  swap rigidly couples two people's calendars and needs a matching future shift to exist,
+  which often it does not; the credit instead keeps each person's schedule independent and
+  predictable *now*, and nets out *over time* because the coverer's credit gently biases
+  the projection to hand them fewer future occurrences (and the covered volunteer more).
+  Fair and predictable without calendar coupling.
+- **Explicit swap (optional convenience).** Two volunteers who *want* to trade two specific
+  confirmed occurrences may do so directly; both become pinned overrides and the exchange is
+  ledger-neutral. Offered because sometimes people genuinely want a specific date trade, but
+  it is not the primary mechanism, precisely because it is the rigid one.
+- **Availability / "away" ranges.** A volunteer can mark date ranges unavailable
+  arbitrarily far ahead (a holiday), which is *not* a per-shift pass because nothing is
+  pinned yet. It is an input to WRH: both the projection and the pinning step exclude that
+  volunteer on those dates. This lets people plan ahead without waiting for the horizon, and
+  keeps the schedule honest well before anything is promised.
+
+All of these are ordinary edit-token-authenticated `POST`/`PUT`s on the public router
+(§9), and every one that changes who-does-what writes a `ShiftEvent` so the ledger and the
+accountability stats stay derived from a single append-only log.
+
+### Event log, favour ledger, and accountability
+
+Every change of who-holds-a-shift writes one append-only `ShiftEvent`. Its `kind` records
+not just the outcome but the **provenance** of the holding, because that is what both the
+favour ledger and the accountability display need:
+
+| kind | emitted when | provenance | ledger |
+|---|---|---|---|
+| `assigned` | WRH pins a shift to its top scorer (the regular case) | regular | neutral |
+| `claimed` | a volunteer takes an `open` / up-for-grabs shift | pickup | + credit |
+| `covered` | a volunteer takes another's confirmed shift (cover action) | pickup | + coverer, − covered |
+| `inherited` | the tick force-assigns a departed volunteer's pinned shift | pickup (short-notice) | + credit (disruption) |
+| `deferred` | a volunteer passes a confirmed shift | — | − credit |
+| `completed` | a shift is marked done | — | — |
+| `missed` | a held `scheduled` shift passes undone | — | − credit |
+
+The **favour ledger** (fairness, above) is the net of the credit column, folded into the
+WRH weight. The **accountability display** (details page, §10) reads the same log and, per
+volunteer, splits their turns by provenance rather than showing one undifferentiated count:
+
+- **Regular turns** — shifts WRH assigned to them (`assigned`): their fair share.
+- **Picked up for others** — shifts they took *beyond* their share (`claimed` + `covered` +
+  `inherited`), i.e. help others did not have to do, **including slack absorbed when a
+  volunteer was removed** (`inherited`).
+- **Outcomes** — `completed` / `deferred` (passed) / `missed`.
+
+Distinguishing the first two is the point: a volunteer who quietly covers for others should
+read as *more* reliable, not merely "did N shifts". Both counts come straight from the
+`kind` tally, so no extra column is needed beyond this vocabulary.
+
+### Incident catalogue
+
+Every state-changing event, and what the model does in each zone (assuming a **running**
+roster; while `forming` there is no commit horizon, so every row below collapses to "the
+projection reflows, nothing is promised"). The recurring theme: the **frozen past is
+immutable**, the **commit horizon is a promise we keep**, and the **projection absorbs
+change for free**.
+
+| Incident | Frozen past | Commit horizon | Projection |
+|---|---|---|---|
+| **Organiser activates roster** (forming → running) | — | starts existing: the tick pins the first `commit_horizon_days` of occurrences | was the whole schedule; now only its far tail |
+| **Volunteer enrols** | untouched | unchanged (promises stand); they appear here as the edge rolls forward, within `commit_horizon_days` | immediately wins ~their fair share (WRH); others keep theirs |
+| **Volunteer leaves / unenrols** | outcome kept, assignee nulled (anonymous stats survive) | **static patch**: WRH re-run over remaining, others' pins untouched, only the leaver's slots reassigned + re-frozen (or → `open` + flagged); inheritors notified + credited | **re-derive N-1 pattern**: recomputed live over smaller pool, and eases off the slack-pickers via their credit |
+| **Volunteer passes a confirmed shift** | n/a | reassigned via WRH-excluding-them, else `open`; ledger: passer −1, coverer +1 | unaffected (a single-occurrence action) |
+| **Volunteer covers another's shift** | n/a | coverer becomes assignee (one-way); ledger: coverer +1, covered −1 | credit gently shifts *future* marginal occurrences to rebalance |
+| **Explicit two-way swap** | n/a | both occurrences re-pinned to the other person; ledger-neutral | unaffected |
+| **Mark done / missed** | recorded (`done`/`missed` + event) | done set on action; missed set by tick after the date passes | n/a |
+| **Availability range added** | n/a | future pins within it avoid them (re-pinned if not yet reminded) | excluded on those dates going forward |
+| **Edit `starts_on`** | untouched | pins on dates that still occur keep their assignee; pins on dropped dates pruned if un-acted, honoured if reminded; new dates get pinned | reprojects instantly, no stale rows, **no divergence** |
+| **Edit `period_weeks` / `cycle_slots`** | untouched | same rule: valid pins kept (same date → same assignee), orphaned un-acted pins pruned, new occurrences pinned | reprojects instantly |
+| **Change `people_per_shift`** | untouched | added slots pinned + assigned; dropped-slot pins pruned if un-acted | reflects new slot count |
+| **Add a chore** | n/a | its occurrences inside the window pinned at next tick | projects from `starts_on` forward |
+| **Remove a chore** | events survive (`shift_id` SET NULL) | its pins CASCADE-deleted | disappears |
+| **Increase `commit_horizon_days`** | untouched | more occurrences pinned at next tick | shrinks (more of it is now committed) |
+| **Decrease `commit_horizon_days`** | untouched | already-pinned rows are **never** un-pinned (a promise is a promise); only future pinning slows | grows |
+| **No eligible volunteers for an occurrence** | missed with no attributable assignee | pinned as `open`, organiser flagged, no reminder | shown unassigned |
+| **Cron misses a day** | untouched | next run catches up (pinning idempotent); reminders send late (logged), never double | untouched (it was never materialised) |
+| **Reminder send fails** | n/a | `reminder_sent_at` left null → retried next sweep | n/a |
+| **Roster archived / deleted** | history retained until purge; hard-delete CASCADEs | pins CASCADE on hard-delete; email purged after grace window | gone |
+
+Two invariants make the table safe to reason about: (1) an occurrence is pinned **at most
+once** and, once pinned, only its *status/assignee* change (never its existence, except a
+window-only prune of un-acted rows); (2) all "who did what" lives in the append-only
+`ShiftEvent` log, so stats and the favour ledger are correct regardless of any later edit.
+
+### Bootstrap, activation, and membership change
+
+**Is the first-volunteer bootstrap really a different problem from adding a sixth volunteer
+to a running roster?** Mechanically, no: WRH reflows the projection and the commit horizon
+folds newcomers in the same way in both cases. What differs is degree, plus one thing in
+kind:
+
+- *Degree — magnitude of reflow.* Adding the 2nd volunteer moves about `1/(L+1) = 1/2` of
+  future occurrences; adding the 6th moves about `1/6`. WRH's "minimal disruption" is
+  minimal *relative to pool size*, so early joins are naturally large reshuffles and late
+  ones are small. Nothing special-cases this; it falls out of the maths.
+- *In kind — there is nothing worth promising yet.* With one volunteer, a *pinned* window
+  would commit that person to doing every chore alone for weeks. That is not "minimal
+  disruption", it is an unreasonable promise we should never have made. The problem is not
+  the reflow, it is **pinning too early**.
+
+So bootstrap needs exactly one mechanism: **do not pin until the roster is ready.** That is
+the `forming → running` gate. While `forming`, the schedule is an all-tentative draft: the
+first volunteer, the second, the fifth all just reshape a projection that promises nothing,
+so there is no "nonsense schedule to recreate" (that framing dissolves once nothing is
+committed). The organiser presses **"Start roster"** on the details page when the base is
+ready; from that instant, and only then, the tick begins pinning the commit horizon. After
+activation there is no bootstrap, only the steady-state fold-in.
+
+**Why the initial activation is a manual button, not automatic.** Only a human knows when
+"enough people have signed up to begin". An automatic rule ("start at ≥ N volunteers") is a
+fragile heuristic that guesses at organiser intent. A single explicit button is honest and
+predictable, and it is a one-time act, so it costs the organiser almost nothing.
+
+**Steady-state addition is automatic and needs no button.** Once running, a new enrolment:
+- enters the **projection** immediately (they start winning their fair share of tentative
+  future turns), and
+- is folded into **pins** automatically as the horizon edge rolls forward, so they are
+  doing real shifts **within `commit_horizon_days`**,
+- while **disturbing no existing confirmed shift** (WRH gives the newcomer occurrences that
+  were not yet pinned; it never revokes a promise already made to someone else).
+
+The new volunteer is shown as **"joining — first turns from {date}"** (that date being the
+horizon edge), which is the transparent communication the "not active yet" idea was reaching
+for, delivered without forcing anyone to press anything. A manual **"Fold in now /
+rebalance"** button still exists on the details page, but its *only* purpose is the
+impatient case: bring pending volunteers into the **current** committed window sooner than
+the natural roll, which necessarily **re-pins part of that window and therefore changes
+some already-shown confirmed assignments**. Because that breaks promises, it is explicit,
+opt-in, and confirmation-gated ("this will reshuffle the next {n} days for {m} people").
+Default behaviour never does it.
+
+**Removal is the asymmetric case.** Addition can wait (nobody is *owed* the newcomer's
+help), but removal cannot: a departing volunteer's pinned future shifts are a promise *to
+the roster* that the task gets done, so they must be re-covered **immediately and
+automatically**, no button. The two zones handle this with different *intents* but the
+**same assignment function**, and that identity is what keeps them consistent:
+
+- **Short term (commit horizon): freeze a minimal patch.** Re-run WRH over the remaining
+  pool on the pinned window. A shift the leaver did *not* hold is unchanged (they were not
+  its top scorer, so removing them cannot change who is), so **every other volunteer's
+  confirmed turns stay put**. Only the leaver's own slots reopen, each falling to the
+  next-highest scorer for that date, and the result is re-pinned (frozen). This is exactly
+  "keep it as static as possible and pick up the slack": patch the holes once, do not
+  re-derive afterward. The inheritors are notified ("you've picked up {date}, covering for
+  someone who left") and earn a small **disruption favour-credit** for the short-notice
+  hit. If nobody is eligible the shift becomes `open` and is flagged to the organiser.
+- **Long term (projection): re-derive the N-1 pattern.** Nothing was pinned, so WRH is
+  simply recomputed live over the smaller pool: the outlook becomes the genuine
+  schedule-for-fewer-people, not the old pattern with gaps. Because the projection reads the
+  updated ledger, it also **eases off the volunteers who absorbed the short-term slack**
+  (repaying their disruption credit), so the far pattern both reflects the smaller pool and
+  smooths the hit back out.
+- The frozen **past** keeps the leaver's completed/missed outcomes anonymously for stats.
+
+The subtlety worth stating plainly: under pure WRH the short-term patch and the long-term
+N-1 pattern are the *same assignment*; the only operational difference is that the near term
+is pinned-and-frozen while the far term is recomputed live. The favour ledger is what makes
+the two intents legitimately diverge (static patch now, repaid rebalance later).
+
+*Near-term sub-choice (documented):* for the leaver's *imminent* freed slots, auto-reassign
+is the default (reliability first: someone is immediately on the hook and notified), with a
+**pass escape hatch** so a force-drafted inheritor can immediately hand it back to `open`.
+The alternative (leave `open` for claim, auto-assign only if still unclaimed near the
+reminder lead time) is less disruptive to individuals but risks an uncovered gap; we prefer
+guaranteed coverage plus the escape hatch.
+
+Note the deliberate asymmetry: **joining never rewrites a promise; leaving only rewrites
+the leaver's own promises.** That is the whole reliability contract in one line.
+
+**What stays constant vs what may change (the contract to communicate):**
+
+| | Constant / reliable | May change | Trigger | How communicated |
+|---|---|---|---|---|
+| **Frozen past** | never changes | — | — | historical stats |
+| **Your confirmed turns** (commit horizon) | assignee changes **only** by your own action (pass/cover/swap) or if *you* leave | reassigned if you leave; re-pinned only by an explicit organiser "rebalance now" | your action; departure (auto); rebalance (manual, confirmed) | personal page "Confirmed"; notification on inherited cover |
+| **The outlook** (projection) | the *pattern* (which dates recur) is stable until the organiser edits it | who is tentatively assigned reflows with every join/leave/ledger move | automatic, continuous | personal page "Outlook — tentative, may change" |
+| **Roster start** | forming draft promises nothing | flips to running once | organiser "Start roster" (manual, one-time) | details page state; volunteers see "starts {date}" |
+
+The organiser's details page therefore carries exactly two schedule controls: **"Start
+roster"** (once, forming → running) and **"Rebalance now"** (occasional, opt-in, folds
+pending members into the current window early at the cost of changing confirmed shifts).
+Everything else is automatic and derives from the projection.
 
 ## 8. Auth for volunteers — no accounts
 
@@ -296,10 +618,15 @@ GET    /chores                              list (chapter-scoped, active)
 GET    /chores/archived                     archived list
 GET    /chores/{id}                         single (for edit prefill)
 PUT    /chores/{id}                         update (Roster + reconcile Chores)
+POST   /chores/{id}/activate                forming → running (starts pinning). One-way.
+POST   /chores/{id}/rebalance               re-pin the current commit window from the fresh
+                                            projection (folds pending members in early;
+                                            confirmation-gated, changes confirmed shifts)
 POST   /chores/{id}/archive | /restore      archive / restore
 DELETE /chores/{id}                         hard-delete (archived only)
-GET    /chores/{id}/volunteers              roster of volunteers + load (NO email)
-GET    /chores/{id}/schedule                upcoming shifts + assignees + completion stats
+GET    /chores/{id}/volunteers              roster of volunteers + load + pending flag (NO email)
+GET    /chores/{id}/schedule                confirmed (pinned) + outlook (projected) shifts
+                                            + assignees + completion stats
 ```
 
 Public side (`routers/chores_public.py`, no auth):
@@ -312,8 +639,11 @@ GET  /chores/by-token/{token}               personal page payload: enrolled chor
                                             my upcoming shifts, open shifts, reminder state
 PUT  /chores/by-token/{token}               edit enrolment (chores, reminders, display_name)
 POST /chores/by-token/{token}/shifts/{shift_id}/done
-POST /chores/by-token/{token}/shifts/{shift_id}/handoff
+POST /chores/by-token/{token}/shifts/{shift_id}/pass      ("can't make it" → reassign/open)
+POST /chores/by-token/{token}/shifts/{shift_id}/cover     (take someone else's confirmed shift)
 POST /chores/by-token/{token}/shifts/{shift_id}/claim     (take an `open` shift)
+POST /chores/by-token/{token}/swap          {mine_shift_id, theirs_shift_id} (optional trade)
+PUT  /chores/by-token/{token}/availability  {ranges[]} (away dates, feed WRH ahead of window)
 POST /chores/by-token/{token}/leave         delete volunteer + email
 ```
 
@@ -333,11 +663,12 @@ structurally identical and differ only in domain fields.
 - `/chores/archived` → `ArchivedChoresPage.vue` via `useArchivedList`.
 - `/chores/new` & `/chores/:id/edit` → `ChoresEditPage.vue` via `FormPageShell` +
   `useFormDraft` (it's a long form) + `ChapterPicker` + `ImageField` + optional
-  `LocationPicker` + the **recurrence controls** (k + anchor Monday, §below) + a
-  **Chore editor list**.
+  `LocationPicker` + the **recurrence controls** (k + derived-anchor hint +
+  `commit_horizon_days`, §below) + a **Chore editor list**.
 - `/chores/:id/details` → `ChoresDetailsPage.vue` via `DetailsPageShell`: overview card,
-  chore list, volunteer count + per-volunteer load (fairness at a glance), upcoming
-  schedule, completion rate, share link + QR via a new `useChoresClipboard`.
+  chore list, volunteer count + per-volunteer accountability (regular turns vs picked-up
+  for others vs missed, §7), the two schedule controls ("Start roster" / "Rebalance now"),
+  confirmed + outlook schedule, completion rate, share link + QR via `useChoresClipboard`.
 - Add **"Takenroosters"/"Chores"** as the fourth item in the workspace dropdown I just built in
   `AppHeader.vue` (`header.chores` key, `isActive` on `/chores`).
 
@@ -400,14 +731,15 @@ pass unedited*:
   toggle maps to the flat offset `week*7 + day`. ~60 lines, reusable.
 
 **Recurrence controls (roster-level, top of the edit page).** `period_weeks` is a single
-control for the whole roster (a stepper/select, k = 1..N) and, **shown only when k > 1**, a
-required **anchor-Monday** date picker constrained to Mondays (disabled-with-reason if not
-a Monday, per the UX principle). Because k is roster-wide, changing it reshapes every
-`CycleGridPicker` at once: growing k adds empty week-rows; shrinking k drops slots whose
-offset is now `≥ 7k` (warn-toast naming the affected chores, then clear — no silent data
-loss, no stale out-of-range slots). The anchor + k together are the only inputs that make
-"week A vs week B" mean a concrete calendar week, so they live above the chore list, not
-per chore.
+control for the whole roster (a stepper, k = 1..8). There is **no** anchor-Monday input:
+when k > 1 the cycle anchors on the first Monday on or after `starts_on` (derived), and the
+form shows a live, read-only hint next to the stepper ("week 1 van de cyclus begint op
+{date}") computed from the chosen start date, so the organiser can see which calendar week
+is week 1 without entering a second date. Because k is roster-wide, changing it reshapes
+every `CycleGridPicker` at once: growing k adds empty week-rows; shrinking k drops slots
+whose offset is now `≥ 7k` (warn-toast naming the affected chores, then clear: no silent
+data loss, no stale out-of-range slots). Add a `commit_horizon_days` control here too (the
+"how far ahead is the schedule guaranteed" knob, §4/§7).
 
 All visible strings via `t()` in `nl` + `en` (locked-step, CI fails on drift), per the UX
 principles.
@@ -417,8 +749,9 @@ principles.
 Two new one-shot subcommands (Coolify scheduled tasks, matching the existing cadence
 style in `cli.py`):
 
-- `roster-tick` — **daily**: extend + assign + reconcile shifts (§7).
-- `dispatch chore-reminder` — **hourly**: send due shift reminders (§7).
+- `roster-tick` — **daily**: pin the incoming commit-horizon edge + prune stale un-acted
+  pins + reconcile past `scheduled` → `missed` (§7). No horizon-wide materialisation.
+- `dispatch chore-reminder` — **hourly**: send due reminders for pinned shifts (§7).
 
 Reaping: extend the existing post-archive purge so an archived roster's volunteer emails
 are deleted after the grace window (reuse the `reap-expired` daily slot). Hard-delete
@@ -433,11 +766,20 @@ cascades clean up everything.
 - New `tests/test_chore_email_state.py` (table-test in the spirit of
   `test_email_state_machine.py`): enrol-with-email → ciphertext present; mute → ciphertext
   null, enrolment kept; leave → row gone; archive+purge → ciphertext gone.
-- `tests/test_chore_fairness.py`: the assignment function over crafted enrolment/load sets
-  with a seeded RNG — equal loads, tie distribution, exclusion on handoff, no double-day.
+- `tests/test_chore_fairness.py`: the WRH assignment function (pure, no RNG) — determinism
+  (same inputs → same assignee); equal expected share over many occurrences; the
+  minimal-disruption property (adding/removing a volunteer moves *only* the affected
+  occurrences, all others unchanged); ledger-weight tilt rebalances future occurrences;
+  availability ranges exclude a volunteer on those dates.
 - `tests/test_chore_recurrence.py`: the cycle-membership function — k=1 weekday match; k>1
-  modulo-`7k` anchoring (biweekly hits alternating weeks), dates before the anchor
-  excluded, `cycle_slots` validated `< 7k`, anchor-must-be-Monday rejected otherwise.
+  modulo-`7k` anchoring on the derived first Monday (biweekly hits alternating weeks), the
+  partial-week wrap, `cycle_slots` validated `< 7k`; and robustness: a date that still
+  occurs after a `starts_on` edit keeps the same WRH assignee.
+- `tests/test_chore_tick.py`: pinning is idempotent and additive; the window-only prune
+  drops un-acted stale pins but keeps reminded/acted ones and never touches the past; past
+  `scheduled` → `missed` reconciliation; **no pinning while a roster is `forming`**; a new
+  volunteer is folded into pins within `commit_horizon_days`; a departing volunteer's
+  pinned future shifts are reassigned (or go `open`) immediately.
 - Router/access tests mirroring the Event suite (chapter scoping, 404-not-403, archive →
   410 public, rate-limit-on-every-mutator audit picks up the new routes automatically).
 - Alembic: one autogenerated migration; CI's `downgrade base; upgrade head; upgrade head`
@@ -465,7 +807,21 @@ reminders. Each stage is independently shippable and testable.
 2. **Confirm / handoff** — the personal token page is the **single hub**. No one-click
    action links in emails; reminders deep-link to the page, which carries the buttons.
    Fewer secret-bearing URLs minted, and the flow works with no email at all.
-3. **Fairness** — greedy least-loaded with random tie-break (§7). Pure over its inputs,
-   seed-testable, stable across re-runs.
-4. **Multi-person chores** — `people_per_shift` ships defaulting to 1 (one Shift row per
+3. **Scheduling model** — occurrences are a **deterministic projection** of the pattern;
+   `Shift` rows are a **sparse overlay** materialised only inside a configurable
+   **commit horizon** (`commit_horizon_days`) or on action (§7). The past is frozen, the
+   horizon is a kept promise, the projection absorbs edits and membership change for free.
+   Kills the edit-divergence bug at the root and gives unbounded, honest lookahead.
+4. **Fairness** — **deterministic weighted rendezvous hashing** keyed on
+   `(volunteer, chore, date, slot)` (§7): equal expected share by default, tilted by a
+   favour ledger derived from `ShiftEvent`. Pure over its inputs, no RNG, projectable to
+   infinity, and minimally disruptive when volunteers join or leave (only the affected
+   occurrences move). Replaces the original greedy-least-loaded-with-random-tie-break rule,
+   which was non-deterministic in production and could not be projected.
+5. **Takeover** — modelled as a one-way **cover** (extra task + favour credit that
+   rebalances the future), not a forced immediate swap; an explicit two-way swap is offered
+   as an optional convenience (§7).
+6. **New-volunteer fold-in** — bounded by `commit_horizon_days`: a newcomer is doing real
+   pinned shifts within that window, without disturbing anyone's confirmed schedule.
+7. **Multi-person chores** — `people_per_shift` ships defaulting to 1 (one Shift row per
    occurrence), with the schema and assignment designed for N from day one.
