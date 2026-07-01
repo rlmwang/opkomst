@@ -479,7 +479,7 @@ async function submitUserEdit() {
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
   background: var(--brand-accent-subtle, rgba(159, 0, 11, 0.1));
-  color: var(--brand-accent, #9f000b);
+  color: var(--brand-accent, var(--brand-red));
   font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;

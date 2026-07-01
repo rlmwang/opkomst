@@ -80,6 +80,6 @@ async function copy(): Promise<void> {
   transition: background 120ms, color 120ms;
 }
 .copy-btn:hover { background: var(--brand-bg); color: var(--brand-red); }
-.copy-btn.copied { color: #1f7a3c; }
+.copy-btn.copied { color: var(--brand-green); }
 .warning { margin: 0; font-size: 0.8125rem; color: var(--brand-text-muted); }
 </style>

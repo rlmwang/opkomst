@@ -305,9 +305,9 @@ function dateWindow(): string {
   flex-shrink: 0;
 }
 .dot.done,
-.bar-fill.done { background: #1a7f3c; }
+.bar-fill.done { background: var(--brand-green); }
 .dot.deferred,
-.bar-fill.deferred { background: #c98a00; }
+.bar-fill.deferred { background: var(--brand-amber); }
 .dot.missed,
 .bar-fill.missed { background: var(--brand-red); }
 .vol-tally {

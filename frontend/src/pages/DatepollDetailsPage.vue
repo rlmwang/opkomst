@@ -381,14 +381,14 @@ async function exportCsv() {
   padding: 0.0625rem 0;
   color: #fff;
 }
-.rank.r1 { background: #1f7a3c; }
+.rank.r1 { background: var(--brand-green); }
 .rank.r2 { background: #8a8f98; }
 .rank.r3 { background: #b8763a; }
 /* Coloured column headers for the combined yes/maybe bar. */
 .hdr { font-weight: 500; font-size: 0.8125rem; }
 .hdr + .hdr { margin-left: 0.5rem; }
-.hdr.yes { color: #1f7a3c; }
-.hdr.maybe { color: #c98a00; }
+.hdr.yes { color: var(--brand-green); }
+.hdr.maybe { color: var(--brand-amber); }
 
 /* Bar cell: a track that fills the column width + the count(s) after
  * it. The combined cell stacks a green (yes) + amber (maybe) segment
@@ -406,8 +406,8 @@ async function exportCsv() {
 }
 .combo .bar-track { width: calc(100% - 2.7rem); }
 .bar-fill { height: 100%; }
-.bar-fill.yes { background: #1f7a3c; }
-.bar-fill.maybe { background: #c98a00; }
+.bar-fill.yes { background: var(--brand-green); }
+.bar-fill.maybe { background: var(--brand-amber); }
 .bar-fill.no { background: var(--brand-text-muted); }
 .bar-count {
   display: inline-block;
@@ -418,8 +418,8 @@ async function exportCsv() {
   color: var(--brand-text-muted);
   vertical-align: middle;
 }
-.bar-count.yes { color: #1f7a3c; }
-.bar-count.maybe { color: #c98a00; }
+.bar-count.yes { color: var(--brand-green); }
+.bar-count.maybe { color: var(--brand-amber); }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
 .notes-section { margin-top: 1.25rem; }
@@ -434,7 +434,7 @@ async function exportCsv() {
  * fixed width so they line up evenly. */
 .grid th.slot-th, .grid tbody td:not(.who):not(.note-col) { width: 4rem; }
 .grid th.slot-th .th-time { font-weight: 400; font-size: 0.75rem; color: var(--brand-text-muted); }
-.cell.yes { background: #1f7a3c; color: #fff; }
-.cell.maybe { background: #c98a00; color: #fff; }
+.cell.yes { background: var(--brand-green); color: #fff; }
+.cell.maybe { background: var(--brand-amber); color: #fff; }
 .cell.no { background: #6b6b6b; color: #fff; }
 </style>

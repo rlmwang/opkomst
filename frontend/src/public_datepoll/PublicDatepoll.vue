@@ -286,8 +286,8 @@ async function submit(): Promise<void> {
 .note { resize: none; overflow: hidden; }
 .legend { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.75rem; font-size: 0.8125rem; }
 .swatch { padding: 0.125rem 0.5rem; border-radius: 999px; color: #fff; }
-.swatch.yes { background: #1f7a3c; }
-.swatch.maybe { background: #c98a00; }
+.swatch.yes { background: var(--brand-green); }
+.swatch.maybe { background: var(--brand-amber); }
 .swatch.no { background: #6b6b6b; }
 /* Each month renders at full content width, stacked vertically — the
  * cells are wide enough to hold their time-slot pills inline. */

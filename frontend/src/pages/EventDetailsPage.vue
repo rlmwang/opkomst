@@ -670,7 +670,7 @@ function askTriggerNow(channel: EmailChannel) {
   border-color: #f5b0b4;
 }
 .health-failed .count {
-  color: #9f000b;
+  color: var(--brand-red);
 }
 .health-not_applicable .count { color: var(--brand-text-muted); }
 

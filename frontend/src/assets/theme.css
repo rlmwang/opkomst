@@ -6,11 +6,16 @@
      * comfortably next to the deep brand red without the sterile feel
      * of pure white. */
     --brand-red: #9f000b;
+    --brand-red-hover: #7f0009;
     --brand-bg: #f6f1e7;
     --brand-surface: #fbf7ee;
     --brand-text: #1a1a1a;
     --brand-text-muted: #5e5a52;
     --brand-border: #e6dec9;
+    /* Semantic status colours — one shade each so "positive / warning"
+     * reads the same everywhere (was ~3 hard-coded greens + ambers). */
+    --brand-green: #1f7a3c;
+    --brand-amber: #c98a00;
   }
 
   html, body, #app {
@@ -262,22 +267,22 @@
    * both the solid and outlined variants from PrimeVue. */
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link) {
     background: #fbdadc;
-    color: #9f000b;
+    color: var(--brand-red);
     border: 1px solid #f5b0b4;
   }
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover {
     background: #f5b0b4;
     color: #5e0007;
-    border-color: #9f000b;
+    border-color: var(--brand-red);
   }
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
     background: #ec7e85;
     color: #440005;
-    border-color: #9f000b;
+    border-color: var(--brand-red);
   }
   /* Text-variant secondary: red text, soft-pink hover wash. */
   .p-button.p-button-secondary.p-button-text {
-    color: #9f000b;
+    color: var(--brand-red);
   }
   .p-button.p-button-secondary.p-button-text:hover {
     background: #fbdadc;

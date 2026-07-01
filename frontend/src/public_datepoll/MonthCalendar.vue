@@ -203,7 +203,7 @@ const grid = computed<Cell[]>(() => {
 .pill-glyph { font-size: 0.625rem; line-height: 1; }
 
 /* Shared state colours (whole-day cell + timed pill). */
-.wholeday.yes, .pill.yes { background: #1f7a3c; color: #fff; border-color: #1f7a3c; }
-.wholeday.maybe, .pill.maybe { background: #c98a00; color: #fff; border-color: #c98a00; }
+.wholeday.yes, .pill.yes { background: var(--brand-green); color: #fff; border-color: var(--brand-green); }
+.wholeday.maybe, .pill.maybe { background: var(--brand-amber); color: #fff; border-color: var(--brand-amber); }
 .wholeday.no, .pill.no { background: #6b6b6b; color: #fff; border-color: #6b6b6b; }
 </style>

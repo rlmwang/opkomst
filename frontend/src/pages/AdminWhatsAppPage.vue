@@ -795,7 +795,7 @@ onBeforeUnmount(() => {
   gap: 0.4rem;
   padding: 0.25rem 0.6rem;
   background: #e3f7e8;
-  color: #1b873f;
+  color: var(--brand-green);
   border: 1px solid #cfe8d4;
   border-radius: 999px;
   font-size: 0.875rem;
@@ -944,7 +944,7 @@ onBeforeUnmount(() => {
   background: #fdecea;
 }
 .preview-table .ok {
-  color: #1b873f;
+  color: var(--brand-green);
 }
 .preview-table .bad {
   color: var(--brand-red);
@@ -1056,7 +1056,7 @@ onBeforeUnmount(() => {
   background: var(--brand-bg);
 }
 .send-sent .ok {
-  color: #1b873f;
+  color: var(--brand-green);
 }
 .send-failed .bad {
   color: var(--brand-red);

@@ -49,7 +49,7 @@
     transition: background 120ms, opacity 120ms, transform 60ms ease;
   }
   .btn-primary:hover:not(:disabled) {
-    background: #7f0009;
+    background: var(--brand-red-hover);
   }
   /* Tactile click feedback before the network round-trip starts. */
   .btn-primary:active:not(:disabled) {
