@@ -78,6 +78,9 @@ export type RosterUpdate = S["RosterUpdate"];
 export type ChoreIn = S["ChoreIn"];
 export type ChoreOut = S["ChoreOut"];
 export type PublicRosterOut = S["PublicRosterOut"];
+export type VolunteerSummary = S["VolunteerSummaryOut"];
+export type ChoreSchedule = S["ScheduleOut"];
+export type ScheduleShift = S["ScheduleShiftOut"];
 
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];

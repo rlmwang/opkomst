@@ -221,3 +221,30 @@ class VolunteerSummaryOut(BaseModel):
     display_name: str | None
     enrolled_chore_ids: list[str]
     load: int
+
+
+class ScheduleShiftOut(BaseModel):
+    """One upcoming shift on the organiser schedule view. ``assignee_name``
+    is the volunteer's pseudonym (NULL for an open/unassigned shift)."""
+
+    id: str
+    chore_id: str
+    chore_name: str
+    on_date: date
+    slot_index: int
+    status: str
+    assignee_name: str | None
+
+
+class ScheduleStatsOut(BaseModel):
+    scheduled: int
+    done: int
+    missed: int
+    open: int
+
+
+class ScheduleOut(BaseModel):
+    """Organiser schedule: lifetime completion counts + upcoming shifts."""
+
+    stats: ScheduleStatsOut
+    upcoming: list[ScheduleShiftOut] = Field(default_factory=list)

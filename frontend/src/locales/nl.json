@@ -483,7 +483,11 @@
       "volunteersHeading": "Vrijwilligers",
       "volunteersEmpty": "Vrijwilligers verschijnen hier zodra mensen zich aanmelden.",
       "scheduleHeading": "Rooster",
-      "scheduleEmpty": "Het rooster verschijnt zodra beurten zijn ingedeeld."
+      "scheduleEmpty": "Het rooster verschijnt zodra beurten zijn ingedeeld.",
+      "anonymous": "Anoniem",
+      "load": "{n} beurten",
+      "openShift": "Vrij",
+      "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij"
     }
   },
   "admin": {

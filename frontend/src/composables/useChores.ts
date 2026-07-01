@@ -8,12 +8,16 @@
  * per-entity clipboard wrappers.
  */
 
-import { listOf } from "@/api/queries";
+import { type MaybeRef, unref } from "vue";
+
+import { listOf, useApiQuery } from "@/api/queries";
 import type {
+  ChoreSchedule,
   RosterCreate,
   RosterListOut,
   RosterOut,
   RosterUpdate,
+  VolunteerSummary,
 } from "@/api/types";
 import { createEntityCrud } from "@/composables/createEntityCrud";
 
@@ -32,3 +36,19 @@ export const useUpdateRoster = crud.useUpdate;
 export const useArchiveRoster = crud.useArchive;
 export const useRestoreRoster = crud.useRestore;
 export const useDeleteRoster = crud.useDelete;
+
+// --- Roster-specific reads (shifts arrive with task 06) ---
+
+export function useRosterVolunteers(rosterId: MaybeRef<string>) {
+  return useApiQuery<VolunteerSummary[]>(
+    () => ["chores", unref(rosterId), "volunteers"],
+    () => `/api/v1/chores/${unref(rosterId)}/volunteers`,
+  );
+}
+
+export function useRosterSchedule(rosterId: MaybeRef<string>) {
+  return useApiQuery<ChoreSchedule>(
+    () => ["chores", unref(rosterId), "schedule"],
+    () => `/api/v1/chores/${unref(rosterId)}/schedule`,
+  );
+}

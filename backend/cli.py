@@ -99,6 +99,12 @@ _CRON_MONITORS: dict[str, Any] = {
         "max_runtime": 5,
         "timezone": "UTC",
     },
+    "opkomst-cli-roster-tick": {
+        "schedule": {"type": "crontab", "value": "0 2 * * *"},
+        "checkin_margin": 30,
+        "max_runtime": 30,
+        "timezone": "UTC",
+    },
 }
 
 
@@ -116,6 +122,7 @@ def _monitor_slug(args: argparse.Namespace) -> str | None:
         "reap-expired",
         "reap-auth-tokens",
         "pending-digest",
+        "roster-tick",
     }:
         return f"opkomst-cli-{args.cmd}"
     return None
@@ -169,6 +176,22 @@ def _pending_digest() -> int:
     return admin_digest.send_pending_digest()
 
 
+def _roster_tick() -> int:
+    """Materialise + fairly assign chore shifts on the rolling horizon,
+    and flip past-due scheduled shifts to missed. Returns the number of
+    shifts created (for the cron log)."""
+    from .services import chore_tick
+    from .services.events import now_wallclock
+
+    db = SessionLocal()
+    try:
+        rosters, shifts = chore_tick.run_tick(db, now_wallclock().date())
+        logger.info("cli_roster_tick", rosters=rosters, shifts=shifts)
+        return shifts
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m backend.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -186,6 +209,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "pending-digest",
         help="Email every admin a weekly digest of accounts awaiting approval.",
+    )
+    sub.add_parser(
+        "roster-tick",
+        help="Generate + fairly assign chore shifts on the rolling horizon.",
     )
     sub.add_parser(
         "migrate",
@@ -230,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
             _reap_auth_tokens()
         elif args.cmd == "pending-digest":
             _pending_digest()
+        elif args.cmd == "roster-tick":
+            _roster_tick()
         elif args.cmd == "migrate":
             # ``run_migrations()`` already ran above as part of the
             # cron preamble — this branch exists so the API

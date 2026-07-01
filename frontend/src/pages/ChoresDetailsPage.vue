@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import type { ChoreOut } from "@/api/types";
-import { useRoster } from "@/composables/useChores";
+import { useRoster, useRosterSchedule, useRosterVolunteers } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
@@ -20,6 +20,16 @@ const rosterQuery = useRoster(rosterId);
 const roster = computed(() => rosterQuery.data.value ?? null);
 const choreItems = computed<ChoreOut[]>(() => roster.value?.chores ?? []);
 const loaded = computed(() => !rosterQuery.isPending.value);
+
+const volunteersQuery = useRosterVolunteers(rosterId);
+const volunteers = computed(() => volunteersQuery.data.value ?? []);
+const scheduleQuery = useRosterSchedule(rosterId);
+const schedule = computed(() => scheduleQuery.data.value ?? null);
+const upcoming = computed(() => schedule.value?.upcoming ?? []);
+
+const choreName = computed<Record<string, string>>(() =>
+  Object.fromEntries(choreItems.value.map((c) => [c.id, c.name])),
+);
 
 const dayLabels = computed(() => [
   t("chores.edit.weekday.mon"),
@@ -126,15 +136,42 @@ function dateWindow(): string {
         </ul>
       </AppCard>
 
-      <!-- Volunteers + Schedule land with their data in tasks 05/06. -->
       <AppCard>
         <h2>{{ t("chores.details.volunteersHeading") }}</h2>
-        <p class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
+        <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
+        <ul v-else class="vol-list">
+          <li v-for="v in volunteers" :key="v.id" class="vol-item">
+            <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
+            <span class="muted vol-chores">
+              {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+            </span>
+            <span class="load-chip">{{ t("chores.details.load", { n: v.load }) }}</span>
+          </li>
+        </ul>
       </AppCard>
 
       <AppCard>
         <h2>{{ t("chores.details.scheduleHeading") }}</h2>
-        <p class="muted">{{ t("chores.details.scheduleEmpty") }}</p>
+        <p v-if="schedule" class="muted stats-line">
+          {{ t("chores.details.stats", {
+            scheduled: schedule.stats.scheduled,
+            done: schedule.stats.done,
+            missed: schedule.stats.missed,
+            open: schedule.stats.open,
+          }) }}
+        </p>
+        <p v-if="upcoming.length === 0" class="muted">
+          {{ t("chores.details.scheduleEmpty") }}
+        </p>
+        <ul v-else class="shift-list">
+          <li v-for="s in upcoming" :key="s.id" class="shift-item">
+            <span class="shift-date">{{ formatDate(s.on_date, locale) }}</span>
+            <span class="shift-chore">{{ s.chore_name }}</span>
+            <span class="shift-assignee" :class="{ open: !s.assignee_name }">
+              {{ s.assignee_name || t("chores.details.openShift") }}
+            </span>
+          </li>
+        </ul>
       </AppCard>
     </template>
   </DetailsPageShell>
@@ -220,4 +257,35 @@ function dateWindow(): string {
   color: var(--brand-text-muted);
   font-size: 0.75rem;
 }
+.vol-list,
+.shift-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.vol-item,
+.shift-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.vol-name { font-weight: 600; }
+.vol-chores,
+.shift-chore { font-size: 0.875rem; }
+.load-chip {
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
+  color: var(--brand-text-muted);
+  font-size: 0.75rem;
+}
+.stats-line { margin: 0 0 0.5rem; }
+.shift-date { min-width: 8rem; }
+.shift-assignee { margin-left: auto; font-weight: 500; }
+.shift-assignee.open { color: var(--brand-red); font-weight: 600; }
 </style>

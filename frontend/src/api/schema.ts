@@ -535,6 +535,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Shift
+         * @description Take an open shift on a chore you're enrolled for.
+         */
+        post: operations["claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Shift Done */
+        post: operations["mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand Off Shift
+         * @description Give up a shift. It reopens and is immediately re-assigned to
+         *     someone else (excluding the bailer); if nobody is eligible it stays
+         *     ``open`` for anyone to claim.
+         */
+        post: operations["hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}": {
         parameters: {
             query?: never;
@@ -619,6 +678,27 @@ export interface paths {
         put?: never;
         /** Restore Roster */
         post: operations["restore_roster_api_v1_chores__roster_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Schedule
+         * @description Upcoming shifts (today onward) with the assignee pseudonym, plus
+         *     lifetime done/missed/scheduled/open counts.
+         */
+        get: operations["get_schedule_api_v1_chores__roster_id__schedule_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3278,6 +3358,50 @@ export interface components {
             starts_on: string;
         };
         /**
+         * ScheduleOut
+         * @description Organiser schedule: lifetime completion counts + upcoming shifts.
+         */
+        ScheduleOut: {
+            stats: components["schemas"]["ScheduleStatsOut"];
+            /** Upcoming */
+            upcoming?: components["schemas"]["ScheduleShiftOut"][];
+        };
+        /**
+         * ScheduleShiftOut
+         * @description One upcoming shift on the organiser schedule view. ``assignee_name``
+         *     is the volunteer's pseudonym (NULL for an open/unassigned shift).
+         */
+        ScheduleShiftOut: {
+            /** Assignee Name */
+            assignee_name: string | null;
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Slot Index */
+            slot_index: number;
+            /** Status */
+            status: string;
+        };
+        /** ScheduleStatsOut */
+        ScheduleStatsOut: {
+            /** Done */
+            done: number;
+            /** Missed */
+            missed: number;
+            /** Open */
+            open: number;
+            /** Scheduled */
+            scheduled: number;
+        };
+        /**
          * SendRequest
          * @description One outbound message. Phone normalisation happens client-side.
          */
@@ -4386,6 +4510,102 @@ export interface operations {
             };
         };
     };
+    claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                shift_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                shift_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                shift_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_roster_api_v1_chores__roster_id__get: {
         parameters: {
             query?: never;
@@ -4610,6 +4830,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_schedule_api_v1_chores__roster_id__schedule_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
                 };
             };
             /** @description Validation Error */

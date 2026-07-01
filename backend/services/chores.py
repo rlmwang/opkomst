@@ -14,15 +14,20 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Chore, Enrollment, Roster, Volunteer
+from ..models import Chapter, Chore, Enrollment, Roster, Shift, Volunteer
 from ..schemas.chores import (
     ChoreOut,
     PersonalPageOut,
+    PersonalShiftOut,
     PublicRosterOut,
     RosterListOut,
     RosterOut,
+    ScheduleOut,
+    ScheduleShiftOut,
+    ScheduleStatsOut,
     VolunteerSummaryOut,
 )
+from .events import now_wallclock
 
 if TYPE_CHECKING:
     from ..schemas.chores import ChoreIn
@@ -173,24 +178,72 @@ def _enrolled_chore_ids(db: Session, volunteer_id: str) -> list[str]:
     return [row[0] for row in db.query(Enrollment.chore_id).filter(Enrollment.volunteer_id == volunteer_id).all()]
 
 
+def _shift_out(shift: Shift, chore_name: str) -> PersonalShiftOut:
+    return PersonalShiftOut(
+        id=shift.id,
+        chore_id=shift.chore_id,
+        chore_name=chore_name,
+        on_date=shift.on_date,
+        status=shift.status,
+    )
+
+
 def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
-    """The volunteer's personal-page payload. ``my_shifts`` /
-    ``open_shifts`` are empty until shift generation (task 06). The email
-    is never returned — only ``has_email`` (whether a ciphertext is on
-    file)."""
+    """The volunteer's personal-page payload: their upcoming assigned
+    shifts + the claimable ``open`` shifts on chores they're enrolled in.
+    The email is never returned — only ``has_email``."""
+    today = now_wallclock().date()
+    chore_ids = _enrolled_chore_ids(db, volunteer.id)
+
+    mine = (
+        db.query(Shift, Chore.name)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(Shift.volunteer_id == volunteer.id, Shift.status == "scheduled", Shift.on_date >= today)
+        .order_by(Shift.on_date, Shift.id)
+        .all()
+    )
+    open_shifts: list[PersonalShiftOut] = []
+    if chore_ids:
+        opens = (
+            db.query(Shift, Chore.name)
+            .join(Chore, Chore.id == Shift.chore_id)
+            .filter(Shift.chore_id.in_(chore_ids), Shift.status == "open", Shift.on_date >= today)
+            .order_by(Shift.on_date, Shift.id)
+            .all()
+        )
+        open_shifts = [_shift_out(s, name) for s, name in opens]
+
     return PersonalPageOut(
         display_name=volunteer.display_name,
-        enrolled_chore_ids=_enrolled_chore_ids(db, volunteer.id),
+        enrolled_chore_ids=chore_ids,
         email_reminders=volunteer.email_reminders,
         has_email=volunteer.encrypted_email is not None,
-        my_shifts=[],
-        open_shifts=[],
+        my_shifts=[_shift_out(s, name) for s, name in mine],
+        open_shifts=open_shifts,
     )
+
+
+def _roster_loads(db: Session, roster_id: str) -> dict[str, int]:
+    """Per-volunteer load (scheduled + done shifts) across the roster."""
+    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster_id).all()]
+    if not chore_ids:
+        return {}
+    rows = (
+        db.query(Shift.volunteer_id, func.count(Shift.id))
+        .filter(
+            Shift.chore_id.in_(chore_ids),
+            Shift.volunteer_id.is_not(None),
+            Shift.status.in_(["scheduled", "done"]),
+        )
+        .group_by(Shift.volunteer_id)
+        .all()
+    )
+    return {vid: int(n) for vid, n in rows}
 
 
 def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut]:
     """Organiser-facing volunteer list: pseudonym + enrolled chores +
-    load (0 until shifts exist — task 06). No email/ciphertext/token."""
+    real assignment load. No email/ciphertext/token."""
     volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
     if not volunteers:
         return []
@@ -200,15 +253,61 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
         db.query(Enrollment.volunteer_id, Enrollment.chore_id).filter(Enrollment.volunteer_id.in_(vol_ids)).all()
     ):
         by_vol.setdefault(vid, []).append(cid)
+    loads = _roster_loads(db, roster.id)
     return [
         VolunteerSummaryOut(
             id=v.id,
             display_name=v.display_name,
             enrolled_chore_ids=by_vol.get(v.id, []),
-            load=0,
+            load=loads.get(v.id, 0),
         )
         for v in volunteers
     ]
+
+
+def schedule(db: Session, roster: Roster) -> ScheduleOut:
+    """Organiser schedule: lifetime status counts + upcoming shifts
+    (today onward) with the assignee pseudonym."""
+    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster.id).all()]
+    if not chore_ids:
+        return ScheduleOut(stats=ScheduleStatsOut(scheduled=0, done=0, missed=0, open=0), upcoming=[])
+
+    counts = {
+        status: int(n)
+        for status, n in db.query(Shift.status, func.count(Shift.id))
+        .filter(Shift.chore_id.in_(chore_ids))
+        .group_by(Shift.status)
+        .all()
+    }
+    today = now_wallclock().date()
+    rows = (
+        db.query(Shift, Chore.name, Volunteer.display_name)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .outerjoin(Volunteer, Volunteer.id == Shift.volunteer_id)
+        .filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= today)
+        .order_by(Shift.on_date, Chore.ordinal, Shift.slot_index)
+        .all()
+    )
+    return ScheduleOut(
+        stats=ScheduleStatsOut(
+            scheduled=counts.get("scheduled", 0),
+            done=counts.get("done", 0),
+            missed=counts.get("missed", 0),
+            open=counts.get("open", 0),
+        ),
+        upcoming=[
+            ScheduleShiftOut(
+                id=s.id,
+                chore_id=s.chore_id,
+                chore_name=chore_name,
+                on_date=s.on_date,
+                slot_index=s.slot_index,
+                status=s.status,
+                assignee_name=assignee_name,
+            )
+            for s, chore_name, assignee_name in rows
+        ],
+    )
 
 
 def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:

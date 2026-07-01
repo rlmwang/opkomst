@@ -3815,6 +3815,106 @@
         "title": "RosterUpdate",
         "type": "object"
       },
+      "ScheduleOut": {
+        "description": "Organiser schedule: lifetime completion counts + upcoming shifts.",
+        "properties": {
+          "stats": {
+            "$ref": "#/components/schemas/ScheduleStatsOut"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleShiftOut"
+            },
+            "title": "Upcoming",
+            "type": "array"
+          }
+        },
+        "required": [
+          "stats"
+        ],
+        "title": "ScheduleOut",
+        "type": "object"
+      },
+      "ScheduleShiftOut": {
+        "description": "One upcoming shift on the organiser schedule view. ``assignee_name``\nis the volunteer's pseudonym (NULL for an open/unassigned shift).",
+        "properties": {
+          "assignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Name"
+          },
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "slot_index": {
+            "title": "Slot Index",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chore_id",
+          "chore_name",
+          "on_date",
+          "slot_index",
+          "status",
+          "assignee_name"
+        ],
+        "title": "ScheduleShiftOut",
+        "type": "object"
+      },
+      "ScheduleStatsOut": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "missed": {
+            "title": "Missed",
+            "type": "integer"
+          },
+          "open": {
+            "title": "Open",
+            "type": "integer"
+          },
+          "scheduled": {
+            "title": "Scheduled",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scheduled",
+          "done",
+          "missed",
+          "open"
+        ],
+        "title": "ScheduleStatsOut",
+        "type": "object"
+      },
       "SendRequest": {
         "description": "One outbound message. Phone normalisation happens client-side.",
         "properties": {
@@ -5779,6 +5879,161 @@
         ]
       }
     },
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/claim": {
+      "post": {
+        "description": "Take an open shift on a chore you're enrolled for.",
+        "operationId": "claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shift_id",
+            "required": true,
+            "schema": {
+              "title": "Shift Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Shift",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
+      "post": {
+        "operationId": "mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shift_id",
+            "required": true,
+            "schema": {
+              "title": "Shift Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Shift Done",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff": {
+      "post": {
+        "description": "Give up a shift. It reopens and is immediately re-assigned to\nsomeone else (excluding the bailer); if nobody is eligible it stays\n``open`` for anyone to claim.",
+        "operationId": "hand_off_shift_api_v1_chores_by_token__token__shifts__shift_id__handoff_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shift_id",
+            "required": true,
+            "schema": {
+              "title": "Shift Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hand Off Shift",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/{roster_id}": {
       "delete": {
         "description": "Hard-delete an archived roster. Refuses unless archived first \u2014\ndeleting a live roster with volunteers/shifts would be a data-loss\nfootgun. Cascades through chores / volunteers / enrollments / shifts\nvia the FK ON DELETE CASCADEs.",
@@ -6191,6 +6446,65 @@
           }
         },
         "summary": "Restore Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/schedule": {
+      "get": {
+        "description": "Upcoming shifts (today onward) with the assignee pseudonym, plus\nlifetime done/missed/scheduled/open counts.",
+        "operationId": "get_schedule_api_v1_chores__roster_id__schedule_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Schedule",
         "tags": [
           "chores"
         ]

@@ -138,3 +138,95 @@ def test_volunteer_list_leak_guard(client, organiser_headers):
     assert row["load"] == 0
     banned = {"email", "encrypted_email", "edit_token", "edit_token_hash", "token"}
     assert not (banned & set(row.keys())), set(row.keys())
+
+
+# --- shift actions (done / handoff / claim) --------------------------
+
+
+def _enrolled_token(client: Any, organiser_headers: Any) -> tuple[dict[str, Any], str, str]:
+    """A roster + one enrolled volunteer's token + the chore id."""
+    roster = _create_roster(client, organiser_headers)
+    cid = roster["chores"][0]["id"]
+    token = _enroll(client, roster["slug"], display_name="Sam", chore_ids=[cid]).json()["edit_token"]
+    return roster, token, cid
+
+
+def _tick(db: Any) -> None:
+    from datetime import date
+
+    from backend.services import chore_tick
+
+    # A roster created "today" has starts_on=today; tick from a date in
+    # its window so shifts materialise and assign.
+    chore_tick.run_tick(db, date.today())
+
+
+def test_mark_shift_done(client, organiser_headers, db):
+    roster, token, _ = _enrolled_token(client, organiser_headers)
+    _tick(db)
+    page = client.get(f"/api/v1/chores/by-token/{token}").json()
+    assert page["my_shifts"], "expected at least one assigned shift after the tick"
+    shift_id = page["my_shifts"][0]["id"]
+
+    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/done")
+    assert r.status_code == 200, r.text
+    # The done shift drops out of upcoming "my_shifts".
+    assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
+
+
+def test_done_only_by_assignee(client, organiser_headers, db):
+    roster, token, cid = _enrolled_token(client, organiser_headers)
+    # A second volunteer, not the assignee.
+    other = _enroll(client, roster["slug"], display_name="Other", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    my = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
+    # Only run the assertion against a shift the first volunteer owns.
+    if not my:
+        return
+    shift_id = my[0]["id"]
+    r = client.post(f"/api/v1/chores/by-token/{other}/shifts/{shift_id}/done")
+    assert r.status_code == 403
+
+
+def test_handoff_reassigns_to_someone_else(client, organiser_headers, db):
+    roster, token, cid = _enrolled_token(client, organiser_headers)
+    other = _enroll(client, roster["slug"], display_name="Other", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    my = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
+    if not my:
+        return
+    shift_id = my[0]["id"]
+    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/handoff")
+    assert r.status_code == 200, r.text
+    # The bailer no longer holds it.
+    assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
+    # The other volunteer now sees it among their shifts.
+    other_shifts = client.get(f"/api/v1/chores/by-token/{other}").json()["my_shifts"]
+    assert shift_id in [s["id"] for s in other_shifts]
+
+
+def test_claim_open_shift(client, organiser_headers, db):
+    # Enrol a volunteer AFTER the tick so their shifts stay open until claim.
+    roster = _create_roster(client, organiser_headers)
+    cid = roster["chores"][0]["id"]
+    _tick(db)  # no volunteers yet → all shifts open
+    token = _enroll(client, roster["slug"], display_name="Late", chore_ids=[cid]).json()["edit_token"]
+
+    page = client.get(f"/api/v1/chores/by-token/{token}").json()
+    assert page["open_shifts"], "expected claimable open shifts"
+    shift_id = page["open_shifts"][0]["id"]
+    r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/claim")
+    assert r.status_code == 200, r.text
+    assert shift_id in [s["id"] for s in r.json()["my_shifts"]]
+
+
+def test_organiser_schedule_shows_stats_and_upcoming(client, organiser_headers, db):
+    roster, token, cid = _enrolled_token(client, organiser_headers)
+    _tick(db)
+    sched = client.get(f"/api/v1/chores/{roster['id']}/schedule", headers=organiser_headers).json()
+    # The sole volunteer takes every future shift; exact count depends on
+    # today's weekday, so assert relationships rather than a fixed number.
+    assert sched["stats"]["scheduled"] >= 1
+    assert sched["stats"]["done"] == 0 and sched["stats"]["missed"] == 0
+    assert len(sched["upcoming"]) == sched["stats"]["scheduled"]
+    assert {s["assignee_name"] for s in sched["upcoming"]} == {"Sam"}

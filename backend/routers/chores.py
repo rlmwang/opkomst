@@ -26,6 +26,7 @@ from ..schemas.chores import (
     RosterListOut,
     RosterOut,
     RosterUpdate,
+    ScheduleOut,
     VolunteerSummaryOut,
 )
 from ..services import access, crud
@@ -130,6 +131,18 @@ def list_volunteers(
     test). ``load`` is 0 until shift generation (task 06)."""
     roster = access.get_roster_for_user(db, roster_id, user)
     return chores_svc.volunteer_summaries(db, roster)
+
+
+@router.get("/{roster_id}/schedule", response_model=ScheduleOut)
+def get_schedule(
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> ScheduleOut:
+    """Upcoming shifts (today onward) with the assignee pseudonym, plus
+    lifetime done/missed/scheduled/open counts."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    return chores_svc.schedule(db, roster)
 
 
 @router.put("/{roster_id}", response_model=RosterOut)

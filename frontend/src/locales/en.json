@@ -483,7 +483,11 @@
       "volunteersHeading": "Volunteers",
       "volunteersEmpty": "Volunteers show up here once people enrol.",
       "scheduleHeading": "Schedule",
-      "scheduleEmpty": "The schedule appears once shifts are assigned."
+      "scheduleEmpty": "The schedule appears once shifts are assigned.",
+      "anonymous": "Anonymous",
+      "load": "{n} shifts",
+      "openShift": "Open",
+      "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open"
     }
   },
   "admin": {
