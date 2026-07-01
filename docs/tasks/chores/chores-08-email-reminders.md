@@ -50,9 +50,11 @@ email-free.
 5. **Config** — any new tunables (batch size, grace window) go through
    `backend/config.py::Settings`, required or explicitly defaulted there — never inline.
 
-6. **Deploy/runbook** — add the two cron entries to `docs/deploy.md` (Coolify scheduled
-   tasks): `roster-tick` daily, `dispatch chore-reminder` hourly, matching the existing
-   table; note the new purge behaviour in `docs/runbook.md`.
+6. **Deploy/runbook** — add the `dispatch chore-reminder` **hourly** cron to the
+   Scheduled-Tasks table + the Sentry-monitors table in `docs/deploy.md`, and its monitor
+   to `docs/runbook.md` (mirror the existing rows). *(The `roster-tick` daily cron was
+   already documented in both files in task 06 — do not re-add it.)* Note the archived-
+   roster email purge behaviour in `docs/runbook.md`.
 
 ## Tests
 

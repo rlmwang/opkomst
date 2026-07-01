@@ -74,6 +74,10 @@ you when a job is missing.
     checkin-margin 5 min, max-runtime 10 min
   - `opkomst-cli-dispatch-feedback` — same
   - `opkomst-cli-reap-partial` — schedule `30 * * * *`
+  - `opkomst-cli-roster-tick` — schedule `0 2 * * *`,
+    checkin-margin 30 min (materialises + fairly assigns chore
+    shifts on the 28-day horizon; flips past-due `scheduled`
+    shifts to `missed`)
   - `opkomst-cli-reap-expired` — schedule `0 3 * * *`,
     checkin-margin 30 min (also handles the 7-day post-event
     ciphertext backstop for the FEEDBACK channel)

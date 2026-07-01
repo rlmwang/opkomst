@@ -267,7 +267,7 @@ use ``curl https://opkomst.nu/health/full``.
 
 ## 6. Cron jobs
 
-Coolify → application → **Scheduled Tasks**. Seven jobs, all
+Coolify → application → **Scheduled Tasks**. Eight jobs, all
 running ``uv run --no-dev python -m backend.cli`` against the
 same image. Stagger the minutes so they don't all hit the DB at
 once.
@@ -277,6 +277,7 @@ once.
 | `0 *  * * *`   | `uv run --no-dev python -m backend.cli dispatch reminder`         | Hourly reminder send                               |
 | `0 *  * * *`   | `uv run --no-dev python -m backend.cli dispatch feedback`         | Hourly feedback send                               |
 | `30 * * * *`   | `uv run --no-dev python -m backend.cli reap-partial`              | Mid-flight crash recovery                          |
+| `0 2  * * *`   | `uv run --no-dev python -m backend.cli roster-tick`              | Daily: materialise + fairly assign chore shifts (28-day horizon), reconcile past-due → missed |
 | `0 3  * * *`   | `uv run --no-dev python -m backend.cli reap-expired`              | Daily: finalise expired dispatches + 7-day ciphertext backstop |
 | `45 3 * * *`   | `uv run --no-dev python -m backend.cli reap-auth-tokens`          | Daily: prune expired login + registration magic-link rows |
 | `0 9 * * 1`    | `uv run --no-dev python -m backend.cli pending-digest`            | Weekly Monday 09:00 UTC: email every admin a list of accounts awaiting approval |
@@ -351,7 +352,7 @@ Free tier is more than enough for opkomst's scale.
    ``capture_checkin`` start + finish, and the in-progress
    check-in carries a ``monitor_config`` (schedule + margin +
    max_runtime) that upserts the monitor on first run.
-   ``backend/cli.py`` is the single source of truth; the five
+   ``backend/cli.py`` is the single source of truth; the
    monitors that get created automatically:
 
    | Slug                                  | Schedule       | Margin |
@@ -359,6 +360,7 @@ Free tier is more than enough for opkomst's scale.
    | `opkomst-cli-dispatch-reminder`       | `0 * * * *`    | 5 min  |
    | `opkomst-cli-dispatch-feedback`       | `0 * * * *`    | 5 min  |
    | `opkomst-cli-reap-partial`            | `30 * * * *`   | 5 min  |
+   | `opkomst-cli-roster-tick`             | `0 2 * * *`    | 30 min |
    | `opkomst-cli-reap-expired`            | `0 3 * * *`    | 30 min |
    | `opkomst-cli-reap-auth-tokens`        | `45 3 * * *`   | 30 min |
    | `opkomst-cli-pending-digest`          | `0 9 * * 1`    | 60 min |
