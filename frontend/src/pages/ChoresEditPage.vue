@@ -54,6 +54,7 @@ const startsOn = ref<Date | null>(null);
 const endsOn = ref<Date | null>(null);
 const reminderEnabled = ref(true);
 const reminderDaysBefore = ref(1);
+const commitHorizonDays = ref(21);
 const choreListState = useOrderedList<ChoreDraft>();
 const chores = choreListState.items;
 const submitting = ref(false);
@@ -142,6 +143,7 @@ watch(
     endsOn.value = parseDate(existing.ends_on);
     reminderEnabled.value = existing.reminder_enabled;
     reminderDaysBefore.value = existing.reminder_days_before;
+    commitHorizonDays.value = existing.commit_horizon_days;
     chores.value = (existing.chores ?? []).map((c) => ({
       id: c.id,
       name: c.name,
@@ -169,6 +171,7 @@ interface RosterEditDraft {
   endsOn: string | null;
   reminderEnabled: boolean;
   reminderDaysBefore: number;
+  commitHorizonDays: number;
   chores: ChoreDraft[];
 }
 
@@ -184,6 +187,7 @@ function snapshot(): RosterEditDraft {
     endsOn: isoDate(endsOn.value),
     reminderEnabled: reminderEnabled.value,
     reminderDaysBefore: reminderDaysBefore.value,
+    commitHorizonDays: commitHorizonDays.value,
     chores: chores.value,
   };
 }
@@ -199,6 +203,7 @@ function applyDraft(d: RosterEditDraft): void {
   endsOn.value = parseDate(d.endsOn);
   reminderEnabled.value = d.reminderEnabled ?? true;
   reminderDaysBefore.value = d.reminderDaysBefore ?? 1;
+  commitHorizonDays.value = d.commitHorizonDays ?? 21;
   chores.value = (d.chores ?? []).map((c) => ({ ...c, cycle_slots: [...(c.cycle_slots ?? [])] }));
 }
 
@@ -217,6 +222,7 @@ const { loadDraft, clearDraft } = useFormDraft<RosterEditDraft>({
     endsOn,
     reminderEnabled,
     reminderDaysBefore,
+    commitHorizonDays,
     chores,
   ],
 });
@@ -290,6 +296,7 @@ async function submit() {
       ends_on: isoDate(endsOn.value),
       reminder_enabled: reminderEnabled.value,
       reminder_days_before: reminderDaysBefore.value,
+      commit_horizon_days: commitHorizonDays.value,
       chores: chores.value.map(
         (c): ChoreIn => ({
           id: c.id,
@@ -457,6 +464,17 @@ async function submit() {
           :min="0"
           :max="14"
           :aria-label="t('chores.edit.reminderDaysBefore')"
+        />
+      </div>
+
+      <div class="field">
+        <span class="field-label">{{ t("chores.edit.commitHorizonDays") }}</span>
+        <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
+        <NumberStepper
+          v-model="commitHorizonDays"
+          :min="reminderEnabled ? reminderDaysBefore : 1"
+          :max="365"
+          :aria-label="t('chores.edit.commitHorizonDays')"
         />
       </div>
     </section>

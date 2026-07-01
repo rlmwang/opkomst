@@ -7,7 +7,7 @@ then read back through the organiser ``/volunteers`` projection.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from backend.models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, User, Volunteer
@@ -25,7 +25,15 @@ def _orm_roster(db):
     chapter = Chapter(name="C")
     db.add_all([user, chapter])
     db.commit()
-    roster = Roster(slug="rost1", name="R", created_by=user.id, chapter_id=chapter.id, starts_on=TODAY)
+    roster = Roster(
+        slug="rost1",
+        name="R",
+        created_by=user.id,
+        chapter_id=chapter.id,
+        starts_on=TODAY,
+        commit_horizon_days=28,
+        activated_at=datetime.now(UTC),
+    )
     db.add(roster)
     db.commit()
     chore = Chore(roster_id=roster.id, name="Bins", ordinal=1, cycle_slots=[2])
@@ -116,6 +124,9 @@ def _enroll(client: Any, slug: str, name: str, cid: str) -> str:
 
 
 def _tick(db: Any) -> None:
+    for r in db.query(Roster).filter(Roster.activated_at.is_(None)).all():
+        r.activated_at = datetime.now(UTC)
+    db.flush()
     chore_tick.run_tick(db, date.today())
 
 

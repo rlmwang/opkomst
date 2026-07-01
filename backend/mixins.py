@@ -76,9 +76,7 @@ class OrgEntityMixin:
 
     @declared_attr
     def created_by(cls) -> Mapped[str]:
-        return mapped_column(
-            Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True
-        )
+        return mapped_column(Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
 
     @declared_attr
     def chapter_id(cls) -> Mapped[str | None]:

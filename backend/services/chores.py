@@ -9,6 +9,7 @@ Chapter-scoped lookups live in ``services.access``
 (``get_roster_for_user`` / ``roster_scope_filter``).
 """
 
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
@@ -17,6 +18,8 @@ from sqlalchemy.orm import Session
 from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer
 from ..schemas.chores import (
     ChoreOut,
+    OutlookShiftOut,
+    PersonalOutlookOut,
     PersonalPageOut,
     PersonalShiftOut,
     PublicRosterOut,
@@ -27,7 +30,12 @@ from ..schemas.chores import (
     ScheduleStatsOut,
     VolunteerSummaryOut,
 )
+from . import chore_tick
 from .events import now_wallclock
+
+# How far past the commit horizon the tentative outlook is projected for
+# display. Bounded so the projection is never an infinite list.
+OUTLOOK_DAYS = 90
 
 if TYPE_CHECKING:
     from ..schemas.chores import ChoreIn
@@ -169,6 +177,8 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
         ends_on=roster.ends_on,
         reminder_enabled=roster.reminder_enabled,
         reminder_days_before=roster.reminder_days_before,
+        commit_horizon_days=roster.commit_horizon_days,
+        activated_at=roster.activated_at,
         chores=[ChoreOut.model_validate(c) for c in chores],
     )
 
@@ -219,6 +229,39 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         has_email=volunteer.encrypted_email is not None,
         my_shifts=[_shift_out(s, name) for s, name in mine],
         open_shifts=open_shifts,
+        outlook_shifts=_personal_outlook(db, volunteer, today),
+    )
+
+
+def _personal_outlook(db: Session, volunteer: Volunteer, today: date) -> list[PersonalOutlookOut]:
+    """The volunteer's tentative projected turns beyond the commit horizon.
+    Empty while the roster is forming."""
+    roster = db.query(Roster).filter(Roster.id == volunteer.roster_id).first()
+    if roster is None or roster.activated_at is None:
+        return []
+    window_end = today + timedelta(days=roster.commit_horizon_days)
+    if roster.ends_on is not None and roster.ends_on < window_end:
+        window_end = roster.ends_on
+    outlook_until = today + timedelta(days=OUTLOOK_DAYS)
+    if roster.ends_on is not None and roster.ends_on < outlook_until:
+        outlook_until = roster.ends_on
+    outlook_start = window_end + timedelta(days=1)
+    if outlook_start > outlook_until:
+        return []
+    chores = _chores(db, roster.id)
+    chore_names = {c.id: c.name for c in chores}
+    proj = chore_tick.project_range(db, roster, chores, outlook_start, outlook_until)
+    return sorted(
+        (
+            PersonalOutlookOut(
+                chore_id=pa.occurrence.chore_id,
+                chore_name=chore_names.get(pa.occurrence.chore_id, ""),
+                on_date=pa.occurrence.on_date,
+            )
+            for pa in proj
+            if pa.volunteer_id == volunteer.id
+        ),
+        key=lambda o: (o.on_date, o.chore_name),
     )
 
 
@@ -286,11 +329,14 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
 
 
 def schedule(db: Session, roster: Roster) -> ScheduleOut:
-    """Organiser schedule: lifetime status counts + upcoming shifts
-    (today onward) with the assignee pseudonym."""
-    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster.id).all()]
+    """Organiser schedule: lifetime status counts, the pinned **confirmed**
+    window (materialised rows, today onward), and the projected **outlook**
+    beyond the commit horizon (computed on demand, date-bounded)."""
+    chores = _chores(db, roster.id)
+    chore_ids = [c.id for c in chores]
+    empty_stats = ScheduleStatsOut(scheduled=0, done=0, missed=0, open=0)
     if not chore_ids:
-        return ScheduleOut(stats=ScheduleStatsOut(scheduled=0, done=0, missed=0, open=0), upcoming=[])
+        return ScheduleOut(stats=empty_stats, confirmed=[], outlook=[], outlook_until=None)
 
     counts = {
         status: int(n)
@@ -308,6 +354,50 @@ def schedule(db: Session, roster: Roster) -> ScheduleOut:
         .order_by(Shift.on_date, Chore.ordinal, Shift.slot_index)
         .all()
     )
+    confirmed = [
+        ScheduleShiftOut(
+            id=s.id,
+            chore_id=s.chore_id,
+            chore_name=chore_name,
+            on_date=s.on_date,
+            slot_index=s.slot_index,
+            status=s.status,
+            assignee_name=assignee_name,
+        )
+        for s, chore_name, assignee_name in rows
+    ]
+
+    # Outlook: projected assignments beyond the pinned window, up to a
+    # bounded horizon. Only meaningful once the roster is running.
+    outlook: list[OutlookShiftOut] = []
+    outlook_until: date | None = None
+    if roster.activated_at is not None:
+        window_end = today + timedelta(days=roster.commit_horizon_days)
+        if roster.ends_on is not None and roster.ends_on < window_end:
+            window_end = roster.ends_on
+        outlook_until = today + timedelta(days=OUTLOOK_DAYS)
+        if roster.ends_on is not None and roster.ends_on < outlook_until:
+            outlook_until = roster.ends_on
+        outlook_start = window_end + timedelta(days=1)
+        if outlook_start <= outlook_until:
+            chore_names = {c.id: c.name for c in chores}
+            vol_names = {
+                v.id: v.display_name for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+            }
+            proj = chore_tick.project_range(db, roster, chores, outlook_start, outlook_until)
+            outlook = sorted(
+                (
+                    OutlookShiftOut(
+                        chore_id=pa.occurrence.chore_id,
+                        chore_name=chore_names.get(pa.occurrence.chore_id, ""),
+                        on_date=pa.occurrence.on_date,
+                        assignee_name=vol_names.get(pa.volunteer_id) if pa.volunteer_id else None,
+                    )
+                    for pa in proj
+                ),
+                key=lambda o: (o.on_date, o.chore_name),
+            )
+
     return ScheduleOut(
         stats=ScheduleStatsOut(
             scheduled=counts.get("scheduled", 0),
@@ -315,18 +405,9 @@ def schedule(db: Session, roster: Roster) -> ScheduleOut:
             missed=counts.get("missed", 0),
             open=counts.get("open", 0),
         ),
-        upcoming=[
-            ScheduleShiftOut(
-                id=s.id,
-                chore_id=s.chore_id,
-                chore_name=chore_name,
-                on_date=s.on_date,
-                slot_index=s.slot_index,
-                status=s.status,
-                assignee_name=assignee_name,
-            )
-            for s, chore_name, assignee_name in rows
-        ],
+        confirmed=confirmed,
+        outlook=outlook,
+        outlook_until=outlook_until,
     )
 
 

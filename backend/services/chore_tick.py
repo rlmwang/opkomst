@@ -1,21 +1,23 @@
-"""Shift materialisation + fair assignment — the daily ``roster-tick``.
+"""Shift pinning + reconciliation — the daily ``roster-tick`` (design §7).
 
-``run_tick`` walks every live roster and, per roster:
+Occurrences are a deterministic projection of the pattern; ``Shift`` rows
+are a sparse overlay materialised only inside the commit horizon. Per
+**running** roster, ``run_tick``:
 
-1. **extends** the shift horizon — for each chore, insert ``open`` Shift
-   rows (one per ``people_per_shift``) for every in-window date the
-   recurrence lands on that has no shift yet;
-2. **assigns** every ``open`` shift in the horizon to an eligible
-   volunteer via the fairness policy (loads accrue within the batch so
-   the distribution stays balanced);
-3. **reconciles** the past — ``scheduled`` shifts before today that were
+1. **pins the incoming edge** — for each occurrence in
+   ``[today, today+commit_horizon_days]`` with no row yet, insert a pinned
+   Shift (assigned via WRH, or ``open`` if nobody eligible);
+2. **prunes stale pins (window-only)** — drop un-acted, un-reminded pins
+   whose occurrence no longer projects (a roster edit orphaned them);
+3. **reconciles the past** — ``scheduled`` shifts before today that were
    never marked done flip to ``missed``.
 
-``reassign_shift`` is the single-shift variant used by the handoff
-endpoint. All assignment goes through the pure
-``chore_assignment.assign_occurrence`` (weighted rendezvous hashing); the
-only impure step is ``ledger_weights``, which folds the ``ShiftEvent`` log
-into WRH weights.
+A ``forming`` roster (``activated_at`` is NULL) is skipped entirely, so
+nothing is pinned or promised until the organiser starts it. The pin/prune
+decision is the pure ``chore_projection`` core; the only impure steps are
+resolving eligibility and the favour ledger (``ledger_weights``).
+
+``reassign_shift`` is the single-shift variant used by the handoff route.
 """
 
 from datetime import date, timedelta
@@ -24,19 +26,13 @@ from sqlalchemy.orm import Session
 
 from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent
 from .chore_assignment import assign_occurrence, net_credit, weight_from_ledger
-from .recurrence import occurs_on
+from .chore_projection import ChoreSpec, Diff, Occurrence, PinnedShift, occurrences_between, project, reconcile
 
 
 def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, shift_id: str | None = None) -> None:
     """Append one accountability event. The single write-point for the
     ShiftEvent log, used by the tick and the public shift-action routes."""
     db.add(ShiftEvent(roster_id=roster_id, volunteer_id=volunteer_id, kind=kind, shift_id=shift_id))
-
-
-# How far ahead shifts are materialised + assigned. A daily tick keeps a
-# rolling four-week window filled. Module constant (not env): there's no
-# operational reason to tune it per-deploy.
-HORIZON_DAYS = 28
 
 
 def ledger_weights(db: Session, roster_id: str) -> dict[str, float]:
@@ -85,142 +81,172 @@ def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None
     return chosen
 
 
-def _extend(db: Session, roster: Roster, chores: list[Chore], start: date, end: date) -> int:
-    created = 0
-    for chore in chores:
-        existing = {
-            (row[0], row[1])
-            for row in db.query(Shift.on_date, Shift.slot_index)
-            .filter(Shift.chore_id == chore.id, Shift.on_date >= start, Shift.on_date <= end)
-            .all()
-        }
-        d = start
-        while d <= end:
-            if occurs_on(
-                d,
-                cycle_slots=chore.cycle_slots,
-                period_weeks=roster.period_weeks,
-                starts_on=roster.starts_on,
-            ):
-                for slot in range(chore.people_per_shift):
-                    if (d, slot) not in existing:
-                        db.add(Shift(chore_id=chore.id, on_date=d, slot_index=slot, status="open"))
-                        created += 1
-            d += timedelta(days=1)
-    db.flush()
-    return created
+# Acquisition/outcome events that make a pin a real commitment — an
+# orphaned pin carrying one of these is kept, not pruned.
+_ACTED_KINDS = ("claimed", "covered", "completed", "inherited")
 
 
-def _assign(db: Session, roster_id: str, chore_ids: list[str], today: date, end: date) -> None:
+def _eligible_by_chore(db: Session, chore_ids: list[str]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
     if not chore_ids:
-        return
-    eligible_by_chore: dict[str, list[str]] = {}
+        return out
     for cid, vid in (
         db.query(Enrollment.chore_id, Enrollment.volunteer_id).filter(Enrollment.chore_id.in_(chore_ids)).all()
     ):
-        eligible_by_chore.setdefault(cid, []).append(vid)
+        out.setdefault(cid, []).append(vid)
+    return out
 
-    weights = ledger_weights(db, roster_id)
 
-    # Volunteers already scheduled per occurrence (chore, date) — a shift's
-    # other slots — so nobody is double-booked on the same occurrence.
-    occupied: dict[tuple[str, date], set[str]] = {}
-    for cid, on_date, vid in (
-        db.query(Shift.chore_id, Shift.on_date, Shift.volunteer_id)
+def _chore_specs(chores: list[Chore]) -> list[ChoreSpec]:
+    return [
+        ChoreSpec(chore_id=c.id, cycle_slots=tuple(c.cycle_slots), people_per_shift=c.people_per_shift) for c in chores
+    ]
+
+
+def _horizon_end(roster: Roster, today: date) -> date:
+    end = today + timedelta(days=roster.commit_horizon_days)
+    if roster.ends_on is not None and roster.ends_on < end:
+        end = roster.ends_on
+    return end
+
+
+def _window_pins(
+    db: Session, roster_id: str, chore_ids: list[str], today: date, end: date
+) -> tuple[list[PinnedShift], dict[Occurrence, Shift]]:
+    """Load the pinned shifts in ``[today, end]`` as value objects plus a
+    ``{key: row}`` map for applying prunes. ``acted`` folds in reminded,
+    done, and any claim/cover/inherit event on the shift."""
+    if not chore_ids:
+        return [], {}
+    acted_ids = {
+        sid
+        for (sid,) in db.query(ShiftEvent.shift_id)
         .filter(
-            Shift.chore_id.in_(chore_ids),
-            Shift.status == "scheduled",
-            Shift.volunteer_id.is_not(None),
-            Shift.on_date >= today,
-            Shift.on_date <= end,
+            ShiftEvent.roster_id == roster_id,
+            ShiftEvent.kind.in_(_ACTED_KINDS),
+            ShiftEvent.shift_id.is_not(None),
         )
         .all()
-    ):
-        occupied.setdefault((cid, on_date), set()).add(vid)
-
-    open_shifts = (
-        db.query(Shift)
-        .filter(
-            Shift.chore_id.in_(chore_ids),
-            Shift.status == "open",
-            Shift.on_date >= today,
-            Shift.on_date <= end,
+    }
+    rows = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= today, Shift.on_date <= end).all()
+    pins: list[PinnedShift] = []
+    row_by_key: dict[Occurrence, Shift] = {}
+    for s in rows:
+        key = Occurrence(s.chore_id, s.on_date, s.slot_index)
+        row_by_key[key] = s
+        acted = s.status == "done" or s.reminder_sent_at is not None or s.id in acted_ids
+        pins.append(
+            PinnedShift(
+                key=key, status=s.status, reminded=s.reminder_sent_at is not None, acted=acted, assignee=s.volunteer_id
+            )
         )
-        .order_by(Shift.chore_id, Shift.on_date, Shift.slot_index)
-        .all()
-    )
-    # Group open slots by occurrence; fill each with the top WRH-ranked
-    # eligible volunteers not already on that occurrence.
-    groups: dict[tuple[str, date], list[Shift]] = {}
-    for shift in open_shifts:
-        groups.setdefault((shift.chore_id, shift.on_date), []).append(shift)
+    return pins, row_by_key
 
-    for (cid, on_date), shifts in groups.items():
-        eligible = eligible_by_chore.get(cid, [])
-        if not eligible:
-            continue
-        ranked = assign_occurrence(eligible, weights, chore_id=cid, on_date=on_date, count=len(eligible))
-        taken = occupied.setdefault((cid, on_date), set())
-        candidates = (v for v in ranked if v not in taken)
-        for shift in shifts:
-            chosen = next(candidates, None)
-            if chosen is None:
-                break
-            shift.volunteer_id = chosen
-            shift.status = "scheduled"
-            record_event(db, roster_id=roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
-            taken.add(chosen)
+
+def _apply(db: Session, roster_id: str, diff: Diff, row_by_key: dict[Occurrence, Shift]) -> int:
+    for key in diff.prune:
+        db.delete(row_by_key[key])
+    inserted = 0
+    for pa in diff.insert:
+        occ = pa.occurrence
+        shift = Shift(
+            chore_id=occ.chore_id,
+            on_date=occ.on_date,
+            slot_index=occ.slot_index,
+            status="scheduled" if pa.volunteer_id else "open",
+            volunteer_id=pa.volunteer_id,
+        )
+        db.add(shift)
+        db.flush()
+        if pa.volunteer_id:
+            record_event(db, roster_id=roster_id, volunteer_id=pa.volunteer_id, kind="assigned", shift_id=shift.id)
+        inserted += 1
     db.flush()
+    return inserted
+
+
+def project_range(db: Session, roster: Roster, chores: list[Chore], start: date, end: date):
+    """The projected assignments for one roster over ``[start, end]`` — the
+    shared oracle behind both the tick's pin step and the read-side outlook,
+    so confirmed and outlook never disagree."""
+    occ = occurrences_between(
+        _chore_specs(chores),
+        period_weeks=roster.period_weeks,
+        starts_on=roster.starts_on,
+        ends_on=roster.ends_on,
+        start=start,
+        end=end,
+    )
+    return project(occ, _eligible_by_chore(db, [c.id for c in chores]), ledger_weights(db, roster.id))
+
+
+def _pin_window(db: Session, roster: Roster, chores: list[Chore], today: date) -> int:
+    """Pin the incoming edge + prune stale window pins. Returns inserted."""
+    chore_ids = [c.id for c in chores]
+    end = _horizon_end(roster, today)
+    projected = project_range(db, roster, chores, today, end)
+    existing, row_by_key = _window_pins(db, roster.id, chore_ids, today, end)
+    diff = reconcile(existing, projected, today=today)
+    return _apply(db, roster.id, diff, row_by_key)
+
+
+def _reconcile_past(db: Session, roster_id: str, chore_ids: list[str], today: date) -> None:
+    """Past scheduled shifts never completed → missed, one `missed` event
+    per assignee (per-row, not a bulk UPDATE)."""
+    if not chore_ids:
+        return
+    stale = (
+        db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date < today, Shift.status == "scheduled").all()
+    )
+    for shift in stale:
+        shift.status = "missed"
+        if shift.volunteer_id is not None:
+            record_event(db, roster_id=roster_id, volunteer_id=shift.volunteer_id, kind="missed", shift_id=shift.id)
+
+
+def _tick_roster(db: Session, roster: Roster, today: date) -> int:
+    """Pin + prune + reconcile one roster. No-op while forming. No commit."""
+    if roster.activated_at is None:
+        return 0
+    chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
+    inserted = _pin_window(db, roster, chores, today)
+    _reconcile_past(db, roster.id, [c.id for c in chores], today)
+    return inserted
+
+
+def pin_roster(db: Session, roster: Roster, today: date) -> int:
+    """Pin a single roster's window now (used on activation), then commit."""
+    inserted = _tick_roster(db, roster, today)
+    db.commit()
+    return inserted
+
+
+def rebalance_roster(db: Session, roster: Roster, today: date) -> int:
+    """Re-pin the current window from the fresh projection: drop every
+    un-acted, un-reminded pin (even ones still projected) so newly-enrolled
+    volunteers fold into the confirmed window now, then re-pin. Reminded /
+    acted pins are kept. Changes confirmed assignments — an explicit,
+    organiser-invoked action. Commits."""
+    if roster.activated_at is None:
+        return 0
+    chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
+    end = _horizon_end(roster, today)
+    existing, row_by_key = _window_pins(db, roster.id, [c.id for c in chores], today, end)
+    for pin in existing:
+        if not pin.acted and not pin.reminded:
+            db.delete(row_by_key[pin.key])
+    db.flush()
+    inserted = _tick_roster(db, roster, today)
+    db.commit()
+    return inserted
 
 
 def run_tick(db: Session, today: date) -> tuple[int, int]:
-    """Extend + assign + reconcile every live roster. Returns
+    """Pin + prune + reconcile every live, running roster. Returns
     ``(rosters_processed, shifts_created)``."""
     rosters = db.query(Roster).filter(Roster.archived_at.is_(None)).all()
     created = 0
     for roster in rosters:
-        chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
-        chore_ids = [c.id for c in chores]
-        end = today + timedelta(days=HORIZON_DAYS)
-        if roster.ends_on is not None and roster.ends_on < end:
-            end = roster.ends_on
-        start = max(today, roster.starts_on)
-        if start <= end:
-            created += _extend(db, roster, chores, start, end)
-            # A volunteer leaving SET-NULLs their future shifts but leaves
-            # the status 'scheduled' — reopen those so _assign fills them.
-            if chore_ids:
-                db.query(Shift).filter(
-                    Shift.chore_id.in_(chore_ids),
-                    Shift.on_date >= today,
-                    Shift.status == "scheduled",
-                    Shift.volunteer_id.is_(None),
-                ).update(
-                    # Clear the reminder stamp too: the new assignee gets
-                    # their own reminder, not suppressed by the leaver's.
-                    {Shift.status: "open", Shift.reminder_sent_at: None},
-                    synchronize_session=False,
-                )
-                db.flush()
-            _assign(db, roster.id, chore_ids, today, end)
-        # Reconcile: past scheduled shifts never completed → missed. Done
-        # per-row (not a bulk UPDATE) so each gets a `missed` event for
-        # its assignee.
-        if chore_ids:
-            stale = (
-                db.query(Shift)
-                .filter(
-                    Shift.chore_id.in_(chore_ids),
-                    Shift.on_date < today,
-                    Shift.status == "scheduled",
-                )
-                .all()
-            )
-            for shift in stale:
-                shift.status = "missed"
-                if shift.volunteer_id is not None:
-                    record_event(
-                        db, roster_id=roster.id, volunteer_id=shift.volunteer_id, kind="missed", shift_id=shift.id
-                    )
+        created += _tick_roster(db, roster, today)
     db.commit()
     return len(rosters), created

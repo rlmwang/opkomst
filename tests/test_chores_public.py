@@ -154,12 +154,16 @@ def _enrolled_token(client: Any, organiser_headers: Any) -> tuple[dict[str, Any]
 
 
 def _tick(db: Any) -> None:
-    from datetime import date
+    from datetime import UTC, date, datetime
 
+    from backend.models import Roster
     from backend.services import chore_tick
 
-    # A roster created "today" has starts_on=today; tick from a date in
-    # its window so shifts materialise and assign.
+    # Rosters are created forming; activate any un-started ones so the tick
+    # pins their commit window, then run the tick.
+    for r in db.query(Roster).filter(Roster.activated_at.is_(None)).all():
+        r.activated_at = datetime.now(UTC)
+    db.flush()
     chore_tick.run_tick(db, date.today())
 
 
@@ -230,5 +234,5 @@ def test_organiser_schedule_shows_stats_and_upcoming(client, organiser_headers, 
     # today's weekday, so assert relationships rather than a fixed number.
     assert sched["stats"]["scheduled"] >= 1
     assert sched["stats"]["done"] == 0 and sched["stats"]["missed"] == 0
-    assert len(sched["upcoming"]) == sched["stats"]["scheduled"]
-    assert {s["assignee_name"] for s in sched["upcoming"]} == {"Sam"}
+    assert len(sched["confirmed"]) == sched["stats"]["scheduled"]
+    assert {s["assignee_name"] for s in sched["confirmed"]} == {"Sam"}

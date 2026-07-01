@@ -8,7 +8,7 @@ strictly past, so the 18:00 gate is always cleared.
 
 from datetime import UTC, datetime, timedelta
 
-from backend.models import Chapter, Chore, Enrollment, Roster, Shift, User, Volunteer
+from backend.models import Chapter, Chore, Roster, Shift, User, Volunteer
 from backend.services import encryption, mail_lifecycle
 from backend.services.events import now_wallclock
 
@@ -116,39 +116,8 @@ def test_send_failure_leaves_stamp_null(db, monkeypatch):
     assert _shift(db, shift.id).reminder_sent_at is None
 
 
-def test_reassigned_shift_reminds_the_new_assignee(db):
-    """A shift already reminded for one volunteer, once reopened +
-    reassigned, must remind the new assignee (the user-flagged case)."""
-    from backend.services import chore_tick
-
-    roster, chore, vol_a, shift = _seed(db)
-    # A's reminder already went out.
-    assert mail_lifecycle.run_chore_reminders() == 1
-    assert _shift(db, shift.id).reminder_sent_at is not None
-
-    # A second eligible volunteer, then A leaves.
-    vol_b = Volunteer(
-        roster_id=roster.id,
-        display_name="B",
-        email_reminders=True,
-        encrypted_email=encryption.encrypt("b@local.dev"),
-        edit_token_hash="hb",
-    )
-    db.add(vol_b)
-    db.commit()
-    db.add(Enrollment(volunteer_id=vol_b.id, chore_id=chore.id))
-    db.commit()
-    db.delete(db.query(Volunteer).filter(Volunteer.id == vol_a.id).one())
-    db.commit()
-
-    # Tick reopens the orphaned shift (clearing the stamp) + reassigns B.
-    chore_tick.run_tick(db, now_wallclock().date())
-    reopened = _shift(db, shift.id)
-    assert reopened.volunteer_id == vol_b.id
-    assert reopened.reminder_sent_at is None  # stamp cleared on reopen
-
-    # B now gets their own reminder for the reopened shift. (The tick
-    # also materialised future shifts for B, so the sweep count may be
-    # >1; what matters is this specific shift is now reminded.)
-    assert mail_lifecycle.run_chore_reminders() >= 1
-    assert _shift(db, shift.id).reminder_sent_at is not None
+# NOTE: the "volunteer leaves → shift reopened + reassigned → new assignee
+# reminded" case moved out of the tick in task 11 (the tick no longer
+# reopens SET-NULL shifts). Immediate reassignment-on-departure — and
+# re-reminding the new assignee — is task 13 (on_volunteer_removed); its
+# test is re-added there.

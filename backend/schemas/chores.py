@@ -71,6 +71,9 @@ class RosterCreate(BaseModel):
     ends_on: date | None = None
     reminder_enabled: bool = True
     reminder_days_before: int = Field(default=1, ge=0, le=14)
+    # How far ahead the schedule is pinned and reliable (design §7). Must
+    # be >= reminder_days_before so every reminded shift is already pinned.
+    commit_horizon_days: int = Field(default=21, ge=1, le=365)
     chores: list[ChoreIn] = Field(default_factory=list, max_length=100)
 
     @model_validator(mode="after")
@@ -80,6 +83,8 @@ class RosterCreate(BaseModel):
             raise ValueError("Name is required")
         if self.ends_on is not None and self.ends_on < self.starts_on:
             raise ValueError("ends_on must not be before starts_on")
+        if self.commit_horizon_days < self.reminder_days_before:
+            raise ValueError("commit_horizon_days must be >= reminder_days_before")
         hi = 7 * self.period_weeks
         for chore in self.chores:
             chore.name = chore.name.strip()
@@ -132,6 +137,9 @@ class RosterOut(RosterListOut):
     ends_on: date | None = None
     reminder_enabled: bool
     reminder_days_before: int
+    commit_horizon_days: int
+    # NULL = forming (draft, nothing pinned); set = running (design §7).
+    activated_at: datetime | None = None
     chores: list[ChoreOut] = Field(default_factory=list)
 
 
@@ -194,9 +202,21 @@ class EnrollEditIn(BaseModel):
     email: LowercaseEmail | None = None
 
 
+class PersonalOutlookOut(BaseModel):
+    """A projected, tentative future turn beyond the commit horizon (no
+    row id — it is not pinned and may still change)."""
+
+    chore_id: str
+    chore_name: str
+    on_date: date
+
+
 class PersonalPageOut(BaseModel):
     """The volunteer's personal page. Never carries the email or its
-    ciphertext — only whether one is on file (``has_email``)."""
+    ciphertext — only whether one is on file (``has_email``).
+
+    ``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**
+    window; ``outlook_shifts`` is the tentative projection beyond it."""
 
     display_name: str | None
     enrolled_chore_ids: list[str]
@@ -204,6 +224,7 @@ class PersonalPageOut(BaseModel):
     has_email: bool
     my_shifts: list[PersonalShiftOut] = Field(default_factory=list)
     open_shifts: list[PersonalShiftOut] = Field(default_factory=list)
+    outlook_shifts: list[PersonalOutlookOut] = Field(default_factory=list)
 
 
 class VolunteerSummaryOut(BaseModel):
@@ -239,6 +260,16 @@ class ScheduleShiftOut(BaseModel):
     assignee_name: str | None
 
 
+class OutlookShiftOut(BaseModel):
+    """A projected (not yet pinned) shift beyond the commit horizon.
+    Tentative: no row id, may still change as the roster/pool evolves."""
+
+    chore_id: str
+    chore_name: str
+    on_date: date
+    assignee_name: str | None
+
+
 class ScheduleStatsOut(BaseModel):
     scheduled: int
     done: int
@@ -247,7 +278,10 @@ class ScheduleStatsOut(BaseModel):
 
 
 class ScheduleOut(BaseModel):
-    """Organiser schedule: lifetime completion counts + upcoming shifts."""
+    """Organiser schedule: lifetime counts, the pinned **confirmed** window,
+    and the projected **outlook** beyond it (design §7)."""
 
     stats: ScheduleStatsOut
-    upcoming: list[ScheduleShiftOut] = Field(default_factory=list)
+    confirmed: list[ScheduleShiftOut] = Field(default_factory=list)
+    outlook: list[OutlookShiftOut] = Field(default_factory=list)
+    outlook_until: date | None = None

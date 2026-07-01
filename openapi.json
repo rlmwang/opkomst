@@ -2785,6 +2785,43 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "OutlookShiftOut": {
+        "description": "A projected (not yet pinned) shift beyond the commit horizon.\nTentative: no row id, may still change as the roster/pool evolves.",
+        "properties": {
+          "assignee_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Name"
+          },
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chore_id",
+          "chore_name",
+          "on_date",
+          "assignee_name"
+        ],
+        "title": "OutlookShiftOut",
+        "type": "object"
+      },
       "PendingCountOut": {
         "description": "Tiny DTO for the navbar's pending-approval indicator. Admin-\nonly \u2014 surfacing this to organisers would just be noise.",
         "properties": {
@@ -2799,8 +2836,33 @@
         "title": "PendingCountOut",
         "type": "object"
       },
+      "PersonalOutlookOut": {
+        "description": "A projected, tentative future turn beyond the commit horizon (no\nrow id \u2014 it is not pinned and may still change).",
+        "properties": {
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chore_id",
+          "chore_name",
+          "on_date"
+        ],
+        "title": "PersonalOutlookOut",
+        "type": "object"
+      },
       "PersonalPageOut": {
-        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).",
+        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).\n\n``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**\nwindow; ``outlook_shifts`` is the tentative projection beyond it.",
         "properties": {
           "display_name": {
             "anyOf": [
@@ -2840,6 +2902,13 @@
               "$ref": "#/components/schemas/PersonalShiftOut"
             },
             "title": "Open Shifts",
+            "type": "array"
+          },
+          "outlook_shifts": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalOutlookOut"
+            },
+            "title": "Outlook Shifts",
             "type": "array"
           }
         },
@@ -3241,6 +3310,13 @@
             "title": "Chores",
             "type": "array"
           },
+          "commit_horizon_days": {
+            "default": 21,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Commit Horizon Days",
+            "type": "integer"
+          },
           "description": {
             "anyOf": [
               {
@@ -3449,6 +3525,18 @@
       "RosterOut": {
         "description": "Single-roster DTO \u2014 list fields plus the recurrence config, the\noptional location/image, and the full chore list (by ordinal).",
         "properties": {
+          "activated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activated At"
+          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -3485,6 +3573,10 @@
             },
             "title": "Chores",
             "type": "array"
+          },
+          "commit_horizon_days": {
+            "title": "Commit Horizon Days",
+            "type": "integer"
           },
           "created_at": {
             "format": "date-time",
@@ -3625,7 +3717,8 @@
           "volunteer_count",
           "starts_on",
           "reminder_enabled",
-          "reminder_days_before"
+          "reminder_days_before",
+          "commit_horizon_days"
         ],
         "title": "RosterOut",
         "type": "object"
@@ -3644,6 +3737,13 @@
             "maxItems": 100,
             "title": "Chores",
             "type": "array"
+          },
+          "commit_horizon_days": {
+            "default": 21,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Commit Horizon Days",
+            "type": "integer"
           },
           "description": {
             "anyOf": [
@@ -3768,17 +3868,36 @@
         "type": "object"
       },
       "ScheduleOut": {
-        "description": "Organiser schedule: lifetime completion counts + upcoming shifts.",
+        "description": "Organiser schedule: lifetime counts, the pinned **confirmed** window,\nand the projected **outlook** beyond it (design \u00a77).",
         "properties": {
-          "stats": {
-            "$ref": "#/components/schemas/ScheduleStatsOut"
-          },
-          "upcoming": {
+          "confirmed": {
             "items": {
               "$ref": "#/components/schemas/ScheduleShiftOut"
             },
-            "title": "Upcoming",
+            "title": "Confirmed",
             "type": "array"
+          },
+          "outlook": {
+            "items": {
+              "$ref": "#/components/schemas/OutlookShiftOut"
+            },
+            "title": "Outlook",
+            "type": "array"
+          },
+          "outlook_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlook Until"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ScheduleStatsOut"
           }
         },
         "required": [
@@ -6181,6 +6300,65 @@
         ]
       }
     },
+    "/api/v1/chores/{roster_id}/activate": {
+      "post": {
+        "description": "Start a forming roster: flip it to running and pin the commit\nhorizon now. One-way \u2014 409 if already running (design \u00a77 bootstrap).",
+        "operationId": "activate_roster_api_v1_chores__roster_id__activate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Activate Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/{roster_id}/archive": {
       "post": {
         "operationId": "archive_roster_api_v1_chores__roster_id__archive_post",
@@ -6360,6 +6538,65 @@
           }
         },
         "summary": "Upload Roster Image",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/rebalance": {
+      "post": {
+        "description": "Re-pin the current commit window from the fresh projection, folding\npending volunteers in now. Drops un-acted pins and reassigns them, so\nit changes confirmed shifts \u2014 an explicit, opt-in organiser action.",
+        "operationId": "rebalance_roster_api_v1_chores__roster_id__rebalance_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rebalance Roster",
         "tags": [
           "chores"
         ]

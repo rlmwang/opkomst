@@ -625,6 +625,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Roster
+         * @description Start a forming roster: flip it to running and pin the commit
+         *     horizon now. One-way — 409 if already running (design §7 bootstrap).
+         */
+        post: operations["activate_roster_api_v1_chores__roster_id__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}/archive": {
         parameters: {
             query?: never;
@@ -662,6 +683,28 @@ export interface paths {
          * @description Clear the image reference. The file in the repo is left alone.
          */
         delete: operations["delete_roster_image_api_v1_chores__roster_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/rebalance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebalance Roster
+         * @description Re-pin the current commit window from the fresh projection, folding
+         *     pending volunteers in now. Drops un-acted pins and reassigns them, so
+         *     it changes confirmed shifts — an explicit, opt-in organiser action.
+         */
+        post: operations["rebalance_roster_api_v1_chores__roster_id__rebalance_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2992,6 +3035,24 @@ export interface components {
             token: string;
         };
         /**
+         * OutlookShiftOut
+         * @description A projected (not yet pinned) shift beyond the commit horizon.
+         *     Tentative: no row id, may still change as the roster/pool evolves.
+         */
+        OutlookShiftOut: {
+            /** Assignee Name */
+            assignee_name: string | null;
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
          * PendingCountOut
          * @description Tiny DTO for the navbar's pending-approval indicator. Admin-
          *     only — surfacing this to organisers would just be noise.
@@ -3001,9 +3062,28 @@ export interface components {
             count: number;
         };
         /**
+         * PersonalOutlookOut
+         * @description A projected, tentative future turn beyond the commit horizon (no
+         *     row id — it is not pinned and may still change).
+         */
+        PersonalOutlookOut: {
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
          * PersonalPageOut
          * @description The volunteer's personal page. Never carries the email or its
          *     ciphertext — only whether one is on file (``has_email``).
+         *
+         *     ``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**
+         *     window; ``outlook_shifts`` is the tentative projection beyond it.
          */
         PersonalPageOut: {
             /** Display Name */
@@ -3018,6 +3098,8 @@ export interface components {
             my_shifts?: components["schemas"]["PersonalShiftOut"][];
             /** Open Shifts */
             open_shifts?: components["schemas"]["PersonalShiftOut"][];
+            /** Outlook Shifts */
+            outlook_shifts?: components["schemas"]["PersonalOutlookOut"][];
         };
         /**
          * PersonalShiftOut
@@ -3162,6 +3244,11 @@ export interface components {
             chapter_id: string;
             /** Chores */
             chores?: components["schemas"]["ChoreIn"][];
+            /**
+             * Commit Horizon Days
+             * @default 21
+             */
+            commit_horizon_days: number;
             /** Description */
             description?: string | null;
             /** Ends On */
@@ -3244,6 +3331,8 @@ export interface components {
          *     optional location/image, and the full chore list (by ordinal).
          */
         RosterOut: {
+            /** Activated At */
+            activated_at?: string | null;
             /** Archived */
             archived: boolean;
             /** Chapter Id */
@@ -3254,6 +3343,8 @@ export interface components {
             chore_count: number;
             /** Chores */
             chores?: components["schemas"]["ChoreOut"][];
+            /** Commit Horizon Days */
+            commit_horizon_days: number;
             /**
              * Created At
              * Format: date-time
@@ -3308,6 +3399,11 @@ export interface components {
             chapter_id: string;
             /** Chores */
             chores?: components["schemas"]["ChoreIn"][];
+            /**
+             * Commit Horizon Days
+             * @default 21
+             */
+            commit_horizon_days: number;
             /** Description */
             description?: string | null;
             /** Ends On */
@@ -3351,12 +3447,17 @@ export interface components {
         };
         /**
          * ScheduleOut
-         * @description Organiser schedule: lifetime completion counts + upcoming shifts.
+         * @description Organiser schedule: lifetime counts, the pinned **confirmed** window,
+         *     and the projected **outlook** beyond it (design §7).
          */
         ScheduleOut: {
+            /** Confirmed */
+            confirmed?: components["schemas"]["ScheduleShiftOut"][];
+            /** Outlook */
+            outlook?: components["schemas"]["OutlookShiftOut"][];
+            /** Outlook Until */
+            outlook_until?: string | null;
             stats: components["schemas"]["ScheduleStatsOut"];
-            /** Upcoming */
-            upcoming?: components["schemas"]["ScheduleShiftOut"][];
         };
         /**
          * ScheduleShiftOut
@@ -4713,6 +4814,39 @@ export interface operations {
             };
         };
     };
+    activate_roster_api_v1_chores__roster_id__activate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     archive_roster_api_v1_chores__roster_id__archive_post: {
         parameters: {
             query?: never;
@@ -4784,6 +4918,39 @@ export interface operations {
         };
     };
     delete_roster_image_api_v1_chores__roster_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebalance_roster_api_v1_chores__roster_id__rebalance_post: {
         parameters: {
             query?: never;
             header?: {

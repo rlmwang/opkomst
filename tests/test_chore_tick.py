@@ -1,7 +1,8 @@
-"""Shift generation + assignment + reconcile — ``services/chore_tick``.
+"""Shift pinning + prune + reconcile — ``services/chore_tick`` (task 11).
 
-Dates are anchored to Monday 2026-01-05 so the recurrence math is
-predictable. Horizon is 28 days → window is 2026-01-05 … 2026-02-02.
+Dates are anchored to Monday 2026-01-05. The helper rosters use a 28-day
+commit horizon so the window is 2026-01-05 … 2026-02-02, and are created
+already ``running`` (activated) unless a test opts out.
 """
 
 from datetime import UTC, date, datetime
@@ -14,7 +15,7 @@ TODAY = date(2026, 1, 5)  # a Monday
 WEEKLY_WED = [date(2026, 1, 7), date(2026, 1, 14), date(2026, 1, 21), date(2026, 1, 28)]
 
 
-def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1):
+def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1, activate=True):
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
     chapter = Chapter(name="C")
     db.add_all([user, chapter])
@@ -27,6 +28,8 @@ def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1):
         starts_on=TODAY,
         period_weeks=period_weeks,
         ends_on=ends_on,
+        commit_horizon_days=28,
+        activated_at=datetime.now(UTC) if activate else None,
     )
     db.add(roster)
     db.commit()
@@ -46,6 +49,12 @@ def test_weekly_materialises_the_right_dates(db):
     assert _shift_dates(db, chore.id) == WEEKLY_WED
 
 
+def test_forming_roster_pins_nothing(db):
+    _, chore = _roster(db, cycle_slots=(2,), activate=False)
+    chore_tick.run_tick(db, TODAY)
+    assert _shift_dates(db, chore.id) == []
+
+
 def test_tick_is_idempotent(db):
     _, chore = _roster(db, cycle_slots=(2,))
     chore_tick.run_tick(db, TODAY)
@@ -57,8 +66,6 @@ def test_tick_is_idempotent(db):
 
 
 def test_biweekly_hits_alternating_weeks(db):
-    # cycle_slots=[2] with k=2, cycle anchored on starts_on (TODAY, a
-    # Monday) → only week-A Wednesdays.
     _, chore = _roster(db, period_weeks=2, cycle_slots=(2,))
     chore_tick.run_tick(db, TODAY)
     assert _shift_dates(db, chore.id) == [date(2026, 1, 7), date(2026, 1, 21)]
@@ -73,9 +80,8 @@ def test_ends_on_caps_the_horizon(db):
 def test_people_per_shift_materialises_multiple_slots(db):
     _, chore = _roster(db, cycle_slots=(2,), people=2)
     chore_tick.run_tick(db, TODAY)
-    # 4 Wednesdays × 2 people = 8 shift rows, slot_index 0 and 1 per date.
     shifts = db.query(Shift).filter(Shift.chore_id == chore.id).all()
-    assert len(shifts) == 8
+    assert len(shifts) == 8  # 4 Wednesdays × 2 people
     assert {s.slot_index for s in shifts} == {0, 1}
 
 
@@ -88,7 +94,7 @@ def test_enrolled_volunteer_gets_assigned(db):
     db.commit()
     chore_tick.run_tick(db, TODAY)
     scheduled = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").all()
-    assert len(scheduled) == 4  # all four Wednesdays assigned to the sole volunteer
+    assert len(scheduled) == 4
     assert all(s.volunteer_id == vol.id for s in scheduled)
 
 
@@ -98,15 +104,38 @@ def test_no_eligible_volunteer_leaves_shifts_open(db):
     assert all(s.status == "open" for s in db.query(Shift).filter(Shift.chore_id == chore.id).all())
 
 
+def test_edit_prunes_orphaned_unacted_pins(db):
+    # Pin Wednesday shifts, then move the chore to Thursday. The now-orphan,
+    # un-acted Wednesday pins are pruned; Thursday pins take their place.
+    roster, chore = _roster(db, cycle_slots=(2,))
+    chore_tick.run_tick(db, TODAY)
+    assert _shift_dates(db, chore.id) == WEEKLY_WED
+    chore.cycle_slots = [3]  # Thursday
+    db.commit()
+    chore_tick.run_tick(db, TODAY)
+    thursdays = [date(2026, 1, 8), date(2026, 1, 15), date(2026, 1, 22), date(2026, 1, 29)]
+    assert _shift_dates(db, chore.id) == thursdays
+
+
+def test_edit_keeps_reminded_pin_even_when_orphaned(db):
+    # A reminded pin is a commitment: an edit that orphans it must not prune it.
+    roster, chore = _roster(db, cycle_slots=(2,))
+    chore_tick.run_tick(db, TODAY)
+    wed = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.on_date == date(2026, 1, 7)).one()
+    wed.reminder_sent_at = datetime.now(UTC)
+    chore.cycle_slots = [3]  # move to Thursday, orphaning every Wednesday
+    db.commit()
+    chore_tick.run_tick(db, TODAY)
+    kept = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.on_date == date(2026, 1, 7)).one_or_none()
+    assert kept is not None  # reminded pin survives the edit
+
+
 def test_reconcile_past_scheduled_to_missed(db):
     roster, chore = _roster(db, cycle_slots=(2,))
     vol = Volunteer(roster_id=roster.id, display_name="V", edit_token_hash="h2")
     db.add(vol)
     db.commit()
-    # A past, still-scheduled shift (before TODAY).
-    db.add(
-        Shift(chore_id=chore.id, on_date=date(2025, 12, 31), slot_index=0, status="scheduled", volunteer_id=vol.id)
-    )
+    db.add(Shift(chore_id=chore.id, on_date=date(2025, 12, 31), slot_index=0, status="scheduled", volunteer_id=vol.id))
     db.commit()
     chore_tick.run_tick(db, TODAY)
     past = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.on_date == date(2025, 12, 31)).one()
@@ -131,27 +160,21 @@ def test_done_past_shift_is_not_reconciled(db):
     db.commit()
     chore_tick.run_tick(db, TODAY)
     past = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.on_date == date(2025, 12, 31)).one()
-    assert past.status == "done"  # completed shifts are left alone
+    assert past.status == "done"
 
 
-def test_leave_reopens_and_reassigns_on_next_tick(db):
+def test_rebalance_folds_in_a_late_volunteer(db):
+    # Activate with no volunteers → all open. A volunteer enrols, then a
+    # rebalance re-pins the window and assigns them.
     roster, chore = _roster(db, cycle_slots=(2,))
-    a = Volunteer(roster_id=roster.id, display_name="A", edit_token_hash="ha")
-    b = Volunteer(roster_id=roster.id, display_name="B", edit_token_hash="hb")
-    db.add_all([a, b])
-    db.commit()
-    db.add_all([Enrollment(volunteer_id=a.id, chore_id=chore.id), Enrollment(volunteer_id=b.id, chore_id=chore.id)])
-    db.commit()
     chore_tick.run_tick(db, TODAY)
-    assert db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").count() == 4
-
-    # A leaves → their future shifts SET NULL (status still scheduled).
-    db.delete(a)
+    assert all(s.status == "open" for s in db.query(Shift).filter(Shift.chore_id == chore.id).all())
+    vol = Volunteer(roster_id=roster.id, display_name="Late", edit_token_hash="hl")
+    db.add(vol)
     db.commit()
-    orphaned = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.volunteer_id.is_(None)).count()
-    assert orphaned > 0
-
-    # Next tick reopens + reassigns the orphaned shifts to B.
-    chore_tick.run_tick(db, TODAY)
-    assert db.query(Shift).filter(Shift.chore_id == chore.id, Shift.volunteer_id.is_(None)).count() == 0
-    assert db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").count() == 4
+    db.add(Enrollment(volunteer_id=vol.id, chore_id=chore.id))
+    db.commit()
+    chore_tick.rebalance_roster(db, roster, TODAY)
+    scheduled = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").all()
+    assert len(scheduled) == 4
+    assert all(s.volunteer_id == vol.id for s in scheduled)

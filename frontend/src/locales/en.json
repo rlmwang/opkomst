@@ -436,6 +436,8 @@
       "cycleStartsOn": "week 1 of the cycle starts on {date}",
       "reminderEnabled": "Email reminders",
       "reminderDaysBefore": "Days before",
+      "commitHorizonDays": "Fixed schedule (days ahead)",
+      "commitHorizonHint": "The schedule is pinned and reliable this far ahead. Beyond it, it's a tentative outlook.",
       "choresHeading": "Chores",
       "choresExplainer": "Add the recurring tasks and pick the days for each.",
       "noChoresYet": "No chores added yet.",

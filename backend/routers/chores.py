@@ -29,9 +29,10 @@ from ..schemas.chores import (
     ScheduleOut,
     VolunteerSummaryOut,
 )
-from ..services import access, crud
+from ..services import access, chore_tick, crud
 from ..services import chores as chores_svc
 from ..services import image as image_svc
+from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -66,6 +67,7 @@ def create_roster(
         ends_on=data.ends_on,
         reminder_enabled=data.reminder_enabled,
         reminder_days_before=data.reminder_days_before,
+        commit_horizon_days=data.commit_horizon_days,
         chapter_id=data.chapter_id,
         created_by=user.id,
     )
@@ -144,6 +146,45 @@ def get_schedule(
     return chores_svc.schedule(db, roster)
 
 
+@router.post("/{roster_id}/activate", response_model=RosterOut)
+@limiter.limit(Limits.ORG_RARE)
+def activate_roster(
+    request: Request,
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> RosterOut:
+    """Start a forming roster: flip it to running and pin the commit
+    horizon now. One-way — 409 if already running (design §7 bootstrap)."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    if roster.activated_at is not None:
+        raise HTTPException(status_code=409, detail="Roster already started")
+    roster.activated_at = datetime.now(UTC)
+    db.flush()
+    chore_tick.pin_roster(db, roster, now_wallclock().date())
+    logger.info("roster_activated", roster_id=roster.id, actor_id=user.id)
+    return chores_svc.to_out(db, roster)
+
+
+@router.post("/{roster_id}/rebalance", response_model=RosterOut)
+@limiter.limit(Limits.ORG_RARE)
+def rebalance_roster(
+    request: Request,
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> RosterOut:
+    """Re-pin the current commit window from the fresh projection, folding
+    pending volunteers in now. Drops un-acted pins and reassigns them, so
+    it changes confirmed shifts — an explicit, opt-in organiser action."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    if roster.activated_at is None:
+        raise HTTPException(status_code=409, detail="Roster is not running")
+    chore_tick.rebalance_roster(db, roster, now_wallclock().date())
+    logger.info("roster_rebalanced", roster_id=roster.id, actor_id=user.id)
+    return chores_svc.to_out(db, roster)
+
+
 @router.put("/{roster_id}", response_model=RosterOut)
 @limiter.limit(Limits.ORG_WRITE)
 def update_roster(
@@ -174,6 +215,7 @@ def update_roster(
     roster.ends_on = data.ends_on
     roster.reminder_enabled = data.reminder_enabled
     roster.reminder_days_before = data.reminder_days_before
+    roster.commit_horizon_days = data.commit_horizon_days
     chores_svc.apply_chores(db, roster.id, data.chores)
     db.commit()
     db.refresh(roster)

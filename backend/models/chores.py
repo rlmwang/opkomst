@@ -87,6 +87,14 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     # date-only (no clock time), so this is days-before, sent at a fixed
     # civil local hour (see services/mail_lifecycle, task 08).
     reminder_days_before: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # How far ahead the schedule is pinned and reliable. Occurrences within
+    # [today, today+commit_horizon_days] are materialised as Shift rows and
+    # never reshuffle; beyond it the schedule is a tentative projection.
+    # Must be >= reminder_days_before (validated in the schema).
+    commit_horizon_days: Mapped[int] = mapped_column(Integer, nullable=False, default=21)
+    # Lifecycle gate: NULL = forming (draft, nothing pinned/promised), set
+    # = running (the tick pins the commit horizon). One-way.
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (Index("ix_rosters_archived_chapter", "archived_at", "chapter_id"),)
 

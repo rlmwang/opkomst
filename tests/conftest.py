@@ -130,6 +130,7 @@ def _bootstrap_schema():
     from alembic.script import ScriptDirectory
     from sqlalchemy import inspect, text
 
+    import backend.models  # noqa: F401 — register every table on Base.metadata for truncate_all
     from backend.config import settings
     from backend.database import engine
 

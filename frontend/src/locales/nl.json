@@ -436,6 +436,8 @@
       "cycleStartsOn": "week 1 van de cyclus begint op {date}",
       "reminderEnabled": "Herinneringen per e-mail",
       "reminderDaysBefore": "Dagen van tevoren",
+      "commitHorizonDays": "Vaste planning (dagen vooruit)",
+      "commitHorizonHint": "Tot zover vooruit staat het rooster vast en betrouwbaar. Daarna is het een voorlopige verwachting.",
       "choresHeading": "Taken",
       "choresExplainer": "Voeg de terugkerende taken toe en kies per taak de dagen.",
       "noChoresYet": "Nog geen taken toegevoegd.",

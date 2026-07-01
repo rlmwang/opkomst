@@ -26,7 +26,7 @@ const volunteersQuery = useRosterVolunteers(rosterId);
 const volunteers = computed(() => volunteersQuery.data.value ?? []);
 const scheduleQuery = useRosterSchedule(rosterId);
 const schedule = computed(() => scheduleQuery.data.value ?? null);
-const upcoming = computed(() => schedule.value?.upcoming ?? []);
+const upcoming = computed(() => schedule.value?.confirmed ?? []);
 
 // Volunteer accountability bars: length = that person's *resolved*
 // shifts (done + handed-off + missed) relative to the busiest resolver,
