@@ -29,7 +29,7 @@ volunteers fold in within a bounded horizon. Ship in order; each leaves the suit
 
 | # | Task | Layer | Depends on |
 |---|---|---|---|
-| 10 | [Deterministic assignment (WRH) + favour ledger](chores-10-deterministic-assignment.md) | backend | 06, 09 |
+| 10 | Deterministic assignment (WRH) + favour ledger *(landed; spec deleted)* | backend | 06, 09 |
 | 11 | [Projection, commit horizon, roster lifecycle](chores-11-projection-commit-horizon.md) | backend (+FE reads) | 10 |
 | 12 | [Volunteer actions: pass/cover/swap/availability + confirmed-vs-outlook UI](chores-12-volunteer-actions.md) | backend + frontend | 11 |
 | 13 | [Membership change: removal static-patch, addition fold-in, disruption credit](chores-13-membership-change.md) | backend (+FE) | 11, 12 |

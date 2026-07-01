@@ -12,17 +12,18 @@
    never marked done flip to ``missed``.
 
 ``reassign_shift`` is the single-shift variant used by the handoff
-endpoint. All assignment goes through ``chore_assignment.pick_assignee``.
+endpoint. All assignment goes through the pure
+``chore_assignment.assign_occurrence`` (weighted rendezvous hashing); the
+only impure step is ``ledger_weights``, which folds the ``ShiftEvent`` log
+into WRH weights.
 """
 
-import random
 from datetime import date, timedelta
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent
-from .chore_assignment import pick_assignee
+from .chore_assignment import assign_occurrence, net_credit, weight_from_ledger
 from .recurrence import occurs_on
 
 
@@ -38,63 +39,45 @@ def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, s
 HORIZON_DAYS = 28
 
 
-def _roster_chore_ids(db: Session, roster_id: str) -> list[str]:
-    return [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster_id).all()]
+def ledger_weights(db: Session, roster_id: str) -> dict[str, float]:
+    """Resolve the favour ledger for a roster into WRH weights. Thin impure
+    wrapper: query the ``ShiftEvent`` rows, hand them to the pure
+    ``net_credit`` fold, map each through ``weight_from_ledger``. Volunteers
+    with no events are absent and default to weight 1.0 at lookup time."""
+    rows = db.query(ShiftEvent.kind, ShiftEvent.volunteer_id).filter(ShiftEvent.roster_id == roster_id).all()
+    credit = net_credit((kind, vid) for kind, vid in rows)
+    return {vid: weight_from_ledger(c) for vid, c in credit.items()}
 
 
-def _loads(db: Session, chore_ids: list[str]) -> dict[str, int]:
-    """Per-volunteer assignment load = scheduled + done shifts across the
-    roster's chores."""
-    if not chore_ids:
-        return {}
-    rows = (
-        db.query(Shift.volunteer_id, func.count(Shift.id))
-        .filter(
-            Shift.chore_id.in_(chore_ids),
-            Shift.volunteer_id.is_not(None),
-            Shift.status.in_(["scheduled", "done"]),
-        )
-        .group_by(Shift.volunteer_id)
-        .all()
+def _occupants(db: Session, chore_id: str, on_date: date, *, exclude_shift_id: str | None = None) -> set[str]:
+    """Volunteers already scheduled on other slots of one occurrence — so
+    we never double-book someone across two slots of the same shift."""
+    q = db.query(Shift.volunteer_id).filter(
+        Shift.chore_id == chore_id,
+        Shift.on_date == on_date,
+        Shift.status == "scheduled",
+        Shift.volunteer_id.is_not(None),
     )
-    return {vid: int(n) for vid, n in rows}
-
-
-def _same_day_assignees(db: Session, chore_ids: list[str], on_date: date) -> set[str]:
-    if not chore_ids:
-        return set()
-    return {
-        row[0]
-        for row in db.query(Shift.volunteer_id)
-        .filter(
-            Shift.chore_id.in_(chore_ids),
-            Shift.on_date == on_date,
-            Shift.status == "scheduled",
-            Shift.volunteer_id.is_not(None),
-        )
-        .all()
-    }
+    if exclude_shift_id is not None:
+        q = q.filter(Shift.id != exclude_shift_id)
+    return {row[0] for row in q.all()}
 
 
 def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None) -> str | None:
-    """Assign a single ``open`` shift (used by handoff). Computes live
-    loads / eligibility / same-day set for the shift's roster and applies
-    the fairness policy. Returns the chosen volunteer id or ``None``.
-    Does not commit."""
+    """Assign a single ``open`` shift (used by handoff). Picks the highest
+    WRH-ranked eligible volunteer who is not excluded and not already on
+    this occurrence. Returns the chosen volunteer id or ``None``. Does not
+    commit."""
     chore = db.query(Chore).filter(Chore.id == shift.chore_id).first()
     if chore is None:
         return None
     eligible = [row[0] for row in db.query(Enrollment.volunteer_id).filter(Enrollment.chore_id == shift.chore_id).all()]
     if not eligible:
         return None
-    chore_ids = _roster_chore_ids(db, chore.roster_id)
-    chosen = pick_assignee(
-        eligible,
-        _loads(db, chore_ids),
-        exclude=exclude or set(),
-        avoid_same_day=_same_day_assignees(db, chore_ids, shift.on_date),
-        rng=random.Random(),
-    )
+    skip = set(exclude or set()) | _occupants(db, shift.chore_id, shift.on_date, exclude_shift_id=shift.id)
+    weights = ledger_weights(db, chore.roster_id)
+    ranked = assign_occurrence(eligible, weights, chore_id=shift.chore_id, on_date=shift.on_date, count=len(eligible))
+    chosen = next((v for v in ranked if v not in skip), None)
     if chosen is not None:
         shift.volunteer_id = chosen
         shift.status = "scheduled"
@@ -137,20 +120,24 @@ def _assign(db: Session, roster_id: str, chore_ids: list[str], today: date, end:
     ):
         eligible_by_chore.setdefault(cid, []).append(vid)
 
-    loads = _loads(db, chore_ids)
-    by_day: dict[date, set[str]] = {}
-    for on_date, vid in (
-        db.query(Shift.on_date, Shift.volunteer_id)
+    weights = ledger_weights(db, roster_id)
+
+    # Volunteers already scheduled per occurrence (chore, date) — a shift's
+    # other slots — so nobody is double-booked on the same occurrence.
+    occupied: dict[tuple[str, date], set[str]] = {}
+    for cid, on_date, vid in (
+        db.query(Shift.chore_id, Shift.on_date, Shift.volunteer_id)
         .filter(
             Shift.chore_id.in_(chore_ids),
             Shift.status == "scheduled",
             Shift.volunteer_id.is_not(None),
+            Shift.on_date >= today,
+            Shift.on_date <= end,
         )
         .all()
     ):
-        by_day.setdefault(on_date, set()).add(vid)
+        occupied.setdefault((cid, on_date), set()).add(vid)
 
-    rng = random.Random()
     open_shifts = (
         db.query(Shift)
         .filter(
@@ -159,27 +146,30 @@ def _assign(db: Session, roster_id: str, chore_ids: list[str], today: date, end:
             Shift.on_date >= today,
             Shift.on_date <= end,
         )
-        .order_by(Shift.on_date, Shift.id)
+        .order_by(Shift.chore_id, Shift.on_date, Shift.slot_index)
         .all()
     )
+    # Group open slots by occurrence; fill each with the top WRH-ranked
+    # eligible volunteers not already on that occurrence.
+    groups: dict[tuple[str, date], list[Shift]] = {}
     for shift in open_shifts:
-        eligible = eligible_by_chore.get(shift.chore_id, [])
+        groups.setdefault((shift.chore_id, shift.on_date), []).append(shift)
+
+    for (cid, on_date), shifts in groups.items():
+        eligible = eligible_by_chore.get(cid, [])
         if not eligible:
             continue
-        chosen = pick_assignee(
-            eligible,
-            loads,
-            exclude=set(),
-            avoid_same_day=by_day.get(shift.on_date, set()),
-            rng=rng,
-        )
-        if chosen is None:
-            continue
-        shift.volunteer_id = chosen
-        shift.status = "scheduled"
-        record_event(db, roster_id=roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
-        loads[chosen] = loads.get(chosen, 0) + 1
-        by_day.setdefault(shift.on_date, set()).add(chosen)
+        ranked = assign_occurrence(eligible, weights, chore_id=cid, on_date=on_date, count=len(eligible))
+        taken = occupied.setdefault((cid, on_date), set())
+        candidates = (v for v in ranked if v not in taken)
+        for shift in shifts:
+            chosen = next(candidates, None)
+            if chosen is None:
+                break
+            shift.volunteer_id = chosen
+            shift.status = "scheduled"
+            record_event(db, roster_id=roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
+            taken.add(chosen)
     db.flush()
 
 

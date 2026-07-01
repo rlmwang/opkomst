@@ -1,45 +1,102 @@
-"""Fair shift assignment — the pure core.
+"""Deterministic shift assignment — the pure core (design §7).
 
-``pick_assignee`` is deliberately DB-free: it takes the eligible
-volunteer ids, their current loads, and the constraint sets, and returns
-who should take a shift. Purity makes the fairness policy exhaustively
-seed-testable (``tests/test_chore_fairness.py``) and keeps the tick
-(``services/chore_tick.py``) as the only place that touches the DB.
+Everything here is a **pure function** with a precisely enumerated input
+surface, so the whole assignment policy is testable in isolation and can
+be projected to any future date with no stored state. No DB, no clock, no
+RNG. All impure work (resolving ``enrolled ∩ available``, folding the
+``ShiftEvent`` log into weights) lives in the caller and is handed in as
+plain values.
 
-Policy: greedy least-loaded. Among the eligible volunteers (minus the
-hard ``exclude`` set), prefer those not already busy that day
-(``avoid_same_day``) *when that still leaves a choice*, then pick
-uniformly at random among the least-loaded of the remaining pool. Ties
-are drawn from the ``rng`` the caller supplies, so the result is
-reproducible under a seeded ``random.Random``.
+``assign_occurrence`` uses weighted rendezvous (highest-random-weight)
+hashing keyed on ``(volunteer_id, chore_id, on_date)``. Its result
+depends on ONLY:
+
+1. the occurrence key ``(chore_id, on_date)``;
+2. the **set** of eligible volunteer ids;
+3. a per-volunteer ``weight`` (default ``1.0``);
+4. the ``count`` needed.
+
+Consequences (asserted in ``tests/test_chore_fairness.py``): the result
+is invariant to the order of ``eligible`` (it is a function of the set),
+reproducible across processes/machines (fixed, unsalted hash over stable
+ids), and adding a slot only appends an assignee — the slot index is the
+rank, never a hash input.
 """
 
-import random
-from collections.abc import Mapping, Sequence
+import hashlib
+from collections.abc import Iterable, Mapping
+from datetime import date
+
+# Favour-ledger credit sign per ShiftEvent kind (design §7 event table).
+# Positive = did more than their share (weighted toward fewer future
+# turns); negative = passed / fell short (weighted toward more). Regular
+# ``assigned`` and ``completed`` are neutral. ``covered``/``inherited``
+# are emitted by tasks 12/13 but scored here so the map is complete.
+CREDIT_SIGN: dict[str, int] = {
+    "assigned": 0,
+    "claimed": 1,
+    "covered": 1,
+    "inherited": 1,
+    "deferred": -1,
+    "completed": 0,
+    "missed": -1,
+}
+
+# Ledger weight bounds. A gentle, bounded tilt: nobody is ever fully
+# starved or saturated regardless of how lopsided their credit gets.
+_WEIGHT_STEP = 0.1
+_MIN_WEIGHT = 0.5
+_MAX_WEIGHT = 2.0
+
+_TWO64 = 2**64
 
 
-def pick_assignee(
-    eligible: Sequence[str],
-    loads: Mapping[str, int],
+def net_credit(events: Iterable[tuple[str, str]]) -> dict[str, int]:
+    """Fold ``(kind, volunteer_id)`` events into net favour credit per
+    volunteer. Pure — the caller queries the rows. Exhaustively testable
+    by enumerating each kind's contribution via ``CREDIT_SIGN``."""
+    out: dict[str, int] = {}
+    for kind, volunteer_id in events:
+        out[volunteer_id] = out.get(volunteer_id, 0) + CREDIT_SIGN.get(kind, 0)
+    return out
+
+
+def weight_from_ledger(credit: int) -> float:
+    """Map net favour credit to a bounded WRH weight. More credit (did
+    extra) → lower weight (fewer future turns); negative credit → higher
+    weight. Clamped to ``[_MIN_WEIGHT, _MAX_WEIGHT]``."""
+    return max(_MIN_WEIGHT, min(_MAX_WEIGHT, 1.0 - _WEIGHT_STEP * credit))
+
+
+def _score(volunteer_id: str, chore_id: str, on_date: date, weight: float) -> float:
+    """WRH score: ``weight · H`` where ``H`` is a fixed, unsalted hash of
+    the occurrence key mapped into ``[0, 1)``. Monotone in weight, uniform
+    across volunteers when weights are equal."""
+    key = f"{volunteer_id}|{chore_id}|{on_date.isoformat()}".encode()
+    h = int.from_bytes(hashlib.blake2b(key, digest_size=8).digest(), "big") / _TWO64
+    return weight * h
+
+
+def assign_occurrence(
+    eligible: Iterable[str],
+    weights: Mapping[str, float],
     *,
-    exclude: set[str],
-    avoid_same_day: set[str],
-    rng: random.Random,
-) -> str | None:
-    """Choose a volunteer for one shift, or ``None`` if nobody is
-    eligible. ``exclude`` is a hard filter (e.g. the person handing the
-    shift off); ``avoid_same_day`` is a soft filter, applied only while
-    it leaves at least one candidate."""
-    pool = [v for v in eligible if v not in exclude]
+    chore_id: str,
+    on_date: date,
+    count: int,
+) -> list[str]:
+    """The top-``count`` volunteer ids for one occurrence, in rank order
+    (rank == slot index). Distinct by construction. Returns ``[]`` if
+    nobody is eligible or ``count <= 0``.
+
+    Ties on score break by ``volunteer_id`` for total determinism. The
+    input is treated as a **set**, so call order never affects the result.
+    """
+    if count <= 0:
+        return []
+    pool = set(eligible)
     if not pool:
-        return None
-
-    # Soft constraint: skip people already assigned that day, but only if
-    # doing so still leaves someone.
-    not_busy = [v for v in pool if v not in avoid_same_day]
-    if not_busy:
-        pool = not_busy
-
-    least = min(loads.get(v, 0) for v in pool)
-    contenders = sorted(v for v in pool if loads.get(v, 0) == least)
-    return rng.choice(contenders)
+        return []
+    scored = {v: _score(v, chore_id, on_date, weights.get(v, 1.0)) for v in pool}
+    ranked = sorted(pool, key=lambda v: (-scored[v], v))
+    return ranked[:count]
