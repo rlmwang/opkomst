@@ -3061,18 +3061,6 @@
       "PublicRosterOut": {
         "description": "What the public enrol page (``/c/{slug}``) reads.",
         "properties": {
-          "anchor_monday": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Anchor Monday"
-          },
           "chores": {
             "items": {
               "$ref": "#/components/schemas/ChoreOut"
@@ -3241,18 +3229,6 @@
       "RosterCreate": {
         "description": "Organiser create payload. Out-of-range ``cycle_slots`` raise 422.",
         "properties": {
-          "anchor_monday": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Anchor Monday"
-          },
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"
@@ -3473,18 +3449,6 @@
       "RosterOut": {
         "description": "Single-roster DTO \u2014 list fields plus the recurrence config, the\noptional location/image, and the full chore list (by ordinal).",
         "properties": {
-          "anchor_monday": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Anchor Monday"
-          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -3669,18 +3633,6 @@
       "RosterUpdate": {
         "description": "Same body as create, but shrinking ``period_weeks`` drops (clamps)\nnow-out-of-range ``cycle_slots`` instead of rejecting the save.",
         "properties": {
-          "anchor_monday": {
-            "anyOf": [
-              {
-                "format": "date",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Anchor Monday"
-          },
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"

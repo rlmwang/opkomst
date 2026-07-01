@@ -62,7 +62,6 @@ def create_roster(
         image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
         period_weeks=data.period_weeks,
-        anchor_monday=data.anchor_monday,
         starts_on=data.starts_on,
         ends_on=data.ends_on,
         reminder_enabled=data.reminder_enabled,
@@ -171,7 +170,6 @@ def update_roster(
     roster.chapter_id = data.chapter_id
     roster.locale = data.locale
     roster.period_weeks = data.period_weeks
-    roster.anchor_monday = data.anchor_monday
     roster.starts_on = data.starts_on
     roster.ends_on = data.ends_on
     roster.reminder_enabled = data.reminder_enabled

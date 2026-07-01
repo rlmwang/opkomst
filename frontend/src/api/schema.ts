@@ -3098,8 +3098,6 @@ export interface components {
          * @description What the public enrol page (``/c/{slug}``) reads.
          */
         PublicRosterOut: {
-            /** Anchor Monday */
-            anchor_monday?: string | null;
             /** Chores */
             chores?: components["schemas"]["ChoreOut"][];
             /** Description */
@@ -3160,8 +3158,6 @@ export interface components {
          * @description Organiser create payload. Out-of-range ``cycle_slots`` raise 422.
          */
         RosterCreate: {
-            /** Anchor Monday */
-            anchor_monday?: string | null;
             /** Chapter Id */
             chapter_id: string;
             /** Chores */
@@ -3248,8 +3244,6 @@ export interface components {
          *     optional location/image, and the full chore list (by ordinal).
          */
         RosterOut: {
-            /** Anchor Monday */
-            anchor_monday?: string | null;
             /** Archived */
             archived: boolean;
             /** Chapter Id */
@@ -3310,8 +3304,6 @@ export interface components {
          *     now-out-of-range ``cycle_slots`` instead of rejecting the save.
          */
         RosterUpdate: {
-            /** Anchor Monday */
-            anchor_monday?: string | null;
             /** Chapter Id */
             chapter_id: string;
             /** Chores */

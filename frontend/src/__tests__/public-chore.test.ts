@@ -31,7 +31,6 @@ const ROSTER = {
   image_artist_instagram: null,
   locale: "en" as const,
   period_weeks: 1,
-  anchor_monday: null,
   starts_on: "2026-01-05",
   ends_on: null,
   chores: [

@@ -26,7 +26,6 @@ def upgrade() -> None:
     sa.Column('latitude', sa.Float(), nullable=True),
     sa.Column('longitude', sa.Float(), nullable=True),
     sa.Column('period_weeks', sa.Integer(), nullable=False),
-    sa.Column('anchor_monday', sa.Date(), nullable=True),
     sa.Column('starts_on', sa.Date(), nullable=False),
     sa.Column('ends_on', sa.Date(), nullable=True),
     sa.Column('reminder_days_before', sa.Integer(), nullable=False),

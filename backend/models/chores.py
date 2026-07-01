@@ -11,17 +11,18 @@ Recurrence is a **k-week cycle**, set once per roster (``period_weeks``).
 A chore's ``cycle_slots`` are flat offsets into that cycle:
 ``offset = week_index*7 + weekday``, range ``0 .. 7*period_weeks - 1``,
 **Mon=0** (Python ``date.weekday()``). For k=1 this collapses to the
-plain weekday set ``0..6``. When k>1, ``anchor_monday`` (a Monday) pins
-cycle index 0 so "week A / week B" means a concrete calendar week across
-the whole roster. ``services/recurrence.py::occurs_on`` is the single
-source of truth for "does a chore fall on a date".
+plain weekday set ``0..6``. When k>1, cycle index 0 anchors on the first
+Monday within the interval (derived from ``starts_on``, never stored) so
+"week A / week B" means a concrete calendar week across the whole roster.
+``services/recurrence.py::occurs_on`` is the single source of truth for
+"does a chore fall on a date".
 
 Five tables:
 
 * ``rosters`` — one row per schedule. Spine (slug/name/image/locale/
   created_by/chapter_id/archived_at) from ``OrgEntityMixin``; recurrence
-  bounds (``period_weeks``, ``anchor_monday``, ``starts_on``,
-  ``ends_on``) and reminder settings are roster-specific.
+  bounds (``period_weeks``, ``starts_on``, ``ends_on``) and reminder
+  settings are roster-specific.
 * ``chores`` — the recurring tasks, ordered, each with its ``cycle_slots``
   and ``people_per_shift``.
 * ``volunteers`` — public enrolments. ``encrypted_email`` is the only PII,
@@ -75,12 +76,11 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Recurrence cycle length k, set once for every chore in the roster.
-    # k=1 is plain weekly. When k>1, ``anchor_monday`` (a Monday) anchors
-    # cycle index 0 and chore ``cycle_slots`` span [0, 7*k).
+    # k=1 is plain weekly. When k>1, cycle index 0 anchors on the first
+    # Monday on/after ``starts_on`` (derived) and ``cycle_slots`` span [0, 7*k).
     period_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    anchor_monday: Mapped[date | None] = mapped_column(Date, nullable=True)
-    # ``starts_on`` bounds the earliest date shifts may be generated;
-    # ``ends_on`` NULL = open-ended (rolling horizon).
+    # ``starts_on`` bounds the earliest date shifts may be generated and
+    # anchors the k>1 cycle; ``ends_on`` NULL = open-ended (rolling horizon).
     starts_on: Mapped[date] = mapped_column(Date, nullable=False)
     ends_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # How many days before a shift the assignee is reminded. Shifts are

@@ -14,19 +14,18 @@ TODAY = date(2026, 1, 5)  # a Monday
 WEEKLY_WED = [date(2026, 1, 7), date(2026, 1, 14), date(2026, 1, 21), date(2026, 1, 28)]
 
 
-def _roster(db, *, period_weeks=1, anchor=None, ends_on=None, cycle_slots=(2,), people=1):
+def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1):
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
     chapter = Chapter(name="C")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(
-        slug=f"r{period_weeks}{'x' if anchor else ''}",
+        slug=f"r{period_weeks}",
         name="R",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=TODAY,
         period_weeks=period_weeks,
-        anchor_monday=anchor,
         ends_on=ends_on,
     )
     db.add(roster)
@@ -58,8 +57,9 @@ def test_tick_is_idempotent(db):
 
 
 def test_biweekly_hits_alternating_weeks(db):
-    # cycle_slots=[2] with k=2 anchored on TODAY → only week-A Wednesdays.
-    _, chore = _roster(db, period_weeks=2, anchor=TODAY, cycle_slots=(2,))
+    # cycle_slots=[2] with k=2, cycle anchored on starts_on (TODAY, a
+    # Monday) → only week-A Wednesdays.
+    _, chore = _roster(db, period_weeks=2, cycle_slots=(2,))
     chore_tick.run_tick(db, TODAY)
     assert _shift_dates(db, chore.id) == [date(2026, 1, 7), date(2026, 1, 21)]
 

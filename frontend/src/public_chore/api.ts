@@ -27,7 +27,6 @@ export interface PublicRoster {
   image_artist_instagram: string | null;
   locale: Locale;
   period_weeks: number;
-  anchor_monday: string | null;
   starts_on: string;
   ends_on: string | null;
   chores: PublicChore[];

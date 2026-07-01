@@ -8,8 +8,8 @@ public ``/by-slug`` projection (consumed in task 05).
 
 Recurrence is a k-week cycle (``period_weeks``), set once per roster. A
 chore's ``cycle_slots`` are flat offsets ``week*7 + weekday`` into that
-cycle, range ``0 .. 7*period_weeks - 1``, Mon=0. When k>1 the roster
-needs an ``anchor_monday`` (a Monday) pinning cycle index 0.
+cycle, range ``0 .. 7*period_weeks - 1``, Mon=0. When k>1 the cycle
+anchors on the first Monday on/after ``starts_on`` (derived, not stored).
 
 Out-of-range ``cycle_slots`` are rejected on **create** (422) but
 **clamped** (dropped) on **update**, so shrinking k drops the now-orphan
@@ -63,10 +63,10 @@ class RosterCreate(BaseModel):
     location: str | None = Field(default=None, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
-    # k-week recurrence cycle; ``anchor_monday`` required (and a Monday)
-    # when k > 1. Cap k at 8 — the cycle grid would be unwieldy beyond.
+    # k-week recurrence cycle. When k>1 the cycle anchors on the first
+    # Monday on/after ``starts_on`` (derived). Cap k at 8 — the cycle grid
+    # would be unwieldy beyond.
     period_weeks: int = Field(default=1, ge=1, le=8)
-    anchor_monday: date | None = None
     starts_on: date
     ends_on: date | None = None
     reminder_enabled: bool = True
@@ -80,11 +80,6 @@ class RosterCreate(BaseModel):
             raise ValueError("Name is required")
         if self.ends_on is not None and self.ends_on < self.starts_on:
             raise ValueError("ends_on must not be before starts_on")
-        if self.period_weeks > 1:
-            if self.anchor_monday is None:
-                raise ValueError("anchor_monday is required when period_weeks > 1")
-            if self.anchor_monday.weekday() != 0:
-                raise ValueError("anchor_monday must be a Monday")
         hi = 7 * self.period_weeks
         for chore in self.chores:
             chore.name = chore.name.strip()
@@ -133,7 +128,6 @@ class RosterOut(RosterListOut):
     longitude: float | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
-    anchor_monday: date | None = None
     starts_on: date
     ends_on: date | None = None
     reminder_enabled: bool
@@ -154,7 +148,6 @@ class PublicRosterOut(BaseModel):
     image_artist_instagram: str | None = None
     locale: Locale
     period_weeks: int
-    anchor_monday: date | None = None
     starts_on: date
     ends_on: date | None = None
     chores: list[ChoreOut] = Field(default_factory=list)

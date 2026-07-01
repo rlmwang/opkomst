@@ -117,7 +117,7 @@ def _extend(db: Session, roster: Roster, chores: list[Chore], start: date, end: 
                 d,
                 cycle_slots=chore.cycle_slots,
                 period_weeks=roster.period_weeks,
-                anchor_monday=roster.anchor_monday,
+                starts_on=roster.starts_on,
             ):
                 for slot in range(chore.people_per_shift):
                     if (d, slot) not in existing:

@@ -11,7 +11,13 @@ is exhaustively unit-testable (``tests/test_chore_recurrence.py``).
 """
 
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
+
+
+def first_cycle_monday(starts_on: date) -> date:
+    """The Monday cycle index 0 anchors on: the first Monday on or after
+    the roster's ``starts_on``. Derived from the interval, never stored."""
+    return starts_on + timedelta(days=(7 - starts_on.weekday()) % 7)
 
 
 def occurs_on(
@@ -19,25 +25,22 @@ def occurs_on(
     *,
     cycle_slots: Sequence[int],
     period_weeks: int,
-    anchor_monday: date | None,
+    starts_on: date,
 ) -> bool:
     """Whether a chore with ``cycle_slots`` on a ``period_weeks``-week
     cycle occurs on date ``d``.
 
     - k <= 1: weekly — ``d.weekday() in cycle_slots``.
-    - k > 1: ``anchor_monday`` (a Monday) anchors cycle index 0. Dates
-      before the anchor never occur; otherwise the offset is
-      ``(d - anchor_monday).days % (7 * period_weeks)``.
-
-    Raises ``ValueError`` if ``period_weeks > 1`` without an anchor.
+    - k > 1: the cycle anchors on ``first_cycle_monday(starts_on)`` (the
+      first Monday within the interval), which is cycle week 0. The offset
+      is ``(d - anchor).days % (7 * k)``; Python's modulo wraps negatives,
+      so the partial week between ``starts_on`` and that first Monday
+      takes the pattern of the cycle's *last* week.
     """
     if not cycle_slots:
         return False
     if period_weeks <= 1:
         return d.weekday() in cycle_slots
-    if anchor_monday is None:
-        raise ValueError("anchor_monday is required when period_weeks > 1")
-    if d < anchor_monday:
-        return False
-    offset = (d - anchor_monday).days % (7 * period_weeks)
+    anchor = first_cycle_monday(starts_on)
+    offset = (d - anchor).days % (7 * period_weeks)
     return offset in cycle_slots

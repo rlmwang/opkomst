@@ -50,7 +50,6 @@ const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const rosterLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
 const periodWeeks = ref(1);
-const anchorMonday = ref<Date | null>(null);
 const startsOn = ref<Date | null>(null);
 const endsOn = ref<Date | null>(null);
 const reminderEnabled = ref(true);
@@ -87,11 +86,15 @@ const notFound = computed(
 );
 const otherError = computed(() => isEdit.value && rosterQuery?.error.value && !notFound.value);
 
-const anchorError = computed<string | null>(() => {
-  if (periodWeeks.value <= 1) return null;
-  if (!anchorMonday.value) return t("chores.edit.anchorRequired");
-  if (anchorMonday.value.getDay() !== 1) return t("chores.edit.anchorNotMonday");
-  return null;
+// The concrete date cycle week 0 anchors on: the first Monday on/after the
+// start date (mirrors ``recurrence.first_cycle_monday`` on the backend).
+// Only meaningful for a multi-week cycle with a start date set.
+const cycleStartsOn = computed<string | null>(() => {
+  if (periodWeeks.value <= 1 || !startsOn.value) return null;
+  const s = startsOn.value;
+  const pyWeekday = (s.getDay() + 6) % 7; // JS Sun=0 -> Python Mon=0
+  const monday = new Date(s.getFullYear(), s.getMonth(), s.getDate() + ((7 - pyWeekday) % 7));
+  return `${String(monday.getDate()).padStart(2, "0")}-${String(monday.getMonth() + 1).padStart(2, "0")}-${monday.getFullYear()}`;
 });
 
 // Shrinking k drops now-out-of-range cycle slots, warning which chores
@@ -135,7 +138,6 @@ watch(
     rosterLocale.value = existing.locale;
     chapterId.value = existing.chapter_id;
     periodWeeks.value = existing.period_weeks;
-    anchorMonday.value = parseDate(existing.anchor_monday);
     startsOn.value = parseDate(existing.starts_on);
     endsOn.value = parseDate(existing.ends_on);
     reminderEnabled.value = existing.reminder_enabled;
@@ -163,7 +165,6 @@ interface RosterEditDraft {
   chapterId: string | null;
   rosterLocale: "nl" | "en";
   periodWeeks: number;
-  anchorMonday: string | null;
   startsOn: string | null;
   endsOn: string | null;
   reminderEnabled: boolean;
@@ -179,7 +180,6 @@ function snapshot(): RosterEditDraft {
     chapterId: chapterId.value,
     rosterLocale: rosterLocale.value,
     periodWeeks: periodWeeks.value,
-    anchorMonday: isoDate(anchorMonday.value),
     startsOn: isoDate(startsOn.value),
     endsOn: isoDate(endsOn.value),
     reminderEnabled: reminderEnabled.value,
@@ -195,7 +195,6 @@ function applyDraft(d: RosterEditDraft): void {
   chapterId.value = d.chapterId ?? null;
   rosterLocale.value = d.rosterLocale ?? "nl";
   periodWeeks.value = d.periodWeeks ?? 1;
-  anchorMonday.value = parseDate(d.anchorMonday);
   startsOn.value = parseDate(d.startsOn);
   endsOn.value = parseDate(d.endsOn);
   reminderEnabled.value = d.reminderEnabled ?? true;
@@ -214,7 +213,6 @@ const { loadDraft, clearDraft } = useFormDraft<RosterEditDraft>({
     chapterId,
     rosterLocale,
     periodWeeks,
-    anchorMonday,
     startsOn,
     endsOn,
     reminderEnabled,
@@ -276,10 +274,6 @@ async function submit() {
     toasts.warn(t("chores.edit.fillStartsOn"));
     return;
   }
-  if (anchorError.value) {
-    toasts.warn(anchorError.value);
-    return;
-  }
   submitting.value = true;
   try {
     const wirePayload: RosterCreate | RosterUpdate = {
@@ -292,7 +286,6 @@ async function submit() {
       latitude: null,
       longitude: null,
       period_weeks: periodWeeks.value,
-      anchor_monday: periodWeeks.value > 1 ? isoDate(anchorMonday.value) : null,
       starts_on: isoDate(startsOn.value) as string,
       ends_on: isoDate(endsOn.value),
       reminder_enabled: reminderEnabled.value,
@@ -386,12 +379,11 @@ async function submit() {
       <h2 class="section-heading">{{ t("chores.edit.recurrenceHeading") }}</h2>
       <p class="muted section-explainer">{{ t("chores.edit.recurrenceExplainer") }}</p>
 
-      <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
-
-      <div v-if="periodWeeks > 1" class="field">
-        <span class="field-label">{{ t("chores.edit.anchorMonday") }}</span>
-        <DatePicker v-model="anchorMonday" date-format="dd-mm-yy" :placeholder="t('chores.edit.anchorMonday')" fluid />
-        <p v-if="anchorError" class="field-error">{{ anchorError }}</p>
+      <div class="stepper-row">
+        <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
+        <span v-if="cycleStartsOn" class="muted">
+          {{ t("chores.edit.cycleStartsOn", { date: cycleStartsOn }) }}
+        </span>
       </div>
 
       <div class="date-row">
@@ -488,6 +480,12 @@ async function submit() {
 /* Shared form chrome (.form-section, .section-heading, .section-explainer,
  * .toggle-row, .toggle-help, .field, .field-label) lives in
  * ``src/assets/forms.css``. Only chore-specific rules stay here. */
+.stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
 .date-row {
   display: flex;
   gap: 1rem;

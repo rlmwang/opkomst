@@ -59,23 +59,12 @@ def test_cycle_slots_deduped_and_sorted(client, organiser_headers):
 # --- recurrence validation -------------------------------------------
 
 
-def test_biweekly_requires_anchor(client, organiser_headers):
-    r = _create(client, organiser_headers, period_weeks=2)
-    assert r.status_code == 422
-
-
-def test_biweekly_anchor_must_be_monday(client, organiser_headers):
-    # 2026-01-06 is a Tuesday.
-    r = _create(client, organiser_headers, period_weeks=2, anchor_monday="2026-01-06")
-    assert r.status_code == 422
-
-
-def test_biweekly_ok_with_monday_anchor(client, organiser_headers):
+def test_biweekly_ok(client, organiser_headers):
+    # k=2 needs no anchor input — the cycle derives it from starts_on.
     r = _create(
         client,
         organiser_headers,
         period_weeks=2,
-        anchor_monday="2026-01-05",
         chores=[{"name": "Bins", "cycle_slots": [2, 9]}],
     )
     assert r.status_code == 201, r.text
@@ -122,7 +111,6 @@ def test_shrink_k_clamps_out_of_range_slots_on_update(client, organiser_headers)
         client,
         organiser_headers,
         period_weeks=2,
-        anchor_monday="2026-01-05",
         chores=[{"name": "X", "cycle_slots": [2, 9]}],
     ).json()
     x_id = created["chores"][0]["id"]
@@ -132,7 +120,6 @@ def test_shrink_k_clamps_out_of_range_slots_on_update(client, organiser_headers)
         "name": created["name"],
         "starts_on": created["starts_on"],
         "period_weeks": 1,  # shrink k → offset 9 is now out of range
-        "anchor_monday": None,
         "chores": [{"id": x_id, "name": "X", "cycle_slots": [2, 9]}],
     }
     r = client.put(f"/api/v1/chores/{created['id']}", headers=organiser_headers, json=body)
