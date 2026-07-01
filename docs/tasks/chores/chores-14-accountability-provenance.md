@@ -25,12 +25,16 @@ this task degrades gracefully if landed before those.
 
 ## Deliverables
 
-1. **Aggregation** — extend the single grouped `ShiftEvent` query in `services/chores.py`
-   to bucket the pickup kinds separately from `assigned`. Fold into `VolunteerSummaryOut`:
-   add `regular_turns`, `picked_up` (sum of the three pickup kinds), and keep the existing
-   `completed`/`deferred`/`missed`. Optionally expose the pickup breakdown
-   (`claimed`/`covered`/`inherited`) too, or keep it summed — your call, but the **details
-   page must at least show regular vs picked-up**.
+1. **Aggregation as a pure fold** (design §7 "The pure core") —
+   `summarize_accountability(events: Iterable[tuple[kind, volunteer_id]]) ->
+   dict[str, Counts]` bucketing `regular_turns` (`assigned`), `picked_up`
+   (`claimed`+`covered`+`inherited`), and `completed`/`deferred`/`missed`. It folds the
+   **same** `(kind, volunteer_id)` event stream as `net_credit` (task 10), so ledger and
+   stats provably read one source — assert that shared-input consistency in a test. A thin
+   impure wrapper queries the rows and hands them to the fold; the result folds into
+   `VolunteerSummaryOut` (`regular_turns`, `picked_up`, plus the existing outcomes).
+   Optionally expose the pickup breakdown too, but the **details page must at least show
+   regular vs picked-up**.
 2. **`make openapi`** + frontend types.
 3. **Details page** — `ChoresDetailsPage.vue` volunteer card: alongside the done/handed-
    off/missed breakdown, show **regular turns** and **picked up for others** (a chip or

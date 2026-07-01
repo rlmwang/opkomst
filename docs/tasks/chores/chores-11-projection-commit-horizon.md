@@ -43,17 +43,44 @@ A `forming` roster is skipped entirely (nothing pinned). Delete the old `_extend
 horizon loop, the `HORIZON_DAYS = 28` constant, and the "reopen SET-NULL scheduled" block
 (membership handling moves to task 13).
 
+## The pure core (extract these; see design §7 "The pure core")
+
+This task introduces the pure-function spine the tick and reads both run on. All are I/O-free
+and speak **value objects**, never ORM rows:
+
+- **Value objects** (`dataclass`/`NamedTuple`): `Occurrence(chore_id, on_date, slot_index)`,
+  `ProjectedAssignment(occurrence, volunteer_id | None)`, `PinnedShift(key, status,
+  reminded: bool, acted: bool, assignee)`, `Diff(insert, prune, keep)`.
+- **`occurrences_between(chores, period_weeks, starts_on, ends_on, start, end) ->
+  list[Occurrence]`** — the single "what occurrences exist" oracle, over `occurs_on`. Used by
+  *both* the tick's pin step and the read-side outlook, so confirmed and outlook are provably
+  the same enumeration.
+- **`project(occurrences, resolve_eligible, weights) -> list[ProjectedAssignment]`** — maps
+  each occurrence through `assign_occurrence` (task 10). Pure given resolved eligibles +
+  weights.
+- **`reconcile(existing_pins, projected, *, today) -> Diff`** — the edit-correctness
+  function. Rules: un-acted stale pin (not in `projected`, `status='scheduled'`,
+  `reminder_sent_at IS NULL`, no act event) → **prune**; reminded or acted → **keep**;
+  `on_date < today` → **never touch**; projected-but-unpinned in window → **insert**. This is
+  where the whole divergence question is decided, so it is tested exhaustively with plain
+  value objects and no DB.
+
+The impure `chore_tick`/`services` layer only: reads rows → value objects, resolves
+`enrolled ∩ available` + ledger→weights, calls the above, and **applies the `Diff`**.
+
+While establishing the pure core, also extract **`reminder_due(shift, roster, *, now) ->
+bool`** from the existing reminder worker (task 08): the fiddly civil-time / days-before /
+opted-in decision becomes a pure predicate, the worker keeps only the query + send. Small,
+and it completes the "every decision is a pure function" story.
+
 ## Reads become projection-aware
 
 - `services/chores.py::schedule` returns two tiers: **confirmed** (pinned rows in the
-  window) and **outlook** (occurrences projected from the pattern + WRH beyond the window,
-  computed on demand, date-bounded — no infinite lists; cap at a sane render window like 90
-  days with the cap stated in the response).
+  window) and **outlook** (`occurrences_between` + `project` beyond the window, computed on
+  demand, date-bounded — no infinite lists; cap at a sane render window like 90 days with the
+  cap stated in the response).
 - `personal_page` likewise: "your confirmed turns" (pinned, actionable) vs "outlook"
   (projected, tentative, non-actionable).
-- Add a pure `services/recurrence.py` (or `chore_projection.py`) helper
-  `project(roster, chores, volunteers, ledger, start, end) -> list[ProjectedShift]` reused
-  by both reads and the tick's pin step, so there is exactly one projection code path.
 
 ## Activation endpoints (organiser)
 
@@ -76,8 +103,12 @@ horizon loop, the `HORIZON_DAYS = 28` constant, and the "reopen SET-NULL schedul
   prune drops un-acted stale pins, keeps reminded/acted, never touches past; forming roster
   pins nothing; editing `starts_on`/`period_weeks` leaves valid pins' assignees unchanged
   (uses task-10 date-keying) and prunes only orphaned un-acted pins.
-- **`tests/test_chore_projection.py`** (new): the projection helper is pure and matches what
-  the tick pins for the same window; outlook lookahead is date-bounded and stable.
+- **`tests/test_chore_projection.py`** (new): `occurrences_between` enumerates exactly the
+  pattern's occurrences in a window (pure, no DB); `project` matches what the tick pins for
+  the same window (shared oracle); outlook lookahead is date-bounded and stable.
+- **`tests/test_chore_reconcile.py`** (new): `reconcile` as a pure unit — un-acted stale pin
+  pruned; reminded pin kept; acted (completed/deferred) pin kept; `on_date < today` never in
+  insert/prune; projected-but-unpinned inserted. All with plain value objects, no DB.
 - Router tests: `activate` flips state and is one-way (409 on repeat); `rebalance` re-pins;
   both rate-limited (audit test picks them up).
 - Alembic idempotency (CI downgrade/upgrade).

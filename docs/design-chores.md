@@ -276,16 +276,17 @@ daily crossing is the only place a projected assignment becomes a promise.
 
 ### Deterministic assignment (weighted rendezvous hashing)
 
-For an occurrence `(chore, on_date, slot)` and each volunteer `v` enrolled in that chore
-and available on that date, compute a score
+For an occurrence `(chore, on_date)` and each eligible volunteer `v`, compute a score
 
 ```
-score(v) = weight(v) · H(v.id, chore.id, on_date, slot)     # H → uniform (0,1)
+score(v) = weight(v) · H(v.id, chore.id, on_date)     # H → uniform (0,1), fixed hash
 ```
 
-and take the top `people_per_shift` distinct volunteers by score. This is **weighted
-rendezvous (highest-random-weight) hashing**, and its properties are exactly what the
-requirements ask for:
+rank descending, and assign the top `people_per_shift` volunteers to that date's slots (the
+slot index is just the rank, *not* a hash input, so raising `people_per_shift` only appends
+an assignee and never reshuffles the existing ones). This is **weighted rendezvous
+(highest-random-weight) hashing**, and its properties are exactly what the requirements ask
+for:
 
 - **Deterministic.** Same inputs, same result. No stored assignment, no RNG state, none of
   the current unseeded-`random` non-determinism. The projection is a pure computation.
@@ -303,6 +304,27 @@ requirements ask for:
   occurrences, to the next-highest scorer, leaving everyone else untouched. Contrast strict
   round-robin (`index % L`), where a single join or leave reshuffles nearly the whole
   future.
+
+**Minimal dependency, stated precisely (so we can test it and reason about it).** The
+assignment is a **pure function** whose result depends on *only* these four inputs:
+
+1. the occurrence key `(chore_id, on_date)`;
+2. the **set** of eligible volunteer ids (already resolved: enrolled in the chore *and*
+   available that date);
+3. a per-volunteer **weight** (a scalar, default `1.0`, the *only* channel through which
+   history enters, see the ledger below);
+4. the count `people_per_shift`.
+
+It depends on **nothing else**: not `today`, not any other occurrence, not the iteration
+order, not the database, not the wall clock, not an RNG. The hash `H` and the tie-break (by
+`v.id`) are fixed constants *of* the function, not inputs. Two properties fall out and are
+asserted directly in tests: the result is **invariant to the order** of the eligible list
+(it is a function of the set, not the sequence), and it is **reproducible** across processes
+and machines (a fixed, non-salted hash over stable ids). All impure work, resolving
+`enrolled ∩ available` and summing the ledger into weights, happens in the caller and is
+handed to the pure core as a plain id-set plus a `{id: weight}` map. That boundary is the
+point: the core has a tiny, fully-enumerated input surface we can exhaustively test, and
+everything stateful is pushed into one thin, separately-tested resolver.
 
 ### Fairness (equal expected share + a favour ledger)
 
@@ -323,12 +345,13 @@ ledger moves), while the commit horizon is frozen. The fairness function stays *
 its inputs** (eligible set, availability, ledger, and the occurrence key), so it is
 exhaustively unit-testable without any RNG seed.
 
-*Known limitations, documented not hidden:* WRH scores each `(chore, date, slot)`
-independently, so it does not by itself prevent one volunteer drawing two different chores
-on the same day, and it does not globally balance load *across* chores. Both are acceptable
-for v1; if needed they become a deterministic de-collision pass applied **only at pinning
-time** (inside the window, where we have the full near-term picture), never in the infinite
-projection.
+*Known limitations, documented not hidden:* WRH scores each `(chore, date)` independently
+across chores (within one chore/date the top-`count` are distinct, so no one is double-
+booked on the *same* chore). It does not by itself prevent one volunteer drawing two
+*different* chores on the same day, nor globally balance load *across* chores. Both are
+acceptable for v1; if needed they become a deterministic de-collision pass applied **only
+at pinning time** (inside the window, where we have the full near-term picture), never in
+the infinite projection.
 
 ### Folding in new volunteers (bounded, predictable)
 
@@ -375,6 +398,50 @@ the projection cannot do lazily:
 Outside the horizon there is nothing to tick: no materialisation, no reconciliation, no
 divergence. The old fixed `HORIZON_DAYS = 28` constant is gone, replaced by the
 per-roster, semantically-meaningful `commit_horizon_days`.
+
+### The pure core (the functions the whole system is built from)
+
+The scheduling system is a **pipeline of pure functions over immutable value objects**,
+wrapped by one thin impure shell. The shell only (a) reads rows into value objects, (b)
+writes a computed result back, (c) reads the clock, (d) sends mail. Every *decision* is
+pure; the database is persistence of a result, never part of the logic. This is what lets us
+test each judgement in isolation and reason locally about the system.
+
+| Pure function | Minimal inputs | Output |
+|---|---|---|
+| `first_cycle_monday` | `starts_on` | the anchor Monday |
+| `occurs_on` | `d, cycle_slots, period_weeks, starts_on` | bool |
+| `occurrences_between` | chores (slots + count), `period_weeks, starts_on, ends_on`, window `[start, end]` | list of `Occurrence(chore_id, on_date, slot_index)` |
+| `resolve_available` | enrolled ids, unavailability ranges, date | eligible **set** |
+| `net_credit` | list of `(kind, volunteer_id)` events | `{id: int}` |
+| `weight_from_ledger` | net credit | float (clamped) |
+| `assign_occurrence` | occurrence key, eligible set, weights, count | ranked ids (rank == slot) |
+| `reconcile` | existing pins (value objects), projected assignments, `today` | `Diff{insert, prune, keep}` |
+| `reminder_due` | shift (date/status/reminded/assignee-has-email), roster (days-before/enabled/hour), `now` | bool |
+| `summarize_accountability` | list of `(kind, volunteer_id)` events | per-volunteer counts |
+
+The core speaks only in small **value objects** (`Occurrence`, `PinnedShift{key, status,
+reminded, acted, assignee}`, `ProjectedAssignment`, `Diff`), never ORM rows; the resolver
+maps rows ↔ value objects. Three consequences worth stating, because they turn correctness
+questions into testable properties:
+
+- **`reconcile` is where edit-correctness lives.** The entire "what happens when the roster
+  is edited" question reduces to: given the currently-pinned rows and the freshly-projected
+  desired assignments, what do we insert / prune / keep? As a pure function its rules
+  (un-acted stale pin → prune; reminded or acted → keep; `on_date < today` → never touch)
+  are exhaustively testable with plain values, no DB. The tick becomes "query pins →
+  `reconcile` → apply diff".
+- **Shared inputs give consistency for free.** `net_credit` and `summarize_accountability`
+  fold the *same* `ShiftEvent` log, so the favour ledger and the accountability display
+  provably read one source. `occurrences_between` is called by *both* the tick's pin step
+  and the read-side projection, so "confirmed" and "outlook" are the same oracle.
+- **The removal patch is not new logic.** It is `occurrences_between` +
+  `assign_occurrence` (minus the leaver) + `reconcile`. That composition is *why* the
+  short-term static patch and the long-term projection must agree (§7 "Removal").
+
+So `chore_tick.run_tick` collapses to a short orchestration (read → `occurrences_between` →
+resolve eligibles + weights → `assign_occurrence` → `reconcile` → apply), and every
+judgement it makes is a separately-tested pure function.
 
 ### Reminders (hourly cron, lifecycle worker)
 
@@ -813,7 +880,7 @@ reminders. Each stage is independently shippable and testable.
    horizon is a kept promise, the projection absorbs edits and membership change for free.
    Kills the edit-divergence bug at the root and gives unbounded, honest lookahead.
 4. **Fairness** — **deterministic weighted rendezvous hashing** keyed on
-   `(volunteer, chore, date, slot)` (§7): equal expected share by default, tilted by a
+   `(volunteer, chore, date)` (§7): equal expected share by default, tilted by a
    favour ledger derived from `ShiftEvent`. Pure over its inputs, no RNG, projectable to
    infinity, and minimally disruptive when volunteers join or leave (only the affected
    occurrences move). Replaces the original greedy-least-loaded-with-random-tie-break rule,
