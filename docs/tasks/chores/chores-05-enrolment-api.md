@@ -30,6 +30,12 @@ GET/PUT) and `backend/services/edit_token.py`.
    `@limiter.limit(Limits.PUBLIC_SIGNUP)`:
    - `GET /chores/by-slug/{slug}` → `PublicRosterOut` (live only; 404 archived/unknown).
      Resolve via **`public_access.resolve_by_slug`** (R4) — no per-router slug helper.
+     *(This route is what puts `PublicRosterOut` into the OpenAPI schema; task 04 removed
+     its `frontend/src/api/types.ts` alias because nothing emitted it yet — the public
+     mini-app re-adds the alias in task 07.)*
+   - `GET /chores/by-slug/{slug}/qr.svg` → QR resolving to `/c/{slug}`, via
+     `services/qr.py::render_qr` (mirror `datepolls_public.get_datepoll_qr`). **Needed by
+     the admin UI too** — see the deferred frontend wiring below.
    - `POST /chores/by-slug/{slug}/enroll` →
      1. `raw, hash = edit_token.new_edit_token()`; create `Volunteer(edit_token_hash=hash,
         display_name, email_reminders, encrypted_email=encrypt(email) if email else None)`.
@@ -64,6 +70,15 @@ GET/PUT) and `backend/services/edit_token.py`.
      no email in logs).
 
 5. **`make openapi`**.
+
+6. **Deferred frontend wiring from task 04** (do once `qr.svg` exists):
+   - Wire the inline QR into **`ChoresListPage.vue`** (side panel, mirroring
+     `DatepollListPage`) and **`ChoresDetailsPage.vue`** using `choreQrUrl(slug)` +
+     `useChoresClipboard().copyQr`. Task 04 shipped copy-link only to avoid a broken
+     `<img>` before this endpoint existed.
+   - Re-add `export type PublicRosterOut = S["PublicRosterOut"];` to
+     `frontend/src/api/types.ts` (now that the by-slug route emits it) if task 07 hasn't
+     already.
 
 ## Tests
 

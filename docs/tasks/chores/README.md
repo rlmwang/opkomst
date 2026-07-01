@@ -43,3 +43,21 @@ After 04 the organiser side is fully usable. After 07 volunteers can enrol and s
 - **All visible strings via `t()`**, `nl` + `en` locked-step.
 - Run `uv run pytest --no-cov` (backend) and `npm run test` (frontend) before calling a
   task done.
+
+## Deferred / follow-ups (recorded so they aren't lost)
+
+Items consciously skipped mid-task, with where they're picked up:
+
+- **Inline QR on the chores admin pages** — tracked in **task 05** (needs the `qr.svg`
+  public endpoint). Task 04 shipped copy-link only.
+- **`PublicRosterOut` frontend type alias** — removed in task 04 (nothing emitted it yet);
+  re-added by **task 05/07** once the by-slug route is in the schema.
+- **`LocationPicker` on `ChoresEditPage`** — the roster model/API already carry
+  `location` + `latitude`/`longitude`, but the edit page omits the picker and sends
+  `location: null`. No remaining task covers it; pick up as a small standalone frontend
+  follow-up if a roster venue is wanted (mirror `DatepollEditPage`'s optional
+  `LocationPicker`, feed the three fields into the create/update payload).
+- **`ChoresEditPage` full-page mount test** (payload shape + shrink-k warn-toast) — not
+  added: the repo has no page-mount test precedent. The behaviour is covered indirectly
+  (CycleGridPicker offset unit test + backend clamp test in task 02); the shrink-toast is
+  manual-verify. Add if a page-test harness gets established.
