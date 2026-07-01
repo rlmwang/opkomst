@@ -80,32 +80,39 @@ function dateWindow(): string {
 <template>
   <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
     <template v-if="roster">
-      <AppCard>
-        <div class="overview-head">
-          <div>
-            <h1>
-              {{ roster.name }}
-              <span v-if="roster.chapter_name" class="chapter-chip">{{ roster.chapter_name }}</span>
-            </h1>
-            <p class="muted">{{ cadence }} · {{ dateWindow() }}</p>
+      <AppCard :stack="false" class="overview">
+        <h1>
+          {{ roster.name }}
+          <span v-if="roster.chapter_name" class="chapter-chip">{{ roster.chapter_name }}</span>
+        </h1>
+        <figure v-if="roster.image_url" class="detail-image">
+          <img :src="roster.image_url" :alt="roster.name" />
+          <figcaption v-if="roster.image_artist_instagram" class="muted">
+            {{ t("imageField.credit") }}
+            <a :href="`https://instagram.com/${roster.image_artist_instagram}`" target="_blank" rel="noopener">@{{ roster.image_artist_instagram }}</a>
+          </figcaption>
+        </figure>
+        <div class="overview-body">
+          <div class="overview-text">
+            <p class="muted overview-meta">{{ cadence }} · {{ dateWindow() }}</p>
             <p v-if="roster.description" class="description">{{ roster.description }}</p>
-          </div>
-          <router-link :to="`/chores/${roster.id}/edit`">
-            <Button :label="t('chores.details.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-          </router-link>
-        </div>
-        <div class="share-row">
-          <div class="link-row">
-            <a :href="publicChoreUrl(roster.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(roster.slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              v-tooltip.top="t('chores.share.copyLink')"
-              :aria-label="t('chores.share.copyLink')"
-              @click="copyLink(roster.slug)"
-            />
+            <div class="link-row">
+              <a :href="publicChoreUrl(roster.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(roster.slug) }}</a>
+              <Button
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                text
+                v-tooltip.top="t('chores.share.copyLink')"
+                :aria-label="t('chores.share.copyLink')"
+                @click="copyLink(roster.slug)"
+              />
+            </div>
+            <div>
+              <router-link :to="`/chores/${roster.id}/edit`">
+                <Button :label="t('chores.details.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
+              </router-link>
+            </div>
           </div>
           <button
             type="button"
@@ -185,21 +192,10 @@ function dateWindow(): string {
 </template>
 
 <style scoped>
-.overview-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-}
-.overview-head h1 { margin: 0 0 0.25rem; }
-.description { margin: 0.5rem 0 0; }
-.share-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 0.75rem;
-}
+/* Overview chrome (.overview, .overview-body, .overview-text,
+ * .overview-meta, .detail-image, .link-row, .qr*) is shared from
+ * theme.css. Only chore-specific list/stat styles stay here. */
+.description { margin: 0; }
 .chore-list {
   list-style: none;
   margin: 0.5rem 0 0;

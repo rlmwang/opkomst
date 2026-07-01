@@ -428,16 +428,6 @@ function askTriggerNow(channel: EmailChannel) {
 
 <style scoped>
 /* --- Overview (title + meta + URL + QR + edit) -------------------- */
-.overview {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.overview h1 {
-  margin: 0;
-  /* Long names wrap mid-word rather than overflow. */
-  overflow-wrap: anywhere;
-}
 /* 4:5 hero on the organiser's overview card. ``max-width: 320px``
  * matches the form preview — a quick glance for the organiser,
  * not a hero spread. */
@@ -464,21 +454,6 @@ function askTriggerNow(channel: EmailChannel) {
 }
 /* Body row: meta + URL+copy on the left, QR on the right. The QR
  * starts at the same vertical position as the meta line. */
-.overview-body {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
-  align-items: start;
-}
-.overview-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.overview-meta {
-  margin: 0;
-}
 
 /* --- Signups card -------------------------------------------------- */
 /* Signups card header: title left, single attendee-count pill on
