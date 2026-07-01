@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Chore, Enrollment, Roster, Shift, Volunteer
+from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer
 from ..schemas.chores import (
     ChoreOut,
     PersonalPageOut,
@@ -241,9 +241,24 @@ def _roster_loads(db: Session, roster_id: str) -> dict[str, int]:
     return {vid: int(n) for vid, n in rows}
 
 
+def _event_counts(db: Session, roster_id: str) -> dict[str, dict[str, int]]:
+    """Per-volunteer accountability counts keyed by ShiftEvent kind."""
+    rows = (
+        db.query(ShiftEvent.volunteer_id, ShiftEvent.kind, func.count(ShiftEvent.id))
+        .filter(ShiftEvent.roster_id == roster_id)
+        .group_by(ShiftEvent.volunteer_id, ShiftEvent.kind)
+        .all()
+    )
+    out: dict[str, dict[str, int]] = {}
+    for vid, kind, n in rows:
+        out.setdefault(vid, {})[kind] = int(n)
+    return out
+
+
 def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut]:
     """Organiser-facing volunteer list: pseudonym + enrolled chores +
-    real assignment load. No email/ciphertext/token."""
+    current load + lifetime accountability counts (from the ShiftEvent
+    log). No email/ciphertext/token."""
     volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
     if not volunteers:
         return []
@@ -254,12 +269,18 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
     ):
         by_vol.setdefault(vid, []).append(cid)
     loads = _roster_loads(db, roster.id)
+    events = _event_counts(db, roster.id)
     return [
         VolunteerSummaryOut(
             id=v.id,
             display_name=v.display_name,
             enrolled_chore_ids=by_vol.get(v.id, []),
             load=loads.get(v.id, 0),
+            # "assigned so far" = auto-assigned + self-claimed.
+            assigned=events.get(v.id, {}).get("assigned", 0) + events.get(v.id, {}).get("claimed", 0),
+            completed=events.get(v.id, {}).get("completed", 0),
+            deferred=events.get(v.id, {}).get("deferred", 0),
+            missed=events.get(v.id, {}).get("missed", 0),
         )
         for v in volunteers
     ]

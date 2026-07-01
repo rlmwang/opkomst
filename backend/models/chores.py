@@ -171,3 +171,36 @@ class Shift(UUIDMixin, TimestampMixin, Base):
         ),
         Index("ix_shifts_chore_date", "chore_id", "on_date"),
     )
+
+
+class ShiftEvent(UUIDMixin, TimestampMixin, Base):
+    """Append-only accountability log: one row per volunteer action or
+    outcome on a shift. The mutable Shift row loses history the moment a
+    shift is handed off or reassigned (``volunteer_id`` is overwritten),
+    so this captures the *semantics* stats need — who did what — that a
+    state row can't. Rows die with the roster or the volunteer (CASCADE);
+    ``shift_id`` is SET NULL so deleting a shift keeps the fact.
+
+    Kinds: ``assigned`` (auto-assigned by the tick), ``claimed`` (took an
+    open shift themselves), ``completed``, ``deferred`` (handed off),
+    ``missed`` (a scheduled shift they held passed undone)."""
+
+    __tablename__ = "shift_events"
+
+    roster_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("rosters.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    volunteer_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("volunteers.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    shift_id: Mapped[str | None] = mapped_column(Text, ForeignKey("shifts.id", ondelete="SET NULL"), nullable=True)
+    kind: Mapped[Literal["assigned", "claimed", "completed", "deferred", "missed"]] = mapped_column(
+        Text, nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('assigned', 'claimed', 'completed', 'deferred', 'missed')",
+            name="ck_shift_events_kind",
+        ),
+    )

@@ -21,9 +21,16 @@ from datetime import date, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chore, Enrollment, Roster, Shift
+from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent
 from .chore_assignment import pick_assignee
 from .recurrence import occurs_on
+
+
+def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, shift_id: str | None = None) -> None:
+    """Append one accountability event. The single write-point for the
+    ShiftEvent log, used by the tick and the public shift-action routes."""
+    db.add(ShiftEvent(roster_id=roster_id, volunteer_id=volunteer_id, kind=kind, shift_id=shift_id))
+
 
 # How far ahead shifts are materialised + assigned. A daily tick keeps a
 # rolling four-week window filled. Module constant (not env): there's no
@@ -91,6 +98,7 @@ def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None
     if chosen is not None:
         shift.volunteer_id = chosen
         shift.status = "scheduled"
+        record_event(db, roster_id=chore.roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
     return chosen
 
 
@@ -120,7 +128,7 @@ def _extend(db: Session, roster: Roster, chores: list[Chore], start: date, end: 
     return created
 
 
-def _assign(db: Session, chore_ids: list[str], today: date, end: date) -> None:
+def _assign(db: Session, roster_id: str, chore_ids: list[str], today: date, end: date) -> None:
     if not chore_ids:
         return
     eligible_by_chore: dict[str, list[str]] = {}
@@ -169,6 +177,7 @@ def _assign(db: Session, chore_ids: list[str], today: date, end: date) -> None:
             continue
         shift.volunteer_id = chosen
         shift.status = "scheduled"
+        record_event(db, roster_id=roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
         loads[chosen] = loads.get(chosen, 0) + 1
         by_day.setdefault(shift.on_date, set()).add(chosen)
     db.flush()
@@ -203,13 +212,25 @@ def run_tick(db: Session, today: date) -> tuple[int, int]:
                     synchronize_session=False,
                 )
                 db.flush()
-            _assign(db, chore_ids, today, end)
-        # Reconcile: past scheduled shifts never completed → missed.
+            _assign(db, roster.id, chore_ids, today, end)
+        # Reconcile: past scheduled shifts never completed → missed. Done
+        # per-row (not a bulk UPDATE) so each gets a `missed` event for
+        # its assignee.
         if chore_ids:
-            db.query(Shift).filter(
-                Shift.chore_id.in_(chore_ids),
-                Shift.on_date < today,
-                Shift.status == "scheduled",
-            ).update({Shift.status: "missed"}, synchronize_session=False)
+            stale = (
+                db.query(Shift)
+                .filter(
+                    Shift.chore_id.in_(chore_ids),
+                    Shift.on_date < today,
+                    Shift.status == "scheduled",
+                )
+                .all()
+            )
+            for shift in stale:
+                shift.status = "missed"
+                if shift.volunteer_id is not None:
+                    record_event(
+                        db, roster_id=roster.id, volunteer_id=shift.volunteer_id, kind="missed", shift_id=shift.id
+                    )
     db.commit()
     return len(rosters), created

@@ -487,7 +487,11 @@
       "anonymous": "Anoniem",
       "load": "{n} beurten",
       "openShift": "Vrij",
-      "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij"
+      "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij",
+      "assignedCount": "{n} toegewezen",
+      "doneCount": "{n} gedaan",
+      "deferredCount": "{n} doorgegeven",
+      "missedCount": "{n} gemist"
     }
   },
   "admin": {

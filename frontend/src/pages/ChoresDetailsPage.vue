@@ -141,11 +141,18 @@ function dateWindow(): string {
         <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
         <ul v-else class="vol-list">
           <li v-for="v in volunteers" :key="v.id" class="vol-item">
-            <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
-            <span class="muted vol-chores">
-              {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+            <span class="vol-head">
+              <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
+              <span class="muted vol-chores">
+                {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+              </span>
             </span>
-            <span class="load-chip">{{ t("chores.details.load", { n: v.load }) }}</span>
+            <span class="vol-stats">
+              <span class="stat">{{ t("chores.details.assignedCount", { n: v.assigned }) }}</span>
+              <span class="stat ok">{{ t("chores.details.doneCount", { n: v.completed }) }}</span>
+              <span class="stat">{{ t("chores.details.deferredCount", { n: v.deferred }) }}</span>
+              <span class="stat" :class="{ bad: v.missed > 0 }">{{ t("chores.details.missedCount", { n: v.missed }) }}</span>
+            </span>
           </li>
         </ul>
       </AppCard>
@@ -266,24 +273,44 @@ function dateWindow(): string {
   flex-direction: column;
   gap: 0.5rem;
 }
-.vol-item,
 .shift-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+.vol-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.vol-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  flex-wrap: wrap;
+}
 .vol-name { font-weight: 600; }
 .vol-chores,
 .shift-chore { font-size: 0.875rem; }
-.load-chip {
-  margin-left: auto;
+.vol-stats {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+.stat {
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
   background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
   color: var(--brand-text-muted);
   font-size: 0.75rem;
+  white-space: nowrap;
 }
+.stat.ok { color: #1a7f3c; }
+.stat.bad { color: var(--brand-red); font-weight: 600; }
 .stats-line { margin: 0 0 0.5rem; }
 .shift-date { min-width: 8rem; }
 .shift-assignee { margin-left: auto; font-weight: 500; }

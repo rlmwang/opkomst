@@ -136,6 +136,8 @@ def test_volunteer_list_leak_guard(client, organiser_headers):
     assert row["display_name"] == "Ada"
     assert row["enrolled_chore_ids"] == [cid]
     assert row["load"] == 0
+    # Accountability counts are present (all zero pre-tick).
+    assert row["assigned"] == 0 and row["completed"] == 0 and row["deferred"] == 0 and row["missed"] == 0
     banned = {"email", "encrypted_email", "edit_token", "edit_token_hash", "token"}
     assert not (banned & set(row.keys())), set(row.keys())
 

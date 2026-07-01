@@ -202,6 +202,9 @@ def mark_shift_done(
         raise HTTPException(status_code=403, detail="This isn't your shift.")
     shift.status = "done"
     shift.done_at = datetime.now(UTC)
+    chore_tick.record_event(
+        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="completed", shift_id=shift.id
+    )
     db.commit()
     return chores_svc.personal_page(db, volunteer)
 
@@ -221,6 +224,9 @@ def hand_off_shift(
     shift = _shift_in_roster(db, shift_id, volunteer.roster_id)
     if shift.volunteer_id != volunteer.id:
         raise HTTPException(status_code=403, detail="This isn't your shift.")
+    chore_tick.record_event(
+        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="deferred", shift_id=shift.id
+    )
     shift.volunteer_id = None
     shift.status = "open"
     # Clear the sent stamp so whoever picks it up next gets their own
@@ -253,5 +259,8 @@ def claim_shift(
         raise HTTPException(status_code=403, detail="You're not signed up for this chore.")
     shift.volunteer_id = volunteer.id
     shift.status = "scheduled"
+    chore_tick.record_event(
+        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="claimed", shift_id=shift.id
+    )
     db.commit()
     return chores_svc.personal_page(db, volunteer)

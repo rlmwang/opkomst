@@ -215,12 +215,22 @@ class PersonalPageOut(BaseModel):
 
 class VolunteerSummaryOut(BaseModel):
     """Organiser-facing volunteer row: pseudonym + enrolled chores +
-    assignment load. **Never** the email, ciphertext, or edit token."""
+    assignment load + lifetime accountability counts. **Never** the
+    email, ciphertext, or edit token.
+
+    ``load`` is current upcoming responsibility (scheduled + done);
+    ``assigned`` is how many shifts they've ever taken on (auto-assigned
+    + self-claimed); ``completed`` / ``deferred`` / ``missed`` are the
+    resolved outcomes so far."""
 
     id: str
     display_name: str | None
     enrolled_chore_ids: list[str]
     load: int
+    assigned: int
+    completed: int
+    deferred: int
+    missed: int
 
 
 class ScheduleShiftOut(BaseModel):

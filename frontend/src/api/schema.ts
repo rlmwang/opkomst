@@ -3557,9 +3557,21 @@ export interface components {
         /**
          * VolunteerSummaryOut
          * @description Organiser-facing volunteer row: pseudonym + enrolled chores +
-         *     assignment load. **Never** the email, ciphertext, or edit token.
+         *     assignment load + lifetime accountability counts. **Never** the
+         *     email, ciphertext, or edit token.
+         *
+         *     ``load`` is current upcoming responsibility (scheduled + done);
+         *     ``assigned`` is how many shifts they've ever taken on (auto-assigned
+         *     + self-claimed); ``completed`` / ``deferred`` / ``missed`` are the
+         *     resolved outcomes so far.
          */
         VolunteerSummaryOut: {
+            /** Assigned */
+            assigned: number;
+            /** Completed */
+            completed: number;
+            /** Deferred */
+            deferred: number;
             /** Display Name */
             display_name: string | null;
             /** Enrolled Chore Ids */
@@ -3568,6 +3580,8 @@ export interface components {
             id: string;
             /** Load */
             load: number;
+            /** Missed */
+            missed: number;
         };
     };
     responses: never;

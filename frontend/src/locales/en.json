@@ -487,7 +487,11 @@
       "anonymous": "Anonymous",
       "load": "{n} shifts",
       "openShift": "Open",
-      "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open"
+      "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open",
+      "assignedCount": "{n} assigned",
+      "doneCount": "{n} done",
+      "deferredCount": "{n} handed off",
+      "missedCount": "{n} missed"
     }
   },
   "admin": {
