@@ -70,6 +70,15 @@ export type DatepollSummary = S["DatepollSummaryOut"];
 export type DatepollSlotSummary = S["DatepollSlotSummary"];
 export type DatepollSubmission = S["DatepollSubmissionOut"];
 
+// --- Chores ("Corvee" recurring-chore rosters) ---
+export type RosterOut = S["RosterOut"];
+export type RosterListOut = S["RosterListOut"];
+export type RosterCreate = S["RosterCreate"];
+export type RosterUpdate = S["RosterUpdate"];
+export type ChoreIn = S["ChoreIn"];
+export type ChoreOut = S["ChoreOut"];
+// PublicRosterOut lands in the schema once the public route returns it (task 05).
+
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];
 export type FeedbackQuestion = S["FeedbackQuestionOut"];

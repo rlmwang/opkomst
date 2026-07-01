@@ -31,6 +31,13 @@ const routes = [
   { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  // Chores ("Corvee") — recurring-chore rosters. ``/c/:slug`` public
+  // enrol page is a separate backend mini-app (task 07), not here.
+  { path: "/chores", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/chores/archived", component: () => import("@/pages/ArchivedChoresPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chores/new", component: () => import("@/pages/ChoresEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chores/:rosterId/edit", component: () => import("@/pages/ChoresEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chores/:rosterId/details", component: () => import("@/pages/ChoresDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // ``/f/:slug`` is NOT in the admin SPA router — it's served by
   // the backend as a separate Vue mini-app (``public-form.html``
   // + ``src/public_form/``) with the form payload inlined into

@@ -63,6 +63,12 @@ const sectionTabs = computed<TopTab[]>(() => {
       label: t("header.datepolls"),
       isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
     });
+    tabs.push({
+      key: "chores",
+      to: "/chores",
+      label: t("header.chores"),
+      isActive: (p) => p === "/chores" || p.startsWith("/chores/"),
+    });
   }
   return tabs;
 });
@@ -138,6 +144,12 @@ const subtabs = computed<Subtab[]>(() => {
     return [
       { to: "/datepolls", label: t("header.active") },
       { to: "/datepolls/archived", label: t("header.archive") },
+    ];
+  }
+  if (p === "/chores" || p === "/chores/archived") {
+    return [
+      { to: "/chores", label: t("header.active") },
+      { to: "/chores/archived", label: t("header.archive") },
     ];
   }
   if (p === "/users" || p === "/chapters") {
