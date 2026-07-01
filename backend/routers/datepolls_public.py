@@ -30,7 +30,7 @@ from ..schemas.datepolls import (
     PublicDatepollOut,
 )
 from ..services import datepolls as datepolls_svc
-from ..services import edit_token
+from ..services import edit_token, public_access
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
@@ -44,10 +44,7 @@ router = APIRouter(prefix="/api/v1/datepolls", tags=["datepolls"])
 def _resolve_datepoll(db: Session, slug: str) -> Datepoll:
     """Resolve a slug to a live poll. Archived + unknown both 410 —
     the public surface doesn't distinguish them (no info leak)."""
-    poll = db.query(Datepoll).filter(Datepoll.slug == slug).first()
-    if poll is None or poll.archived_at is not None:
-        raise HTTPException(status_code=410, detail="This datepoll is no longer available.")
-    return poll
+    return public_access.resolve_by_slug(db, Datepoll, slug, gone_detail="This datepoll is no longer available.")
 
 
 @router.get("/by-slug/{slug}/qr.svg")
@@ -96,17 +93,14 @@ def _write_responses(db: Session, submission_id: str, by_slot: dict[str, str]) -
 def _submission_by_token(db: Session, token: str) -> DatepollSubmission:
     """Resolve an edit-link token to its submission. 404 if no match;
     410 if the poll is no longer public (archived)."""
-    sub = (
-        db.query(DatepollSubmission)
-        .filter(DatepollSubmission.edit_token_hash == edit_token.hash_edit_token(token))
-        .first()
+    return public_access.resolve_by_token(
+        db,
+        DatepollSubmission,
+        token,
+        parent_model=Datepoll,
+        parent_fk=DatepollSubmission.datepoll_id,
+        gone_detail="This datepoll is no longer available.",
     )
-    if sub is None:
-        raise HTTPException(status_code=404, detail="This edit link is not valid.")
-    poll = db.query(Datepoll).filter(Datepoll.id == sub.datepoll_id).first()
-    if poll is None or poll.archived_at is not None:
-        raise HTTPException(status_code=410, detail="This datepoll is no longer available.")
-    return sub
 
 
 def _answers_for(db: Session, submission_id: str) -> dict[str, str]:

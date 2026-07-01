@@ -36,7 +36,7 @@ from ..schemas.forms import (
     FormSubmitIn,
     PublicFormOut,
 )
-from ..services import edit_token
+from ..services import edit_token, public_access
 from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
@@ -56,10 +56,7 @@ def _resolve_form(db: Session, slug: str) -> Form:
     existed" from "archived since you bookmarked the link"; both
     look the same to the visitor and that's correct (no info
     leak)."""
-    form = db.query(Form).filter(Form.slug == slug).first()
-    if form is None or form.archived_at is not None:
-        raise HTTPException(status_code=410, detail="This form is no longer available.")
-    return form
+    return public_access.resolve_by_slug(db, Form, slug, gone_detail="This form is no longer available.")
 
 
 def _form_questions(db: Session, form_id: str) -> list[FormQuestion]:
@@ -160,13 +157,14 @@ def _answers_for(db: Session, submission_id: str) -> dict[str, object]:
 def _submission_by_token(db: Session, token: str) -> FormSubmission:
     """Resolve an edit-link token to its submission. 404 if the token
     doesn't match; 410 if the form is no longer public (archived)."""
-    sub = db.query(FormSubmission).filter(FormSubmission.edit_token_hash == edit_token.hash_edit_token(token)).first()
-    if sub is None:
-        raise HTTPException(status_code=404, detail="This edit link is not valid.")
-    form = db.query(Form).filter(Form.id == sub.form_id).first()
-    if form is None or form.archived_at is not None:
-        raise HTTPException(status_code=410, detail="This form is no longer available.")
-    return sub
+    return public_access.resolve_by_token(
+        db,
+        FormSubmission,
+        token,
+        parent_model=Form,
+        parent_fk=FormSubmission.form_id,
+        gone_detail="This form is no longer available.",
+    )
 
 
 @router.post("/by-slug/{slug}/submit", response_model=FormSubmitAck, status_code=201)

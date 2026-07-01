@@ -6,7 +6,7 @@ from ..auth import require_approved
 from ..database import get_db
 from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Signup, User
 from ..schemas.events import SignupAck, SignupCreate, SignupEditIn, SignupEditOut
-from ..services import access, edit_token, encryption
+from ..services import access, edit_token, encryption, public_access
 from ..services import events as events_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
@@ -93,13 +93,15 @@ def _signup_by_token(db: Session, token: str) -> Signup:
     if the event is archived or already over (editing headcount for a
     past event is moot). The signup carries no email and no key to its
     dispatch rows, so this read-back can't reach the address."""
-    signup = db.query(Signup).filter(Signup.edit_token_hash == edit_token.hash_edit_token(token)).first()
-    if signup is None:
-        raise HTTPException(status_code=404, detail="This edit link is not valid.")
-    event = db.query(Event).filter(Event.id == signup.event_id).first()
-    if event is None or event.archived_at is not None or event.ends_at <= now_wallclock():
-        raise HTTPException(status_code=410, detail="This event is no longer open for changes.")
-    return signup
+    return public_access.resolve_by_token(
+        db,
+        Signup,
+        token,
+        parent_model=Event,
+        parent_fk=Signup.event_id,
+        gone_detail="This event is no longer open for changes.",
+        extra_guard=lambda event: event.ends_at <= now_wallclock(),
+    )
 
 
 @router.get("/by-token/{token}", response_model=SignupEditOut)
