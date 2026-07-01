@@ -1286,6 +1286,108 @@
         "title": "EmailHealthOut",
         "type": "object"
       },
+      "EnrollAck": {
+        "description": "Enrol response \u2014 the secret personal-page token, shown once.",
+        "properties": {
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edit_token"
+        ],
+        "title": "EnrollAck",
+        "type": "object"
+      },
+      "EnrollEditIn": {
+        "description": "Edit an enrolment via the personal-page token. ``email`` is an\noptional add/replace; reminder/email transitions follow \u00a76.",
+        "properties": {
+          "chore_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Chore Ids",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "email_reminders": {
+            "default": false,
+            "title": "Email Reminders",
+            "type": "boolean"
+          }
+        },
+        "title": "EnrollEditIn",
+        "type": "object"
+      },
+      "EnrollIn": {
+        "description": "Public enrolment. ``email`` is optional; if given and\n``email_reminders`` is on, it's retained (encrypted) for reminders \u2014\notherwise it's used once for the welcome link and not stored (\u00a76).",
+        "properties": {
+          "chore_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Chore Ids",
+            "type": "array"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "email_reminders": {
+            "default": false,
+            "title": "Email Reminders",
+            "type": "boolean"
+          }
+        },
+        "title": "EnrollIn",
+        "type": "object"
+      },
       "EventCreate": {
         "properties": {
           "chapter_id": {
@@ -2697,6 +2799,94 @@
         "title": "PendingCountOut",
         "type": "object"
       },
+      "PersonalPageOut": {
+        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "email_reminders": {
+            "title": "Email Reminders",
+            "type": "boolean"
+          },
+          "enrolled_chore_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Enrolled Chore Ids",
+            "type": "array"
+          },
+          "has_email": {
+            "title": "Has Email",
+            "type": "boolean"
+          },
+          "my_shifts": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalShiftOut"
+            },
+            "title": "My Shifts",
+            "type": "array"
+          },
+          "open_shifts": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalShiftOut"
+            },
+            "title": "Open Shifts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "display_name",
+          "enrolled_chore_ids",
+          "email_reminders",
+          "has_email"
+        ],
+        "title": "PersonalPageOut",
+        "type": "object"
+      },
+      "PersonalShiftOut": {
+        "description": "One shift on a volunteer's personal page. Populated from task 06;\nthe shape is fixed here so the response model + frontend are stable.",
+        "properties": {
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chore_id",
+          "chore_name",
+          "on_date",
+          "status"
+        ],
+        "title": "PersonalShiftOut",
+        "type": "object"
+      },
       "PublicDatepollOut": {
         "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
@@ -2866,6 +3056,142 @@
           "questions"
         ],
         "title": "PublicFormOut",
+        "type": "object"
+      },
+      "PublicRosterOut": {
+        "description": "What the public enrol page (``/c/{slug}``) reads.",
+        "properties": {
+          "anchor_monday": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Monday"
+          },
+          "chores": {
+            "items": {
+              "$ref": "#/components/schemas/ChoreOut"
+            },
+            "title": "Chores",
+            "type": "array"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends On"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "locale",
+          "period_weeks",
+          "starts_on"
+        ],
+        "title": "PublicRosterOut",
         "type": "object"
       },
       "QrResponse": {
@@ -3857,6 +4183,45 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VolunteerSummaryOut": {
+        "description": "Organiser-facing volunteer row: pseudonym + enrolled chores +\nassignment load. **Never** the email, ciphertext, or edit token.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "enrolled_chore_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Enrolled Chore Ids",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "load": {
+            "title": "Load",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "enrolled_chore_ids",
+          "load"
+        ],
+        "title": "VolunteerSummaryOut",
         "type": "object"
       }
     }
@@ -5151,6 +5516,269 @@
         ]
       }
     },
+    "/api/v1/chores/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_roster_api_v1_chores_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicRosterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-slug/{slug}/enroll": {
+      "post": {
+        "operationId": "enroll_api_v1_chores_by_slug__slug__enroll_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enroll",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the roster first so a typo'd slug\n410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Roster Qr",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}": {
+      "get": {
+        "operationId": "get_personal_page_api_v1_chores_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Personal Page",
+        "tags": [
+          "chores"
+        ]
+      },
+      "put": {
+        "operationId": "update_enrolment_api_v1_chores_by_token__token__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Enrolment",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}/leave": {
+      "post": {
+        "description": "Remove the volunteer. Enrolments cascade; the encrypted email goes\nwith the row; future shifts drop the assignee via SET NULL.",
+        "operationId": "leave_api_v1_chores_by_token__token__leave_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Leave",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/{roster_id}": {
       "delete": {
         "description": "Hard-delete an archived roster. Refuses unless archived first \u2014\ndeleting a live roster with volunteers/shifts would be a data-loss\nfootgun. Cascades through chores / volunteers / enrollments / shifts\nvia the FK ON DELETE CASCADEs.",
@@ -5563,6 +6191,69 @@
           }
         },
         "summary": "Restore Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/volunteers": {
+      "get": {
+        "description": "Volunteers on a roster: pseudonym + enrolled chores + load.\nNever the email/ciphertext/token (privacy \u2014 see the leak-guard\ntest). ``load`` is 0 until shift generation (task 06).",
+        "operationId": "list_volunteers_api_v1_chores__roster_id__volunteers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VolunteerSummaryOut"
+                  },
+                  "title": "Response List Volunteers Api V1 Chores  Roster Id  Volunteers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Volunteers",
         "tags": [
           "chores"
         ]

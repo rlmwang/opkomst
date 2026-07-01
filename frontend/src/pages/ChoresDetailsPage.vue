@@ -7,13 +7,13 @@ import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import type { ChoreOut } from "@/api/types";
 import { useRoster } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
-import { publicChoreUrl } from "@/lib/chore-urls";
+import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
 
 const props = defineProps<{ rosterId: string }>();
 
 const { t, locale } = useI18n();
-const { copyLink } = useChoresClipboard();
+const { copyLink, copyQr } = useChoresClipboard();
 
 const rosterId = computed(() => props.rosterId);
 const rosterQuery = useRoster(rosterId);
@@ -84,17 +84,28 @@ function dateWindow(): string {
             <Button :label="t('chores.details.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
           </router-link>
         </div>
-        <div class="link-row">
-          <a :href="publicChoreUrl(roster.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(roster.slug) }}</a>
-          <Button
-            icon="pi pi-copy"
-            size="small"
-            severity="secondary"
-            text
-            v-tooltip.top="t('chores.share.copyLink')"
-            :aria-label="t('chores.share.copyLink')"
-            @click="copyLink(roster.slug)"
-          />
+        <div class="share-row">
+          <div class="link-row">
+            <a :href="publicChoreUrl(roster.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(roster.slug) }}</a>
+            <Button
+              icon="pi pi-copy"
+              size="small"
+              severity="secondary"
+              text
+              v-tooltip.top="t('chores.share.copyLink')"
+              :aria-label="t('chores.share.copyLink')"
+              @click="copyLink(roster.slug)"
+            />
+          </div>
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('chores.share.copyQr')"
+            :aria-label="t('chores.share.copyQr')"
+            @click="copyQr(roster.slug)"
+          >
+            <img :src="choreQrUrl(roster.slug)" alt="" class="qr" />
+          </button>
         </div>
       </AppCard>
 
@@ -149,12 +160,35 @@ function dateWindow(): string {
   font-size: 0.75rem;
   vertical-align: baseline;
 }
+.share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
 .link-row {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  margin-top: 0.75rem;
   min-width: 0;
+}
+.qr-button {
+  line-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.qr {
+  width: 96px;
+  height: 96px;
+  background: white;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  padding: 4px;
+  display: block;
 }
 .link-row a {
   overflow: hidden;

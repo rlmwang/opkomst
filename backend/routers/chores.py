@@ -21,7 +21,13 @@ from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
 from ..models import Roster, User
-from ..schemas.chores import RosterCreate, RosterListOut, RosterOut, RosterUpdate
+from ..schemas.chores import (
+    RosterCreate,
+    RosterListOut,
+    RosterOut,
+    RosterUpdate,
+    VolunteerSummaryOut,
+)
 from ..services import access, crud
 from ..services import chores as chores_svc
 from ..services import image as image_svc
@@ -111,6 +117,19 @@ def get_roster(
 ) -> RosterOut:
     roster = access.get_roster_for_user(db, roster_id, user)
     return chores_svc.to_out(db, roster)
+
+
+@router.get("/{roster_id}/volunteers", response_model=list[VolunteerSummaryOut])
+def list_volunteers(
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> list[VolunteerSummaryOut]:
+    """Volunteers on a roster: pseudonym + enrolled chores + load.
+    Never the email/ciphertext/token (privacy — see the leak-guard
+    test). ``load`` is 0 until shift generation (task 06)."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    return chores_svc.volunteer_summaries(db, roster)
 
 
 @router.put("/{roster_id}", response_model=RosterOut)

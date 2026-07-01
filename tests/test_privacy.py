@@ -89,11 +89,17 @@ def test_feedback_response_has_no_signup_link():
     assert "event_id" in cols
 
 
-def test_encrypt_only_called_from_signups_router():
-    """Static check: ``encryption.encrypt`` is invoked from exactly
-    the public signups router and the local-mode seed. Adding any
-    other caller silently widens the surface where plaintext
-    addresses could leak; this assertion is a tripwire."""
+def test_encrypt_only_called_from_allowlisted_callers():
+    """Static check: ``encryption.encrypt`` is invoked from exactly the
+    public signups router, the public chores (enrol/edit) router, and the
+    local-mode seed. Adding any other caller silently widens the surface
+    where plaintext addresses could leak; this assertion is a tripwire.
+
+    Both signup email (events) and volunteer email (chores) are encrypted
+    at the point of consent in their public router — the difference is
+    retention: the event address is nulled after one send (EmailDispatch
+    lifecycle), the volunteer address is kept while reminders are on and
+    nulled on mute/leave (see the chore email-state test)."""
     import pathlib
 
     backend_dir = pathlib.Path(__file__).resolve().parent.parent / "backend"
@@ -105,18 +111,21 @@ def test_encrypt_only_called_from_signups_router():
         if "encryption.encrypt(" in text or "from .encryption import encrypt" in text:
             callers.append(str(path.relative_to(backend_dir.parent)))
     assert sorted(callers) == [
+        "backend/routers/chores_public.py",
         "backend/routers/signups.py",
         "backend/seed.py",
     ], callers
 
 
 def test_encrypted_email_writes_only_from_allowlisted_modules():
-    """Static check: any code that mutates ``encrypted_email`` (the
-    column on ``EmailDispatch``) must live in one of the
-    allowlisted modules. The allowlist enforces the privacy
-    contract: signups.py creates ciphertext at the point of
-    consent (one row per channel); mail_lifecycle.py nulls it on
-    every terminal transition. Anywhere else is a bug."""
+    """Static check: any code that mutates an ``encrypted_email`` column
+    (``EmailDispatch.encrypted_email`` for events, ``Volunteer.
+    encrypted_email`` for chores) must live in one of the allowlisted
+    modules. The allowlist enforces the privacy contract: signups.py
+    creates event ciphertext at consent (one row per channel) and
+    mail_lifecycle.py nulls it on every terminal transition;
+    chores_public.py creates volunteer ciphertext at consent and nulls
+    it on mute/leave. Anywhere else is a bug."""
     import pathlib
 
     backend_dir = pathlib.Path(__file__).resolve().parent.parent / "backend"
@@ -141,6 +150,7 @@ def test_encrypted_email_writes_only_from_allowlisted_modules():
         if any(needle in text for needle in write_needles):
             callers.add(str(path.relative_to(backend_dir.parent)))
     assert callers == {
+        "backend/routers/chores_public.py",
         "backend/routers/signups.py",
         "backend/seed.py",
         "backend/services/mail_lifecycle.py",

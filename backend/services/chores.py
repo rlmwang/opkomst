@@ -14,8 +14,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Chore, Roster, Volunteer
-from ..schemas.chores import ChoreOut, PublicRosterOut, RosterListOut, RosterOut
+from ..models import Chapter, Chore, Enrollment, Roster, Volunteer
+from ..schemas.chores import (
+    ChoreOut,
+    PersonalPageOut,
+    PublicRosterOut,
+    RosterListOut,
+    RosterOut,
+    VolunteerSummaryOut,
+)
 
 if TYPE_CHECKING:
     from ..schemas.chores import ChoreIn
@@ -160,6 +167,48 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
         reminder_days_before=roster.reminder_days_before,
         chores=[ChoreOut.model_validate(c) for c in chores],
     )
+
+
+def _enrolled_chore_ids(db: Session, volunteer_id: str) -> list[str]:
+    return [row[0] for row in db.query(Enrollment.chore_id).filter(Enrollment.volunteer_id == volunteer_id).all()]
+
+
+def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
+    """The volunteer's personal-page payload. ``my_shifts`` /
+    ``open_shifts`` are empty until shift generation (task 06). The email
+    is never returned — only ``has_email`` (whether a ciphertext is on
+    file)."""
+    return PersonalPageOut(
+        display_name=volunteer.display_name,
+        enrolled_chore_ids=_enrolled_chore_ids(db, volunteer.id),
+        email_reminders=volunteer.email_reminders,
+        has_email=volunteer.encrypted_email is not None,
+        my_shifts=[],
+        open_shifts=[],
+    )
+
+
+def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut]:
+    """Organiser-facing volunteer list: pseudonym + enrolled chores +
+    load (0 until shifts exist — task 06). No email/ciphertext/token."""
+    volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+    if not volunteers:
+        return []
+    vol_ids = [v.id for v in volunteers]
+    by_vol: dict[str, list[str]] = {}
+    for vid, cid in (
+        db.query(Enrollment.volunteer_id, Enrollment.chore_id).filter(Enrollment.volunteer_id.in_(vol_ids)).all()
+    ):
+        by_vol.setdefault(vid, []).append(cid)
+    return [
+        VolunteerSummaryOut(
+            id=v.id,
+            display_name=v.display_name,
+            enrolled_chore_ids=by_vol.get(v.id, []),
+            load=0,
+        )
+        for v in volunteers
+    ]
 
 
 def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:

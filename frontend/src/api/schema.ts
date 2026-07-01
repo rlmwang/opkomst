@@ -441,6 +441,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Roster */
+        get: operations["get_public_roster_api_v1_chores_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-slug/{slug}/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enroll */
+        post: operations["enroll_api_v1_chores_by_slug__slug__enroll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Roster Qr
+         * @description QR SVG for one slug. Resolves the roster first so a typo'd slug
+         *     410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Personal Page */
+        get: operations["get_personal_page_api_v1_chores_by_token__token__get"];
+        /** Update Enrolment */
+        put: operations["update_enrolment_api_v1_chores_by_token__token__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/by-token/{token}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave
+         * @description Remove the volunteer. Enrolments cascade; the encrypted email goes
+         *     with the row; future shifts drop the assignee via SET NULL.
+         */
+        post: operations["leave_api_v1_chores_by_token__token__leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}": {
         parameters: {
             query?: never;
@@ -525,6 +619,28 @@ export interface paths {
         put?: never;
         /** Restore Roster */
         post: operations["restore_roster_api_v1_chores__roster_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/chores/{roster_id}/volunteers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Volunteers
+         * @description Volunteers on a roster: pseudonym + enrolled chores + load.
+         *     Never the email/ciphertext/token (privacy — see the leak-guard
+         *     test). ``load`` is 0 until shift generation (task 06).
+         */
+        get: operations["list_volunteers_api_v1_chores__roster_id__volunteers_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2178,6 +2294,51 @@ export interface components {
             /** Sent */
             sent: number;
         };
+        /**
+         * EnrollAck
+         * @description Enrol response — the secret personal-page token, shown once.
+         */
+        EnrollAck: {
+            /** Edit Token */
+            edit_token: string;
+        };
+        /**
+         * EnrollEditIn
+         * @description Edit an enrolment via the personal-page token. ``email`` is an
+         *     optional add/replace; reminder/email transitions follow §6.
+         */
+        EnrollEditIn: {
+            /** Chore Ids */
+            chore_ids?: string[];
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Email Reminders
+             * @default false
+             */
+            email_reminders: boolean;
+        };
+        /**
+         * EnrollIn
+         * @description Public enrolment. ``email`` is optional; if given and
+         *     ``email_reminders`` is on, it's retained (encrypted) for reminders —
+         *     otherwise it's used once for the welcome link and not stored (§6).
+         */
+        EnrollIn: {
+            /** Chore Ids */
+            chore_ids?: string[];
+            /** Display Name */
+            display_name?: string | null;
+            /** Email */
+            email?: string | null;
+            /**
+             * Email Reminders
+             * @default false
+             */
+            email_reminders: boolean;
+        };
         /** EventCreate */
         EventCreate: {
             /** Chapter Id */
@@ -2760,6 +2921,45 @@ export interface components {
             count: number;
         };
         /**
+         * PersonalPageOut
+         * @description The volunteer's personal page. Never carries the email or its
+         *     ciphertext — only whether one is on file (``has_email``).
+         */
+        PersonalPageOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Email Reminders */
+            email_reminders: boolean;
+            /** Enrolled Chore Ids */
+            enrolled_chore_ids: string[];
+            /** Has Email */
+            has_email: boolean;
+            /** My Shifts */
+            my_shifts?: components["schemas"]["PersonalShiftOut"][];
+            /** Open Shifts */
+            open_shifts?: components["schemas"]["PersonalShiftOut"][];
+        };
+        /**
+         * PersonalShiftOut
+         * @description One shift on a volunteer's personal page. Populated from task 06;
+         *     the shape is fixed here so the response model + frontend are stable.
+         */
+        PersonalShiftOut: {
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /** Id */
+            id: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Status */
+            status: string;
+        };
+        /**
          * PublicDatepollOut
          * @description What the public fill-out page (``/d/{slug}``) reads.
          */
@@ -2812,6 +3012,46 @@ export interface components {
             name: string;
             /** Questions */
             questions: components["schemas"]["FormQuestionOut"][];
+        };
+        /**
+         * PublicRosterOut
+         * @description What the public enrol page (``/c/{slug}``) reads.
+         */
+        PublicRosterOut: {
+            /** Anchor Monday */
+            anchor_monday?: string | null;
+            /** Chores */
+            chores?: components["schemas"]["ChoreOut"][];
+            /** Description */
+            description?: string | null;
+            /** Ends On */
+            ends_on?: string | null;
+            /** Id */
+            id: string;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Image Url */
+            image_url?: string | null;
+            /** Latitude */
+            latitude?: number | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location?: string | null;
+            /** Longitude */
+            longitude?: number | null;
+            /** Name */
+            name: string;
+            /** Period Weeks */
+            period_weeks: number;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
         };
         /**
          * QrResponse
@@ -3189,6 +3429,21 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * VolunteerSummaryOut
+         * @description Organiser-facing volunteer row: pseudonym + enrolled chores +
+         *     assignment load. **Never** the email, ciphertext, or edit token.
+         */
+        VolunteerSummaryOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Enrolled Chore Ids */
+            enrolled_chore_ids: string[];
+            /** Id */
+            id: string;
+            /** Load */
+            load: number;
         };
     };
     responses: never;
@@ -3939,6 +4194,198 @@ export interface operations {
             };
         };
     };
+    get_public_roster_api_v1_chores_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicRosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enroll_api_v1_chores_by_slug__slug__enroll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollAck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_personal_page_api_v1_chores_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_enrolment_api_v1_chores_by_token__token__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_api_v1_chores_by_token__token__leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_roster_api_v1_chores__roster_id__get: {
         parameters: {
             query?: never;
@@ -4163,6 +4610,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_volunteers_api_v1_chores__roster_id__volunteers_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VolunteerSummaryOut"][];
                 };
             };
             /** @description Validation Error */

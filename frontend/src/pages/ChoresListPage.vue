@@ -16,7 +16,7 @@ import {
 } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { useConfirms } from "@/lib/confirms";
-import { publicChoreUrl } from "@/lib/chore-urls";
+import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
@@ -25,7 +25,7 @@ const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
 const qc = useQueryClient();
-const { copyLink } = useChoresClipboard();
+const { copyLink, copyQr } = useChoresClipboard();
 
 const { chapterFilter, setChapterFilter, chapterOptions } = useChapterUrlFilter();
 
@@ -147,38 +147,52 @@ function askArchive(r: RosterListOut) {
         @mouseenter="prefetchDetails(r.id)"
         @focusin="prefetchDetails(r.id)"
       >
-        <div class="roster-summary">
-          <h3>
-            {{ r.name }}
-            <span v-if="r.chapter_name" class="chapter-chip">{{ r.chapter_name }}</span>
-          </h3>
-          <p class="muted summary-line">{{ summary(r) }}</p>
-          <div class="link-row">
-            <a :href="publicChoreUrl(r.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(r.slug) }}</a>
+        <div class="roster-main">
+          <div class="roster-summary">
+            <h3>
+              {{ r.name }}
+              <span v-if="r.chapter_name" class="chapter-chip">{{ r.chapter_name }}</span>
+            </h3>
+            <p class="muted summary-line">{{ summary(r) }}</p>
+            <div class="link-row">
+              <a :href="publicChoreUrl(r.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(r.slug) }}</a>
+              <Button
+                icon="pi pi-copy"
+                size="small"
+                severity="secondary"
+                text
+                v-tooltip.top="t('chores.share.copyLink')"
+                :aria-label="t('chores.share.copyLink')"
+                @click="copyLink(r.slug)"
+              />
+            </div>
+          </div>
+
+          <div class="actions">
+            <router-link :to="`/chores/${r.id}/details`">
+              <Button :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            </router-link>
             <Button
-              icon="pi pi-copy"
+              :label="t('chores.list.archive')"
+              icon="pi pi-archive"
               size="small"
               severity="secondary"
               text
-              v-tooltip.top="t('chores.share.copyLink')"
-              :aria-label="t('chores.share.copyLink')"
-              @click="copyLink(r.slug)"
+              @click="askArchive(r)"
             />
           </div>
         </div>
 
-        <div class="actions">
-          <router-link :to="`/chores/${r.id}/details`">
-            <Button :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-          </router-link>
-          <Button
-            :label="t('chores.list.archive')"
-            icon="pi pi-archive"
-            size="small"
-            severity="secondary"
-            text
-            @click="askArchive(r)"
-          />
+        <div class="roster-side">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('chores.share.copyQr')"
+            :aria-label="t('chores.share.copyQr')"
+            @click="copyQr(r.slug)"
+          >
+            <img :src="choreQrUrl(r.slug)" alt="" class="qr" />
+          </button>
         </div>
       </AppCard>
     </template>
@@ -187,11 +201,16 @@ function askArchive(r: RosterListOut) {
 
 <style scoped>
 .roster-card {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: 1.25rem;
   align-items: stretch;
-  flex-wrap: wrap;
+}
+.roster-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
 }
 .roster-summary {
   display: flex;
@@ -230,5 +249,42 @@ function askArchive(r: RosterListOut) {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  margin-top: auto;
+}
+.roster-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.qr-button {
+  align-self: center;
+  line-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.qr-button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.qr {
+  width: 96px;
+  height: 96px;
+  background: white;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  padding: 4px;
+  display: block;
+}
+@media (max-width: 540px) {
+  .roster-card {
+    grid-template-columns: 1fr;
+  }
+  .roster-side {
+    justify-content: flex-end;
+  }
 }
 </style>

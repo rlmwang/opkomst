@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% set subject = "Je aanmelding voor " + app_name %}
+{% block content %}
+<p>Hoi,</p>
+<p>Je hebt je aangemeld voor het corveerooster. Via de knop hieronder beheer je je taken en zie je wanneer je aan de beurt bent.</p>
+<a href="{{ personal_url }}" class="cta">Mijn taken beheren</a>
+<p class="muted">Bewaar deze link — het is de enige manier om terug te komen op je pagina. Je kunt je daar ook altijd afmelden.</p>
+{% endblock %}
+{% block footer %}{{ app_name }}{% endblock %}

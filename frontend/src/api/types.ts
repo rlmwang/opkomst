@@ -77,7 +77,7 @@ export type RosterCreate = S["RosterCreate"];
 export type RosterUpdate = S["RosterUpdate"];
 export type ChoreIn = S["ChoreIn"];
 export type ChoreOut = S["ChoreOut"];
-// PublicRosterOut lands in the schema once the public route returns it (task 05).
+export type PublicRosterOut = S["PublicRosterOut"];
 
 // --- Feedback ---
 export type FeedbackForm = S["FeedbackFormOut"];

@@ -22,7 +22,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import InstagramHandle, Locale
+from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail
 
 
 class ChoreIn(BaseModel):
@@ -142,7 +142,7 @@ class RosterOut(RosterListOut):
 
 
 class PublicRosterOut(BaseModel):
-    """What the public enrol page (``/c/{slug}``) reads (task 05)."""
+    """What the public enrol page (``/c/{slug}``) reads."""
 
     id: str
     name: str
@@ -158,3 +158,66 @@ class PublicRosterOut(BaseModel):
     starts_on: date
     ends_on: date | None = None
     chores: list[ChoreOut] = Field(default_factory=list)
+
+
+# --- Public enrolment + personal page --------------------------------
+
+
+class PersonalShiftOut(BaseModel):
+    """One shift on a volunteer's personal page. Populated from task 06;
+    the shape is fixed here so the response model + frontend are stable."""
+
+    id: str
+    chore_id: str
+    chore_name: str
+    on_date: date
+    status: str
+
+
+class EnrollIn(BaseModel):
+    """Public enrolment. ``email`` is optional; if given and
+    ``email_reminders`` is on, it's retained (encrypted) for reminders —
+    otherwise it's used once for the welcome link and not stored (§6)."""
+
+    display_name: DisplayName
+    email: LowercaseEmail | None = None
+    email_reminders: bool = False
+    chore_ids: list[str] = Field(default_factory=list, max_length=100)
+
+
+class EnrollAck(BaseModel):
+    """Enrol response — the secret personal-page token, shown once."""
+
+    edit_token: str
+
+
+class EnrollEditIn(BaseModel):
+    """Edit an enrolment via the personal-page token. ``email`` is an
+    optional add/replace; reminder/email transitions follow §6."""
+
+    display_name: DisplayName
+    chore_ids: list[str] = Field(default_factory=list, max_length=100)
+    email_reminders: bool = False
+    email: LowercaseEmail | None = None
+
+
+class PersonalPageOut(BaseModel):
+    """The volunteer's personal page. Never carries the email or its
+    ciphertext — only whether one is on file (``has_email``)."""
+
+    display_name: str | None
+    enrolled_chore_ids: list[str]
+    email_reminders: bool
+    has_email: bool
+    my_shifts: list[PersonalShiftOut] = Field(default_factory=list)
+    open_shifts: list[PersonalShiftOut] = Field(default_factory=list)
+
+
+class VolunteerSummaryOut(BaseModel):
+    """Organiser-facing volunteer row: pseudonym + enrolled chores +
+    assignment load. **Never** the email, ciphertext, or edit token."""
+
+    id: str
+    display_name: str | None
+    enrolled_chore_ids: list[str]
+    load: int
