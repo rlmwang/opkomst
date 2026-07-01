@@ -436,8 +436,6 @@
       "anchorMonday": "Anchor Monday",
       "anchorRequired": "Pick an anchor Monday for a cycle longer than 1 week.",
       "anchorNotMonday": "The anchor date must be a Monday.",
-      "startsOn": "Starts on",
-      "endsOn": "Ends on",
       "reminderEnabled": "Email reminders",
       "reminderDaysBefore": "Days before",
       "choresHeading": "Chores",
@@ -478,7 +476,8 @@
       "languageExplainer": "Language of the public page and the emails.",
       "localeNl": "Dutch",
       "localeEn": "English",
-      "endsOnPlaceholder": "No end date"
+      "endsOnPlaceholder": "End date (optional)",
+      "startDatePlaceholder": "Start date"
     },
     "details": {
       "edit": "Edit",

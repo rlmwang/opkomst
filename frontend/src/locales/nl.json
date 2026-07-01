@@ -436,8 +436,6 @@
       "anchorMonday": "Startmaandag",
       "anchorRequired": "Kies een startmaandag voor een cyclus van meer dan 1 week.",
       "anchorNotMonday": "De startdatum moet een maandag zijn.",
-      "startsOn": "Start op",
-      "endsOn": "Eindigt op",
       "reminderEnabled": "Herinneringen per e-mail",
       "reminderDaysBefore": "Dagen van tevoren",
       "choresHeading": "Taken",
@@ -478,7 +476,8 @@
       "languageExplainer": "Taal van de openbare pagina en de e-mails.",
       "localeNl": "Nederlands",
       "localeEn": "Engels",
-      "endsOnPlaceholder": "Geen einddatum"
+      "endsOnPlaceholder": "Einddatum (optioneel)",
+      "startDatePlaceholder": "Startdatum"
     },
     "details": {
       "edit": "Bewerken",

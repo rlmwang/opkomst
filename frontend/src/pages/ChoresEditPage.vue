@@ -114,7 +114,6 @@ watch(periodWeeks, (next, prev) => {
 
 onMounted(() => {
   if (isEdit.value) return;
-  if (!startsOn.value) startsOn.value = new Date();
   const queryChapter = (route.query.chapter as string | undefined) ?? null;
   const memberIds = new Set((auth.user?.chapters ?? []).map((c) => c.id));
   if (queryChapter && memberIds.has(queryChapter)) {
@@ -197,7 +196,7 @@ function applyDraft(d: RosterEditDraft): void {
   rosterLocale.value = d.rosterLocale ?? "nl";
   periodWeeks.value = d.periodWeeks ?? 1;
   anchorMonday.value = parseDate(d.anchorMonday);
-  startsOn.value = parseDate(d.startsOn) ?? new Date();
+  startsOn.value = parseDate(d.startsOn);
   endsOn.value = parseDate(d.endsOn);
   reminderEnabled.value = d.reminderEnabled ?? true;
   reminderDaysBefore.value = d.reminderDaysBefore ?? 1;
@@ -387,10 +386,7 @@ async function submit() {
       <h2 class="section-heading">{{ t("chores.edit.recurrenceHeading") }}</h2>
       <p class="muted section-explainer">{{ t("chores.edit.recurrenceExplainer") }}</p>
 
-      <div class="field">
-        <span class="field-label">{{ t("chores.edit.periodWeeks") }}</span>
-        <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
-      </div>
+      <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
 
       <div v-if="periodWeeks > 1" class="field">
         <span class="field-label">{{ t("chores.edit.anchorMonday") }}</span>
@@ -400,11 +396,14 @@ async function submit() {
 
       <div class="date-row">
         <div class="field">
-          <span class="field-label">{{ t("chores.edit.startsOn") }}</span>
-          <DatePicker v-model="startsOn" date-format="dd-mm-yy" :placeholder="t('chores.edit.startsOn')" fluid />
+          <DatePicker
+            v-model="startsOn"
+            date-format="dd-mm-yy"
+            :placeholder="t('chores.edit.startDatePlaceholder')"
+            fluid
+          />
         </div>
         <div class="field">
-          <span class="field-label">{{ t("chores.edit.endsOn") }}</span>
           <DatePicker
             v-model="endsOn"
             date-format="dd-mm-yy"
