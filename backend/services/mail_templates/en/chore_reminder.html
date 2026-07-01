@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% set subject = "Reminder: your turn is coming up" %}
+{% block content %}
+<p>Hi,</p>
+<p>A quick reminder: you're on for <strong>{{ chore_name }}</strong> on <strong>{{ when }}</strong> ({{ roster_name }}).</p>
+<p class="muted">Can't make it, or want to stop these reminders? Open your personal link (from your sign-up email) to swap or opt out.</p>
+{% endblock %}
+{% block footer %}{{ app_name }}{% endblock %}

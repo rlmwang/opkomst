@@ -196,7 +196,12 @@ def run_tick(db: Session, today: date) -> tuple[int, int]:
                     Shift.on_date >= today,
                     Shift.status == "scheduled",
                     Shift.volunteer_id.is_(None),
-                ).update({Shift.status: "open"}, synchronize_session=False)
+                ).update(
+                    # Clear the reminder stamp too: the new assignee gets
+                    # their own reminder, not suppressed by the leaver's.
+                    {Shift.status: "open", Shift.reminder_sent_at: None},
+                    synchronize_session=False,
+                )
                 db.flush()
             _assign(db, chore_ids, today, end)
         # Reconcile: past scheduled shifts never completed → missed.

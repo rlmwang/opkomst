@@ -73,6 +73,9 @@ you when a job is missing.
   - `opkomst-cli-dispatch-reminder` — schedule `0 * * * *`,
     checkin-margin 5 min, max-runtime 10 min
   - `opkomst-cli-dispatch-feedback` — same
+  - `opkomst-cli-dispatch-chore-reminder` — schedule `0 * * * *`
+    (day-before chore shift reminders, sent at 18:00 local; only to
+    volunteers who opted in, address decrypted in the worker)
   - `opkomst-cli-reap-partial` — schedule `30 * * * *`
   - `opkomst-cli-roster-tick` — schedule `0 2 * * *`,
     checkin-margin 30 min (materialises + fairly assigns chore
@@ -80,7 +83,9 @@ you when a job is missing.
     shifts to `missed`)
   - `opkomst-cli-reap-expired` — schedule `0 3 * * *`,
     checkin-margin 30 min (also handles the 7-day post-event
-    ciphertext backstop for the FEEDBACK channel)
+    ciphertext backstop for the FEEDBACK channel, and force-wipes
+    retained volunteer email on rosters archived >7 days — the
+    chore-side equivalent, since mute/leave clear it earlier)
   - `opkomst-cli-reap-auth-tokens` — schedule `45 3 * * *`
     (login + registration tokens; replaced
     `opkomst-cli-reap-login-tokens` — see deploy notes if upgrading)

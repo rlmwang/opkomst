@@ -223,6 +223,9 @@ def hand_off_shift(
         raise HTTPException(status_code=403, detail="This isn't your shift.")
     shift.volunteer_id = None
     shift.status = "open"
+    # Clear the sent stamp so whoever picks it up next gets their own
+    # reminder — the previous assignee's reminder must not suppress it.
+    shift.reminder_sent_at = None
     chore_tick.reassign_shift(db, shift, exclude={volunteer.id})
     db.commit()
     return chores_svc.personal_page(db, volunteer)

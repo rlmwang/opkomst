@@ -41,7 +41,7 @@ existence check, no separate wipe pass.
 import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from urllib.parse import quote
 
@@ -49,7 +49,17 @@ import structlog
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, FeedbackToken
+from ..models import (
+    Chore,
+    EmailChannel,
+    EmailDispatch,
+    EmailStatus,
+    Event,
+    FeedbackToken,
+    Roster,
+    Shift,
+    Volunteer,
+)
 from . import encryption
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
@@ -68,6 +78,16 @@ FEEDBACK_DELAY = timedelta(hours=24)
 # How long after an event ends before we force-wipe any remaining
 # ciphertext for its signups. Comfortably past every other path.
 POST_EVENT_PURGE_DELAY = timedelta(days=7)
+
+# --- Chore reminder constants -------------------------------------
+# Local wall-clock hour chore reminders go out (a reminder for a shift
+# on ``D`` is sent on ``D - reminder_days_before`` at this hour, so mail
+# never lands at midnight). Shifts are date-only, hence a fixed hour
+# rather than an hours-before offset.
+CHORE_REMINDER_SEND_HOUR = 18
+# How long after a roster is archived before we force-wipe its
+# volunteers' retained email. The address has no more work to do.
+CHORE_ARCHIVE_PURGE_DELAY = timedelta(days=7)
 
 
 # --- Window predicates --------------------------------------------
@@ -498,6 +518,75 @@ def retire_event_channels(
     ).delete(synchronize_session=False)
 
 
+def run_chore_reminders() -> int:
+    """Send the day-before shift reminders. A **separate** entry point,
+    not a third ``EmailChannel``: chores have no ``EmailDispatch`` rows,
+    the address is retained (not wiped after one send), and the window is
+    per-``Shift`` — none of the CHANNELS machinery fits.
+
+    Selects assigned, not-yet-reminded upcoming shifts whose reminder
+    day has arrived (``on_date - reminder_days_before`` at the fixed send
+    hour) where the assignee opted into email reminders and the roster is
+    live with reminders on. Decrypts the address **here** (the only
+    decrypt site; allowlist unchanged), sends, and stamps
+    ``reminder_sent_at`` — the timestamp is the idempotency guard, no
+    ciphertext wipe (retention is the whole point). A send failure leaves
+    the stamp null so the next sweep retries, naturally bounded by the
+    shift date (the tick marks past shifts ``missed``)."""
+    now = now_wallclock()
+    today = now.date()
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(Shift, Chore, Roster, Volunteer)
+            .join(Chore, Chore.id == Shift.chore_id)
+            .join(Roster, Roster.id == Chore.roster_id)
+            .join(Volunteer, Volunteer.id == Shift.volunteer_id)
+            .filter(
+                Shift.status == "scheduled",
+                Shift.reminder_sent_at.is_(None),
+                Shift.on_date >= today,
+                Roster.archived_at.is_(None),
+                Roster.reminder_enabled.is_(True),
+                Volunteer.email_reminders.is_(True),
+                Volunteer.encrypted_email.is_not(None),
+            )
+            .order_by(Shift.id)
+            .limit(email_batch_size())
+            .all()
+        )
+        sent = 0
+        for shift, chore, roster, volunteer in rows:
+            due = shift.on_date - timedelta(days=roster.reminder_days_before)
+            if now < datetime.combine(due, time(hour=CHORE_REMINDER_SEND_HOUR)):
+                continue  # reminder day/hour not reached yet
+            try:
+                plaintext = encryption.decrypt(volunteer.encrypted_email)
+            except Exception:
+                logger.warning("chore_reminder_decrypt_failed", shift_id=shift.id)
+                continue
+            ok = send_with_retry(
+                to=plaintext,
+                template_name="chore_reminder.html",
+                context={
+                    "chore_name": chore.name,
+                    "roster_name": roster.name,
+                    "when": shift.on_date.strftime("%d-%m-%Y"),
+                },
+                locale=roster.locale,
+                message_id=new_message_id(),
+                log_event="chore_reminder_send_failed",
+            )
+            if ok:
+                shift.reminder_sent_at = datetime.now(UTC)
+                sent += 1
+        db.commit()
+        logger.info("chore_reminders_done", processed=sent)
+        return sent
+    finally:
+        db.close()
+
+
 def reap_expired() -> int:
     """Daily reaper. Finalises any pending dispatch whose channel
     window has long passed:
@@ -546,9 +635,32 @@ def reap_expired() -> int:
                 synchronize_session=False,
             )
         )
+        # Chore side: wipe retained volunteer email on rosters archived
+        # past the grace window (the roster is gone; the address has no
+        # more work to do). Same force-wipe backstop as the event
+        # ciphertext above — normal paths (mute/leave) clear it earlier.
+        chore_cutoff = datetime.now(UTC) - CHORE_ARCHIVE_PURGE_DELAY
+        purged = (
+            db.query(Volunteer)
+            .filter(
+                Volunteer.encrypted_email.is_not(None),
+                Volunteer.roster_id.in_(
+                    db.query(Roster.id).filter(
+                        Roster.archived_at.is_not(None),
+                        Roster.archived_at < chore_cutoff,
+                    )
+                ),
+            )
+            .update(
+                {Volunteer.encrypted_email: None, Volunteer.email_reminders: False},
+                synchronize_session=False,
+            )
+        )
         db.commit()
         if finalised:
             logger.warning("reaped_expired_dispatches", count=finalised)
+        if purged:
+            logger.info("purged_archived_roster_emails", count=purged)
         return finalised
     finally:
         db.close()

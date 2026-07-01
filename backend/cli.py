@@ -75,6 +75,12 @@ _CRON_MONITORS: dict[str, Any] = {
         "max_runtime": 30,
         "timezone": "UTC",
     },
+    "opkomst-cli-dispatch-chore-reminder": {
+        "schedule": {"type": "crontab", "value": "0 * * * *"},
+        "checkin_margin": 5,
+        "max_runtime": 30,
+        "timezone": "UTC",
+    },
     "opkomst-cli-reap-partial": {
         "schedule": {"type": "crontab", "value": "30 * * * *"},
         "checkin_margin": 5,
@@ -129,6 +135,10 @@ def _monitor_slug(args: argparse.Namespace) -> str | None:
 
 
 def _dispatch(channel_name: str) -> int:
+    if channel_name == "chore-reminder":
+        n = mail_lifecycle.run_chore_reminders()
+        logger.info("cli_dispatch_done", channel=channel_name, processed=n)
+        return n
     try:
         channel = EmailChannel(channel_name)
     except ValueError as exc:
@@ -196,7 +206,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m backend.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_dispatch = sub.add_parser("dispatch", help="Run one channel sweep.")
-    p_dispatch.add_argument("channel", choices=[c.value for c in EmailChannel])
+    # ``chore-reminder`` rides the ``dispatch`` verb for operator muscle
+    # memory, but it's not an EmailChannel (chores have no EmailDispatch
+    # rows) — it routes to ``run_chore_reminders`` below.
+    p_dispatch.add_argument("channel", choices=[c.value for c in EmailChannel] + ["chore-reminder"])
     sub.add_parser("reap-partial", help="Reap stuck partial sends.")
     sub.add_parser(
         "reap-expired",

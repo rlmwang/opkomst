@@ -267,7 +267,7 @@ use ``curl https://opkomst.nu/health/full``.
 
 ## 6. Cron jobs
 
-Coolify → application → **Scheduled Tasks**. Eight jobs, all
+Coolify → application → **Scheduled Tasks**. Nine jobs, all
 running ``uv run --no-dev python -m backend.cli`` against the
 same image. Stagger the minutes so they don't all hit the DB at
 once.
@@ -276,6 +276,7 @@ once.
 |----------------|-------------------------------------------------------------------|----------------------------------------------------|
 | `0 *  * * *`   | `uv run --no-dev python -m backend.cli dispatch reminder`         | Hourly reminder send                               |
 | `0 *  * * *`   | `uv run --no-dev python -m backend.cli dispatch feedback`         | Hourly feedback send                               |
+| `0 *  * * *`   | `uv run --no-dev python -m backend.cli dispatch chore-reminder`   | Hourly: day-before shift reminders (sent at 18:00 local) |
 | `30 * * * *`   | `uv run --no-dev python -m backend.cli reap-partial`              | Mid-flight crash recovery                          |
 | `0 2  * * *`   | `uv run --no-dev python -m backend.cli roster-tick`              | Daily: materialise + fairly assign chore shifts (28-day horizon), reconcile past-due → missed |
 | `0 3  * * *`   | `uv run --no-dev python -m backend.cli reap-expired`              | Daily: finalise expired dispatches + 7-day ciphertext backstop |
@@ -359,6 +360,7 @@ Free tier is more than enough for opkomst's scale.
    |---------------------------------------|----------------|--------|
    | `opkomst-cli-dispatch-reminder`       | `0 * * * *`    | 5 min  |
    | `opkomst-cli-dispatch-feedback`       | `0 * * * *`    | 5 min  |
+   | `opkomst-cli-dispatch-chore-reminder` | `0 * * * *`    | 5 min  |
    | `opkomst-cli-reap-partial`            | `30 * * * *`   | 5 min  |
    | `opkomst-cli-roster-tick`             | `0 2 * * *`    | 30 min |
    | `opkomst-cli-reap-expired`            | `0 3 * * *`    | 30 min |
