@@ -1,4 +1,4 @@
-"""Pydantic DTOs for the Chores ("Corvee") feature.
+"""Pydantic DTOs for the Chores feature (Dutch: takenroosters).
 
 Organiser CRUD payloads carry the chore set (the server diff-applies on
 update, matched on chore ``id`` like form questions). ``RosterListOut``

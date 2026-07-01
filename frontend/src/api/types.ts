@@ -70,7 +70,7 @@ export type DatepollSummary = S["DatepollSummaryOut"];
 export type DatepollSlotSummary = S["DatepollSlotSummary"];
 export type DatepollSubmission = S["DatepollSubmissionOut"];
 
-// --- Chores ("Corvee" recurring-chore rosters) ---
+// --- Chores (Dutch: takenroosters) ---
 export type RosterOut = S["RosterOut"];
 export type RosterListOut = S["RosterListOut"];
 export type RosterCreate = S["RosterCreate"];

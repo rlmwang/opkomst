@@ -1,4 +1,4 @@
-# Design proposal — Recurring chores ("Corvee")
+# Design proposal — Recurring chores (Dutch: Takenroosters)
 
 Status: proposal. A fourth organiser-owned entity alongside Event, DatePoll, and Form.
 
@@ -52,15 +52,15 @@ The hard parts, and where this differs from the other three entities:
 
 | Name | Parallels | Meaning |
 |---|---|---|
-| **Roster** | Event / Form / Datepoll | Top-level organiser-owned entity. The corvee schedule. |
+| **Roster** | Event / Form / Datepoll | Top-level organiser-owned entity. The takenrooster (task-roster) schedule. |
 | **Chore** | FormQuestion / DatepollSlot | A recurring task in a roster, with a weekday set. |
 | **Volunteer** | Signup / FormSubmission | A public enrolment: pseudonym, optional encrypted email, edit token. |
 | **Enrollment** | (like `user_chapters`) | Junction: which chores a volunteer opted into. |
 | **Shift** | (new) | A materialised `(chore, date, slot)` occurrence with an assignee and a status. |
 
-User-facing naming: Dutch **"Corvee"** (the exact word for a shared recurring-chore duty
-roster), English **"Chores"**. Route prefix `/chores` (admin) and `/c/{slug}` (public) —
-`c` is the only unused initial next to `e`/`f`/`d`. i18n prefix `chores.` / `roster.`.
+User-facing naming: Dutch **"Takenrooster(s)"** (task roster), English **"Chores"**. Route
+prefix `/chores` (admin) and `/c/{slug}` (public) — `c` is the only unused initial next to
+`e`/`f`/`d`. i18n prefix `chores.`.
 
 ## 4. Standard fields we copy from the other entities
 
@@ -338,7 +338,7 @@ structurally identical and differ only in domain fields.
 - `/chores/:id/details` → `ChoresDetailsPage.vue` via `DetailsPageShell`: overview card,
   chore list, volunteer count + per-volunteer load (fairness at a glance), upcoming
   schedule, completion rate, share link + QR via a new `useChoresClipboard`.
-- Add **"Corvee"/"Chores"** as the fourth item in the workspace dropdown I just built in
+- Add **"Takenroosters"/"Chores"** as the fourth item in the workspace dropdown I just built in
   `AppHeader.vue` (`header.chores` key, `isActive` on `/chores`).
 
 **Public mini-app** `public-chore.html` + `src/public_chore/PublicChore.vue` (new Vite

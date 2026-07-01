@@ -26,7 +26,7 @@
     "events": "Evenementen",
     "forms": "Vragenlijsten",
     "datepolls": "Datumprikkers",
-    "chores": "Corvee",
+    "chores": "Takenroosters",
     "workspace": "Werkruimte",
     "admin": "Admin",
     "active": "Actief",
@@ -390,7 +390,7 @@
       "qrCopyFail": "Kon niet kopiëren"
     },
     "list": {
-      "title": "Corvee",
+      "title": "Takenroosters",
       "intro": "Terugkerende taken die vrijwilligers eerlijk verdelen.",
       "loadFailed": "Kon de roosters niet laden.",
       "searchPlaceholder": "Zoek op naam",
@@ -407,7 +407,7 @@
       "volunteerCount": "{n} vrijwilligers"
     },
     "archived": {
-      "title": "Gearchiveerde roosters",
+      "title": "Gearchiveerde takenroosters",
       "intro": "Herstel een rooster om 't weer live te zetten, of verwijder 't definitief.",
       "empty": "Geen gearchiveerde roosters.",
       "searchPlaceholder": "Zoek op naam",

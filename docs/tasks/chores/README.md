@@ -1,4 +1,4 @@
-# Chores ("Corvee") — task specs
+# Chores (Dutch: takenroosters) — task specs
 
 Execution plan for `docs/design-chores.md`. Each task is self-contained, ships in order,
 and leaves the suite green. **`R*` tasks are DRY refactors** that extract a shared

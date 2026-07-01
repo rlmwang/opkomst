@@ -31,7 +31,7 @@ const routes = [
   { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  // Chores ("Corvee") — recurring-chore rosters. ``/c/:slug`` public
+  // Chores (Dutch: takenroosters) — recurring-chore rosters. ``/c/:slug`` public
   // enrol page is a separate backend mini-app (task 07), not here.
   { path: "/chores", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true } },
   { path: "/chores/archived", component: () => import("@/pages/ArchivedChoresPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },

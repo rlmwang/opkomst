@@ -1,4 +1,4 @@
-"""Recurring chores — the "Corvee" feature (fourth public entity).
+"""Recurring chores — the takenrooster feature (fourth public entity).
 
 A ``Roster`` is an organiser-authored, chapter-scoped schedule of
 recurring **chores**. Anyone with the slug enrols as a ``Volunteer``
