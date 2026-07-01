@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import StatBar from "@/components/StatBar.vue";
 import {
   eventList,
   type SignupSummary,
@@ -367,9 +368,7 @@ function askTriggerNow(channel: EmailChannel) {
               <div class="bars">
                 <div v-for="i in 5" :key="i" class="bar-row">
                   <span class="bar-label">{{ i }}</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }" />
-                  </div>
+                  <StatBar :segments="[{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }]" />
                   <span class="bar-count">{{ q.rating_distribution[i - 1] }}</span>
                 </div>
               </div>
@@ -618,13 +617,6 @@ function askTriggerNow(channel: EmailChannel) {
   font-size: 0.875rem;
 }
 .bar-label { color: var(--brand-text-muted); }
-.bar-track {
-  height: 0.625rem;
-  background: var(--brand-border);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.bar-fill { height: 100%; background: var(--brand-red); border-radius: 999px; }
 .bar-count { text-align: right; color: var(--brand-text-muted); }
 .texts {
   margin: 0;

@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import StatBar, { type StatSegment } from "@/components/StatBar.vue";
 import type { ChoreOut } from "@/api/types";
 import { useRoster, useRosterSchedule, useRosterVolunteers } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
@@ -39,6 +40,13 @@ function resolved(v: VolRow): number {
 const maxResolved = computed(() => Math.max(1, ...volunteers.value.map(resolved)));
 function barPct(n: number): string {
   return `${(n / maxResolved.value) * 100}%`;
+}
+function volSegments(v: VolRow): StatSegment[] {
+  const segs: StatSegment[] = [];
+  if (v.completed) segs.push({ width: barPct(v.completed), variant: "positive", title: t("chores.details.doneCount", { n: v.completed }) });
+  if (v.deferred) segs.push({ width: barPct(v.deferred), variant: "warning", title: t("chores.details.deferredCount", { n: v.deferred }) });
+  if (v.missed) segs.push({ width: barPct(v.missed), variant: "danger", title: t("chores.details.missedCount", { n: v.missed }) });
+  return segs;
 }
 function barLabel(v: VolRow): string {
   return [
@@ -182,26 +190,11 @@ function dateWindow(): string {
                   {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
                 </span>
               </div>
-              <div class="bar-track" :aria-label="barLabel(v)">
-                <div
-                  v-if="v.completed"
-                  class="bar-fill done"
-                  :style="{ width: barPct(v.completed) }"
-                  :title="t('chores.details.doneCount', { n: v.completed })"
-                />
-                <div
-                  v-if="v.deferred"
-                  class="bar-fill deferred"
-                  :style="{ width: barPct(v.deferred) }"
-                  :title="t('chores.details.deferredCount', { n: v.deferred })"
-                />
-                <div
-                  v-if="v.missed"
-                  class="bar-fill missed"
-                  :style="{ width: barPct(v.missed) }"
-                  :title="t('chores.details.missedCount', { n: v.missed })"
-                />
-              </div>
+              <StatBar
+                :segments="volSegments(v)"
+                :aria-label="barLabel(v)"
+                style="--stat-bar-height: 0.75rem"
+              />
               <span class="vol-total" :title="t('chores.details.assignedCount', { n: v.assigned })">
                 {{ v.assigned }}
               </span>
@@ -304,12 +297,9 @@ function dateWindow(): string {
   border-radius: 2px;
   flex-shrink: 0;
 }
-.dot.done,
-.bar-fill.done { background: var(--brand-green); }
-.dot.deferred,
-.bar-fill.deferred { background: var(--brand-amber); }
-.dot.missed,
-.bar-fill.missed { background: var(--brand-red); }
+.dot.done { background: var(--brand-green); }
+.dot.deferred { background: var(--brand-amber); }
+.dot.missed { background: var(--brand-red); }
 .vol-tally {
   list-style: none;
   margin: 0;
@@ -340,19 +330,6 @@ function dateWindow(): string {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.bar-track {
-  display: flex;
-  height: 0.75rem;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.06));
-}
-.bar-fill {
-  height: 100%;
-  min-width: 2px;
-}
-.bar-fill:first-child { border-radius: 999px 0 0 999px; }
-.bar-fill:last-child { border-radius: 0 999px 999px 0; }
 .vol-total {
   font-weight: 700;
   font-variant-numeric: tabular-nums;

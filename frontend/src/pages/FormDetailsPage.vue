@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
 import { useFormClipboard } from "@/composables/useFormClipboard";
 import {
@@ -186,9 +187,7 @@ async function exportCsv() {
               <div class="bars">
                 <template v-for="i in 5" :key="i">
                   <span class="bar-label">{{ i }}</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }" />
-                  </div>
+                  <StatBar :segments="[{ width: barWidth(q.rating_distribution, q.rating_distribution[i - 1]) }]" />
                   <span class="bar-count">{{ q.rating_distribution[i - 1] }}</span>
                 </template>
               </div>
@@ -208,12 +207,7 @@ async function exportCsv() {
               <div class="bars">
                 <template v-for="(count, label) in q.choice_counts" :key="label">
                   <span class="bar-label choice-label">{{ label }}</span>
-                  <div class="bar-track">
-                    <div
-                      class="bar-fill"
-                      :style="{ width: barWidth(Object.values(q.choice_counts), count) }"
-                    />
-                  </div>
+                  <StatBar :segments="[{ width: barWidth(Object.values(q.choice_counts), count) }]" />
                   <span class="bar-count">{{ count }}</span>
                 </template>
               </div>
@@ -305,13 +299,6 @@ async function exportCsv() {
   overflow-wrap: anywhere;
   max-width: 14rem;
 }
-.bar-track {
-  height: 0.625rem;
-  background: var(--brand-border);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.bar-fill { height: 100%; background: var(--brand-red); border-radius: 999px; }
 .bar-count { text-align: right; color: var(--brand-text-muted); }
 .texts {
   margin: 0;

@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
 import { mapLink } from "@/lib/map-link";
 import { useDatepollClipboard } from "@/composables/useDatepollClipboard";
@@ -251,15 +252,21 @@ async function exportCsv() {
                   {{ slotHeading(s) }}
                 </td>
                 <td class="bar-cell combo">
-                  <div class="bar-track">
-                    <div class="bar-fill yes" :style="{ width: pctOf(s.yes, maxYesMaybe) }" />
-                    <div class="bar-fill maybe" :style="{ width: pctOf(s.maybe, maxYesMaybe) }" />
-                  </div>
+                  <span class="tally-bar">
+                    <StatBar
+                      :segments="[
+                        { width: pctOf(s.yes, maxYesMaybe), variant: 'positive' },
+                        { width: pctOf(s.maybe, maxYesMaybe), variant: 'warning' },
+                      ]"
+                    />
+                  </span>
                   <span class="bar-count yes">{{ s.yes }}</span>
                   <span class="bar-count maybe">{{ s.maybe }}</span>
                 </td>
                 <td class="bar-cell">
-                  <div class="bar-track"><div class="bar-fill no" :style="{ width: pctOf(s.no, maxNo) }" /></div>
+                  <span class="tally-bar">
+                    <StatBar :segments="[{ width: pctOf(s.no, maxNo), variant: 'neutral' }]" />
+                  </span>
                   <span class="bar-count">{{ s.no }}</span>
                 </td>
               </tr>
@@ -395,20 +402,12 @@ async function exportCsv() {
  * in one track and shows two coloured counts. */
 .bar-cell { width: 28%; }
 .bar-cell.combo { width: 44%; }
-.bar-track {
+.tally-bar {
   display: inline-flex;
   width: calc(100% - 1.4rem);
-  height: 0.625rem;
-  background: var(--brand-border);
-  border-radius: 999px;
-  overflow: hidden;
   vertical-align: middle;
 }
-.combo .bar-track { width: calc(100% - 2.7rem); }
-.bar-fill { height: 100%; }
-.bar-fill.yes { background: var(--brand-green); }
-.bar-fill.maybe { background: var(--brand-amber); }
-.bar-fill.no { background: var(--brand-text-muted); }
+.combo .tally-bar { width: calc(100% - 2.7rem); }
 .bar-count {
   display: inline-block;
   width: 1.15rem;
