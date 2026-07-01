@@ -9,6 +9,7 @@
 
 import { createApp } from "vue";
 import "@/assets/theme.css";
+import "@/public_shared/forms.css";
 import PublicChore from "./PublicChore.vue";
 
 createApp(PublicChore).mount("#app");

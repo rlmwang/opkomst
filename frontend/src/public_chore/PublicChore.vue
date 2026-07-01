@@ -233,7 +233,7 @@ async function leave(): Promise<void> {
       <div class="card stack">
         <label class="field">
           <span>{{ c.displayName }}</span>
-          <input v-model="displayName" type="text" class="text-input" />
+          <input v-model="displayName" type="text" class="input" />
         </label>
 
         <details class="disclosure">
@@ -242,7 +242,7 @@ async function leave(): Promise<void> {
         </details>
         <label class="field">
           <span>{{ ch.emailLabel }}</span>
-          <input v-model="email" type="email" class="text-input" :placeholder="personal?.has_email ? '••••••' : ''" />
+          <input v-model="email" type="email" class="input" :placeholder="personal?.has_email ? '••••••' : ''" />
         </label>
         <label class="toggle">
           <input type="checkbox" v-model="emailReminders" />
@@ -255,11 +255,11 @@ async function leave(): Promise<void> {
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
       <div class="actions">
-        <button v-if="status === 'enrol'" type="button" class="btn primary" :disabled="busy" @click="enrol">
+        <button v-if="status === 'enrol'" type="button" class="btn-primary" :disabled="busy" @click="enrol">
           {{ ch.enrolButton }}
         </button>
         <template v-else>
-          <button type="button" class="btn primary" :disabled="busy" @click="saveChanges">
+          <button type="button" class="btn-primary" :disabled="busy" @click="saveChanges">
             {{ savedFlash ? ch.saved : ch.saveChanges }}
           </button>
           <button type="button" class="btn ghost" :disabled="busy" @click="leave">{{ ch.leave }}</button>
@@ -293,14 +293,7 @@ h2 { margin: 0; font-size: 1.1rem; }
   gap: 0.25rem;
 }
 .field > span { font-size: 0.875rem; color: var(--brand-text-muted); }
-.text-input {
-  padding: 0.5rem 0.625rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  background: var(--brand-bg);
-  color: var(--brand-text);
-  font: inherit;
-}
+/* .input + .btn-primary come from ``src/public_shared/forms.css``. */
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -336,12 +329,6 @@ h2 { margin: 0; font-size: 1.1rem; }
   cursor: pointer;
 }
 .btn:disabled { opacity: 0.5; cursor: default; }
-.btn.primary {
-  background: var(--brand-red);
-  border-color: var(--brand-red);
-  color: #fff;
-  font-weight: 600;
-}
 .btn.ghost { background: none; }
 .error { color: var(--brand-red); }
 </style>

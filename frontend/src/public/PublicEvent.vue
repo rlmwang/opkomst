@@ -805,22 +805,10 @@ watch(event, (e) => {
 /* Native form inputs styled to look at home alongside the rest of
  * the brand. ``font-size: 16px`` is the magic number that stops
  * iOS Safari zooming on focus. */
-.input {
-  font: inherit;
-  font-size: 16px;
-  padding: 0.625rem 0.75rem;
-  background: var(--brand-bg);
-  color: var(--brand-text);
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  width: 100%;
-}
-.input:focus {
-  outline: none;
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
-}
-.input:disabled { background: var(--brand-bg); color: var(--brand-text-muted); }
+/* ``.input`` (+ :focus/:disabled) and ``.btn-primary`` now live in
+ * ``src/public_shared/forms.css`` (imported in main.ts). Only the
+ * event-specific number stepper + submit-spinner rules stay here. */
+
 /* The "how did you hear" dropdown is rendered by ``BrandedSelect``
  * — a fully-themed listbox component instead of a native
  * ``<select>``, because native dropdown panels are OS-styled and
@@ -886,34 +874,6 @@ watch(event, (e) => {
 }
 .num-input { -moz-appearance: textfield; }
 
-.btn-primary {
-  font: inherit;
-  cursor: pointer;
-  padding: 0.625rem 1.5rem;
-  /* Reserve a fixed minimum so the button doesn't visibly
-   * shrink when its label is hidden during ``submitting`` —
-   * the spinner replaces the label in the same footprint. */
-  min-width: 8rem;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--brand-red);
-  border-radius: 6px;
-  background: var(--brand-red);
-  color: #fff;
-  font-weight: 600;
-  transition: background 120ms, opacity 120ms, transform 60ms ease;
-}
-.btn-primary:hover:not(:disabled) { background: #7f0009; }
-/* Tactile click feedback so the visitor sees something happen the
- * instant they press, before the network round-trip starts. */
-.btn-primary:active:not(:disabled) { transform: translateY(1px); }
-/* Disabled while submitting: keep the brand-red look (the spinner
- * itself is the affordance) but lock interaction. ``cursor:
- * default`` rather than ``not-allowed`` because the action isn't
- * forbidden, it's in flight. */
-.btn-primary:disabled { opacity: 0.85; cursor: default; }
 /* When ``submitting`` the label is hidden but kept in DOM so the
  * button's width stays put. ``visibility: hidden`` (not display:
  * none) preserves layout. */

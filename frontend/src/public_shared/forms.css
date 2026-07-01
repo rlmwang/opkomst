@@ -1,0 +1,62 @@
+/*
+ * Shared form controls for the public mini-apps (event / form / datepoll
+ * / chore). These used to be re-declared per app and drifted (three
+ * different ``.btn-primary`` radii/widths; ``.input`` existed only on the
+ * event page). This is the canonical pair — the event page's, the most
+ * complete (submit-spinner-ready). Import after ``theme.css`` in each
+ * mini-app's ``main.ts``.
+ *
+ * @layer app so it merges with theme.css's layer (mini-apps ship no
+ * PrimeVue, so there's no other layer to order against).
+ */
+@layer app {
+  .input {
+    font: inherit;
+    font-size: 16px;
+    padding: 0.625rem 0.75rem;
+    background: var(--brand-bg);
+    color: var(--brand-text);
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    width: 100%;
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--brand-red);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
+  }
+  .input:disabled {
+    background: var(--brand-bg);
+    color: var(--brand-text-muted);
+  }
+
+  .btn-primary {
+    font: inherit;
+    cursor: pointer;
+    padding: 0.625rem 1.5rem;
+    /* Reserve a minimum so the button doesn't shrink when its label is
+     * hidden during ``submitting`` (spinner replaces it in-footprint). */
+    min-width: 8rem;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--brand-red);
+    border-radius: 6px;
+    background: var(--brand-red);
+    color: #fff;
+    font-weight: 600;
+    transition: background 120ms, opacity 120ms, transform 60ms ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #7f0009;
+  }
+  /* Tactile click feedback before the network round-trip starts. */
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn-primary:disabled {
+    opacity: 0.85;
+    cursor: default;
+  }
+}

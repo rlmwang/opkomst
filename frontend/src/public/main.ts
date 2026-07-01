@@ -15,6 +15,7 @@
 
 import { createApp } from "vue";
 import "@/assets/theme.css";
+import "@/public_shared/forms.css";
 import PublicEvent from "./PublicEvent.vue";
 
 createApp(PublicEvent).mount("#app");
