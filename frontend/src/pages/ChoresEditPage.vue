@@ -492,7 +492,10 @@ async function submit() {
   flex-wrap: wrap;
 }
 .date-row .field {
+  /* min-width: 0 so both fields shrink to the equal flex-basis instead of
+   * being sized by their (unequal-length) placeholder text. */
   flex: 1 1 12rem;
+  min-width: 0;
 }
 .field-error {
   margin: 0;
