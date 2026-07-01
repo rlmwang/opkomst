@@ -498,7 +498,13 @@
       "assignedCount": "{n} assigned",
       "doneCount": "{n} done",
       "deferredCount": "{n} handed off",
-      "missedCount": "{n} missed"
+      "missedCount": "{n} missed",
+      "legend": {
+        "done": "Done",
+        "deferred": "Handed off",
+        "missed": "Missed",
+        "assigned": "Assigned"
+      }
     }
   },
   "admin": {

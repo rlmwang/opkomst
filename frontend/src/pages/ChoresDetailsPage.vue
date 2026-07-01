@@ -27,6 +27,27 @@ const scheduleQuery = useRosterSchedule(rosterId);
 const schedule = computed(() => scheduleQuery.data.value ?? null);
 const upcoming = computed(() => schedule.value?.upcoming ?? []);
 
+// Volunteer accountability bars: length = that person's *resolved*
+// shifts (done + handed-off + missed) relative to the busiest resolver,
+// segmented by outcome. Upcoming shifts are deliberately excluded — for
+// an open-ended roster they grow without bound. "Assigned so far" shows
+// as a separate number.
+type VolRow = (typeof volunteers.value)[number];
+function resolved(v: VolRow): number {
+  return v.completed + v.deferred + v.missed;
+}
+const maxResolved = computed(() => Math.max(1, ...volunteers.value.map(resolved)));
+function barPct(n: number): string {
+  return `${(n / maxResolved.value) * 100}%`;
+}
+function barLabel(v: VolRow): string {
+  return [
+    t("chores.details.doneCount", { n: v.completed }),
+    t("chores.details.deferredCount", { n: v.deferred }),
+    t("chores.details.missedCount", { n: v.missed }),
+  ].join(", ");
+}
+
 const choreName = computed<Record<string, string>>(() =>
   Object.fromEntries(choreItems.value.map((c) => [c.id, c.name])),
 );
@@ -146,22 +167,47 @@ function dateWindow(): string {
       <AppCard>
         <h2>{{ t("chores.details.volunteersHeading") }}</h2>
         <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
-        <ul v-else class="vol-list">
-          <li v-for="v in volunteers" :key="v.id" class="vol-item">
-            <span class="vol-head">
-              <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
-              <span class="muted vol-chores">
-                {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+        <template v-else>
+          <div class="bar-legend muted">
+            <span class="key"><i class="dot done" />{{ t("chores.details.legend.done") }}</span>
+            <span class="key"><i class="dot deferred" />{{ t("chores.details.legend.deferred") }}</span>
+            <span class="key"><i class="dot missed" />{{ t("chores.details.legend.missed") }}</span>
+            <span class="key total-key">{{ t("chores.details.legend.assigned") }}</span>
+          </div>
+          <ul class="vol-tally">
+            <li v-for="v in volunteers" :key="v.id" class="vol-row">
+              <div class="vol-id">
+                <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
+                <span class="muted vol-chores">
+                  {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+                </span>
+              </div>
+              <div class="bar-track" :aria-label="barLabel(v)">
+                <div
+                  v-if="v.completed"
+                  class="bar-fill done"
+                  :style="{ width: barPct(v.completed) }"
+                  :title="t('chores.details.doneCount', { n: v.completed })"
+                />
+                <div
+                  v-if="v.deferred"
+                  class="bar-fill deferred"
+                  :style="{ width: barPct(v.deferred) }"
+                  :title="t('chores.details.deferredCount', { n: v.deferred })"
+                />
+                <div
+                  v-if="v.missed"
+                  class="bar-fill missed"
+                  :style="{ width: barPct(v.missed) }"
+                  :title="t('chores.details.missedCount', { n: v.missed })"
+                />
+              </div>
+              <span class="vol-total" :title="t('chores.details.assignedCount', { n: v.assigned })">
+                {{ v.assigned }}
               </span>
-            </span>
-            <span class="vol-stats">
-              <span class="stat">{{ t("chores.details.assignedCount", { n: v.assigned }) }}</span>
-              <span class="stat ok">{{ t("chores.details.doneCount", { n: v.completed }) }}</span>
-              <span class="stat">{{ t("chores.details.deferredCount", { n: v.deferred }) }}</span>
-              <span class="stat" :class="{ bad: v.missed > 0 }">{{ t("chores.details.missedCount", { n: v.missed }) }}</span>
-            </span>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </template>
       </AppCard>
 
       <AppCard>
@@ -220,7 +266,6 @@ function dateWindow(): string {
   color: var(--brand-text-muted);
   font-size: 0.75rem;
 }
-.vol-list,
 .shift-list {
   list-style: none;
   margin: 0.5rem 0 0;
@@ -235,38 +280,85 @@ function dateWindow(): string {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-.vol-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.vol-head {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-.vol-name { font-weight: 600; }
 .vol-chores,
 .shift-chore { font-size: 0.875rem; }
-.vol-stats {
+
+/* Volunteer accountability tally — a datepoll-style stacked bar per
+ * person (done / handed-off / missed), plus their assigned total. */
+.bar-legend {
   display: flex;
-  gap: 0.375rem;
   flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  margin: 0.25rem 0 0.75rem;
 }
-.stat {
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
-  color: var(--brand-text-muted);
-  font-size: 0.75rem;
+.bar-legend .key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.bar-legend .total-key { margin-left: auto; font-variant: small-caps; }
+.dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.dot.done,
+.bar-fill.done { background: #1a7f3c; }
+.dot.deferred,
+.bar-fill.deferred { background: #c98a00; }
+.dot.missed,
+.bar-fill.missed { background: var(--brand-red); }
+.vol-tally {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+.vol-row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 12rem) 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+.vol-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.vol-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
-.stat.ok { color: #1a7f3c; }
-.stat.bad { color: var(--brand-red); font-weight: 600; }
+.vol-chores {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bar-track {
+  display: flex;
+  height: 0.75rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.06));
+}
+.bar-fill {
+  height: 100%;
+  min-width: 2px;
+}
+.bar-fill:first-child { border-radius: 999px 0 0 999px; }
+.bar-fill:last-child { border-radius: 0 999px 999px 0; }
+.vol-total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+  text-align: right;
+}
 .stats-line { margin: 0 0 0.5rem; }
 .shift-date { min-width: 8rem; }
 .shift-assignee { margin-left: auto; font-weight: 500; }

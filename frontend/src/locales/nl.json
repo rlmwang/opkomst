@@ -498,7 +498,13 @@
       "assignedCount": "{n} toegewezen",
       "doneCount": "{n} gedaan",
       "deferredCount": "{n} doorgegeven",
-      "missedCount": "{n} gemist"
+      "missedCount": "{n} gemist",
+      "legend": {
+        "done": "Gedaan",
+        "deferred": "Doorgegeven",
+        "missed": "Gemist",
+        "assigned": "Toegewezen"
+      }
     }
   },
   "admin": {
