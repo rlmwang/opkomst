@@ -236,7 +236,7 @@ async function submit(): Promise<void> {
 
         <div class="card submit-card">
           <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
-          <button type="button" class="btn-primary" :disabled="submitting" @click="submit">
+          <button type="button" class="btn-primary full" :disabled="submitting" @click="submit">
             {{ submitting ? c.submitting : c.submit }}
           </button>
         </div>
@@ -294,16 +294,5 @@ async function submit(): Promise<void> {
 .card :deep(.month):last-child { margin-bottom: 0; }
 .submit-card { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
 .error { color: var(--brand-red); margin: 0; }
-.btn-primary {
-  width: 100%;
-  padding: 0.75rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--brand-red);
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: default; }
+/* .btn-primary (+ .full) comes from ``src/public_shared/forms.css``. */
 </style>

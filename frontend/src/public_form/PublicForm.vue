@@ -341,15 +341,5 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
 /* --- Submit --- */
 .submit-row { display: flex; justify-content: flex-end; }
-.btn-primary {
-  background: var(--brand-red);
-  color: #fff;
-  border: 1px solid var(--brand-red);
-  padding: 0.625rem 1.25rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 1rem;
-  cursor: pointer;
-}
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+/* .btn-primary comes from ``src/public_shared/forms.css``. */
 </style>

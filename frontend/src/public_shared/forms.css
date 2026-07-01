@@ -59,4 +59,8 @@
     opacity: 0.85;
     cursor: default;
   }
+  /* Full-width variant — the datepoll submit spans its card. */
+  .btn-primary.full {
+    width: 100%;
+  }
 }

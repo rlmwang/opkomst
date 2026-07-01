@@ -10,6 +10,7 @@
 
 import { createApp } from "vue";
 import "@/assets/theme.css";
+import "@/public_shared/forms.css";
 import PublicDatepoll from "./PublicDatepoll.vue";
 
 createApp(PublicDatepoll).mount("#app");
