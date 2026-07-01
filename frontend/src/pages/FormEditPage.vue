@@ -14,6 +14,7 @@ import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import { useFormDraft } from "@/composables/useFormDraft";
+import { useOrderedList } from "@/composables/useOrderedList";
 import {
   type FormCreate,
   type FormQuestionIn,
@@ -55,7 +56,8 @@ const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const formLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
-const questions = ref<QuestionDraft[]>([]);
+const questionList = useOrderedList<QuestionDraft>();
+const questions = questionList.items;
 const submitting = ref(false);
 
 // Edit-mode hydration. ``useForm`` caches per-form-id so we only
@@ -175,7 +177,7 @@ function restoreDraftOnce(): void {
 // --- Question list helpers -----------------------------------------
 
 function addQuestion(): void {
-  questions.value.push({
+  questionList.add({
     id: null,
     kind: "rating",
     prompt: "",
@@ -187,18 +189,15 @@ function addQuestion(): void {
 }
 
 function removeQuestion(index: number): void {
-  questions.value.splice(index, 1);
+  questionList.removeAt(index);
 }
 
 function moveQuestion(index: number, delta: -1 | 1): void {
-  const target = index + delta;
-  if (target < 0 || target >= questions.value.length) return;
-  const arr = questions.value;
-  [arr[index], arr[target]] = [arr[target], arr[index]];
+  questionList.move(index, delta);
 }
 
 function setQuestion(index: number, next: QuestionDraft): void {
-  questions.value[index] = next;
+  questionList.replaceAt(index, next);
 }
 
 // --- Cancel / submit -----------------------------------------------
