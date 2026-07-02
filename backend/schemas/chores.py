@@ -173,6 +173,9 @@ class PersonalShiftOut(BaseModel):
     chore_name: str
     on_date: date
     status: str
+    # True when this shift was picked up covering for someone who left
+    # (an ``inherited`` ledger event, task 13) — surfaced as an origin note.
+    inherited: bool = False
 
 
 class EnrollIn(BaseModel):
@@ -280,6 +283,9 @@ class VolunteerSummaryOut(BaseModel):
     id: str
     display_name: str | None
     enrolled_chore_ids: list[str]
+    # True until they hold any pinned or past shift — a newcomer folding in
+    # (design §7): shown as "joining" until the commit horizon reaches them.
+    pending: bool
     load: int
     assigned: int
     completed: int

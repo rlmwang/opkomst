@@ -21,6 +21,7 @@ export interface ChoreStrings {
   saved: string;
   myTurns: string;
   noUpcoming: string;
+  coveringForLeaver: string;
   upForGrabs: string;
   noOpen: string;
   markDone: string;
@@ -67,6 +68,7 @@ const dict: Record<Locale, ChoreStrings> = {
     saved: "Opgeslagen",
     myTurns: "Mijn beurten",
     noUpcoming: "Je hebt geen komende beurten.",
+    coveringForLeaver: "Overgenomen voor iemand die vertrok",
     upForGrabs: "Vrije beurten",
     noOpen: "Geen vrije beurten om over te nemen.",
     markDone: "Gedaan",
@@ -111,6 +113,7 @@ const dict: Record<Locale, ChoreStrings> = {
     saved: "Saved",
     myTurns: "My turns",
     noUpcoming: "You have no upcoming turns.",
+    coveringForLeaver: "Picked up, covering for someone who left",
     upForGrabs: "Up for grabs",
     noOpen: "No open turns to take on.",
     markDone: "Done",

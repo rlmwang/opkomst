@@ -3027,6 +3027,11 @@
             "title": "Id",
             "type": "string"
           },
+          "inherited": {
+            "default": false,
+            "title": "Inherited",
+            "type": "boolean"
+          },
           "on_date": {
             "format": "date",
             "title": "On Date",
@@ -4510,12 +4515,17 @@
           "missed": {
             "title": "Missed",
             "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
           }
         },
         "required": [
           "id",
           "display_name",
           "enrolled_chore_ids",
+          "pending",
           "load",
           "assigned",
           "completed",
@@ -6099,7 +6109,7 @@
     },
     "/api/v1/chores/by-token/{token}/leave": {
       "post": {
-        "description": "Remove the volunteer. Enrolments cascade; the encrypted email goes\nwith the row; future shifts drop the assignee via SET NULL.",
+        "description": "Remove the volunteer. Enrolments cascade; the encrypted email goes\nwith the row; future shifts drop the assignee via SET NULL and are\nimmediately re-covered among the remaining eligible (an ``inherited``\npickup), or left ``open`` if nobody is eligible.",
         "operationId": "leave_api_v1_chores_by_token__token__leave_post",
         "parameters": [
           {

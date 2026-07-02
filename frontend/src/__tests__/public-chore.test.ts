@@ -103,8 +103,12 @@ describe("PublicChore personal mode", () => {
     enrolled_chore_ids: ["c1"],
     email_reminders: false,
     has_email: false,
-    my_shifts: [{ id: "s1", chore_id: "c1", chore_name: "Bins", on_date: "2026-07-08", status: "scheduled" }],
-    open_shifts: [{ id: "s2", chore_id: "c2", chore_name: "Sweep", on_date: "2026-07-10", status: "open" }],
+    my_shifts: [
+      { id: "s1", chore_id: "c1", chore_name: "Bins", on_date: "2026-07-08", status: "scheduled", inherited: false },
+    ],
+    open_shifts: [
+      { id: "s2", chore_id: "c2", chore_name: "Sweep", on_date: "2026-07-10", status: "open", inherited: false },
+    ],
   };
 
   it("renders my turns + up-for-grabs", async () => {

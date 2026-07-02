@@ -24,6 +24,16 @@ const loaded = computed(() => !rosterQuery.isPending.value);
 
 const volunteersQuery = useRosterVolunteers(rosterId);
 const volunteers = computed(() => volunteersQuery.data.value ?? []);
+
+// A pending newcomer folds into pins as the horizon edge rolls forward
+// (design §7): their first turns land at today + commit_horizon_days.
+const horizonEdge = computed(() => {
+  const days = roster.value?.commit_horizon_days;
+  if (days == null) return null;
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+});
 const scheduleQuery = useRosterSchedule(rosterId);
 const schedule = computed(() => scheduleQuery.data.value ?? null);
 const upcoming = computed(() => schedule.value?.confirmed ?? []);
@@ -189,6 +199,9 @@ function dateWindow(): string {
                 <span class="muted vol-chores">
                   {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
                 </span>
+                <span v-if="v.pending && horizonEdge" class="vol-joining">
+                  {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
+                </span>
               </div>
               <StatBar
                 :segments="volSegments(v)"
@@ -329,6 +342,11 @@ function dateWindow(): string {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.vol-joining {
+  font-size: 0.8em;
+  color: var(--p-primary-color);
+  font-weight: 500;
 }
 .vol-total {
   font-weight: 700;

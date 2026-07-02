@@ -210,6 +210,7 @@ async function leave(): Promise<void> {
               <span class="shift-main">
                 <strong>{{ s.chore_name }}</strong>
                 <span class="muted">{{ formatLongDate(s.on_date, locale) }}</span>
+                <span v-if="s.inherited" class="muted origin-note">{{ ch.coveringForLeaver }}</span>
               </span>
               <span class="shift-actions">
                 <button type="button" class="btn" :disabled="busy" @click="act(s.id, 'done')">

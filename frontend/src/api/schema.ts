@@ -548,7 +548,9 @@ export interface paths {
         /**
          * Leave
          * @description Remove the volunteer. Enrolments cascade; the encrypted email goes
-         *     with the row; future shifts drop the assignee via SET NULL.
+         *     with the row; future shifts drop the assignee via SET NULL and are
+         *     immediately re-covered among the remaining eligible (an ``inherited``
+         *     pickup), or left ``open`` if nobody is eligible.
          */
         post: operations["leave_api_v1_chores_by_token__token__leave_post"];
         delete?: never;
@@ -3226,6 +3228,11 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * Inherited
+             * @default false
+             */
+            inherited: boolean;
+            /**
              * On Date
              * Format: date
              */
@@ -3798,6 +3805,8 @@ export interface components {
             load: number;
             /** Missed */
             missed: number;
+            /** Pending */
+            pending: boolean;
         };
     };
     responses: never;

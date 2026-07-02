@@ -491,6 +491,7 @@
       "scheduleHeading": "Schedule",
       "scheduleEmpty": "The schedule appears once shifts are assigned.",
       "anonymous": "Anonymous",
+      "joining": "Joining · first turns from {date}",
       "load": "{n} shifts",
       "openShift": "Open",
       "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open",

@@ -189,13 +189,14 @@ def _enrolled_chore_ids(db: Session, volunteer_id: str) -> list[str]:
     return [row[0] for row in db.query(Enrollment.chore_id).filter(Enrollment.volunteer_id == volunteer_id).all()]
 
 
-def _shift_out(shift: Shift, chore_name: str) -> PersonalShiftOut:
+def _shift_out(shift: Shift, chore_name: str, *, inherited: bool = False) -> PersonalShiftOut:
     return PersonalShiftOut(
         id=shift.id,
         chore_id=shift.chore_id,
         chore_name=chore_name,
         on_date=shift.on_date,
         status=shift.status,
+        inherited=inherited,
     )
 
 
@@ -213,6 +214,18 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         .order_by(Shift.on_date, Shift.id)
         .all()
     )
+    # Shifts this volunteer picked up covering for someone who left get an
+    # origin note on their page (design §7 disruption provenance).
+    inherited_ids = {
+        sid
+        for (sid,) in db.query(ShiftEvent.shift_id)
+        .filter(
+            ShiftEvent.volunteer_id == volunteer.id,
+            ShiftEvent.kind == "inherited",
+            ShiftEvent.shift_id.is_not(None),
+        )
+        .all()
+    }
     open_shifts: list[PersonalShiftOut] = []
     if chore_ids:
         opens = (
@@ -258,7 +271,7 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         enrolled_chore_ids=chore_ids,
         email_reminders=volunteer.email_reminders,
         has_email=volunteer.encrypted_email is not None,
-        my_shifts=[_shift_out(s, name) for s, name in mine],
+        my_shifts=[_shift_out(s, name, inherited=s.id in inherited_ids) for s, name in mine],
         open_shifts=open_shifts,
         outlook_shifts=_personal_outlook(db, volunteer, today),
         coverable_shifts=coverable,
@@ -345,11 +358,20 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
         by_vol.setdefault(vid, []).append(cid)
     loads = _roster_loads(db, roster.id)
     events = _event_counts(db, roster.id)
+    # A volunteer is "pending" until they hold any shift (pinned or past).
+    held = {
+        row[0]
+        for row in db.query(Shift.volunteer_id)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(Chore.roster_id == roster.id, Shift.volunteer_id.is_not(None))
+        .distinct()
+    }
     return [
         VolunteerSummaryOut(
             id=v.id,
             display_name=v.display_name,
             enrolled_chore_ids=by_vol.get(v.id, []),
+            pending=v.id not in held,
             load=loads.get(v.id, 0),
             # "assigned so far" = auto-assigned + self-claimed.
             assigned=events.get(v.id, {}).get("assigned", 0) + events.get(v.id, {}).get("claimed", 0),

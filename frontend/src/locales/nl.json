@@ -491,6 +491,7 @@
       "scheduleHeading": "Rooster",
       "scheduleEmpty": "Het rooster verschijnt zodra beurten zijn ingedeeld.",
       "anonymous": "Anoniem",
+      "joining": "Sluit aan · eerste beurten vanaf {date}",
       "load": "{n} beurten",
       "openShift": "Vrij",
       "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij",

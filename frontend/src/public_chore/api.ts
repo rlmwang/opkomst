@@ -38,6 +38,7 @@ export interface PersonalShift {
   chore_name: string;
   on_date: string; // YYYY-MM-DD
   status: string;
+  inherited: boolean; // picked up covering for someone who left
 }
 
 export interface PersonalOutlook {

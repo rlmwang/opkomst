@@ -59,10 +59,12 @@ def _occupants(db: Session, chore_id: str, on_date: date, *, exclude_shift_id: s
     return {row[0] for row in q.all()}
 
 
-def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None) -> str | None:
-    """Assign a single ``open`` shift (used by handoff). Picks the highest
-    WRH-ranked eligible volunteer who is not excluded and not already on
-    this occurrence. Returns the chosen volunteer id or ``None``. Does not
+def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None, kind: str = "assigned") -> str | None:
+    """Assign a single ``open`` shift. Picks the highest WRH-ranked
+    eligible volunteer who is not excluded and not already on this
+    occurrence, records ``kind`` for them, and returns the chosen
+    volunteer id or ``None``. ``kind`` is ``assigned`` for a pass-reopen,
+    ``inherited`` when covering a departed volunteer's slot. Does not
     commit."""
     chore = db.query(Chore).filter(Chore.id == shift.chore_id).first()
     if chore is None:
@@ -77,8 +79,37 @@ def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None
     if chosen is not None:
         shift.volunteer_id = chosen
         shift.status = "scheduled"
-        record_event(db, roster_id=chore.roster_id, volunteer_id=chosen, kind="assigned", shift_id=shift.id)
+        record_event(db, roster_id=chore.roster_id, volunteer_id=chosen, kind=kind, shift_id=shift.id)
     return chosen
+
+
+def cover_orphaned_shifts(db: Session, roster_id: str, today: date) -> int:
+    """Re-cover every future pinned shift left unassigned (volunteer_id
+    NULL, still ``scheduled``) — e.g. after a volunteer leaves and their
+    shifts SET NULL. Each is reassigned via WRH among the remaining
+    eligible (an ``inherited`` pickup, +credit); if nobody is eligible it
+    becomes ``open`` for anyone to claim. Immediate coverage, not the
+    tick's job. Returns how many were re-covered. Does not commit."""
+    orphans = (
+        db.query(Shift)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(
+            Chore.roster_id == roster_id,
+            Shift.on_date >= today,
+            Shift.status == "scheduled",
+            Shift.volunteer_id.is_(None),
+        )
+        .all()
+    )
+    covered = 0
+    for shift in orphans:
+        shift.reminder_sent_at = None
+        if reassign_shift(db, shift, kind="inherited") is None:
+            shift.status = "open"
+        else:
+            covered += 1
+    db.flush()
+    return covered
 
 
 # Acquisition/outcome events that make a pin a real commitment — an

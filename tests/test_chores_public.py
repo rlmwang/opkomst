@@ -138,6 +138,8 @@ def test_volunteer_list_leak_guard(client, organiser_headers):
     assert row["load"] == 0
     # Accountability counts are present (all zero pre-tick).
     assert row["assigned"] == 0 and row["completed"] == 0 and row["deferred"] == 0 and row["missed"] == 0
+    # Freshly enrolled, pre-tick: holds no pinned or past shift → pending.
+    assert row["pending"] is True
     banned = {"email", "encrypted_email", "edit_token", "edit_token_hash", "token"}
     assert not (banned & set(row.keys())), set(row.keys())
 

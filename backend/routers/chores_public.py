@@ -47,6 +47,7 @@ from ..schemas.chores import (
 )
 from ..services import chore_tick, edit_token, encryption, mail, public_access
 from ..services import chores as chores_svc
+from ..services.events import now_wallclock
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
@@ -156,6 +157,32 @@ def update_enrolment(
         db.add(Enrollment(volunteer_id=volunteer.id, chore_id=cid))
     volunteer.display_name = data.display_name
 
+    # Chores the volunteer just dropped: their future confirmed shifts on
+    # those chores are relinquished (deferred) and re-covered among the
+    # remaining eligible, so a drop doesn't leave stale assignments.
+    today = now_wallclock().date()
+    new_ids = list(dict.fromkeys(data.chore_ids))
+    stale_q = (
+        db.query(Shift)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(
+            Chore.roster_id == volunteer.roster_id,
+            Shift.volunteer_id == volunteer.id,
+            Shift.on_date >= today,
+            Shift.status == "scheduled",
+        )
+    )
+    if new_ids:
+        stale_q = stale_q.filter(Chore.id.notin_(new_ids))
+    for shift in stale_q.all():
+        chore_tick.record_event(
+            db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="deferred", shift_id=shift.id
+        )
+        shift.volunteer_id = None
+        shift.reminder_sent_at = None
+    db.flush()
+    chore_tick.cover_orphaned_shifts(db, volunteer.roster_id, today)
+
     # Reminder/email transitions (§6). The invariant held on every path:
     # email_reminders on ⇒ a ciphertext is on file; off ⇒ ciphertext NULL.
     email = data.email
@@ -174,11 +201,17 @@ def update_enrolment(
 @limiter.limit(Limits.PUBLIC_SIGNUP)
 def leave(request: Request, token: str, db: Session = Depends(get_db)) -> None:
     """Remove the volunteer. Enrolments cascade; the encrypted email goes
-    with the row; future shifts drop the assignee via SET NULL."""
+    with the row; future shifts drop the assignee via SET NULL and are
+    immediately re-covered among the remaining eligible (an ``inherited``
+    pickup), or left ``open`` if nobody is eligible."""
     volunteer = _volunteer_by_token(db, token)
+    roster_id = volunteer.roster_id
+    today = now_wallclock().date()
     db.delete(volunteer)
+    db.flush()  # apply SET NULL so the orphaned shifts are visible
+    chore_tick.cover_orphaned_shifts(db, roster_id, today)
     db.commit()
-    logger.info("volunteer_left", roster_id=volunteer.roster_id)
+    logger.info("volunteer_left", roster_id=roster_id)
 
 
 def _shift_in_roster(db: Session, shift_id: str, roster_id: str) -> Shift:
