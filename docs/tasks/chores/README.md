@@ -32,7 +32,7 @@ volunteers fold in within a bounded horizon. Ship in order; each leaves the suit
 | 10 | Deterministic assignment (WRH) + favour ledger *(landed; spec deleted)* | backend | 06, 09 |
 | 11 | Projection, commit horizon, roster lifecycle *(landed; spec deleted)* | backend (+FE reads) | 10 |
 | 12 | Volunteer actions: pass/cover/swap/availability + confirmed-vs-outlook UI *(landed; swap UI deferred; spec deleted)* | backend + frontend | 11 |
-| 13 | [Membership change: removal static-patch, addition fold-in, disruption credit](chores-13-membership-change.md) | backend (+FE) | 11, 12 |
+| 13 | Membership change: removal re-cover, addition fold-in, disruption credit *(landed; removal reflow lives in `chore_tick.cover_orphaned_shifts`; spec deleted)* | backend (+FE) | 11, 12 |
 | 14 | [Accountability: regular turns vs picked-up-for-others](chores-14-accountability-provenance.md) | backend + frontend | 09, 12, 13 |
 
 **Already well-factored (the specs just reuse these — no work):** `useShareClipboard`,
