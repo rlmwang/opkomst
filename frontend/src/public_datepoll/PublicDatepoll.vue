@@ -6,6 +6,7 @@ import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditLink } from "@/public_shared/useEditLink";
 import {
   type Availability,
   type PublicDatepoll,
@@ -41,14 +42,6 @@ function growNote(): void {
   el.style.height = `${el.scrollHeight}px`;
 }
 
-// ``?s={token}`` puts the page in edit mode: pre-fill from the existing
-// submission and PUT instead of POST on save.
-const editToken = new URL(window.location.href).searchParams.get("s");
-const savedToken = ref<string | null>(null);
-const editUrl = computed(() =>
-  savedToken.value ? `${window.location.origin}/d/${slug()}?s=${savedToken.value}` : "",
-);
-
 // One answers map keyed by slot id — the single source of truth the
 // inline calendar binds to (``null`` = unset).
 const answers = reactive<Record<string, Availability | null>>({});
@@ -57,6 +50,11 @@ const slug = (): string => {
   const parts = window.location.pathname.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? "";
 };
+
+// ``?s={token}`` puts the page in edit mode: pre-fill from the existing
+// submission and PUT instead of POST on save. ``confirmSaved`` records the
+// token AND routes the URL onto it so a refresh reopens the edit page.
+const { editToken, editUrl, confirmSaved } = useEditLink("d", slug);
 
 function hydrate(p: PublicDatepoll): void {
   poll.value = p;
@@ -138,14 +136,11 @@ async function submit(): Promise<void> {
   try {
     if (editToken) {
       await putSubmission(editToken, body);
-      savedToken.value = editToken;
+      confirmSaved(editToken);
     } else {
       const ack = await postSubmission(slug(), body);
-      savedToken.value = ack.edit_token;
+      confirmSaved(ack.edit_token);
     }
-    // Rewrite the URL to the edit link (no reload) so a refresh lands
-    // the visitor back on their editable submission.
-    if (editUrl.value) window.history.replaceState(null, "", editUrl.value);
     status.value = "submitted";
   } catch (e) {
     if (e instanceof ApiError && e.status === 410) {

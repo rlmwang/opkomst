@@ -22,7 +22,8 @@ export interface ChoreDraft {
   description: string | null;
   cycle_slots: number[];
   people_per_shift: number;
-  emoji: string | null;
+  // Every chore always carries an emoji (seeded with DEFAULT_CHORE_EMOJI).
+  emoji: string;
 }
 
 const props = defineProps<{
@@ -51,15 +52,7 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
   <div class="chore-editor">
     <div class="header-row">
       <span class="emoji-slot">
-        <button
-          v-if="modelValue.emoji"
-          type="button"
-          class="emoji-clear"
-          :aria-label="t('chores.edit.clearEmoji')"
-          v-tooltip.top="t('chores.edit.clearEmoji')"
-          @click="patch('emoji', null)"
-        >{{ modelValue.emoji }}</button>
-        <EmojiPicker v-else @select="(e) => patch('emoji', e)" />
+        <EmojiPicker :model-value="modelValue.emoji" @select="(e) => patch('emoji', e)" />
       </span>
       <InputText
         :model-value="modelValue.name"
@@ -107,14 +100,11 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
       @update:model-value="(v) => patch('description', v ? v : null)"
     />
 
-    <div class="days-block">
-      <p class="muted days-label">{{ t("chores.edit.daysLabel") }}</p>
-      <CycleGridPicker
-        :model-value="modelValue.cycle_slots"
-        :period-weeks="periodWeeks"
-        @update:model-value="(v) => patch('cycle_slots', v)"
-      />
-    </div>
+    <CycleGridPicker
+      :model-value="modelValue.cycle_slots"
+      :period-weeks="periodWeeks"
+      @update:model-value="(v) => patch('cycle_slots', v)"
+    />
 
     <div class="people-row">
       <span class="field-label">{{ t("chores.edit.peoplePerShift") }}</span>
@@ -148,29 +138,11 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
   display: inline-flex;
   align-items: center;
 }
-.emoji-clear {
-  background: none;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-  padding: 0.3rem 0.4rem;
-}
 .header-actions {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.125rem;
-}
-.days-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-.days-label {
-  margin: 0;
-  font-size: 0.8125rem;
 }
 .people-row {
   display: inline-flex;

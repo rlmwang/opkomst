@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import StatBar, { type StatSegment } from "@/components/StatBar.vue";
+import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import type { ChoreOut } from "@/api/types";
 import { useRoster, useRosterSchedule, useRosterVolunteers } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
@@ -88,24 +89,6 @@ const cadence = computed(() => {
     : t("chores.recurrence.everyKWeeks", { k: r.period_weeks });
 });
 
-/** Human-readable day summary for one chore's cycle_slots, grouped by
- * week when k>1 (e.g. "Wk 1: Wed, Fri · Wk 2: Mon"). */
-function slotSummary(c: ChoreOut): string {
-  const r = roster.value;
-  const k = r ? r.period_weeks : 1;
-  if (c.cycle_slots.length === 0) return t("chores.details.noDays");
-  if (k <= 1) {
-    return c.cycle_slots.map((o) => dayLabels.value[o % 7]).join(", ");
-  }
-  const parts: string[] = [];
-  for (let w = 0; w < k; w++) {
-    const days = c.cycle_slots
-      .filter((o) => Math.floor(o / 7) === w)
-      .map((o) => dayLabels.value[o % 7]);
-    if (days.length) parts.push(`${t("chores.edit.weekLabel", { n: w + 1 })}: ${days.join(", ")}`);
-  }
-  return parts.join(" · ");
-}
 
 function dateWindow(): string {
   const r = roster.value;
@@ -170,14 +153,23 @@ function dateWindow(): string {
         <p v-if="choreItems.length === 0" class="muted">{{ t("chores.details.noChores") }}</p>
         <ul v-else class="chore-list">
           <li v-for="c in choreItems" :key="c.id" class="chore-item">
-            <span class="chore-name">
-              <span v-if="c.emoji" class="chore-emoji">{{ c.emoji }}</span>
-              {{ c.name }}
-            </span>
-            <span class="muted chore-days">{{ slotSummary(c) }}</span>
-            <span v-if="c.people_per_shift > 1" class="people-chip">
-              {{ t("chores.details.peoplePerShift", { n: c.people_per_shift }) }}
-            </span>
+            <div class="chore-head">
+              <span class="chore-name">
+                <span v-if="c.emoji" class="chore-emoji">{{ c.emoji }}</span>
+                {{ c.name }}
+              </span>
+              <span v-if="c.people_per_shift > 1" class="people-chip">
+                {{ t("chores.details.peoplePerShift", { n: c.people_per_shift }) }}
+              </span>
+            </div>
+            <p v-if="c.description" class="muted chore-desc">{{ c.description }}</p>
+            <p v-if="c.cycle_slots.length === 0" class="muted chore-days">{{ t("chores.details.noDays") }}</p>
+            <WeekdayGrid
+              v-else
+              :cycle-slots="c.cycle_slots"
+              :period-weeks="roster?.period_weeks ?? 1"
+              :weekday-labels="dayLabels"
+            />
           </li>
         </ul>
       </AppCard>
@@ -263,16 +255,22 @@ function dateWindow(): string {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 .chore-item {
   display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.chore-head {
+  display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 .chore-name { font-weight: 600; }
 .chore-emoji { margin-right: 0.25rem; }
+.chore-desc { font-size: 0.875rem; }
 .chore-days { font-size: 0.875rem; }
 .people-chip {
   padding: 0.125rem 0.5rem;

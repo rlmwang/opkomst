@@ -86,8 +86,29 @@ function publicDatepollDevRoute(): Plugin {
   };
 }
 
+/**
+ * Dev-only middleware: route ``/c/{slug}`` to ``public-chore.html``.
+ * Mirrors the event/form/datepoll dev routes for the chore-roster
+ * mini-app.
+ */
+function publicChoreDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-chore-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const url = req.url ?? "";
+        if (/^\/c\/[^/?#]+/.test(url.split("?")[0])) {
+          req.url = "/public-chore.html";
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute(), publicDatepollDevRoute()],
+  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute(), publicDatepollDevRoute(), publicChoreDevRoute()],
   test: {
     // happy-dom for component / Vue-Query composables (need a DOM
     // for ``app.mount(document.createElement(...))``); pure-utility

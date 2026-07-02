@@ -76,7 +76,7 @@ describe("PublicChore enrol mode", () => {
     expect(w.text()).toContain("You're signed up!");
   });
 
-  it("includes email + reminders when provided", async () => {
+  it("giving an email turns reminders on (no separate opt-in)", async () => {
     setUrl("/c/abc12345");
     vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
     const w = mount(PublicChore);
@@ -84,9 +84,6 @@ describe("PublicChore enrol mode", () => {
 
     await w.findAll('input[type="checkbox"]')[0].setValue(true); // c1 pick
     await w.find('input[type="email"]').setValue("sam@local.dev");
-    // The reminders checkbox is the last checkbox (after the two chores).
-    const boxes = w.findAll('input[type="checkbox"]');
-    await boxes[boxes.length - 1].setValue(true);
     await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
     await flushPromises();
 
@@ -111,13 +108,13 @@ describe("PublicChore personal mode", () => {
     ],
   };
 
-  it("renders my turns + up-for-grabs", async () => {
+  it("renders my shifts + up-for-grabs", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     const w = mount(PublicChore);
     await flushPromises();
 
-    expect(w.text()).toContain("My turns");
+    expect(w.text()).toContain("My shifts");
     expect(w.text()).toContain("Bins");
     expect(w.text()).toContain("Up for grabs");
     expect(w.text()).toContain("Sweep");

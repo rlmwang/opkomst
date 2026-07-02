@@ -63,4 +63,58 @@
   .btn-primary.full {
     width: 100%;
   }
+
+  /* Confirmation / action button row — the primary action is right-
+   * aligned across every mini-app. Canonical here so it can't drift per
+   * page (the chore page once left-aligned it). Pages needing top spacing
+   * add their own ``margin-top``; alignment always comes from here. */
+  .submit-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  /* Branded checkbox — ``appearance: none`` strips the OS default so the
+   * look is identical across browsers: a brand-red box with a white tick
+   * when checked. Was previously re-declared per page (event help-row);
+   * canonical here so every public mini-app shares one control. */
+  input[type="checkbox"].check {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    background: var(--brand-bg);
+    border: 1px solid var(--brand-border);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: background 120ms, border-color 120ms;
+  }
+  input[type="checkbox"].check:hover {
+    border-color: var(--brand-red);
+  }
+  input[type="checkbox"].check:focus-visible {
+    outline: none;
+    border-color: var(--brand-red);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
+  }
+  input[type="checkbox"].check:checked {
+    background: var(--brand-red);
+    border-color: var(--brand-red);
+  }
+  input[type="checkbox"].check:checked::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
 }

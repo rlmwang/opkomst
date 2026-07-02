@@ -11,6 +11,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ChoreEditor, { type ChoreDraft } from "@/components/ChoreEditor.vue";
+import { DEFAULT_CHORE_EMOJI } from "@/components/EmojiPicker.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
@@ -150,7 +151,7 @@ watch(
       description: c.description ?? null,
       cycle_slots: [...c.cycle_slots],
       people_per_shift: c.people_per_shift,
-      emoji: c.emoji ?? null,
+      emoji: c.emoji ?? DEFAULT_CHORE_EMOJI,
     }));
     restoreDraftOnce();
   },
@@ -204,7 +205,11 @@ function applyDraft(d: RosterEditDraft): void {
   reminderEnabled.value = d.reminderEnabled ?? true;
   reminderDaysBefore.value = d.reminderDaysBefore ?? 1;
   commitHorizonDays.value = d.commitHorizonDays ?? 21;
-  chores.value = (d.chores ?? []).map((c) => ({ ...c, cycle_slots: [...(c.cycle_slots ?? [])] }));
+  chores.value = (d.chores ?? []).map((c) => ({
+    ...c,
+    cycle_slots: [...(c.cycle_slots ?? [])],
+    emoji: c.emoji ?? DEFAULT_CHORE_EMOJI,
+  }));
 }
 
 const { loadDraft, clearDraft } = useFormDraft<RosterEditDraft>({
@@ -243,7 +248,7 @@ function addChore(): void {
     description: null,
     cycle_slots: [],
     people_per_shift: 1,
-    emoji: null,
+    emoji: DEFAULT_CHORE_EMOJI,
   });
 }
 function removeChore(index: number): void {
@@ -280,6 +285,10 @@ async function submit() {
     toasts.warn(t("chores.edit.fillStartsOn"));
     return;
   }
+  if (chores.value.some((c) => !c.name.trim())) {
+    toasts.warn(t("chores.edit.fillChoreName"));
+    return;
+  }
   submitting.value = true;
   try {
     const wirePayload: RosterCreate | RosterUpdate = {
@@ -300,7 +309,7 @@ async function submit() {
       chores: chores.value.map(
         (c): ChoreIn => ({
           id: c.id,
-          name: c.name,
+          name: c.name.trim(),
           description: c.description,
           cycle_slots: c.cycle_slots,
           people_per_shift: c.people_per_shift,
@@ -412,6 +421,19 @@ async function submit() {
           />
         </div>
       </div>
+
+      <details class="advanced">
+        <summary>{{ t("chores.edit.advanced") }}</summary>
+        <div class="field">
+          <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
+          <NumberStepper
+            v-model="commitHorizonDays"
+            :min="reminderEnabled ? reminderDaysBefore : 1"
+            :max="365"
+            :aria-label="t('chores.edit.commitHorizonDays')"
+          />
+        </div>
+      </details>
     </section>
 
     <!-- Chores -->
@@ -449,13 +471,11 @@ async function submit() {
 
     <!-- Reminders -->
     <section class="form-section">
-      <h2 class="section-heading">{{ t("chores.edit.remindersHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
-
       <label class="toggle-row" for="reminderToggle">
         <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
         <strong>{{ t("chores.edit.reminderEnabled") }}</strong>
       </label>
+      <p class="muted toggle-help">{{ t("chores.edit.remindersExplainer") }}</p>
 
       <div v-if="reminderEnabled" class="field">
         <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
@@ -464,17 +484,6 @@ async function submit() {
           :min="0"
           :max="14"
           :aria-label="t('chores.edit.reminderDaysBefore')"
-        />
-      </div>
-
-      <div class="field">
-        <span class="field-label">{{ t("chores.edit.commitHorizonDays") }}</span>
-        <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
-        <NumberStepper
-          v-model="commitHorizonDays"
-          :min="reminderEnabled ? reminderDaysBefore : 1"
-          :max="365"
-          :aria-label="t('chores.edit.commitHorizonDays')"
         />
       </div>
     </section>
@@ -524,5 +533,15 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.advanced > summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brand-text-muted);
+  width: fit-content;
+}
+.advanced[open] > summary {
+  margin-bottom: 0.5rem;
 }
 </style>

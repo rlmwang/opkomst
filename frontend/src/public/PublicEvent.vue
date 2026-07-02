@@ -7,6 +7,7 @@ import EditLink from "@/public_shared/EditLink.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
+import { useEditLink } from "@/public_shared/useEditLink";
 import BrandedSelect from "./BrandedSelect.vue";
 import { ApiError, type PublicEvent, fetchEventBySlug, fetchSignup, postSignup, putSignup } from "./api";
 import { type Locale, pickLocale, strings } from "./i18n";
@@ -15,8 +16,9 @@ const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
 // ``?s={token}`` puts the page in edit mode: pre-fill the existing
 // signup and PUT instead of POST. Email is never editable (no path
 // from a signup to its decoupled dispatch rows), so the email field
-// is hidden in this mode.
-const editToken = new URL(window.location.href).searchParams.get("s");
+// is hidden in this mode. ``confirmSaved`` records the token AND routes
+// the URL onto it so a refresh reopens the edit page.
+const { editToken, editUrl, confirmSaved } = useEditLink("e", () => slug);
 const editing = editToken !== null;
 
 // Server-side-injected event payload. Synchronous, no round-trip
@@ -123,13 +125,6 @@ const submitting = ref(false);
 const submitted = ref(false);
 const errorMsg = ref<string | null>(null);
 
-// Token to surface on the confirmation screen (the edit link). Fresh
-// submit → freshly-minted token; edit → the same token from the URL
-// (reusable while the event is open).
-const savedToken = ref<string | null>(null);
-const editUrl = computed(() =>
-  savedToken.value ? `${window.location.origin}/e/${slug}?s=${savedToken.value}` : "",
-);
 
 if (editing) {
   // Pre-fill from the server, overriding any leftover draft. Email is
@@ -282,7 +277,7 @@ async function submit() {
         source_choice: sourceChoice.value,
         help_choices: helpChoices.value,
       });
-      savedToken.value = editToken;
+      confirmSaved(editToken!);
     } else {
       const ack = await postSignup(slug, {
         display_name: trimmedName || null,
@@ -291,12 +286,8 @@ async function submit() {
         help_choices: helpChoices.value,
         email: trimmedEmail || null,
       });
-      savedToken.value = ack.edit_token;
+      confirmSaved(ack.edit_token);
     }
-    // Rewrite the URL to the edit link (no reload) so a panicked
-    // refresh lands the visitor back on their editable submission
-    // rather than a blank new form.
-    if (editUrl.value) window.history.replaceState(null, "", editUrl.value);
     submitted.value = true;
     clearDraft();
   } catch {
@@ -591,10 +582,9 @@ watch(event, (e) => {
   line-height: 1.5;
 }
 
-/* Submit aligned right; same as the original. */
+/* Alignment comes from the shared ``.submit-row`` in forms.css; only the
+ * top spacing is event-specific (long form → extra separation). */
 .submit-row {
-  display: flex;
-  justify-content: flex-end;
   margin-top: 2rem;
 }
 

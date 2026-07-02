@@ -6,6 +6,7 @@ import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditLink } from "@/public_shared/useEditLink";
 import {
   ApiError,
   type PublicForm,
@@ -20,8 +21,9 @@ import { formStrings } from "./i18n";
 
 const slug = window.location.pathname.replace(/^\/f\//, "").split("/")[0];
 // ``?s={token}`` puts the page in edit mode: pre-fill from the existing
-// submission and PUT instead of POST on save.
-const editToken = new URL(window.location.href).searchParams.get("s");
+// submission and PUT instead of POST on save. ``confirmSaved`` records the
+// token AND routes the URL onto it so a refresh reopens the edit page.
+const { editToken, editUrl, confirmSaved } = useEditLink("f", () => slug);
 
 const form = ref<PublicForm | null>(null);
 const status = ref<"loading" | "ready" | "unavailable" | "load-failed" | "submitted">("loading");
@@ -35,13 +37,6 @@ const f = computed(() => formStrings(locale.value));
 // sign-up name. Empty → anonymous.
 const displayName = ref("");
 
-// Token to surface on the confirmation screen (the edit link). On a
-// fresh submit it's the freshly-minted token; on an edit it's the one
-// from the URL (reusable while the form is live).
-const savedToken = ref<string | null>(null);
-const editUrl = computed(() =>
-  savedToken.value ? `${window.location.origin}/f/${slug}?s=${savedToken.value}` : "",
-);
 
 onMounted(async () => {
   const inlined = window.__OPKOMST_FORM__;
@@ -148,14 +143,11 @@ async function submit() {
   try {
     if (editToken) {
       await putSubmission(editToken, body);
-      savedToken.value = editToken;
+      confirmSaved(editToken);
     } else {
       const ack = await postSubmission(slug, body);
-      savedToken.value = ack.edit_token;
+      confirmSaved(ack.edit_token);
     }
-    // Rewrite the URL to the edit link (no reload) so a refresh lands
-    // the visitor back on their editable submission.
-    if (editUrl.value) window.history.replaceState(null, "", editUrl.value);
     status.value = "submitted";
   } catch (e) {
     submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
@@ -340,6 +332,6 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 .choice-row input { width: 1.125rem; height: 1.125rem; }
 
 /* --- Submit --- */
-.submit-row { display: flex; justify-content: flex-end; }
+/* .submit-row (right-aligned action row) comes from ``forms.css``. */
 /* .btn-primary comes from ``src/public_shared/forms.css``. */
 </style>

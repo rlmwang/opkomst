@@ -58,9 +58,6 @@ function toggle(week: number, day: number): void {
 <template>
   <div class="cycle-grid">
     <div v-for="week in weeks" :key="week" class="cycle-week">
-      <span v-if="weeks > 1" class="week-label">
-        {{ t("chores.edit.weekLabel", { n: week }) }}
-      </span>
       <div class="day-row">
         <button
           v-for="(label, day) in dayLabels"
@@ -88,10 +85,6 @@ function toggle(week: number, day: number): void {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-}
-.week-label {
-  font-size: 0.75rem;
-  color: var(--brand-text-muted);
 }
 .day-row {
   display: flex;

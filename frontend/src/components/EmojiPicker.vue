@@ -1,38 +1,59 @@
+<script lang="ts">
+// The emoji a fresh chore starts with — every chore always carries one.
+export const DEFAULT_CHORE_EMOJI = "🧹";
+</script>
+
 <script setup lang="ts">
 /**
- * Tiny emoji picker. A button that toggles a small popover grid
- * of curated emojis. Clicking an emoji emits ``select`` with the
- * character so the parent can insert it at the right place.
+ * Tiny emoji picker. A trigger that toggles a small popover grid of
+ * curated emojis; clicking one emits ``select`` with the character.
  *
- * Deliberately not a full Unicode picker. The blast tool is used
- * a handful of times a year; 80 commonly-used emojis cover the
- * organising-context vocabulary (rose, raised fist, megaphone,
- * NL flag, etc.) without dragging in 30KB of library code or a
- * search UI nobody asked for.
+ * Two modes, one component:
+ * - **value mode** (chore editor): pass ``modelValue`` and the trigger
+ *   shows the current emoji, highlighting it in the grid. A chore always
+ *   carries one — ``DEFAULT_CHORE_EMOJI`` seeds a fresh chore, so there
+ *   is no clear control.
+ * - **insert mode** (WhatsApp blast): omit ``modelValue`` and the trigger
+ *   shows a neutral face icon; ``select`` inserts at the cursor.
+ *
+ * Deliberately not a full Unicode picker. The vocabulary leads with
+ * chores (cleaning, kitchen, tools, logistics) and rounds out with the
+ * organising/comms staples the blast tool needs — no library, no search.
  */
 import Button from "primevue/button";
 import { onBeforeUnmount, onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
+
+defineProps<{
+  /** The currently selected emoji (value mode); omit for insert mode. */
+  modelValue?: string | null;
+}>();
 
 const emit = defineEmits<{
   select: [emoji: string];
 }>();
 
-// Single flat grid, loosely grouped by use-case. Order is stable
-// so the user can build muscle-memory positions over time.
+const { t } = useI18n();
+
+// Flat grid (multiple of 8 wide), grouped by chore use-case. Order is
+// stable so the user builds muscle-memory positions over time.
 const EMOJIS = [
-  // Faces.
-  "😀", "😄", "😁", "😊", "😂", "🤣", "😅", "😉",
-  "😍", "🥰", "😘", "😎", "🤔", "😴", "🥳", "🤩",
-  "😢", "😭", "😡", "🤯", "🙄", "😬", "😇", "🤗",
-  // Reactions.
-  "❤️", "💔", "💯", "👍", "👎", "👏", "🙏", "🙌",
-  "💪", "✊", "🤝", "👋", "✨", "🔥", "⭐", "🎉",
-  "✅", "❌", "⚠️", "❓", "❗", "💡", "👀", "🤞",
-  // Organising / political.
-  "🌹", "🚩", "🏳️‍🌈", "☮️", "🌍", "🇳🇱", "🇪🇺", "📣",
-  "📢", "📅", "📍", "📌", "📝", "🔔", "⏰", "🎈",
-  // Misc useful.
-  "🎁", "☕", "🍻", "🥁", "📷", "💬", "📨", "✉️",
+  // Cleaning / bathroom.
+  "🧹", "🧽", "🧼", "🧺", "🪣", "🚿", "🛁", "🚽",
+  // Waste / dishes.
+  "🗑️", "♻️", "🧻", "🍽️", "🍴", "🧊", "🫧", "🛒",
+  // Kitchen / food.
+  "🍳", "🥘", "🍲", "☕", "🫖", "🥖", "🍻", "🥗",
+  // Setup / tools.
+  "🪑", "🚪", "🔑", "💡", "🔧", "🔨", "🧰", "📦",
+  // Outdoors / care.
+  "🌱", "🪴", "🌿", "🔥", "🧯", "👕", "🎵", "🥁",
+  // Digital / social media / comms.
+  "📱", "💻", "📸", "💬", "📧", "🌐", "🔗", "📊",
+  // Admin / organising.
+  "📋", "📝", "📅", "📣", "🔔", "⏰", "📍", "🎉",
+  // Organising / reactions (for the message blast tool).
+  "🌹", "🚩", "✊", "❤️", "👍", "🙌", "🙏", "✅",
 ];
 
 const open = ref(false);
@@ -76,24 +97,29 @@ onBeforeUnmount(() => {
       severity="secondary"
       text
       size="small"
-      :aria-label="'emoji'"
+      :aria-label="t('chores.edit.pickEmoji')"
       :aria-expanded="open"
       class="emoji-trigger"
+      :class="{ 'is-empty': !modelValue }"
       @click="toggle"
     >
-      😀
+      <span v-if="modelValue" class="emoji-current">{{ modelValue }}</span>
+      <i v-else class="pi pi-face-smile" />
     </Button>
     <div v-if="open" class="emoji-panel" role="dialog">
-      <button
-        v-for="e in EMOJIS"
-        :key="e"
-        type="button"
-        class="emoji-cell"
-        :title="e"
-        @click="pick(e)"
-      >
-        {{ e }}
-      </button>
+      <div class="emoji-grid">
+        <button
+          v-for="e in EMOJIS"
+          :key="e"
+          type="button"
+          class="emoji-cell"
+          :class="{ selected: e === modelValue }"
+          :title="e"
+          @click="pick(e)"
+        >
+          {{ e }}
+        </button>
+      </div>
     </div>
   </span>
 </template>
@@ -107,6 +133,13 @@ onBeforeUnmount(() => {
   font-size: 1.1rem;
   line-height: 1;
 }
+.emoji-trigger.is-empty {
+  color: var(--brand-text-muted);
+}
+.emoji-current {
+  font-size: 1.1rem;
+  line-height: 1;
+}
 .emoji-panel {
   position: absolute;
   top: calc(100% + 0.25rem);
@@ -117,10 +150,11 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   padding: 0.4rem;
+}
+.emoji-grid {
   display: grid;
   grid-template-columns: repeat(8, 2rem);
   gap: 0.15rem;
-  max-width: calc(8 * 2.15rem + 0.8rem);
 }
 .emoji-cell {
   width: 2rem;
@@ -137,5 +171,8 @@ onBeforeUnmount(() => {
 .emoji-cell:focus-visible {
   background: var(--brand-bg);
   outline: none;
+}
+.emoji-cell.selected {
+  background: var(--brand-red);
 }
 </style>

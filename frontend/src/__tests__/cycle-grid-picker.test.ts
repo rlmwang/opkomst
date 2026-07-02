@@ -45,10 +45,11 @@ describe("CycleGridPicker", () => {
     expect(w.findAll(".week-label")).toHaveLength(0);
   });
 
-  it("renders two rows (14 toggles) with week labels for k=2", () => {
+  it("renders two unlabelled weekday rows (14 toggles) for k=2", () => {
     const w = mountPicker([], 2);
     expect(w.findAll(".day-toggle")).toHaveLength(14);
-    expect(w.findAll(".week-label")).toHaveLength(2);
+    expect(w.findAll(".cycle-week")).toHaveLength(2);
+    expect(w.findAll(".week-label")).toHaveLength(0);
   });
 
   it("emits the flat offset when a day is toggled on (k=1, Wed = 2)", async () => {

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
-import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
+import WeekdayGrid from "@/components/WeekdayGrid.vue";
+import { type Locale, GITHUB_URL, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditLink } from "@/public_shared/useEditLink";
 import {
   type AvailabilityRange,
   type PersonalPage,
@@ -20,7 +21,7 @@ import {
   putAvailability,
   putEnrolment,
 } from "./api";
-import { choreStrings, formatCycle, formatLongDate } from "./i18n";
+import { choreStrings, formatLongDate } from "./i18n";
 
 type Status = "loading" | "enrol" | "personal" | "enrolled" | "unavailable" | "load-failed" | "left";
 
@@ -32,26 +33,20 @@ const ch = computed(() => choreStrings(locale.value));
 
 const displayName = ref("");
 const email = ref("");
-const emailReminders = ref(false);
 const picked = reactive<Record<string, boolean>>({});
 const busy = ref(false);
 const errorMsg = ref("");
 const savedFlash = ref(false);
 
 const personal = ref<PersonalPage | null>(null);
-const savedToken = ref<string | null>(null);
 const availDraft = ref<AvailabilityRange[]>([]);
-
-const editToken = new URL(window.location.href).searchParams.get("s");
 
 function slug(): string {
   const parts = window.location.pathname.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? "";
 }
 
-const editUrl = computed(() =>
-  savedToken.value ? `${window.location.origin}/c/${slug()}?s=${savedToken.value}` : "",
-);
+const { editToken, editUrl, confirmSaved } = useEditLink("c", slug);
 
 const chores = computed(() => roster.value?.chores ?? []);
 const chosenIds = computed(() => Object.keys(picked).filter((id) => picked[id]));
@@ -83,7 +78,6 @@ onMounted(async () => {
 function hydratePersonal(page: PersonalPage): void {
   personal.value = page;
   displayName.value = page.display_name ?? "";
-  emailReminders.value = page.email_reminders;
   for (const chore of chores.value) picked[chore.id] = page.enrolled_chore_ids.includes(chore.id);
   availDraft.value = (page.availability ?? []).map((r) => ({ ...r }));
 }
@@ -114,13 +108,17 @@ async function enrol(): Promise<void> {
   busy.value = true;
   errorMsg.value = "";
   try {
+    // Giving an email means reminders are on — there's no separate opt-in.
+    const enteredEmail = email.value.trim() || null;
     const ack = await postEnrolment(slug(), {
       display_name: displayName.value.trim() || null,
-      email: email.value.trim() || null,
-      email_reminders: emailReminders.value,
+      email: enteredEmail,
+      email_reminders: enteredEmail !== null,
       chore_ids: chosenIds.value,
     });
-    savedToken.value = ack.edit_token;
+    // Records the token and routes the URL onto the magic link so a
+    // refresh reopens the edit page (guaranteed by useEditLink).
+    confirmSaved(ack.edit_token);
     status.value = "enrolled";
   } catch {
     errorMsg.value = ch.value.actionFailed;
@@ -134,11 +132,13 @@ async function saveChanges(): Promise<void> {
   busy.value = true;
   errorMsg.value = "";
   try {
+    // Reminders follow the email: on if one's on file or newly entered.
+    const enteredEmail = email.value.trim() || null;
     const page = await putEnrolment(editToken, {
       display_name: displayName.value.trim() || null,
       chore_ids: chosenIds.value,
-      email_reminders: emailReminders.value,
-      email: email.value.trim() || null,
+      email_reminders: enteredEmail !== null || (personal.value?.has_email ?? false),
+      email: enteredEmail,
     });
     hydratePersonal(page);
     email.value = ""; // one-shot add/replace; never echo it back
@@ -307,11 +307,19 @@ async function leave(): Promise<void> {
         <p v-if="status === 'enrol'" class="muted">{{ ch.enrolIntro }}</p>
         <p v-if="chores.length === 0" class="muted">{{ ch.noChores }}</p>
         <label v-for="chore in chores" :key="chore.id" class="chore-check">
-          <input type="checkbox" v-model="picked[chore.id]" />
+          <input type="checkbox" class="check" v-model="picked[chore.id]" />
           <span class="chore-label">
-            <span v-if="chore.emoji" class="emoji">{{ chore.emoji }}</span>
-            <strong>{{ chore.name }}</strong>
-            <span class="muted days">{{ formatCycle(chore.cycle_slots, roster.period_weeks, ch) }}</span>
+            <span class="chore-title">
+              <span v-if="chore.emoji" class="emoji">{{ chore.emoji }}</span>
+              <strong>{{ chore.name }}</strong>
+            </span>
+            <span v-if="chore.description" class="muted chore-desc">{{ chore.description }}</span>
+            <WeekdayGrid
+              v-if="chore.cycle_slots.length"
+              :cycle-slots="chore.cycle_slots"
+              :period-weeks="roster.period_weeks"
+              :weekday-labels="ch.weekdays"
+            />
           </span>
         </label>
       </div>
@@ -323,25 +331,26 @@ async function leave(): Promise<void> {
           <input v-model="displayName" type="text" class="input" />
         </label>
 
-        <details class="disclosure">
-          <summary>{{ ch.emailDisclosureTitle }}</summary>
-          <p class="muted">{{ ch.emailDisclosureBody }}</p>
-        </details>
         <label class="field">
           <span>{{ ch.emailLabel }}</span>
           <input v-model="email" type="email" class="input" :placeholder="personal?.has_email ? '••••••' : ''" />
         </label>
-        <label class="toggle">
-          <input type="checkbox" v-model="emailReminders" />
-          <span>{{ ch.emailReminders }}</span>
-        </label>
       </div>
 
-      <Disclosure :locale="locale" />
+      <div class="card">
+        <details class="disclosure">
+          <summary>{{ c.explainerTitle }}</summary>
+          <p class="muted">{{ ch.emailDisclosureBody }}</p>
+          <p class="muted">
+            {{ c.explainerBody }}
+            <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ c.explainerLink }}</a>
+          </p>
+        </details>
+      </div>
 
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-      <div class="actions">
+      <div class="submit-row">
         <button v-if="status === 'enrol'" type="button" class="btn-primary" :disabled="busy" @click="enrol">
           {{ ch.enrolButton }}
         </button>
@@ -363,17 +372,34 @@ h2 { margin: 0; font-size: 1.1rem; }
 .chore-check {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.625rem;
   cursor: pointer;
+  padding: 0.75rem;
+  border-radius: 8px;
+  transition: background 120ms ease;
+}
+/* A touch more breathing room between chore rows than the card's stack. */
+.chore-check + .chore-check {
+  margin-top: 0.25rem;
+}
+/* Highlight the whole clickable row (checkbox + label) on hover. */
+.chore-check:hover {
+  background: color-mix(in srgb, var(--brand-red) 7%, transparent);
 }
 .chore-label {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.chore-title {
+  display: inline-flex;
   align-items: baseline;
   gap: 0.375rem;
 }
 .emoji { line-height: 1; }
-.days { font-size: 0.8125rem; }
+.chore-desc { font-size: 0.8125rem; }
 .field {
   display: flex;
   flex-direction: column;
@@ -407,7 +433,7 @@ h2 { margin: 0; font-size: 1.1rem; }
 .shift-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .avail-row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 0.5rem; }
 .avail-field { display: flex; flex-direction: column; gap: 0.25rem; }
-.actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+/* .submit-row (right-aligned action row) comes from ``forms.css``. */
 .btn {
   padding: 0.5rem 0.875rem;
   border: 1px solid var(--brand-border);
