@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref } from "vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
@@ -82,26 +83,25 @@ function hydratePersonal(page: PersonalPage): void {
   availDraft.value = (page.availability ?? []).map((r) => ({ ...r }));
 }
 
+// DatePicker binds a Date; the draft (and API) carry "YYYY-MM-DD" strings.
+// Local, no UTC shift — mirrors the roster edit form.
+function isoDate(d: Date | null): string {
+  if (!d) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function parseDate(s: string): Date | null {
+  if (!s) return null;
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
 function addAvailRange(): void {
   availDraft.value.push({ start: "", end: "" });
 }
 
 function removeAvailRange(index: number): void {
   availDraft.value.splice(index, 1);
-}
-
-async function saveAvailability(): Promise<void> {
-  if (!editToken) return;
-  const ranges = availDraft.value.filter((r) => r.start && r.end);
-  busy.value = true;
-  errorMsg.value = "";
-  try {
-    hydratePersonal(await putAvailability(editToken, ranges));
-  } catch {
-    errorMsg.value = ch.value.actionFailed;
-  } finally {
-    busy.value = false;
-  }
 }
 
 async function enrol(): Promise<void> {
@@ -132,15 +132,18 @@ async function saveChanges(): Promise<void> {
   busy.value = true;
   errorMsg.value = "";
   try {
+    // One page, one save: persist the enrolment and the time-off ranges
+    // together so there's a single confirmation button for everything.
     // Reminders follow the email: on if one's on file or newly entered.
     const enteredEmail = email.value.trim() || null;
-    const page = await putEnrolment(editToken, {
+    await putEnrolment(editToken, {
       display_name: displayName.value.trim() || null,
       chore_ids: chosenIds.value,
       email_reminders: enteredEmail !== null || (personal.value?.has_email ?? false),
       email: enteredEmail,
     });
-    hydratePersonal(page);
+    const ranges = availDraft.value.filter((r) => r.start && r.end);
+    hydratePersonal(await putAvailability(editToken, ranges));
     email.value = ""; // one-shot add/replace; never echo it back
     savedFlash.value = true;
     window.setTimeout(() => (savedFlash.value = false), 2000);
@@ -277,27 +280,47 @@ async function leave(): Promise<void> {
           <h2>{{ ch.availabilityHeading }}</h2>
           <p class="muted">{{ ch.availabilityHint }}</p>
           <p v-if="availDraft.length === 0" class="muted">{{ ch.availabilityEmpty }}</p>
-          <div v-for="(r, i) in availDraft" :key="i" class="avail-row">
-            <label class="avail-field">
-              <span class="muted">{{ ch.availabilityFrom }}</span>
-              <input v-model="r.start" type="date" />
-            </label>
-            <label class="avail-field">
-              <span class="muted">{{ ch.availabilityTo }}</span>
-              <input v-model="r.end" type="date" />
-            </label>
-            <button type="button" class="btn ghost" :disabled="busy" @click="removeAvailRange(i)">
-              {{ ch.availabilityRemove }}
+          <div v-for="(r, i) in availDraft" :key="i" class="list-row avail-row">
+            <div class="avail-fields">
+              <DatePicker
+                :model-value="parseDate(r.start)"
+                @update:model-value="(d) => (r.start = isoDate(d as Date | null))"
+                date-format="dd-mm-yy"
+                :placeholder="ch.availabilityFrom"
+                :aria-label="ch.availabilityFrom"
+                fluid
+              />
+              <DatePicker
+                :model-value="parseDate(r.end)"
+                @update:model-value="(d) => (r.end = isoDate(d as Date | null))"
+                date-format="dd-mm-yy"
+                :placeholder="ch.availabilityTo"
+                :aria-label="ch.availabilityTo"
+                fluid
+              />
+            </div>
+            <button
+              type="button"
+              class="icon-btn"
+              :disabled="busy"
+              :aria-label="ch.availabilityRemove"
+              @click="removeAvailRange(i)"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <line x1="10" y1="11" x2="10" y2="17" />
+                <line x1="14" y1="11" x2="14" y2="17" />
+              </svg>
             </button>
           </div>
-          <div class="shift-actions">
-            <button type="button" class="btn ghost" :disabled="busy" @click="addAvailRange">
-              {{ ch.availabilityAdd }}
-            </button>
-            <button type="button" class="btn" :disabled="busy" @click="saveAvailability">
-              {{ ch.availabilitySave }}
-            </button>
-          </div>
+          <button type="button" class="btn-secondary avail-add" :disabled="busy" @click="addAvailRange">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            {{ ch.availabilityAdd }}
+          </button>
         </div>
       </template>
 
@@ -431,8 +454,33 @@ h2 { margin: 0; font-size: 1.1rem; }
 }
 .shift-main { display: flex; flex-direction: column; }
 .shift-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.avail-row { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.avail-field { display: flex; flex-direction: column; gap: 0.25rem; }
+/* Time-off rows reuse the global ``.list-row`` (hover + rounding) from
+ * theme.css, matching the admin editable lists. */
+.avail-row { margin-bottom: 0.25rem; }
+.avail-fields { display: flex; gap: 0.5rem; flex: 1; min-width: 0; flex-wrap: wrap; }
+.avail-fields > :deep(.p-datepicker) { flex: 1 1 8rem; min-width: 0; }
+/* .btn-secondary (soft-pink add button) comes from theme.css. Add buttons
+ * span the section full-width, matching the admin form add buttons. */
+.avail-add { width: 100%; justify-content: center; }
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--brand-text-muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.icon-btn:hover {
+  color: var(--brand-red);
+  background: color-mix(in srgb, var(--brand-red) 8%, transparent);
+}
 /* .submit-row (right-aligned action row) comes from ``forms.css``. */
 .btn {
   padding: 0.5rem 0.875rem;

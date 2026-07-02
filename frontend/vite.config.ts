@@ -166,40 +166,41 @@ export default defineConfig({
         // app chunk drops below the 500 kB warning threshold; the
         // vendor chunks cache separately and survive across deploys
         // that touch app code but not deps.
-        manualChunks: {
-          // Vue split into three: ``vue-core`` is shared with the
-          // public mini-app, ``vue-router`` and ``pinia`` are
-          // admin-only. Keeping them as a single ``vue`` chunk
-          // (the previous shape) made the public bundle pull
-          // ~10 KB gzip of router + pinia code it doesn't import.
-          "vue-core": ["vue"],
-          "vue-router": ["vue-router"],
-          pinia: ["pinia"],
-          i18n: ["vue-i18n"],
-          primevue: [
-            "primevue/autocomplete",
-            "primevue/button",
-            "primevue/confirmdialog",
-            "primevue/dialog",
-            "primevue/iconfield",
-            "primevue/inputicon",
-            "primevue/inputnumber",
-            "primevue/inputtext",
-            "primevue/password",
-            "primevue/select",
-            "primevue/tag",
-            "primevue/textarea",
-            "primevue/toast",
-            "primevue/toggleswitch",
-            "primevue/tooltip",
-            "primevue/useconfirm",
-            "primevue/usetoast",
-          ],
-          // Datepicker is the heaviest single PrimeVue widget and is
-          // only used on the event create/edit form. Splitting it
-          // out keeps the public sign-up page and dashboard from
-          // paying for it on first paint.
-          "primevue-datepicker": ["primevue/datepicker"],
+        // A function (not an object) so PrimeVue can be split by role:
+        // the public chore page uses only ``DatePicker``, so it must pull
+        // the shared PrimeVue base + theme tokens + DatePicker, but never
+        // the admin-only widgets (Select, Dialog, AutoComplete, …). An
+        // object map couldn't express "base vs widgets" because the base
+        // modules aren't ones we import by name.
+        manualChunks(id) {
+          if (id.includes("/node_modules/vue-router/")) return "vue-router";
+          if (id.includes("/node_modules/pinia/")) return "pinia";
+          if (id.includes("/node_modules/vue-i18n/") || id.includes("/node_modules/@intlify/")) return "i18n";
+          // ``vue-core`` is shared with the public mini-apps; router +
+          // pinia stay admin-only so the public bundle doesn't pull them.
+          if (id.includes("/node_modules/vue/") || id.includes("/node_modules/@vue/")) return "vue-core";
+
+          // Theme tokens (Aura) — loaded by every app through the shared
+          // preset, so its own chunk.
+          if (id.includes("/node_modules/@primeuix/themes/")) return "primevue-themes";
+          // The heaviest single widget; its own chunk so pages that don't
+          // edit dates never pay for it.
+          if (id.includes("/node_modules/primevue/datepicker/")) return "primevue-datepicker";
+          // Shared PrimeVue runtime/base that DatePicker depends on
+          // (base component, icons, utils, plus Button + InputText which
+          // it composes). Kept apart from the admin widgets so the public
+          // chore page loads only base + datepicker, not Select/Dialog/….
+          if (
+            id.includes("/node_modules/@primevue/") ||
+            id.includes("/node_modules/@primeuix/") ||
+            /\/node_modules\/primevue\/(button|inputtext|overlayeventbus|portal|ripple|config|baseicon|base)\//.test(id)
+          ) {
+            return "primevue-base";
+          }
+          // The remaining PrimeVue widgets (Select / Dialog / AutoComplete
+          // / …) are admin-only. Left unforced so Rollup co-locates them
+          // with the admin entry — forcing them into their own chunk
+          // created a ``primevue ⇄ primevue-base`` circular chunk.
         },
       },
     },

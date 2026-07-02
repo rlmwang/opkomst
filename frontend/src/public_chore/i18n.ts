@@ -36,7 +36,6 @@ export interface ChoreStrings {
   availabilityHint: string;
   availabilityAdd: string;
   availabilityRemove: string;
-  availabilitySave: string;
   availabilityFrom: string;
   availabilityTo: string;
   availabilityEmpty: string;
@@ -79,9 +78,8 @@ const dict: Record<Locale, ChoreStrings> = {
     availabilityHint: "Geef periodes op waarin je niet kunt. Je wordt dan niet ingedeeld.",
     availabilityAdd: "Periode toevoegen",
     availabilityRemove: "Verwijderen",
-    availabilitySave: "Afwezigheid opslaan",
-    availabilityFrom: "Van",
-    availabilityTo: "Tot en met",
+    availabilityFrom: "Startdatum",
+    availabilityTo: "Einddatum",
     availabilityEmpty: "Je hebt geen afwezigheid opgegeven.",
     leave: "Afmelden",
     leaveConfirm: "Weet je zeker dat je je wilt afmelden? Je e-mailadres wordt verwijderd.",
@@ -120,9 +118,8 @@ const dict: Record<Locale, ChoreStrings> = {
     availabilityHint: "Add periods when you can't take part. You won't be scheduled then.",
     availabilityAdd: "Add a period",
     availabilityRemove: "Remove",
-    availabilitySave: "Save time off",
-    availabilityFrom: "From",
-    availabilityTo: "Until (inclusive)",
+    availabilityFrom: "Start date",
+    availabilityTo: "End date",
     availabilityEmpty: "You haven't set any time off.",
     leave: "Leave",
     leaveConfirm: "Are you sure you want to leave? Your email will be deleted.",

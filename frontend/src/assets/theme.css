@@ -16,6 +16,15 @@
      * reads the same everywhere (was ~3 hard-coded greens + ambers). */
     --brand-green: #1f7a3c;
     --brand-amber: #c98a00;
+    /* Soft-pink "secondary" button palette (add-row / low-emphasis
+     * actions). Single source of truth for both the PrimeVue secondary
+     * override below and the public ``.btn-secondary`` — so an add button
+     * looks the same on an admin page and a public mini-app. */
+    --brand-red-soft: #fbdadc;
+    --brand-red-soft-border: #f5b0b4;
+    --brand-red-soft-hover: #f5b0b4;
+    --brand-red-soft-active: #ec7e85;
+    --brand-red-strong: #5e0007;
   }
 
   html, body, #app {
@@ -299,19 +308,49 @@
    * the cream surfaces without competing with primary buttons. Targets
    * both the solid and outlined variants from PrimeVue. */
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link) {
-    background: #fbdadc;
+    background: var(--brand-red-soft);
     color: var(--brand-red);
-    border: 1px solid #f5b0b4;
+    border: 1px solid var(--brand-red-soft-border);
   }
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover {
-    background: #f5b0b4;
-    color: #5e0007;
+    background: var(--brand-red-soft-hover);
+    color: var(--brand-red-strong);
     border-color: var(--brand-red);
   }
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
-    background: #ec7e85;
+    background: var(--brand-red-soft-active);
     color: #440005;
     border-color: var(--brand-red);
+  }
+
+  /* The same soft-pink secondary as a plain class, for the public
+   * mini-apps (no PrimeVue). An add / low-emphasis action shares one look
+   * across admin and public. */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font: inherit;
+    cursor: pointer;
+    padding: 0.4rem 0.875rem;
+    border-radius: 6px;
+    background: var(--brand-red-soft);
+    color: var(--brand-red);
+    border: 1px solid var(--brand-red-soft-border);
+    transition: background 120ms, color 120ms, border-color 120ms;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--brand-red-soft-hover);
+    color: var(--brand-red-strong);
+    border-color: var(--brand-red);
+  }
+  .btn-secondary:active:not(:disabled) {
+    background: var(--brand-red-soft-active);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
   /* Text-variant secondary: red text, soft-pink hover wash. */
   .p-button.p-button-secondary.p-button-text {
