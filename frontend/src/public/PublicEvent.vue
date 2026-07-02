@@ -4,12 +4,14 @@ import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
 import EditLink from "@/public_shared/EditLink.vue";
+import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
+import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import BrandedSelect from "./BrandedSelect.vue";
-import { ApiError, type PublicEvent, fetchEventBySlug, fetchSignup, postSignup, putSignup } from "./api";
+import { ApiError, type PublicEvent, fetchEventBySlug, fetchSignup, postSignup, putSignup, withdrawSignup } from "./api";
 import { type Locale, pickLocale, strings } from "./i18n";
 
 const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
@@ -123,8 +125,26 @@ function clearDraft() {
 
 const submitting = ref(false);
 const submitted = ref(false);
+const withdrawn = ref(false);
 const errorMsg = ref<string | null>(null);
 
+// Dirty/revert/saved state for the shared edit bar (edit mode only).
+const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
+  snapshot: () => ({
+    name: displayName.value,
+    party: partySize.value,
+    source: sourceChoice.value,
+    help: [...helpChoices.value].sort(),
+    email: email.value,
+  }),
+  apply: (s) => {
+    displayName.value = s.name;
+    partySize.value = s.party;
+    sourceChoice.value = s.source;
+    helpChoices.value = [...s.help];
+    email.value = s.email;
+  },
+});
 
 if (editing) {
   // Pre-fill from the server, overriding any leftover draft. Email is
@@ -135,6 +155,7 @@ if (editing) {
       partySize.value = s.party_size;
       sourceChoice.value = s.source_choice;
       helpChoices.value = s.help_choices;
+      captureBaseline();
     })
     .catch((err) => {
       if (err instanceof ApiError && (err.status === 404 || err.status === 410)) {
@@ -277,7 +298,10 @@ async function submit() {
         source_choice: sourceChoice.value,
         help_choices: helpChoices.value,
       });
-      confirmSaved(editToken!);
+      // Edit-mode save stays on the page: re-baseline + flash "Saved".
+      captureBaseline();
+      flashSaved();
+      clearDraft();
     } else {
       const ack = await postSignup(slug, {
         display_name: trimmedName || null,
@@ -287,9 +311,24 @@ async function submit() {
         email: trimmedEmail || null,
       });
       confirmSaved(ack.edit_token);
+      submitted.value = true;
+      clearDraft();
     }
-    submitted.value = true;
+  } catch {
+    errorMsg.value = t.value.submitFail;
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function withdraw() {
+  if (!editing) return;
+  if (!window.confirm(t.value.withdrawConfirm)) return;
+  submitting.value = true;
+  try {
+    await withdrawSignup(editToken!);
     clearDraft();
+    withdrawn.value = true;
   } catch {
     errorMsg.value = t.value.submitFail;
   } finally {
@@ -311,6 +350,8 @@ watch(event, (e) => {
     <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
 
     <PublicNotice v-else-if="notFound" :message="c.unavailable" />
+
+    <PublicNotice v-else-if="withdrawn" :message="t.withdrawn" />
 
     <PublicNotice v-else-if="event?.archived" :title="event.name" :message="c.unavailable" />
 
@@ -508,7 +549,7 @@ watch(event, (e) => {
 
         <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
 
-        <div class="submit-row">
+        <div v-if="!editing" class="submit-row">
           <button
             type="submit"
             class="btn-primary"
@@ -529,6 +570,17 @@ watch(event, (e) => {
           </button>
         </div>
       </form>
+
+      <PublicEditBar
+        v-if="editing && !submitted"
+        :dirty="dirty"
+        :saving="submitting"
+        :just-saved="justSaved"
+        :locale="locale"
+        @save="submit"
+        @revert="revert"
+        @withdraw="withdraw"
+      />
     </template>
   </PublicShell>
 </template>

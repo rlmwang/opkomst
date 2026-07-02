@@ -165,3 +165,17 @@ def update_datepoll_submission(
     db.commit()
     logger.info("datepoll_submission_edited", datepoll_id=sub.datepoll_id, submission_id=sub.id)
     return DatepollEditOut(display_name=sub.display_name, note=sub.note, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+
+
+@router.post("/by-token/{token}/withdraw", status_code=204)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
+def withdraw_datepoll_submission(request: Request, token: str, db: Session = Depends(get_db)) -> None:
+    """Withdraw a submission via its edit-link token — the respondent
+    deleting their own availability. Removes the response rows and the
+    submission; nothing else references either (pseudonymous, no email)."""
+    sub = _submission_by_token(db, token)
+    datepoll_id = sub.datepoll_id
+    db.query(DatepollResponse).filter(DatepollResponse.submission_id == sub.id).delete()
+    db.delete(sub)
+    db.commit()
+    logger.info("datepoll_submission_withdrawn", datepoll_id=datepoll_id)

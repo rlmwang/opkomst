@@ -102,6 +102,11 @@ export async function putSubmission(
   return (await r.json()) as FormSubmissionValues;
 }
 
+export async function withdrawSubmission(token: string): Promise<void> {
+  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
+  if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
+}
+
 declare global {
   interface Window {
     /**

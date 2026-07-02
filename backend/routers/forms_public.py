@@ -218,3 +218,17 @@ def update_form_submission(
     db.commit()
     logger.info("form_submission_edited", form_id=sub.form_id, submission_id=sub.id)
     return FormEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+
+
+@router.post("/by-token/{token}/withdraw", status_code=204)
+@limiter.limit(Limits.PUBLIC_SUBMIT)
+def withdraw_form_submission(request: Request, token: str, db: Session = Depends(get_db)) -> None:
+    """Withdraw a submission via its edit-link token — the respondent
+    deleting their own answers. Removes the response rows and the
+    submission; nothing else references either (pseudonymous, no email)."""
+    sub = _submission_by_token(db, token)
+    form_id = sub.form_id
+    db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
+    db.delete(sub)
+    db.commit()
+    logger.info("form_submission_withdrawn", form_id=form_id)

@@ -2,10 +2,12 @@
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
+import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import {
   type Availability,
@@ -15,12 +17,13 @@ import {
   fetchSubmission,
   postSubmission,
   putSubmission,
+  withdrawSubmission,
 } from "./api";
 import { mapLink } from "@/lib/map-link";
 import { datepollStrings, formatTimeRange } from "./i18n";
 import MonthCalendar from "./MonthCalendar.vue";
 
-type Status = "loading" | "ready" | "unavailable" | "load-failed" | "submitted";
+type Status = "loading" | "ready" | "unavailable" | "load-failed" | "submitted" | "withdrawn";
 
 const status = ref<Status>("loading");
 const poll = ref<PublicDatepoll | null>(null);
@@ -71,6 +74,16 @@ async function prefillFromSubmission(): Promise<void> {
   }
 }
 
+// Dirty/revert/saved state for the shared edit bar (edit mode only).
+const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
+  snapshot: () => ({ name: displayName.value, note: note.value, answers: { ...answers } }),
+  apply: (s) => {
+    displayName.value = s.name;
+    note.value = s.note;
+    for (const slotId of Object.keys(answers)) answers[slotId] = s.answers[slotId] ?? null;
+  },
+});
+
 onMounted(async () => {
   const inlined = window.__OPKOMST_DATEPOLL__;
   if (inlined === null) {
@@ -81,6 +94,7 @@ onMounted(async () => {
     const loaded = inlined ?? (await fetchDatepollBySlug(slug()));
     hydrate(loaded);
     if (editToken) await prefillFromSubmission();
+    captureBaseline();
     status.value = "ready";
     await nextTick();
     growNote(); // fit a pre-filled note on first paint
@@ -136,18 +150,34 @@ async function submit(): Promise<void> {
   try {
     if (editToken) {
       await putSubmission(editToken, body);
-      confirmSaved(editToken);
+      // Edit-mode save stays on the page: re-baseline + flash "Saved".
+      captureBaseline();
+      flashSaved();
     } else {
       const ack = await postSubmission(slug(), body);
       confirmSaved(ack.edit_token);
+      status.value = "submitted";
     }
-    status.value = "submitted";
   } catch (e) {
     if (e instanceof ApiError && e.status === 410) {
       status.value = "unavailable";
     } else {
       errorMsg.value = c.value.submitFail;
     }
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function withdraw(): Promise<void> {
+  if (!editToken) return;
+  if (!window.confirm(d.value.withdrawConfirm)) return;
+  submitting.value = true;
+  try {
+    await withdrawSubmission(editToken);
+    status.value = "withdrawn";
+  } catch {
+    errorMsg.value = c.value.submitFail;
   } finally {
     submitting.value = false;
   }
@@ -159,6 +189,7 @@ async function submit(): Promise<void> {
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
+    <PublicNotice v-else-if="status === 'withdrawn'" :message="d.withdrawn" />
 
     <!-- ``ready`` and ``submitted`` both keep the title/info card; on
          submit the body is replaced by a thanks card below it, same
@@ -231,9 +262,25 @@ async function submit(): Promise<void> {
 
         <div class="card submit-card">
           <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
-          <button type="button" class="btn-primary full" :disabled="submitting" @click="submit">
+          <button
+            v-if="!editToken"
+            type="button"
+            class="btn-primary full"
+            :disabled="submitting"
+            @click="submit"
+          >
             {{ submitting ? c.submitting : c.submit }}
           </button>
+          <PublicEditBar
+            v-else
+            :dirty="dirty"
+            :saving="submitting"
+            :just-saved="justSaved"
+            :locale="locale"
+            @save="submit"
+            @revert="revert"
+            @withdraw="withdraw"
+          />
         </div>
       </template>
     </template>

@@ -7491,6 +7491,42 @@
         ]
       }
     },
+    "/api/v1/datepolls/by-token/{token}/withdraw": {
+      "post": {
+        "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own availability. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
+        "operationId": "withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Datepoll Submission",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
     "/api/v1/datepolls/{datepoll_id}": {
       "delete": {
         "description": "Hard-delete an archived poll. Refuses unless archived first \u2014\ndeleting a live poll with responses would be a data-loss footgun.\nCascades through dates / submissions / responses via the FK\nON DELETE CASCADEs.",
@@ -8582,6 +8618,42 @@
           }
         },
         "summary": "Update Signup",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/by-token/{token}/withdraw": {
+      "post": {
+        "description": "Withdraw a signup via its edit-link token \u2014 the attendee removing\ntheir own headcount. Deletes only the ``Signup`` row (no email lives\non it). Any pending ``EmailDispatch`` for this event is untouched by\ndesign (no signup_id link), so an already-scheduled reminder/feedback\nemail may still arrive; the public page warns about this before\ncalling. Mirrors the organiser delete, minus the RBAC.",
+        "operationId": "withdraw_signup_api_v1_events_by_token__token__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Signup",
         "tags": [
           "signups"
         ]
@@ -9895,6 +9967,42 @@
           }
         },
         "summary": "Update Form Submission",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/by-token/{token}/withdraw": {
+      "post": {
+        "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
+        "operationId": "withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Form Submission",
         "tags": [
           "forms"
         ]

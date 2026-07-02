@@ -15,6 +15,8 @@ export interface DatepollStrings {
   notePlaceholder: string;
   pickOne: string;
   thanksBody: string;
+  withdrawConfirm: string;
+  withdrawn: string;
 }
 
 const dict: Record<Locale, DatepollStrings> = {
@@ -26,6 +28,8 @@ const dict: Record<Locale, DatepollStrings> = {
     notePlaceholder: "Opmerking (optioneel)",
     pickOne: "Geef bij minstens één moment je beschikbaarheid aan.",
     thanksBody: "Je reactie is binnen.",
+    withdrawConfirm: "Je reactie intrekken? Je beschikbaarheid wordt verwijderd.",
+    withdrawn: "Je reactie is ingetrokken.",
   },
   en: {
     intro: "Tap to set your availability.",
@@ -35,6 +39,8 @@ const dict: Record<Locale, DatepollStrings> = {
     notePlaceholder: "Note (optional)",
     pickOne: "Set your availability for at least one option.",
     thanksBody: "Your response is in.",
+    withdrawConfirm: "Withdraw your response? Your availability will be deleted.",
+    withdrawn: "Your response has been withdrawn.",
   },
 };
 

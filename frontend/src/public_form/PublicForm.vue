@@ -2,10 +2,12 @@
 import { computed, onMounted, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
+import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import {
   ApiError,
@@ -16,6 +18,7 @@ import {
   fetchSubmission,
   postSubmission,
   putSubmission,
+  withdrawSubmission,
 } from "./api";
 import { formStrings } from "./i18n";
 
@@ -26,7 +29,7 @@ const slug = window.location.pathname.replace(/^\/f\//, "").split("/")[0];
 const { editToken, editUrl, confirmSaved } = useEditLink("f", () => slug);
 
 const form = ref<PublicForm | null>(null);
-const status = ref<"loading" | "ready" | "unavailable" | "load-failed" | "submitted">("loading");
+const status = ref<"loading" | "ready" | "unavailable" | "load-failed" | "submitted" | "withdrawn">("loading");
 const submitting = ref(false);
 
 const locale = ref<Locale>("nl");
@@ -50,6 +53,7 @@ onMounted(async () => {
     locale.value = pickLocale(loaded.locale);
     initAnswers(loaded);
     if (editToken) await prefillFromSubmission(loaded);
+    captureBaseline();
     status.value = "ready";
   } catch (e) {
     status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
@@ -87,6 +91,15 @@ function initAnswers(form_: PublicForm): void {
   }
   answers.value = next;
 }
+
+// Dirty/revert/saved state for the shared edit bar (edit mode only).
+const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
+  snapshot: () => ({ name: displayName.value, answers: answers.value }),
+  apply: (s) => {
+    displayName.value = s.name;
+    answers.value = s.answers;
+  },
+});
 
 function setRating(qid: string, value: number) {
   answers.value[qid] = { answer_int: value };
@@ -143,12 +156,28 @@ async function submit() {
   try {
     if (editToken) {
       await putSubmission(editToken, body);
-      confirmSaved(editToken);
+      // Edit-mode save stays on the page: re-baseline + flash "Saved".
+      captureBaseline();
+      flashSaved();
     } else {
       const ack = await postSubmission(slug, body);
       confirmSaved(ack.edit_token);
+      status.value = "submitted";
     }
-    status.value = "submitted";
+  } catch (e) {
+    submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function withdraw() {
+  if (!editToken) return;
+  if (!window.confirm(f.value.withdrawConfirm)) return;
+  submitting.value = true;
+  try {
+    await withdrawSubmission(editToken);
+    status.value = "withdrawn";
   } catch (e) {
     submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
   } finally {
@@ -164,6 +193,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
+    <PublicNotice v-else-if="status === 'withdrawn'" :message="f.withdrawn" />
 
     <!-- ``ready`` and ``submitted`` both keep the title/info card; on
          submit the form is replaced by a thanks card below it, same
@@ -270,12 +300,22 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
         <p v-if="submitError" class="error" role="alert">{{ submitError }}</p>
 
-        <div class="submit-row">
+        <div v-if="!editToken" class="submit-row">
           <button type="submit" class="btn-primary" :disabled="submitting">
             {{ submitting ? c.submitting : c.submit }}
           </button>
         </div>
         </form>
+        <PublicEditBar
+          v-if="editToken"
+          :dirty="dirty"
+          :saving="submitting"
+          :just-saved="justSaved"
+          :locale="locale"
+          @save="submit"
+          @revert="revert"
+          @withdraw="withdraw"
+        />
       </template>
     </template>
   </PublicShell>

@@ -153,6 +153,22 @@ def update_signup(
     )
 
 
+@router.post("/by-token/{token}/withdraw", status_code=204)
+@limiter.limit(Limits.PUBLIC_SIGNUP)
+def withdraw_signup(request: Request, token: str, db: Session = Depends(get_db)) -> None:
+    """Withdraw a signup via its edit-link token — the attendee removing
+    their own headcount. Deletes only the ``Signup`` row (no email lives
+    on it). Any pending ``EmailDispatch`` for this event is untouched by
+    design (no signup_id link), so an already-scheduled reminder/feedback
+    email may still arrive; the public page warns about this before
+    calling. Mirrors the organiser delete, minus the RBAC."""
+    signup = _signup_by_token(db, token)
+    event_id = signup.event_id
+    db.delete(signup)
+    db.commit()
+    logger.info("signup_withdrawn", event_id=event_id)
+
+
 @router.delete("/{event_id}/signups/{signup_id}", status_code=204)
 @limiter.limit(Limits.ORG_WRITE)
 def delete_signup(

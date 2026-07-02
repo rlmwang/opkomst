@@ -64,10 +64,18 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   await expect(e.locator("input").first()).toHaveValue("Anna Anoniem", { timeout: 5_000 });
 
   await e.locator("input").first().fill("Anna Bijgewerkt");
-  await e.getByRole("button", { name: /aanmelden|sign up/i }).click();
-  await expect(e.getByRole("heading", { level: 2, name: /bedankt|thanks/i })).toBeVisible({
+  // Edit mode uses the shared action bar: Save is disabled until there's a
+  // change, and an edit-save stays on the page with an "Opgeslagen" flash
+  // (no "thanks" screen — that's create-mode only).
+  const saveBtn = e.getByRole("button", { name: /opslaan|save/i });
+  await expect(saveBtn).toBeEnabled({ timeout: 5_000 });
+  await saveBtn.click();
+  await expect(e.getByRole("button", { name: /opgeslagen|saved/i })).toBeVisible({
     timeout: 5_000,
   });
-  // Same token still resolves (reusable while the event is open).
-  await expect(e.locator(".edit-link .link")).toHaveAttribute("href", editUrl);
+
+  // The edit persisted: reopening the same link shows the new value.
+  const e2 = await visitor.newPage();
+  await e2.goto(editUrl);
+  await expect(e2.locator("input").first()).toHaveValue("Anna Bijgewerkt", { timeout: 5_000 });
 });

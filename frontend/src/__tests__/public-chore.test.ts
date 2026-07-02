@@ -144,7 +144,7 @@ describe("PublicChore personal mode", () => {
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");
   });
 
-  it("leave confirms then calls the endpoint", async () => {
+  it("withdraw confirms then calls the endpoint", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     vi.mocked(api.postLeave).mockResolvedValueOnce(undefined);
@@ -153,7 +153,7 @@ describe("PublicChore personal mode", () => {
     const w = mount(PublicChore);
     await flushPromises();
 
-    await w.findAll("button").find((b) => b.text() === "Leave")!.trigger("click");
+    await w.findAll("button").find((b) => b.text() === "Withdraw")!.trigger("click");
     await flushPromises();
     expect(confirmMock).toHaveBeenCalled();
     expect(api.postLeave).toHaveBeenCalledWith("tok");

@@ -962,6 +962,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datepolls/by-token/{token}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Datepoll Submission
+         * @description Withdraw a submission via its edit-link token — the respondent
+         *     deleting their own availability. Removes the response rows and the
+         *     submission; nothing else references either (pseudonymous, no email).
+         */
+        post: operations["withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepolls/{datepoll_id}": {
         parameters: {
             query?: never;
@@ -1279,6 +1301,31 @@ export interface paths {
          */
         put: operations["update_signup_api_v1_events_by_token__token__put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/by-token/{token}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Signup
+         * @description Withdraw a signup via its edit-link token — the attendee removing
+         *     their own headcount. Deletes only the ``Signup`` row (no email lives
+         *     on it). Any pending ``EmailDispatch`` for this event is untouched by
+         *     design (no signup_id link), so an already-scheduled reminder/feedback
+         *     email may still arrive; the public page warns about this before
+         *     calling. Mirrors the organiser delete, minus the RBAC.
+         */
+        post: operations["withdraw_signup_api_v1_events_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1696,6 +1743,28 @@ export interface paths {
          */
         put: operations["update_form_submission_api_v1_forms_by_token__token__put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/by-token/{token}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Form Submission
+         * @description Withdraw a submission via its edit-link token — the respondent
+         *     deleting their own answers. Removes the response rows and the
+         *     submission; nothing else references either (pseudonymous, no email).
+         */
+        post: operations["withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5583,6 +5652,35 @@ export interface operations {
             };
         };
     };
+    withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_datepoll_api_v1_datepolls__datepoll_id__get: {
         parameters: {
             query?: never;
@@ -6232,6 +6330,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SignupEditOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_signup_api_v1_events_by_token__token__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -6999,6 +7126,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FormEditOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

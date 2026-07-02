@@ -15,8 +15,6 @@ export interface ChoreStrings {
   emailDisclosureBody: string;
   enrolButton: string;
   enrolled: string;
-  saveChanges: string;
-  saved: string;
   myTurns: string;
   noUpcoming: string;
   coveringForLeaver: string;
@@ -39,7 +37,6 @@ export interface ChoreStrings {
   availabilityFrom: string;
   availabilityTo: string;
   availabilityEmpty: string;
-  leave: string;
   leaveConfirm: string;
   left: string;
   actionFailed: string;
@@ -57,8 +54,6 @@ const dict: Record<Locale, ChoreStrings> = {
       "Je e-mailadres gebruiken we alleen om je op tijd aan een taak te herinneren. We bewaren het versleuteld zolang je meedoet en verwijderen het zodra je je afmeldt.",
     enrolButton: "Aanmelden",
     enrolled: "Je bent aangemeld!",
-    saveChanges: "Wijzigingen opslaan",
-    saved: "Opgeslagen",
     myTurns: "Mijn taken",
     noUpcoming: "Je hebt geen komende taken.",
     coveringForLeaver: "Overgenomen voor iemand die vertrok",
@@ -81,7 +76,6 @@ const dict: Record<Locale, ChoreStrings> = {
     availabilityFrom: "Startdatum",
     availabilityTo: "Einddatum",
     availabilityEmpty: "Je hebt geen afwezigheid opgegeven.",
-    leave: "Afmelden",
     leaveConfirm: "Weet je zeker dat je je wilt afmelden? Je e-mailadres wordt verwijderd.",
     left: "Je bent afgemeld.",
     actionFailed: "Er ging iets mis. Probeer het opnieuw.",
@@ -97,8 +91,6 @@ const dict: Record<Locale, ChoreStrings> = {
       "We only use your email to send you a reminder before your shift. It's stored encrypted while you're taking part and deleted as soon as you leave.",
     enrolButton: "Sign up",
     enrolled: "You're signed up!",
-    saveChanges: "Save changes",
-    saved: "Saved",
     myTurns: "My shifts",
     noUpcoming: "You have no upcoming shifts.",
     coveringForLeaver: "Picked up, covering for someone who left",
@@ -121,7 +113,6 @@ const dict: Record<Locale, ChoreStrings> = {
     availabilityFrom: "Start date",
     availabilityTo: "End date",
     availabilityEmpty: "You haven't set any time off.",
-    leave: "Leave",
     leaveConfirm: "Are you sure you want to leave? Your email will be deleted.",
     left: "You've left.",
     actionFailed: "Something went wrong. Please try again.",

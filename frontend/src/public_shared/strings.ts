@@ -27,6 +27,11 @@ export interface ChromeStrings {
   submitting: string;
   submitFail: string;
   thanks: string;
+  // Edit-mode action bar (shared by every public edit page).
+  save: string;
+  saved: string;
+  revert: string;
+  withdraw: string;
   explainerTitle: string;
   explainerBody: string;
   explainerLink: string;
@@ -47,6 +52,10 @@ const chrome: Record<Locale, ChromeStrings> = {
     submitting: "Versturen…",
     submitFail: "Versturen mislukt",
     thanks: "Bedankt!",
+    save: "Opslaan",
+    saved: "Opgeslagen",
+    revert: "Herstellen",
+    withdraw: "Afmelden",
     explainerTitle: "Privacy & open source",
     explainerBody: "We slaan geen e-mailadres of tracking op. De code is open source:",
     explainerLink: "bekijk de broncode",
@@ -65,6 +74,10 @@ const chrome: Record<Locale, ChromeStrings> = {
     submitting: "Submitting…",
     submitFail: "Submitting failed",
     thanks: "Thank you!",
+    save: "Save",
+    saved: "Saved",
+    revert: "Revert",
+    withdraw: "Withdraw",
     explainerTitle: "Privacy & open source",
     explainerBody: "We store no email address and no tracking. The code is open source:",
     explainerLink: "view the source",

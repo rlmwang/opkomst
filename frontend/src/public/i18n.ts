@@ -34,6 +34,8 @@ interface Strings {
   thanks: string;
   thanksBody: string;
   thanksBodyNoEmail: string;
+  withdrawConfirm: string;
+  withdrawn: string;
   explainerTitle: string;
   explainerIntro: string;
   explainerEmailIntro: string;
@@ -72,6 +74,9 @@ const dict: Record<Locale, Strings> = {
     fillName: "Vul een naam in",
     fillSource: "Kies hoe je ons hebt gevonden",
     invalidEmail: "Ongeldig e-mailadres",
+    withdrawConfirm:
+      "Je afmelden? Je aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
+    withdrawn: "Je bent afgemeld.",
     thanks: "Bedankt – je aanmelding is binnen.",
     thanksBody:
       "Tot dan! Heb je een mailadres achtergelaten? Dan krijg je de dag erna een korte feedbackmail; daarna gooien we je adres weg.",
@@ -114,6 +119,9 @@ const dict: Record<Locale, Strings> = {
     fillName: "Fill in a name",
     fillSource: "Pick how you found us",
     invalidEmail: "Invalid email address",
+    withdrawConfirm:
+      "Withdraw your sign-up? It will be removed. A reminder or feedback email that's already scheduled may still arrive.",
+    withdrawn: "You've withdrawn.",
     thanks: "Thanks — we got your sign-up.",
     thanksBody:
       "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",

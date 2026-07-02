@@ -2,11 +2,13 @@
 import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref } from "vue";
 import EditLink from "@/public_shared/EditLink.vue";
+import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import { type Locale, GITHUB_URL, chromeStrings, pickLocale } from "@/public_shared/strings";
+import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import {
   type AvailabilityRange,
@@ -37,7 +39,6 @@ const email = ref("");
 const picked = reactive<Record<string, boolean>>({});
 const busy = ref(false);
 const errorMsg = ref("");
-const savedFlash = ref(false);
 
 const personal = ref<PersonalPage | null>(null);
 const availDraft = ref<AvailabilityRange[]>([]);
@@ -51,6 +52,25 @@ const { editToken, editUrl, confirmSaved } = useEditLink("c", slug);
 
 const chores = computed(() => roster.value?.chores ?? []);
 const chosenIds = computed(() => Object.keys(picked).filter((id) => picked[id]));
+
+// Dirty/revert/saved state for the shared edit bar.
+const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
+  snapshot: () => ({
+    name: displayName.value,
+    chores: [...chosenIds.value].sort(),
+    avail: availDraft.value.map((r) => `${r.start}|${r.end}`),
+    email: email.value,
+  }),
+  apply: (s) => {
+    displayName.value = s.name;
+    for (const chore of chores.value) picked[chore.id] = s.chores.includes(chore.id);
+    availDraft.value = s.avail.map((pair) => {
+      const [start, end] = pair.split("|");
+      return { start, end };
+    });
+    email.value = s.email;
+  },
+});
 
 onMounted(async () => {
   const inlined = window.__OPKOMST_CHORE__;
@@ -67,6 +87,7 @@ onMounted(async () => {
     if (editToken) {
       const page = await fetchPersonalPage(editToken);
       hydratePersonal(page);
+      captureBaseline();
       status.value = "personal";
     } else {
       status.value = "enrol";
@@ -145,8 +166,8 @@ async function saveChanges(): Promise<void> {
     const ranges = availDraft.value.filter((r) => r.start && r.end);
     hydratePersonal(await putAvailability(editToken, ranges));
     email.value = ""; // one-shot add/replace; never echo it back
-    savedFlash.value = true;
-    window.setTimeout(() => (savedFlash.value = false), 2000);
+    captureBaseline();
+    flashSaved();
   } catch {
     errorMsg.value = ch.value.actionFailed;
   } finally {
@@ -373,17 +394,21 @@ async function leave(): Promise<void> {
 
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
-      <div class="submit-row">
-        <button v-if="status === 'enrol'" type="button" class="btn-primary" :disabled="busy" @click="enrol">
+      <div v-if="status === 'enrol'" class="submit-row">
+        <button type="button" class="btn-primary" :disabled="busy" @click="enrol">
           {{ ch.enrolButton }}
         </button>
-        <template v-else>
-          <button type="button" class="btn-primary" :disabled="busy" @click="saveChanges">
-            {{ savedFlash ? ch.saved : ch.saveChanges }}
-          </button>
-          <button type="button" class="btn ghost" :disabled="busy" @click="leave">{{ ch.leave }}</button>
-        </template>
       </div>
+      <PublicEditBar
+        v-else
+        :dirty="dirty"
+        :saving="busy"
+        :just-saved="justSaved"
+        :locale="locale"
+        @save="saveChanges"
+        @revert="revert"
+        @withdraw="leave"
+      />
     </template>
   </PublicShell>
 </template>

@@ -201,3 +201,81 @@ def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers)
 
 def test_event_bad_token_404(client):
     assert client.get("/api/v1/events/by-token/nope").status_code == 404
+
+
+# --- withdraw (participant deletes their own submission) --------------
+
+
+def test_form_withdraw(client, organiser_headers):
+    form = _create_form(client, organiser_headers)
+    qid = form["questions"][0]["id"]
+    token = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 3}]},
+    ).json()["edit_token"]
+
+    assert client.post(f"/api/v1/forms/by-token/{token}/withdraw").status_code == 204
+    # Submission + its responses are gone; the token no longer resolves.
+    assert client.get(f"/api/v1/forms/by-token/{token}").status_code == 404
+    summary = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()
+    assert summary["submission_count"] == 0
+
+
+def test_datepoll_withdraw(client, organiser_headers):
+    poll = _create_poll(client, organiser_headers)
+    d0 = poll["slots"][0]["id"]
+    token = client.post(
+        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
+    ).json()["edit_token"]
+
+    assert client.post(f"/api/v1/datepolls/by-token/{token}/withdraw").status_code == 204
+    assert client.get(f"/api/v1/datepolls/by-token/{token}").status_code == 404
+    summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
+    assert summary["submission_count"] == 0
+
+
+def test_event_withdraw_deletes_signup(client, organiser_headers):
+    event = _create_event(client, organiser_headers)
+    token = client.post(
+        f"/api/v1/events/by-slug/{event['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, "help_choices": []},
+    ).json()["edit_token"]
+
+    assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
+    assert client.get(f"/api/v1/events/by-token/{token}").status_code == 404
+
+
+def test_event_withdraw_leaves_email_dispatches_intact(client, organiser_headers):
+    from backend.database import SessionLocal
+    from backend.models import EmailDispatch
+
+    event = _create_event(client, organiser_headers)
+    token = client.post(
+        f"/api/v1/events/by-slug/{event['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev"},
+    ).json()["edit_token"]
+
+    db = SessionLocal()
+    try:
+        before = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
+    finally:
+        db.close()
+    assert before >= 1  # feedback dispatch created at signup
+
+    assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
+
+    # Withdrawing the signup leaves the decoupled dispatch rows alone, by
+    # design (no signup_id link) — the person may still get the email.
+    db = SessionLocal()
+    try:
+        after = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
+    finally:
+        db.close()
+    assert after == before
+
+
+def test_withdraw_bad_token_404(client):
+    assert client.post("/api/v1/forms/by-token/nope/withdraw").status_code == 404
+    assert client.post("/api/v1/datepolls/by-token/nope/withdraw").status_code == 404
+    assert client.post("/api/v1/events/by-token/nope/withdraw").status_code == 404
