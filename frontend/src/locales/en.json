@@ -495,7 +495,8 @@
       "load": "{n} shifts",
       "openShift": "Open",
       "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open",
-      "assignedCount": "{n} assigned",
+      "regularCount": "{n} regular turns",
+      "pickedUpCount": "{n} picked up for others",
       "doneCount": "{n} done",
       "deferredCount": "{n} handed off",
       "missedCount": "{n} missed",
@@ -503,7 +504,7 @@
         "done": "Done",
         "deferred": "Handed off",
         "missed": "Missed",
-        "assigned": "Assigned"
+        "turns": "Turns · picked up"
       }
     }
   },

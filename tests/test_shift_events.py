@@ -13,8 +13,56 @@ from typing import Any
 from backend.models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, User, Volunteer
 from backend.services import chore_tick
 from backend.services import chores as chores_svc
+from backend.services.chore_assignment import net_credit, summarize_accountability
 
 TODAY = date(2026, 1, 5)  # Monday
+
+
+# --- pure aggregation (the fold) -------------------------------------
+
+
+def test_summarize_splits_regular_from_picked_up():
+    # A mix: 2 WRH-assigned regulars; a self-claim, a voluntary cover, and
+    # an inherited (removal) pickup — all three are "picked up for others".
+    events = [
+        ("assigned", "v1"),
+        ("assigned", "v1"),
+        ("claimed", "v1"),
+        ("covered", "v1"),
+        ("inherited", "v1"),
+        ("completed", "v1"),
+        ("deferred", "v1"),
+        ("missed", "v1"),
+    ]
+    counts = summarize_accountability(events)["v1"]
+    assert counts.regular_turns == 2
+    assert counts.picked_up == 3  # claimed + covered + inherited
+    assert (counts.completed, counts.deferred, counts.missed) == (1, 1, 1)
+
+
+def test_inherited_pickup_is_not_a_regular_turn():
+    counts = summarize_accountability([("inherited", "v1")])["v1"]
+    assert counts.picked_up == 1
+    assert counts.regular_turns == 0
+
+
+def test_summary_and_ledger_read_one_source():
+    # The display fold and the favour ledger consume the identical
+    # (kind, volunteer_id) stream, so per volunteer the net credit is
+    # exactly picked_up minus the negative outcomes.
+    events = [
+        ("assigned", "v1"),
+        ("claimed", "v1"),
+        ("covered", "v1"),
+        ("inherited", "v1"),
+        ("deferred", "v1"),
+        ("missed", "v2"),
+        ("covered", "v2"),
+    ]
+    counts = summarize_accountability(events)
+    credit = net_credit(events)
+    for vid, c in counts.items():
+        assert credit.get(vid, 0) == c.picked_up - c.deferred - c.missed
 
 
 # --- tick-side (service) ---------------------------------------------
@@ -63,7 +111,7 @@ def test_tick_records_assigned(db):
     assert _kinds(db, roster.id).get("assigned") == scheduled
 
     summ = {v.id: v for v in chores_svc.volunteer_summaries(db, roster)}
-    assert summ[vol.id].assigned == scheduled
+    assert summ[vol.id].regular_turns == scheduled
 
 
 def test_tick_records_missed_for_the_holder(db):
@@ -157,16 +205,18 @@ def test_pass_records_deferred_and_reassigns(client, organiser_headers, db):
     client.post(f"/api/v1/chores/by-token/{a}/shifts/{my[0]['id']}/pass")
     vols = _volunteers(client, organiser_headers, roster["id"])
     assert vols["A"]["deferred"] == 1
-    # B picked up the reassigned shift → their assigned count reflects it.
-    assert vols["B"]["assigned"] >= 1
+    # B was WRH-reassigned the reopened shift → a regular turn, not a pickup.
+    assert vols["B"]["regular_turns"] >= 1
 
 
-def test_claim_records_as_assigned(client, organiser_headers, db):
+def test_claim_records_as_picked_up(client, organiser_headers, db):
     roster = _api_roster(client, organiser_headers)
     cid = roster["chores"][0]["id"]
     _tick(db)  # no volunteers yet → shifts open
     token = _enroll(client, roster["slug"], "Late", cid)
     open_shifts = client.get(f"/api/v1/chores/by-token/{token}").json()["open_shifts"]
     client.post(f"/api/v1/chores/by-token/{token}/shifts/{open_shifts[0]['id']}/claim")
-    # A claim counts toward "assigned so far".
-    assert _volunteers(client, organiser_headers, roster["id"])["Late"]["assigned"] == 1
+    # A self-claim of an open slot is help beyond a WRH-assigned fair share.
+    late = _volunteers(client, organiser_headers, roster["id"])["Late"]
+    assert late["picked_up"] == 1
+    assert late["regular_turns"] == 0

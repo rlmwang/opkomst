@@ -33,6 +33,7 @@ from ..schemas.chores import (
     VolunteerSummaryOut,
 )
 from . import chore_tick
+from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
 
 # How far past the commit horizon the tentative outlook is projected for
@@ -329,18 +330,12 @@ def _roster_loads(db: Session, roster_id: str) -> dict[str, int]:
     return {vid: int(n) for vid, n in rows}
 
 
-def _event_counts(db: Session, roster_id: str) -> dict[str, dict[str, int]]:
-    """Per-volunteer accountability counts keyed by ShiftEvent kind."""
-    rows = (
-        db.query(ShiftEvent.volunteer_id, ShiftEvent.kind, func.count(ShiftEvent.id))
-        .filter(ShiftEvent.roster_id == roster_id)
-        .group_by(ShiftEvent.volunteer_id, ShiftEvent.kind)
-        .all()
-    )
-    out: dict[str, dict[str, int]] = {}
-    for vid, kind, n in rows:
-        out.setdefault(vid, {})[kind] = int(n)
-    return out
+def _accountability(db: Session, roster_id: str) -> dict[str, AccountabilityCounts]:
+    """Per-volunteer accountability split, folded from the same
+    ``(kind, volunteer_id)`` ShiftEvent stream the favour ledger reads —
+    so the ledger and the display provably agree (design §7)."""
+    rows = db.query(ShiftEvent.kind, ShiftEvent.volunteer_id).filter(ShiftEvent.roster_id == roster_id).all()
+    return summarize_accountability((kind, vid) for kind, vid in rows)
 
 
 def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut]:
@@ -357,7 +352,7 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
     ):
         by_vol.setdefault(vid, []).append(cid)
     loads = _roster_loads(db, roster.id)
-    events = _event_counts(db, roster.id)
+    counts = _accountability(db, roster.id)
     # A volunteer is "pending" until they hold any shift (pinned or past).
     held = {
         row[0]
@@ -373,11 +368,11 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
             enrolled_chore_ids=by_vol.get(v.id, []),
             pending=v.id not in held,
             load=loads.get(v.id, 0),
-            # "assigned so far" = auto-assigned + self-claimed.
-            assigned=events.get(v.id, {}).get("assigned", 0) + events.get(v.id, {}).get("claimed", 0),
-            completed=events.get(v.id, {}).get("completed", 0),
-            deferred=events.get(v.id, {}).get("deferred", 0),
-            missed=events.get(v.id, {}).get("missed", 0),
+            regular_turns=(c := counts.get(v.id, AccountabilityCounts())).regular_turns,
+            picked_up=c.picked_up,
+            completed=c.completed,
+            deferred=c.deferred,
+            missed=c.missed,
         )
         for v in volunteers
     ]

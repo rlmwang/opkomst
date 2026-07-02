@@ -41,8 +41,8 @@ const upcoming = computed(() => schedule.value?.confirmed ?? []);
 // Volunteer accountability bars: length = that person's *resolved*
 // shifts (done + handed-off + missed) relative to the busiest resolver,
 // segmented by outcome. Upcoming shifts are deliberately excluded — for
-// an open-ended roster they grow without bound. "Assigned so far" shows
-// as a separate number.
+// an open-ended roster they grow without bound. Regular turns and shifts
+// picked up for others show as separate figures.
 type VolRow = (typeof volunteers.value)[number];
 function resolved(v: VolRow): number {
   return v.completed + v.deferred + v.missed;
@@ -190,7 +190,7 @@ function dateWindow(): string {
             <span class="key"><i class="dot done" />{{ t("chores.details.legend.done") }}</span>
             <span class="key"><i class="dot deferred" />{{ t("chores.details.legend.deferred") }}</span>
             <span class="key"><i class="dot missed" />{{ t("chores.details.legend.missed") }}</span>
-            <span class="key total-key">{{ t("chores.details.legend.assigned") }}</span>
+            <span class="key total-key">{{ t("chores.details.legend.turns") }}</span>
           </div>
           <ul class="vol-tally">
             <li v-for="v in volunteers" :key="v.id" class="vol-row">
@@ -208,8 +208,17 @@ function dateWindow(): string {
                 :aria-label="barLabel(v)"
                 style="--stat-bar-height: 0.75rem"
               />
-              <span class="vol-total" :title="t('chores.details.assignedCount', { n: v.assigned })">
-                {{ v.assigned }}
+              <span class="vol-turns">
+                <span class="turns-fig" :title="t('chores.details.regularCount', { n: v.regular_turns })">
+                  {{ v.regular_turns }}
+                </span>
+                <span
+                  v-if="v.picked_up"
+                  class="turns-fig picked"
+                  :title="t('chores.details.pickedUpCount', { n: v.picked_up })"
+                >
+                  +{{ v.picked_up }}
+                </span>
               </span>
             </li>
           </ul>
@@ -290,7 +299,7 @@ function dateWindow(): string {
 .shift-chore { font-size: 0.875rem; }
 
 /* Volunteer accountability tally — a datepoll-style stacked bar per
- * person (done / handed-off / missed), plus their assigned total. */
+ * person (done / handed-off / missed), plus regular vs picked-up turns. */
 .bar-legend {
   display: flex;
   flex-wrap: wrap;
@@ -348,11 +357,20 @@ function dateWindow(): string {
   color: var(--p-primary-color);
   font-weight: 500;
 }
-.vol-total {
+.vol-turns {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  justify-content: flex-end;
+}
+.turns-fig {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  min-width: 1.5rem;
   text-align: right;
+}
+.turns-fig.picked {
+  color: var(--brand-green);
+  font-size: 0.875em;
 }
 .stats-line { margin: 0 0 0.5rem; }
 .shift-date { min-width: 8rem; }

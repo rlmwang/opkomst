@@ -275,10 +275,11 @@ class VolunteerSummaryOut(BaseModel):
     assignment load + lifetime accountability counts. **Never** the
     email, ciphertext, or edit token.
 
-    ``load`` is current upcoming responsibility (scheduled + done);
-    ``assigned`` is how many shifts they've ever taken on (auto-assigned
-    + self-claimed); ``completed`` / ``deferred`` / ``missed`` are the
-    resolved outcomes so far."""
+    ``load`` is current upcoming responsibility (scheduled + done).
+    Accountability splits their turns (design §7): ``regular_turns`` are
+    WRH-assigned (their fair share), ``picked_up`` is help beyond it
+    (claimed + covered + inherited-on-removal); ``completed`` / ``deferred``
+    / ``missed`` are the resolved outcomes so far."""
 
     id: str
     display_name: str | None
@@ -287,7 +288,8 @@ class VolunteerSummaryOut(BaseModel):
     # (design §7): shown as "joining" until the commit horizon reaches them.
     pending: bool
     load: int
-    assigned: int
+    regular_turns: int
+    picked_up: int
     completed: int
     deferred: int
     missed: int

@@ -3783,14 +3783,13 @@ export interface components {
          *     assignment load + lifetime accountability counts. **Never** the
          *     email, ciphertext, or edit token.
          *
-         *     ``load`` is current upcoming responsibility (scheduled + done);
-         *     ``assigned`` is how many shifts they've ever taken on (auto-assigned
-         *     + self-claimed); ``completed`` / ``deferred`` / ``missed`` are the
-         *     resolved outcomes so far.
+         *     ``load`` is current upcoming responsibility (scheduled + done).
+         *     Accountability splits their turns (design §7): ``regular_turns`` are
+         *     WRH-assigned (their fair share), ``picked_up`` is help beyond it
+         *     (claimed + covered + inherited-on-removal); ``completed`` / ``deferred``
+         *     / ``missed`` are the resolved outcomes so far.
          */
         VolunteerSummaryOut: {
-            /** Assigned */
-            assigned: number;
             /** Completed */
             completed: number;
             /** Deferred */
@@ -3807,6 +3806,10 @@ export interface components {
             missed: number;
             /** Pending */
             pending: boolean;
+            /** Picked Up */
+            picked_up: number;
+            /** Regular Turns */
+            regular_turns: number;
         };
     };
     responses: never;

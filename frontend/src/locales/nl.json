@@ -495,7 +495,8 @@
       "load": "{n} beurten",
       "openShift": "Vrij",
       "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij",
-      "assignedCount": "{n} toegewezen",
+      "regularCount": "{n} eigen beurten",
+      "pickedUpCount": "{n} overgenomen voor anderen",
       "doneCount": "{n} gedaan",
       "deferredCount": "{n} doorgegeven",
       "missedCount": "{n} gemist",
@@ -503,7 +504,7 @@
         "done": "Gedaan",
         "deferred": "Doorgegeven",
         "missed": "Gemist",
-        "assigned": "Toegewezen"
+        "turns": "Beurten · overgenomen"
       }
     }
   },

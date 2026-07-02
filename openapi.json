@@ -4472,12 +4472,8 @@
         "type": "object"
       },
       "VolunteerSummaryOut": {
-        "description": "Organiser-facing volunteer row: pseudonym + enrolled chores +\nassignment load + lifetime accountability counts. **Never** the\nemail, ciphertext, or edit token.\n\n``load`` is current upcoming responsibility (scheduled + done);\n``assigned`` is how many shifts they've ever taken on (auto-assigned\n+ self-claimed); ``completed`` / ``deferred`` / ``missed`` are the\nresolved outcomes so far.",
+        "description": "Organiser-facing volunteer row: pseudonym + enrolled chores +\nassignment load + lifetime accountability counts. **Never** the\nemail, ciphertext, or edit token.\n\n``load`` is current upcoming responsibility (scheduled + done).\nAccountability splits their turns (design \u00a77): ``regular_turns`` are\nWRH-assigned (their fair share), ``picked_up`` is help beyond it\n(claimed + covered + inherited-on-removal); ``completed`` / ``deferred``\n/ ``missed`` are the resolved outcomes so far.",
         "properties": {
-          "assigned": {
-            "title": "Assigned",
-            "type": "integer"
-          },
           "completed": {
             "title": "Completed",
             "type": "integer"
@@ -4519,6 +4515,14 @@
           "pending": {
             "title": "Pending",
             "type": "boolean"
+          },
+          "picked_up": {
+            "title": "Picked Up",
+            "type": "integer"
+          },
+          "regular_turns": {
+            "title": "Regular Turns",
+            "type": "integer"
           }
         },
         "required": [
@@ -4527,7 +4531,8 @@
           "enrolled_chore_ids",
           "pending",
           "load",
-          "assigned",
+          "regular_turns",
+          "picked_up",
           "completed",
           "deferred",
           "missed"
