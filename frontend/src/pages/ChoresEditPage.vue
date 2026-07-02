@@ -129,6 +129,12 @@ onMounted(() => {
   restoreDraftOnce();
 });
 
+// The data watch is ``immediate`` and can fire synchronously during setup
+// when the roster is already in the Query cache (warm navigation). The draft
+// helpers below aren't initialised yet at that point, so gate the draft
+// restore on this flag and run it once explicitly after they're defined.
+let draftReady = false;
+
 watch(
   () => rosterQuery?.data.value,
   (existing) => {
@@ -153,7 +159,7 @@ watch(
       people_per_shift: c.people_per_shift,
       emoji: c.emoji ?? DEFAULT_CHORE_EMOJI,
     }));
-    restoreDraftOnce();
+    if (draftReady) restoreDraftOnce();
   },
   { immediate: true },
 );
@@ -239,6 +245,11 @@ function restoreDraftOnce(): void {
   const draft = loadDraft();
   if (draft) applyDraft(draft);
 }
+
+// The draft helpers exist now — apply any value the immediate watch above
+// already loaded from a warm cache (it skipped the restore back then).
+draftReady = true;
+if (rosterQuery?.data.value) restoreDraftOnce();
 
 // --- Chore list helpers --------------------------------------------
 function addChore(): void {

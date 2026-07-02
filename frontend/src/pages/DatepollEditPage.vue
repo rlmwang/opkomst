@@ -249,6 +249,12 @@ const otherError = computed(
   () => isEdit.value && pollQuery?.error.value && !notFound.value,
 );
 
+// The data watch is ``immediate`` and can fire synchronously during setup
+// when the poll is already in the Query cache (warm navigation). The draft
+// helpers below aren't initialised yet at that point, so gate the draft
+// restore on this flag and run it once explicitly after they're defined.
+let draftReady = false;
+
 watch(
   () => pollQuery?.data.value,
   (existing) => {
@@ -268,7 +274,7 @@ watch(
         (slots[s.on_date] ??= []).push({ start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) });
       }
     }
-    restoreDraftOnce();
+    if (draftReady) restoreDraftOnce();
   },
   { immediate: true },
 );
@@ -350,6 +356,11 @@ function restoreDraftOnce(): void {
   const draft = loadDraft();
   if (draft) applyDraft(draft);
 }
+
+// The draft helpers exist now — apply any value the immediate watch above
+// already loaded from a warm cache (it skipped the restore back then).
+draftReady = true;
+if (pollQuery?.data.value) restoreDraftOnce();
 
 onMounted(() => {
   if (isEdit.value) return;

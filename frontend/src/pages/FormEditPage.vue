@@ -95,6 +95,10 @@ onMounted(() => {
 // Edit-mode: copy the existing form into the local refs once the
 // fetch lands. ``immediate`` so the snapshot also runs if the
 // cache already had the row (e.g. arriving from the details page).
+// That warm-cache fire happens during setup, before the draft helpers
+// below exist — so gate the draft restore on this flag and run it once
+// explicitly afterwards.
+let draftReady = false;
 watch(
   () => formQuery?.data.value,
   (existing) => {
@@ -116,7 +120,7 @@ watch(
     }));
     // Restore the mid-edit draft after server hydration so the
     // user's unsaved edits win over the stored form.
-    restoreDraftOnce();
+    if (draftReady) restoreDraftOnce();
   },
   { immediate: true },
 );
@@ -173,6 +177,11 @@ function restoreDraftOnce(): void {
   const draft = loadDraft();
   if (draft) applyDraft(draft);
 }
+
+// The draft helpers exist now — apply any value the immediate watch above
+// already loaded from a warm cache (it skipped the restore back then).
+draftReady = true;
+if (formQuery?.data.value) restoreDraftOnce();
 
 // --- Question list helpers -----------------------------------------
 
