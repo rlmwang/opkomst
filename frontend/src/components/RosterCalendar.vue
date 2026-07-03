@@ -72,7 +72,6 @@ const cells = computed<Cell[]>(() => {
 <style scoped>
 .rc {
   width: 100%;
-  max-width: 26rem;
 }
 .rc-dow,
 .rc-grid {

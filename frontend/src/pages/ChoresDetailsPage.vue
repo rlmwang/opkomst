@@ -6,19 +6,13 @@ import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
-import RosterCalendarBoard from "@/components/RosterCalendarBoard.vue";
+import ChoreCalendarPanel from "@/components/ChoreCalendarPanel.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import type { ChoreOut } from "@/api/types";
 import { post } from "@/api/client";
-import {
-  useRebalancePreviewCalendar,
-  useRoster,
-  useRosterAccountability,
-  useRosterCalendar,
-  useRosterSchedule,
-} from "@/composables/useChores";
+import { useRoster, useRosterAccountability, useRosterSchedule } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
@@ -52,26 +46,9 @@ const hasPending = computed(
 const showFoldIn = ref(false);
 const rebalancing = ref(false);
 
-// The month both calendars start on (a "YYYY-MM" string; the board owns nav).
-function currentMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-// Current roster calendar (one calendar per chore, month-navigable).
-const calMonth = ref(currentMonth());
-const calendarQuery = useRosterCalendar(rosterId, calMonth);
-const calendar = computed(() => calendarQuery.data.value ?? []);
-
-// Fold-in preview: the post-rebalance calendar for the dialog's month,
-// fetched only while the dialog is open; changed days are ringed.
-const foldInMonth = ref(currentMonth());
-const previewQuery = useRebalancePreviewCalendar(rosterId, foldInMonth, showFoldIn);
-const previewCalendar = computed(() => previewQuery.data.value ?? []);
-const previewHasChanges = computed(() => previewCalendar.value.some((c) => c.days.some((d) => d.changed)));
-
+// Each chore renders its own ChoreCalendarPanel (own month + fetch), so the
+// page only owns the dialog toggle; the panels do the calendar plumbing.
 function openFoldIn() {
-  foldInMonth.value = calMonth.value;
   showFoldIn.value = true;
 }
 async function confirmFoldIn() {
@@ -294,21 +271,27 @@ function dateWindow(): string {
             <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
             <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
           </div>
-          <RosterCalendarBoard
-            v-model:month="calMonth"
-            :chores="calendar"
-            :locale="locale"
-            :open-label="t('chores.details.openShift')"
-            :anon-label="t('chores.details.anonymous')"
-            :prev-label="t('chores.details.prevMonth')"
-            :next-label="t('chores.details.nextMonth')"
-          />
+          <div class="cal-panels">
+            <ChoreCalendarPanel
+              v-for="c in choreItems"
+              :key="c.id"
+              :roster-id="props.rosterId"
+              :chore-id="c.id"
+              :chore-name="c.name"
+              :emoji="c.emoji ?? null"
+              :locale="locale"
+              :open-label="t('chores.details.openShift')"
+              :anon-label="t('chores.details.anonymous')"
+              :prev-label="t('chores.details.prevMonth')"
+              :next-label="t('chores.details.nextMonth')"
+            />
+          </div>
         </template>
         <p v-else class="muted">{{ t("chores.details.scheduleEmpty") }}</p>
       </AppCard>
     </template>
 
-    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="680px">
+    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="560px">
       <p class="muted">{{ t("chores.details.foldInIntro") }}</p>
       <div class="cal-legend muted">
         <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
@@ -316,16 +299,24 @@ function dateWindow(): string {
         <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
         <span><i class="cal-swatch changed" />{{ t("chores.details.calChanged") }}</span>
       </div>
-      <p v-if="!previewHasChanges" class="muted foldin-note">{{ t("chores.details.foldInNoneMonth") }}</p>
-      <RosterCalendarBoard
-        v-model:month="foldInMonth"
-        :chores="previewCalendar"
-        :locale="locale"
-        :open-label="t('chores.details.openShift')"
-        :anon-label="t('chores.details.anonymous')"
-        :prev-label="t('chores.details.prevMonth')"
-        :next-label="t('chores.details.nextMonth')"
-      />
+      <div class="cal-panels">
+        <ChoreCalendarPanel
+          v-for="c in choreItems"
+          :key="c.id"
+          :roster-id="props.rosterId"
+          :chore-id="c.id"
+          :chore-name="c.name"
+          :emoji="c.emoji ?? null"
+          preview
+          :enabled="showFoldIn"
+          :locale="locale"
+          :open-label="t('chores.details.openShift')"
+          :anon-label="t('chores.details.anonymous')"
+          :prev-label="t('chores.details.prevMonth')"
+          :next-label="t('chores.details.nextMonth')"
+          :no-change-label="t('chores.details.foldInNoneMonth')"
+        />
+      </div>
       <template #footer>
         <Button
           :label="t('common.cancel')"
@@ -454,5 +445,14 @@ function dateWindow(): string {
   outline: 2px solid var(--brand-red);
   outline-offset: -1px;
 }
-.foldin-note { margin: 0 0 0.5rem; }
+/* One full-width calendar per chore, stacked, each with its own scroller. */
+.cal-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.cal-panels > :not(:first-child) {
+  border-top: 1px solid var(--brand-border);
+  padding-top: 1.5rem;
+}
 </style>
