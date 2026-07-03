@@ -225,7 +225,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
         <input
           v-model="displayName"
           type="text"
-          class="textfield"
+          class="input"
           :placeholder="c.displayName"
           autocomplete="name"
           maxlength="100"
@@ -260,7 +260,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
             :value="answers[q.id]?.answer_text ?? ''"
             maxlength="2000"
             rows="3"
-            class="textfield textarea"
+            class="input textarea"
             @input="(e) => setText(q.id, (e.target as HTMLTextAreaElement).value)"
           />
 
@@ -269,7 +269,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
             type="text"
             :value="answers[q.id]?.answer_text ?? ''"
             maxlength="200"
-            class="textfield"
+            class="input"
             @input="(e) => setText(q.id, (e.target as HTMLInputElement).value)"
           />
 
@@ -350,20 +350,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 .dot.active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
 .legend { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--brand-text-muted); }
 
-/* --- Text inputs --- */
-.textfield {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 8px;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font-family: inherit;
-  font-size: 1rem;
-  line-height: 1.4;
-}
-.textfield:focus { outline: 2px solid var(--brand-red); outline-offset: 0; border-color: var(--brand-red); }
+/* --- Text inputs (base ``.input`` comes from forms.css) --- */
 .textarea { resize: vertical; min-height: 5rem; }
 
 /* --- Choice lists --- */

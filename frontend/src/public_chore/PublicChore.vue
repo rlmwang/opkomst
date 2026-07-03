@@ -368,17 +368,22 @@ async function leave(): Promise<void> {
         </label>
       </div>
 
-      <!-- Name + email + reminders -->
+      <!-- Name + email -->
       <div class="card stack">
-        <label class="field">
-          <span>{{ c.displayName }}</span>
-          <input v-model="displayName" type="text" class="input" />
-        </label>
-
-        <label class="field">
-          <span>{{ ch.emailLabel }}</span>
-          <input v-model="email" type="email" class="input" :placeholder="personal?.has_email ? '••••••' : ''" />
-        </label>
+        <input
+          v-model="displayName"
+          type="text"
+          class="input"
+          :placeholder="c.displayName"
+          autocomplete="name"
+        />
+        <input
+          v-model="email"
+          type="email"
+          class="input"
+          :placeholder="personal?.has_email ? '••••••' : ch.emailLabel"
+          autocomplete="email"
+        />
       </div>
 
       <div class="card">
@@ -448,19 +453,7 @@ h2 { margin: 0; font-size: 1.1rem; }
 }
 .emoji { line-height: 1; }
 .chore-desc { font-size: 0.8125rem; }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.field > span { font-size: 0.875rem; color: var(--brand-text-muted); }
 /* .input + .btn-primary come from ``src/public_shared/forms.css``. */
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
 .disclosure summary { cursor: pointer; font-weight: 600; }
 .shift-list {
   list-style: none;

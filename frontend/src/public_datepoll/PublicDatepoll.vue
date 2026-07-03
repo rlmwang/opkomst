@@ -229,11 +229,11 @@ async function withdraw(): Promise<void> {
         <!-- Pseudonym + the optional note up top, mirroring the events
              sign-up form. The note auto-grows to its content. -->
         <div class="card name-card">
-          <input v-model="displayName" class="textfield" type="text" :placeholder="c.displayName" maxlength="100" />
+          <input v-model="displayName" class="input" type="text" :placeholder="c.displayName" maxlength="100" />
           <textarea
             ref="noteEl"
             v-model="note"
-            class="textfield note"
+            class="input note"
             :placeholder="d.notePlaceholder"
             maxlength="280"
             rows="2"
@@ -304,25 +304,7 @@ async function withdraw(): Promise<void> {
 .location:hover { text-decoration: underline; }
 .location svg { flex: none; }
 .intro-text { color: var(--brand-text-muted); margin-right: auto; }
-/* Text boxes match the public form's (--brand-surface, 1rem) so the
- * three public pages read identically. */
-.textfield {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 8px;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font-family: inherit;
-  font-size: 1rem;
-  line-height: 1.4;
-}
-.textfield:focus {
-  outline: 2px solid var(--brand-red);
-  outline-offset: 0;
-  border-color: var(--brand-red);
-}
+/* Text boxes use the shared ``.input`` (forms.css). */
 .name-card { display: flex; flex-direction: column; gap: 0.625rem; }
 /* Note grows with its content via JS; no manual drag handle. */
 .note { resize: none; overflow: hidden; }
