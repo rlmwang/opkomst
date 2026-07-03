@@ -266,9 +266,9 @@ function askTriggerNow(channel: EmailChannel) {
       </AppCard>
 
       <AppCard>
-        <div class="signups-header">
+        <div class="summary-header">
           <h2>{{ t("event.signupsTitle") }}</h2>
-          <div v-if="stats" class="total-pill">
+          <div v-if="stats" class="count-pill">
             <span class="count">{{ stats.total_attendees }}</span>
             <span class="label">{{ t("event.totalAttendees") }}</span>
           </div>
@@ -329,9 +329,9 @@ function askTriggerNow(channel: EmailChannel) {
       </AppCard>
 
       <AppCard>
-        <div class="feedback-header">
+        <div class="summary-header">
           <h2>{{ t("feedback.summary.title") }}</h2>
-          <div class="feedback-actions">
+          <div class="header-actions">
             <Button
               :label="t('feedback.summary.exportCsv')"
               size="small"
@@ -454,41 +454,8 @@ function askTriggerNow(channel: EmailChannel) {
 /* Body row: meta + URL+copy on the left, QR on the right. The QR
  * starts at the same vertical position as the meta line. */
 
-/* --- Signups card -------------------------------------------------- */
-/* Signups card header: title left, single attendee-count pill on
- * the right. ``margin-bottom`` is negative so the pill drifts down
- * a bit and overlaps the row below — the next 'Per bron' subhead
- * sits to its left, taking advantage of unused vertical space. */
-.signups-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: -2.25rem;
-}
-.total-pill {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.125rem;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid var(--brand-border);
-  background: var(--brand-bg);
-  min-width: 5rem;
-}
-.total-pill .count {
-  font-weight: 700;
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--brand-red);
-}
-.total-pill .label {
-  font-size: 0.75rem;
-  color: var(--brand-text-muted);
-}
+/* Signups + feedback card headers use the shared .summary-header /
+ * .header-actions + .count-pill from theme.css. */
 .subhead {
   /* Calm h3 — same family/weight/colour as the card's h2, just a
    * step smaller. Keeps the card to one heading style instead of
@@ -582,16 +549,6 @@ function askTriggerNow(channel: EmailChannel) {
 }
 
 /* --- Feedback card ------------------------------------------------- */
-.feedback-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.feedback-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
 /* Each q-block sits between two horizontal separators with
  * symmetric breathing room on both sides — 1.5rem of space above
  * and below the rule so the questionnaire reads as discrete
@@ -679,12 +636,8 @@ function askTriggerNow(channel: EmailChannel) {
   .email-health {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .overview-body {
-    grid-template-columns: 1fr;
-  }
+  /* .overview-body stacking is shared from theme.css. */
   .qr {
-    width: 96px;
-    height: 96px;
     justify-self: start;
   }
 }

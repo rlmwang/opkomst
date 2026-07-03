@@ -220,30 +220,8 @@ async function exportCsv() {
 </template>
 
 <style scoped>
-/* Mirrors ``EventDetailsPage``'s overview card: title row + a
- * ``overview-body`` grid with ``1fr auto`` so the QR sits flush
- * right and the text wraps to fill the left column. Below
- * 480px the QR drops underneath the text (same breakpoint the
- * event page uses). */
-@media (max-width: 480px) {
-  .overview-body {
-    grid-template-columns: 1fr;
-  }
-}
-
-.summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
+/* The overview card (.overview*, .detail-image, .qr*) and the
+ * .summary-header / .header-actions row are shared from theme.css. */
 .q-block {
   border-top: 1px solid var(--brand-border);
   padding-top: 1.5rem;

@@ -317,8 +317,9 @@ async function exportCsv() {
 </template>
 
 <style scoped>
-.overview { display: flex; flex-direction: column; gap: 0.5rem; }
-.overview h1 { margin: 0; overflow-wrap: anywhere; }
+/* Overview card (.overview*, .detail-image, .qr*), .summary-header /
+ * .header-actions, and the mobile stack override are shared from
+ * theme.css. Only the datepoll-specific location link stays here. */
 .description { margin: 0; }
 .location {
   display: inline-flex;
@@ -331,22 +332,6 @@ async function exportCsv() {
 }
 .location:hover { text-decoration: underline; }
 .location svg { flex: none; }
-.detail-image { margin: 0; }
-.detail-image img {
-  display: block;
-  max-width: 200px;
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--brand-border);
-}
-.detail-image figcaption { margin-top: 0.375rem; font-size: 0.8125rem; }
-/* .chip → shared .chapter-chip; .overview-body / .overview-text come
- * from theme.css. Only the mobile stack override stays local. */
-@media (max-width: 480px) { .overview-body { grid-template-columns: 1fr; } }
-
-.summary-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.header-actions { display: flex; align-items: center; gap: 0.5rem; }
 
 /* Per-slot tally table — borderless, minimal. One row per slot;
  * yes/maybe/no cells each hold a proportional bar + count. */

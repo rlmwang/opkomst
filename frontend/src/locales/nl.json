@@ -486,6 +486,7 @@
       "fromDate": "vanaf {date}",
       "peoplePerShift": "{n} per taak",
       "volunteersHeading": "Vrijwilligers",
+      "volunteersLabel": "vrijwilligers",
       "volunteersEmpty": "Vrijwilligers verschijnen hier zodra mensen zich aanmelden.",
       "scheduleHeading": "Rooster",
       "scheduleEmpty": "Het rooster verschijnt zodra taken zijn ingedeeld.",

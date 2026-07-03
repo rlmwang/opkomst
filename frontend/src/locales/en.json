@@ -486,6 +486,7 @@
       "fromDate": "from {date}",
       "peoplePerShift": "{n} per shift",
       "volunteersHeading": "Volunteers",
+      "volunteersLabel": "volunteers",
       "volunteersEmpty": "Volunteers show up here once people enrol.",
       "scheduleHeading": "Schedule",
       "scheduleEmpty": "The schedule appears once shifts are assigned.",

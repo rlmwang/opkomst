@@ -204,6 +204,30 @@
     margin-top: 0.375rem;
     font-size: 0.8125rem;
   }
+  /* Below the narrow breakpoint the QR stacks under the text. Shared by
+   * every details overview (was copied into each page's media query). */
+  @media (max-width: 480px) {
+    .overview-body {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* A details-card header: the section title on the left, optional
+   * actions / a count pill on the right. Shared by the Event / Form /
+   * Datepoll / Chore details pages (each used to re-declare it, and the
+   * chore page skipped it entirely). */
+  .summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
 
   /* Dashed empty-state box ("no questions yet", "no chores yet"). */
   .empty {

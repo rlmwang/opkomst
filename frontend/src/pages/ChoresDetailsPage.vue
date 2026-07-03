@@ -149,7 +149,9 @@ function dateWindow(): string {
       </AppCard>
 
       <AppCard>
-        <h2>{{ t("chores.details.choresHeading") }}</h2>
+        <div class="summary-header">
+          <h2>{{ t("chores.details.choresHeading") }}</h2>
+        </div>
         <p v-if="choreItems.length === 0" class="muted">{{ t("chores.details.noChores") }}</p>
         <ul v-else class="chore-list">
           <li v-for="c in choreItems" :key="c.id" class="chore-item">
@@ -175,7 +177,13 @@ function dateWindow(): string {
       </AppCard>
 
       <AppCard>
-        <h2>{{ t("chores.details.volunteersHeading") }}</h2>
+        <div class="summary-header">
+          <h2>{{ t("chores.details.volunteersHeading") }}</h2>
+          <div v-if="volunteers.length" class="count-pill">
+            <span class="count">{{ volunteers.length }}</span>
+            <span class="label">{{ t("chores.details.volunteersLabel") }}</span>
+          </div>
+        </div>
         <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
         <template v-else>
           <div class="bar-legend muted">
@@ -218,7 +226,9 @@ function dateWindow(): string {
       </AppCard>
 
       <AppCard>
-        <h2>{{ t("chores.details.scheduleHeading") }}</h2>
+        <div class="summary-header">
+          <h2>{{ t("chores.details.scheduleHeading") }}</h2>
+        </div>
         <p v-if="schedule" class="muted stats-line">
           {{ t("chores.details.stats", {
             scheduled: schedule.stats.scheduled,
