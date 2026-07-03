@@ -188,6 +188,7 @@ function askArchive(p: DatepollListOut) {
         </div>
 
         <div class="poll-side">
+          <div class="muted list-count">{{ t("datepolls.list.responseCount", { n: p.submission_count }) }}</div>
           <button
             type="button"
             class="qr-button"
@@ -223,17 +224,26 @@ function askArchive(p: DatepollListOut) {
   gap: 0.5rem;
   margin-top: auto;
 }
+/* Response count above the QR, mirroring DashboardPage's ``.event-side``. */
 .poll-side {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.list-count {
+  white-space: nowrap;
 }
 @media (max-width: 540px) {
   .poll-card {
     grid-template-columns: 1fr;
   }
   .poll-side {
+    flex-direction: row;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
   }
 }
 </style>

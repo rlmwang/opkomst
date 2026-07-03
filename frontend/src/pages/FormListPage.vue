@@ -183,6 +183,7 @@ function askArchive(f: FormListOut) {
         </div>
 
         <div class="form-side">
+          <div class="muted list-count">{{ t("forms.list.submissionCount", { n: f.submission_count }) }}</div>
           <button
             type="button"
             class="qr-button"
@@ -199,11 +200,9 @@ function askArchive(f: FormListOut) {
 </template>
 
 <style scoped>
-/* Mirrors ``DashboardPage``'s ``.event-card`` shape one-to-one:
- * two-column grid with main content on the left and the QR
- * thumbnail on the right. Forms don't have an attendee count to
- * sit above the QR (no signups model), so the side column carries
- * just the QR button. */
+/* Mirrors ``DashboardPage``'s ``.event-card`` shape one-to-one: a
+ * two-column grid with main content on the left and, on the right, the
+ * submission count above the QR thumbnail. */
 .form-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -226,8 +225,13 @@ function askArchive(f: FormListOut) {
 
 .form-side {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.list-count {
+  white-space: nowrap;
 }
 
 @media (max-width: 540px) {
@@ -235,7 +239,10 @@ function askArchive(f: FormListOut) {
     grid-template-columns: 1fr;
   }
   .form-side {
+    flex-direction: row;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
   }
 }
 </style>

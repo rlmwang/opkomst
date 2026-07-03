@@ -759,6 +759,10 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -770,7 +774,8 @@
           "chapter_name",
           "archived",
           "created_at",
-          "date_count"
+          "date_count",
+          "submission_count"
         ],
         "title": "DatepollListOut",
         "type": "object"
@@ -929,6 +934,10 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -940,7 +949,8 @@
           "chapter_name",
           "archived",
           "created_at",
-          "date_count"
+          "date_count",
+          "submission_count"
         ],
         "title": "DatepollOut",
         "type": "object"
@@ -2254,6 +2264,10 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -2264,7 +2278,8 @@
           "chapter_id",
           "chapter_name",
           "archived",
-          "created_at"
+          "created_at",
+          "submission_count"
         ],
         "title": "FormListOut",
         "type": "object"
@@ -2362,6 +2377,10 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "submission_count": {
+            "title": "Submission Count",
+            "type": "integer"
           }
         },
         "required": [
@@ -2372,7 +2391,8 @@
           "chapter_id",
           "chapter_name",
           "archived",
-          "created_at"
+          "created_at",
+          "submission_count"
         ],
         "title": "FormOut",
         "type": "object"

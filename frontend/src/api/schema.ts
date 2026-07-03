@@ -2376,6 +2376,8 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+            /** Submission Count */
+            submission_count: number;
         };
         /**
          * DatepollOut
@@ -2425,6 +2427,8 @@ export interface components {
             slots?: components["schemas"]["DatepollSlotOut"][];
             /** Slug */
             slug: string;
+            /** Submission Count */
+            submission_count: number;
         };
         /**
          * DatepollSlotIn
@@ -2948,6 +2952,8 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+            /** Submission Count */
+            submission_count: number;
         };
         /**
          * FormOut
@@ -2986,6 +2992,8 @@ export interface components {
             questions?: components["schemas"]["FormQuestionOut"][];
             /** Slug */
             slug: string;
+            /** Submission Count */
+            submission_count: number;
         };
         /**
          * FormQuestionIn

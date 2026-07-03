@@ -172,6 +172,7 @@
       "title": "Forms",
       "intro": "Standalone questionnaires you can share with anyone via a link.",
       "newForm": "New form",
+      "submissionCount": "{n} submissions",
       "searchPlaceholder": "Search by name",
       "empty": "No forms yet.",
       "noMatches": "No forms match your search.",
@@ -292,6 +293,7 @@
       "archived": "Date poll archived",
       "archiveFail": "Could not archive the date poll.",
       "dateCount": "{n} dates",
+      "responseCount": "{n} responses",
       "noDates": "No dates yet"
     },
     "share": {

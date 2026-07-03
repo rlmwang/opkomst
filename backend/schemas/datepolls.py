@@ -98,6 +98,7 @@ class DatepollListOut(BaseModel):
     date_count: int
     first_date: date | None = None
     last_date: date | None = None
+    submission_count: int
 
 
 class DatepollOut(DatepollListOut):

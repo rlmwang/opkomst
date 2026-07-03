@@ -157,13 +157,26 @@ def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
     return {cid: name for cid, name in rows}
 
 
+def _submission_counts(db: Session, form_ids: list[str]) -> dict[str, int]:
+    """Per-form submission counts via one grouped query (no N+1)."""
+    return {
+        fid: int(n)
+        for fid, n in db.query(FormSubmission.form_id, func.count(FormSubmission.id))
+        .filter(FormSubmission.form_id.in_(form_ids))
+        .group_by(FormSubmission.form_id)
+        .all()
+    }
+
+
 def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
-    """Build ``FormListOut`` rows with a single batched chapter-name
-    lookup, regardless of how many forms. The list views never
-    render questions, so this projection doesn't load them."""
+    """Build ``FormListOut`` rows with batched lookups: one chapter-name
+    lookup + one grouped submission-count query, regardless of how many
+    forms. The list views never render questions, so this projection
+    doesn't load them."""
     if not forms:
         return []
     names = _chapter_names(db, {f.chapter_id for f in forms if f.chapter_id})
+    counts = _submission_counts(db, [f.id for f in forms])
     return [
         FormListOut(
             id=f.id,
@@ -174,6 +187,7 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
             chapter_name=names.get(f.chapter_id) if f.chapter_id else None,
             archived=f.archived_at is not None,
             created_at=f.created_at,
+            submission_count=counts.get(f.id, 0),
         )
         for f in forms
     ]
@@ -196,6 +210,7 @@ def to_out(db: Session, form: Form) -> FormOut:
         chapter_name=chapter_name,
         archived=form.archived_at is not None,
         created_at=form.created_at,
+        submission_count=submission_count(db, form.id),
         description=form.description,
         image_url=form.image_url,
         image_artist_instagram=form.image_artist_instagram,

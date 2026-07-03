@@ -117,6 +117,14 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
     for pid, count, first, last in rows:
         summary[pid] = (int(count), first, last)
 
+    sub_counts = {
+        pid: int(n)
+        for pid, n in db.query(DatepollSubmission.datepoll_id, func.count(DatepollSubmission.id))
+        .filter(DatepollSubmission.datepoll_id.in_(poll_ids))
+        .group_by(DatepollSubmission.datepoll_id)
+        .all()
+    }
+
     return [
         DatepollListOut(
             id=p.id,
@@ -130,6 +138,7 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
             date_count=summary.get(p.id, (0, None, None))[0],
             first_date=summary.get(p.id, (0, None, None))[1],
             last_date=summary.get(p.id, (0, None, None))[2],
+            submission_count=sub_counts.get(p.id, 0),
         )
         for p in polls
     ]
@@ -164,6 +173,7 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         date_count=len(days),
         first_date=days[0] if days else None,
         last_date=days[-1] if days else None,
+        submission_count=submission_count(db, poll.id),
         description=poll.description,
         location=poll.location,
         latitude=poll.latitude,

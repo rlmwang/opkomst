@@ -110,6 +110,7 @@ class FormListOut(BaseModel):
     chapter_name: str | None
     archived: bool
     created_at: datetime
+    submission_count: int
     model_config = {"from_attributes": True}
 
 

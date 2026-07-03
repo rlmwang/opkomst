@@ -172,6 +172,7 @@
       "title": "Vragenlijsten",
       "intro": "Losse vragenlijsten die je via een link met iedereen kunt delen.",
       "newForm": "Nieuwe vragenlijst",
+      "submissionCount": "{n} inzendingen",
       "searchPlaceholder": "Zoek op naam",
       "empty": "Nog geen vragenlijsten.",
       "noMatches": "Geen vragenlijsten gevonden.",
@@ -292,6 +293,7 @@
       "archived": "Datumprikker gearchiveerd",
       "archiveFail": "Kon de datumprikker niet archiveren.",
       "dateCount": "{n} datums",
+      "responseCount": "{n} reacties",
       "noDates": "Nog geen datums"
     },
     "share": {

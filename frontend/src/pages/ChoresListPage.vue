@@ -56,8 +56,7 @@ function summary(r: RosterListOut): string {
       ? t("chores.recurrence.weekly")
       : t("chores.recurrence.everyKWeeks", { k: r.period_weeks });
   const chores = t("chores.list.choreCount", { n: r.chore_count });
-  const vols = t("chores.list.volunteerCount", { n: r.volunteer_count });
-  return `${cadence} · ${chores} · ${vols}`;
+  return `${cadence} · ${chores}`;
 }
 
 const prefetched = new Set<string>();
@@ -184,6 +183,7 @@ function askArchive(r: RosterListOut) {
         </div>
 
         <div class="roster-side">
+          <div class="muted list-count">{{ t("chores.list.volunteerCount", { n: r.volunteer_count }) }}</div>
           <button
             type="button"
             class="qr-button"
@@ -226,17 +226,26 @@ function askArchive(r: RosterListOut) {
   align-items: center;
   margin-top: auto;
 }
+/* Count above the QR, mirroring DashboardPage's ``.event-side``. */
 .roster-side {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.list-count {
+  white-space: nowrap;
 }
 @media (max-width: 540px) {
   .roster-card {
     grid-template-columns: 1fr;
   }
   .roster-side {
+    flex-direction: row;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
   }
 }
 </style>
