@@ -435,7 +435,6 @@ function dateWindow(): string {
 }
 .cal-swatch.tentative {
   border-style: dashed;
-  opacity: 0.7;
 }
 .cal-swatch.open {
   border-color: var(--brand-red);

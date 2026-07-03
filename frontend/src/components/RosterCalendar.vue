@@ -101,7 +101,6 @@ const cells = computed<Cell[]>(() => {
 }
 .rc-cell.tentative {
   border-style: dashed;
-  opacity: 0.7;
 }
 .rc-cell.changed {
   outline: 2px solid var(--brand-red);
