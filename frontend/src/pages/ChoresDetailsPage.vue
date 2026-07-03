@@ -199,11 +199,14 @@ function dateWindow(): string {
                 <span class="muted vol-chores">
                   {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
                 </span>
-                <span v-if="v.pending && horizonEdge" class="vol-joining">
-                  {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
-                </span>
               </div>
+              <!-- A newcomer with no turns yet: show the "joining" note in
+                   place of the (empty) bar. -->
+              <span v-if="v.pending && horizonEdge" class="vol-joining">
+                {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
+              </span>
               <StatBar
+                v-else
                 :segments="volSegments(v)"
                 :aria-label="barLabel(v)"
                 style="--stat-bar-height: 0.75rem"
@@ -361,9 +364,8 @@ function dateWindow(): string {
   white-space: nowrap;
 }
 .vol-joining {
-  font-size: 0.8em;
-  color: var(--p-primary-color);
-  font-weight: 500;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
 }
 .vol-turns {
   display: inline-flex;
