@@ -16,6 +16,11 @@
      * reads the same everywhere (was ~3 hard-coded greens + ambers). */
     --brand-green: #1f7a3c;
     --brand-amber: #c98a00;
+    /* Blue accent for a distinct-but-still-positive tally segment
+     * ("picked up / overgenomen" on the chore accountability bar). Blue,
+     * not a second green/teal, so it stays separable from the green
+     * "own turns" segment for red-green colour-blind viewers. */
+    --brand-blue: #2a6f97;
     /* Soft-pink "secondary" button palette (add-row / low-emphasis
      * actions). Single source of truth for both the PrimeVue secondary
      * override below and the public ``.btn-secondary`` — so an add button

@@ -497,14 +497,13 @@
       "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open",
       "regularCount": "{n} regular shifts",
       "pickedUpCount": "{n} picked up for others",
-      "doneCount": "{n} done",
       "deferredCount": "{n} handed off",
       "missedCount": "{n} missed",
       "legend": {
-        "done": "Done",
+        "regular": "Own turns",
+        "pickedUp": "Picked up",
         "deferred": "Handed off",
-        "missed": "Missed",
-        "turns": "Shifts · picked up"
+        "missed": "Missed"
       }
     }
   },

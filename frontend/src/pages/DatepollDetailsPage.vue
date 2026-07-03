@@ -4,7 +4,8 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
-import StatBar from "@/components/StatBar.vue";
+import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
+import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import { ApiError } from "@/api/client";
 import { mapLink } from "@/lib/map-link";
 import { useDatepollClipboard } from "@/composables/useDatepollClipboard";
@@ -77,16 +78,25 @@ function nameOf(s: DatepollSubmission): string {
 
 const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" };
 
-// Bar widths normalise within each group to its own busiest slot, so
-// the tallest bar is full-width and rows stay comparable. The combined
-// yes+maybe bar scales against the largest (yes+maybe); the "no" bar
-// scales against the largest "no", computed separately so a few no's
-// don't look tiny next to a popular slot's full availability bar.
-const maxYesMaybe = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.yes + s.maybe)));
-const maxNo = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.no)));
-function pctOf(value: number, max: number): string {
-  return `${Math.round((value / max) * 100)}%`;
+// Bar length is deliberately NOT normalised: each slot's bar is sized
+// against the busiest slot's total responses, so a slot fewer people
+// answered reads as a shorter bar and popularity stays comparable across
+// rows. Within the bar, yes/maybe/no are coloured segments each carrying
+// their count. "No" is grey, never red — a green/red pair is invisible to
+// red-green colour-blind viewers.
+const maxTotal = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.yes + s.maybe + s.no)));
+function slotSegments(s: { yes: number; maybe: number; no: number }): BarSegment[] {
+  return [
+    { value: s.yes, variant: "positive", title: `${s.yes} ${t("datepolls.details.yes")}` },
+    { value: s.maybe, variant: "warning", title: `${s.maybe} ${t("datepolls.details.maybe")}` },
+    { value: s.no, variant: "neutral", title: `${s.no} ${t("datepolls.details.no")}` },
+  ];
 }
+const legendItems = computed<LegendItem[]>(() => [
+  { variant: "positive", label: t("datepolls.details.yes") },
+  { variant: "warning", label: t("datepolls.details.maybe") },
+  { variant: "neutral", label: t("datepolls.details.no") },
+]);
 
 // Rank the top three slots by the same rule the backend uses for the
 // winner (most yes, tie-break fewest no); only slots with ≥1 yes rank.
@@ -230,48 +240,20 @@ async function exportCsv() {
         </p>
 
         <template v-else>
-          <!-- Per-slot tallies, borderless. Yes + maybe share one
-               two-colour bar (green + amber) with their two coloured
-               counts after it; "no" is its own bar. Ranked rows lead
-               with a 1st/2nd/3rd chip. -->
-          <table class="tally">
-            <thead>
-              <tr>
-                <th class="slot-col" />
-                <th>
-                  <span class="hdr yes">{{ t("datepolls.details.yes") }}</span>
-                  <span class="hdr maybe">{{ t("datepolls.details.maybe") }}</span>
-                </th>
-                <th>{{ t("datepolls.details.no") }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="s in summary.slots" :key="s.id">
-                <td class="slot-col">
-                  <span class="rank" :class="rankById[s.id] ? `r${rankById[s.id]}` : ''">{{ rankLabel(s.id) }}</span>
-                  {{ slotHeading(s) }}
-                </td>
-                <td class="bar-cell combo">
-                  <span class="tally-bar">
-                    <StatBar
-                      :segments="[
-                        { width: pctOf(s.yes, maxYesMaybe), variant: 'positive' },
-                        { width: pctOf(s.maybe, maxYesMaybe), variant: 'warning' },
-                      ]"
-                    />
-                  </span>
-                  <span class="bar-count yes">{{ s.yes }}</span>
-                  <span class="bar-count maybe">{{ s.maybe }}</span>
-                </td>
-                <td class="bar-cell">
-                  <span class="tally-bar">
-                    <StatBar :segments="[{ width: pctOf(s.no, maxNo), variant: 'neutral' }]" />
-                  </span>
-                  <span class="bar-count">{{ s.no }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- Per-slot tallies: one bar per slot, split into yes / maybe /
+               no segments each carrying its count (bar length scaled to the
+               busiest slot, not normalised). Ranked rows lead with a
+               1st/2nd/3rd chip. -->
+          <TallyLegend :items="legendItems" />
+          <ul class="slot-tally">
+            <li v-for="s in summary.slots" :key="s.id" class="slot-row">
+              <div class="slot-label">
+                <span class="rank" :class="rankById[s.id] ? `r${rankById[s.id]}` : ''">{{ rankLabel(s.id) }}</span>
+                <span class="slot-when">{{ slotHeading(s) }}</span>
+              </div>
+              <SegmentedBar :segments="slotSegments(s)" :max="maxTotal" />
+            </li>
+          </ul>
 
           <!-- Submission notes (one optional note per respondent). -->
           <div v-if="summary.notes?.length" class="notes-section">
@@ -333,22 +315,33 @@ async function exportCsv() {
 .location:hover { text-decoration: underline; }
 .location svg { flex: none; }
 
-/* Per-slot tally table — borderless, minimal. One row per slot;
- * yes/maybe/no cells each hold a proportional bar + count. */
-.tally { width: 100%; border-collapse: collapse; }
-.tally th, .tally td { padding: 0.3rem 0.4rem; text-align: left; vertical-align: middle; }
-.tally thead th {
-  font-weight: 500;
-  font-size: 0.8125rem;
-  color: var(--brand-text-muted);
+/* Per-slot tally — one row per slot: the date (time below) on the left,
+ * a yes/maybe/no SegmentedBar on the right. Mirrors the chore tally. */
+.slot-tally {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
 }
-.tally .slot-col { white-space: nowrap; font-size: 0.8125rem; }
+.slot-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 14rem) 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+.slot-label { display: flex; align-items: baseline; min-width: 0; }
+/* Date with the time range behind it, on one line, at the normal body
+ * size (it used to be shrunk to 0.8125rem). */
+.slot-when { min-width: 0; }
 /* Reserved-width rank chip in front of the slot label so all labels
  * align whether or not the row is ranked. */
 .rank {
   display: inline-block;
   width: 2.25rem;
   margin-right: 0.5rem;
+  flex: none;
   text-align: center;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -362,34 +355,6 @@ async function exportCsv() {
 .rank.r1 { background: var(--brand-green); }
 .rank.r2 { background: #8a8f98; }
 .rank.r3 { background: #b8763a; }
-/* Coloured column headers for the combined yes/maybe bar. */
-.hdr { font-weight: 500; font-size: 0.8125rem; }
-.hdr + .hdr { margin-left: 0.5rem; }
-.hdr.yes { color: var(--brand-green); }
-.hdr.maybe { color: var(--brand-amber); }
-
-/* Bar cell: a track that fills the column width + the count(s) after
- * it. The combined cell stacks a green (yes) + amber (maybe) segment
- * in one track and shows two coloured counts. */
-.bar-cell { width: 28%; }
-.bar-cell.combo { width: 44%; }
-.tally-bar {
-  display: inline-flex;
-  width: calc(100% - 1.4rem);
-  vertical-align: middle;
-}
-.combo .tally-bar { width: calc(100% - 2.7rem); }
-.bar-count {
-  display: inline-block;
-  width: 1.15rem;
-  margin-left: 0.15rem;
-  text-align: right;
-  font-size: 0.8125rem;
-  color: var(--brand-text-muted);
-  vertical-align: middle;
-}
-.bar-count.yes { color: var(--brand-green); }
-.bar-count.maybe { color: var(--brand-amber); }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .comments li { line-height: 1.4; }
 .notes-section { margin-top: 1.25rem; }

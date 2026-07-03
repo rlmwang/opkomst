@@ -4,7 +4,8 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
-import StatBar, { type StatSegment } from "@/components/StatBar.vue";
+import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
+import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import type { ChoreOut } from "@/api/types";
 import { useRoster, useRosterSchedule, useRosterVolunteers } from "@/composables/useChores";
@@ -39,33 +40,35 @@ const scheduleQuery = useRosterSchedule(rosterId);
 const schedule = computed(() => scheduleQuery.data.value ?? null);
 const upcoming = computed(() => schedule.value?.confirmed ?? []);
 
-// Volunteer accountability bars: length = that person's *resolved*
-// shifts (done + handed-off + missed) relative to the busiest resolver,
-// segmented by outcome. Upcoming shifts are deliberately excluded — for
-// an open-ended roster they grow without bound. Regular turns and shifts
-// picked up for others show as separate figures.
+// Volunteer accountability bar: the split of a person's shifts across
+// their own turns, ones picked up for others, handed off, and missed.
+// Normalised (each bar fills the track) so a newcomer's bar isn't tiny
+// just because they've done less (design §7); the count sits in each
+// segment. Regular turns vs picked-up is the provenance split; handed
+// off / missed are the outcomes that cost favour.
 type VolRow = (typeof volunteers.value)[number];
-function resolved(v: VolRow): number {
-  return v.completed + v.deferred + v.missed;
-}
-const maxResolved = computed(() => Math.max(1, ...volunteers.value.map(resolved)));
-function barPct(n: number): string {
-  return `${(n / maxResolved.value) * 100}%`;
-}
-function volSegments(v: VolRow): StatSegment[] {
-  const segs: StatSegment[] = [];
-  if (v.completed) segs.push({ width: barPct(v.completed), variant: "positive", title: t("chores.details.doneCount", { n: v.completed }) });
-  if (v.deferred) segs.push({ width: barPct(v.deferred), variant: "warning", title: t("chores.details.deferredCount", { n: v.deferred }) });
-  if (v.missed) segs.push({ width: barPct(v.missed), variant: "danger", title: t("chores.details.missedCount", { n: v.missed }) });
-  return segs;
+function volSegments(v: VolRow): BarSegment[] {
+  return [
+    { value: v.regular_turns, variant: "positive", title: t("chores.details.regularCount", { n: v.regular_turns }) },
+    { value: v.picked_up, variant: "accent", title: t("chores.details.pickedUpCount", { n: v.picked_up }) },
+    { value: v.deferred, variant: "warning", title: t("chores.details.deferredCount", { n: v.deferred }) },
+    // Grey, not red: the bar already uses green (own turns), so red would
+    // be a red/green pair that colour-blind users can't separate.
+    { value: v.missed, variant: "neutral", title: t("chores.details.missedCount", { n: v.missed }) },
+  ];
 }
 function barLabel(v: VolRow): string {
-  return [
-    t("chores.details.doneCount", { n: v.completed }),
-    t("chores.details.deferredCount", { n: v.deferred }),
-    t("chores.details.missedCount", { n: v.missed }),
-  ].join(", ");
+  return volSegments(v)
+    .filter((s) => s.value > 0)
+    .map((s) => s.title)
+    .join(", ");
 }
+const legendItems = computed<LegendItem[]>(() => [
+  { variant: "positive", label: t("chores.details.legend.regular") },
+  { variant: "accent", label: t("chores.details.legend.pickedUp") },
+  { variant: "warning", label: t("chores.details.legend.deferred") },
+  { variant: "neutral", label: t("chores.details.legend.missed") },
+]);
 
 const choreName = computed<Record<string, string>>(() =>
   Object.fromEntries(choreItems.value.map((c) => [c.id, c.name])),
@@ -186,12 +189,7 @@ function dateWindow(): string {
         </div>
         <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
         <template v-else>
-          <div class="bar-legend muted">
-            <span class="key"><i class="dot done" />{{ t("chores.details.legend.done") }}</span>
-            <span class="key"><i class="dot deferred" />{{ t("chores.details.legend.deferred") }}</span>
-            <span class="key"><i class="dot missed" />{{ t("chores.details.legend.missed") }}</span>
-            <span class="key total-key">{{ t("chores.details.legend.turns") }}</span>
-          </div>
+          <TallyLegend :items="legendItems" />
           <ul class="vol-tally">
             <li v-for="v in volunteers" :key="v.id" class="vol-row">
               <div class="vol-id">
@@ -205,24 +203,7 @@ function dateWindow(): string {
               <span v-if="v.pending && horizonEdge" class="vol-joining">
                 {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
               </span>
-              <StatBar
-                v-else
-                :segments="volSegments(v)"
-                :aria-label="barLabel(v)"
-                style="--stat-bar-height: 0.75rem"
-              />
-              <span class="vol-turns">
-                <span class="turns-fig" :title="t('chores.details.regularCount', { n: v.regular_turns })">
-                  {{ v.regular_turns }}
-                </span>
-                <span
-                  v-if="v.picked_up"
-                  class="turns-fig picked"
-                  :title="t('chores.details.pickedUpCount', { n: v.picked_up })"
-                >
-                  +{{ v.picked_up }}
-                </span>
-              </span>
+              <SegmentedBar v-else :segments="volSegments(v)" :aria-label="barLabel(v)" />
             </li>
           </ul>
         </template>
@@ -309,33 +290,12 @@ function dateWindow(): string {
 .vol-chores,
 .shift-chore { font-size: 0.875rem; }
 
-/* Volunteer accountability tally — a datepoll-style stacked bar per
- * person (done / handed-off / missed), plus regular vs picked-up turns. */
-.bar-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  font-size: 0.8125rem;
-  margin: 0.25rem 0 0.75rem;
-}
-.bar-legend .key {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-.bar-legend .total-key { margin-left: auto; font-variant: small-caps; }
-.dot {
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.dot.done { background: var(--brand-green); }
-.dot.deferred { background: var(--brand-amber); }
-.dot.missed { background: var(--brand-red); }
+/* Volunteer accountability tally — a normalised, four-colour stacked bar
+ * per person (own turns / picked up / handed off / missed) with the count
+ * in each segment. Legend + bar are the shared TallyLegend / SegmentedBar. */
 .vol-tally {
   list-style: none;
-  margin: 0;
+  margin: 0.75rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -343,7 +303,7 @@ function dateWindow(): string {
 }
 .vol-row {
   display: grid;
-  grid-template-columns: minmax(6rem, 12rem) 1fr auto;
+  grid-template-columns: minmax(6rem, 12rem) 1fr;
   align-items: center;
   gap: 0.75rem;
 }
@@ -366,21 +326,6 @@ function dateWindow(): string {
 .vol-joining {
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
-}
-.vol-turns {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.375rem;
-  justify-content: flex-end;
-}
-.turns-fig {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.turns-fig.picked {
-  color: var(--brand-green);
-  font-size: 0.875em;
 }
 .stats-line { margin: 0 0 0.5rem; }
 .shift-date { min-width: 8rem; }

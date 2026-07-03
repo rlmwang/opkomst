@@ -497,14 +497,13 @@
       "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij",
       "regularCount": "{n} eigen taken",
       "pickedUpCount": "{n} overgenomen voor anderen",
-      "doneCount": "{n} gedaan",
       "deferredCount": "{n} doorgegeven",
       "missedCount": "{n} gemist",
       "legend": {
-        "done": "Gedaan",
+        "regular": "Eigen taken",
+        "pickedUp": "Overgenomen",
         "deferred": "Doorgegeven",
-        "missed": "Gemist",
-        "turns": "Taken · overgenomen"
+        "missed": "Gemist"
       }
     }
   },
