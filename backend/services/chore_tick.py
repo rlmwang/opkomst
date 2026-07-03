@@ -271,12 +271,12 @@ def pin_roster(db: Session, roster: Roster, today: date) -> int:
     return inserted
 
 
-def rebalance_roster(db: Session, roster: Roster, today: date) -> int:
-    """Re-pin the current window from the fresh projection: drop every
-    un-acted, un-reminded pin (even ones still projected) so newly-enrolled
-    volunteers fold into the confirmed window now, then re-pin. Reminded /
-    acted pins are kept. Changes confirmed assignments — an explicit,
-    organiser-invoked action. Commits."""
+def _rebalance_core(db: Session, roster: Roster, today: date) -> int:
+    """The rebalance mutation without the commit: drop every un-acted,
+    un-reminded pin in the window (even ones still projected) so newly-
+    enrolled volunteers fold in, then re-pin from the fresh projection.
+    Reminded / acted pins are kept. No commit — the caller commits (real
+    run) or rolls back (dry-run preview)."""
     if roster.activated_at is None:
         return 0
     chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
@@ -286,9 +286,51 @@ def rebalance_roster(db: Session, roster: Roster, today: date) -> int:
         if not pin.acted and not pin.reminded:
             db.delete(row_by_key[pin.key])
     db.flush()
-    inserted = _tick_roster(db, roster, today)
+    return _tick_roster(db, roster, today)
+
+
+def rebalance_roster(db: Session, roster: Roster, today: date) -> int:
+    """Re-pin the current window from the fresh projection, folding newly-
+    enrolled volunteers into the confirmed window now. Changes confirmed
+    assignments — an explicit, organiser-invoked action. Commits."""
+    inserted = _rebalance_core(db, roster, today)
     db.commit()
     return inserted
+
+
+def rebalance_preview(db: Session, roster: Roster, today: date) -> list[tuple[str, date, str | None, str | None]]:
+    """What a rebalance *would* change, without persisting anything. Snapshot
+    the window's assignees, run the rebalance core inside a SAVEPOINT, read
+    the new assignees, then roll the savepoint back. Returns one tuple per
+    occurrence whose assignee changes: ``(chore_id, on_date, from_vol_id,
+    to_vol_id)`` where ``None`` means an open/unassigned shift."""
+    if roster.activated_at is None:
+        return []
+    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster.id).all()]
+    if not chore_ids:
+        return []
+    end = _horizon_end(roster, today)
+
+    def _snapshot() -> dict[tuple[str, date, int], str | None]:
+        rows = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= today, Shift.on_date <= end).all()
+        return {(s.chore_id, s.on_date, s.slot_index): s.volunteer_id for s in rows}
+
+    before = _snapshot()
+    savepoint = db.begin_nested()
+    try:
+        _rebalance_core(db, roster, today)
+        db.flush()
+        after = _snapshot()
+    finally:
+        savepoint.rollback()
+
+    changes: list[tuple[str, date, str | None, str | None]] = []
+    for key in sorted(before.keys() | after.keys(), key=lambda k: (k[1], k[0], k[2])):
+        from_vol = before.get(key)
+        to_vol = after.get(key)
+        if from_vol != to_vol:
+            changes.append((key[0], key[1], from_vol, to_vol))
+    return changes
 
 
 def run_tick(db: Session, today: date) -> tuple[int, int]:

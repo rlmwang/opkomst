@@ -27,6 +27,7 @@ from ..schemas.chores import (
     PersonalPageOut,
     PersonalShiftOut,
     PublicRosterOut,
+    RebalanceChangeOut,
     RosterListOut,
     RosterOut,
     ScheduleOut,
@@ -444,6 +445,29 @@ def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilit
         rows.sort(key=lambda r: (-(r.regular_turns + r.picked_up), (r.display_name or "").lower()))
         out.append(ChoreAccountabilityOut(chore_id=chore.id, chore_name=chore.name, volunteers=rows))
     return out
+
+
+def rebalance_preview(db: Session, roster: Roster) -> list[RebalanceChangeOut]:
+    """Project the assignment changes a "fold in now" rebalance would make
+    (via the dry-run in ``chore_tick``), resolved to chore + pseudonym for
+    the confirmation dialog."""
+    today = now_wallclock().date()
+    raw = chore_tick.rebalance_preview(db, roster, today)
+    if not raw:
+        return []
+    chore_names = {c.id: c.name for c in _chores(db, roster.id)}
+    vol_names = {v.id: v.display_name for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id)}
+    return [
+        RebalanceChangeOut(
+            on_date=on_date,
+            chore_name=chore_names.get(chore_id, ""),
+            before_open=from_vol is None,
+            before_name=vol_names.get(from_vol) if from_vol else None,
+            after_open=to_vol is None,
+            after_name=vol_names.get(to_vol) if to_vol else None,
+        )
+        for chore_id, on_date, from_vol, to_vol in raw
+    ]
 
 
 def schedule(db: Session, roster: Roster) -> ScheduleOut:

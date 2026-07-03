@@ -178,3 +178,21 @@ def test_rebalance_folds_in_a_late_volunteer(db):
     scheduled = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").all()
     assert len(scheduled) == 4
     assert all(s.volunteer_id == vol.id for s in scheduled)
+
+
+def test_rebalance_preview_is_a_dry_run(db):
+    # Same setup: activate with no volunteers (all open), then enrol one.
+    roster, chore = _roster(db, cycle_slots=(2,))
+    chore_tick.run_tick(db, TODAY)
+    vol = Volunteer(roster_id=roster.id, display_name="Late", edit_token_hash="hp")
+    db.add(vol)
+    db.commit()
+    db.add(Enrollment(volunteer_id=vol.id, chore_id=chore.id))
+    db.commit()
+
+    changes = chore_tick.rebalance_preview(db, roster, TODAY)
+    # Every open window shift would flip to the newcomer...
+    assert len(changes) == 4
+    assert all(from_vol is None and to_vol == vol.id for _cid, _on, from_vol, to_vol in changes)
+    # ...but nothing is persisted — the savepoint rolled back, shifts still open.
+    assert all(s.status == "open" for s in db.query(Shift).filter(Shift.chore_id == chore.id).all())

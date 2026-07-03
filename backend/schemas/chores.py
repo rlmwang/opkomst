@@ -322,6 +322,20 @@ class ChoreAccountabilityOut(BaseModel):
     volunteers: list[ChoreVolunteerOut]
 
 
+class RebalanceChangeOut(BaseModel):
+    """One confirmed-assignment change a "fold in now" rebalance would make,
+    for the preview the organiser confirms against. ``*_open`` marks an
+    unassigned/open shift; otherwise ``*_name`` is the assignee pseudonym
+    (``None`` = an anonymous volunteer)."""
+
+    on_date: date
+    chore_name: str
+    before_open: bool
+    before_name: str | None
+    after_open: bool
+    after_name: str | None
+
+
 class ScheduleShiftOut(BaseModel):
     """One upcoming shift on the organiser schedule view. ``assignee_name``
     is the volunteer's pseudonym (NULL for an open/unassigned shift)."""

@@ -1,22 +1,28 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
+import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
-import type { ChoreOut } from "@/api/types";
+import type { ChoreOut, RebalanceChange } from "@/api/types";
+import { get, post } from "@/api/client";
 import { useRoster, useRosterAccountability, useRosterSchedule } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
+import { useToasts } from "@/lib/toasts";
 
 const props = defineProps<{ rosterId: string }>();
 
 const { t, locale } = useI18n();
 const { copyLink, copyQr } = useChoresClipboard();
+const toasts = useToasts();
+const queryClient = useQueryClient();
 
 const rosterId = computed(() => props.rosterId);
 const rosterQuery = useRoster(rosterId);
@@ -29,6 +35,47 @@ const loaded = computed(() => !rosterQuery.isPending.value);
 const accountabilityQuery = useRosterAccountability(rosterId);
 const accountability = computed(() => accountabilityQuery.data.value ?? []);
 const volunteerCount = computed(() => roster.value?.volunteer_count ?? 0);
+
+// "Fold in now": there's someone to fold in only while the roster is
+// running and at least one enrolled volunteer is still pending. Preview the
+// confirmed-shift changes first, then commit the rebalance on confirm.
+const hasPending = computed(
+  () => roster.value?.activated_at != null && accountability.value.some((c) => c.volunteers.some((v) => v.pending)),
+);
+const showFoldIn = ref(false);
+const foldInPreview = ref<RebalanceChange[]>([]);
+const previewLoading = ref(false);
+const rebalancing = ref(false);
+
+async function openFoldIn() {
+  previewLoading.value = true;
+  try {
+    foldInPreview.value = await get<RebalanceChange[]>(`/api/v1/chores/${props.rosterId}/rebalance/preview`);
+    showFoldIn.value = true;
+  } catch {
+    toasts.error(t("chores.details.foldInFailed"));
+  } finally {
+    previewLoading.value = false;
+  }
+}
+
+async function confirmFoldIn() {
+  rebalancing.value = true;
+  try {
+    await post(`/api/v1/chores/${props.rosterId}/rebalance`);
+    await queryClient.invalidateQueries({ queryKey: ["chores"] });
+    showFoldIn.value = false;
+    toasts.success(t("chores.details.foldInDone"));
+  } catch {
+    toasts.error(t("chores.details.foldInFailed"));
+  } finally {
+    rebalancing.value = false;
+  }
+}
+
+function assigneeLabel(open: boolean, name: string | null): string {
+  return open ? t("chores.details.openShift") : name || t("chores.details.anonymous");
+}
 
 // A pending newcomer folds into pins as the horizon edge rolls forward
 // (design §7): their first turns land at today + commit_horizon_days.
@@ -214,6 +261,15 @@ function dateWindow(): string {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("chores.details.scheduleHeading") }}</h2>
+          <Button
+            v-if="hasPending"
+            :label="t('chores.details.foldIn')"
+            icon="pi pi-user-plus"
+            size="small"
+            severity="secondary"
+            :loading="previewLoading"
+            @click="openFoldIn"
+          />
         </div>
         <p v-if="schedule" class="muted stats-line">
           {{ t("chores.details.stats", {
@@ -237,6 +293,40 @@ function dateWindow(): string {
         </ul>
       </AppCard>
     </template>
+
+    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="480px">
+      <p v-if="foldInPreview.length === 0" class="muted">{{ t("chores.details.foldInNone") }}</p>
+      <template v-else>
+        <p class="muted">{{ t("chores.details.foldInIntro", { n: foldInPreview.length }) }}</p>
+        <ul class="foldin-list">
+          <li v-for="(c, i) in foldInPreview" :key="i" class="foldin-row">
+            <span class="foldin-when">{{ formatDate(c.on_date, locale) }} · {{ c.chore_name }}</span>
+            <span class="foldin-change">
+              <span :class="{ open: c.before_open }">{{ assigneeLabel(c.before_open, c.before_name) }}</span>
+              <span class="foldin-arrow">→</span>
+              <span :class="{ open: c.after_open }">{{ assigneeLabel(c.after_open, c.after_name) }}</span>
+            </span>
+          </li>
+        </ul>
+      </template>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          size="small"
+          severity="secondary"
+          text
+          :disabled="rebalancing"
+          @click="showFoldIn = false"
+        />
+        <Button
+          v-if="foldInPreview.length"
+          :label="t('chores.details.foldInConfirm')"
+          size="small"
+          :loading="rebalancing"
+          @click="confirmFoldIn"
+        />
+      </template>
+    </AppDialog>
   </DetailsPageShell>
 </template>
 
@@ -330,6 +420,34 @@ function dateWindow(): string {
   color: var(--brand-text-muted);
 }
 .stats-line { margin: 0 0 0.5rem; }
+
+/* Fold-in preview dialog: one row per changing shift. */
+.foldin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 22rem;
+  overflow-y: auto;
+}
+.foldin-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+}
+.foldin-when { font-weight: 500; }
+.foldin-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.foldin-arrow { color: var(--brand-text-muted); }
+.foldin-change .open { color: var(--brand-red); }
+
 .shift-date { min-width: 8rem; }
 .shift-assignee { margin-left: auto; font-weight: 500; }
 .shift-assignee.open { color: var(--brand-red); font-weight: 600; }

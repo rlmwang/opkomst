@@ -23,6 +23,7 @@ from ..database import get_db
 from ..models import Roster, User
 from ..schemas.chores import (
     ChoreAccountabilityOut,
+    RebalanceChangeOut,
     RosterCreate,
     RosterListOut,
     RosterOut,
@@ -197,6 +198,21 @@ def rebalance_roster(
     chore_tick.rebalance_roster(db, roster, now_wallclock().date())
     logger.info("roster_rebalanced", roster_id=roster.id, actor_id=user.id)
     return chores_svc.to_out(db, roster)
+
+
+@router.get("/{roster_id}/rebalance/preview", response_model=list[RebalanceChangeOut])
+def rebalance_preview(
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> list[RebalanceChangeOut]:
+    """The confirmed-assignment changes a rebalance would make, without
+    persisting anything (dry-run rolled back in a savepoint) — feeds the
+    "fold in now" confirmation dialog. Empty list = nothing would change."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    if roster.activated_at is None:
+        raise HTTPException(status_code=409, detail="Roster is not running")
+    return chores_svc.rebalance_preview(db, roster)
 
 
 @router.put("/{roster_id}", response_model=RosterOut)

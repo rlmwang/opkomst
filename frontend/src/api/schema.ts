@@ -799,6 +799,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/rebalance/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rebalance Preview
+         * @description The confirmed-assignment changes a rebalance would make, without
+         *     persisting anything (dry-run rolled back in a savepoint) — feeds the
+         *     "fold in now" confirmation dialog. Empty list = nothing would change.
+         */
+        get: operations["rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}/restore": {
         parameters: {
             query?: never;
@@ -3483,6 +3505,30 @@ export interface components {
             qr?: string | null;
         };
         /**
+         * RebalanceChangeOut
+         * @description One confirmed-assignment change a "fold in now" rebalance would make,
+         *     for the preview the organiser confirms against. ``*_open`` marks an
+         *     unassigned/open shift; otherwise ``*_name`` is the assignee pseudonym
+         *     (``None`` = an anonymous volunteer).
+         */
+        RebalanceChangeOut: {
+            /** After Name */
+            after_name: string | null;
+            /** After Open */
+            after_open: boolean;
+            /** Before Name */
+            before_name: string | null;
+            /** Before Open */
+            before_open: boolean;
+            /** Chore Name */
+            chore_name: string;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+        };
+        /**
          * RenameUserRequest
          * @description Min-length=1 catches empty strings; the handler additionally
          *     strips whitespace and 422s on a name that's whitespace-only,
@@ -5378,6 +5424,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RosterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RebalanceChangeOut"][];
                 };
             };
             /** @description Validation Error */

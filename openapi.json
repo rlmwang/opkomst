@@ -3479,6 +3479,60 @@
         "title": "QrResponse",
         "type": "object"
       },
+      "RebalanceChangeOut": {
+        "description": "One confirmed-assignment change a \"fold in now\" rebalance would make,\nfor the preview the organiser confirms against. ``*_open`` marks an\nunassigned/open shift; otherwise ``*_name`` is the assignee pseudonym\n(``None`` = an anonymous volunteer).",
+        "properties": {
+          "after_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Name"
+          },
+          "after_open": {
+            "title": "After Open",
+            "type": "boolean"
+          },
+          "before_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Name"
+          },
+          "before_open": {
+            "title": "Before Open",
+            "type": "boolean"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on_date",
+          "chore_name",
+          "before_open",
+          "before_name",
+          "after_open",
+          "after_name"
+        ],
+        "title": "RebalanceChangeOut",
+        "type": "object"
+      },
       "RenameUserRequest": {
         "description": "Min-length=1 catches empty strings; the handler additionally\nstrips whitespace and 422s on a name that's whitespace-only,\nsince Pydantic's ``min_length`` doesn't strip.",
         "properties": {
@@ -7046,6 +7100,69 @@
           }
         },
         "summary": "Rebalance Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/rebalance/preview": {
+      "get": {
+        "description": "The confirmed-assignment changes a rebalance would make, without\npersisting anything (dry-run rolled back in a savepoint) \u2014 feeds the\n\"fold in now\" confirmation dialog. Empty list = nothing would change.",
+        "operationId": "rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RebalanceChangeOut"
+                  },
+                  "title": "Response Rebalance Preview Api V1 Chores  Roster Id  Rebalance Preview Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rebalance Preview",
         "tags": [
           "chores"
         ]
