@@ -56,7 +56,9 @@
     transform: translateY(1px);
   }
   .btn-primary:disabled {
-    opacity: 0.85;
+    /* Clearly greyed-out so a disabled Save (no pending change) reads as
+     * inactive, not just slightly dimmed. */
+    opacity: 0.45;
     cursor: default;
   }
   /* Full-width variant — the datepoll submit spans its card. */
