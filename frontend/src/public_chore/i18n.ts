@@ -12,6 +12,10 @@ export interface ChoreStrings {
   chooseChores: string;
   noChores: string;
   emailLabel: string;
+  emailHidden: string;
+  emailClearing: string;
+  emailClear: string;
+  emailKeep: string;
   emailDisclosureBody: string;
   enrolButton: string;
   enrolled: string;
@@ -50,6 +54,10 @@ const dict: Record<Locale, ChoreStrings> = {
     chooseChores: "Taken",
     noChores: "Er zijn nog geen taken.",
     emailLabel: "E-mail (optioneel)",
+    emailHidden: "E-mail (verborgen)",
+    emailClearing: "E-mail (wordt verwijderd)",
+    emailClear: "E-mail verwijderen",
+    emailKeep: "E-mail behouden",
     emailDisclosureBody:
       "Je e-mailadres gebruiken we alleen om je op tijd aan een taak te herinneren. We bewaren het versleuteld zolang je meedoet en verwijderen het zodra je je afmeldt.",
     enrolButton: "Aanmelden",
@@ -87,6 +95,10 @@ const dict: Record<Locale, ChoreStrings> = {
     chooseChores: "Chores",
     noChores: "There are no chores yet.",
     emailLabel: "Email (optional)",
+    emailHidden: "Email (hidden)",
+    emailClearing: "Email (will be removed)",
+    emailClear: "Remove email",
+    emailKeep: "Keep email",
     emailDisclosureBody:
       "We only use your email to send you a reminder before your shift. It's stored encrypted while you're taking part and deleted as soon as you leave.",
     enrolButton: "Sign up",

@@ -38,9 +38,20 @@ const ch = computed(() => choreStrings(locale.value));
 
 const displayName = ref("");
 const email = ref("");
+// Edit mode: when a hidden email is on file, mark it for removal on save
+// (leaving the field empty keeps the existing one).
+const clearEmail = ref(false);
 const picked = reactive<Record<string, boolean>>({});
 const busy = ref(false);
 const errorMsg = ref("");
+
+// Placeholder reflects the email state: hidden-on-file, being-removed, or
+// none. Avoids the password-like dots.
+const emailPlaceholder = computed(() => {
+  if (clearEmail.value) return ch.value.emailClearing;
+  if (personal.value?.has_email) return ch.value.emailHidden;
+  return ch.value.emailLabel;
+});
 
 const personal = ref<PersonalPage | null>(null);
 const availDraft = ref<AvailabilityRange[]>([]);
@@ -62,6 +73,7 @@ const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
     chores: [...chosenIds.value].sort(),
     avail: availDraft.value.map((r) => `${r.start}|${r.end}`),
     email: email.value,
+    clearEmail: clearEmail.value,
   }),
   apply: (s) => {
     displayName.value = s.name;
@@ -71,6 +83,7 @@ const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
       return { start, end };
     });
     email.value = s.email;
+    clearEmail.value = s.clearEmail;
   },
 });
 
@@ -102,6 +115,8 @@ onMounted(async () => {
 function hydratePersonal(page: PersonalPage): void {
   personal.value = page;
   displayName.value = page.display_name ?? "";
+  email.value = "";
+  clearEmail.value = false;
   for (const chore of chores.value) picked[chore.id] = page.enrolled_chore_ids.includes(chore.id);
   availDraft.value = (page.availability ?? []).map((r) => ({ ...r }));
 }
@@ -117,6 +132,11 @@ function parseDate(s: string): Date | null {
   const [y, m, d] = s.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
+}
+
+function toggleClearEmail(): void {
+  clearEmail.value = !clearEmail.value;
+  if (clearEmail.value) email.value = ""; // removing wins over a typed value
 }
 
 function addAvailRange(): void {
@@ -173,12 +193,14 @@ async function saveChanges(): Promise<void> {
   try {
     // One page, one save: persist the enrolment and the time-off ranges
     // together so there's a single confirmation button for everything.
-    // Reminders follow the email: on if one's on file or newly entered.
-    const enteredEmail = email.value.trim() || null;
+    // Clearing wins; otherwise reminders stay on if an email is on file or
+    // newly entered.
+    const enteredEmail = clearEmail.value ? null : email.value.trim() || null;
+    const keepReminders = clearEmail.value ? false : enteredEmail !== null || (personal.value?.has_email ?? false);
     await putEnrolment(editToken, {
       display_name: displayName.value.trim() || null,
       chore_ids: chosenIds.value,
-      email_reminders: enteredEmail !== null || (personal.value?.has_email ?? false),
+      email_reminders: keepReminders,
       email: enteredEmail,
     });
     const ranges = availDraft.value.filter((r) => r.start && r.end);
@@ -395,13 +417,31 @@ async function leave(): Promise<void> {
           :placeholder="c.displayName"
           autocomplete="name"
         />
-        <input
-          v-model="email"
-          type="email"
-          class="input"
-          :placeholder="personal?.has_email ? '••••••' : ch.emailLabel"
-          autocomplete="email"
-        />
+        <div class="email-row">
+          <input
+            v-model="email"
+            type="email"
+            class="input"
+            :placeholder="emailPlaceholder"
+            :disabled="clearEmail"
+            autocomplete="email"
+          />
+          <button
+            v-if="personal?.has_email"
+            type="button"
+            class="icon-btn"
+            :class="{ active: clearEmail }"
+            :aria-label="clearEmail ? ch.emailKeep : ch.emailClear"
+            @click="toggleClearEmail"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div class="card">
@@ -472,6 +512,13 @@ h2 { margin: 0; font-size: 1.1rem; }
 .emoji { line-height: 1; }
 .chore-desc { font-size: 0.8125rem; }
 /* .input + .btn-primary come from ``src/public_shared/forms.css``. */
+.email-row { display: flex; gap: 0.5rem; align-items: center; }
+.email-row > .input { flex: 1; min-width: 0; }
+/* Armed (email marked for removal): the bin reads active. */
+.icon-btn.active {
+  color: var(--brand-red);
+  background: color-mix(in srgb, var(--brand-red) 12%, transparent);
+}
 .disclosure summary { cursor: pointer; font-weight: 600; }
 .shift-list {
   list-style: none;
