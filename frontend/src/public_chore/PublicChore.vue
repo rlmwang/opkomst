@@ -228,7 +228,7 @@ async function leave(): Promise<void> {
       <template v-if="status === 'personal' && personal">
         <div class="card stack">
           <h2>{{ ch.myTurns }}</h2>
-          <p v-if="personal.my_shifts.length === 0" class="muted">{{ ch.noUpcoming }}</p>
+          <p v-if="personal.my_shifts.length === 0" class="empty muted">{{ ch.noUpcoming }}</p>
           <ul v-else class="shift-list">
             <li v-for="s in personal.my_shifts" :key="s.id" class="shift-row">
               <span class="shift-main">
@@ -250,7 +250,7 @@ async function leave(): Promise<void> {
 
         <div class="card stack">
           <h2>{{ ch.upForGrabs }}</h2>
-          <p v-if="personal.open_shifts.length === 0" class="muted">{{ ch.noOpen }}</p>
+          <p v-if="personal.open_shifts.length === 0" class="empty muted">{{ ch.noOpen }}</p>
           <ul v-else class="shift-list">
             <li v-for="s in personal.open_shifts" :key="s.id" class="shift-row">
               <span class="shift-main">
@@ -266,7 +266,7 @@ async function leave(): Promise<void> {
 
         <div class="card stack">
           <h2>{{ ch.coverHeading }}</h2>
-          <p v-if="(personal.coverable_shifts ?? []).length === 0" class="muted">{{ ch.noCoverable }}</p>
+          <p v-if="(personal.coverable_shifts ?? []).length === 0" class="empty muted">{{ ch.noCoverable }}</p>
           <ul v-else class="shift-list">
             <li v-for="s in personal.coverable_shifts ?? []" :key="s.id" class="shift-row">
               <span class="shift-main">
@@ -286,7 +286,7 @@ async function leave(): Promise<void> {
         <div class="card stack">
           <h2>{{ ch.outlookHeading }}</h2>
           <p class="muted">{{ ch.outlookNote }}</p>
-          <p v-if="(personal.outlook_shifts ?? []).length === 0" class="muted">{{ ch.noOutlook }}</p>
+          <p v-if="(personal.outlook_shifts ?? []).length === 0" class="empty muted">{{ ch.noOutlook }}</p>
           <ul v-else class="shift-list">
             <li v-for="(s, i) in personal.outlook_shifts ?? []" :key="`${s.chore_id}-${s.on_date}-${i}`" class="shift-row">
               <span class="shift-main">
@@ -300,7 +300,7 @@ async function leave(): Promise<void> {
         <div class="card stack">
           <h2>{{ ch.availabilityHeading }}</h2>
           <p class="muted">{{ ch.availabilityHint }}</p>
-          <p v-if="availDraft.length === 0" class="muted">{{ ch.availabilityEmpty }}</p>
+          <p v-if="availDraft.length === 0" class="empty muted">{{ ch.availabilityEmpty }}</p>
           <div v-for="(r, i) in availDraft" :key="i" class="list-row avail-row">
             <div class="avail-fields">
               <DatePicker
@@ -349,7 +349,7 @@ async function leave(): Promise<void> {
       <div class="card stack">
         <h2>{{ ch.chooseChores }}</h2>
         <p v-if="status === 'enrol'" class="muted">{{ ch.enrolIntro }}</p>
-        <p v-if="chores.length === 0" class="muted">{{ ch.noChores }}</p>
+        <p v-if="chores.length === 0" class="empty muted">{{ ch.noChores }}</p>
         <label v-for="chore in chores" :key="chore.id" class="chore-check">
           <input type="checkbox" class="check" v-model="picked[chore.id]" />
           <span class="chore-label">
