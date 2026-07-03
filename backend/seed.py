@@ -13,7 +13,7 @@ Python constants in ``services.feedback_questions``. There is no
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import structlog
 from sqlalchemy.orm import Session
@@ -22,16 +22,23 @@ from .config import settings
 from .database import SessionLocal
 from .models import (
     Chapter,
+    Chore,
     EmailChannel,
     EmailDispatch,
     EmailStatus,
+    Enrollment,
     Event,
     FeedbackResponse,
+    Roster,
+    Shift,
+    ShiftEvent,
     Signup,
     User,
+    Volunteer,
+    VolunteerAvailability,
 )
 from .services import chapters as chapters_svc
-from .services import encryption
+from .services import edit_token, encryption
 from .services import user_chapters as user_chapters_svc
 from .services.events import now_wallclock
 from .services.slug import new_slug
@@ -257,6 +264,8 @@ def run_local_demo() -> None:
         if existing_resp is None:
             _seed_demo_responses(db, past.id)
 
+        _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
+
         db.commit()
         logger.info("seed_complete")
     finally:
@@ -301,6 +310,175 @@ _DEMO_SUBMISSIONS = [
         "q5_anything_else": "Geluid was af en toe niet goed te volgen.",
     },
 ]
+
+
+def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: datetime) -> None:
+    """Three demo chore rosters, one per lifecycle state, so the details /
+    list / archived pages all have something real to render locally:
+
+    * **forming** — a draft roster (``activated_at`` NULL): chores + a
+      couple of enrolments, but nothing scheduled yet.
+    * **running** — activated a fortnight ago: multiple chores, four
+      volunteers (one with a reminder email, one away next weekend), a
+      week of completed/missed history feeding the accountability tally,
+      and a pinned upcoming week (incl. one open slot).
+    * **archived** — a finished, archived campaign with completion history.
+
+    Idempotent: each roster is keyed on ``(name, created_by)`` and skipped
+    if already present.
+    """
+    today = now.date()
+
+    def wd(weekday: int, week_offset: int) -> date:
+        """Date of ``weekday`` (Mon=0) in the week ``week_offset`` from now."""
+        monday = today - timedelta(days=today.weekday())
+        return monday + timedelta(weeks=week_offset, days=weekday)
+
+    def _roster(name: str, **kw: object) -> Roster | None:
+        if db.query(Roster).filter(Roster.name == name, Roster.created_by == created_by).first():
+            return None  # already seeded
+        roster = Roster(slug=new_slug(), name=name, created_by=created_by, chapter_id=chapter_id, locale="nl", **kw)
+        db.add(roster)
+        db.flush()
+        logger.info("seed_roster_created", roster_id=roster.id, name=name)
+        return roster
+
+    def _chore(roster_id: str, ordinal: int, name: str, slots: list[int], emoji: str) -> Chore:
+        c = Chore(roster_id=roster_id, name=name, ordinal=ordinal, cycle_slots=slots, emoji=emoji)
+        db.add(c)
+        db.flush()
+        return c
+
+    def _vol(
+        roster_id: str,
+        name: str,
+        chore_ids: list[str],
+        *,
+        email: str | None = None,
+        away: tuple[date, date] | None = None,
+    ) -> Volunteer:
+        _, token_hash = edit_token.new_edit_token()
+        v = Volunteer(
+            roster_id=roster_id,
+            display_name=name,
+            edit_token_hash=token_hash,
+            email_reminders=email is not None,
+            encrypted_email=encryption.encrypt(email) if email else None,
+        )
+        db.add(v)
+        db.flush()
+        for cid in chore_ids:
+            db.add(Enrollment(volunteer_id=v.id, chore_id=cid))
+        if away is not None:
+            db.add(VolunteerAvailability(volunteer_id=v.id, start_date=away[0], end_date=away[1]))
+        return v
+
+    def _shift(chore_id: str, on: date, vol: Volunteer | None, status: str, *, done: bool = False) -> Shift:
+        s = Shift(
+            chore_id=chore_id,
+            on_date=on,
+            slot_index=0,
+            volunteer_id=vol.id if vol else None,
+            status=status,
+            done_at=now if done else None,
+        )
+        db.add(s)
+        db.flush()
+        return s
+
+    def _ev(roster_id: str, vol: Volunteer, kind: str, shift_id: str | None = None) -> None:
+        db.add(ShiftEvent(roster_id=roster_id, volunteer_id=vol.id, kind=kind, shift_id=shift_id))
+
+    # --- A. forming (draft, not yet started) -------------------------
+    forming = _roster(
+        "Weekmarkt-kraam",
+        description="Elke zaterdag een kraam op de markt. We zoeken nog mensen!",
+        starts_on=wd(5, 1),  # next Saturday
+        period_weeks=1,
+        commit_horizon_days=21,
+        reminder_enabled=True,
+        reminder_days_before=1,
+        activated_at=None,  # forming
+    )
+    if forming is not None:
+        opbouw = _chore(forming.id, 1, "Opbouwen", [5], "📦")  # Sat
+        afbreken = _chore(forming.id, 2, "Afbreken", [5], "🧹")
+        _vol(forming.id, "Joris", [opbouw.id])
+        _vol(forming.id, "Fatima", [opbouw.id, afbreken.id])
+
+    # --- B. running (active weekly café, mid-flight) -----------------
+    running = _roster(
+        "Sociaal café",
+        description="Wekelijks buurtcafé op vrijdag; schoonmaak op zaterdag.",
+        location="Buurthuis Oost",
+        starts_on=wd(4, -2),  # Friday, two weeks ago
+        period_weeks=1,
+        commit_horizon_days=21,
+        reminder_enabled=True,
+        reminder_days_before=1,
+        activated_at=now - timedelta(days=14),
+    )
+    if running is not None:
+        bar = _chore(running.id, 1, "Bar", [4], "🍻")  # Fri
+        keuken = _chore(running.id, 2, "Keuken", [4], "🍲")  # Fri
+        schoon = _chore(running.id, 3, "Schoonmaak", [5], "🧽")  # Sat
+        ada = _vol(running.id, "Ada", [bar.id, keuken.id], email="ada@local.dev")
+        ben = _vol(running.id, "Ben", [schoon.id])
+        cas = _vol(running.id, "Cas", [bar.id, schoon.id])
+        do = _vol(running.id, "Do", [keuken.id], away=(wd(4, 1), wd(6, 1)))  # away next weekend
+
+        # Past week: completed history + one miss + a hand-off (Ada → Cas).
+        for chore, vol in ((bar, ada), (keuken, do), (schoon, ben)):
+            s = _shift(chore.id, wd(4 if chore is not schoon else 5, -2), vol, "done", done=True)
+            _ev(running.id, vol, "assigned", s.id)
+            _ev(running.id, vol, "completed", s.id)
+        covered = _shift(bar.id, wd(4, -1), cas, "done", done=True)
+        _ev(running.id, ada, "deferred", covered.id)  # Ada passed her Friday bar
+        _ev(running.id, cas, "covered", covered.id)  # Cas picked it up
+        _ev(running.id, cas, "completed", covered.id)
+        missed = _shift(keuken.id, wd(4, -1), do, "missed")
+        _ev(running.id, do, "assigned", missed.id)
+        _ev(running.id, do, "missed", missed.id)
+        cleaned = _shift(schoon.id, wd(5, -1), ben, "done", done=True)
+        _ev(running.id, ben, "assigned", cleaned.id)
+        _ev(running.id, ben, "completed", cleaned.id)
+
+        # Upcoming pinned week: two assigned + one open (Do is away).
+        up_bar = _shift(bar.id, wd(4, 1), ada, "scheduled")
+        _ev(running.id, ada, "assigned", up_bar.id)
+        _shift(keuken.id, wd(4, 1), None, "open")  # up for grabs
+        up_clean = _shift(schoon.id, wd(5, 1), cas, "scheduled")
+        _ev(running.id, cas, "assigned", up_clean.id)
+
+    # --- C. archived (finished campaign) -----------------------------
+    archived = _roster(
+        "Kerstpakkettenactie",
+        description="Pakketten inpakken en rondbrengen — actie afgerond.",
+        starts_on=today - timedelta(days=42),
+        ends_on=today - timedelta(days=7),
+        period_weeks=1,
+        commit_horizon_days=14,
+        reminder_enabled=False,
+        reminder_days_before=1,
+        activated_at=now - timedelta(days=42),
+        archived_at=now - timedelta(days=3),
+    )
+    if archived is not None:
+        inpak = _chore(archived.id, 1, "Inpakken", [5], "🎁")  # Sat
+        bezorg = _chore(archived.id, 2, "Bezorgen", [6], "🚲")  # Sun
+        gwen = _vol(archived.id, "Gwen", [inpak.id, bezorg.id])
+        hugo = _vol(archived.id, "Hugo", [inpak.id])
+        iris = _vol(archived.id, "Iris", [bezorg.id])
+        for week, packer in ((-5, gwen), (-4, hugo), (-3, gwen)):
+            s = _shift(inpak.id, wd(5, week), packer, "done", done=True)
+            _ev(archived.id, packer, "assigned", s.id)
+            _ev(archived.id, packer, "completed", s.id)
+        deliver = _shift(bezorg.id, wd(6, -3), iris, "done", done=True)
+        _ev(archived.id, iris, "assigned", deliver.id)
+        _ev(archived.id, iris, "completed", deliver.id)
+        skipped = _shift(bezorg.id, wd(6, -4), iris, "missed")
+        _ev(archived.id, iris, "assigned", skipped.id)
+        _ev(archived.id, iris, "missed", skipped.id)
 
 
 def _seed_demo_responses(db: Session, event_id: str) -> None:
