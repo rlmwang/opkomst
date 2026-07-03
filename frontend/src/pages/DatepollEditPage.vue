@@ -110,7 +110,11 @@ function removeDate(iso: string): void {
 }
 
 // Keep an add-row buffer for every selected day, and prune slot data
-// for days that were deselected in the calendar.
+// for days that were deselected in the calendar. ``flush: "sync"`` so the
+// buffer exists in lockstep with ``selectedDates``: the template's
+// ``newSlot[iso]`` add-row would otherwise read undefined when the dates
+// are set synchronously during setup (warm Query cache) before an async
+// watcher could run.
 watch(
   sortedISODates,
   (isos) => {
@@ -120,7 +124,7 @@ watch(
     for (const iso of Object.keys(newSlot)) if (!live.has(iso)) delete newSlot[iso];
     for (const iso of Object.keys(excluded)) if (!live.has(iso)) delete excluded[iso];
   },
-  { immediate: true },
+  { immediate: true, flush: "sync" },
 );
 
 // --- Time-slot editing ---------------------------------------------
