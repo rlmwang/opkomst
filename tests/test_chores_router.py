@@ -169,3 +169,32 @@ def test_roster_in_other_chapter_is_404_for_organiser(client, admin_headers, org
     ).json()
     # Organiser is not a member of "Other chapter" → 404 (not 403).
     assert client.get(f"/api/v1/chores/{roster['id']}", headers=organiser_headers).status_code == 404
+
+
+def test_accountability_breaks_down_per_chore(client, organiser_headers):
+    """The accountability endpoint returns one section per chore (by
+    ordinal), each listing only the volunteers enrolled in that chore.
+    A freshly enrolled volunteer with no shift yet is ``pending``."""
+    roster = _create(
+        client,
+        organiser_headers,
+        chores=[
+            {"name": "Bar", "cycle_slots": [4]},
+            {"name": "Keuken", "cycle_slots": [4]},
+        ],
+    ).json()
+    bar = roster["chores"][0]
+    # Enrol a volunteer in Bar only (public endpoint, no auth).
+    client.post(
+        f"/api/v1/chores/by-slug/{roster['slug']}/enroll",
+        json={"display_name": "Ada", "chore_ids": [bar["id"]]},
+    )
+
+    sections = client.get(
+        f"/api/v1/chores/{roster['id']}/accountability", headers=organiser_headers
+    ).json()
+    assert [s["chore_name"] for s in sections] == ["Bar", "Keuken"]
+    by_name = {s["chore_name"]: s for s in sections}
+    assert [v["display_name"] for v in by_name["Bar"]["volunteers"]] == ["Ada"]
+    assert by_name["Bar"]["volunteers"][0]["pending"] is True
+    assert by_name["Keuken"]["volunteers"] == []

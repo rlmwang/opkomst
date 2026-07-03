@@ -12,6 +12,7 @@ import { type MaybeRef, unref } from "vue";
 
 import { listOf, useApiQuery } from "@/api/queries";
 import type {
+  ChoreAccountability,
   ChoreSchedule,
   RosterCreate,
   RosterListOut,
@@ -43,6 +44,13 @@ export function useRosterVolunteers(rosterId: MaybeRef<string>) {
   return useApiQuery<VolunteerSummary[]>(
     () => ["chores", unref(rosterId), "volunteers"],
     () => `/api/v1/chores/${unref(rosterId)}/volunteers`,
+  );
+}
+
+export function useRosterAccountability(rosterId: MaybeRef<string>) {
+  return useApiQuery<ChoreAccountability[]>(
+    () => ["chores", unref(rosterId), "accountability"],
+    () => `/api/v1/chores/${unref(rosterId)}/accountability`,
   );
 }
 

@@ -692,6 +692,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/accountability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chore Accountability
+         * @description Accountability broken down per chore: one section per chore (by
+         *     ordinal), each listing the enrolled volunteers with their per-chore
+         *     turn split. Never the email/ciphertext/token.
+         */
+        get: operations["chore_accountability_api_v1_chores__roster_id__accountability_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}/activate": {
         parameters: {
             query?: never;
@@ -2209,6 +2231,19 @@ export interface components {
             users: number;
         };
         /**
+         * ChoreAccountabilityOut
+         * @description One chore's section of the accountability breakdown: the chore's
+         *     name + one row per volunteer enrolled in it, ordered busiest first.
+         */
+        ChoreAccountabilityOut: {
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /** Volunteers */
+            volunteers: components["schemas"]["ChoreVolunteerOut"][];
+        };
+        /**
          * ChoreIn
          * @description One chore on the create / update payload. ``id`` is null for a new
          *     chore and set for an existing one (matched on update, like
@@ -2248,6 +2283,32 @@ export interface components {
             ordinal: number;
             /** People Per Shift */
             people_per_shift: number;
+        };
+        /**
+         * ChoreVolunteerOut
+         * @description One volunteer's accountability **for a single chore** — the same
+         *     split as ``VolunteerSummaryOut`` but scoped to shifts of one chore, so
+         *     the details page can break the tally down per chore. No enrolled-chore
+         *     list here: the enclosing ``ChoreAccountabilityOut`` already names the
+         *     chore, which keeps each row to just the pseudonym + its bar.
+         */
+        ChoreVolunteerOut: {
+            /** Completed */
+            completed: number;
+            /** Deferred */
+            deferred: number;
+            /** Display Name */
+            display_name: string | null;
+            /** Id */
+            id: string;
+            /** Missed */
+            missed: number;
+            /** Pending */
+            pending: boolean;
+            /** Picked Up */
+            picked_up: number;
+            /** Regular Turns */
+            regular_turns: number;
         };
         /**
          * CompleteRegistrationRequest
@@ -5116,6 +5177,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chore_accountability_api_v1_chores__roster_id__accountability_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoreAccountabilityOut"][];
+                };
             };
             /** @description Validation Error */
             422: {

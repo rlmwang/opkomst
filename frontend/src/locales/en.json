@@ -499,6 +499,7 @@
       "volunteersHeading": "Volunteers",
       "volunteersLabel": "volunteers",
       "volunteersEmpty": "Volunteers show up here once people enrol.",
+      "choreNoVolunteers": "Nobody for this chore yet.",
       "scheduleHeading": "Schedule",
       "scheduleEmpty": "The schedule appears once shifts are assigned.",
       "anonymous": "Anonymous",

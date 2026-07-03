@@ -421,44 +421,77 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
         "Sociaal café",
         description="Wekelijks buurtcafé op vrijdag; schoonmaak op zaterdag.",
         location="Buurthuis Oost",
-        starts_on=wd(4, -2),  # Friday, two weeks ago
+        starts_on=wd(4, -12),  # Friday, twelve weeks ago
         period_weeks=1,
         commit_horizon_days=21,
         reminder_enabled=True,
         reminder_days_before=1,
-        activated_at=now - timedelta(days=14),
+        activated_at=now - timedelta(days=84),
     )
     if running is not None:
         bar = _chore(running.id, 1, "Bar", [4], "🍻")  # Fri
         keuken = _chore(running.id, 2, "Keuken", [4], "🍲")  # Fri
         schoon = _chore(running.id, 3, "Schoonmaak", [5], "🧽")  # Sat
-        ada = _vol(running.id, "Ada", [bar.id, keuken.id], email="ada@local.dev")
-        ben = _vol(running.id, "Ben", [schoon.id])
-        cas = _vol(running.id, "Cas", [bar.id, schoon.id])
-        do = _vol(running.id, "Do", [keuken.id], away=(wd(4, 1), wd(6, 1)))  # away next weekend
+        weekday = {bar.id: 4, keuken.id: 4, schoon.id: 5}
 
-        # Past week: completed history + one miss + a hand-off (Ada → Cas).
-        for chore, vol in ((bar, ada), (keuken, do), (schoon, ben)):
-            s = _shift(chore.id, wd(4 if chore is not schoon else 5, -2), vol, "done", done=True)
-            _ev(running.id, vol, "assigned", s.id)
-            _ev(running.id, vol, "completed", s.id)
-        covered = _shift(bar.id, wd(4, -1), cas, "done", done=True)
-        _ev(running.id, ada, "deferred", covered.id)  # Ada passed her Friday bar
-        _ev(running.id, cas, "covered", covered.id)  # Cas picked it up
-        _ev(running.id, cas, "completed", covered.id)
-        missed = _shift(keuken.id, wd(4, -1), do, "missed")
-        _ev(running.id, do, "assigned", missed.id)
-        _ev(running.id, do, "missed", missed.id)
-        cleaned = _shift(schoon.id, wd(5, -1), ben, "done", done=True)
-        _ev(running.id, ben, "assigned", cleaned.id)
-        _ev(running.id, ben, "completed", cleaned.id)
+        # Eight volunteers with uneven enrolment + an activity weight, so the
+        # per-chore accountability bars vary a lot: Els carries three chores,
+        # Fen barely shows up. (name, chores, weight, email, away)
+        specs: list[tuple[str, list[Chore], int, str | None, tuple[date, date] | None]] = [
+            ("Ada", [bar, keuken], 5, "ada@local.dev", None),
+            ("Ben", [schoon], 4, None, None),
+            ("Cas", [bar, schoon], 3, None, None),
+            ("Do", [keuken], 2, None, (wd(4, 1), wd(6, 1))),  # away next weekend
+            ("Els", [bar, keuken, schoon], 6, None, None),
+            ("Fen", [schoon], 1, None, None),
+            ("Gijs", [bar], 2, None, None),
+            ("Hana", [keuken, schoon], 3, None, None),
+        ]
+        vols = {
+            name: _vol(running.id, name, [c.id for c in chores], email=email, away=away)
+            for name, chores, _weight, email, away in specs
+        }
 
-        # Upcoming pinned week: two assigned + one open (Do is away).
-        up_bar = _shift(bar.id, wd(4, 1), ada, "scheduled")
-        _ev(running.id, ada, "assigned", up_bar.id)
-        _shift(keuken.id, wd(4, 1), None, "open")  # up for grabs
-        up_clean = _shift(schoon.id, wd(5, 1), cas, "scheduled")
-        _ev(running.id, cas, "assigned", up_clean.id)
+        def _pool(chore: Chore) -> list[str]:
+            """Weighted assignment pool: each enrolled volunteer repeated by
+            their activity weight, so busier people draw more occurrences."""
+            return [name for name, chores, weight, *_ in specs if chore in chores for _ in range(weight)]
+
+        # Twelve weeks of history: each weekly occurrence goes to a weighted
+        # rotation of the enrolled pool; most get completed, some missed, some
+        # handed off (assignee defers, next in the pool covers + completes).
+        for wk in range(-12, 0):
+            for ci, chore in enumerate((bar, keuken, schoon)):
+                pool = _pool(chore)
+                idx = (wk + 12) % len(pool)
+                assignee = vols[pool[idx]]
+                on = wd(weekday[chore.id], wk)
+                n = (wk + 12) * 3 + ci
+                if n % 11 == 5:
+                    s = _shift(chore.id, on, assignee, "missed")
+                    _ev(running.id, assignee, "assigned", s.id)
+                    _ev(running.id, assignee, "missed", s.id)
+                elif n % 7 == 3:
+                    picker = vols[pool[(idx + 1) % len(pool)]]
+                    s = _shift(chore.id, on, picker, "done", done=True)
+                    _ev(running.id, assignee, "assigned", s.id)
+                    _ev(running.id, assignee, "deferred", s.id)
+                    _ev(running.id, picker, "covered", s.id)
+                    _ev(running.id, picker, "completed", s.id)
+                else:
+                    s = _shift(chore.id, on, assignee, "done", done=True)
+                    _ev(running.id, assignee, "assigned", s.id)
+                    _ev(running.id, assignee, "completed", s.id)
+
+        # Upcoming pinned week: two assigned + one open (Keuken up for grabs).
+        for ci, chore in enumerate((bar, keuken, schoon)):
+            on = wd(weekday[chore.id], 1)
+            if ci == 1:
+                _shift(chore.id, on, None, "open")
+                continue
+            assignee = vols[_pool(chore)[0]]
+            up = _shift(chore.id, on, assignee, "scheduled")
+            _ev(running.id, assignee, "assigned", up.id)
 
     # --- C. archived (finished campaign) -----------------------------
     archived = _roster(

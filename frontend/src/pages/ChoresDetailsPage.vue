@@ -8,7 +8,7 @@ import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import type { ChoreOut } from "@/api/types";
-import { useRoster, useRosterSchedule, useRosterVolunteers } from "@/composables/useChores";
+import { useRoster, useRosterAccountability, useRosterSchedule } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
@@ -24,8 +24,11 @@ const roster = computed(() => rosterQuery.data.value ?? null);
 const choreItems = computed<ChoreOut[]>(() => roster.value?.chores ?? []);
 const loaded = computed(() => !rosterQuery.isPending.value);
 
-const volunteersQuery = useRosterVolunteers(rosterId);
-const volunteers = computed(() => volunteersQuery.data.value ?? []);
+// Accountability broken down per chore — one section per chore, each
+// listing the volunteers enrolled in it with their per-chore turn split.
+const accountabilityQuery = useRosterAccountability(rosterId);
+const accountability = computed(() => accountabilityQuery.data.value ?? []);
+const volunteerCount = computed(() => roster.value?.volunteer_count ?? 0);
 
 // A pending newcomer folds into pins as the horizon edge rolls forward
 // (design §7): their first turns land at today + commit_horizon_days.
@@ -46,7 +49,7 @@ const upcoming = computed(() => schedule.value?.confirmed ?? []);
 // just because they've done less (design §7); the count sits in each
 // segment. Regular turns vs picked-up is the provenance split; handed
 // off / missed are the outcomes that cost favour.
-type VolRow = (typeof volunteers.value)[number];
+type VolRow = (typeof accountability.value)[number]["volunteers"][number];
 function volSegments(v: VolRow): BarSegment[] {
   return [
     { value: v.regular_turns, variant: "positive", title: t("chores.details.regularCount", { n: v.regular_turns }) },
@@ -69,10 +72,6 @@ const legendItems = computed<LegendItem[]>(() => [
   { variant: "warning", label: t("chores.details.legend.deferred") },
   { variant: "neutral", label: t("chores.details.legend.missed") },
 ]);
-
-const choreName = computed<Record<string, string>>(() =>
-  Object.fromEntries(choreItems.value.map((c) => [c.id, c.name])),
-);
 
 const dayLabels = computed(() => [
   t("chores.edit.weekday.mon"),
@@ -182,30 +181,33 @@ function dateWindow(): string {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("chores.details.volunteersHeading") }}</h2>
-          <div v-if="volunteers.length" class="count-pill">
-            <span class="count">{{ volunteers.length }}</span>
+          <div v-if="volunteerCount" class="count-pill">
+            <span class="count">{{ volunteerCount }}</span>
             <span class="label">{{ t("chores.details.volunteersLabel") }}</span>
           </div>
         </div>
-        <p v-if="volunteers.length === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
+        <p v-if="volunteerCount === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
         <template v-else>
           <TallyLegend :items="legendItems" />
-          <ul class="vol-tally">
-            <li v-for="v in volunteers" :key="v.id" class="vol-row">
-              <div class="vol-id">
+          <!-- One section per chore; each row is just the volunteer + their
+               per-chore bar (the section heading names the chore). -->
+          <section v-for="c in accountability" :key="c.chore_id" class="chore-section">
+            <h3 class="chore-section-name">{{ c.chore_name }}</h3>
+            <p v-if="c.volunteers.length === 0" class="muted chore-section-empty">
+              {{ t("chores.details.choreNoVolunteers") }}
+            </p>
+            <ul v-else class="vol-tally">
+              <li v-for="v in c.volunteers" :key="v.id" class="vol-row">
                 <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
-                <span class="muted vol-chores">
-                  {{ v.enrolled_chore_ids.map((id) => choreName[id]).filter(Boolean).join(", ") }}
+                <!-- A newcomer with no turns of this chore yet: show the
+                     "joining" note in place of the (empty) bar. -->
+                <span v-if="v.pending && horizonEdge" class="vol-joining">
+                  {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
                 </span>
-              </div>
-              <!-- A newcomer with no turns yet: show the "joining" note in
-                   place of the (empty) bar. -->
-              <span v-if="v.pending && horizonEdge" class="vol-joining">
-                {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
-              </span>
-              <SegmentedBar v-else :segments="volSegments(v)" :aria-label="barLabel(v)" />
-            </li>
-          </ul>
+                <SegmentedBar v-else :segments="volSegments(v)" :aria-label="barLabel(v)" />
+              </li>
+            </ul>
+          </section>
         </template>
       </AppCard>
 
@@ -287,15 +289,26 @@ function dateWindow(): string {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-.vol-chores,
 .shift-chore { font-size: 0.875rem; }
 
-/* Volunteer accountability tally — a normalised, four-colour stacked bar
- * per person (own turns / picked up / handed off / missed) with the count
- * in each segment. Legend + bar are the shared TallyLegend / SegmentedBar. */
+/* Accountability tally, broken down per chore. Each chore is a section
+ * (heading = chore name); rows are just the volunteer + their per-chore
+ * four-colour bar (own turns / picked up / handed off / missed) with the
+ * count in each segment. Legend + bar are the shared components. */
+.chore-section {
+  margin-top: 1.25rem;
+}
+.chore-section-name {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.chore-section-empty {
+  margin: 0.375rem 0 0;
+  font-size: 0.8125rem;
+}
 .vol-tally {
   list-style: none;
-  margin: 0.75rem 0 0;
+  margin: 0.5rem 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -303,22 +316,11 @@ function dateWindow(): string {
 }
 .vol-row {
   display: grid;
-  grid-template-columns: minmax(6rem, 12rem) 1fr;
+  grid-template-columns: minmax(3.5rem, 7rem) 1fr;
   align-items: center;
   gap: 0.75rem;
 }
-.vol-id {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
 .vol-name {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.vol-chores {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

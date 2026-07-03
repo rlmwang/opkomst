@@ -323,6 +323,33 @@
         "title": "ChapterUsageOut",
         "type": "object"
       },
+      "ChoreAccountabilityOut": {
+        "description": "One chore's section of the accountability breakdown: the chore's\nname + one row per volunteer enrolled in it, ordered busiest first.",
+        "properties": {
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "volunteers": {
+            "items": {
+              "$ref": "#/components/schemas/ChoreVolunteerOut"
+            },
+            "title": "Volunteers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chore_id",
+          "chore_name",
+          "volunteers"
+        ],
+        "title": "ChoreAccountabilityOut",
+        "type": "object"
+      },
       "ChoreIn": {
         "description": "One chore on the create / update payload. ``id`` is null for a new\nchore and set for an existing one (matched on update, like\n``FormQuestionIn``). ``cycle_slots`` are normalised (deduped, sorted,\nrange-checked) by the parent roster validator against ``period_weeks``.",
         "properties": {
@@ -445,6 +472,62 @@
           "people_per_shift"
         ],
         "title": "ChoreOut",
+        "type": "object"
+      },
+      "ChoreVolunteerOut": {
+        "description": "One volunteer's accountability **for a single chore** \u2014 the same\nsplit as ``VolunteerSummaryOut`` but scoped to shifts of one chore, so\nthe details page can break the tally down per chore. No enrolled-chore\nlist here: the enclosing ``ChoreAccountabilityOut`` already names the\nchore, which keeps each row to just the pseudonym + its bar.",
+        "properties": {
+          "completed": {
+            "title": "Completed",
+            "type": "integer"
+          },
+          "deferred": {
+            "title": "Deferred",
+            "type": "integer"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "missed": {
+            "title": "Missed",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "picked_up": {
+            "title": "Picked Up",
+            "type": "integer"
+          },
+          "regular_turns": {
+            "title": "Regular Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "pending",
+          "regular_turns",
+          "picked_up",
+          "completed",
+          "deferred",
+          "missed"
+        ],
+        "title": "ChoreVolunteerOut",
         "type": "object"
       },
       "CompleteRegistrationRequest": {
@@ -6598,6 +6681,69 @@
           }
         },
         "summary": "Update Roster",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/accountability": {
+      "get": {
+        "description": "Accountability broken down per chore: one section per chore (by\nordinal), each listing the enrolled volunteers with their per-chore\nturn split. Never the email/ciphertext/token.",
+        "operationId": "chore_accountability_api_v1_chores__roster_id__accountability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChoreAccountabilityOut"
+                  },
+                  "title": "Response Chore Accountability Api V1 Chores  Roster Id  Accountability Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chore Accountability",
         "tags": [
           "chores"
         ]

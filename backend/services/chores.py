@@ -18,7 +18,9 @@ from sqlalchemy.orm import Session
 from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from ..schemas.chores import (
     AvailabilityRange,
+    ChoreAccountabilityOut,
     ChoreOut,
+    ChoreVolunteerOut,
     CoverableShiftOut,
     OutlookShiftOut,
     PersonalOutlookOut,
@@ -376,6 +378,72 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
         )
         for v in volunteers
     ]
+
+
+def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilityOut]:
+    """Accountability broken down per chore: for each chore (by ordinal), the
+    volunteers enrolled in it with their per-chore turn split, folded from
+    the ShiftEvent stream joined to each event's shift (so an event counts
+    only against the chore whose shift it was). A volunteer with no held
+    shift of the chore yet is flagged ``pending``."""
+    chores = _chores(db, roster.id)
+    if not chores:
+        return []
+    vols = {v.id: v for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id)}
+
+    enrolled: dict[str, list[str]] = {}
+    if vols:
+        for cid, vid in (
+            db.query(Enrollment.chore_id, Enrollment.volunteer_id)
+            .filter(Enrollment.volunteer_id.in_(list(vols.keys())))
+            .all()
+        ):
+            enrolled.setdefault(cid, []).append(vid)
+
+    # ShiftEvent stream grouped by the chore its shift belongs to. The inner
+    # join drops events whose shift was deleted (``shift_id`` SET NULL) —
+    # they can't be attributed to a chore.
+    events_by_chore: dict[str, list[tuple[str, str]]] = {}
+    for cid, kind, vid in (
+        db.query(Shift.chore_id, ShiftEvent.kind, ShiftEvent.volunteer_id)
+        .join(Shift, Shift.id == ShiftEvent.shift_id)
+        .filter(ShiftEvent.roster_id == roster.id)
+        .all()
+    ):
+        events_by_chore.setdefault(cid, []).append((kind, vid))
+
+    held = {
+        (cid, vid)
+        for cid, vid in db.query(Shift.chore_id, Shift.volunteer_id)
+        .filter(Shift.chore_id.in_([c.id for c in chores]), Shift.volunteer_id.is_not(None))
+        .distinct()
+    }
+
+    out: list[ChoreAccountabilityOut] = []
+    for chore in chores:
+        counts = summarize_accountability(events_by_chore.get(chore.id, []))
+        rows: list[ChoreVolunteerOut] = []
+        for vid in enrolled.get(chore.id, []):
+            v = vols.get(vid)
+            if v is None:
+                continue
+            c = counts.get(vid, AccountabilityCounts())
+            rows.append(
+                ChoreVolunteerOut(
+                    id=v.id,
+                    display_name=v.display_name,
+                    pending=(chore.id, v.id) not in held,
+                    regular_turns=c.regular_turns,
+                    picked_up=c.picked_up,
+                    completed=c.completed,
+                    deferred=c.deferred,
+                    missed=c.missed,
+                )
+            )
+        # Busiest first (own + picked-up turns), then pseudonym for stability.
+        rows.sort(key=lambda r: (-(r.regular_turns + r.picked_up), (r.display_name or "").lower()))
+        out.append(ChoreAccountabilityOut(chore_id=chore.id, chore_name=chore.name, volunteers=rows))
+    return out
 
 
 def schedule(db: Session, roster: Roster) -> ScheduleOut:

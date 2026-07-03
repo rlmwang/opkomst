@@ -22,6 +22,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import Roster, User
 from ..schemas.chores import (
+    ChoreAccountabilityOut,
     RosterCreate,
     RosterListOut,
     RosterOut,
@@ -132,6 +133,19 @@ def list_volunteers(
     test). ``load`` is 0 until shift generation (task 06)."""
     roster = access.get_roster_for_user(db, roster_id, user)
     return chores_svc.volunteer_summaries(db, roster)
+
+
+@router.get("/{roster_id}/accountability", response_model=list[ChoreAccountabilityOut])
+def chore_accountability(
+    roster_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> list[ChoreAccountabilityOut]:
+    """Accountability broken down per chore: one section per chore (by
+    ordinal), each listing the enrolled volunteers with their per-chore
+    turn split. Never the email/ciphertext/token."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    return chores_svc.chore_accountability(db, roster)
 
 
 @router.get("/{roster_id}/schedule", response_model=ScheduleOut)

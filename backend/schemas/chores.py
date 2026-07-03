@@ -295,6 +295,33 @@ class VolunteerSummaryOut(BaseModel):
     missed: int
 
 
+class ChoreVolunteerOut(BaseModel):
+    """One volunteer's accountability **for a single chore** — the same
+    split as ``VolunteerSummaryOut`` but scoped to shifts of one chore, so
+    the details page can break the tally down per chore. No enrolled-chore
+    list here: the enclosing ``ChoreAccountabilityOut`` already names the
+    chore, which keeps each row to just the pseudonym + its bar."""
+
+    id: str
+    display_name: str | None
+    # True until they hold a pinned/past shift *of this chore*.
+    pending: bool
+    regular_turns: int
+    picked_up: int
+    completed: int
+    deferred: int
+    missed: int
+
+
+class ChoreAccountabilityOut(BaseModel):
+    """One chore's section of the accountability breakdown: the chore's
+    name + one row per volunteer enrolled in it, ordered busiest first."""
+
+    chore_id: str
+    chore_name: str
+    volunteers: list[ChoreVolunteerOut]
+
+
 class ScheduleShiftOut(BaseModel):
     """One upcoming shift on the organiser schedule view. ``assignee_name``
     is the volunteer's pseudonym (NULL for an open/unassigned shift)."""
