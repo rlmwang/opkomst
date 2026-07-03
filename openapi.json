@@ -123,6 +123,70 @@
         "title": "Body_upload_roster_image_api_v1_chores__roster_id__image_post",
         "type": "object"
       },
+      "CalendarAssigneeOut": {
+        "description": "One assignment on a calendar day. ``name`` is the pseudonym (``None``\n= anonymous); ``open`` marks an unassigned slot; ``status`` is the shift\nstatus (``scheduled`` for a projected/tentative day).",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "open",
+          "status"
+        ],
+        "title": "CalendarAssigneeOut",
+        "type": "object"
+      },
+      "CalendarDayOut": {
+        "description": "One occurrence day on a chore's calendar. ``tentative`` = beyond the\ncommit horizon (projected, may still shift). ``changed`` is set only on\nthe fold-in preview, on days a rebalance would alter.",
+        "properties": {
+          "assignees": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarAssigneeOut"
+            },
+            "title": "Assignees",
+            "type": "array"
+          },
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "on_date": {
+            "format": "date",
+            "title": "On Date",
+            "type": "string"
+          },
+          "tentative": {
+            "title": "Tentative",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on_date",
+          "tentative",
+          "assignees"
+        ],
+        "title": "CalendarDayOut",
+        "type": "object"
+      },
       "ChapterArchiveRequest": {
         "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
         "properties": {
@@ -348,6 +412,45 @@
           "volunteers"
         ],
         "title": "ChoreAccountabilityOut",
+        "type": "object"
+      },
+      "ChoreCalendarOut": {
+        "description": "One chore's occurrences within a requested month, for the roster\ncalendar: past days come from the shift log (they may predate a pattern\nchange), the horizon window from the pins, beyond it from the projection.",
+        "properties": {
+          "chore_id": {
+            "title": "Chore Id",
+            "type": "string"
+          },
+          "chore_name": {
+            "title": "Chore Name",
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/CalendarDayOut"
+            },
+            "title": "Days",
+            "type": "array"
+          },
+          "emoji": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          }
+        },
+        "required": [
+          "chore_id",
+          "chore_name",
+          "emoji",
+          "days"
+        ],
+        "title": "ChoreCalendarOut",
         "type": "object"
       },
       "ChoreIn": {
@@ -3477,60 +3580,6 @@
           }
         },
         "title": "QrResponse",
-        "type": "object"
-      },
-      "RebalanceChangeOut": {
-        "description": "One confirmed-assignment change a \"fold in now\" rebalance would make,\nfor the preview the organiser confirms against. ``*_open`` marks an\nunassigned/open shift; otherwise ``*_name`` is the assignee pseudonym\n(``None`` = an anonymous volunteer).",
-        "properties": {
-          "after_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "After Name"
-          },
-          "after_open": {
-            "title": "After Open",
-            "type": "boolean"
-          },
-          "before_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Before Name"
-          },
-          "before_open": {
-            "title": "Before Open",
-            "type": "boolean"
-          },
-          "chore_name": {
-            "title": "Chore Name",
-            "type": "string"
-          },
-          "on_date": {
-            "format": "date",
-            "title": "On Date",
-            "type": "string"
-          }
-        },
-        "required": [
-          "on_date",
-          "chore_name",
-          "before_open",
-          "before_name",
-          "after_open",
-          "after_name"
-        ],
-        "title": "RebalanceChangeOut",
         "type": "object"
       },
       "RenameUserRequest": {
@@ -6920,6 +6969,85 @@
         ]
       }
     },
+    "/api/v1/chores/{roster_id}/calendar": {
+      "get": {
+        "description": "One month of the roster as a per-chore calendar. ``month`` is\n``YYYY-MM`` (defaults to the current month). Past days come from the\nshift log, the horizon window from the pins, beyond it from the\nprojection (flagged ``tentative``).",
+        "operationId": "chore_calendar_api_v1_chores__roster_id__calendar_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChoreCalendarOut"
+                  },
+                  "title": "Response Chore Calendar Api V1 Chores  Roster Id  Calendar Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chore Calendar",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/chores/{roster_id}/image": {
       "delete": {
         "description": "Clear the image reference. The file in the repo is left alone.",
@@ -7107,7 +7235,7 @@
     },
     "/api/v1/chores/{roster_id}/rebalance/preview": {
       "get": {
-        "description": "The confirmed-assignment changes a rebalance would make, without\npersisting anything (dry-run rolled back in a savepoint) \u2014 feeds the\n\"fold in now\" confirmation dialog. Empty list = nothing would change.",
+        "description": "The month calendar as it would look after a \"fold in now\" rebalance,\nwith changed days flagged \u2014 without persisting anything (dry-run rolled\nback in a savepoint). Feeds the fold-in confirmation dialog.",
         "operationId": "rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get",
         "parameters": [
           {
@@ -7117,6 +7245,22 @@
             "schema": {
               "title": "Roster Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
             }
           },
           {
@@ -7142,7 +7286,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/RebalanceChangeOut"
+                    "$ref": "#/components/schemas/ChoreCalendarOut"
                   },
                   "title": "Response Rebalance Preview Api V1 Chores  Roster Id  Rebalance Preview Get",
                   "type": "array"

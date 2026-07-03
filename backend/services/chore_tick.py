@@ -134,7 +134,7 @@ def _chore_specs(chores: list[Chore]) -> list[ChoreSpec]:
     ]
 
 
-def _horizon_end(roster: Roster, today: date) -> date:
+def horizon_end(roster: Roster, today: date) -> date:
     end = today + timedelta(days=roster.commit_horizon_days)
     if roster.ends_on is not None and roster.ends_on < end:
         end = roster.ends_on
@@ -233,7 +233,7 @@ def project_range(db: Session, roster: Roster, chores: list[Chore], start: date,
 def _pin_window(db: Session, roster: Roster, chores: list[Chore], today: date) -> int:
     """Pin the incoming edge + prune stale window pins. Returns inserted."""
     chore_ids = [c.id for c in chores]
-    end = _horizon_end(roster, today)
+    end = horizon_end(roster, today)
     projected = project_range(db, roster, chores, today, end)
     existing, row_by_key = _window_pins(db, roster.id, chore_ids, today, end)
     diff = reconcile(existing, projected, today=today)
@@ -271,16 +271,16 @@ def pin_roster(db: Session, roster: Roster, today: date) -> int:
     return inserted
 
 
-def _rebalance_core(db: Session, roster: Roster, today: date) -> int:
+def rebalance_core(db: Session, roster: Roster, today: date) -> int:
     """The rebalance mutation without the commit: drop every un-acted,
     un-reminded pin in the window (even ones still projected) so newly-
     enrolled volunteers fold in, then re-pin from the fresh projection.
     Reminded / acted pins are kept. No commit — the caller commits (real
-    run) or rolls back (dry-run preview)."""
+    run) or rolls it back inside a SAVEPOINT (the dry-run calendar preview)."""
     if roster.activated_at is None:
         return 0
     chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
-    end = _horizon_end(roster, today)
+    end = horizon_end(roster, today)
     existing, row_by_key = _window_pins(db, roster.id, [c.id for c in chores], today, end)
     for pin in existing:
         if not pin.acted and not pin.reminded:
@@ -293,44 +293,9 @@ def rebalance_roster(db: Session, roster: Roster, today: date) -> int:
     """Re-pin the current window from the fresh projection, folding newly-
     enrolled volunteers into the confirmed window now. Changes confirmed
     assignments — an explicit, organiser-invoked action. Commits."""
-    inserted = _rebalance_core(db, roster, today)
+    inserted = rebalance_core(db, roster, today)
     db.commit()
     return inserted
-
-
-def rebalance_preview(db: Session, roster: Roster, today: date) -> list[tuple[str, date, str | None, str | None]]:
-    """What a rebalance *would* change, without persisting anything. Snapshot
-    the window's assignees, run the rebalance core inside a SAVEPOINT, read
-    the new assignees, then roll the savepoint back. Returns one tuple per
-    occurrence whose assignee changes: ``(chore_id, on_date, from_vol_id,
-    to_vol_id)`` where ``None`` means an open/unassigned shift."""
-    if roster.activated_at is None:
-        return []
-    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster.id).all()]
-    if not chore_ids:
-        return []
-    end = _horizon_end(roster, today)
-
-    def _snapshot() -> dict[tuple[str, date, int], str | None]:
-        rows = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= today, Shift.on_date <= end).all()
-        return {(s.chore_id, s.on_date, s.slot_index): s.volunteer_id for s in rows}
-
-    before = _snapshot()
-    savepoint = db.begin_nested()
-    try:
-        _rebalance_core(db, roster, today)
-        db.flush()
-        after = _snapshot()
-    finally:
-        savepoint.rollback()
-
-    changes: list[tuple[str, date, str | None, str | None]] = []
-    for key in sorted(before.keys() | after.keys(), key=lambda k: (k[1], k[0], k[2])):
-        from_vol = before.get(key)
-        to_vol = after.get(key)
-        if from_vol != to_vol:
-            changes.append((key[0], key[1], from_vol, to_vol))
-    return changes
 
 
 def run_tick(db: Session, today: date) -> tuple[int, int]:

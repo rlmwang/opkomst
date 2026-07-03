@@ -322,18 +322,36 @@ class ChoreAccountabilityOut(BaseModel):
     volunteers: list[ChoreVolunteerOut]
 
 
-class RebalanceChangeOut(BaseModel):
-    """One confirmed-assignment change a "fold in now" rebalance would make,
-    for the preview the organiser confirms against. ``*_open`` marks an
-    unassigned/open shift; otherwise ``*_name`` is the assignee pseudonym
-    (``None`` = an anonymous volunteer)."""
+class CalendarAssigneeOut(BaseModel):
+    """One assignment on a calendar day. ``name`` is the pseudonym (``None``
+    = anonymous); ``open`` marks an unassigned slot; ``status`` is the shift
+    status (``scheduled`` for a projected/tentative day)."""
+
+    name: str | None
+    open: bool
+    status: str
+
+
+class CalendarDayOut(BaseModel):
+    """One occurrence day on a chore's calendar. ``tentative`` = beyond the
+    commit horizon (projected, may still shift). ``changed`` is set only on
+    the fold-in preview, on days a rebalance would alter."""
 
     on_date: date
+    tentative: bool
+    changed: bool = False
+    assignees: list[CalendarAssigneeOut]
+
+
+class ChoreCalendarOut(BaseModel):
+    """One chore's occurrences within a requested month, for the roster
+    calendar: past days come from the shift log (they may predate a pattern
+    change), the horizon window from the pins, beyond it from the projection."""
+
+    chore_id: str
     chore_name: str
-    before_open: bool
-    before_name: str | None
-    after_open: bool
-    after_name: str | None
+    emoji: str | None
+    days: list[CalendarDayOut]
 
 
 class ScheduleShiftOut(BaseModel):

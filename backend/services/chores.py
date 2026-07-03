@@ -18,7 +18,10 @@ from sqlalchemy.orm import Session
 from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from ..schemas.chores import (
     AvailabilityRange,
+    CalendarAssigneeOut,
+    CalendarDayOut,
     ChoreAccountabilityOut,
+    ChoreCalendarOut,
     ChoreOut,
     ChoreVolunteerOut,
     CoverableShiftOut,
@@ -27,7 +30,6 @@ from ..schemas.chores import (
     PersonalPageOut,
     PersonalShiftOut,
     PublicRosterOut,
-    RebalanceChangeOut,
     RosterListOut,
     RosterOut,
     ScheduleOut,
@@ -447,27 +449,99 @@ def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilit
     return out
 
 
-def rebalance_preview(db: Session, roster: Roster) -> list[RebalanceChangeOut]:
-    """Project the assignment changes a "fold in now" rebalance would make
-    (via the dry-run in ``chore_tick``), resolved to chore + pseudonym for
-    the confirmation dialog."""
-    today = now_wallclock().date()
-    raw = chore_tick.rebalance_preview(db, roster, today)
-    if not raw:
+def _month_bounds(year: int, month: int) -> tuple[date, date]:
+    start = date(year, month, 1)
+    end = date(year + (month == 12), (month % 12) + 1, 1) - timedelta(days=1)
+    return start, end
+
+
+def chore_calendar(db: Session, roster: Roster, year: int, month: int, today: date) -> list[ChoreCalendarOut]:
+    """One month of occurrences per chore (ordered by ordinal). Days on/before
+    the commit horizon come from the actual ``Shift`` rows (past history + the
+    pinned window — real rows, so a since-changed pattern doesn't rewrite the
+    past); days beyond it come from the projection and are ``tentative``. A day
+    carries one assignee entry per slot (``people_per_shift``)."""
+    chores = _chores(db, roster.id)
+    if not chores:
         return []
-    chore_names = {c.id: c.name for c in _chores(db, roster.id)}
+    chore_ids = [c.id for c in chores]
+    m_start, m_end = _month_bounds(year, month)
+    horizon_end = chore_tick.horizon_end(roster, today)
     vol_names = {v.id: v.display_name for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id)}
-    return [
-        RebalanceChangeOut(
-            on_date=on_date,
-            chore_name=chore_names.get(chore_id, ""),
-            before_open=from_vol is None,
-            before_name=vol_names.get(from_vol) if from_vol else None,
-            after_open=to_vol is None,
-            after_name=vol_names.get(to_vol) if to_vol else None,
+
+    actual: dict[tuple[str, date], list[CalendarAssigneeOut]] = {}
+    real_end = min(m_end, horizon_end)
+    if m_start <= real_end:
+        rows = (
+            db.query(Shift, Volunteer.display_name)
+            .outerjoin(Volunteer, Volunteer.id == Shift.volunteer_id)
+            .filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= m_start, Shift.on_date <= real_end)
+            .order_by(Shift.on_date, Shift.slot_index)
+            .all()
         )
-        for chore_id, on_date, from_vol, to_vol in raw
-    ]
+        for s, name in rows:
+            actual.setdefault((s.chore_id, s.on_date), []).append(
+                CalendarAssigneeOut(name=name, open=s.volunteer_id is None, status=s.status)
+            )
+
+    projected: dict[tuple[str, date], list[CalendarAssigneeOut]] = {}
+    proj_start = max(m_start, horizon_end + timedelta(days=1))
+    proj_end = min(m_end, today + timedelta(days=OUTLOOK_DAYS))
+    if roster.ends_on is not None and roster.ends_on < proj_end:
+        proj_end = roster.ends_on
+    if roster.activated_at is not None and proj_start <= proj_end:
+        for pa in chore_tick.project_range(db, roster, chores, proj_start, proj_end):
+            projected.setdefault((pa.occurrence.chore_id, pa.occurrence.on_date), []).append(
+                CalendarAssigneeOut(
+                    name=vol_names.get(pa.volunteer_id) if pa.volunteer_id else None,
+                    open=pa.volunteer_id is None,
+                    status="scheduled",
+                )
+            )
+
+    out: list[ChoreCalendarOut] = []
+    for c in chores:
+        dates = sorted({d for (cid, d) in actual if cid == c.id} | {d for (cid, d) in projected if cid == c.id})
+        days = [
+            CalendarDayOut(
+                on_date=d,
+                tentative=d > horizon_end,
+                assignees=(projected if d > horizon_end else actual).get((c.id, d), []),
+            )
+            for d in dates
+        ]
+        out.append(ChoreCalendarOut(chore_id=c.id, chore_name=c.name, emoji=c.emoji, days=days))
+    return out
+
+
+def _day_signature(day: CalendarDayOut) -> tuple:
+    """Identity of a day's assignment, for diffing before/after a rebalance."""
+    return tuple(sorted((a.open, a.name or "") for a in day.assignees))
+
+
+def rebalance_preview_calendar(
+    db: Session, roster: Roster, year: int, month: int, today: date
+) -> list[ChoreCalendarOut]:
+    """The month calendar as it would look after a "fold in now" rebalance,
+    with ``changed`` flagged on days whose assignment differs from now. Runs
+    the rebalance core in a SAVEPOINT and rolls it back — nothing persists."""
+    before = {
+        (cal.chore_id, d.on_date): _day_signature(d)
+        for cal in chore_calendar(db, roster, year, month, today)
+        for d in cal.days
+    }
+    savepoint = db.begin_nested()
+    try:
+        chore_tick.rebalance_core(db, roster, today)
+        db.flush()
+        after = chore_calendar(db, roster, year, month, today)
+    finally:
+        savepoint.rollback()
+    for cal in after:
+        for day in cal.days:
+            if before.get((cal.chore_id, day.on_date)) != _day_signature(day):
+                day.changed = True
+    return after
 
 
 def schedule(db: Session, roster: Roster) -> ScheduleOut:

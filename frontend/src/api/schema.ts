@@ -752,6 +752,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chore Calendar
+         * @description One month of the roster as a per-chore calendar. ``month`` is
+         *     ``YYYY-MM`` (defaults to the current month). Past days come from the
+         *     shift log, the horizon window from the pins, beyond it from the
+         *     projection (flagged ``tentative``).
+         */
+        get: operations["chore_calendar_api_v1_chores__roster_id__calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}/image": {
         parameters: {
             query?: never;
@@ -808,9 +831,9 @@ export interface paths {
         };
         /**
          * Rebalance Preview
-         * @description The confirmed-assignment changes a rebalance would make, without
-         *     persisting anything (dry-run rolled back in a savepoint) — feeds the
-         *     "fold in now" confirmation dialog. Empty list = nothing would change.
+         * @description The month calendar as it would look after a "fold in now" rebalance,
+         *     with changed days flagged — without persisting anything (dry-run rolled
+         *     back in a savepoint). Feeds the fold-in confirmation dialog.
          */
         get: operations["rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get"];
         put?: never;
@@ -2173,6 +2196,42 @@ export interface components {
             file: string;
         };
         /**
+         * CalendarAssigneeOut
+         * @description One assignment on a calendar day. ``name`` is the pseudonym (``None``
+         *     = anonymous); ``open`` marks an unassigned slot; ``status`` is the shift
+         *     status (``scheduled`` for a projected/tentative day).
+         */
+        CalendarAssigneeOut: {
+            /** Name */
+            name: string | null;
+            /** Open */
+            open: boolean;
+            /** Status */
+            status: string;
+        };
+        /**
+         * CalendarDayOut
+         * @description One occurrence day on a chore's calendar. ``tentative`` = beyond the
+         *     commit horizon (projected, may still shift). ``changed`` is set only on
+         *     the fold-in preview, on days a rebalance would alter.
+         */
+        CalendarDayOut: {
+            /** Assignees */
+            assignees: components["schemas"]["CalendarAssigneeOut"][];
+            /**
+             * Changed
+             * @default false
+             */
+            changed: boolean;
+            /**
+             * On Date
+             * Format: date
+             */
+            on_date: string;
+            /** Tentative */
+            tentative: boolean;
+        };
+        /**
          * ChapterArchiveRequest
          * @description Optional reassignment targets when archiving a chapter.
          *     Both default to None — rows that aren't reassigned simply
@@ -2264,6 +2323,22 @@ export interface components {
             chore_name: string;
             /** Volunteers */
             volunteers: components["schemas"]["ChoreVolunteerOut"][];
+        };
+        /**
+         * ChoreCalendarOut
+         * @description One chore's occurrences within a requested month, for the roster
+         *     calendar: past days come from the shift log (they may predate a pattern
+         *     change), the horizon window from the pins, beyond it from the projection.
+         */
+        ChoreCalendarOut: {
+            /** Chore Id */
+            chore_id: string;
+            /** Chore Name */
+            chore_name: string;
+            /** Days */
+            days: components["schemas"]["CalendarDayOut"][];
+            /** Emoji */
+            emoji: string | null;
         };
         /**
          * ChoreIn
@@ -3503,30 +3578,6 @@ export interface components {
             pairingCode?: string | null;
             /** Qr */
             qr?: string | null;
-        };
-        /**
-         * RebalanceChangeOut
-         * @description One confirmed-assignment change a "fold in now" rebalance would make,
-         *     for the preview the organiser confirms against. ``*_open`` marks an
-         *     unassigned/open shift; otherwise ``*_name`` is the assignee pseudonym
-         *     (``None`` = an anonymous volunteer).
-         */
-        RebalanceChangeOut: {
-            /** After Name */
-            after_name: string | null;
-            /** After Open */
-            after_open: boolean;
-            /** Before Name */
-            before_name: string | null;
-            /** Before Open */
-            before_open: boolean;
-            /** Chore Name */
-            chore_name: string;
-            /**
-             * On Date
-             * Format: date
-             */
-            on_date: string;
         };
         /**
          * RenameUserRequest
@@ -5334,6 +5385,41 @@ export interface operations {
             };
         };
     };
+    chore_calendar_api_v1_chores__roster_id__calendar_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoreCalendarOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     upload_roster_image_api_v1_chores__roster_id__image_post: {
         parameters: {
             query?: never;
@@ -5439,7 +5525,9 @@ export interface operations {
     };
     rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get: {
         parameters: {
-            query?: never;
+            query?: {
+                month?: string | null;
+            };
             header?: {
                 authorization?: string | null;
             };
@@ -5456,7 +5544,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RebalanceChangeOut"][];
+                    "application/json": components["schemas"]["ChoreCalendarOut"][];
                 };
             };
             /** @description Validation Error */

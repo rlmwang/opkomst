@@ -190,9 +190,14 @@ def test_rebalance_preview_is_a_dry_run(db):
     db.add(Enrollment(volunteer_id=vol.id, chore_id=chore.id))
     db.commit()
 
-    changes = chore_tick.rebalance_preview(db, roster, TODAY)
-    # Every open window shift would flip to the newcomer...
-    assert len(changes) == 4
-    assert all(from_vol is None and to_vol == vol.id for _cid, _on, from_vol, to_vol in changes)
-    # ...but nothing is persisted — the savepoint rolled back, shifts still open.
+    # The dry-run runs the core inside a SAVEPOINT: it would assign every
+    # open shift to the newcomer, but rolling back leaves the pins untouched
+    # (this is exactly what the calendar preview relies on).
+    savepoint = db.begin_nested()
+    chore_tick.rebalance_core(db, roster, TODAY)
+    db.flush()
+    scheduled = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.status == "scheduled").all()
+    assert len(scheduled) == 4
+    assert all(s.volunteer_id == vol.id for s in scheduled)
+    savepoint.rollback()
     assert all(s.status == "open" for s in db.query(Shift).filter(Shift.chore_id == chore.id).all())

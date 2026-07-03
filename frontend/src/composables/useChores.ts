@@ -13,6 +13,7 @@ import { type MaybeRef, unref } from "vue";
 import { listOf, useApiQuery } from "@/api/queries";
 import type {
   ChoreAccountability,
+  ChoreCalendar,
   ChoreSchedule,
   RosterCreate,
   RosterListOut,
@@ -58,5 +59,27 @@ export function useRosterSchedule(rosterId: MaybeRef<string>) {
   return useApiQuery<ChoreSchedule>(
     () => ["chores", unref(rosterId), "schedule"],
     () => `/api/v1/chores/${unref(rosterId)}/schedule`,
+  );
+}
+
+/** The roster as a per-chore calendar for one ``YYYY-MM`` month. */
+export function useRosterCalendar(rosterId: MaybeRef<string>, month: MaybeRef<string>) {
+  return useApiQuery<ChoreCalendar[]>(
+    () => ["chores", unref(rosterId), "calendar", unref(month)],
+    () => `/api/v1/chores/${unref(rosterId)}/calendar?month=${unref(month)}`,
+  );
+}
+
+/** The post-"fold in now" calendar for one month, with changed days flagged.
+ * Fetched only while the fold-in dialog is open (``enabled``). */
+export function useRebalancePreviewCalendar(
+  rosterId: MaybeRef<string>,
+  month: MaybeRef<string>,
+  enabled: MaybeRef<boolean>,
+) {
+  return useApiQuery<ChoreCalendar[]>(
+    () => ["chores", unref(rosterId), "rebalance-preview", unref(month)],
+    () => `/api/v1/chores/${unref(rosterId)}/rebalance/preview?month=${unref(month)}`,
+    { enabled },
   );
 }

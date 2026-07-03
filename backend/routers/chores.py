@@ -11,7 +11,7 @@ Public-by-slug surfaces live in ``routers/chores_public.py`` (task 05);
 the schedule / volunteers reads arrive with the data (task 06).
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -23,7 +23,7 @@ from ..database import get_db
 from ..models import Roster, User
 from ..schemas.chores import (
     ChoreAccountabilityOut,
-    RebalanceChangeOut,
+    ChoreCalendarOut,
     RosterCreate,
     RosterListOut,
     RosterOut,
@@ -41,6 +41,18 @@ from ..services.slug import new_slug
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/chores", tags=["chores"])
+
+
+def _parse_month(month: str | None, today: date) -> tuple[int, int]:
+    """Parse a ``YYYY-MM`` query param, falling back to the current month."""
+    if month:
+        try:
+            year, mon = (int(x) for x in month.split("-", 1))
+        except ValueError:
+            return today.year, today.month
+        if 1 <= mon <= 12:
+            return year, mon
+    return today.year, today.month
 
 
 @router.post("", response_model=RosterOut, status_code=201)
@@ -200,19 +212,39 @@ def rebalance_roster(
     return chores_svc.to_out(db, roster)
 
 
-@router.get("/{roster_id}/rebalance/preview", response_model=list[RebalanceChangeOut])
-def rebalance_preview(
+@router.get("/{roster_id}/calendar", response_model=list[ChoreCalendarOut])
+def chore_calendar(
     roster_id: str,
+    month: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[RebalanceChangeOut]:
-    """The confirmed-assignment changes a rebalance would make, without
-    persisting anything (dry-run rolled back in a savepoint) — feeds the
-    "fold in now" confirmation dialog. Empty list = nothing would change."""
+) -> list[ChoreCalendarOut]:
+    """One month of the roster as a per-chore calendar. ``month`` is
+    ``YYYY-MM`` (defaults to the current month). Past days come from the
+    shift log, the horizon window from the pins, beyond it from the
+    projection (flagged ``tentative``)."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    today = now_wallclock().date()
+    year, mon = _parse_month(month, today)
+    return chores_svc.chore_calendar(db, roster, year, mon, today)
+
+
+@router.get("/{roster_id}/rebalance/preview", response_model=list[ChoreCalendarOut])
+def rebalance_preview(
+    roster_id: str,
+    month: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> list[ChoreCalendarOut]:
+    """The month calendar as it would look after a "fold in now" rebalance,
+    with changed days flagged — without persisting anything (dry-run rolled
+    back in a savepoint). Feeds the fold-in confirmation dialog."""
     roster = access.get_roster_for_user(db, roster_id, user)
     if roster.activated_at is None:
         raise HTTPException(status_code=409, detail="Roster is not running")
-    return chores_svc.rebalance_preview(db, roster)
+    today = now_wallclock().date()
+    year, mon = _parse_month(month, today)
+    return chores_svc.rebalance_preview_calendar(db, roster, year, mon, today)
 
 
 @router.put("/{roster_id}", response_model=RosterOut)

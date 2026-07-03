@@ -80,7 +80,8 @@ export type ChoreOut = S["ChoreOut"];
 export type PublicRosterOut = S["PublicRosterOut"];
 export type VolunteerSummary = S["VolunteerSummaryOut"];
 export type ChoreAccountability = S["ChoreAccountabilityOut"];
-export type RebalanceChange = S["RebalanceChangeOut"];
+export type ChoreCalendar = S["ChoreCalendarOut"];
+export type CalendarDay = S["CalendarDayOut"];
 export type ChoreSchedule = S["ScheduleOut"];
 export type ScheduleShift = S["ScheduleShiftOut"];
 

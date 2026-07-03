@@ -46,7 +46,7 @@ from .models import (
     VolunteerAvailability,
 )
 from .services import chapters as chapters_svc
-from .services import edit_token, encryption
+from .services import chore_tick, edit_token, encryption
 from .services import user_chapters as user_chapters_svc
 from .services.events import now_wallclock
 from .services.slug import new_slug
@@ -483,15 +483,33 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
                     _ev(running.id, assignee, "assigned", s.id)
                     _ev(running.id, assignee, "completed", s.id)
 
-        # Upcoming pinned week: two assigned + one open (Keuken up for grabs).
-        for ci, chore in enumerate((bar, keuken, schoon)):
-            on = wd(weekday[chore.id], 1)
-            if ci == 1:
-                _shift(chore.id, on, None, "open")
-                continue
-            assignee = vols[_pool(chore)[0]]
-            up = _shift(chore.id, on, assignee, "scheduled")
-            _ev(running.id, assignee, "assigned", up.id)
+        # Pin the real commit window from the projection (as the daily tick
+        # does in production), so the calendar shows a fully-scheduled ~3
+        # weeks rather than a couple of hand-placed shifts. Commits.
+        db.flush()
+        chore_tick.pin_roster(db, running, today)
+        # Leave one upcoming shift up for grabs, so the calendar shows an
+        # open cell too.
+        up_for_grabs = (
+            db.query(Shift)
+            .join(Chore, Chore.id == Shift.chore_id)
+            .filter(
+                Chore.roster_id == running.id,
+                Chore.name == "Keuken",
+                Shift.on_date > today,
+                Shift.status == "scheduled",
+            )
+            .order_by(Shift.on_date)
+            .first()
+        )
+        if up_for_grabs is not None:
+            up_for_grabs.volunteer_id = None
+            up_for_grabs.status = "open"
+
+        # A latecomer who enrolled *after* the window was pinned: still
+        # "pending" (not in the confirmed window), so the details page shows
+        # the "fold in now" button and its preview has something to fold in.
+        _vol(running.id, "Nova", [bar.id, schoon.id])
 
     # --- C. archived (finished campaign) -----------------------------
     archived = _roster(

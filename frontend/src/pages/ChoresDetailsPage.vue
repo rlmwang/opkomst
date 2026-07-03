@@ -6,12 +6,19 @@ import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import RosterCalendarBoard from "@/components/RosterCalendarBoard.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
-import type { ChoreOut, RebalanceChange } from "@/api/types";
-import { get, post } from "@/api/client";
-import { useRoster, useRosterAccountability, useRosterSchedule } from "@/composables/useChores";
+import type { ChoreOut } from "@/api/types";
+import { post } from "@/api/client";
+import {
+  useRebalancePreviewCalendar,
+  useRoster,
+  useRosterAccountability,
+  useRosterCalendar,
+  useRosterSchedule,
+} from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
@@ -43,22 +50,30 @@ const hasPending = computed(
   () => roster.value?.activated_at != null && accountability.value.some((c) => c.volunteers.some((v) => v.pending)),
 );
 const showFoldIn = ref(false);
-const foldInPreview = ref<RebalanceChange[]>([]);
-const previewLoading = ref(false);
 const rebalancing = ref(false);
 
-async function openFoldIn() {
-  previewLoading.value = true;
-  try {
-    foldInPreview.value = await get<RebalanceChange[]>(`/api/v1/chores/${props.rosterId}/rebalance/preview`);
-    showFoldIn.value = true;
-  } catch {
-    toasts.error(t("chores.details.foldInFailed"));
-  } finally {
-    previewLoading.value = false;
-  }
+// The month both calendars start on (a "YYYY-MM" string; the board owns nav).
+function currentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Current roster calendar (one calendar per chore, month-navigable).
+const calMonth = ref(currentMonth());
+const calendarQuery = useRosterCalendar(rosterId, calMonth);
+const calendar = computed(() => calendarQuery.data.value ?? []);
+
+// Fold-in preview: the post-rebalance calendar for the dialog's month,
+// fetched only while the dialog is open; changed days are ringed.
+const foldInMonth = ref(currentMonth());
+const previewQuery = useRebalancePreviewCalendar(rosterId, foldInMonth, showFoldIn);
+const previewCalendar = computed(() => previewQuery.data.value ?? []);
+const previewHasChanges = computed(() => previewCalendar.value.some((c) => c.days.some((d) => d.changed)));
+
+function openFoldIn() {
+  foldInMonth.value = calMonth.value;
+  showFoldIn.value = true;
+}
 async function confirmFoldIn() {
   rebalancing.value = true;
   try {
@@ -73,10 +88,6 @@ async function confirmFoldIn() {
   }
 }
 
-function assigneeLabel(open: boolean, name: string | null): string {
-  return open ? t("chores.details.openShift") : name || t("chores.details.anonymous");
-}
-
 // A pending newcomer folds into pins as the horizon edge rolls forward
 // (design §7): their first turns land at today + commit_horizon_days.
 const horizonEdge = computed(() => {
@@ -88,7 +99,6 @@ const horizonEdge = computed(() => {
 });
 const scheduleQuery = useRosterSchedule(rosterId);
 const schedule = computed(() => scheduleQuery.data.value ?? null);
-const upcoming = computed(() => schedule.value?.confirmed ?? []);
 
 // Volunteer accountability bar: the split of a person's shifts across
 // their own turns, ones picked up for others, handed off, and missed.
@@ -267,7 +277,6 @@ function dateWindow(): string {
             icon="pi pi-user-plus"
             size="small"
             severity="secondary"
-            :loading="previewLoading"
             @click="openFoldIn"
           />
         </div>
@@ -279,36 +288,44 @@ function dateWindow(): string {
             open: schedule.stats.open,
           }) }}
         </p>
-        <p v-if="upcoming.length === 0" class="muted">
-          {{ t("chores.details.scheduleEmpty") }}
-        </p>
-        <ul v-else class="shift-list">
-          <li v-for="s in upcoming" :key="s.id" class="shift-item">
-            <span class="shift-date">{{ formatDate(s.on_date, locale) }}</span>
-            <span class="shift-chore">{{ s.chore_name }}</span>
-            <span class="shift-assignee" :class="{ open: !s.assignee_name }">
-              {{ s.assignee_name || t("chores.details.openShift") }}
-            </span>
-          </li>
-        </ul>
+        <template v-if="roster?.activated_at">
+          <div class="cal-legend muted">
+            <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
+            <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
+            <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
+          </div>
+          <RosterCalendarBoard
+            v-model:month="calMonth"
+            :chores="calendar"
+            :locale="locale"
+            :open-label="t('chores.details.openShift')"
+            :anon-label="t('chores.details.anonymous')"
+            :prev-label="t('chores.details.prevMonth')"
+            :next-label="t('chores.details.nextMonth')"
+          />
+        </template>
+        <p v-else class="muted">{{ t("chores.details.scheduleEmpty") }}</p>
       </AppCard>
     </template>
 
-    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="480px">
-      <p v-if="foldInPreview.length === 0" class="muted">{{ t("chores.details.foldInNone") }}</p>
-      <template v-else>
-        <p class="muted">{{ t("chores.details.foldInIntro", { n: foldInPreview.length }) }}</p>
-        <ul class="foldin-list">
-          <li v-for="(c, i) in foldInPreview" :key="i" class="foldin-row">
-            <span class="foldin-when">{{ formatDate(c.on_date, locale) }} · {{ c.chore_name }}</span>
-            <span class="foldin-change">
-              <span :class="{ open: c.before_open }">{{ assigneeLabel(c.before_open, c.before_name) }}</span>
-              <span class="foldin-arrow">→</span>
-              <span :class="{ open: c.after_open }">{{ assigneeLabel(c.after_open, c.after_name) }}</span>
-            </span>
-          </li>
-        </ul>
-      </template>
+    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="680px">
+      <p class="muted">{{ t("chores.details.foldInIntro") }}</p>
+      <div class="cal-legend muted">
+        <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
+        <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
+        <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
+        <span><i class="cal-swatch changed" />{{ t("chores.details.calChanged") }}</span>
+      </div>
+      <p v-if="!previewHasChanges" class="muted foldin-note">{{ t("chores.details.foldInNoneMonth") }}</p>
+      <RosterCalendarBoard
+        v-model:month="foldInMonth"
+        :chores="previewCalendar"
+        :locale="locale"
+        :open-label="t('chores.details.openShift')"
+        :anon-label="t('chores.details.anonymous')"
+        :prev-label="t('chores.details.prevMonth')"
+        :next-label="t('chores.details.nextMonth')"
+      />
       <template #footer>
         <Button
           :label="t('common.cancel')"
@@ -319,7 +336,6 @@ function dateWindow(): string {
           @click="showFoldIn = false"
         />
         <Button
-          v-if="foldInPreview.length"
           :label="t('chores.details.foldInConfirm')"
           size="small"
           :loading="rebalancing"
@@ -365,22 +381,6 @@ function dateWindow(): string {
   color: var(--brand-text-muted);
   font-size: 0.75rem;
 }
-.shift-list {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.shift-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.shift-chore { font-size: 0.875rem; }
-
 /* Accountability tally, broken down per chore. Each chore is a section
  * (heading = chore name); rows are just the volunteer + their per-chore
  * four-colour bar (own turns / picked up / handed off / missed) with the
@@ -421,34 +421,38 @@ function dateWindow(): string {
 }
 .stats-line { margin: 0 0 0.5rem; }
 
-/* Fold-in preview dialog: one row per changing shift. */
-.foldin-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Calendar legend: swatches matching RosterCalendar's cell styles. */
+.cal-legend {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 22rem;
-  overflow-y: auto;
-}
-.foldin-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
   flex-wrap: wrap;
-  font-size: 0.875rem;
+  gap: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  margin: 0.25rem 0 0.75rem;
 }
-.foldin-when { font-weight: 500; }
-.foldin-change {
+.cal-legend span {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
 }
-.foldin-arrow { color: var(--brand-text-muted); }
-.foldin-change .open { color: var(--brand-red); }
-
-.shift-date { min-width: 8rem; }
-.shift-assignee { margin-left: auto; font-weight: 500; }
-.shift-assignee.open { color: var(--brand-red); font-weight: 600; }
+.cal-swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 4px;
+  flex: none;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-surface);
+}
+.cal-swatch.tentative {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.cal-swatch.open {
+  border-color: var(--brand-red);
+  background: color-mix(in srgb, var(--brand-red) 12%, white);
+}
+.cal-swatch.changed {
+  outline: 2px solid var(--brand-red);
+  outline-offset: -1px;
+}
+.foldin-note { margin: 0 0 0.5rem; }
 </style>

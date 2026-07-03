@@ -198,3 +198,36 @@ def test_accountability_breaks_down_per_chore(client, organiser_headers):
     assert [v["display_name"] for v in by_name["Bar"]["volunteers"]] == ["Ada"]
     assert by_name["Bar"]["volunteers"][0]["pending"] is True
     assert by_name["Keuken"]["volunteers"] == []
+
+
+def test_calendar_endpoint_returns_per_chore_days(client, organiser_headers):
+    """One entry per chore; a running roster's current month carries
+    occurrence days, each with at least one assignee slot."""
+    roster = _create(
+        client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]
+    ).json()
+    client.post(f"/api/v1/chores/{roster['id']}/activate", headers=organiser_headers)
+    cal = client.get(f"/api/v1/chores/{roster['id']}/calendar", headers=organiser_headers).json()
+    assert [c["chore_name"] for c in cal] == ["Bar"]
+    days = cal[0]["days"]
+    assert days and all("tentative" in d and d["assignees"] for d in days)
+
+
+def test_rebalance_preview_returns_calendar_with_changes(client, organiser_headers):
+    """The preview flags the days a rebalance would change (a late enrollee
+    filling open shifts) and does not persist them."""
+    roster = _create(
+        client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]
+    ).json()
+    client.post(f"/api/v1/chores/{roster['id']}/activate", headers=organiser_headers)  # window pins open
+    client.post(
+        f"/api/v1/chores/by-slug/{roster['slug']}/enroll",
+        json={"display_name": "Ada", "chore_ids": [roster["chores"][0]["id"]]},
+    )
+    preview = client.get(f"/api/v1/chores/{roster['id']}/rebalance/preview", headers=organiser_headers).json()
+    changed = [d for c in preview for d in c["days"] if d["changed"]]
+    assert changed
+    assert all(any(a["name"] == "Ada" for a in d["assignees"]) for d in changed)
+    # Dry run: the live calendar still shows the shifts open.
+    cal = client.get(f"/api/v1/chores/{roster['id']}/calendar", headers=organiser_headers).json()
+    assert any(a["open"] for c in cal for d in c["days"] for a in d["assignees"])
