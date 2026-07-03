@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { watch } from "vue";
 import BrandMark from "@/public/BrandMark.vue";
+import PublicToast from "./PublicToast.vue";
 import type { Locale } from "./strings";
 
 /** Page chrome shared by all three public mini-apps: the 720px
@@ -18,6 +19,7 @@ watch(locale, (l) => {
 
 <template>
   <div class="container stack">
+    <PublicToast />
     <header class="public-header">
       <BrandMark />
       <div class="lang-switcher" role="group" aria-label="Language">

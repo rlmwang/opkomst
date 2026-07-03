@@ -21,8 +21,12 @@ export interface ChromeStrings {
    *  identical everywhere. */
   unavailable: string;
   loadFailed: string;
-  /** Optional pseudonym field — "a name, real or not". */
+  /** Pseudonym field — "a name, real or not"; required on every page. */
   displayName: string;
+  /** Shown when the (pseudo)name field is left blank on submit. */
+  nameRequired: string;
+  /** Shown when a typed email address is malformed. */
+  invalidEmail: string;
   submit: string;
   submitting: string;
   submitFail: string;
@@ -48,6 +52,8 @@ const chrome: Record<Locale, ChromeStrings> = {
     unavailable: "Deze link is niet meer beschikbaar.",
     loadFailed: "Kon de pagina niet laden",
     displayName: "(Schuil)naam",
+    nameRequired: "Vul een (schuil)naam in.",
+    invalidEmail: "Ongeldig e-mailadres.",
     submit: "Versturen",
     submitting: "Versturen…",
     submitFail: "Versturen mislukt",
@@ -70,6 +76,8 @@ const chrome: Record<Locale, ChromeStrings> = {
     unavailable: "This link is no longer available.",
     loadFailed: "Could not load the page",
     displayName: "(Pseudo)name",
+    nameRequired: "Enter a (pseudo)name.",
+    invalidEmail: "Invalid email address.",
     submit: "Submit",
     submitting: "Submitting…",
     submitFail: "Submitting failed",

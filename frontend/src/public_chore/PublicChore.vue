@@ -7,6 +7,8 @@ import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
+import { isValidEmail } from "@/lib/validate";
+import { showToast } from "@/public_shared/publicToast";
 import { type Locale, GITHUB_URL, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -125,7 +127,22 @@ function removeAvailRange(index: number): void {
   availDraft.value.splice(index, 1);
 }
 
+// Client-side validation shared by enrol + save; specific reasons toast.
+function validateForm(): boolean {
+  if (!displayName.value.trim()) {
+    showToast(c.value.nameRequired);
+    return false;
+  }
+  const em = email.value.trim();
+  if (em && !isValidEmail(em)) {
+    showToast(c.value.invalidEmail);
+    return false;
+  }
+  return true;
+}
+
 async function enrol(): Promise<void> {
+  if (!validateForm()) return;
   busy.value = true;
   errorMsg.value = "";
   try {
@@ -150,6 +167,7 @@ async function enrol(): Promise<void> {
 
 async function saveChanges(): Promise<void> {
   if (!editToken) return;
+  if (!validateForm()) return;
   busy.value = true;
   errorMsg.value = "";
   try {

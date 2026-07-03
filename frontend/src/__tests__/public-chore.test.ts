@@ -83,6 +83,7 @@ describe("PublicChore enrol mode", () => {
     await flushPromises();
 
     await w.findAll('input[type="checkbox"]')[0].setValue(true); // c1 pick
+    await w.find('input[type="text"]').setValue("Sam"); // name is required
     await w.find('input[type="email"]').setValue("sam@local.dev");
     await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
     await flushPromises();

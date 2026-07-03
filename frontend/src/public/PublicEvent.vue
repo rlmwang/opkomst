@@ -8,6 +8,7 @@ import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
+import { showToast } from "@/public_shared/publicToast";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import BrandedSelect from "./BrandedSelect.vue";
@@ -284,9 +285,13 @@ async function submit() {
   errorMsg.value = null;
   if (!event.value) return;
   const trimmedName = displayName.value.trim();
+  if (!trimmedName) {
+    showToast(c.value.nameRequired);
+    return;
+  }
   const trimmedEmail = email.value.trim();
   if (trimmedEmail && !isValidEmail(trimmedEmail)) {
-    errorMsg.value = t.value.invalidEmail;
+    showToast(c.value.invalidEmail);
     return;
   }
   submitting.value = true;

@@ -30,7 +30,6 @@ interface Strings {
   submitFail: string;
   fillName: string;
   fillSource: string;
-  invalidEmail: string;
   thanks: string;
   thanksBody: string;
   thanksBodyNoEmail: string;
@@ -73,7 +72,6 @@ const dict: Record<Locale, Strings> = {
     submitFail: "Aanmelden mislukt",
     fillName: "Vul een naam in",
     fillSource: "Kies hoe je ons hebt gevonden",
-    invalidEmail: "Ongeldig e-mailadres",
     withdrawConfirm:
       "Je afmelden? Je aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
     withdrawn: "Je bent afgemeld.",
@@ -118,7 +116,6 @@ const dict: Record<Locale, Strings> = {
     submitFail: "Sign-up failed",
     fillName: "Fill in a name",
     fillSource: "Pick how you found us",
-    invalidEmail: "Invalid email address",
     withdrawConfirm:
       "Withdraw your sign-up? It will be removed. A reminder or feedback email that's already scheduled may still arrive.",
     withdrawn: "You've withdrawn.",

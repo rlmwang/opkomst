@@ -83,6 +83,9 @@ test("public visitor fills a form and sees the thanks state", async ({
   // with the first question's prompt.
   await expect(v.getByText("Hoe was het evenement?")).toBeVisible({ timeout: 5_000 });
 
+  // Pseudonym is required on every public page.
+  await v.getByPlaceholder(/schuil|pseudo/i).fill("Anna Anoniem");
+
   // Rating: click the "5" dot on the first rating question.
   await v.locator(".dot", { hasText: "5" }).first().click();
 

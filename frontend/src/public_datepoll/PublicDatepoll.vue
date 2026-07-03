@@ -6,6 +6,7 @@ import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
+import { showToast } from "@/public_shared/publicToast";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -138,11 +139,15 @@ function toggle(slotId: string): void {
 
 async function submit(): Promise<void> {
   errorMsg.value = "";
+  if (!displayName.value.trim()) {
+    showToast(c.value.nameRequired);
+    return;
+  }
   const picked = Object.entries(answers)
     .filter(([, a]) => a !== null)
     .map(([slotId, a]) => ({ datepoll_slot_id: slotId, availability: a as Availability }));
   if (picked.length === 0) {
-    errorMsg.value = d.value.pickOne;
+    showToast(d.value.pickOne);
     return;
   }
   submitting.value = true;
