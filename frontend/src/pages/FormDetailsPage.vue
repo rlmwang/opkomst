@@ -142,6 +142,26 @@ async function exportCsv() {
         </div>
       </AppCard>
 
+      <!-- Defined questions overview — the questionnaire's structure,
+           shown independently of any responses (mirrors the chore
+           details "Taken" card listing the defined chores). -->
+      <AppCard v-if="form.questions?.length">
+        <div class="summary-header">
+          <h2>{{ t("forms.details.questionsHeading") }}</h2>
+        </div>
+        <ol class="q-overview">
+          <li v-for="q in form.questions ?? []" :key="q.id" class="q-overview-item">
+            <div class="q-overview-head">
+              <span class="q-overview-prompt">{{ q.prompt }}</span>
+              <span class="q-overview-kind">{{ t(`forms.details.kind.${q.kind}`) }}</span>
+            </div>
+            <ul v-if="q.options.length" class="q-overview-options">
+              <li v-for="o in q.options" :key="o">{{ o }}</li>
+            </ul>
+          </li>
+        </ol>
+      </AppCard>
+
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("forms.details.responsesTitle") }}</h2>
@@ -222,6 +242,53 @@ async function exportCsv() {
 <style scoped>
 /* The overview card (.overview*, .detail-image, .qr*) and the
  * .summary-header / .header-actions row are shared from theme.css. */
+
+/* Defined-questions overview card: one row per question — the prompt with
+ * a small kind label, plus the choice options as pills. */
+.q-overview {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.q-overview-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.q-overview-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.q-overview-prompt {
+  font-weight: 600;
+}
+.q-overview-kind {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--brand-text-muted);
+}
+.q-overview-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+.q-overview-options li {
+  font-size: 0.8125rem;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+  background: var(--brand-bg);
+}
+
 .q-block {
   border-top: 1px solid var(--brand-border);
   padding-top: 1.5rem;

@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import MonthCalendar from "@/components/MonthCalendar.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import { ApiError } from "@/api/client";
@@ -97,6 +98,20 @@ const legendItems = computed<LegendItem[]>(() => [
   { variant: "warning", label: t("datepolls.details.maybe") },
   { variant: "neutral", label: t("datepolls.details.no") },
 ]);
+
+// The candidate days grouped into the calendar months they span, so the
+// overview renders one compact month grid per month with its days marked.
+const proposedMonths = computed(() => {
+  const byMonth = new Map<string, { year: number; month: number; dates: string[] }>();
+  for (const s of poll.value?.slots ?? []) {
+    const [y, m] = s.on_date.split("-").map(Number);
+    const key = `${y}-${m}`;
+    const entry = byMonth.get(key) ?? { year: y, month: m - 1, dates: [] };
+    entry.dates.push(s.on_date);
+    byMonth.set(key, entry);
+  }
+  return [...byMonth.values()].sort((a, b) => a.year - b.year || a.month - b.month);
+});
 
 // Rank the top three slots by the same rule the backend uses for the
 // winner (most yes, tie-break fewest no); only slots with ≥1 yes rank.
@@ -215,6 +230,25 @@ async function exportCsv() {
         </div>
       </AppCard>
 
+      <!-- Proposed dates overview — the poll's candidate slots, shown
+           independently of any responses (mirrors the chore details
+           "Taken" card listing the defined chores). -->
+      <AppCard v-if="poll.slots?.length">
+        <div class="summary-header">
+          <h2>{{ t("datepolls.details.datesHeading") }}</h2>
+        </div>
+        <div class="cal-wrap">
+          <MonthCalendar
+            v-for="m in proposedMonths"
+            :key="`${m.year}-${m.month}`"
+            :year="m.year"
+            :month="m.month"
+            :highlighted="m.dates"
+            :locale="locale"
+          />
+        </div>
+      </AppCard>
+
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("datepolls.details.resultsTitle") }}</h2>
@@ -314,6 +348,14 @@ async function exportCsv() {
 }
 .location:hover { text-decoration: underline; }
 .location svg { flex: none; }
+
+/* Proposed-dates overview: one compact month calendar per month. */
+.cal-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2rem;
+  margin-top: 0.75rem;
+}
 
 /* Per-slot tally — one row per slot: the date (time below) on the left,
  * a yes/maybe/no SegmentedBar on the right. Mirrors the chore tally. */

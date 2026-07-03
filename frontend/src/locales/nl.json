@@ -209,6 +209,14 @@
       "deleteFail": "Verwijderen mislukt"
     },
     "details": {
+      "questionsHeading": "Vragen",
+      "kind": {
+        "rating": "Beoordeling",
+        "text": "Tekst",
+        "short_text": "Korte tekst",
+        "single_choice": "Eén keuze",
+        "multi_choice": "Meerkeuze"
+      },
       "responsesTitle": "Inzendingen",
       "responses": "inzendingen",
       "noResponsesYet": "Nog geen inzendingen.",
@@ -355,6 +363,7 @@
     "details": {
       "anonymous": "Anoniem",
       "respondent": "Deelnemer",
+      "datesHeading": "Voorgestelde data",
       "resultsTitle": "Reacties",
       "responses": "reacties",
       "noResponsesYet": "Nog geen reacties.",

@@ -209,6 +209,14 @@
       "deleteFail": "Delete failed"
     },
     "details": {
+      "questionsHeading": "Questions",
+      "kind": {
+        "rating": "Rating",
+        "text": "Text",
+        "short_text": "Short text",
+        "single_choice": "Single choice",
+        "multi_choice": "Multiple choice"
+      },
       "responsesTitle": "Responses",
       "responses": "responses",
       "noResponsesYet": "No responses yet.",
@@ -355,6 +363,7 @@
     "details": {
       "anonymous": "Anonymous",
       "respondent": "Respondent",
+      "datesHeading": "Proposed dates",
       "resultsTitle": "Responses",
       "responses": "responses",
       "noResponsesYet": "No responses yet.",
