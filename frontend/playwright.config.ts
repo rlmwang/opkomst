@@ -52,6 +52,10 @@ export default defineConfig({
     },
   ],
   projects: [
-    { name: "chromium", use: { browserName: "chromium" } },
+    // The specs run in ``chromium``; its ``teardown`` runs the cleanup
+    // project afterwards (while the dev servers are still up) to hard-
+    // delete the throwaway E2E/EL entities from the shared local DB.
+    { name: "chromium", use: { browserName: "chromium" }, teardown: "cleanup" },
+    { name: "cleanup", testMatch: /cleanup\.ts$/, use: { browserName: "chromium" } },
   ],
 });
