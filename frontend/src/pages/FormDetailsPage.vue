@@ -109,6 +109,15 @@ async function exportCsv() {
           </figcaption>
         </figure>
         <div class="overview-body">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('forms.share.copyQr')"
+            :aria-label="t('forms.share.copyQr')"
+            @click="copyQr(form.slug)"
+          >
+            <img :src="formQrUrl(form.slug)" alt="" class="qr" />
+          </button>
           <div class="overview-text">
             <div class="link-row">
               <a :href="publicFormUrl(form.slug)" target="_blank" rel="noopener">
@@ -130,15 +139,6 @@ async function exportCsv() {
               </router-link>
             </div>
           </div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('forms.share.copyQr')"
-            :aria-label="t('forms.share.copyQr')"
-            @click="copyQr(form.slug)"
-          >
-            <img :src="formQrUrl(form.slug)" alt="" class="qr" />
-          </button>
         </div>
       </AppCard>
 

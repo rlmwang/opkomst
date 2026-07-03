@@ -118,6 +118,15 @@ function dateWindow(): string {
           </figcaption>
         </figure>
         <div class="overview-body">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('chores.share.copyQr')"
+            :aria-label="t('chores.share.copyQr')"
+            @click="copyQr(roster.slug)"
+          >
+            <img :src="choreQrUrl(roster.slug)" alt="" class="qr" />
+          </button>
           <div class="overview-text">
             <p class="muted overview-meta">{{ cadence }} · {{ dateWindow() }}</p>
             <p v-if="roster.description" class="description">{{ roster.description }}</p>
@@ -139,15 +148,6 @@ function dateWindow(): string {
               </router-link>
             </div>
           </div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('chores.share.copyQr')"
-            :aria-label="t('chores.share.copyQr')"
-            @click="copyQr(roster.slug)"
-          >
-            <img :src="choreQrUrl(roster.slug)" alt="" class="qr" />
-          </button>
         </div>
       </AppCard>
 

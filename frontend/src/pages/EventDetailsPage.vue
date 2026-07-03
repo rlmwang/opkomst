@@ -219,6 +219,15 @@ function askTriggerNow(channel: EmailChannel) {
           </figcaption>
         </figure>
         <div class="overview-body">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('event.share.copyQr')"
+            :aria-label="t('event.share.copyQr')"
+            @click="copyQr(event.slug)"
+          >
+            <img :src="eventQrUrl(event.slug)" alt="" class="qr" />
+          </button>
           <div class="overview-text">
             <p class="muted overview-meta">
               <a
@@ -253,15 +262,6 @@ function askTriggerNow(channel: EmailChannel) {
               </router-link>
             </div>
           </div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('event.share.copyQr')"
-            :aria-label="t('event.share.copyQr')"
-            @click="copyQr(event.slug)"
-          >
-            <img :src="eventQrUrl(event.slug)" alt="" class="qr" />
-          </button>
         </div>
       </AppCard>
 
@@ -635,10 +635,6 @@ function askTriggerNow(channel: EmailChannel) {
 @media (max-width: 480px) {
   .email-health {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  /* .overview-body stacking is shared from theme.css. */
-  .qr {
-    justify-self: start;
   }
 }
 </style>

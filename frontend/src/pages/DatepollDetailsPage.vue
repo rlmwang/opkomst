@@ -163,17 +163,6 @@ async function exportCsv() {
           {{ poll.name }}
           <span v-if="poll.chapter_name" class="chapter-chip">{{ poll.chapter_name }}</span>
         </h1>
-        <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
-        <a
-          v-if="poll.location"
-          class="location"
-          :href="mapLink({ location: poll.location, latitude: poll.latitude ?? null, longitude: poll.longitude ?? null })"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-          {{ poll.location }}
-        </a>
         <figure v-if="poll.image_url" class="detail-image">
           <img :src="poll.image_url" :alt="poll.name" />
           <figcaption v-if="poll.image_artist_instagram" class="muted">
@@ -182,7 +171,27 @@ async function exportCsv() {
           </figcaption>
         </figure>
         <div class="overview-body">
+          <button
+            type="button"
+            class="qr-button"
+            v-tooltip.top="t('datepolls.share.copyQr')"
+            :aria-label="t('datepolls.share.copyQr')"
+            @click="copyQr(poll.slug)"
+          >
+            <img :src="datepollQrUrl(poll.slug)" alt="" class="qr" />
+          </button>
           <div class="overview-text">
+            <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
+            <a
+              v-if="poll.location"
+              class="location"
+              :href="mapLink({ location: poll.location, latitude: poll.latitude ?? null, longitude: poll.longitude ?? null })"
+              target="_blank"
+              rel="noopener"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+              {{ poll.location }}
+            </a>
             <div class="link-row">
               <a :href="publicDatepollUrl(poll.slug)" target="_blank" rel="noopener">
                 {{ publicDatepollUrl(poll.slug) }}
@@ -203,15 +212,6 @@ async function exportCsv() {
               </router-link>
             </div>
           </div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('datepolls.share.copyQr')"
-            :aria-label="t('datepolls.share.copyQr')"
-            @click="copyQr(poll.slug)"
-          >
-            <img :src="datepollQrUrl(poll.slug)" alt="" class="qr" />
-          </button>
         </div>
       </AppCard>
 
