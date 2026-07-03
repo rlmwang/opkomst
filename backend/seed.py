@@ -13,7 +13,7 @@ Python constants in ``services.feedback_questions``. There is no
 """
 
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 import structlog
 from sqlalchemy.orm import Session
@@ -23,12 +23,20 @@ from .database import SessionLocal
 from .models import (
     Chapter,
     Chore,
+    Datepoll,
+    DatepollResponse,
+    DatepollSlot,
+    DatepollSubmission,
     EmailChannel,
     EmailDispatch,
     EmailStatus,
     Enrollment,
     Event,
     FeedbackResponse,
+    Form,
+    FormQuestion,
+    FormResponse,
+    FormSubmission,
     Roster,
     Shift,
     ShiftEvent,
@@ -265,6 +273,8 @@ def run_local_demo() -> None:
             _seed_demo_responses(db, past.id)
 
         _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
+        _seed_forms(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
+        _seed_datepolls(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
 
         db.commit()
         logger.info("seed_complete")
@@ -479,6 +489,205 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
         skipped = _shift(bezorg.id, wd(6, -4), iris, "missed")
         _ev(archived.id, iris, "assigned", skipped.id)
         _ev(archived.id, iris, "missed", skipped.id)
+
+
+def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: datetime) -> None:
+    """Three demo questionnaires: one with a full set of responses, one
+    fresh (no submissions yet), and one archived. Idempotent (keyed on
+    ``(name, created_by)``)."""
+
+    def _form(name: str, description: str, *, archived_at: datetime | None = None) -> Form | None:
+        if db.query(Form).filter(Form.name == name, Form.created_by == created_by).first():
+            return None
+        f = Form(
+            slug=new_slug(),
+            name=name,
+            description=description,
+            created_by=created_by,
+            chapter_id=chapter_id,
+            locale="nl",
+            archived_at=archived_at,
+        )
+        db.add(f)
+        db.flush()
+        logger.info("seed_form_created", form_id=f.id, name=name)
+        return f
+
+    def _q(
+        form_id: str,
+        ordinal: int,
+        kind: str,
+        prompt: str,
+        *,
+        required: bool = True,
+        options: list[str] | None = None,
+        low: str | None = None,
+        high: str | None = None,
+    ) -> FormQuestion:
+        q = FormQuestion(
+            form_id=form_id,
+            ordinal=ordinal,
+            kind=kind,
+            prompt=prompt,
+            required=required,
+            options=options or [],
+            low_label=low,
+            high_label=high,
+        )
+        db.add(q)
+        db.flush()
+        return q
+
+    def _submit(form_id: str, questions: list[FormQuestion], display_name: str | None, answers: list[object]) -> None:
+        _, token_hash = edit_token.new_edit_token()
+        sub = FormSubmission(form_id=form_id, display_name=display_name, edit_token_hash=token_hash)
+        db.add(sub)
+        db.flush()
+        for q, ans in zip(questions, answers, strict=True):
+            if ans is None:
+                continue
+            db.add(
+                FormResponse(
+                    form_id=form_id,
+                    question_id=q.id,
+                    submission_id=sub.id,
+                    answer_int=ans if isinstance(ans, int) else None,
+                    answer_text=ans if isinstance(ans, str) else None,
+                    answer_choices=ans if isinstance(ans, list) else None,
+                )
+            )
+
+    # --- A. active, with a spread of responses -----------------------
+    survey = _form("Lidmaatschapsenquête", "Help ons de afdeling beter te maken — duurt twee minuten.")
+    if survey is not None:
+        qs = [
+            _q(survey.id, 1, "rating", "Hoe tevreden ben je met de afdeling?", low="Ontevreden", high="Zeer tevreden"),
+            _q(survey.id, 2, "single_choice", "Hoe vaak kom je langs?", options=["Wekelijks", "Maandelijks", "Zelden"]),
+            _q(
+                survey.id, 3, "multi_choice", "Welke thema's spreken je aan?",
+                options=["Wonen", "Klimaat", "Zorg", "Werk"],
+            ),
+            _q(survey.id, 4, "short_text", "Waar kunnen we mee helpen?", required=False),
+            _q(survey.id, 5, "text", "Verdere opmerkingen", required=False),
+        ]
+        # single_choice carries a one-element list, same shape as multi_choice.
+        _submit(survey.id, qs, "Nore", [5, ["Wekelijks"], ["Wonen", "Klimaat"], "Meer avondactiviteiten.", None])
+        _submit(survey.id, qs, "Anoniem", [4, ["Maandelijks"], ["Zorg"], None, "Fijne mensen, ga zo door!"])
+        _submit(survey.id, qs, "Teun", [3, ["Zelden"], ["Werk", "Wonen"], "Bijeenkomsten dichter bij het OV.", None])
+        _submit(survey.id, qs, "Yara", [5, ["Wekelijks"], ["Klimaat", "Zorg", "Werk"], None, None])
+
+    # --- B. active, no submissions yet -------------------------------
+    signup = _form("Aanmelding werkgroep", "Sluit je aan bij een werkgroep. We nemen daarna contact op.")
+    if signup is not None:
+        _q(signup.id, 1, "single_choice", "Welke werkgroep?", options=["Wonen", "Klimaat", "Zorg"])
+        _q(signup.id, 2, "text", "Waarom wil je meedoen?")
+
+    # --- C. archived, with a few responses ---------------------------
+    evaluation = _form(
+        "Evaluatie zomerkamp",
+        "Korte terugblik op het zomerkamp.",
+        archived_at=now - timedelta(days=10),
+    )
+    if evaluation is not None:
+        eqs = [
+            _q(evaluation.id, 1, "rating", "Algemene beoordeling", low="Slecht", high="Top"),
+            _q(evaluation.id, 2, "short_text", "Wat kan volgend jaar beter?", required=False),
+        ]
+        _submit(evaluation.id, eqs, "Kampganger", [5, "Meer schaduwplekken."])
+        _submit(evaluation.id, eqs, "Bo", [4, None])
+        _submit(evaluation.id, eqs, None, [3, "Eten was te weinig voor de vegetariërs."])
+
+
+def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now: datetime) -> None:
+    """Three demo datepolls: one busy poll with responses, one fresh (no
+    responses yet), and one archived. Idempotent (keyed on
+    ``(name, created_by)``)."""
+    today = now.date()
+
+    def _poll(
+        name: str,
+        description: str,
+        *,
+        location: str | None = None,
+        archived_at: datetime | None = None,
+    ) -> Datepoll | None:
+        if db.query(Datepoll).filter(Datepoll.name == name, Datepoll.created_by == created_by).first():
+            return None
+        p = Datepoll(
+            slug=new_slug(),
+            name=name,
+            description=description,
+            location=location,
+            created_by=created_by,
+            chapter_id=chapter_id,
+            locale="nl",
+            archived_at=archived_at,
+        )
+        db.add(p)
+        db.flush()
+        logger.info("seed_datepoll_created", datepoll_id=p.id, name=name)
+        return p
+
+    def _slot(poll_id: str, on: date, start: time | None = None, end: time | None = None) -> DatepollSlot:
+        s = DatepollSlot(datepoll_id=poll_id, on_date=on, start_time=start, end_time=end)
+        db.add(s)
+        db.flush()
+        return s
+
+    def _respond(
+        poll_id: str,
+        slots: list[DatepollSlot],
+        display_name: str | None,
+        note: str | None,
+        avail: list[str | None],
+    ) -> None:
+        _, token_hash = edit_token.new_edit_token()
+        sub = DatepollSubmission(datepoll_id=poll_id, display_name=display_name, note=note, edit_token_hash=token_hash)
+        db.add(sub)
+        db.flush()
+        for slot, av in zip(slots, avail, strict=True):
+            if av is None:
+                continue
+            db.add(DatepollResponse(submission_id=sub.id, datepoll_slot_id=slot.id, availability=av))
+
+    # --- A. active, several respondents ------------------------------
+    meeting = _poll(
+        "Volgende ledenvergadering",
+        "Prik een avond die voor de meesten werkt.",
+        location="Buurthuis Centrum",
+    )
+    if meeting is not None:
+        slots = [
+            _slot(meeting.id, today + timedelta(days=7), time(19, 0), time(21, 0)),
+            _slot(meeting.id, today + timedelta(days=9), time(19, 0), time(21, 0)),
+            _slot(meeting.id, today + timedelta(days=14), time(20, 0), time(22, 0)),
+        ]
+        _respond(meeting.id, slots, "Nore", "Kan het liefst vroeg.", ["yes", "yes", "no"])
+        _respond(meeting.id, slots, "Teun", None, ["yes", "maybe", "yes"])
+        _respond(meeting.id, slots, "Yara", "Na 19:30 lukt beter.", ["no", "yes", "yes"])
+        _respond(meeting.id, slots, "Anoniem", None, ["maybe", "yes", "maybe"])
+
+    # --- B. active, no responses yet ---------------------------------
+    outing = _poll("Teamuitje datumprikker", "Zoek een zaterdag voor het teamuitje.")
+    if outing is not None:
+        _slot(outing.id, today + timedelta(days=12))
+        _slot(outing.id, today + timedelta(days=19))
+        _slot(outing.id, today + timedelta(days=26))
+
+    # --- C. archived, with responses ---------------------------------
+    visit = _poll(
+        "Locatiebezoek",
+        "Datumprikker voor het locatiebezoek — inmiddels geweest.",
+        archived_at=now - timedelta(days=5),
+    )
+    if visit is not None:
+        vslots = [
+            _slot(visit.id, today - timedelta(days=21)),
+            _slot(visit.id, today - timedelta(days=18)),
+        ]
+        _respond(visit.id, vslots, "Bo", None, ["yes", "no"])
+        _respond(visit.id, vslots, "Kai", "Ik reed.", ["yes", "yes"])
+        _respond(visit.id, vslots, "Sam", None, ["maybe", "yes"])
 
 
 def _seed_demo_responses(db: Session, event_id: str) -> None:
