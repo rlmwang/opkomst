@@ -196,9 +196,11 @@ function onCellClick(c: Cell) {
   font-size: 0.875rem;
   color: var(--brand-text-muted);
 }
-/* An "occurrence" day (caller opts in via dayClass): bordered card. */
+/* An "occurrence" day (caller opts in via dayClass): bordered card. A
+ * higher-contrast border than the surrounding chrome so locked ("vast") days
+ * read clearly; tentative ("voorlopig") days are the same border, dashed. */
 .mg-cell.occ {
-  border: 1px solid var(--brand-border);
+  border: 1px solid color-mix(in srgb, var(--brand-text-muted) 42%, var(--brand-border));
   background: var(--brand-surface);
   color: var(--brand-text);
 }

@@ -23,7 +23,6 @@ export interface ChoreStrings {
   noUpcoming: string;
   coveringForLeaver: string;
   helpOutHeading: string;
-  noHelpOut: string;
   markDone: string;
   cantMakeIt: string;
   claim: string;
@@ -32,6 +31,8 @@ export interface ChoreStrings {
   nextMonth: string;
   calLocked: string;
   calTentative: string;
+  calOpen: string;
+  someone: string;
   availabilityHeading: string;
   availabilityHint: string;
   availabilityAdd: string;
@@ -64,7 +65,6 @@ const dict: Record<Locale, ChoreStrings> = {
     noUpcoming: "Je hebt geen komende taken.",
     coveringForLeaver: "Overgenomen voor iemand die vertrok",
     helpOutHeading: "Bijspringen",
-    noHelpOut: "Geen taken om over te nemen of in te vallen.",
     markDone: "Gedaan",
     cantMakeIt: "Kan niet — vind iemand anders",
     claim: "Overnemen",
@@ -73,6 +73,8 @@ const dict: Record<Locale, ChoreStrings> = {
     nextMonth: "Volgende maand",
     calLocked: "Vast",
     calTentative: "Voorlopig",
+    calOpen: "Vrij",
+    someone: "Iemand",
     availabilityHeading: "Afwezigheid",
     availabilityHint: "Geef periodes op waarin je niet kunt. Je wordt dan niet ingedeeld.",
     availabilityAdd: "Periode toevoegen",
@@ -103,7 +105,6 @@ const dict: Record<Locale, ChoreStrings> = {
     noUpcoming: "You have no upcoming shifts.",
     coveringForLeaver: "Picked up, covering for someone who left",
     helpOutHeading: "Pitch in",
-    noHelpOut: "No shifts to take on or cover right now.",
     markDone: "Done",
     cantMakeIt: "Can't make it — find someone else",
     claim: "Take it on",
@@ -112,6 +113,8 @@ const dict: Record<Locale, ChoreStrings> = {
     nextMonth: "Next month",
     calLocked: "Locked in",
     calTentative: "Tentative",
+    calOpen: "Open",
+    someone: "Someone",
     availabilityHeading: "Time off",
     availabilityHint: "Add periods when you can't take part. You won't be scheduled then.",
     availabilityAdd: "Add a period",

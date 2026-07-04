@@ -11,7 +11,7 @@ Public-by-slug surfaces live in ``routers/chores_public.py`` (task 05);
 the schedule / volunteers reads arrive with the data (task 06).
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -41,18 +41,6 @@ from ..services.slug import new_slug
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/chores", tags=["chores"])
-
-
-def _parse_month(month: str | None, today: date) -> tuple[int, int]:
-    """Parse a ``YYYY-MM`` query param, falling back to the current month."""
-    if month:
-        try:
-            year, mon = (int(x) for x in month.split("-", 1))
-        except ValueError:
-            return today.year, today.month
-        if 1 <= mon <= 12:
-            return year, mon
-    return today.year, today.month
 
 
 @router.post("", response_model=RosterOut, status_code=201)
@@ -225,7 +213,7 @@ def chore_calendar(
     projection (flagged ``tentative``)."""
     roster = access.get_roster_for_user(db, roster_id, user)
     today = now_wallclock().date()
-    year, mon = _parse_month(month, today)
+    year, mon = chores_svc.parse_month(month, today)
     return chores_svc.chore_calendar(db, roster, year, mon, today)
 
 
@@ -243,7 +231,7 @@ def rebalance_preview(
     if roster.activated_at is None:
         raise HTTPException(status_code=409, detail="Roster is not running")
     today = now_wallclock().date()
-    year, mon = _parse_month(month, today)
+    year, mon = chores_svc.parse_month(month, today)
     return chores_svc.rebalance_preview_calendar(db, roster, year, mon, today)
 
 

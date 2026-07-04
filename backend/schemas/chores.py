@@ -336,6 +336,10 @@ class CalendarAssigneeOut(BaseModel):
     name: str | None
     open: bool
     status: str
+    # The backing pinned shift (past/horizon window); ``None`` for a
+    # projected (tentative) day. Lets the public page tie an assignment back
+    # to a claimable/coverable shift.
+    shift_id: str | None = None
 
 
 class CalendarDayOut(BaseModel):

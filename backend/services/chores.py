@@ -43,7 +43,7 @@ from .events import now_wallclock
 
 # How far past the commit horizon the tentative outlook is projected for
 # display. Bounded so the projection is never an infinite list.
-OUTLOOK_DAYS = 90
+OUTLOOK_DAYS = 182
 
 if TYPE_CHECKING:
     from ..schemas.chores import ChoreIn
@@ -452,6 +452,20 @@ def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilit
     return out
 
 
+def parse_month(month: str | None, today: date) -> tuple[int, int]:
+    """Parse a ``YYYY-MM`` query param into (year, month), falling back to the
+    current month on absence or malformed input. Shared by the organiser and
+    public-token calendar endpoints."""
+    if month:
+        try:
+            year, mon = (int(x) for x in month.split("-", 1))
+        except ValueError:
+            return today.year, today.month
+        if 1 <= mon <= 12:
+            return year, mon
+    return today.year, today.month
+
+
 def _month_bounds(year: int, month: int) -> tuple[date, date]:
     start = date(year, month, 1)
     end = date(year + (month == 12), (month % 12) + 1, 1) - timedelta(days=1)
@@ -484,7 +498,7 @@ def chore_calendar(db: Session, roster: Roster, year: int, month: int, today: da
         )
         for s, name in rows:
             actual.setdefault((s.chore_id, s.on_date), []).append(
-                CalendarAssigneeOut(name=name, open=s.volunteer_id is None, status=s.status)
+                CalendarAssigneeOut(name=name, open=s.volunteer_id is None, status=s.status, shift_id=s.id)
             )
 
     projected: dict[tuple[str, date], list[CalendarAssigneeOut]] = {}

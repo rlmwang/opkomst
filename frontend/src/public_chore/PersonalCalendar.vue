@@ -44,6 +44,11 @@ function dayClass(iso: string) {
 function actionable(iso: string): boolean {
   return (props.entriesByDate[iso] ?? []).some((e) => e.id && (e.actions?.length ?? 0) > 0);
 }
+// While a popover is open every other day is inert (no hover, no click): a
+// click only dismisses the popover, which also avoids a double-toggle race.
+function dayIsClickable(iso: string): boolean {
+  return openIso.value === null && actionable(iso);
+}
 
 const openIso = ref<string | null>(null);
 const openEntries = computed(() =>
@@ -75,7 +80,7 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
     :prev-label="prevLabel"
     :next-label="nextLabel"
     :day-class="dayClass"
-    :clickable="actionable"
+    :clickable="dayIsClickable"
     :active-iso="openIso"
     @update:month="(m: string) => emit('update:month', m)"
     @day-click="onDayClick"

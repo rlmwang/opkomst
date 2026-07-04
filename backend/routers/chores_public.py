@@ -38,6 +38,7 @@ from ..database import get_db
 from ..models import Chore, Enrollment, Roster, Shift, Volunteer, VolunteerAvailability
 from ..schemas.chores import (
     AvailabilityIn,
+    ChoreCalendarOut,
     EnrollAck,
     EnrollEditIn,
     EnrollIn,
@@ -138,6 +139,22 @@ def enroll(
 @router.get("/by-token/{token}", response_model=PersonalPageOut)
 def get_personal_page(token: str, db: Session = Depends(get_db)) -> PersonalPageOut:
     return chores_svc.personal_page(db, _volunteer_by_token(db, token))
+
+
+@router.get("/by-token/{token}/calendar", response_model=list[ChoreCalendarOut])
+def get_token_calendar(token: str, month: str | None = None, db: Session = Depends(get_db)) -> list[ChoreCalendarOut]:
+    """The whole roster as a month calendar (all chores, all assignees) for
+    the volunteer's "pitch in" overview — same shape the organiser sees, so
+    they can look past the commit horizon into the tentative projection. The
+    ``shift_id`` on each pinned assignee ties an open/others' slot back to a
+    claim/cover action; projected days carry none."""
+    volunteer = _volunteer_by_token(db, token)
+    roster = db.query(Roster).filter(Roster.id == volunteer.roster_id).first()
+    if roster is None:
+        raise HTTPException(status_code=410, detail=_GONE)
+    today = now_wallclock().date()
+    year, mon = chores_svc.parse_month(month, today)
+    return chores_svc.chore_calendar(db, roster, year, mon, today)
 
 
 @router.put("/by-token/{token}", response_model=PersonalPageOut)

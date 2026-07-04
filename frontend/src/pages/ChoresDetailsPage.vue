@@ -271,7 +271,6 @@ function dateWindow(): string {
           <div class="cal-legend muted">
             <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
             <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
-            <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
             <span v-for="c in choreItems" :key="c.id" class="cal-chore">
               <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
             </span>
@@ -294,7 +293,6 @@ function dateWindow(): string {
       <div class="cal-legend muted">
         <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
         <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
-        <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
         <span><i class="cal-swatch changed" />{{ t("chores.details.calChanged") }}</span>
         <span v-for="c in choreItems" :key="c.id" class="cal-chore">
           <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
@@ -424,15 +422,11 @@ function dateWindow(): string {
   height: 0.875rem;
   border-radius: 4px;
   flex: none;
-  border: 1px solid var(--brand-border);
+  border: 1px solid color-mix(in srgb, var(--brand-text-muted) 42%, var(--brand-border));
   background: var(--brand-surface);
 }
 .cal-swatch.tentative {
   border-style: dashed;
-}
-.cal-swatch.open {
-  border-color: var(--brand-red);
-  background: color-mix(in srgb, var(--brand-red) 12%, white);
 }
 .cal-swatch.changed {
   outline: 2px solid var(--brand-red);

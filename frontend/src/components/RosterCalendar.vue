@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
- * The whole roster as one month calendar (all chores merged), built on the
- * shared ``MonthGrid``. Each occurrence renders as its chore's emoji followed
- * by the assignee — done ticked off (green), missed struck through, an open
- * slot in red. Reads the live roster (``preview: false``) or the post-"fold
- * in" look-ahead (``preview: true``, changed days ringed). Owns its month.
+ * The organiser's roster calendar: fetches the whole roster for a month
+ * (live, or the post-"fold in" look-ahead) and feeds the shared, read-only
+ * ``RosterCalendarView``. Owns its month so chores/panels scroll on their
+ * own. Assignments carry no action here — the organiser view is read-only.
  */
 import { computed, ref } from "vue";
-import MonthGrid from "./MonthGrid.vue";
+import RosterCalendarView, { type RosterDay } from "./RosterCalendarView.vue";
 import { useRebalancePreviewCalendar, useRosterCalendar } from "@/composables/useChores";
 
 const props = defineProps<{
@@ -33,73 +32,42 @@ const query = props.preview
   ? useRebalancePreviewCalendar(rosterId, month, enabled)
   : useRosterCalendar(rosterId, month);
 
-interface Assignment {
-  emoji: string | null;
-  name: string | null;
-  open: boolean;
-  status: string;
-}
-// Fold every chore's days into one per-date list of emoji-tagged assignments.
-const byIso = computed(() => {
-  const m = new Map<string, Assignment[]>();
+// Fold every chore's days into one per-date bucket of emoji-tagged assignments.
+const daysByIso = computed<Record<string, RosterDay>>(() => {
+  const map: Record<string, RosterDay> = {};
   for (const chore of query.data.value ?? []) {
     for (const day of chore.days) {
-      const list = m.get(day.on_date) ?? [];
-      for (const a of day.assignees) list.push({ emoji: chore.emoji, name: a.name, open: a.open, status: a.status });
-      m.set(day.on_date, list);
+      const d = (map[day.on_date] ??= { assignments: [], tentative: false, changed: false });
+      if (day.tentative) d.tentative = true;
+      if (day.changed) d.changed = true;
+      for (const a of day.assignees) {
+        d.assignments.push({ emoji: chore.emoji, name: a.name, open: a.open, status: a.status });
+      }
     }
   }
-  return m;
+  return map;
 });
-const tentativeDays = computed(() => {
-  const s = new Set<string>();
-  for (const chore of query.data.value ?? []) for (const d of chore.days) if (d.tentative) s.add(d.on_date);
-  return s;
-});
-const changedDays = computed(() => {
-  const s = new Set<string>();
-  for (const chore of query.data.value ?? []) for (const d of chore.days) if (d.changed) s.add(d.on_date);
-  return s;
-});
-const hasChanges = computed(() => changedDays.value.size > 0);
+const hasChanges = computed(() => Object.values(daysByIso.value).some((d) => d.changed));
 
 const weekdays = computed(() => {
   const fmt = new Intl.DateTimeFormat(props.locale === "en" ? "en-GB" : "nl-NL", { weekday: "short" });
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
 });
-function dayClass(iso: string) {
-  return { occ: byIso.value.has(iso), tentative: tentativeDays.value.has(iso), changed: changedDays.value.has(iso) };
-}
 </script>
 
 <template>
   <div>
     <p v-if="preview && noChangeLabel && !hasChanges" class="muted rc-note">{{ noChangeLabel }}</p>
-    <MonthGrid
+    <RosterCalendarView
       v-model:month="month"
-      :locale="locale"
+      :days-by-iso="daysByIso"
       :weekdays="weekdays"
       :prev-label="prevLabel"
       :next-label="nextLabel"
-      :day-class="dayClass"
-    >
-      <template #day="{ iso }">
-        <ul v-if="byIso.get(iso)?.length" class="rc-list">
-          <li
-            v-for="(a, j) in byIso.get(iso)"
-            :key="j"
-            class="rc-item"
-            :class="{ open: a.open, done: a.status === 'done', missed: a.status === 'missed' }"
-          >
-            <span v-if="a.emoji" class="rc-emoji" aria-hidden="true">{{ a.emoji }}</span>
-            <span class="rc-name"
-              >{{ a.open ? openLabel : a.name || anonLabel
-              }}<span v-if="a.status === 'done'" class="rc-check" aria-hidden="true"> ✓</span></span
-            >
-          </li>
-        </ul>
-      </template>
-    </MonthGrid>
+      :locale="locale"
+      :open-label="openLabel"
+      :anon-label="anonLabel"
+    />
   </div>
 </template>
 
@@ -107,33 +75,5 @@ function dayClass(iso: string) {
 .rc-note {
   margin: 0 0 0.5rem;
   font-size: 0.8125rem;
-}
-.rc-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.rc-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.2rem;
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-.rc-emoji {
-  flex-shrink: 0;
-}
-.rc-item.open .rc-name {
-  color: var(--brand-red);
-}
-.rc-item.done .rc-name {
-  color: var(--brand-text-muted);
-}
-.rc-item.missed .rc-name {
-  color: var(--brand-text-muted);
-  text-decoration: line-through;
-}
-.rc-check {
-  color: var(--brand-green);
 }
 </style>

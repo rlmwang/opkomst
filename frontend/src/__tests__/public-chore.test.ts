@@ -14,6 +14,7 @@ vi.mock("@/public_chore/api", () => ({
   ApiError: class ApiError extends Error {},
   fetchRosterBySlug: vi.fn(),
   fetchPersonalPage: vi.fn(),
+  fetchTokenCalendar: vi.fn(),
   postEnrolment: vi.fn(),
   putEnrolment: vi.fn(),
   postShiftAction: vi.fn(),
@@ -45,6 +46,7 @@ function setUrl(path: string): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(api.fetchTokenCalendar).mockResolvedValue([]);
   window.__OPKOMST_CHORE__ = structuredClone(ROSTER);
 });
 
@@ -138,6 +140,19 @@ describe("PublicChore personal mode", () => {
   it("claim takes an open shift (via the day popover)", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
+    // The "Bijspringen" card is the whole-roster calendar: the open Sweep slot
+    // (shift s2) shows on 10 July; its shift id matches an open_shift, so it's
+    // claimable.
+    vi.mocked(api.fetchTokenCalendar).mockResolvedValue([
+      {
+        chore_id: "c2",
+        chore_name: "Sweep",
+        emoji: null,
+        days: [
+          { on_date: "2026-07-10", tentative: false, assignees: [{ name: null, open: true, status: "scheduled", shift_id: "s2" }] },
+        ],
+      },
+    ]);
     vi.mocked(api.postShiftAction).mockResolvedValueOnce(structuredClone(PAGE));
     const w = mount(PublicChore);
     await flushPromises();

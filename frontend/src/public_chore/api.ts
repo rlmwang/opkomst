@@ -60,6 +60,25 @@ export interface AvailabilityRange {
   end: string;
 }
 
+// The whole-roster calendar (organiser shape), for the "pitch in" overview.
+export interface CalendarAssignee {
+  name: string | null; // pseudonym; null = open slot
+  open: boolean;
+  status: string; // scheduled | done | missed
+  shift_id: string | null; // null for a projected (tentative) day
+}
+export interface CalendarDay {
+  on_date: string; // YYYY-MM-DD
+  tentative: boolean; // beyond the commit horizon
+  assignees: CalendarAssignee[];
+}
+export interface ChoreCalendar {
+  chore_id: string;
+  chore_name: string;
+  emoji: string | null;
+  days: CalendarDay[];
+}
+
 export interface PersonalPage {
   display_name: string | null;
   enrolled_chore_ids: string[];
@@ -123,6 +142,11 @@ export async function postEnrolment(slug: string, payload: EnrollPayload): Promi
 
 export async function fetchPersonalPage(token: string): Promise<PersonalPage> {
   return readJson(await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}`), "fetch");
+}
+
+export async function fetchTokenCalendar(token: string, month: string): Promise<ChoreCalendar[]> {
+  const url = `/api/v1/chores/by-token/${encodeURIComponent(token)}/calendar?month=${encodeURIComponent(month)}`;
+  return readJson(await fetch(url), "fetch");
 }
 
 export async function putEnrolment(token: string, payload: EnrollEditPayload): Promise<PersonalPage> {

@@ -536,6 +536,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/by-token/{token}/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Token Calendar
+         * @description The whole roster as a month calendar (all chores, all assignees) for
+         *     the volunteer's "pitch in" overview — same shape the organiser sees, so
+         *     they can look past the commit horizon into the tentative projection. The
+         *     ``shift_id`` on each pinned assignee ties an open/others' slot back to a
+         *     claim/cover action; projected days carry none.
+         */
+        get: operations["get_token_calendar_api_v1_chores_by_token__token__calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/by-token/{token}/leave": {
         parameters: {
             query?: never;
@@ -2206,6 +2230,8 @@ export interface components {
             name: string | null;
             /** Open */
             open: boolean;
+            /** Shift Id */
+            shift_id?: string | null;
             /** Status */
             status: string;
         };
@@ -4984,6 +5010,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PersonalPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_token_calendar_api_v1_chores_by_token__token__calendar_get: {
+        parameters: {
+            query?: {
+                month?: string | null;
+            };
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoreCalendarOut"][];
                 };
             };
             /** @description Validation Error */

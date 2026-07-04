@@ -141,6 +141,17 @@
             "title": "Open",
             "type": "boolean"
           },
+          "shift_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shift Id"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -6325,6 +6336,69 @@
           }
         },
         "summary": "Set Availability",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/by-token/{token}/calendar": {
+      "get": {
+        "description": "The whole roster as a month calendar (all chores, all assignees) for\nthe volunteer's \"pitch in\" overview \u2014 same shape the organiser sees, so\nthey can look past the commit horizon into the tentative projection. The\n``shift_id`` on each pinned assignee ties an open/others' slot back to a\nclaim/cover action; projected days carry none.",
+        "operationId": "get_token_calendar_api_v1_chores_by_token__token__calendar_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChoreCalendarOut"
+                  },
+                  "title": "Response Get Token Calendar Api V1 Chores By Token  Token  Calendar Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Token Calendar",
         "tags": [
           "chores"
         ]

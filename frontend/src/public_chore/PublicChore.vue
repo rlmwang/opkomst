@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import DatePicker from "primevue/datepicker";
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
@@ -14,12 +14,14 @@ import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import {
   type AvailabilityRange,
+  type ChoreCalendar,
   type PersonalPage,
   type PublicRoster,
   type ShiftAction,
   ApiError,
   fetchPersonalPage,
   fetchRosterBySlug,
+  fetchTokenCalendar,
   postEnrolment,
   postLeave,
   postShiftAction,
@@ -27,6 +29,7 @@ import {
   putEnrolment,
 } from "./api";
 import { choreStrings } from "./i18n";
+import RosterCalendarView, { type RosterAssignment, type RosterDay } from "@/components/RosterCalendarView.vue";
 import PersonalCalendar, { type CalAction, type CalEntry } from "./PersonalCalendar.vue";
 
 type Status = "loading" | "enrol" | "personal" | "enrolled" | "unavailable" | "load-failed" | "left";
@@ -111,31 +114,48 @@ const myEntries = computed<Record<string, CalEntry[]>>(() => {
   ]);
 });
 
-// "Bijspringen": open shifts to claim + others' shifts to cover — one
-// calendar; the action (claim vs cover) rides on each entry.
-const helpOutEntries = computed<Record<string, CalEntry[]>>(() =>
-  group([
-    ...(personal.value?.open_shifts ?? []).map((s) => ({
-      on_date: s.on_date,
-      entry: {
-        id: s.id,
-        choreName: s.chore_name,
-        tentative: false,
-        actions: [{ key: "claim", label: ch.value.claim }],
-      } satisfies CalEntry,
-    })),
-    ...(personal.value?.coverable_shifts ?? []).map((s) => ({
-      on_date: s.on_date,
-      entry: {
-        id: s.id,
-        choreName: s.chore_name,
-        tentative: false,
-        note: s.assignee_name ?? undefined,
-        actions: [{ key: "cover", label: ch.value.coverButton, ghost: true }],
-      } satisfies CalEntry,
-    })),
-  ]),
-);
+// "Bijspringen": the whole roster (all chores/assignees, emoji + name) so a
+// volunteer sees where they can jump in — including the tentative projection
+// past the horizon. Fetched per month (organiser-shaped calendar).
+const rosterCalendar = ref<ChoreCalendar[]>([]);
+async function loadRosterCalendar(): Promise<void> {
+  if (!editToken) return;
+  try {
+    rosterCalendar.value = await fetchTokenCalendar(editToken, helpMonth.value);
+  } catch {
+    rosterCalendar.value = [];
+  }
+}
+watch(helpMonth, loadRosterCalendar);
+
+const rosterDays = computed<Record<string, RosterDay>>(() => {
+  // A pinned assignee whose shift I may claim (open) or cover (someone
+  // else's) carries an action; matched by shift id against my personal page.
+  const openIds = new Set((personal.value?.open_shifts ?? []).map((s) => s.id));
+  const coverIds = new Set((personal.value?.coverable_shifts ?? []).map((s) => s.id));
+  const map: Record<string, RosterDay> = {};
+  for (const chore of rosterCalendar.value ?? []) {
+    for (const day of chore.days) {
+      const d = (map[day.on_date] ??= { assignments: [], tentative: false, changed: false });
+      if (day.tentative) d.tentative = true;
+      for (const a of day.assignees) {
+        let action: RosterAssignment["action"];
+        if (a.shift_id && openIds.has(a.shift_id)) {
+          action = { shiftId: a.shift_id, kind: "claim", label: `${chore.emoji ?? ""} ${ch.value.claim}`.trim() };
+        } else if (a.shift_id && coverIds.has(a.shift_id)) {
+          const who = a.name ? ` · ${a.name}` : "";
+          action = {
+            shiftId: a.shift_id,
+            kind: "cover",
+            label: `${chore.emoji ?? ""} ${ch.value.coverButton}${who}`.trim(),
+          };
+        }
+        d.assignments.push({ emoji: chore.emoji, name: a.name, open: a.open, status: a.status, action });
+      }
+    }
+  }
+  return map;
+});
 
 // Dirty/revert/saved state for the shared edit bar.
 const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
@@ -175,6 +195,7 @@ onMounted(async () => {
       hydratePersonal(page);
       captureBaseline();
       status.value = "personal";
+      void loadRosterCalendar();
     } else {
       status.value = "enrol";
     }
@@ -292,6 +313,7 @@ async function act(shiftId: string, action: ShiftAction): Promise<void> {
   errorMsg.value = "";
   try {
     personal.value = await postShiftAction(editToken, shiftId, action);
+    void loadRosterCalendar(); // the claimed/covered slot changes hands
   } catch {
     errorMsg.value = ch.value.actionFailed;
   } finally {
@@ -359,17 +381,24 @@ async function leave(): Promise<void> {
 
         <div class="card stack">
           <h2>{{ ch.helpOutHeading }}</h2>
-          <p v-if="Object.keys(helpOutEntries).length === 0" class="empty muted">{{ ch.noHelpOut }}</p>
-          <PersonalCalendar
-            v-else
+          <div class="cal-legend muted">
+            <span><i class="cal-swatch locked" />{{ ch.calLocked }}</span>
+            <span><i class="cal-swatch tentative" />{{ ch.calTentative }}</span>
+            <span v-for="c in chores" :key="c.id" class="cal-chore">
+              <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
+            </span>
+          </div>
+          <RosterCalendarView
             v-model:month="helpMonth"
-            :entries-by-date="helpOutEntries"
+            :days-by-iso="rosterDays"
             :weekdays="ch.weekdays"
             :prev-label="ch.prevMonth"
             :next-label="ch.nextMonth"
             :locale="locale"
+            :open-label="ch.calOpen"
+            :anon-label="ch.someone"
             :busy="busy"
-            @act="act"
+            @act="(id: string, kind: string) => act(id, kind as ShiftAction)"
           />
         </div>
 
@@ -574,11 +603,14 @@ h2 { margin: 0; font-size: 1.1rem; }
   height: 0.875rem;
   border-radius: 4px;
   flex: none;
-  border: 1px solid var(--brand-border);
+  border: 1px solid color-mix(in srgb, var(--brand-text-muted) 42%, var(--brand-border));
   background: var(--brand-surface);
 }
 .cal-swatch.tentative {
   border-style: dashed;
+}
+.cal-chore-emoji {
+  font-size: 0.9375rem;
 }
 /* Time-off rows reuse the global ``.list-row`` (hover + rounding) from
  * theme.css, matching the admin editable lists. */
