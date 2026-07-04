@@ -27,6 +27,10 @@ const props = withDefaults(
     nav?: boolean;
     dayClass?: (iso: string) => Record<string, boolean> | undefined;
     clickable?: (iso: string) => boolean;
+    // The day whose slot currently renders an open popover: it's lifted into
+    // its own stacking context above sibling cells so the popover (and its
+    // buttons) reliably sit on top and receive hover/clicks.
+    activeIso?: string | null;
   }>(),
   { nav: true },
 );
@@ -91,7 +95,10 @@ function onCellClick(c: Cell) {
         v-for="(c, i) in cells"
         :key="i"
         class="mg-cell"
-        :class="[c.day && dayClass ? dayClass(c.iso!) : undefined, { today: c.today, clickable: c.day && isClickable(c) }]"
+        :class="[
+          c.day && dayClass ? dayClass(c.iso!) : undefined,
+          { today: c.today, clickable: c.day && isClickable(c), 'is-active': c.iso && c.iso === activeIso },
+        ]"
         :role="c.day && isClickable(c) ? 'button' : undefined"
         :tabindex="c.day && isClickable(c) ? 0 : undefined"
         :aria-label="c.day && isClickable(c) ? String(c.day) : undefined"
@@ -181,6 +188,11 @@ function onCellClick(c: Cell) {
 /* The whole day cell is the click target (no overlay button). */
 .mg-cell.clickable {
   cursor: pointer;
+}
+/* The day with an open popover sits above its siblings (and its popover with
+ * it), so the popover reliably captures hover/clicks. */
+.mg-cell.is-active {
+  z-index: 5;
 }
 .mg-cell.clickable:hover {
   border-color: var(--brand-red);

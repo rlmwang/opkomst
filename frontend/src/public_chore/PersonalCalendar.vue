@@ -74,6 +74,7 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
     :next-label="nextLabel"
     :day-class="dayClass"
     :clickable="actionable"
+    :active-iso="openIso"
     @update:month="(m: string) => emit('update:month', m)"
     @day-click="onDayClick"
   >
