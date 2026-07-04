@@ -199,7 +199,7 @@ def test_done_only_by_assignee(client, organiser_headers, db):
     assert r.status_code == 403
 
 
-def test_pass_reassigns_to_someone_else(client, organiser_headers, db):
+def test_pass_opens_the_shift(client, organiser_headers, db):
     roster, token, cid = _enrolled_token(client, organiser_headers)
     other = _enroll(client, roster["slug"], display_name="Other", chore_ids=[cid]).json()["edit_token"]
     _tick(db)
@@ -209,11 +209,36 @@ def test_pass_reassigns_to_someone_else(client, organiser_headers, db):
     shift_id = my[0]["id"]
     r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass")
     assert r.status_code == 200, r.text
-    # The bailer no longer holds it.
+    # The bailer no longer holds it — it's open, not auto-assigned to anyone.
     assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
-    # The other volunteer now sees it among their shifts.
+    assert shift_id in [s["id"] for s in r.json()["open_shifts"]]
     other_shifts = client.get(f"/api/v1/chores/by-token/{other}").json()["my_shifts"]
-    assert shift_id in [s["id"] for s in other_shifts]
+    assert shift_id not in [s["id"] for s in other_shifts]
+
+
+def test_availability_releases_locked_in_shifts(client, organiser_headers, db):
+    from backend.models import ShiftEvent
+
+    _roster, token, _cid = _enrolled_token(client, organiser_headers)
+    _tick(db)  # Sam is the only volunteer, so they hold the pinned shifts
+    my = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
+    if not my:
+        return
+    shift_id, on_date = my[0]["id"], my[0]["on_date"]
+
+    # Time off covering that pinned shift's date hands it off (late deferral).
+    away = {"ranges": [{"start": on_date, "end": on_date}]}
+    r = client.put(f"/api/v1/chores/by-token/{token}/availability", json=away)
+    assert r.status_code == 200, r.text
+    assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
+    assert shift_id in [s["id"] for s in r.json()["open_shifts"]]
+    assert (
+        db.query(ShiftEvent).filter(ShiftEvent.shift_id == shift_id, ShiftEvent.kind == "deferred").count() == 1
+    )
+    # A shift on a date outside the away range keeps its assignee.
+    kept = [s for s in my if s["on_date"] != on_date]
+    if kept:
+        assert kept[0]["id"] in [s["id"] for s in r.json()["my_shifts"]]
 
 
 def test_claim_open_shift(client, organiser_headers, db):

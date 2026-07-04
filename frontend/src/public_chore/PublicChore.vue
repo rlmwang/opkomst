@@ -297,6 +297,7 @@ async function saveChanges(): Promise<void> {
     });
     const ranges = availDraft.value.filter((r) => r.start && r.end);
     hydratePersonal(await putAvailability(editToken, ranges));
+    void loadRosterCalendar(); // away ranges may have handed off pinned shifts
     email.value = ""; // one-shot add/replace; never echo it back
     captureBaseline();
     flashSaved();

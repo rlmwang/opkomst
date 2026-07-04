@@ -35,6 +35,17 @@ def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, s
     db.add(ShiftEvent(roster_id=roster_id, volunteer_id=volunteer_id, kind=kind, shift_id=shift_id))
 
 
+def release_shift(db: Session, *, roster_id: str, volunteer_id: str, shift: Shift) -> None:
+    """Hand a confirmed shift back: record the give-up (``deferred``),
+    unassign it, and mark it ``open`` for anyone to claim — no automatic
+    reassignment. Shared by "can't make it" and time-off overlap. Clears the
+    sent stamp so whoever picks it up next gets their own reminder."""
+    record_event(db, roster_id=roster_id, volunteer_id=volunteer_id, kind="deferred", shift_id=shift.id)
+    shift.volunteer_id = None
+    shift.status = "open"
+    shift.reminder_sent_at = None
+
+
 def ledger_weights(db: Session, roster_id: str) -> dict[str, float]:
     """Resolve the favour ledger for a roster into WRH weights. Thin impure
     wrapper: query the ``ShiftEvent`` rows, hand them to the pure

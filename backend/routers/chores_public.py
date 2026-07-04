@@ -272,22 +272,13 @@ def pass_shift(
     shift_id: str,
     db: Session = Depends(get_db),
 ) -> PersonalPageOut:
-    """ "Can't make it": give up a confirmed shift. It reopens and is
-    immediately re-assigned to someone else (excluding the passer); if
-    nobody else is eligible it stays ``open`` for anyone to claim."""
+    """ "Can't make it": give up a confirmed shift. It's unassigned and left
+    ``open`` for anyone to claim — no automatic reassignment."""
     volunteer = _volunteer_by_token(db, token)
     shift = _shift_in_roster(db, shift_id, volunteer.roster_id)
     if shift.volunteer_id != volunteer.id:
         raise HTTPException(status_code=403, detail="This isn't your shift.")
-    chore_tick.record_event(
-        db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="deferred", shift_id=shift.id
-    )
-    shift.volunteer_id = None
-    shift.status = "open"
-    # Clear the sent stamp so whoever picks it up next gets their own
-    # reminder — the previous assignee's reminder must not suppress it.
-    shift.reminder_sent_at = None
-    chore_tick.reassign_shift(db, shift, exclude={volunteer.id})
+    chore_tick.release_shift(db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, shift=shift)
     db.commit()
     return chores_svc.personal_page(db, volunteer)
 
@@ -370,12 +361,30 @@ def set_availability(
     db: Session = Depends(get_db),
 ) -> PersonalPageOut:
     """Replace the volunteer's away ranges. These exclude them from future
-    projection + pinning on those dates (§7); already-pinned confirmed
-    shifts are untouched."""
+    projection + pinning on those dates (§7). A range covering an already
+    locked-in shift hands that shift off (unassigned + opened) the same way
+    "can't make it" does — it's a late deferral (they should have flagged the
+    absence before it was pinned)."""
     volunteer = _volunteer_by_token(db, token)
     db.query(VolunteerAvailability).filter(VolunteerAvailability.volunteer_id == volunteer.id).delete()
     for r in data.ranges:
         db.add(VolunteerAvailability(volunteer_id=volunteer.id, start_date=r.start, end_date=r.end))
+
+    today = now_wallclock().date()
+    pinned = (
+        db.query(Shift)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(
+            Chore.roster_id == volunteer.roster_id,
+            Shift.volunteer_id == volunteer.id,
+            Shift.status == "scheduled",
+            Shift.on_date >= today,
+        )
+        .all()
+    )
+    for shift in pinned:
+        if any(r.start <= shift.on_date <= r.end for r in data.ranges):
+            chore_tick.release_shift(db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, shift=shift)
     db.commit()
     return chores_svc.personal_page(db, volunteer)
 
