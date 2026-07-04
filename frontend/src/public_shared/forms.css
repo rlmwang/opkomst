@@ -130,6 +130,15 @@
     color: var(--brand-text);
     font: inherit;
     cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--brand-red-soft);
+    border-color: var(--brand-red-soft-border);
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--brand-red);
+    outline-offset: 2px;
   }
   .btn:disabled {
     opacity: 0.5;
