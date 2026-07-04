@@ -92,10 +92,10 @@ function dayClass(iso: string) {
             :class="{ open: a.open, done: a.status === 'done', missed: a.status === 'missed' }"
           >
             <span v-if="a.emoji" class="rc-emoji" aria-hidden="true">{{ a.emoji }}</span>
-            <span class="rc-name">
-              <span v-if="a.status === 'done'" class="rc-check" aria-hidden="true">✓ </span
-              >{{ a.open ? openLabel : a.name || anonLabel }}
-            </span>
+            <span class="rc-name"
+              >{{ a.open ? openLabel : a.name || anonLabel
+              }}<span v-if="a.status === 'done'" class="rc-check" aria-hidden="true"> ✓</span></span
+            >
           </li>
         </ul>
       </template>

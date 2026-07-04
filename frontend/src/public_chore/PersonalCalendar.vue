@@ -83,7 +83,7 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
     <template #day="{ iso }">
       <ul v-if="entriesByDate[iso]" class="pcal-names">
         <li v-for="(e, j) in entriesByDate[iso]" :key="j" :class="{ done: e.done, missed: e.missed }">
-          <span v-if="e.done" class="pcal-check" aria-hidden="true">✓ </span>{{ e.choreName }}
+          {{ e.choreName }}<span v-if="e.done" class="pcal-check" aria-hidden="true"> ✓</span>
         </li>
       </ul>
       <div v-if="openIso === iso" class="pcal-pop" @click.stop>
