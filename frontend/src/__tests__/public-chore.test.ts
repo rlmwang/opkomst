@@ -129,7 +129,7 @@ describe("PublicChore personal mode", () => {
     await flushPromises();
 
     // Click the 8 July cell (my Bins shift) to open its popover, then Done.
-    await w.find('button[aria-label="8"]').trigger("click");
+    await w.find('[aria-label="8"]').trigger("click");
     await w.findAll("button").find((b) => b.text() === "Done")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s1", "done");
@@ -143,7 +143,7 @@ describe("PublicChore personal mode", () => {
     await flushPromises();
 
     // Click the 10 July cell (open Sweep shift), then Take it on.
-    await w.find('button[aria-label="10"]').trigger("click");
+    await w.find('[aria-label="10"]').trigger("click");
     await w.findAll("button").find((b) => b.text() === "Take it on")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");

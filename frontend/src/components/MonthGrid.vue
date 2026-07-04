@@ -14,18 +14,22 @@
  */
 import { computed } from "vue";
 
-const props = defineProps<{
-  month: string; // YYYY-MM
-  locale: string;
-  weekdays: readonly string[];
-  prevLabel?: string;
-  nextLabel?: string;
-  // Show the ‹ month › navigator. Off for stacked-months views (datepoll
-  // voting) that render one grid per month with a plain title instead.
-  nav?: boolean;
-  dayClass?: (iso: string) => Record<string, boolean> | undefined;
-  clickable?: (iso: string) => boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    month: string; // YYYY-MM
+    locale: string;
+    weekdays: readonly string[];
+    prevLabel?: string;
+    nextLabel?: string;
+    // Show the ‹ month › navigator. Off for stacked-months views (datepoll
+    // voting) that render one grid per month with a plain title instead.
+    // Default true — Vue would otherwise coerce an absent boolean to false.
+    nav?: boolean;
+    dayClass?: (iso: string) => Record<string, boolean> | undefined;
+    clickable?: (iso: string) => boolean;
+  }>(),
+  { nav: true },
+);
 const emit = defineEmits<{ "update:month": [value: string]; "day-click": [iso: string] }>();
 
 function isoOf(d: Date): string {
@@ -60,6 +64,15 @@ const cells = computed<Cell[]>(() => {
   while (out.length < 42) out.push({ day: null, iso: null, today: false }); // always six weeks
   return out;
 });
+
+function isClickable(c: Cell): boolean {
+  return !!(c.iso && props.clickable?.(c.iso));
+}
+function onCellClick(c: Cell) {
+  // The popover (rendered in the day slot) stops its own clicks, so this
+  // only fires for a bare tap on the day cell.
+  if (c.iso && props.clickable?.(c.iso)) emit("day-click", c.iso);
+}
 </script>
 
 <template>
@@ -78,16 +91,14 @@ const cells = computed<Cell[]>(() => {
         v-for="(c, i) in cells"
         :key="i"
         class="mg-cell"
-        :class="[c.day && dayClass ? dayClass(c.iso!) : undefined, { today: c.today, clickable: c.day && clickable && clickable(c.iso!) }]"
+        :class="[c.day && dayClass ? dayClass(c.iso!) : undefined, { today: c.today, clickable: c.day && isClickable(c) }]"
+        :role="c.day && isClickable(c) ? 'button' : undefined"
+        :tabindex="c.day && isClickable(c) ? 0 : undefined"
+        :aria-label="c.day && isClickable(c) ? String(c.day) : undefined"
+        @click="onCellClick(c)"
+        @keydown.enter.prevent="onCellClick(c)"
       >
         <template v-if="c.day">
-          <button
-            v-if="clickable && clickable(c.iso!)"
-            type="button"
-            class="mg-daybtn"
-            :aria-label="String(c.day)"
-            @click.stop="emit('day-click', c.iso!)"
-          />
           <span class="mg-num">{{ c.day }}</span>
           <div class="mg-body">
             <slot name="day" :iso="c.iso!" :day="c.day" />
@@ -167,23 +178,16 @@ const cells = computed<Cell[]>(() => {
   outline: 2px solid var(--brand-red);
   outline-offset: 1px;
 }
+/* The whole day cell is the click target (no overlay button). */
 .mg-cell.clickable {
   cursor: pointer;
 }
-/* Full-cell click target sitting above the (transparent) body so the whole
- * day card is tappable; the body/popover paint over it and stop clicks. */
-.mg-daybtn {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  border-radius: 6px;
+.mg-cell.clickable:hover {
+  border-color: var(--brand-red);
 }
-.mg-cell.clickable:hover .mg-daybtn {
-  background: color-mix(in srgb, var(--brand-red) 5%, transparent);
+.mg-cell.clickable:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 1px;
 }
 .mg-num {
   display: inline-flex;
@@ -202,14 +206,10 @@ const cells = computed<Cell[]>(() => {
   border-radius: 5px;
   font-weight: 600;
 }
-/* The body sits above the full-cell button but lets clicks fall through to
- * it (so tapping a name still triggers the day). Interactive bits inside
- * (popovers) re-enable pointer events themselves. */
+/* Not a positioning context, so an absolute popover in a day slot anchors
+ * to the cell (drops below it, not below the text). */
 .mg-body {
-  position: relative;
-  z-index: 2;
   margin-top: 4px;
   width: 100%;
-  pointer-events: none;
 }
 </style>
