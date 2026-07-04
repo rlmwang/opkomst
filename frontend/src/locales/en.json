@@ -364,6 +364,8 @@
       "anonymous": "Anonymous",
       "respondent": "Respondent",
       "datesHeading": "Proposed dates",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
       "resultsTitle": "Responses",
       "responses": "responses",
       "noResponsesYet": "No responses yet.",

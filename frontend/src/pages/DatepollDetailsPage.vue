@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
@@ -99,19 +99,21 @@ const legendItems = computed<LegendItem[]>(() => [
   { variant: "neutral", label: t("datepolls.details.no") },
 ]);
 
-// The candidate days grouped into the calendar months they span, so the
-// overview renders one compact month grid per month with its days marked.
-const proposedMonths = computed(() => {
-  const byMonth = new Map<string, { year: number; month: number; dates: string[] }>();
-  for (const s of poll.value?.slots ?? []) {
-    const [y, m] = s.on_date.split("-").map(Number);
-    const key = `${y}-${m}`;
-    const entry = byMonth.get(key) ?? { year: y, month: m - 1, dates: [] };
-    entry.dates.push(s.on_date);
-    byMonth.set(key, entry);
-  }
-  return [...byMonth.values()].sort((a, b) => a.year - b.year || a.month - b.month);
-});
+// The proposed-dates calendar opens on the month of the earliest slot (or
+// the current month when the poll has no slots yet), navigable from there.
+function currentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+const datesMonth = ref(currentMonth());
+watch(
+  () => poll.value?.slots,
+  (slots) => {
+    const first = (slots ?? []).map((s) => s.on_date).sort()[0];
+    if (first) datesMonth.value = first.slice(0, 7);
+  },
+  { immediate: true },
+);
 
 // Rank the top three slots by the same rule the backend uses for the
 // winner (most yes, tie-break fewest no); only slots with ≥1 yes rank.
@@ -237,16 +239,13 @@ async function exportCsv() {
         <div class="summary-header">
           <h2>{{ t("datepolls.details.datesHeading") }}</h2>
         </div>
-        <div class="cal-wrap">
-          <MonthCalendar
-            v-for="m in proposedMonths"
-            :key="`${m.year}-${m.month}`"
-            :year="m.year"
-            :month="m.month"
-            :highlighted="m.dates"
-            :locale="locale"
-          />
-        </div>
+        <MonthCalendar
+          v-model:month="datesMonth"
+          :slots="poll.slots ?? []"
+          :locale="locale"
+          :prev-label="t('datepolls.details.prevMonth')"
+          :next-label="t('datepolls.details.nextMonth')"
+        />
       </AppCard>
 
       <AppCard>
@@ -348,14 +347,6 @@ async function exportCsv() {
 }
 .location:hover { text-decoration: underline; }
 .location svg { flex: none; }
-
-/* Proposed-dates overview: one compact month calendar per month. */
-.cal-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem 2rem;
-  margin-top: 0.75rem;
-}
 
 /* Per-slot tally — one row per slot: the date (time below) on the left,
  * a yes/maybe/no SegmentedBar on the right. Mirrors the chore tally. */

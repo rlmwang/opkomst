@@ -364,6 +364,8 @@
       "anonymous": "Anoniem",
       "respondent": "Deelnemer",
       "datesHeading": "Voorgestelde data",
+      "prevMonth": "Vorige maand",
+      "nextMonth": "Volgende maand",
       "resultsTitle": "Reacties",
       "responses": "reacties",
       "noResponsesYet": "Nog geen reacties.",

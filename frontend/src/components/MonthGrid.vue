@@ -18,8 +18,11 @@ const props = defineProps<{
   month: string; // YYYY-MM
   locale: string;
   weekdays: readonly string[];
-  prevLabel: string;
-  nextLabel: string;
+  prevLabel?: string;
+  nextLabel?: string;
+  // Show the ‹ month › navigator. Off for stacked-months views (datepoll
+  // voting) that render one grid per month with a plain title instead.
+  nav?: boolean;
   dayClass?: (iso: string) => Record<string, boolean> | undefined;
   clickable?: (iso: string) => boolean;
 }>();
@@ -61,11 +64,12 @@ const cells = computed<Cell[]>(() => {
 
 <template>
   <div class="mg">
-    <div class="mg-nav">
+    <div v-if="nav !== false" class="mg-nav">
       <button type="button" class="mg-navbtn" :aria-label="prevLabel" @click="shift(-1)">‹</button>
       <span class="mg-month">{{ monthLabel }}</span>
       <button type="button" class="mg-navbtn" :aria-label="nextLabel" @click="shift(1)">›</button>
     </div>
+    <p v-else class="mg-title">{{ monthLabel }}</p>
     <div class="mg-dow">
       <span v-for="(w, i) in weekdays" :key="`h${i}`">{{ w }}</span>
     </div>
@@ -117,6 +121,11 @@ const cells = computed<Cell[]>(() => {
   font-weight: 600;
   min-width: 9rem;
   text-align: center;
+  text-transform: capitalize;
+}
+.mg-title {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
   text-transform: capitalize;
 }
 .mg-dow,
