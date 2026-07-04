@@ -75,7 +75,7 @@ function currentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 const myMonth = ref(currentMonth());
-const availMonth = ref(currentMonth());
+const helpMonth = ref(currentMonth());
 
 function group(rows: { on_date: string; entry: CalEntry }[]): Record<string, CalEntry[]> {
   const map: Record<string, CalEntry[]> = {};
@@ -111,9 +111,9 @@ const myEntries = computed<Record<string, CalEntry[]>>(() => {
   ]);
 });
 
-// "Beschikbare taken": open shifts to claim + others' shifts to cover — one
+// "Bijspringen": open shifts to claim + others' shifts to cover — one
 // calendar; the action (claim vs cover) rides on each entry.
-const availableEntries = computed<Record<string, CalEntry[]>>(() =>
+const helpOutEntries = computed<Record<string, CalEntry[]>>(() =>
   group([
     ...(personal.value?.open_shifts ?? []).map((s) => ({
       on_date: s.on_date,
@@ -358,12 +358,12 @@ async function leave(): Promise<void> {
         </div>
 
         <div class="card stack">
-          <h2>{{ ch.availableHeading }}</h2>
-          <p v-if="Object.keys(availableEntries).length === 0" class="empty muted">{{ ch.noAvailable }}</p>
+          <h2>{{ ch.helpOutHeading }}</h2>
+          <p v-if="Object.keys(helpOutEntries).length === 0" class="empty muted">{{ ch.noHelpOut }}</p>
           <PersonalCalendar
             v-else
-            v-model:month="availMonth"
-            :entries-by-date="availableEntries"
+            v-model:month="helpMonth"
+            :entries-by-date="helpOutEntries"
             :weekdays="ch.weekdays"
             :prev-label="ch.prevMonth"
             :next-label="ch.nextMonth"

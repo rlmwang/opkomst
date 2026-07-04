@@ -22,8 +22,8 @@ export interface ChoreStrings {
   myTurns: string;
   noUpcoming: string;
   coveringForLeaver: string;
-  availableHeading: string;
-  noAvailable: string;
+  helpOutHeading: string;
+  noHelpOut: string;
   markDone: string;
   cantMakeIt: string;
   claim: string;
@@ -63,8 +63,8 @@ const dict: Record<Locale, ChoreStrings> = {
     myTurns: "Mijn taken",
     noUpcoming: "Je hebt geen komende taken.",
     coveringForLeaver: "Overgenomen voor iemand die vertrok",
-    availableHeading: "Beschikbare taken",
-    noAvailable: "Geen taken om over te nemen of in te vallen.",
+    helpOutHeading: "Bijspringen",
+    noHelpOut: "Geen taken om over te nemen of in te vallen.",
     markDone: "Gedaan",
     cantMakeIt: "Kan niet — vind iemand anders",
     claim: "Overnemen",
@@ -102,8 +102,8 @@ const dict: Record<Locale, ChoreStrings> = {
     myTurns: "My shifts",
     noUpcoming: "You have no upcoming shifts.",
     coveringForLeaver: "Picked up, covering for someone who left",
-    availableHeading: "Available shifts",
-    noAvailable: "No shifts to take on or cover right now.",
+    helpOutHeading: "Pitch in",
+    noHelpOut: "No shifts to take on or cover right now.",
     markDone: "Done",
     cantMakeIt: "Can't make it — find someone else",
     claim: "Take it on",

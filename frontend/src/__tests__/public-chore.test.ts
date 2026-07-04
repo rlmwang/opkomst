@@ -117,7 +117,7 @@ describe("PublicChore personal mode", () => {
 
     expect(w.text()).toContain("My shifts");
     expect(w.text()).toContain("Bins"); // my confirmed shift, in the calendar
-    expect(w.text()).toContain("Available shifts");
+    expect(w.text()).toContain("Pitch in");
     expect(w.text()).toContain("Sweep"); // an open shift, in the calendar
   });
 

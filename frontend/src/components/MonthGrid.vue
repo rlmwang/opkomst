@@ -69,6 +69,30 @@ const cells = computed<Cell[]>(() => {
   return out;
 });
 
+// Most weekday columns are empty (a chore runs on one or two days); the ones
+// that do carry content need room. Size each of the seven columns by whether
+// any day in it has content: content columns grow toward 1.5/7, empty ones
+// shrink toward 1/14 (half of 1/7), balanced so the row always sums to full
+// width (fr units → responsive). Both the header and grid use this template.
+const columnTemplate = computed<string>(() => {
+  if (!props.dayClass) return "repeat(7, 1fr)";
+  const has = Array<boolean>(7).fill(false);
+  cells.value.forEach((c, i) => {
+    if (c.iso && props.dayClass!(c.iso)?.occ) has[i % 7] = true;
+  });
+  const k = has.filter(Boolean).length;
+  if (k === 0 || k === 7) return "repeat(7, 1fr)";
+  const MAX = 1.5; // 1.5× 1/7
+  const MIN = 0.5; // half 1/7
+  const diff = 7 - (k * MAX + (7 - k) * MIN); // slack to balance out to 7 units
+  // Slack ≥ 0: content is capped at MAX, spare width widens the empty columns.
+  // Slack < 0: too many content columns to all reach MAX, so they share the
+  // deficit (empty columns stay at MIN).
+  const content = diff >= 0 ? MAX : MAX + diff / k;
+  const empty = diff >= 0 ? MIN + diff / (7 - k) : MIN;
+  return has.map((h) => `${(h ? content : empty).toFixed(4)}fr`).join(" ");
+});
+
 function isClickable(c: Cell): boolean {
   return !!(c.iso && props.clickable?.(c.iso));
 }
@@ -87,10 +111,10 @@ function onCellClick(c: Cell) {
       <button type="button" class="mg-navbtn" :aria-label="nextLabel" @click="shift(1)">›</button>
     </div>
     <p v-else class="mg-title">{{ monthLabel }}</p>
-    <div class="mg-dow">
+    <div class="mg-dow" :style="{ gridTemplateColumns: columnTemplate }">
       <span v-for="(w, i) in weekdays" :key="`h${i}`">{{ w }}</span>
     </div>
-    <div class="mg-grid">
+    <div class="mg-grid" :style="{ gridTemplateColumns: columnTemplate }">
       <div
         v-for="(c, i) in cells"
         :key="i"
