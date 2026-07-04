@@ -66,7 +66,6 @@ function dayClass(iso: string) {
 }
 .mc-times li {
   font-size: 0.6875rem;
-  font-weight: 600;
   line-height: 1.25;
 }
 </style>

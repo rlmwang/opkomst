@@ -179,8 +179,10 @@ def test_mark_shift_done(client, organiser_headers, db):
 
     r = client.post(f"/api/v1/chores/by-token/{token}/shifts/{shift_id}/done")
     assert r.status_code == 200, r.text
-    # The done shift drops out of upcoming "my_shifts".
-    assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
+    # The done shift stays in "my_shifts", now marked done — a completed task
+    # must not vanish the moment it's ticked off.
+    done = next((s for s in r.json()["my_shifts"] if s["id"] == shift_id), None)
+    assert done is not None and done["status"] == "done"
 
 
 def test_done_only_by_assignee(client, organiser_headers, db):

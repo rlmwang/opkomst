@@ -48,7 +48,9 @@ function dayClass(iso: string) {
           :key="j"
           :class="{ open: a.open, done: a.status === 'done', missed: a.status === 'missed' }"
         >
-          {{ a.open ? openLabel : a.name || anonLabel }}
+          <span v-if="a.status === 'done'" class="rc-check" aria-hidden="true">✓ </span>{{
+            a.open ? openLabel : a.name || anonLabel
+          }}
         </li>
       </ul>
     </template>
@@ -65,22 +67,23 @@ function dayClass(iso: string) {
 .rc-names li {
   display: inline;
   font-size: 0.75rem;
-  font-weight: 600;
   line-height: 1.3;
 }
 .rc-names li:not(:last-child)::after {
   content: ", ";
-  font-weight: 400;
   color: var(--brand-text-muted);
 }
 .rc-names li.open {
   color: var(--brand-red);
 }
 .rc-names li.done {
-  color: var(--brand-green);
+  color: var(--brand-text-muted);
 }
 .rc-names li.missed {
   color: var(--brand-text-muted);
   text-decoration: line-through;
+}
+.rc-check {
+  color: var(--brand-green);
 }
 </style>

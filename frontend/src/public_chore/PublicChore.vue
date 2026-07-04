@@ -97,8 +97,11 @@ const myEntries = computed<Record<string, CalEntry[]>>(() => {
         id: s.id,
         choreName: s.chore_name,
         tentative: false,
+        done: s.status === "done",
+        missed: s.status === "missed",
+        // Only an upcoming shift is actionable; finished ones just show.
         note: s.inherited ? ch.value.coveringForLeaver : undefined,
-        actions,
+        actions: s.status === "scheduled" ? actions : undefined,
       } satisfies CalEntry,
     })),
     ...(personal.value?.outlook_shifts ?? []).map((s) => ({

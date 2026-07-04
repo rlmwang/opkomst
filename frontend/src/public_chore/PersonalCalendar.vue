@@ -20,6 +20,8 @@ export interface CalEntry {
   id: string | null; // null = not actionable (expected/tentative)
   choreName: string;
   tentative: boolean;
+  done?: boolean; // completed — shown ticked off, non-actionable
+  missed?: boolean; // past, never done — shown struck through
   note?: string; // shown inline after the chore name in the popover
   actions?: CalAction[];
 }
@@ -80,7 +82,9 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
   >
     <template #day="{ iso }">
       <ul v-if="entriesByDate[iso]" class="pcal-names">
-        <li v-for="(e, j) in entriesByDate[iso]" :key="j">{{ e.choreName }}</li>
+        <li v-for="(e, j) in entriesByDate[iso]" :key="j" :class="{ done: e.done, missed: e.missed }">
+          <span v-if="e.done" class="pcal-check" aria-hidden="true">✓ </span>{{ e.choreName }}
+        </li>
       </ul>
       <div v-if="openIso === iso" class="pcal-pop" @click.stop>
         <div v-for="(e, j) in openEntries" :key="j" class="pcal-pop-item">
@@ -115,13 +119,22 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
 .pcal-names li {
   display: inline;
   font-size: 0.75rem;
-  font-weight: 600;
   line-height: 1.3;
 }
 .pcal-names li:not(:last-child)::after {
   content: ", ";
-  font-weight: 400;
   color: var(--brand-text-muted);
+}
+/* Finished shifts: done ticked off (green check), missed struck through. */
+.pcal-names li.done {
+  color: var(--brand-text-muted);
+}
+.pcal-names li.missed {
+  color: var(--brand-text-muted);
+  text-decoration: line-through;
+}
+.pcal-check {
+  color: var(--brand-green);
 }
 .pcal-pop {
   pointer-events: auto;

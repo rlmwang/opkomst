@@ -254,8 +254,10 @@ class PersonalPageOut(BaseModel):
     """The volunteer's personal page. Never carries the email or its
     ciphertext — only whether one is on file (``has_email``).
 
-    ``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**
-    window; ``outlook_shifts`` is the tentative projection beyond it;
+    ``my_shifts`` are this volunteer's confirmed shifts — upcoming
+    (actionable) plus finished ones (``done``/``missed``, kept so completed
+    tasks stay visible); ``open_shifts`` are the pinned claimable window;
+    ``outlook_shifts`` is the tentative projection beyond it;
     ``coverable_shifts`` are others' confirmed shifts this volunteer may
     take over; ``availability`` is their current away ranges."""
 

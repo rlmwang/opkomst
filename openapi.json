@@ -3145,7 +3145,7 @@
         "type": "object"
       },
       "PersonalPageOut": {
-        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).\n\n``my_shifts``/``open_shifts`` are the pinned, actionable **confirmed**\nwindow; ``outlook_shifts`` is the tentative projection beyond it;\n``coverable_shifts`` are others' confirmed shifts this volunteer may\ntake over; ``availability`` is their current away ranges.",
+        "description": "The volunteer's personal page. Never carries the email or its\nciphertext \u2014 only whether one is on file (``has_email``).\n\n``my_shifts`` are this volunteer's confirmed shifts \u2014 upcoming\n(actionable) plus finished ones (``done``/``missed``, kept so completed\ntasks stay visible); ``open_shifts`` are the pinned claimable window;\n``outlook_shifts`` is the tentative projection beyond it;\n``coverable_shifts`` are others' confirmed shifts this volunteer may\ntake over; ``availability`` is their current away ranges.",
         "properties": {
           "availability": {
             "items": {

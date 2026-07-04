@@ -76,7 +76,6 @@ function dayClass(iso: string) {
   cursor: pointer;
   padding: 0.25rem 0.125rem;
   font-size: 0.6875rem;
-  font-weight: 600;
   line-height: 1.1;
 }
 .vote.unset {

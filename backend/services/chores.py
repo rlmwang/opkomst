@@ -213,10 +213,13 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
     today = now_wallclock().date()
     chore_ids = _enrolled_chore_ids(db, volunteer.id)
 
+    # Upcoming assignments plus the volunteer's finished ones (done/missed),
+    # so completed tasks stay visible on their day rather than vanishing the
+    # moment they're marked done. The calendar renders each by its status.
     mine = (
         db.query(Shift, Chore.name)
         .join(Chore, Chore.id == Shift.chore_id)
-        .filter(Shift.volunteer_id == volunteer.id, Shift.status == "scheduled", Shift.on_date >= today)
+        .filter(Shift.volunteer_id == volunteer.id, Shift.status.in_(["scheduled", "done", "missed"]))
         .order_by(Shift.on_date, Shift.id)
         .all()
     )
