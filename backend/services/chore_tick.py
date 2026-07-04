@@ -38,7 +38,8 @@ def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, s
 def release_shift(db: Session, *, roster_id: str, volunteer_id: str, shift: Shift) -> None:
     """Hand a confirmed shift back: record the give-up (``deferred``),
     unassign it, and mark it ``open`` for anyone to claim — no automatic
-    reassignment. Shared by "can't make it" and time-off overlap. Clears the
+    reassignment. Shared by "can't make it", time-off overlap, and dropping a
+    chore from the enrolment. Clears the
     sent stamp so whoever picks it up next gets their own reminder."""
     record_event(db, roster_id=roster_id, volunteer_id=volunteer_id, kind="deferred", shift_id=shift.id)
     shift.volunteer_id = None

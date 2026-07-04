@@ -216,6 +216,32 @@ def test_pass_opens_the_shift(client, organiser_headers, db):
     assert shift_id not in [s["id"] for s in other_shifts]
 
 
+def test_dropping_a_chore_opens_its_locked_in_shifts(client, organiser_headers, db):
+    from backend.models import Shift, ShiftEvent
+
+    roster, token, cid = _enrolled_token(client, organiser_headers)  # Sam in cid
+    other = _enroll(client, roster["slug"], display_name="Other", chore_ids=[cid]).json()["edit_token"]
+    _tick(db)
+    my = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
+    if not my:
+        return
+    shift_id = my[0]["id"]
+
+    # Sam drops the chore; their locked-in shift of it is handed off.
+    r = client.put(
+        f"/api/v1/chores/by-token/{token}",
+        json={"display_name": "Sam", "chore_ids": [], "email_reminders": False, "email": None},
+    )
+    assert r.status_code == 200, r.text
+    db.expire_all()
+    shift = db.query(Shift).filter(Shift.id == shift_id).first()
+    assert shift.status == "open" and shift.volunteer_id is None
+    assert db.query(ShiftEvent).filter(ShiftEvent.shift_id == shift_id, ShiftEvent.kind == "deferred").count() == 1
+    # Not auto-reassigned to the other eligible volunteer.
+    other_shifts = client.get(f"/api/v1/chores/by-token/{other}").json()["my_shifts"]
+    assert shift_id not in [s["id"] for s in other_shifts]
+
+
 def test_availability_releases_locked_in_shifts(client, organiser_headers, db):
     from backend.models import ShiftEvent
 

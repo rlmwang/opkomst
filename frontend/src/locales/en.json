@@ -519,7 +519,7 @@
       "anonymous": "Anonymous",
       "joining": "New · first shift from {date}",
       "load": "{n} shifts",
-      "openShift": "Open",
+      "openShift": "open",
       "stats": "{scheduled} scheduled · {done} done · {missed} missed · {open} open",
       "regularCount": "{n} regular shifts",
       "pickedUpCount": "{n} picked up for others",

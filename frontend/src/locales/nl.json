@@ -519,7 +519,7 @@
       "anonymous": "Anoniem",
       "joining": "Nieuw · eerste taak vanaf {date}",
       "load": "{n} taken",
-      "openShift": "Vrij",
+      "openShift": "open",
       "stats": "{scheduled} ingepland · {done} gedaan · {missed} gemist · {open} vrij",
       "regularCount": "{n} eigen taken",
       "pickedUpCount": "{n} overgenomen voor anderen",

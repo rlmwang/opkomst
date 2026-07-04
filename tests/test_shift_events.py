@@ -193,7 +193,7 @@ def test_done_records_completed(client, organiser_headers, db):
     assert _volunteers(client, organiser_headers, roster["id"])["Sam"]["completed"] == 1
 
 
-def test_pass_records_deferred_and_reassigns(client, organiser_headers, db):
+def test_pass_records_deferred_and_opens(client, organiser_headers, db):
     roster = _api_roster(client, organiser_headers)
     cid = roster["chores"][0]["id"]
     a = _enroll(client, roster["slug"], "A", cid)
@@ -202,11 +202,14 @@ def test_pass_records_deferred_and_reassigns(client, organiser_headers, db):
     my = client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]
     if not my:
         return
-    client.post(f"/api/v1/chores/by-token/{a}/shifts/{my[0]['id']}/pass")
+    shift_id = my[0]["id"]
+    client.post(f"/api/v1/chores/by-token/{a}/shifts/{shift_id}/pass")
     vols = _volunteers(client, organiser_headers, roster["id"])
     assert vols["A"]["deferred"] == 1
-    # B was WRH-reassigned the reopened shift → a regular turn, not a pickup.
-    assert vols["B"]["regular_turns"] >= 1
+    # The shift is opened for anyone to claim, not auto-reassigned.
+    page = client.get(f"/api/v1/chores/by-token/{a}").json()
+    assert shift_id in [s["id"] for s in page["open_shifts"]]
+    assert shift_id not in [s["id"] for s in page["my_shifts"]]
 
 
 def test_claim_records_as_picked_up(client, organiser_headers, db):

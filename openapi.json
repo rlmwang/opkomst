@@ -6290,7 +6290,7 @@
     },
     "/api/v1/chores/by-token/{token}/availability": {
       "put": {
-        "description": "Replace the volunteer's away ranges. These exclude them from future\nprojection + pinning on those dates (\u00a77); already-pinned confirmed\nshifts are untouched.",
+        "description": "Replace the volunteer's away ranges. These exclude them from future\nprojection + pinning on those dates (\u00a77). A range covering an already\nlocked-in shift hands that shift off (unassigned + opened) the same way\n\"can't make it\" does \u2014 it's a late deferral (they should have flagged the\nabsence before it was pinned).",
         "operationId": "set_availability_api_v1_chores_by_token__token__availability_put",
         "parameters": [
           {
@@ -6597,7 +6597,7 @@
     },
     "/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass": {
       "post": {
-        "description": "\"Can't make it\": give up a confirmed shift. It reopens and is\nimmediately re-assigned to someone else (excluding the passer); if\nnobody else is eligible it stays ``open`` for anyone to claim.",
+        "description": "\"Can't make it\": give up a confirmed shift. It's unassigned and left\n``open`` for anyone to claim \u2014 no automatic reassignment.",
         "operationId": "pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post",
         "parameters": [
           {

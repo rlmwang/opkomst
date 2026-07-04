@@ -525,8 +525,10 @@ export interface paths {
         /**
          * Set Availability
          * @description Replace the volunteer's away ranges. These exclude them from future
-         *     projection + pinning on those dates (§7); already-pinned confirmed
-         *     shifts are untouched.
+         *     projection + pinning on those dates (§7). A range covering an already
+         *     locked-in shift hands that shift off (unassigned + opened) the same way
+         *     "can't make it" does — it's a late deferral (they should have flagged the
+         *     absence before it was pinned).
          */
         put: operations["set_availability_api_v1_chores_by_token__token__availability_put"];
         post?: never;
@@ -652,9 +654,8 @@ export interface paths {
         put?: never;
         /**
          * Pass Shift
-         * @description "Can't make it": give up a confirmed shift. It reopens and is
-         *     immediately re-assigned to someone else (excluding the passer); if
-         *     nobody else is eligible it stays ``open`` for anyone to claim.
+         * @description "Can't make it": give up a confirmed shift. It's unassigned and left
+         *     ``open`` for anyone to claim — no automatic reassignment.
          */
         post: operations["pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post"];
         delete?: never;

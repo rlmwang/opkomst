@@ -174,9 +174,9 @@ def update_enrolment(
         db.add(Enrollment(volunteer_id=volunteer.id, chore_id=cid))
     volunteer.display_name = data.display_name
 
-    # Chores the volunteer just dropped: their future confirmed shifts on
-    # those chores are relinquished (deferred) and re-covered among the
-    # remaining eligible, so a drop doesn't leave stale assignments.
+    # Chores the volunteer just dropped: their future locked-in shifts on
+    # those chores are handed off (deferred + opened) exactly like "can't make
+    # it" and time-off overlap — no automatic reassignment.
     today = now_wallclock().date()
     new_ids = list(dict.fromkeys(data.chore_ids))
     stale_q = (
@@ -192,13 +192,7 @@ def update_enrolment(
     if new_ids:
         stale_q = stale_q.filter(Chore.id.notin_(new_ids))
     for shift in stale_q.all():
-        chore_tick.record_event(
-            db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, kind="deferred", shift_id=shift.id
-        )
-        shift.volunteer_id = None
-        shift.reminder_sent_at = None
-    db.flush()
-    chore_tick.cover_orphaned_shifts(db, volunteer.roster_id, today)
+        chore_tick.release_shift(db, roster_id=volunteer.roster_id, volunteer_id=volunteer.id, shift=shift)
 
     # Reminder/email transitions (§6). The invariant held on every path:
     # email_reminders on ⇒ a ciphertext is on file; off ⇒ ciphertext NULL.
