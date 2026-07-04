@@ -321,6 +321,7 @@ class ChoreAccountabilityOut(BaseModel):
 
     chore_id: str
     chore_name: str
+    emoji: str | None
     volunteers: list[ChoreVolunteerOut]
 
 

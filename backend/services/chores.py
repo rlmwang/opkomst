@@ -448,7 +448,7 @@ def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilit
             )
         # Busiest first (own + picked-up turns), then pseudonym for stability.
         rows.sort(key=lambda r: (-(r.regular_turns + r.picked_up), (r.display_name or "").lower()))
-        out.append(ChoreAccountabilityOut(chore_id=chore.id, chore_name=chore.name, volunteers=rows))
+        out.append(ChoreAccountabilityOut(chore_id=chore.id, chore_name=chore.name, emoji=chore.emoji, volunteers=rows))
     return out
 
 

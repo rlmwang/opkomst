@@ -2321,6 +2321,8 @@ export interface components {
             chore_id: string;
             /** Chore Name */
             chore_name: string;
+            /** Emoji */
+            emoji: string | null;
             /** Volunteers */
             volunteers: components["schemas"]["ChoreVolunteerOut"][];
         };

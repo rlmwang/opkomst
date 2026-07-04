@@ -398,6 +398,17 @@
             "title": "Chore Name",
             "type": "string"
           },
+          "emoji": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emoji"
+          },
           "volunteers": {
             "items": {
               "$ref": "#/components/schemas/ChoreVolunteerOut"
@@ -409,6 +420,7 @@
         "required": [
           "chore_id",
           "chore_name",
+          "emoji",
           "volunteers"
         ],
         "title": "ChoreAccountabilityOut",

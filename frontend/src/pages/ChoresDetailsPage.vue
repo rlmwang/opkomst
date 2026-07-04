@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
-import ChoreCalendarPanel from "@/components/ChoreCalendarPanel.vue";
+import RosterCalendar from "@/components/RosterCalendar.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
@@ -226,7 +226,9 @@ function dateWindow(): string {
           <!-- One section per chore; each row is just the volunteer + their
                per-chore bar (the section heading names the chore). -->
           <section v-for="c in accountability" :key="c.chore_id" class="chore-section">
-            <h3 class="chore-section-name">{{ c.chore_name }}</h3>
+            <h3 class="chore-section-name">
+              <span v-if="c.emoji" class="chore-emoji">{{ c.emoji }}</span>{{ c.chore_name }}
+            </h3>
             <p v-if="c.volunteers.length === 0" class="muted chore-section-empty">
               {{ t("chores.details.choreNoVolunteers") }}
             </p>
@@ -270,22 +272,18 @@ function dateWindow(): string {
             <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
             <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
             <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
+            <span v-for="c in choreItems" :key="c.id" class="cal-chore">
+              <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
+            </span>
           </div>
-          <div class="cal-panels">
-            <ChoreCalendarPanel
-              v-for="c in choreItems"
-              :key="c.id"
-              :roster-id="props.rosterId"
-              :chore-id="c.id"
-              :chore-name="c.name"
-              :emoji="c.emoji ?? null"
-              :locale="locale"
-              :open-label="t('chores.details.openShift')"
-              :anon-label="t('chores.details.anonymous')"
-              :prev-label="t('chores.details.prevMonth')"
-              :next-label="t('chores.details.nextMonth')"
-            />
-          </div>
+          <RosterCalendar
+            :roster-id="props.rosterId"
+            :locale="locale"
+            :open-label="t('chores.details.openShift')"
+            :anon-label="t('chores.details.anonymous')"
+            :prev-label="t('chores.details.prevMonth')"
+            :next-label="t('chores.details.nextMonth')"
+          />
         </template>
         <p v-else class="muted">{{ t("chores.details.scheduleEmpty") }}</p>
       </AppCard>
@@ -298,25 +296,21 @@ function dateWindow(): string {
         <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
         <span><i class="cal-swatch open" />{{ t("chores.details.calOpen") }}</span>
         <span><i class="cal-swatch changed" />{{ t("chores.details.calChanged") }}</span>
+        <span v-for="c in choreItems" :key="c.id" class="cal-chore">
+          <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
+        </span>
       </div>
-      <div class="cal-panels">
-        <ChoreCalendarPanel
-          v-for="c in choreItems"
-          :key="c.id"
-          :roster-id="props.rosterId"
-          :chore-id="c.id"
-          :chore-name="c.name"
-          :emoji="c.emoji ?? null"
-          preview
-          :enabled="showFoldIn"
-          :locale="locale"
-          :open-label="t('chores.details.openShift')"
-          :anon-label="t('chores.details.anonymous')"
-          :prev-label="t('chores.details.prevMonth')"
-          :next-label="t('chores.details.nextMonth')"
-          :no-change-label="t('chores.details.foldInNoneMonth')"
-        />
-      </div>
+      <RosterCalendar
+        :roster-id="props.rosterId"
+        preview
+        :enabled="showFoldIn"
+        :locale="locale"
+        :open-label="t('chores.details.openShift')"
+        :anon-label="t('chores.details.anonymous')"
+        :prev-label="t('chores.details.prevMonth')"
+        :next-label="t('chores.details.nextMonth')"
+        :no-change-label="t('chores.details.foldInNoneMonth')"
+      />
       <template #footer>
         <Button
           :label="t('common.cancel')"
@@ -444,14 +438,8 @@ function dateWindow(): string {
   outline: 2px solid var(--brand-red);
   outline-offset: -1px;
 }
-/* One full-width calendar per chore, stacked, each with its own scroller. */
-.cal-panels {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-.cal-panels > :not(:first-child) {
-  border-top: 1px solid var(--brand-border);
-  padding-top: 1.5rem;
+/* Chore-emoji key, appended to the legend so the calendar's emojis decode. */
+.cal-chore-emoji {
+  font-size: 0.9375rem;
 }
 </style>
