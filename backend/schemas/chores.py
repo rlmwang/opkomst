@@ -85,6 +85,9 @@ class RosterCreate(BaseModel):
             raise ValueError("ends_on must not be before starts_on")
         if self.commit_horizon_days < self.reminder_days_before:
             raise ValueError("commit_horizon_days must be >= reminder_days_before")
+        emojis = [c.emoji for c in self.chores if c.emoji]
+        if len(emojis) != len(set(emojis)):
+            raise ValueError("Each chore must have a unique emoji")
         hi = 7 * self.period_weeks
         for chore in self.chores:
             chore.name = chore.name.strip()

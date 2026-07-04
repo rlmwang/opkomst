@@ -56,6 +56,30 @@ def test_cycle_slots_deduped_and_sorted(client, organiser_headers):
     assert r.json()["chores"][0]["cycle_slots"] == [2, 4]
 
 
+def test_duplicate_chore_emojis_rejected(client, organiser_headers):
+    r = _create(
+        client,
+        organiser_headers,
+        chores=[
+            {"name": "A", "cycle_slots": [1], "emoji": "🧹"},
+            {"name": "B", "cycle_slots": [2], "emoji": "🧹"},
+        ],
+    )
+    assert r.status_code == 422, r.text
+
+
+def test_distinct_chore_emojis_ok(client, organiser_headers):
+    r = _create(
+        client,
+        organiser_headers,
+        chores=[
+            {"name": "A", "cycle_slots": [1], "emoji": "🧹"},
+            {"name": "B", "cycle_slots": [2], "emoji": "🍳"},
+        ],
+    )
+    assert r.status_code == 201, r.text
+
+
 # --- recurrence validation -------------------------------------------
 
 

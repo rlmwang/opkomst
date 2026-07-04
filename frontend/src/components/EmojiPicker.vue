@@ -1,6 +1,35 @@
 <script lang="ts">
+// Flat grid (multiple of 8 wide), grouped by chore use-case. Order is
+// stable so the user builds muscle-memory positions over time. Exported so
+// the chore editor can auto-assign an unused emoji to a new chore.
+export const EMOJIS = [
+  // Cleaning / bathroom.
+  "🧹", "🧽", "🧼", "🧺", "🪣", "🚿", "🛁", "🚽",
+  // Waste / dishes.
+  "🗑️", "♻️", "🧻", "🍽️", "🍴", "🧊", "🫧", "🛒",
+  // Kitchen / food.
+  "🍳", "🥘", "🍲", "☕", "🫖", "🥖", "🍻", "🥗",
+  // Setup / tools.
+  "🪑", "🚪", "🔑", "💡", "🔧", "🔨", "🧰", "📦",
+  // Outdoors / care.
+  "🌱", "🪴", "🌿", "🔥", "🧯", "👕", "🎵", "🥁",
+  // Digital / social media / comms.
+  "📱", "💻", "📸", "💬", "📧", "🌐", "🔗", "📊",
+  // Admin / organising.
+  "📋", "📝", "📅", "📣", "🔔", "⏰", "📍", "🎉",
+  // Organising / reactions (for the message blast tool).
+  "🌹", "🚩", "✊", "❤️", "👍", "🙌", "🙏", "✅",
+] as const;
+
 // The emoji a fresh chore starts with — every chore always carries one.
 export const DEFAULT_CHORE_EMOJI = "🧹";
+
+/** First curated emoji not already in ``used``; falls back to the default
+ * when every option is taken (never, in practice — 64 options). */
+export function firstUnusedEmoji(used: Iterable<string>): string {
+  const taken = new Set(used);
+  return EMOJIS.find((e) => !taken.has(e)) ?? DEFAULT_CHORE_EMOJI;
+}
 </script>
 
 <script setup lang="ts">
@@ -34,27 +63,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-
-// Flat grid (multiple of 8 wide), grouped by chore use-case. Order is
-// stable so the user builds muscle-memory positions over time.
-const EMOJIS = [
-  // Cleaning / bathroom.
-  "🧹", "🧽", "🧼", "🧺", "🪣", "🚿", "🛁", "🚽",
-  // Waste / dishes.
-  "🗑️", "♻️", "🧻", "🍽️", "🍴", "🧊", "🫧", "🛒",
-  // Kitchen / food.
-  "🍳", "🥘", "🍲", "☕", "🫖", "🥖", "🍻", "🥗",
-  // Setup / tools.
-  "🪑", "🚪", "🔑", "💡", "🔧", "🔨", "🧰", "📦",
-  // Outdoors / care.
-  "🌱", "🪴", "🌿", "🔥", "🧯", "👕", "🎵", "🥁",
-  // Digital / social media / comms.
-  "📱", "💻", "📸", "💬", "📧", "🌐", "🔗", "📊",
-  // Admin / organising.
-  "📋", "📝", "📅", "📣", "🔔", "⏰", "📍", "🎉",
-  // Organising / reactions (for the message blast tool).
-  "🌹", "🚩", "✊", "❤️", "👍", "🙌", "🙏", "✅",
-];
 
 const open = ref(false);
 const root = ref<HTMLElement | null>(null);

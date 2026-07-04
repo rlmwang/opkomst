@@ -11,7 +11,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ChoreEditor, { type ChoreDraft } from "@/components/ChoreEditor.vue";
-import { DEFAULT_CHORE_EMOJI } from "@/components/EmojiPicker.vue";
+import { DEFAULT_CHORE_EMOJI, firstUnusedEmoji } from "@/components/EmojiPicker.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
@@ -259,7 +259,8 @@ function addChore(): void {
     description: null,
     cycle_slots: [],
     people_per_shift: 1,
-    emoji: DEFAULT_CHORE_EMOJI,
+    // Start a new chore on an emoji no existing chore already uses.
+    emoji: firstUnusedEmoji(chores.value.map((c) => c.emoji)),
   });
 }
 function removeChore(index: number): void {
@@ -269,8 +270,18 @@ function moveChore(index: number, delta: -1 | 1): void {
   choreListState.move(index, delta);
 }
 function setChore(index: number, next: ChoreDraft): void {
+  const prev = chores.value[index];
+  // Keep emojis unique: picking one another chore already uses swaps them,
+  // handing that chore this chore's previous emoji.
+  if (next.emoji !== prev.emoji) {
+    const clash = chores.value.findIndex((c, i) => i !== index && c.emoji === next.emoji);
+    if (clash !== -1) {
+      choreListState.replaceAt(clash, { ...chores.value[clash], emoji: prev.emoji });
+    }
+  }
   choreListState.replaceAt(index, next);
 }
+
 
 // --- Cancel / submit -----------------------------------------------
 function cancel(): void {
