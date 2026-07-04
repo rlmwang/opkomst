@@ -26,7 +26,8 @@ import {
   putAvailability,
   putEnrolment,
 } from "./api";
-import { choreStrings, formatLongDate } from "./i18n";
+import { choreStrings } from "./i18n";
+import PersonalCalendar, { type CalAction, type CalEntry } from "./PersonalCalendar.vue";
 
 type Status = "loading" | "enrol" | "personal" | "enrolled" | "unavailable" | "load-failed" | "left";
 
@@ -65,6 +66,73 @@ const { editToken, editUrl, confirmSaved } = useEditLink("c", slug);
 
 const chores = computed(() => roster.value?.chores ?? []);
 const chosenIds = computed(() => Object.keys(picked).filter((id) => picked[id]));
+
+// --- Personal-page calendars (my schedule / up-for-grabs / covering) ---
+// Each section is a month-navigable calendar over the personal payload
+// (client-side; the payload is upcoming-only, so past months are empty).
+function currentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+const myMonth = ref(currentMonth());
+const availMonth = ref(currentMonth());
+
+function group(rows: { on_date: string; entry: CalEntry }[]): Record<string, CalEntry[]> {
+  const map: Record<string, CalEntry[]> = {};
+  for (const { on_date, entry } of rows) (map[on_date] ??= []).push(entry);
+  return map;
+}
+
+// "Mijn taken": confirmed shifts (done/pass) + expected outlook (tentative,
+// view-only).
+const myEntries = computed<Record<string, CalEntry[]>>(() => {
+  const actions: CalAction[] = [
+    { key: "done", label: ch.value.markDone },
+    { key: "pass", label: ch.value.cantMakeIt, ghost: true },
+  ];
+  return group([
+    ...(personal.value?.my_shifts ?? []).map((s) => ({
+      on_date: s.on_date,
+      entry: {
+        id: s.id,
+        choreName: s.chore_name,
+        tentative: false,
+        note: s.inherited ? ch.value.coveringForLeaver : undefined,
+        actions,
+      } satisfies CalEntry,
+    })),
+    ...(personal.value?.outlook_shifts ?? []).map((s) => ({
+      on_date: s.on_date,
+      entry: { id: null, choreName: s.chore_name, tentative: true } satisfies CalEntry,
+    })),
+  ]);
+});
+
+// "Beschikbare taken": open shifts to claim + others' shifts to cover — one
+// calendar; the action (claim vs cover) rides on each entry.
+const availableEntries = computed<Record<string, CalEntry[]>>(() =>
+  group([
+    ...(personal.value?.open_shifts ?? []).map((s) => ({
+      on_date: s.on_date,
+      entry: {
+        id: s.id,
+        choreName: s.chore_name,
+        tentative: false,
+        actions: [{ key: "claim", label: ch.value.claim }],
+      } satisfies CalEntry,
+    })),
+    ...(personal.value?.coverable_shifts ?? []).map((s) => ({
+      on_date: s.on_date,
+      entry: {
+        id: s.id,
+        choreName: s.chore_name,
+        tentative: false,
+        note: s.assignee_name ?? undefined,
+        actions: [{ key: "cover", label: ch.value.coverButton, ghost: true }],
+      } satisfies CalEntry,
+    })),
+  ]),
+);
 
 // Dirty/revert/saved state for the shared edit bar.
 const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
@@ -268,73 +336,38 @@ async function leave(): Promise<void> {
       <template v-if="status === 'personal' && personal">
         <div class="card stack">
           <h2>{{ ch.myTurns }}</h2>
-          <p v-if="personal.my_shifts.length === 0" class="empty muted">{{ ch.noUpcoming }}</p>
-          <ul v-else class="shift-list">
-            <li v-for="s in personal.my_shifts" :key="s.id" class="shift-row">
-              <span class="shift-main">
-                <strong>{{ s.chore_name }}</strong>
-                <span class="muted">{{ formatLongDate(s.on_date, locale) }}</span>
-                <span v-if="s.inherited" class="muted origin-note">{{ ch.coveringForLeaver }}</span>
-              </span>
-              <span class="shift-actions">
-                <button type="button" class="btn" :disabled="busy" @click="act(s.id, 'done')">
-                  {{ ch.markDone }}
-                </button>
-                <button type="button" class="btn ghost" :disabled="busy" @click="act(s.id, 'pass')">
-                  {{ ch.cantMakeIt }}
-                </button>
-              </span>
-            </li>
-          </ul>
+          <div class="cal-legend muted">
+            <span><i class="cal-swatch locked" />{{ ch.calLocked }}</span>
+            <span><i class="cal-swatch tentative" />{{ ch.calTentative }}</span>
+          </div>
+          <p v-if="Object.keys(myEntries).length === 0" class="empty muted">{{ ch.noUpcoming }}</p>
+          <PersonalCalendar
+            v-else
+            v-model:month="myMonth"
+            :entries-by-date="myEntries"
+            :weekdays="ch.weekdays"
+            :prev-label="ch.prevMonth"
+            :next-label="ch.nextMonth"
+            :locale="locale"
+            :busy="busy"
+            @act="act"
+          />
         </div>
 
         <div class="card stack">
-          <h2>{{ ch.upForGrabs }}</h2>
-          <p v-if="personal.open_shifts.length === 0" class="empty muted">{{ ch.noOpen }}</p>
-          <ul v-else class="shift-list">
-            <li v-for="s in personal.open_shifts" :key="s.id" class="shift-row">
-              <span class="shift-main">
-                <strong>{{ s.chore_name }}</strong>
-                <span class="muted">{{ formatLongDate(s.on_date, locale) }}</span>
-              </span>
-              <button type="button" class="btn" :disabled="busy" @click="act(s.id, 'claim')">
-                {{ ch.claim }}
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div class="card stack">
-          <h2>{{ ch.coverHeading }}</h2>
-          <p v-if="(personal.coverable_shifts ?? []).length === 0" class="empty muted">{{ ch.noCoverable }}</p>
-          <ul v-else class="shift-list">
-            <li v-for="s in personal.coverable_shifts ?? []" :key="s.id" class="shift-row">
-              <span class="shift-main">
-                <strong>{{ s.chore_name }}</strong>
-                <span class="muted">
-                  {{ formatLongDate(s.on_date, locale) }}
-                  <template v-if="s.assignee_name"> · {{ ch.coverForName.replace("{name}", s.assignee_name) }}</template>
-                </span>
-              </span>
-              <button type="button" class="btn ghost" :disabled="busy" @click="act(s.id, 'cover')">
-                {{ ch.coverButton }}
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div class="card stack">
-          <h2>{{ ch.outlookHeading }}</h2>
-          <p class="muted">{{ ch.outlookNote }}</p>
-          <p v-if="(personal.outlook_shifts ?? []).length === 0" class="empty muted">{{ ch.noOutlook }}</p>
-          <ul v-else class="shift-list">
-            <li v-for="(s, i) in personal.outlook_shifts ?? []" :key="`${s.chore_id}-${s.on_date}-${i}`" class="shift-row">
-              <span class="shift-main">
-                <strong>{{ s.chore_name }}</strong>
-                <span class="muted">{{ formatLongDate(s.on_date, locale) }}</span>
-              </span>
-            </li>
-          </ul>
+          <h2>{{ ch.availableHeading }}</h2>
+          <p v-if="Object.keys(availableEntries).length === 0" class="empty muted">{{ ch.noAvailable }}</p>
+          <PersonalCalendar
+            v-else
+            v-model:month="availMonth"
+            :entries-by-date="availableEntries"
+            :weekdays="ch.weekdays"
+            :prev-label="ch.prevMonth"
+            :next-label="ch.nextMonth"
+            :locale="locale"
+            :busy="busy"
+            @act="act"
+          />
         </div>
 
         <div class="card stack">
@@ -520,23 +553,30 @@ h2 { margin: 0; font-size: 1.1rem; }
   background: color-mix(in srgb, var(--brand-red) 12%, transparent);
 }
 .disclosure summary { cursor: pointer; font-weight: 600; }
-.shift-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Calendar legend (vast / voorlopig), swatches matching the cell styles. */
+.cal-legend {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-.shift-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
   flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  margin: 0 0 0.25rem;
 }
-.shift-main { display: flex; flex-direction: column; }
-.shift-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.cal-swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 4px;
+  flex: none;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-surface);
+}
+.cal-swatch.tentative {
+  border-style: dashed;
+}
 /* Time-off rows reuse the global ``.list-row`` (hover + rounding) from
  * theme.css, matching the admin editable lists. */
 .avail-row { margin-bottom: 0.25rem; }
@@ -564,17 +604,7 @@ h2 { margin: 0; font-size: 1.1rem; }
   color: var(--brand-red);
   background: color-mix(in srgb, var(--brand-red) 8%, transparent);
 }
-/* .submit-row (right-aligned action row) comes from ``forms.css``. */
-.btn {
-  padding: 0.5rem 0.875rem;
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font: inherit;
-  cursor: pointer;
-}
-.btn:disabled { opacity: 0.5; cursor: default; }
-.btn.ghost { background: none; }
+/* .submit-row (right-aligned action row) + .btn / .btn.ghost come from
+ * ``forms.css`` (shared so sub-components like PersonalCalendar get them). */
 .error { color: var(--brand-red); }
 </style>

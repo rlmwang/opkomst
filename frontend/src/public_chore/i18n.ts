@@ -22,18 +22,16 @@ export interface ChoreStrings {
   myTurns: string;
   noUpcoming: string;
   coveringForLeaver: string;
-  upForGrabs: string;
-  noOpen: string;
+  availableHeading: string;
+  noAvailable: string;
   markDone: string;
   cantMakeIt: string;
   claim: string;
-  coverHeading: string;
   coverButton: string;
-  coverForName: string;
-  noCoverable: string;
-  outlookHeading: string;
-  outlookNote: string;
-  noOutlook: string;
+  prevMonth: string;
+  nextMonth: string;
+  calLocked: string;
+  calTentative: string;
   availabilityHeading: string;
   availabilityHint: string;
   availabilityAdd: string;
@@ -65,18 +63,16 @@ const dict: Record<Locale, ChoreStrings> = {
     myTurns: "Mijn taken",
     noUpcoming: "Je hebt geen komende taken.",
     coveringForLeaver: "Overgenomen voor iemand die vertrok",
-    upForGrabs: "Vrije taken",
-    noOpen: "Geen vrije taken om over te nemen.",
+    availableHeading: "Beschikbare taken",
+    noAvailable: "Geen taken om over te nemen of in te vallen.",
     markDone: "Gedaan",
     cantMakeIt: "Kan niet — vind iemand anders",
     claim: "Overnemen",
-    coverHeading: "Voor iemand invallen",
     coverButton: "Invallen",
-    coverForName: "Taak van {name}",
-    noCoverable: "Geen taken om voor in te vallen.",
-    outlookHeading: "Verwachte taken",
-    outlookNote: "Voorlopig — dit kan nog veranderen.",
-    noOutlook: "Nog geen verwachte taken.",
+    prevMonth: "Vorige maand",
+    nextMonth: "Volgende maand",
+    calLocked: "Vast",
+    calTentative: "Voorlopig",
     availabilityHeading: "Afwezigheid",
     availabilityHint: "Geef periodes op waarin je niet kunt. Je wordt dan niet ingedeeld.",
     availabilityAdd: "Periode toevoegen",
@@ -106,18 +102,16 @@ const dict: Record<Locale, ChoreStrings> = {
     myTurns: "My shifts",
     noUpcoming: "You have no upcoming shifts.",
     coveringForLeaver: "Picked up, covering for someone who left",
-    upForGrabs: "Up for grabs",
-    noOpen: "No open shifts to take on.",
+    availableHeading: "Available shifts",
+    noAvailable: "No shifts to take on or cover right now.",
     markDone: "Done",
     cantMakeIt: "Can't make it — find someone else",
     claim: "Take it on",
-    coverHeading: "Cover for someone",
     coverButton: "Cover",
-    coverForName: "{name}'s shift",
-    noCoverable: "No shifts to cover right now.",
-    outlookHeading: "Expected shifts",
-    outlookNote: "Tentative — this may still change.",
-    noOutlook: "No expected shifts yet.",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
+    calLocked: "Locked in",
+    calTentative: "Tentative",
     availabilityHeading: "Time off",
     availabilityHint: "Add periods when you can't take part. You won't be scheduled then.",
     availabilityAdd: "Add a period",
@@ -135,13 +129,4 @@ const dict: Record<Locale, ChoreStrings> = {
 
 export function choreStrings(locale: Locale): ChoreStrings {
   return dict[locale];
-}
-
-/** Long human-readable date: ``Monday 27 April``. */
-export function formatLongDate(iso: string, locale: Locale): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString(locale === "en" ? "en-GB" : "nl-NL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
 }

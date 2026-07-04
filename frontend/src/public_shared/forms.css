@@ -119,4 +119,23 @@
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
   }
+
+  /* Secondary action button (per-shift actions, popover actions). Shared so
+   * mini-app sub-components render identically to the page. */
+  .btn {
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    font: inherit;
+    cursor: pointer;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .btn.ghost {
+    background: none;
+  }
 }

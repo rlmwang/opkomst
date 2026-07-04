@@ -109,37 +109,41 @@ describe("PublicChore personal mode", () => {
     ],
   };
 
-  it("renders my shifts + up-for-grabs", async () => {
+  it("renders my shifts + available shifts as calendars", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     const w = mount(PublicChore);
     await flushPromises();
 
     expect(w.text()).toContain("My shifts");
-    expect(w.text()).toContain("Bins");
-    expect(w.text()).toContain("Up for grabs");
-    expect(w.text()).toContain("Sweep");
+    expect(w.text()).toContain("Bins"); // my confirmed shift, in the calendar
+    expect(w.text()).toContain("Available shifts");
+    expect(w.text()).toContain("Sweep"); // an open shift, in the calendar
   });
 
-  it("done calls the endpoint and refetches the page", async () => {
+  it("done calls the endpoint (via the day popover) and refetches", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     vi.mocked(api.postShiftAction).mockResolvedValueOnce({ ...structuredClone(PAGE), my_shifts: [] });
     const w = mount(PublicChore);
     await flushPromises();
 
+    // Click the 8 July cell (my Bins shift) to open its popover, then Done.
+    await w.find('button[aria-label="8"]').trigger("click");
     await w.findAll("button").find((b) => b.text() === "Done")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s1", "done");
   });
 
-  it("claim takes an open shift", async () => {
+  it("claim takes an open shift (via the day popover)", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     vi.mocked(api.postShiftAction).mockResolvedValueOnce(structuredClone(PAGE));
     const w = mount(PublicChore);
     await flushPromises();
 
+    // Click the 10 July cell (open Sweep shift), then Take it on.
+    await w.find('button[aria-label="10"]').trigger("click");
     await w.findAll("button").find((b) => b.text() === "Take it on")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");
