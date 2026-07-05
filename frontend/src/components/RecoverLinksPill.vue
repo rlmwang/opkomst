@@ -129,16 +129,24 @@ async function confirmCopy() {
 </template>
 
 <style scoped>
+/* The pill is a <button> for a11y; neutralise only the UA button chrome
+ * that .count-pill doesn't set itself (font/color), so it renders
+ * pixel-identical to the read-only pills — border, background, and
+ * padding all still come from the shared .count-pill class. */
 .rlp-pill {
   cursor: pointer;
-  border: none;
   font: inherit;
+  color: inherit;
+  text-align: center;
 }
 .rlp-list {
   min-width: 16rem;
   max-width: 22rem;
   max-height: 20rem;
   overflow-y: auto;
+  /* Keep the scrollbar off the per-row copy buttons. */
+  padding-right: 0.75rem;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;

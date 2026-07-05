@@ -12,7 +12,7 @@
     "open": "View signups",
     "empty": "No signups yet.",
     "anonymous": "Anonymous",
-    "copy": "Copy secret edit link",
+    "copy": "Mint and copy a new secret link (the old one stops working)",
     "recoveredMark": "🔑",
     "recoveredOn": "Link copied on {date}",
     "confirmTitle": "Copy secret link?",

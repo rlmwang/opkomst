@@ -12,7 +12,7 @@
     "open": "Aanmeldingen bekijken",
     "empty": "Nog geen aanmeldingen.",
     "anonymous": "Anoniem",
-    "copy": "Kopieer geheime bewerklink",
+    "copy": "Nieuwe geheime link maken en kopiëren (de oude vervalt)",
     "recoveredMark": "🔑",
     "recoveredOn": "Link gekopieerd op {date}",
     "confirmTitle": "Geheime link kopiëren?",
