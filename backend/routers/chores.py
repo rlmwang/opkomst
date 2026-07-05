@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import Roster, User
+from ..models import Chore, Enrollment, Roster, Shift, User, Volunteer
 from ..schemas.chores import (
     ChoreAccountabilityOut,
     ChoreCalendarOut,
@@ -29,6 +29,7 @@ from ..schemas.chores import (
     RosterOut,
     RosterUpdate,
     ScheduleOut,
+    ShiftReassignIn,
     VolunteerSummaryOut,
 )
 from ..services import access, chore_tick, crud
@@ -198,6 +199,53 @@ def rebalance_roster(
     chore_tick.rebalance_roster(db, roster, now_wallclock().date())
     logger.info("roster_rebalanced", roster_id=roster.id, actor_id=user.id)
     return chores_svc.to_out(db, roster)
+
+
+@router.post("/{roster_id}/shifts/{shift_id}/reassign", status_code=204)
+@limiter.limit(Limits.ORG_WRITE)
+def reassign_shift(
+    request: Request,
+    roster_id: str,
+    shift_id: str,
+    data: ShiftReassignIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> None:
+    """Hand a pinned shift to a chosen volunteer — the organiser-side
+    "overnemen" on the roster calendar. Mirrors the public claim/cover
+    semantics: taking an open shift records ``claimed``, taking over
+    another's confirmed shift records ``covered`` (+1 favour credit either
+    way). The past is frozen and done/missed shifts can't change hands;
+    the new assignee must be enrolled in the shift's chore."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    shift = (
+        db.query(Shift)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(Shift.id == shift_id, Chore.roster_id == roster.id)
+        .first()
+    )
+    if shift is None:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    if shift.on_date < now_wallclock().date() or shift.status not in ("scheduled", "open"):
+        raise HTTPException(status_code=409, detail="This shift can no longer change hands")
+    volunteer = db.query(Volunteer).filter(Volunteer.id == data.volunteer_id, Volunteer.roster_id == roster.id).first()
+    enrolled = volunteer is not None and (
+        db.query(Enrollment)
+        .filter(Enrollment.volunteer_id == volunteer.id, Enrollment.chore_id == shift.chore_id)
+        .first()
+        is not None
+    )
+    if volunteer is None or not enrolled:
+        raise HTTPException(status_code=409, detail="That volunteer isn't enrolled in this chore")
+    if shift.volunteer_id == volunteer.id:
+        return  # already theirs — nothing to change
+    kind = "covered" if shift.volunteer_id is not None else "claimed"
+    chore_tick.record_event(db, roster_id=roster.id, volunteer_id=volunteer.id, kind=kind, shift_id=shift.id)
+    shift.volunteer_id = volunteer.id
+    shift.status = "scheduled"
+    shift.reminder_sent_at = None
+    db.commit()
+    logger.info("shift_reassigned", roster_id=roster.id, actor_id=user.id)
 
 
 @router.get("/{roster_id}/calendar", response_model=list[ChoreCalendarOut])

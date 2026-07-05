@@ -8,9 +8,10 @@
  * tentative days dashed, changed days ringed.
  *
  * Any assignment carrying an ``action`` makes its day tappable, opening a
- * popover with that action's button (organiser view passes none → read-only;
- * the public view attaches claim/cover). While a popover is open every other
- * day is inert — a click only dismisses it.
+ * popover. The default popover renders one button per action (the public
+ * view's claim/cover); the ``popover`` slot lets a caller render its own
+ * content instead (the organiser's hand-over pickers). While a popover is
+ * open every other day is inert — a click only dismisses it.
  */
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import MonthGrid from "./MonthGrid.vue";
@@ -25,6 +26,7 @@ export interface RosterAssignment {
   name: string | null; // assignee pseudonym; null = open slot
   open: boolean;
   status: string; // scheduled | done | missed
+  choreId?: string; // set by callers whose popover needs the chore (organiser hand-over)
   action?: RosterAction;
 }
 export interface RosterDay {
@@ -112,9 +114,11 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
         </li>
       </ul>
       <div v-if="openIso === iso" class="rcv-pop" @click.stop>
-        <button v-for="(a, j) in openActions" :key="j" type="button" class="btn" :disabled="busy" @click="doAct(a)">
-          {{ a.label }}
-        </button>
+        <slot name="popover" :iso="iso" :assignments="daysByIso[iso]?.assignments ?? []" :close="close">
+          <button v-for="(a, j) in openActions" :key="j" type="button" class="btn" :disabled="busy" @click="doAct(a)">
+            {{ a.label }}
+          </button>
+        </slot>
       </div>
     </template>
   </MonthGrid>

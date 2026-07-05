@@ -708,6 +708,11 @@ DELETE /chores/{id}                         hard-delete (archived only)
 GET    /chores/{id}/volunteers              roster of volunteers + load + pending flag (NO email)
 GET    /chores/{id}/schedule                confirmed (pinned) + outlook (projected) shifts
                                             + assignees + completion stats
+POST   /chores/{id}/shifts/{shift_id}/reassign
+                                            hand a pinned shift to a chosen enrolled
+                                            volunteer (organiser "overnemen" from the
+                                            calendar; records claimed/covered like the
+                                            public actions)
 ```
 
 Public side (`routers/chores_public.py`, no auth):

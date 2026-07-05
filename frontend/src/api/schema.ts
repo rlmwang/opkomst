@@ -907,6 +907,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/shifts/{shift_id}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign Shift
+         * @description Hand a pinned shift to a chosen volunteer — the organiser-side
+         *     "overnemen" on the roster calendar. Mirrors the public claim/cover
+         *     semantics: taking an open shift records ``claimed``, taking over
+         *     another's confirmed shift records ``covered`` (+1 favour credit either
+         *     way). The past is frozen and done/missed shifts can't change hands;
+         *     the new assignee must be enrolled in the shift's chore.
+         */
+        post: operations["reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chores/{roster_id}/volunteers": {
         parameters: {
             query?: never;
@@ -3909,6 +3934,15 @@ export interface components {
             chapter_ids: string[];
         };
         /**
+         * ShiftReassignIn
+         * @description Organiser hand-over from the roster calendar: the volunteer who
+         *     takes over a pinned shift.
+         */
+        ShiftReassignIn: {
+            /** Volunteer Id */
+            volunteer_id: string;
+        };
+        /**
          * SignupAck
          * @description Public response after a successful signup. Returns nothing
          *     identifying — just confirms the booking landed, plus the secret
@@ -5676,6 +5710,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ScheduleOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+                shift_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShiftReassignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

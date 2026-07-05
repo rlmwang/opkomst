@@ -364,6 +364,13 @@ class ChoreCalendarOut(BaseModel):
     days: list[CalendarDayOut]
 
 
+class ShiftReassignIn(BaseModel):
+    """Organiser hand-over from the roster calendar: the volunteer who
+    takes over a pinned shift."""
+
+    volunteer_id: str
+
+
 class ScheduleShiftOut(BaseModel):
     """One upcoming shift on the organiser schedule view. ``assignee_name``
     is the volunteer's pseudonym (NULL for an open/unassigned shift)."""

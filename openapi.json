@@ -4366,6 +4366,20 @@
         "title": "SetUserChaptersRequest",
         "type": "object"
       },
+      "ShiftReassignIn": {
+        "description": "Organiser hand-over from the roster calendar: the volunteer who\ntakes over a pinned shift.",
+        "properties": {
+          "volunteer_id": {
+            "title": "Volunteer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "volunteer_id"
+        ],
+        "title": "ShiftReassignIn",
+        "type": "object"
+      },
       "SignupAck": {
         "description": "Public response after a successful signup. Returns nothing\nidentifying \u2014 just confirms the booking landed, plus the secret\nedit-link token (shown once so the page can render the magic\nedit link; never stored raw, never recoverable).",
         "properties": {
@@ -7510,6 +7524,77 @@
           }
         },
         "summary": "Get Schedule",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
+    "/api/v1/chores/{roster_id}/shifts/{shift_id}/reassign": {
+      "post": {
+        "description": "Hand a pinned shift to a chosen volunteer \u2014 the organiser-side\n\"overnemen\" on the roster calendar. Mirrors the public claim/cover\nsemantics: taking an open shift records ``claimed``, taking over\nanother's confirmed shift records ``covered`` (+1 favour credit either\nway). The past is frozen and done/missed shifts can't change hands;\nthe new assignee must be enrolled in the shift's chore.",
+        "operationId": "reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "shift_id",
+            "required": true,
+            "schema": {
+              "title": "Shift Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShiftReassignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reassign Shift",
         "tags": [
           "chores"
         ]

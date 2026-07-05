@@ -277,6 +277,7 @@ function dateWindow(): string {
           </div>
           <RosterCalendar
             :roster-id="props.rosterId"
+            reassignable
             :locale="locale"
             :open-label="t('chores.details.openShift')"
             :anon-label="t('chores.details.anonymous')"
