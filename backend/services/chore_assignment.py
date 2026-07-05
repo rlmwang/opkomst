@@ -142,3 +142,45 @@ def assign_occurrence(
     scored = {v: _score(v, chore_id, on_date, weights.get(v, 1.0)) for v in pool}
     ranked = sorted(pool, key=lambda v: (-scored[v], v))
     return ranked[:count]
+
+
+def assign_date(
+    demands: Iterable[tuple[str, Iterable[str], int]],
+    weights: Mapping[str, float],
+    *,
+    on_date: date,
+) -> dict[str, list[str]]:
+    """Jointly assign every chore occurring on one date, so nobody draws
+    two different chores on the same day while another eligible volunteer
+    is free (design §7 same-day de-collision). ``demands`` is one
+    ``(chore_id, eligible_ids, count)`` triple per chore.
+
+    Greedy matching over the same per-``(volunteer, chore, date)`` scores
+    as ``assign_occurrence``: every eligible pair, ranked by
+    ``(-score, volunteer_id, chore_id)``, is taken while its chore has
+    unfilled slots and the volunteer holds no assignment on this date.
+    A second pass refills any shortfall admitting already-booked
+    volunteers (never twice on the same chore) — coverage beats strict
+    no-collision, so a slot stays unfilled only when no eligible
+    volunteer remains at all. Per chore, acquisition order is the slot
+    index (rank == slot).
+
+    Deterministic, invariant to input order, and identical to
+    ``assign_occurrence`` when a single chore occurs on the date.
+    """
+    specs = [(chore_id, set(eligible), count) for chore_id, eligible, count in demands]
+    pairs = sorted(
+        ((v, cid) for cid, pool, count in specs if count > 0 for v in pool),
+        key=lambda vc: (-_score(vc[0], vc[1], on_date, weights.get(vc[0], 1.0)), vc[0], vc[1]),
+    )
+    need = {cid: max(count, 0) for cid, _, count in specs}
+    out: dict[str, list[str]] = {cid: [] for cid, _, _ in specs}
+    busy: set[str] = set()
+    for v, cid in pairs:
+        if len(out[cid]) < need[cid] and v not in busy:
+            out[cid].append(v)
+            busy.add(v)
+    for v, cid in pairs:
+        if len(out[cid]) < need[cid] and v not in out[cid]:
+            out[cid].append(v)
+    return out

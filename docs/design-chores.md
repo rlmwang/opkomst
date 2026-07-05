@@ -315,7 +315,7 @@ assignment is a **pure function** whose result depends on *only* these four inpu
    history enters, see the ledger below);
 4. the count `people_per_shift`.
 
-It depends on **nothing else**: not `today`, not any other occurrence, not the iteration
+It depends on **nothing else**: not `today`, not any other date, not the iteration
 order, not the database, not the wall clock, not an RNG. The hash `H` and the tie-break (by
 `v.id`) are fixed constants *of* the function, not inputs. Two properties fall out and are
 asserted directly in tests: the result is **invariant to the order** of the eligible list
@@ -325,6 +325,27 @@ and machines (a fixed, non-salted hash over stable ids). All impure work, resolv
 handed to the pure core as a plain id-set plus a `{id: weight}` map. That boundary is the
 point: the core has a tiny, fully-enumerated input surface we can exhaustively test, and
 everything stateful is pushed into one thin, separately-tested resolver.
+
+**Same-day de-collision (joint assignment per date).** Chores are *not* assigned
+independently of each other: all chores occurring on one date are assigned **jointly**
+(`assign_date`) by a greedy matching over the same per-`(volunteer, chore, date)` scores —
+every eligible pair, ranked by `(-score, volunteer_id, chore_id)`, is taken while its chore
+has unfilled slots and the volunteer holds no assignment on the date; a second pass refills
+any shortfall admitting already-booked volunteers (never twice on the same chore). So
+nobody draws two different chores on the same day while another eligible volunteer is
+free, and a slot goes unfilled only when no eligible volunteer remains at all — coverage
+beats strict no-collision. The **date** (not the window) is the assignment unit, so the
+projection stays window-independent and projectable to infinity, and confirmed and outlook
+still read one oracle. When a single chore occurs on a date this degenerates to the plain
+top-`count` ranking above, with every WRH property intact. The single-shift re-cover path
+(`reassign_shift`, used when a volunteer is removed) honours the same rule softly: it
+prefers the highest-ranked eligible volunteer with no other shift that date, falling back
+to a busy one over leaving the slot open.
+
+*Known limitation, documented not hidden:* the matching does not globally level *aggregate*
+load across chores — a volunteer enrolled in three chores carries roughly three expected
+shares. That is what per-chore enrolment means; the favour ledger remains the equalizer
+over realised imbalance.
 
 ### Fairness (equal expected share + a favour ledger)
 
@@ -344,14 +365,6 @@ function of current state (predictable *given* that state, and self-correcting a
 ledger moves), while the commit horizon is frozen. The fairness function stays **pure over
 its inputs** (eligible set, availability, ledger, and the occurrence key), so it is
 exhaustively unit-testable without any RNG seed.
-
-*Known limitations, documented not hidden:* WRH scores each `(chore, date)` independently
-across chores (within one chore/date the top-`count` are distinct, so no one is double-
-booked on the *same* chore). It does not by itself prevent one volunteer drawing two
-*different* chores on the same day, nor globally balance load *across* chores. Both are
-acceptable for v1; if needed they become a deterministic de-collision pass applied **only
-at pinning time** (inside the window, where we have the full near-term picture), never in
-the infinite projection.
 
 ### Folding in new volunteers (bounded, predictable)
 
@@ -416,6 +429,7 @@ test each judgement in isolation and reason locally about the system.
 | `net_credit` | list of `(kind, volunteer_id)` events | `{id: int}` |
 | `weight_from_ledger` | net credit | float (clamped) |
 | `assign_occurrence` | occurrence key, eligible set, weights, count | ranked ids (rank == slot) |
+| `assign_date` | date, per-chore `(id, eligible set, count)`, weights | `{chore: ranked ids}` (same-day de-collision) |
 | `reconcile` | existing pins (value objects), projected assignments, `today` | `Diff{insert, prune, keep}` |
 | `reminder_due` | shift (date/status/reminded/assignee-has-email), roster (days-before/enabled/hour), `now` | bool |
 | `summarize_accountability` | list of `(kind, volunteer_id)` events | per-volunteer counts |

@@ -52,6 +52,29 @@ def test_project_assigns_distinct_volunteers_per_occurrence():
     assert len(vids) == 2 and None not in vids  # two distinct for two slots
 
 
+def test_project_decollides_chores_sharing_a_day():
+    specs = [ChoreSpec("c1", (2,), 1), ChoreSpec("c2", (2,), 1)]
+    elig = {"c1": ["a", "b"], "c2": ["a", "b"]}
+    occ = occurrences_between(specs, period_weeks=1, starts_on=MON, ends_on=None, start=MON, end=date(2026, 3, 2))
+    by_date: dict[date, list[str | None]] = {}
+    for p in project(occ, elig, {}):
+        by_date.setdefault(p.occurrence.on_date, []).append(p.volunteer_id)
+    assert by_date and all(set(v) == {"a", "b"} for v in by_date.values())
+
+
+def test_project_is_window_independent():
+    # Projecting a date alone gives the same assignments as projecting it
+    # inside any larger window — pinning day-by-day and the whole-window
+    # outlook agree.
+    specs = [ChoreSpec("c1", (2,), 1), ChoreSpec("c2", (2, 4), 1)]
+    elig = {"c1": ["a", "b", "c"], "c2": ["a", "b", "c"]}
+    occ = occurrences_between(specs, period_weeks=1, starts_on=MON, ends_on=None, start=MON, end=date(2026, 3, 2))
+    whole = {(p.occurrence.chore_id, p.occurrence.on_date): p.volunteer_id for p in project(occ, elig, {})}
+    for d in {o.on_date for o in occ}:
+        for p in project([o for o in occ if o.on_date == d], elig, {}):
+            assert whole[(p.occurrence.chore_id, p.occurrence.on_date)] == p.volunteer_id
+
+
 def test_project_is_order_independent():
     specs = [ChoreSpec("c", (2,), 1)]
     occ = occurrences_between(specs, period_weeks=1, starts_on=MON, ends_on=None, start=MON, end=date(2026, 2, 2))

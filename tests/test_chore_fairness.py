@@ -10,7 +10,7 @@ import random
 from collections import Counter
 from datetime import date, timedelta
 
-from backend.services.chore_assignment import assign_occurrence, net_credit, weight_from_ledger
+from backend.services.chore_assignment import assign_date, assign_occurrence, net_credit, weight_from_ledger
 
 ELIG = ["alice", "bob", "carol", "dave"]
 CHORE = "chore-x"
@@ -108,6 +108,47 @@ def test_remove_moves_only_the_leavers_shifts():
     # Only the dates erin used to win change; everyone else is untouched.
     assert all(before[d] == "erin" for d in changed)
     assert all(after[d] == before[d] for d in dates if before[d] != "erin")
+
+
+# --- Same-day de-collision (assign_date) ----------------------------------
+
+CHORES = ["c1", "c2", "c3"]
+
+
+def test_single_chore_matches_assign_occurrence():
+    for n in range(len(ELIG) + 1):
+        got = assign_date([(CHORE, ELIG, n)], {}, on_date=DAY)
+        assert got == {CHORE: assign_occurrence(ELIG, {}, chore_id=CHORE, on_date=DAY, count=n)}
+
+
+def test_no_same_day_double_booking_when_avoidable():
+    for d in _range(50):
+        got = assign_date([(c, ELIG, 1) for c in CHORES], {}, on_date=d)
+        picks = [v for vs in got.values() for v in vs]
+        assert len(picks) == len(CHORES) and len(set(picks)) == len(CHORES)
+
+
+def test_demand_and_pool_order_are_irrelevant():
+    base = assign_date([(c, ELIG, 1) for c in CHORES], {}, on_date=DAY)
+    for seed in range(10):
+        rng = random.Random(seed)
+        demands = [(c, rng.sample(ELIG, len(ELIG)), 1) for c in CHORES]
+        rng.shuffle(demands)
+        assert assign_date(demands, {}, on_date=DAY) == base
+
+
+def test_shortfall_double_books_rather_than_leaving_open():
+    got = assign_date([("c1", ["solo"], 1), ("c2", ["solo"], 1)], {}, on_date=DAY)
+    assert got == {"c1": ["solo"], "c2": ["solo"]}
+
+
+def test_never_twice_on_the_same_chore():
+    # c2 wants 3 people from a pool of 2 (both also eligible for c1): the
+    # refill pass double-books across chores but never within one, so c2's
+    # third slot stays open.
+    got = assign_date([("c1", ["a", "b"], 1), ("c2", ["a", "b"], 3)], {}, on_date=DAY)
+    assert len(got["c1"]) == 1
+    assert sorted(got["c2"]) == ["a", "b"]
 
 
 # --- Ledger weight -------------------------------------------------------

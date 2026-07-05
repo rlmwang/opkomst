@@ -98,6 +98,63 @@ def test_enrolled_volunteer_gets_assigned(db):
     assert all(s.volunteer_id == vol.id for s in scheduled)
 
 
+def _second_chore(db, roster, cycle_slots):
+    other = Chore(roster_id=roster.id, name="Mop", ordinal=2, cycle_slots=list(cycle_slots), people_per_shift=1)
+    db.add(other)
+    db.commit()
+    return other
+
+
+def _volunteers_in(db, roster, chores, names):
+    vols = [Volunteer(roster_id=roster.id, display_name=n, edit_token_hash=f"h{n}") for n in names]
+    db.add_all(vols)
+    db.commit()
+    db.add_all(Enrollment(volunteer_id=v.id, chore_id=c.id) for v in vols for c in chores)
+    db.commit()
+    return vols
+
+
+def test_two_chores_on_one_day_get_distinct_assignees(db):
+    # Wed + Fri, two chores, two volunteers in both: every date must split
+    # the pair, never stack both chores on one volunteer.
+    roster, chore = _roster(db, cycle_slots=(2, 4))
+    other = _second_chore(db, roster, (2, 4))
+    a, b = _volunteers_in(db, roster, [chore, other], ["A", "B"])
+    chore_tick.run_tick(db, TODAY)
+    by_date: dict[date, list[str]] = {}
+    for s in db.query(Shift).all():
+        by_date.setdefault(s.on_date, []).append(s.volunteer_id)
+    assert by_date and all(sorted(v) == sorted([a.id, b.id]) for v in by_date.values())
+
+
+def test_lone_volunteer_is_double_booked_rather_than_left_open(db):
+    roster, chore = _roster(db, cycle_slots=(2,))
+    other = _second_chore(db, roster, (2,))
+    (solo,) = _volunteers_in(db, roster, [chore, other], ["S"])
+    chore_tick.run_tick(db, TODAY)
+    shifts = db.query(Shift).all()
+    assert len(shifts) == 8  # 4 Wednesdays × 2 chores
+    assert all(s.status == "scheduled" and s.volunteer_id == solo.id for s in shifts)
+
+
+def test_cover_orphaned_prefers_a_volunteer_free_that_day(db):
+    roster, chore = _roster(db, cycle_slots=(2,))
+    other = _second_chore(db, roster, (2,))
+    _volunteers_in(db, roster, [chore, other], ["A", "B"])
+    chore_tick.run_tick(db, TODAY)
+    on_date = WEEKLY_WED[0]
+    mine = db.query(Shift).filter(Shift.chore_id == chore.id, Shift.on_date == on_date).one()
+    theirs = db.query(Shift).filter(Shift.chore_id == other.id, Shift.on_date == on_date).one()
+    freed = mine.volunteer_id
+    mine.volunteer_id = None
+    db.flush()
+    chore_tick.cover_orphaned_shifts(db, roster.id, TODAY)
+    db.expire_all()
+    # Re-covered by the volunteer with no other shift that day, not by
+    # whoever happens to top this chore's independent WRH ranking.
+    assert mine.volunteer_id == freed and mine.volunteer_id != theirs.volunteer_id
+
+
 def test_no_eligible_volunteer_leaves_shifts_open(db):
     _, chore = _roster(db, cycle_slots=(2,))
     chore_tick.run_tick(db, TODAY)

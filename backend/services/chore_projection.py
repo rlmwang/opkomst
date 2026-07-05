@@ -9,7 +9,7 @@ prune" logic is testable in isolation and reasoned about locally.
 - ``occurrences_between`` — the single "what exists" oracle, over
   ``recurrence.occurs_on``. Used by both the tick's pin step and the
   read-side outlook, so confirmed and outlook are the same enumeration.
-- ``project`` — maps each occurrence through ``assign_occurrence``.
+- ``project`` — assigns each date's occurrences jointly via ``assign_date``.
 - ``reconcile`` — where edit-correctness lives: given the pins that exist
   and the freshly-projected assignments, what to insert / prune / keep.
 """
@@ -18,7 +18,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from .chore_assignment import assign_occurrence
+from .chore_assignment import assign_date
 from .recurrence import occurs_on
 
 
@@ -100,23 +100,30 @@ def project(
     weights: Mapping[str, float],
     unavailable: Mapping[str, Sequence[tuple[date, date]]] | None = None,
 ) -> list[ProjectedAssignment]:
-    """Assign each occurrence via WRH. Slots of one ``(chore, date)`` are
-    filled by the top-ranked eligible volunteers who are **available** on
-    that date; surplus slots (more people than available) project to
-    ``None`` (open). ``unavailable`` maps volunteer id → inclusive away
-    ranges."""
+    """Assign each date's occurrences jointly via ``assign_date`` (WRH +
+    same-day de-collision), so one volunteer never draws two chores on the
+    same day while another eligible volunteer is free. Slots are filled by
+    the ranked eligible volunteers who are **available** on that date;
+    surplus slots (more people than available) project to ``None`` (open).
+    ``unavailable`` maps volunteer id → inclusive away ranges. The date is
+    the assignment unit, so the projection stays window-independent."""
     away = unavailable or {}
-    groups: dict[tuple[str, date], list[Occurrence]] = {}
+    by_date: dict[date, dict[str, list[Occurrence]]] = {}
     for occ in occurrences:
-        groups.setdefault((occ.chore_id, occ.on_date), []).append(occ)
+        by_date.setdefault(occ.on_date, {}).setdefault(occ.chore_id, []).append(occ)
 
     out: list[ProjectedAssignment] = []
-    for (chore_id, on_date), occs in groups.items():
-        occs.sort(key=lambda o: o.slot_index)
-        eligible = [v for v in eligible_by_chore.get(chore_id, []) if _available(v, on_date, away)]
-        ranked = assign_occurrence(eligible, weights, chore_id=chore_id, on_date=on_date, count=len(occs))
-        for i, occ in enumerate(occs):
-            out.append(ProjectedAssignment(occurrence=occ, volunteer_id=ranked[i] if i < len(ranked) else None))
+    for on_date, chores in by_date.items():
+        demands = [
+            (chore_id, [v for v in eligible_by_chore.get(chore_id, []) if _available(v, on_date, away)], len(occs))
+            for chore_id, occs in chores.items()
+        ]
+        assigned = assign_date(demands, weights, on_date=on_date)
+        for chore_id, occs in chores.items():
+            occs.sort(key=lambda o: o.slot_index)
+            ranked = assigned[chore_id]
+            for i, occ in enumerate(occs):
+                out.append(ProjectedAssignment(occurrence=occ, volunteer_id=ranked[i] if i < len(ranked) else None))
     return out
 
 

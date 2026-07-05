@@ -57,37 +57,47 @@ def ledger_weights(db: Session, roster_id: str) -> dict[str, float]:
     return {vid: weight_from_ledger(c) for vid, c in credit.items()}
 
 
-def _occupants(db: Session, chore_id: str, on_date: date, *, exclude_shift_id: str | None = None) -> set[str]:
-    """Volunteers already scheduled on other slots of one occurrence — so
-    we never double-book someone across two slots of the same shift."""
-    q = db.query(Shift.volunteer_id).filter(
-        Shift.chore_id == chore_id,
-        Shift.on_date == on_date,
-        Shift.status == "scheduled",
-        Shift.volunteer_id.is_not(None),
+def _day_assignments(
+    db: Session, roster_id: str, on_date: date, *, exclude_shift_id: str | None = None
+) -> list[tuple[str, str]]:
+    """``(volunteer_id, chore_id)`` for every scheduled shift of the
+    roster on one date — the same-day picture ``reassign_shift`` needs."""
+    q = (
+        db.query(Shift.volunteer_id, Shift.chore_id)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(
+            Chore.roster_id == roster_id,
+            Shift.on_date == on_date,
+            Shift.status == "scheduled",
+            Shift.volunteer_id.is_not(None),
+        )
     )
     if exclude_shift_id is not None:
         q = q.filter(Shift.id != exclude_shift_id)
-    return {row[0] for row in q.all()}
+    return [(vid, cid) for vid, cid in q.all()]
 
 
 def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None, kind: str = "assigned") -> str | None:
     """Assign a single ``open`` shift. Picks the highest WRH-ranked
-    eligible volunteer who is not excluded and not already on this
-    occurrence, records ``kind`` for them, and returns the chosen
-    volunteer id or ``None``. ``kind`` is ``assigned`` for a pass-reopen,
-    ``inherited`` when covering a departed volunteer's slot. Does not
-    commit."""
+    eligible volunteer who is not excluded, preferring one with no other
+    shift on this date (same-day de-collision, design §7); never someone
+    already on another slot of this occurrence. Records ``kind`` for the
+    chosen volunteer and returns their id, or ``None``. ``kind`` is
+    ``assigned`` for a plain re-cover, ``inherited`` when covering a
+    departed volunteer's slot. Does not commit."""
     chore = db.query(Chore).filter(Chore.id == shift.chore_id).first()
     if chore is None:
         return None
     eligible = [row[0] for row in db.query(Enrollment.volunteer_id).filter(Enrollment.chore_id == shift.chore_id).all()]
     if not eligible:
         return None
-    skip = set(exclude or set()) | _occupants(db, shift.chore_id, shift.on_date, exclude_shift_id=shift.id)
+    day = _day_assignments(db, chore.roster_id, shift.on_date, exclude_shift_id=shift.id)
+    skip = set(exclude or set()) | {vid for vid, cid in day if cid == shift.chore_id}
+    busy = {vid for vid, _ in day}
     weights = ledger_weights(db, chore.roster_id)
     ranked = assign_occurrence(eligible, weights, chore_id=shift.chore_id, on_date=shift.on_date, count=len(eligible))
-    chosen = next((v for v in ranked if v not in skip), None)
+    candidates = [v for v in ranked if v not in skip]
+    chosen = next((v for v in candidates if v not in busy), candidates[0] if candidates else None)
     if chosen is not None:
         shift.volunteer_id = chosen
         shift.status = "scheduled"
