@@ -1,123 +1,97 @@
-# Task 16 — Fair rotation: replace per-date WRH with a virtual-time fold
+# Task 16 — Fair rotation: virtual-time fold replaces per-date WRH
 
-**Layer:** backend (pure core + shell; no API/schema change, frontend untouched)
-**Depends on:** 15
+**Layer:** backend only (pure core + tick shell). No API/schema change, no frontend
+change, no migration.
+**Depends on:** 15 (landed).
+**Design:** `docs/design-chores.md` §7 "Deterministic assignment (virtual-time fair
+rotation)" — already rewritten; this task makes the code match it. Rationale and the
+measured WRH defects (turn clumping, non-proportional weights) live there, not here.
 
-## Problem, measured
+## The pure core (`backend/services/chore_assignment.py`)
 
-WRH scores every date independently, so one volunteer's turn dates are an i.i.d.
-sample: gaps are geometrically distributed, and clumping is *expected*, not rare.
-Simulated on the real `assign_occurrence` (4 volunteers, one weekly chore, 104
-occurrences):
+Delete WRH wholesale (rule #1): `_score`, `assign_occurrence`, `_TWO64`, the blake2b
+import. `net_credit`, `weight_from_ledger`, `summarize_accountability`, `CREDIT_SIGN`
+stay untouched — the ledger is unchanged.
 
-- **~20% of consecutive occurrences go to the same person** (back-to-back turns);
-- **max gaps of 17–19 weeks** — a volunteer does two in a row, then nothing for
-  four months. Exactly the reported behaviour, inherent to the algorithm.
+New, all pure (no DB, no clock, no RNG — history and state are just inputs):
 
-Worse, the favour-ledger weight is **not proportional** under WRH. A weight `w`
-against `L-1` unit-weight volunteers wins `∫ (min(wx,1))^(L-1) dx`, which is
-polynomial in the pool size, not `w/(w+L-1)`:
+- **State** is `dict[volunteer_id, float]` — the virtual clock `V`. Advancing volunteer
+  `v` does `V[v] += 1.0 / weights.get(v, 1.0)`.
+- **First touch seeds caught-up**: when an id first appears (as an eligible candidate or
+  as a fixed assignee), it enters the state at `min(state.values(), default=0.0)` — a
+  newcomer is owed nothing and owes nothing, no back-pay flood.
+- `assign_date(demands, state, weights) -> dict[chore_id, list[volunteer_id]]` — one
+  date, jointly. `demands` is `(chore_id, eligible_ids, count)` per chore, processed in
+  **scarcity order** (fewest eligible first, then `chore_id`). Each slot picks
+  `argmin (V[v], v)` over eligible volunteers not yet busy this date and advances the
+  winner; a refill pass admits busy volunteers (never twice on the same chore) rather
+  than leaving a slot open. Mutates `state` (callers thread it through the fold).
+- `fold(days, state, weights) -> list[ProjectedAssignment]` (lives in
+  `chore_projection.py`, replacing `project`) — walks `days` in date order. Each day
+  carries the date's **fixed** assignments (already-materialised `occurrence → assignee`)
+  and its **free** occurrences (enumerated by the pattern, no row yet). Per day: first
+  advance every fixed assignee's clock and mark them busy, then `assign_date` the free
+  slots. Returns assignments for every occurrence — fixed ones echo their assignee — so
+  `reconcile` keeps its current contract unchanged.
 
-| pool L | weight 0.5 gets | should get | weight 2.0 gets | should get |
-|---|---|---|---|---|
-| 3 | 8.3% | 20% | 67% | 50% |
-| 4 | 3.1% | 14% | 62% | 40% |
-| 6 | 0.5% | 9% | 58% | 29% |
+Decisions an implementer needs, made here:
 
-The "gentle, bounded tilt" (§7) is actually near-starvation/saturation: one
-covered shift (credit +1 → weight 0.9) shifts a 6-person share from 16.7% to
-~9%, so the self-correction wildly overshoots and then oscillates.
+- **Fixed rows replay even when the pattern no longer produces them.** The fixed stream
+  comes from actual `Shift` rows, merged into the day walk by `on_date`, independent of
+  the current pattern. A pattern edit therefore never un-counts work already promised
+  or done.
+- **Shift rows, not ShiftEvents, drive the clocks.** Rebalance deletes un-acted pins;
+  their orphaned `assigned` events (shift_id SET NULL) must not keep phantom clock
+  advances alive. Events remain the ledger's source only.
+- **Ghost assignees are harmless.** A fixed row whose assignee has left still advances
+  that id's clock; the id is never eligible, so it is never picked. No filtering.
+- **Availability** applies only to free picks (a fixed row is a commitment already made).
+- **Ties** on `V` break by `volunteer_id`. Ties exist at cold start and immediately
+  separate; no hash needed anywhere.
 
-## Alternatives considered
+## The shell (`backend/services/chore_tick.py`, `backend/services/chores.py`)
 
-1. **Strict round robin over the occurrence index** (`k mod L`): perfect spacing,
-   but any join/leave/pattern edit renumbers the whole future — the churn the
-   §7 redesign was built to avoid — and weights don't fit.
-2. **Low-discrepancy sequences** (golden-ratio phases per volunteer): good
-   spacing, but index-based like (1), same churn, and weight support is awkward.
-3. **Smoothing pass at pin time only**: keeps WRH for the outlook, fixes spacing
-   only inside the window → confirmed and outlook stop reading one oracle (the
-   same reason task 15 rejected pin-time de-collision), and the weight
-   distortion stays.
-4. **Virtual-time fair scheduling** (stride scheduling / WFQ; the smooth-WRR
-   family used by nginx and OS schedulers): assignment becomes a **date-ordered
-   fold**. Each volunteer carries a virtual time `V`; each occurrence goes to
-   the eligible, same-day-free volunteer with the lowest `(V, volunteer_id)`,
-   whose `V` then advances by `1/weight`. **Chosen.**
-
-Simulated on the real shape (two chores, Wed+Fri, 4 volunteers, one at weight
-0.5, 312 occurrences): **zero** back-to-back turns, max gap 12 days (19 for the
-half-weight volunteer — by design, they're owed a rest), and shares land exactly
-proportional (0.144 vs expected 0.143; others 0.285 vs 0.286). Same result on
-the single-chore case: max gap 4 occurrences instead of 19.
-
-## Design
-
-### The pure core (`chore_assignment.py`, replacing WRH wholesale — rule #1)
-
-The fold is exactly as pure as the per-date rule was — deterministic over plain values,
-no DB, no clock, no RNG. Materialised history and the rotation state are simply more
-*inputs*; nothing about the purity boundary or the testing story changes.
-
-- `RotationState = dict[volunteer_id, float]` — virtual time per volunteer.
-- One pick: `argmin (V[v], v)` over the candidates; winner's `V += 1/weight(v)`
-  (weight from the ledger as today, default 1.0). Deterministic; ties only at
-  cold start and resolve by id, after which `V`s separate.
-- `assign_date(demands, state, weights, ...)`: slots of one date are picked in
-  scarcity order (fewest eligible first, then chore_id), each excluding
-  volunteers already busy that date; a refill pass admits busy volunteers rather
-  than leaving a slot open (task 15 semantics, unchanged). Because `V` is
-  **global per volunteer across chores**, the fold also spaces one person's
-  turns *across* chores and converges everyone's total load — the aggregate
-  cross-chore balancing §7 listed as out of scope falls out for free.
-- `fold(dated occurrences, fixed, eligible_by_chore, weights, state)`: walk dates
-  in order; an occurrence present in `fixed` (a frozen past shift or a kept pin)
-  just advances its actual assignee's `V`; the rest are picked. Returns the
-  assignments for the free occurrences.
-
-### The shell (`chore_tick.py` / `chores.py` service)
-
-- `project_range` seeds the fold with **reality**: every existing Shift row with
-  an assignee (frozen past + pinned window, whatever their provenance — WRH
-  history, claims, covers, organiser hand-overs) enters as `fixed`, from
-  `roster.starts_on` up to the projection end. Past eligibility history is a
-  non-issue: past dates are always `fixed` rows. Someone who just covered three
-  shifts has a high `V` and is automatically rested — the fold *is* short-term
-  self-correction, while the ledger keeps the long-term share tilt.
-- The tick/reconcile/rebalance pipeline is unchanged: pins are honoured, the
-  fold treats them as fixed points, so pinning day-by-day and the whole-window
-  outlook still agree (the window-independence test becomes a **prefix
-  consistency** test: folding `[a,c]` equals folding `[a,b]` then `[b,c]`).
-- `reassign_shift` (leaver re-cover) ranks by the folded `V` at the shift's date
-  instead of a WRH ranking; same free-that-day preference.
-- A brand-new volunteer first appears in the fold at the projection start with
-  `V = ` the pool's current minimum — no back-pay flood; they take their first
-  turn within about one rotation, and still enter pins only as the horizon
-  rolls (or via "Rebalance now"), exactly as §7 promises.
-
-### The honest trade-off (this reverses a §7 decision — say so in the doc)
-
-WRH's rendezvous property meant a join/leave moved only ~`1/(L+1)` of future
-*dates*. A sequential fold reshuffles the **tentative** zone more broadly after
-a membership or pattern change. What actually matters is protected regardless:
-the commit horizon is pinned and never reshuffles, the outlook is explicitly
-labelled "may change", and a newcomer's fold-in stays bounded. We trade
-stability of the far tentative outlook for correct spacing and truly
-proportional fairness — the product promise ("dividing chores fairly and
-evenly") is the latter.
-
-`docs/design-chores.md` §7 is rewritten accordingly: assignment section, the
-fairness section (proportional weights — the `[0.5, 2.0]` clamp finally means
-"half share … double share"), minimal-disruption paragraph, pure-core table.
+- `project_range(db, roster, chores, start, end)` keeps its signature and its role as the
+  one oracle, but folds **from `roster.starts_on`**, not from `start`: enumerate free
+  occurrences over `[starts_on, end]`, load all of the roster's assignee-bearing `Shift`
+  rows once as the fixed stream, fold, return only the assignments in `[start, end]`.
+  Linear in days-since-start plus rows; rosters are small, no capping.
+- `reassign_shift` (leaver re-cover, organiser hand-over fallback) replaces its WRH
+  ranking: fold up to and including the shift's date (this shift's own row excluded from
+  fixed), then pick the lowest-clock eligible volunteer not excluded, preferring one with
+  no other shift that date, falling back to a busy one over leaving it open. Event kinds
+  unchanged.
+- Tick, `reconcile`, `rebalance_core`, activation: **no changes**. Rebalance already
+  deletes un-acted pins before re-projecting; with pins gone from the fixed stream the
+  fold reassigns them from fresh clocks, which is exactly the intended "fold pending
+  volunteers in now".
+- `chores.py` read-side (`chore_calendar`, `_personal_outlook`, `rebalance_preview_calendar`)
+  all sit on `project_range` and need no changes.
 
 ## Tests
 
-- Rewrite `tests/test_chore_fairness.py` for the fold: determinism, input-order
-  invariance, **no back-to-back turns when `L ≥ 3`** on a weekly chore, **max
-  gap ≤ 2·rotation**, exact-share convergence for weighted volunteers (±10%),
-  same-day de-collision + shortfall (kept from task 15), prefix consistency.
-- `test_chore_projection.py`: window tests become prefix-consistency tests;
-  fixed rows advance the state (a volunteer with many fixed turns is rested).
-- `test_chore_tick.py`: pins honoured; newcomer folds in without a flood;
-  existing scenario tests re-anchored (assignments change — they must, that's
-  the point).
+- `tests/test_chore_fairness.py` — rewrite the assignment half for the fold (ledger fold
+  tests stay): determinism + input-order invariance; **even spacing** (weekly chore, 4
+  volunteers, long run: never the same volunteer twice in a row, max gap ≤ pool size + 1);
+  **proportional shares** (weight 0.5 lands `w/Σw` ± 10% — pin the old
+  ~`w^(L-1)` distortion dead); **prefix consistency** (fold `[a,c]` == fold `[a,b]`, then
+  continue over `(b,c]` from the returned state); fixed rows advance clocks (a volunteer
+  with many materialised turns is rested next); newcomer seeds at pool-min (first turn
+  within one rotation, nobody else's next turn moves earlier); same-day de-collision +
+  shortfall double-booking + never-twice-on-one-chore (ported from task 15's tests);
+  ghost assignee is a no-op for eligibility.
+- `tests/test_chore_projection.py` — `test_project_is_window_independent` becomes the
+  prefix-consistency test; keep de-collision; add: an occurrence with a fixed assignee is
+  echoed, not recomputed.
+- `tests/test_chore_tick.py` — scenarios re-anchor to the new assignments where they
+  asserted specific assignees (they must change — that is the point); pins are honoured
+  across ticks (running the tick daily over a fortnight never flips a pinned assignee);
+  a covered shift visibly rests the coverer (their next projected turn moves later than
+  the pre-cover projection).
+- `tests/test_shift_events.py`, `test_chore_membership.py`, `test_chores_public.py` —
+  behaviourally unchanged; fix any assignment-specific anchoring only.
+
+## Landing
+
+Suite green, `uv run ruff check backend tests`, no `make openapi` needed (no route or
+schema change). Flip the README row to *landed* and delete this file in the feat commit.
