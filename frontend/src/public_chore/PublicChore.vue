@@ -548,7 +548,7 @@ h1 { margin: 0; }
 h2 { margin: 0; font-size: 1.1rem; }
 .chore-check {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.625rem;
   cursor: pointer;
   padding: 0.75rem;
