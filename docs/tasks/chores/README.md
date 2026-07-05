@@ -35,7 +35,7 @@ volunteers fold in within a bounded horizon. Ship in order; each leaves the suit
 | 13 | Membership change: removal re-cover, addition fold-in, disruption credit *(landed; removal reflow lives in `chore_tick.cover_orphaned_shifts`; spec deleted)* | backend (+FE) | 11, 12 |
 | 14 | Accountability: regular turns vs picked-up-for-others *(landed; spec deleted)* | backend + frontend | 09, 12, 13 |
 | 15 | Same-day de-collision: joint assignment per date *(landed; spec deleted)* | backend | 10, 11 |
-| 16 | [Fair rotation: virtual-time fold replaces per-date WRH](16-fair-rotation.md) | backend | 15 |
+| 16 | Fair rotation: virtual-time fold replaces per-date WRH *(landed; spec deleted)* | backend | 15 |
 
 **Already well-factored (the specs just reuse these — no work):** `useShareClipboard`,
 `useImageUpload(resource)` + `image_svc.replace_entity_image(folder)`, the page shells

@@ -9,7 +9,9 @@ prune" logic is testable in isolation and reasoned about locally.
 - ``occurrences_between`` — the single "what exists" oracle, over
   ``recurrence.occurs_on``. Used by both the tick's pin step and the
   read-side outlook, so confirmed and outlook are the same enumeration.
-- ``project`` — assigns each date's occurrences jointly via ``assign_date``.
+- ``fold`` — the virtual-time fair rotation: walks the dates in order,
+  replaying materialised (fixed) assignments into the clocks and picking
+  the free slots via ``assign_date``.
 - ``reconcile`` — where edit-correctness lives: given the pins that exist
   and the freshly-projected assignments, what to insert / prune / keep.
 """
@@ -18,7 +20,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from .chore_assignment import assign_date
+from .chore_assignment import RotationState, advance, assign_date, touch
 from .recurrence import occurs_on
 
 
@@ -94,36 +96,78 @@ def _available(volunteer_id: str, on_date: date, unavailable: Mapping[str, Seque
     return not any(lo <= on_date <= hi for lo, hi in unavailable.get(volunteer_id, ()))
 
 
-def project(
+def fold(
     occurrences: Iterable[Occurrence],
+    fixed: Mapping[Occurrence, str | None],
     eligible_by_chore: Mapping[str, Sequence[str]],
     weights: Mapping[str, float],
     unavailable: Mapping[str, Sequence[tuple[date, date]]] | None = None,
+    state: RotationState | None = None,
 ) -> list[ProjectedAssignment]:
-    """Assign each date's occurrences jointly via ``assign_date`` (WRH +
-    same-day de-collision), so one volunteer never draws two chores on the
-    same day while another eligible volunteer is free. Slots are filled by
-    the ranked eligible volunteers who are **available** on that date;
-    surplus slots (more people than available) project to ``None`` (open).
-    ``unavailable`` maps volunteer id → inclusive away ranges. The date is
-    the assignment unit, so the projection stays window-independent."""
+    """The virtual-time fair rotation (design §7). Walks the union of
+    enumerated occurrences and ``fixed`` (materialised ``occurrence →
+    assignee``) in date order. Per date: every fixed assignee's clock
+    advances and they count as busy — history is an input, never
+    recomputed, and it replays even when a pattern edit no longer
+    produces its occurrence (such rows advance clocks but are not
+    echoed, so ``reconcile`` can still prune them). The remaining free
+    slots are picked by ``assign_date`` among the volunteers **available**
+    that date; surplus slots project to ``None`` (open).
+
+    Prefix-consistent: pass ``state`` back in to continue a fold from
+    where a previous one stopped — folding ``[a, c]`` equals folding
+    ``[a, b]`` and continuing over ``(b, c]``.
+    """
     away = unavailable or {}
-    by_date: dict[date, dict[str, list[Occurrence]]] = {}
-    for occ in occurrences:
-        by_date.setdefault(occ.on_date, {}).setdefault(occ.chore_id, []).append(occ)
+    clocks: RotationState = state if state is not None else {}
+    enumerated = list(occurrences)
+    free_by_date: dict[date, dict[str, list[Occurrence]]] = {}
+    for occ in enumerated:
+        if occ not in fixed:
+            free_by_date.setdefault(occ.on_date, {}).setdefault(occ.chore_id, []).append(occ)
+    fixed_by_date: dict[date, list[Occurrence]] = {}
+    for occ in fixed:
+        fixed_by_date.setdefault(occ.on_date, []).append(occ)
+    enumerated_set = set(enumerated)
 
     out: list[ProjectedAssignment] = []
-    for on_date, chores in by_date.items():
+    for on_date in sorted(free_by_date.keys() | fixed_by_date.keys()):
+        # Everyone eligible on this date enters the rotation *now* (seeded
+        # caught-up), before any of the date's rows advance a clock: being
+        # in the pool starts your clock, being picked advances it.
+        day_chores = {o.chore_id for o in fixed_by_date.get(on_date, ())} | free_by_date.get(on_date, {}).keys()
+        for cid in sorted(day_chores):
+            for v in eligible_by_chore.get(cid, ()):
+                touch(clocks, v)
+        busy: set[str] = set()
+        taken_by_chore: dict[str, set[str]] = {}
+        for occ in sorted(fixed_by_date.get(on_date, ()), key=lambda o: (o.chore_id, o.slot_index)):
+            assignee = fixed[occ]
+            if assignee is not None:
+                advance(clocks, assignee, weights)
+                busy.add(assignee)
+                taken_by_chore.setdefault(occ.chore_id, set()).add(assignee)
+            if occ in enumerated_set:
+                out.append(ProjectedAssignment(occurrence=occ, volunteer_id=assignee))
+        chores = free_by_date.get(on_date, {})
         demands = [
-            (chore_id, [v for v in eligible_by_chore.get(chore_id, []) if _available(v, on_date, away)], len(occs))
+            (
+                chore_id,
+                [
+                    v
+                    for v in eligible_by_chore.get(chore_id, [])
+                    if _available(v, on_date, away) and v not in taken_by_chore.get(chore_id, ())
+                ],
+                len(occs),
+            )
             for chore_id, occs in chores.items()
         ]
-        assigned = assign_date(demands, weights, on_date=on_date)
+        assigned = assign_date(demands, clocks, weights, busy=busy)
         for chore_id, occs in chores.items():
             occs.sort(key=lambda o: o.slot_index)
-            ranked = assigned[chore_id]
+            picks = assigned[chore_id]
             for i, occ in enumerate(occs):
-                out.append(ProjectedAssignment(occurrence=occ, volunteer_id=ranked[i] if i < len(ranked) else None))
+                out.append(ProjectedAssignment(occurrence=occ, volunteer_id=picks[i] if i < len(picks) else None))
     return out
 
 

@@ -2,37 +2,27 @@
 
 Everything here is a **pure function** with a precisely enumerated input
 surface, so the whole assignment policy is testable in isolation and can
-be projected to any future date with no stored state. No DB, no clock, no
-RNG. All impure work (resolving ``enrolled ∩ available``, folding the
-``ShiftEvent`` log into weights) lives in the caller and is handed in as
-plain values.
+be projected to any future date. No DB, no clock, no RNG. All impure work
+(resolving ``enrolled ∩ available``, folding the ``ShiftEvent`` log into
+weights, reading materialised rows) lives in the caller and is handed in
+as plain values — history and rotation state are just more inputs.
 
-``assign_occurrence`` uses weighted rendezvous (highest-random-weight)
-hashing keyed on ``(volunteer_id, chore_id, on_date)``. Its result
-depends on ONLY:
-
-1. the occurrence key ``(chore_id, on_date)``;
-2. the **set** of eligible volunteer ids;
-3. a per-volunteer ``weight`` (default ``1.0``);
-4. the ``count`` needed.
-
-Consequences (asserted in ``tests/test_chore_fairness.py``): the result
-is invariant to the order of ``eligible`` (it is a function of the set),
-reproducible across processes/machines (fixed, unsalted hash over stable
-ids), and adding a slot only appends an assignee — the slot index is the
-rank, never a hash input.
+Assignment is a **virtual-time fair rotation** (stride scheduling): every
+volunteer carries a clock ``V``; each slot goes to the eligible volunteer
+with the lowest ``(V, volunteer_id)``, whose clock then advances by
+``1 / weight``. Consequences (asserted in ``tests/test_chore_fairness.py``):
+turns are evenly spaced (a rotation, not an independent draw per date),
+shares are exactly proportional to weight, and the result is invariant to
+input order and reproducible across machines (ties break by id — no hash).
 """
 
-import hashlib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date
 
 # Favour-ledger credit sign per ShiftEvent kind (design §7 event table).
 # Positive = did more than their share (weighted toward fewer future
 # turns); negative = passed / fell short (weighted toward more). Regular
-# ``assigned`` and ``completed`` are neutral. ``covered``/``inherited``
-# are emitted by tasks 12/13 but scored here so the map is complete.
+# ``assigned`` and ``completed`` are neutral.
 CREDIT_SIGN: dict[str, int] = {
     "assigned": 0,
     "claimed": 1,
@@ -43,13 +33,17 @@ CREDIT_SIGN: dict[str, int] = {
     "missed": -1,
 }
 
-# Ledger weight bounds. A gentle, bounded tilt: nobody is ever fully
-# starved or saturated regardless of how lopsided their credit gets.
+# Ledger weight bounds. Shares are proportional to weight under the
+# rotation, so the clamp means what it says: the most-credited volunteer
+# carries half a share, the most-indebted double.
 _WEIGHT_STEP = 0.1
 _MIN_WEIGHT = 0.5
 _MAX_WEIGHT = 2.0
 
-_TWO64 = 2**64
+# The rotation state: virtual clock per volunteer. Mutated in place by
+# ``advance``/``assign_date`` so a caller can thread one state through a
+# date-ordered fold (``chore_projection.fold``).
+RotationState = dict[str, float]
 
 
 def net_credit(events: Iterable[tuple[str, str]]) -> dict[str, int]:
@@ -65,14 +59,14 @@ def net_credit(events: Iterable[tuple[str, str]]) -> dict[str, int]:
 # "Picked up for others" = help beyond a fair share: a self-claim of an
 # open slot (task 06), a voluntary cover (task 12), and slack inherited
 # when another volunteer was removed (task 13). Regular ``assigned`` turns
-# are the WRH fair share and counted apart.
+# are the rotation's fair share and counted apart.
 _PICKED_UP_KINDS = ("claimed", "covered", "inherited")
 
 
 @dataclass(frozen=True)
 class AccountabilityCounts:
     """A volunteer's accountability split (design §7). ``regular_turns``
-    is their WRH-assigned fair share; ``picked_up`` is help beyond it."""
+    is their rotation-assigned fair share; ``picked_up`` is help beyond it."""
 
     regular_turns: int = 0
     picked_up: int = 0
@@ -104,83 +98,68 @@ def summarize_accountability(events: Iterable[tuple[str, str]]) -> dict[str, Acc
 
 
 def weight_from_ledger(credit: int) -> float:
-    """Map net favour credit to a bounded WRH weight. More credit (did
-    extra) → lower weight (fewer future turns); negative credit → higher
-    weight. Clamped to ``[_MIN_WEIGHT, _MAX_WEIGHT]``."""
+    """Map net favour credit to a bounded rotation weight. More credit
+    (did extra) → lower weight (a smaller share); negative credit → a
+    larger one. Clamped to ``[_MIN_WEIGHT, _MAX_WEIGHT]``."""
     return max(_MIN_WEIGHT, min(_MAX_WEIGHT, 1.0 - _WEIGHT_STEP * credit))
 
 
-def _score(volunteer_id: str, chore_id: str, on_date: date, weight: float) -> float:
-    """WRH score: ``weight · H`` where ``H`` is a fixed, unsalted hash of
-    the occurrence key mapped into ``[0, 1)``. Monotone in weight, uniform
-    across volunteers when weights are equal."""
-    key = f"{volunteer_id}|{chore_id}|{on_date.isoformat()}".encode()
-    h = int.from_bytes(hashlib.blake2b(key, digest_size=8).digest(), "big") / _TWO64
-    return weight * h
+def touch(state: RotationState, volunteer_id: str) -> None:
+    """First touch seeds caught-up: a volunteer entering the rotation
+    starts at the pool's minimum clock — owed nothing, owing nothing —
+    so a newcomer wins turns at their fair rate without a back-pay flood.
+    The fold touches every volunteer eligible on a date *before* replaying
+    that date's fixed rows, so entering the pool (not being picked) is
+    what starts the clock — otherwise a long fixed streak by one volunteer
+    would wrongly seed everyone else at their advanced clock."""
+    if volunteer_id not in state:
+        state[volunteer_id] = min(state.values(), default=0.0)
 
 
-def assign_occurrence(
-    eligible: Iterable[str],
-    weights: Mapping[str, float],
-    *,
-    chore_id: str,
-    on_date: date,
-    count: int,
-) -> list[str]:
-    """The top-``count`` volunteer ids for one occurrence, in rank order
-    (rank == slot index). Distinct by construction. Returns ``[]`` if
-    nobody is eligible or ``count <= 0``.
-
-    Ties on score break by ``volunteer_id`` for total determinism. The
-    input is treated as a **set**, so call order never affects the result.
-    """
-    if count <= 0:
-        return []
-    pool = set(eligible)
-    if not pool:
-        return []
-    scored = {v: _score(v, chore_id, on_date, weights.get(v, 1.0)) for v in pool}
-    ranked = sorted(pool, key=lambda v: (-scored[v], v))
-    return ranked[:count]
+def advance(state: RotationState, volunteer_id: str, weights: Mapping[str, float]) -> None:
+    """One turn taken: advance the volunteer's clock by ``1 / weight``.
+    Also applied when replaying a materialised (fixed) assignment, so
+    history — including a departed volunteer's ghost id — counts."""
+    touch(state, volunteer_id)
+    state[volunteer_id] += 1.0 / weights.get(volunteer_id, 1.0)
 
 
 def assign_date(
     demands: Iterable[tuple[str, Iterable[str], int]],
+    state: RotationState,
     weights: Mapping[str, float],
-    *,
-    on_date: date,
+    busy: set[str] | None = None,
 ) -> dict[str, list[str]]:
-    """Jointly assign every chore occurring on one date, so nobody draws
-    two different chores on the same day while another eligible volunteer
-    is free (design §7 same-day de-collision). ``demands`` is one
-    ``(chore_id, eligible_ids, count)`` triple per chore.
+    """Jointly assign every free slot of one date, advancing ``state``.
+    ``demands`` is one ``(chore_id, eligible_ids, count)`` triple per
+    chore; ``busy`` marks volunteers already committed this date (fixed
+    assignments), so nobody draws two chores on one day while another
+    eligible volunteer is free.
 
-    Greedy matching over the same per-``(volunteer, chore, date)`` scores
-    as ``assign_occurrence``: every eligible pair, ranked by
-    ``(-score, volunteer_id, chore_id)``, is taken while its chore has
-    unfilled slots and the volunteer holds no assignment on this date.
-    A second pass refills any shortfall admitting already-booked
-    volunteers (never twice on the same chore) — coverage beats strict
-    no-collision, so a slot stays unfilled only when no eligible
-    volunteer remains at all. Per chore, acquisition order is the slot
-    index (rank == slot).
-
-    Deterministic, invariant to input order, and identical to
-    ``assign_occurrence`` when a single chore occurs on the date.
+    Chores are processed in scarcity order (fewest eligible first, then
+    ``chore_id``). Each slot picks the lowest-clock free volunteer; when
+    none is free the pick falls back to the lowest-clock busy one not yet
+    on this chore — coverage beats strict no-collision, and a slot stays
+    unfilled only when no eligible volunteer remains at all. Per chore,
+    acquisition order is the slot index.
     """
-    specs = [(chore_id, set(eligible), count) for chore_id, eligible, count in demands]
-    pairs = sorted(
-        ((v, cid) for cid, pool, count in specs if count > 0 for v in pool),
-        key=lambda vc: (-_score(vc[0], vc[1], on_date, weights.get(vc[0], 1.0)), vc[0], vc[1]),
+    taken = set(busy or ())
+    specs = sorted(
+        ((chore_id, sorted(set(eligible)), count) for chore_id, eligible, count in demands),
+        key=lambda s: (len(s[1]), s[0]),
     )
-    need = {cid: max(count, 0) for cid, _, count in specs}
+    for _cid, pool, _count in specs:
+        for v in pool:
+            touch(state, v)
     out: dict[str, list[str]] = {cid: [] for cid, _, _ in specs}
-    busy: set[str] = set()
-    for v, cid in pairs:
-        if len(out[cid]) < need[cid] and v not in busy:
-            out[cid].append(v)
-            busy.add(v)
-    for v, cid in pairs:
-        if len(out[cid]) < need[cid] and v not in out[cid]:
-            out[cid].append(v)
+    for cid, pool, count in specs:
+        for _slot in range(max(count, 0)):
+            free = [v for v in pool if v not in taken]
+            candidates = free or [v for v in pool if v not in out[cid]]
+            if not candidates:
+                break
+            pick = min(candidates, key=lambda v: (state[v], v))
+            state[pick] += 1.0 / weights.get(pick, 1.0)
+            out[cid].append(pick)
+            taken.add(pick)
     return out

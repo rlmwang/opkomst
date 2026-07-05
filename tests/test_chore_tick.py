@@ -155,6 +155,37 @@ def test_cover_orphaned_prefers_a_volunteer_free_that_day(db):
     assert mine.volunteer_id == freed and mine.volunteer_id != theirs.volunteer_id
 
 
+def test_daily_ticks_never_flip_a_pinned_assignee(db):
+    from datetime import timedelta
+
+    roster, chore = _roster(db, cycle_slots=(2,))
+    _volunteers_in(db, roster, [chore], ["A", "B", "C"])
+    chore_tick.run_tick(db, TODAY)
+    promised = {s.id: s.volunteer_id for s in db.query(Shift).all()}
+    for day in range(1, 15):
+        chore_tick.run_tick(db, TODAY + timedelta(days=day))
+    for s in db.query(Shift).filter(Shift.id.in_(promised)).all():
+        assert s.volunteer_id == promised[s.id]
+
+
+def test_covering_rests_the_coverer_in_new_pins(db):
+    # A and B alternate. B takes over all of A's pinned turns; when the
+    # horizon extends, the fold sees B's extra work and hands A the new
+    # pins until the clocks even out.
+    roster, chore = _roster(db, cycle_slots=(2,))
+    a, b = _volunteers_in(db, roster, [chore], ["A", "B"])
+    chore_tick.run_tick(db, TODAY)
+    for s in db.query(Shift).all():
+        s.volunteer_id = b.id
+    db.commit()
+    roster.commit_horizon_days = 56
+    db.commit()
+    chore_tick.run_tick(db, TODAY)
+    new_pins = db.query(Shift).filter(Shift.on_date > WEEKLY_WED[-1]).order_by(Shift.on_date).all()
+    assert len(new_pins) == 4
+    assert all(s.volunteer_id == a.id for s in new_pins)
+
+
 def test_no_eligible_volunteer_leaves_shifts_open(db):
     _, chore = _roster(db, cycle_slots=(2,))
     chore_tick.run_tick(db, TODAY)

@@ -6,7 +6,7 @@ are a sparse overlay materialised only inside the commit horizon. Per
 
 1. **pins the incoming edge** — for each occurrence in
    ``[today, today+commit_horizon_days]`` with no row yet, insert a pinned
-   Shift (assigned via WRH, or ``open`` if nobody eligible);
+   Shift (assigned by the rotation fold, or ``open`` if nobody eligible);
 2. **prunes stale pins (window-only)** — drop un-acted, un-reminded pins
    whose occurrence no longer projects (a roster edit orphaned them);
 3. **reconciles the past** — ``scheduled`` shifts before today that were
@@ -25,8 +25,8 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
-from .chore_assignment import assign_occurrence, net_credit, weight_from_ledger
-from .chore_projection import ChoreSpec, Diff, Occurrence, PinnedShift, occurrences_between, project, reconcile
+from .chore_assignment import RotationState, net_credit, weight_from_ledger
+from .chore_projection import ChoreSpec, Diff, Occurrence, PinnedShift, fold, occurrences_between, reconcile
 
 
 def record_event(db: Session, *, roster_id: str, volunteer_id: str, kind: str, shift_id: str | None = None) -> None:
@@ -78,13 +78,14 @@ def _day_assignments(
 
 
 def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None, kind: str = "assigned") -> str | None:
-    """Assign a single ``open`` shift. Picks the highest WRH-ranked
-    eligible volunteer who is not excluded, preferring one with no other
-    shift on this date (same-day de-collision, design §7); never someone
-    already on another slot of this occurrence. Records ``kind`` for the
-    chosen volunteer and returns their id, or ``None``. ``kind`` is
-    ``assigned`` for a plain re-cover, ``inherited`` when covering a
-    departed volunteer's slot. Does not commit."""
+    """Assign a single ``open`` shift. Ranks by the rotation's clocks
+    folded up to the shift's date (this shift excluded), picks the
+    lowest-clock eligible volunteer who is not excluded, preferring one
+    with no other shift on this date (same-day de-collision, design §7);
+    never someone already on another slot of this occurrence. Records
+    ``kind`` for the chosen volunteer and returns their id, or ``None``.
+    ``kind`` is ``assigned`` for a plain re-cover, ``inherited`` when
+    covering a departed volunteer's slot. Does not commit."""
     chore = db.query(Chore).filter(Chore.id == shift.chore_id).first()
     if chore is None:
         return None
@@ -94,9 +95,12 @@ def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None
     day = _day_assignments(db, chore.roster_id, shift.on_date, exclude_shift_id=shift.id)
     skip = set(exclude or set()) | {vid for vid, cid in day if cid == shift.chore_id}
     busy = {vid for vid, _ in day}
-    weights = ledger_weights(db, chore.roster_id)
-    ranked = assign_occurrence(eligible, weights, chore_id=shift.chore_id, on_date=shift.on_date, count=len(eligible))
-    candidates = [v for v in ranked if v not in skip]
+    roster = db.query(Roster).filter(Roster.id == chore.roster_id).one()
+    chores = db.query(Chore).filter(Chore.roster_id == roster.id).all()
+    clocks: RotationState = {}
+    _fold_range(db, roster, chores, shift.on_date, exclude_shift_id=shift.id, state=clocks)
+    floor = min(clocks.values(), default=0.0)
+    candidates = sorted((v for v in eligible if v not in skip), key=lambda v: (clocks.get(v, floor), v))
     chosen = next((v for v in candidates if v not in busy), candidates[0] if candidates else None)
     if chosen is not None:
         shift.volunteer_id = chosen
@@ -232,24 +236,60 @@ def _unavailable(db: Session, roster_id: str) -> dict[str, list[tuple[date, date
     return out
 
 
-def project_range(db: Session, roster: Roster, chores: list[Chore], start: date, end: date):
-    """The projected assignments for one roster over ``[start, end]`` — the
-    shared oracle behind both the tick's pin step and the read-side outlook,
-    so confirmed and outlook never disagree."""
+def _fixed_rows(db: Session, chore_ids: list[str], end: date, *, exclude_shift_id: str | None = None):
+    """Every materialised shift up to ``end`` as the fold's fixed stream
+    (``occurrence → assignee``). Provenance doesn't matter — tick-assigned,
+    claimed, covered, handed over — and neither does whether the current
+    pattern still produces the occurrence: history replays regardless."""
+    if not chore_ids:
+        return {}
+    q = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date <= end)
+    if exclude_shift_id is not None:
+        q = q.filter(Shift.id != exclude_shift_id)
+    return {Occurrence(s.chore_id, s.on_date, s.slot_index): s.volunteer_id for s in q.all()}
+
+
+def _fold_range(
+    db: Session,
+    roster: Roster,
+    chores: list[Chore],
+    end: date,
+    *,
+    exclude_shift_id: str | None = None,
+    state: RotationState | None = None,
+):
+    """Fold the whole roster from ``starts_on`` through ``end``: enumerate
+    the pattern, replay every materialised row, assign the rest."""
     occ = occurrences_between(
         _chore_specs(chores),
         period_weeks=roster.period_weeks,
         starts_on=roster.starts_on,
         ends_on=roster.ends_on,
-        start=start,
+        start=roster.starts_on,
         end=end,
     )
-    return project(
-        occ,
+    exclude_key = None
+    if exclude_shift_id is not None:
+        row = db.query(Shift).filter(Shift.id == exclude_shift_id).first()
+        if row is not None:
+            exclude_key = Occurrence(row.chore_id, row.on_date, row.slot_index)
+    return fold(
+        [o for o in occ if o != exclude_key],
+        _fixed_rows(db, [c.id for c in chores], end, exclude_shift_id=exclude_shift_id),
         _eligible_by_chore(db, [c.id for c in chores]),
         ledger_weights(db, roster.id),
         _unavailable(db, roster.id),
+        state=state,
     )
+
+
+def project_range(db: Session, roster: Roster, chores: list[Chore], start: date, end: date):
+    """The assignments for one roster over ``[start, end]`` — the shared
+    oracle behind both the tick's pin step and the read-side outlook, so
+    confirmed and outlook never disagree. The fold runs from the roster's
+    start (history must advance the clocks); only ``[start, end]`` is
+    returned."""
+    return [pa for pa in _fold_range(db, roster, chores, end) if pa.occurrence.on_date >= start]
 
 
 def _pin_window(db: Session, roster: Roster, chores: list[Chore], today: date) -> int:
