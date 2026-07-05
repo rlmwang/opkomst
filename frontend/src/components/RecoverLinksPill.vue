@@ -143,6 +143,12 @@ async function confirmCopy() {
   font: inherit;
   color: inherit;
   text-align: center;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+/* It's a button — say so on hover, like the other clickable rows. */
+.rlp-pill:hover {
+  background: color-mix(in srgb, var(--brand-red) 7%, var(--brand-bg));
+  border-color: color-mix(in srgb, var(--brand-red) 30%, var(--brand-border));
 }
 .rlp-list {
   min-width: 16rem;
