@@ -64,9 +64,14 @@ async function confirmCopy() {
   busy.value = true;
   try {
     const ack = await post<{ edit_token: string }>(props.recoverPath(row.id));
-    await navigator.clipboard.writeText(props.publicUrl(ack.edit_token));
+    const url = props.publicUrl(ack.edit_token);
+    await navigator.clipboard.writeText(url);
     row.recoveredAt = new Date().toISOString();
     toasts.success(t("recoverLink.copied"));
+    // Jump straight to the participant's fresh edit page (new tab, so
+    // the organiser keeps their place) — lets them eyeball or hand over
+    // the open page directly.
+    window.open(url, "_blank", "noopener");
   } catch {
     toasts.error(t("recoverLink.failed"));
   } finally {
@@ -155,6 +160,12 @@ async function confirmCopy() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 6px;
+}
+/* Row highlight on hover, so it's clear whose link you're about to copy. */
+.rlp-row:hover {
+  background: color-mix(in srgb, var(--brand-red) 7%, transparent);
 }
 .rlp-name {
   flex: 1 1 0;

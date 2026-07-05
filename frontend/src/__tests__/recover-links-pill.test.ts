@@ -65,6 +65,7 @@ beforeEach(() => {
     value: { writeText: vi.fn(async () => undefined) },
     configurable: true,
   });
+  vi.spyOn(window, "open").mockReturnValue(null);
 });
 afterEach(() => {
   document.body.innerHTML = "";
@@ -98,6 +99,7 @@ describe("RecoverLinksPill", () => {
     await flushPromises();
     expect(client.post).toHaveBeenCalledWith("/api/x/a/edit-link");
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith("https://pub/e/slug?s=tok123");
+    expect(window.open).toHaveBeenCalledWith("https://pub/e/slug?s=tok123", "_blank", "noopener");
     // The confirm dialog is gone once the copy lands.
     expect(body.findAll("button").some((b) => b.text() === "Mint and copy link")).toBe(false);
   });
