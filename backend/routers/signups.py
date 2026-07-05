@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..database import get_db
 from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Signup, User
+from ..schemas.common import EditLinkRecoverOut
 from ..schemas.events import SignupAck, SignupCreate, SignupEditIn, SignupEditOut
 from ..services import access, edit_token, encryption, public_access
 from ..services import events as events_svc
@@ -114,6 +115,7 @@ def get_signup(token: str, db: Session = Depends(get_db)) -> SignupEditOut:
         party_size=signup.party_size,
         source_choice=signup.source_choice,
         help_choices=signup.help_choices,
+        link_recovered_at=signup.link_recovered_at,
     )
 
 
@@ -150,6 +152,7 @@ def update_signup(
         party_size=signup.party_size,
         source_choice=signup.source_choice,
         help_choices=signup.help_choices,
+        link_recovered_at=signup.link_recovered_at,
     )
 
 
@@ -167,6 +170,30 @@ def withdraw_signup(request: Request, token: str, db: Session = Depends(get_db))
     db.delete(signup)
     db.commit()
     logger.info("signup_withdrawn", event_id=event_id)
+
+
+@router.post("/{event_id}/signups/{signup_id}/edit-link", response_model=EditLinkRecoverOut)
+@limiter.limit(Limits.ORG_WRITE)
+def recover_signup_edit_link(
+    request: Request,
+    event_id: str,
+    signup_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EditLinkRecoverOut:
+    """Organiser recovery of a participant's lost magic link. Only the
+    token's hash is stored, so this *rotates* rather than reveals: the
+    old link stops working, the fresh raw token is returned exactly
+    once, and ``link_recovered_at`` is stamped permanently — the public
+    edit page discloses that an organiser has held the link."""
+    event = access.get_event_for_user(db, event_id, user)
+    signup = db.query(Signup).filter(Signup.id == signup_id, Signup.event_id == event.id).first()
+    if signup is None:
+        raise HTTPException(status_code=404, detail="Signup not found")
+    raw = edit_token.recover(signup)
+    db.commit()
+    logger.info("signup_edit_link_recovered", event_id=event.id, signup_id=signup_id, actor_id=user.id)
+    return EditLinkRecoverOut(edit_token=raw)
 
 
 @router.delete("/{event_id}/signups/{signup_id}", status_code=204)

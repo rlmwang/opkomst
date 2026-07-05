@@ -279,3 +279,131 @@ def test_withdraw_bad_token_404(client):
     assert client.post("/api/v1/forms/by-token/nope/withdraw").status_code == 404
     assert client.post("/api/v1/datepolls/by-token/nope/withdraw").status_code == 404
     assert client.post("/api/v1/events/by-token/nope/withdraw").status_code == 404
+
+
+# --- organiser recovery (shared across all four entities) -------------
+#
+# Only the token hash is stored, so recovery ROTATES the link: the old
+# token dies, the fresh one is returned exactly once, and the row's
+# ``link_recovered_at`` is stamped permanently — the public edit page
+# discloses that an organiser has held the link.
+
+
+def _recover(client: Any, headers: Any, path: str) -> str:
+    r = client.post(path, headers=headers)
+    assert r.status_code == 200, r.text
+    return r.json()["edit_token"]
+
+
+def test_event_recovery_rotates_and_stamps(client, organiser_headers):
+    event = _create_event(client, organiser_headers)
+    old = client.post(
+        f"/api/v1/events/by-slug/{event['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, "help_choices": []},
+    ).json()["edit_token"]
+    rows = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()
+    assert rows[0]["link_recovered_at"] is None
+    fresh = _recover(client, organiser_headers, f"/api/v1/events/{event['id']}/signups/{rows[0]['id']}/edit-link")
+
+    assert client.get(f"/api/v1/events/by-token/{old}").status_code == 404  # old link dead
+    page = client.get(f"/api/v1/events/by-token/{fresh}")
+    assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
+    rows = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()
+    assert rows[0]["link_recovered_at"] is not None
+
+
+def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organiser_headers):
+    event = _create_event(client, organiser_headers)
+    client.post(
+        f"/api/v1/events/by-slug/{event['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": []},
+    )
+    sid = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()[0]["id"]
+    path = f"/api/v1/events/{event['id']}/signups/{sid}/edit-link"
+    token = _recover(client, organiser_headers, path)
+    first = client.get(f"/api/v1/events/by-token/{token}").json()["link_recovered_at"]
+
+    # The participant editing their signup never clears the stamp.
+    r = client.put(
+        f"/api/v1/events/by-token/{token}",
+        json={"display_name": "Sam", "party_size": 3, "help_choices": []},
+    )
+    assert r.status_code == 200 and r.json()["link_recovered_at"] == first
+
+    # A second recovery moves the stamp forward (banner shows the latest).
+    token2 = _recover(client, organiser_headers, path)
+    second = client.get(f"/api/v1/events/by-token/{token2}").json()["link_recovered_at"]
+    assert second >= first
+
+
+def test_event_recovery_requires_auth_and_scope(client, organiser_headers):
+    event = _create_event(client, organiser_headers)
+    client.post(
+        f"/api/v1/events/by-slug/{event['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": []},
+    )
+    sid = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()[0]["id"]
+    assert client.post(f"/api/v1/events/{event['id']}/signups/{sid}/edit-link").status_code == 401
+    r = client.post(f"/api/v1/events/{event['id']}/signups/does-not-exist/edit-link", headers=organiser_headers)
+    assert r.status_code == 404
+
+
+def test_form_recovery_rotates_and_stamps(client, organiser_headers):
+    form = _create_form(client, organiser_headers)
+    qid = form["questions"][0]["id"]
+    old = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 3}]},
+    ).json()["edit_token"]
+    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    assert subs[0]["link_recovered_at"] is None
+    fresh = _recover(
+        client, organiser_headers, f"/api/v1/forms/{form['id']}/submissions/{subs[0]['submission_id']}/edit-link"
+    )
+
+    assert client.get(f"/api/v1/forms/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/forms/by-token/{fresh}")
+    assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
+    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    assert subs[0]["link_recovered_at"] is not None
+
+
+def test_datepoll_recovery_rotates_and_stamps(client, organiser_headers):
+    poll = _create_poll(client, organiser_headers)
+    d0 = poll["slots"][0]["id"]
+    old = client.post(
+        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
+    ).json()["edit_token"]
+    subs = client.get(f"/api/v1/datepolls/{poll['id']}/submissions", headers=organiser_headers).json()
+    assert subs[0]["link_recovered_at"] is None
+    fresh = _recover(
+        client, organiser_headers, f"/api/v1/datepolls/{poll['id']}/submissions/{subs[0]['submission_id']}/edit-link"
+    )
+
+    assert client.get(f"/api/v1/datepolls/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/datepolls/by-token/{fresh}")
+    assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
+
+
+def test_chore_recovery_rotates_and_stamps(client, organiser_headers):
+    body = {
+        "chapter_id": _chapter_id(client, organiser_headers),
+        "name": "EL roster",
+        "starts_on": "2027-01-04",
+        "chores": [{"name": "Bins", "cycle_slots": [2]}],
+    }
+    roster = client.post("/api/v1/chores", headers=organiser_headers, json=body).json()
+    old = client.post(
+        f"/api/v1/chores/by-slug/{roster['slug']}/enroll",
+        json={"display_name": "Sam", "chore_ids": [roster["chores"][0]["id"]]},
+    ).json()["edit_token"]
+    vols = client.get(f"/api/v1/chores/{roster['id']}/volunteers", headers=organiser_headers).json()
+    assert vols[0]["link_recovered_at"] is None
+    fresh = _recover(client, organiser_headers, f"/api/v1/chores/{roster['id']}/volunteers/{vols[0]['id']}/edit-link")
+
+    assert client.get(f"/api/v1/chores/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/chores/by-token/{fresh}")
+    assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
+    vols = client.get(f"/api/v1/chores/{roster['id']}/volunteers", headers=organiser_headers).json()
+    assert vols[0]["link_recovered_at"] is not None

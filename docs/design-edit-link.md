@@ -198,6 +198,31 @@ email field; a tampered/absent token 404s.
   confirmation reflects the change.
 - Pre-launch, no backfill. No new cron.
 
+## Recovery by organisers
+
+A participant who loses their link can ask an organiser to recover it —
+shared infrastructure across all four submission rows (Signup,
+FormSubmission, DatepollSubmission, Volunteer) via `EditTokenMixin` +
+`edit_token.recover`:
+
+- **Rotate, never reveal.** Only the hash is stored, so the server cannot
+  show the existing link. Recovery mints a fresh token over the old hash:
+  the old link stops working and the new raw token is returned to the
+  organiser exactly once (`POST .../{child_id}/edit-link`,
+  organiser-scoped, rate-limited).
+- **Permanent transparency stamp.** Every recovery sets
+  `link_recovered_at` (latest copy wins; never cleared). Non-NULL means
+  "an organiser has held this row's secret link at least once", and the
+  public edit page renders a permanent notice banner
+  (`public_shared/RecoveredNotice.vue`) with the date and what to do if
+  the copy wasn't requested (withdraw + resubmit mints a fresh, unshared
+  link).
+- **UI**: each details page's participants count-pill opens the shared
+  `RecoverLinksPill` popover — one row per participant with a copy
+  button, confirm-gated (the action invalidates the old link and brands
+  the participant's page, so no silent one-click), then the new public
+  URL lands on the organiser's clipboard.
+
 ## Decisions taken
 
 1. **Hashed at rest** (sha256), raw returned once. (confirmed)

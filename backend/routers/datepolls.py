@@ -18,7 +18,8 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import Datepoll, User
+from ..models import Datepoll, DatepollSubmission, User
+from ..schemas.common import EditLinkRecoverOut
 from ..schemas.datepolls import (
     DatepollCreate,
     DatepollListOut,
@@ -27,7 +28,7 @@ from ..schemas.datepolls import (
     DatepollSummaryOut,
     DatepollUpdate,
 )
-from ..services import access, crud
+from ..services import access, crud, edit_token
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -255,6 +256,32 @@ def datepoll_summary(
         best_slot_id=best_slot_id,
         notes=notes,
     )
+
+
+@router.post("/{datepoll_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)
+@limiter.limit(Limits.ORG_WRITE)
+def recover_submission_edit_link(
+    request: Request,
+    datepoll_id: str,
+    submission_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EditLinkRecoverOut:
+    """Organiser recovery of a respondent's lost magic link — rotates
+    the token (never reveals it) and permanently stamps
+    ``link_recovered_at``; see ``services/edit_token.recover``."""
+    poll = access.get_datepoll_for_user(db, datepoll_id, user)
+    sub = (
+        db.query(DatepollSubmission)
+        .filter(DatepollSubmission.id == submission_id, DatepollSubmission.datepoll_id == poll.id)
+        .first()
+    )
+    if sub is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    raw = edit_token.recover(sub)
+    db.commit()
+    logger.info("datepoll_edit_link_recovered", datepoll_id=poll.id, submission_id=submission_id, actor_id=user.id)
+    return EditLinkRecoverOut(edit_token=raw)
 
 
 @router.get("/{datepoll_id}/submissions", response_model=list[DatepollSubmissionOut])

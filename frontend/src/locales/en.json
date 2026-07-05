@@ -8,6 +8,19 @@
     "error": "Something went wrong",
     "invalidEmail": "That email address looks wrong"
   },
+  "recoverLink": {
+    "open": "View signups",
+    "empty": "No signups yet.",
+    "anonymous": "Anonymous",
+    "copy": "Copy secret edit link",
+    "recoveredMark": "🔑",
+    "recoveredOn": "Link copied on {date}",
+    "confirmTitle": "Copy secret link?",
+    "confirmBody": "This mints a new secret link for “{name}”; the old link stops working. Their edit page will permanently note that an organiser copied the link.",
+    "confirm": "Mint and copy link",
+    "copied": "Link copied. Share it with the participant — only this link can edit their entry.",
+    "failed": "Copying failed."
+  },
   "imageField": {
     "heading": "Image",
     "createFirst": "Save first; then you can upload an image.",

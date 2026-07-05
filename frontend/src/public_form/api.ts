@@ -50,6 +50,8 @@ export interface SubmitAck {
 export interface FormSubmissionValues {
   display_name: string | null;
   answers: Record<string, number | string | string[]>;
+  /** Non-null = an organiser recovered this submission's edit link. */
+  link_recovered_at?: string | null;
 }
 
 export class ApiError extends Error {

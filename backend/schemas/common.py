@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BeforeValidator, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field
 
 # Two-letter ISO language tag. Drives the public-page UI language and,
 # where applicable, the locale of the email sent afterwards. Two values
@@ -50,3 +50,13 @@ def _clean_instagram_handle(v: str | None) -> str | None:
 # Optional Instagram handle crediting the image's designer. Shared by
 # the hero-image block on all three organiser-authored entities.
 InstagramHandle = Annotated[str | None, Field(default=None, max_length=30), BeforeValidator(_clean_instagram_handle)]
+
+
+class EditLinkRecoverOut(BaseModel):
+    """The freshly-minted raw edit token after an organiser recovers a
+    participant's lost magic link (``services/edit_token.recover``).
+    Handed out exactly once; the old link is invalidated and the row's
+    ``link_recovered_at`` is stamped permanently. One shape for all
+    four submission types."""
+
+    edit_token: str

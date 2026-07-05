@@ -50,6 +50,8 @@ export interface DatepollSubmissionValues {
   display_name: string | null;
   note: string | null;
   answers: Record<string, Availability>;
+  /** Non-null = an organiser recovered this submission's edit link. */
+  link_recovered_at?: string | null;
 }
 
 export class ApiError extends Error {

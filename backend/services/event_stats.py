@@ -113,12 +113,14 @@ def signups_summary(db: Session, event: Event) -> list[SignupSummaryOut]:
     display_name + party_size + help_choices — never email,
     source, or feedback-email status."""
     rows = (
-        db.query(Signup.id, Signup.display_name, Signup.party_size, Signup.help_choices)
+        db.query(Signup.id, Signup.display_name, Signup.party_size, Signup.help_choices, Signup.link_recovered_at)
         .filter(Signup.event_id == event.id)
         .order_by(Signup.created_at.asc())
         .all()
     )
     return [
-        SignupSummaryOut(id=sid, display_name=name, party_size=size, help_choices=help_choices or [])
-        for sid, name, size, help_choices in rows
+        SignupSummaryOut(
+            id=sid, display_name=name, party_size=size, help_choices=help_choices or [], link_recovered_at=recovered
+        )
+        for sid, name, size, help_choices, recovered in rows
     ]

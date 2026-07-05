@@ -280,6 +280,7 @@ def personal_page(db: Session, volunteer: Volunteer) -> PersonalPageOut:
         enrolled_chore_ids=chore_ids,
         email_reminders=volunteer.email_reminders,
         has_email=volunteer.encrypted_email is not None,
+        link_recovered_at=volunteer.link_recovered_at,
         my_shifts=[_shift_out(s, name, inherited=s.id in inherited_ids) for s, name in mine],
         open_shifts=open_shifts,
         outlook_shifts=_personal_outlook(db, volunteer, today),
@@ -381,6 +382,7 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
             completed=c.completed,
             deferred=c.deferred,
             missed=c.missed,
+            link_recovered_at=v.link_recovered_at,
         )
         for v in volunteers
     ]

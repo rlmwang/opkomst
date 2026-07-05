@@ -954,6 +954,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chores/{roster_id}/volunteers/{volunteer_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Volunteer Edit Link
+         * @description Organiser recovery of a volunteer's lost personal-page link —
+         *     rotates the token (never reveals it) and permanently stamps
+         *     ``link_recovered_at``; see ``services/edit_token.recover``.
+         */
+        post: operations["recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepolls": {
         parameters: {
             query?: never;
@@ -1208,6 +1230,28 @@ export interface paths {
         get: operations["datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepolls/{datepoll_id}/submissions/{submission_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Submission Edit Link
+         * @description Organiser recovery of a respondent's lost magic link — rotates
+         *     the token (never reveals it) and permanently stamps
+         *     ``link_recovered_at``; see ``services/edit_token.recover``.
+         */
+        post: operations["recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1667,6 +1711,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/signups/{signup_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Signup Edit Link
+         * @description Organiser recovery of a participant's lost magic link. Only the
+         *     token's hash is stored, so this *rotates* rather than reveals: the
+         *     old link stops working, the fresh raw token is returned exactly
+         *     once, and ``link_recovered_at`` is stamped permanently — the public
+         *     edit page discloses that an organiser has held the link.
+         */
+        post: operations["recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/stats": {
         parameters: {
             query?: never;
@@ -1999,6 +2067,28 @@ export interface paths {
         get: operations["form_submissions_api_v1_forms__form_id__submissions_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/forms/{form_id}/submissions/{submission_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Submission Edit Link
+         * @description Organiser recovery of a respondent's lost magic link — rotates
+         *     the token (never reveals it) and permanently stamps
+         *     ``link_recovered_at``; see ``services/edit_token.recover``.
+         */
+        post: operations["recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2548,6 +2638,8 @@ export interface components {
             };
             /** Display Name */
             display_name: string | null;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Note */
             note?: string | null;
         };
@@ -2718,6 +2810,8 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string | null;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Note */
             note: string | null;
             /** Submission Id */
@@ -2794,6 +2888,18 @@ export interface components {
             name: string;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotIn"][];
+        };
+        /**
+         * EditLinkRecoverOut
+         * @description The freshly-minted raw edit token after an organiser recovers a
+         *     participant's lost magic link (``services/edit_token.recover``).
+         *     Handed out exactly once; the old link is invalidated and the row's
+         *     ``link_recovered_at`` is stamped permanently. One shape for all
+         *     four submission types.
+         */
+        EditLinkRecoverOut: {
+            /** Edit Token */
+            edit_token: string;
         };
         /**
          * EmailHealthOut
@@ -3130,6 +3236,8 @@ export interface components {
             };
             /** Display Name */
             display_name: string | null;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
         };
         /**
          * FormListOut
@@ -3320,6 +3428,8 @@ export interface components {
             created_at: string;
             /** Display Name */
             display_name: string | null;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Submission Id */
             submission_id: string;
         };
@@ -3499,6 +3609,8 @@ export interface components {
             enrolled_chore_ids: string[];
             /** Has Email */
             has_email: boolean;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** My Shifts */
             my_shifts?: components["schemas"]["PersonalShiftOut"][];
             /** Open Shifts */
@@ -3998,6 +4110,8 @@ export interface components {
             display_name: string | null;
             /** Help Choices */
             help_choices: string[];
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Party Size */
             party_size: number;
             /** Source Choice */
@@ -4019,6 +4133,8 @@ export interface components {
             help_choices: string[];
             /** Id */
             id: string;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Party Size */
             party_size: number;
         };
@@ -4100,6 +4216,8 @@ export interface components {
             enrolled_chore_ids: string[];
             /** Id */
             id: string;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
             /** Load */
             load: number;
             /** Missed */
@@ -5791,6 +5909,40 @@ export interface operations {
             };
         };
     };
+    recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                roster_id: string;
+                volunteer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_datepolls_api_v1_datepolls_get: {
         parameters: {
             query?: {
@@ -6341,6 +6493,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatepollSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
                 };
             };
             /** @description Validation Error */
@@ -7145,6 +7331,40 @@ export interface operations {
             };
         };
     };
+    recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+                signup_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     event_stats_endpoint_api_v1_events__event_id__stats_get: {
         parameters: {
             query?: never;
@@ -7827,6 +8047,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
                 };
             };
             /** @description Validation Error */

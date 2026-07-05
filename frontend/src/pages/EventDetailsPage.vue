@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
 import {
   eventList,
@@ -44,6 +45,13 @@ const stats = computed(() => statsQuery.data.value ?? null);
 
 const signupsQuery = useEventSignups(computed(() => props.eventId));
 const signups = computed(() => signupsQuery.data.value ?? []);
+
+// Rows for the participants pill's recovery popover — refetched on
+// open so a just-recovered stamp is never stale.
+async function recoverRows(): Promise<RecoverableRow[]> {
+  const fresh = (await signupsQuery.refetch()).data ?? [];
+  return fresh.map((s) => ({ id: s.id, name: s.display_name, recoveredAt: s.link_recovered_at ?? null }));
+}
 
 const sendEmailsMutation = useSendEmailsNow();
 const deleteSignupMutation = useDeleteSignup();
@@ -268,10 +276,14 @@ function askTriggerNow(channel: EmailChannel) {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("event.signupsTitle") }}</h2>
-          <div v-if="stats" class="count-pill">
-            <span class="count">{{ stats.total_attendees }}</span>
-            <span class="label">{{ t("event.totalAttendees") }}</span>
-          </div>
+          <RecoverLinksPill
+            v-if="stats && event"
+            :count="stats.total_attendees"
+            :label="t('event.totalAttendees')"
+            :load-rows="recoverRows"
+            :recover-path="(id: string) => `/api/v1/events/${props.eventId}/signups/${id}/edit-link`"
+            :public-url="(tok: string) => `${publicEventUrl(event!.slug)}?s=${tok}`"
+          />
         </div>
 
         <AppSkeleton v-if="!stats" :rows="2" />

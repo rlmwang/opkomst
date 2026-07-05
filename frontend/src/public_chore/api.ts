@@ -84,6 +84,8 @@ export interface PersonalPage {
   enrolled_chore_ids: string[];
   email_reminders: boolean;
   has_email: boolean;
+  /** Non-null = an organiser recovered this volunteer's edit link. */
+  link_recovered_at?: string | null;
   my_shifts: PersonalShift[];
   open_shifts: PersonalShift[];
   outlook_shifts?: PersonalOutlook[];

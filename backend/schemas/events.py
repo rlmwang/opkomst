@@ -128,6 +128,9 @@ class SignupSummaryOut(BaseModel):
     id: str
     display_name: str | None
     party_size: int
+    # Non-NULL = an organiser recovered this signup's edit link (most
+    # recent copy). Shown as an indicator next to the copy button.
+    link_recovered_at: datetime | None = None
     # Empty when the event had no help_options configured or the
     # signup skipped the question.
     help_choices: list[str]
@@ -195,3 +198,6 @@ class SignupEditOut(BaseModel):
     party_size: int
     source_choice: str | None
     help_choices: list[str]
+    # Non-NULL = an organiser has copied this signup's secret link at
+    # least once; drives the permanent notice banner on the edit page.
+    link_recovered_at: datetime | None = None

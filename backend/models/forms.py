@@ -38,7 +38,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
 class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
@@ -95,7 +95,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class FormSubmission(UUIDMixin, TimestampMixin, Base):
+class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     """One fill-out. Holds the self-chosen pseudonym
     (``display_name``, NULL = anonymous) and groups the per-question
     answer rows. Same parent-submission shape as ``Signup`` /
@@ -106,9 +106,7 @@ class FormSubmission(UUIDMixin, TimestampMixin, Base):
 
     form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # SHA-256 of the respondent's secret edit-link token (raw never
-    # stored, organiser never sees it). See ``services/edit_token.py``.
-    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
+    # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
 class FormResponse(UUIDMixin, TimestampMixin, Base):

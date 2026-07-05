@@ -5,6 +5,7 @@ import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
+import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings } from "@/public_shared/strings";
@@ -147,11 +148,16 @@ const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
   },
 });
 
+// Permanent transparency banner: an organiser has copied this signup's
+// secret link (see RecoveredNotice).
+const recoveredAt = ref<string | null>(null);
+
 if (editing) {
   // Pre-fill from the server, overriding any leftover draft. Email is
   // not returned and stays blank (the field is hidden anyway).
   fetchSignup(editToken!)
     .then((s) => {
+      recoveredAt.value = s.link_recovered_at ?? null;
       displayName.value = s.display_name ?? "";
       partySize.value = s.party_size;
       sourceChoice.value = s.source_choice;
@@ -471,8 +477,10 @@ watch(event, (e) => {
         <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
       </template>
 
+      <RecoveredNotice v-if="editing" :recovered-at="recoveredAt" :locale="locale" />
+
       <form
-        v-else
+        v-if="!submitted"
         class="card stack signup-form"
         novalidate
         @submit.prevent="submit"

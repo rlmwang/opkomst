@@ -268,6 +268,9 @@ class PersonalPageOut(BaseModel):
     enrolled_chore_ids: list[str]
     email_reminders: bool
     has_email: bool
+    # Non-NULL = an organiser has copied this volunteer's secret link at
+    # least once; drives the permanent notice banner on the personal page.
+    link_recovered_at: datetime | None = None
     my_shifts: list[PersonalShiftOut] = Field(default_factory=list)
     open_shifts: list[PersonalShiftOut] = Field(default_factory=list)
     outlook_shifts: list[PersonalOutlookOut] = Field(default_factory=list)
@@ -298,6 +301,8 @@ class VolunteerSummaryOut(BaseModel):
     completed: int
     deferred: int
     missed: int
+    # Non-NULL = an organiser recovered this volunteer's edit link.
+    link_recovered_at: datetime | None = None
 
 
 class ChoreVolunteerOut(BaseModel):

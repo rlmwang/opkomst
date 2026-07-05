@@ -50,7 +50,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
 class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
@@ -104,7 +104,7 @@ class DatepollSlot(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class DatepollSubmission(UUIDMixin, TimestampMixin, Base):
+class DatepollSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     """One fill-out. ``display_name`` is the self-chosen pseudonym
     (NULL = anonymous); the row id is the opaque submission identifier
     that groups the per-date answers. Nothing resolves it back to a
@@ -120,9 +120,7 @@ class DatepollSubmission(UUIDMixin, TimestampMixin, Base):
     # Replaces the old per-date comment now that a submission spans
     # multiple slots — one note per respondent, not one per slot.
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # SHA-256 of the respondent's secret edit-link token (raw never
-    # stored, organiser never sees it). See ``services/edit_token.py``.
-    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
+    # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
 class DatepollResponse(UUIDMixin, TimestampMixin, Base):

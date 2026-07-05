@@ -56,7 +56,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
 class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
@@ -119,7 +119,7 @@ class Chore(UUIDMixin, TimestampMixin, Base):
     emoji: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class Volunteer(UUIDMixin, TimestampMixin, Base):
+class Volunteer(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     """One public enrolment. ``display_name`` is the self-chosen pseudonym
     (NULL = anonymous). ``encrypted_email`` is the optional, long-lived
     AES-GCM ciphertext of the email (design §6) — nulled on mute/leave,
@@ -134,7 +134,7 @@ class Volunteer(UUIDMixin, TimestampMixin, Base):
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_email: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     email_reminders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
+    # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
 class Enrollment(TimestampMixin, Base):

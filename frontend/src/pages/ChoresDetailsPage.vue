@@ -6,12 +6,13 @@ import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import RosterCalendar from "@/components/RosterCalendar.vue";
 import SegmentedBar, { type BarSegment } from "@/components/SegmentedBar.vue";
 import TallyLegend, { type LegendItem } from "@/components/TallyLegend.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
-import type { ChoreOut } from "@/api/types";
-import { post } from "@/api/client";
+import type { ChoreOut, VolunteerSummary } from "@/api/types";
+import { get, post } from "@/api/client";
 import { useRoster, useRosterAccountability, useRosterSchedule } from "@/composables/useChores";
 import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
@@ -36,6 +37,12 @@ const loaded = computed(() => !rosterQuery.isPending.value);
 const accountabilityQuery = useRosterAccountability(rosterId);
 const accountability = computed(() => accountabilityQuery.data.value ?? []);
 const volunteerCount = computed(() => roster.value?.volunteer_count ?? 0);
+
+// Rows for the volunteers pill's recovery popover.
+async function recoverRows(): Promise<RecoverableRow[]> {
+  const vols = await get<VolunteerSummary[]>(`/api/v1/chores/${props.rosterId}/volunteers`);
+  return vols.map((v) => ({ id: v.id, name: v.display_name, recoveredAt: v.link_recovered_at ?? null }));
+}
 
 // "Fold in now": there's someone to fold in only while the roster is
 // running and at least one enrolled volunteer is still pending. Preview the
@@ -215,10 +222,14 @@ function dateWindow(): string {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("chores.details.volunteersHeading") }}</h2>
-          <div v-if="volunteerCount" class="count-pill">
-            <span class="count">{{ volunteerCount }}</span>
-            <span class="label">{{ t("chores.details.volunteersLabel") }}</span>
-          </div>
+          <RecoverLinksPill
+            v-if="volunteerCount && roster"
+            :count="volunteerCount"
+            :label="t('chores.details.volunteersLabel')"
+            :load-rows="recoverRows"
+            :recover-path="(id: string) => `/api/v1/chores/${props.rosterId}/volunteers/${id}/edit-link`"
+            :public-url="(tok: string) => `${publicChoreUrl(roster!.slug)}?s=${tok}`"
+          />
         </div>
         <p v-if="volunteerCount === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
         <template v-else>

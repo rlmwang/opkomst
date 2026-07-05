@@ -8,6 +8,19 @@
     "error": "Er ging iets mis",
     "invalidEmail": "Dit e-mailadres lijkt niet te kloppen"
   },
+  "recoverLink": {
+    "open": "Aanmeldingen bekijken",
+    "empty": "Nog geen aanmeldingen.",
+    "anonymous": "Anoniem",
+    "copy": "Kopieer geheime bewerklink",
+    "recoveredMark": "🔑",
+    "recoveredOn": "Link gekopieerd op {date}",
+    "confirmTitle": "Geheime link kopiëren?",
+    "confirmBody": "Er wordt een nieuwe geheime link gemaakt voor “{name}”; de oude link werkt daarna niet meer. Op de bewerkpagina van de deelnemer komt permanent te staan dat een organisator de link heeft gekopieerd.",
+    "confirm": "Maak en kopieer link",
+    "copied": "Link gekopieerd. Deel deze met de deelnemer — alleen met deze link is de inzending te bewerken.",
+    "failed": "Kopiëren is niet gelukt."
+  },
   "imageField": {
     "heading": "Afbeelding",
     "createFirst": "Sla eerst op; daarna kun je een afbeelding uploaden.",

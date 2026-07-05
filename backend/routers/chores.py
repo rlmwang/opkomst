@@ -32,7 +32,8 @@ from ..schemas.chores import (
     ShiftReassignIn,
     VolunteerSummaryOut,
 )
-from ..services import access, chore_tick, crud
+from ..schemas.common import EditLinkRecoverOut
+from ..services import access, chore_tick, crud, edit_token
 from ..services import chores as chores_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
@@ -135,6 +136,28 @@ def list_volunteers(
     test). ``load`` is 0 until shift generation (task 06)."""
     roster = access.get_roster_for_user(db, roster_id, user)
     return chores_svc.volunteer_summaries(db, roster)
+
+
+@router.post("/{roster_id}/volunteers/{volunteer_id}/edit-link", response_model=EditLinkRecoverOut)
+@limiter.limit(Limits.ORG_WRITE)
+def recover_volunteer_edit_link(
+    request: Request,
+    roster_id: str,
+    volunteer_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EditLinkRecoverOut:
+    """Organiser recovery of a volunteer's lost personal-page link —
+    rotates the token (never reveals it) and permanently stamps
+    ``link_recovered_at``; see ``services/edit_token.recover``."""
+    roster = access.get_roster_for_user(db, roster_id, user)
+    volunteer = db.query(Volunteer).filter(Volunteer.id == volunteer_id, Volunteer.roster_id == roster.id).first()
+    if volunteer is None:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+    raw = edit_token.recover(volunteer)
+    db.commit()
+    logger.info("volunteer_edit_link_recovered", roster_id=roster.id, volunteer_id=volunteer_id, actor_id=user.id)
+    return EditLinkRecoverOut(edit_token=raw)
 
 
 @router.get("/{roster_id}/accountability", response_model=list[ChoreAccountabilityOut])

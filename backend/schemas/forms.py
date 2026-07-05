@@ -175,6 +175,9 @@ class FormEditOut(BaseModel):
 
     display_name: str | None
     answers: dict[str, int | str | list[str]]
+    # Non-NULL = an organiser has copied this submission's secret link
+    # at least once; drives the permanent notice banner on the edit page.
+    link_recovered_at: datetime | None = None
 
 
 class FormQuestionSummary(BaseModel):
@@ -222,3 +225,5 @@ class FormSubmissionOut(BaseModel):
     display_name: str | None
     created_at: datetime
     answers: dict[str, int | str | list[str]]
+    # Non-NULL = an organiser recovered this submission's edit link.
+    link_recovered_at: datetime | None = None

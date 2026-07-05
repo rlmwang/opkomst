@@ -13,7 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
 class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
@@ -55,7 +55,7 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     __table_args__ = (Index("ix_events_archived_chapter", "archived_at", "chapter_id"),)
 
 
-class Signup(UUIDMixin, TimestampMixin, Base):
+class Signup(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     __tablename__ = "signups"
 
     event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -71,10 +71,7 @@ class Signup(UUIDMixin, TimestampMixin, Base):
     # into (e.g. ["opbouwen"]). Empty when the event has no help_options
     # configured or the attendee skipped the question.
     help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    # SHA-256 of the respondent's secret edit-link token (raw token
-    # never stored). Grants edit access to this one signup; never
-    # exposed to the organiser. See ``services/edit_token.py``.
-    edit_token_hash: Mapped[str | None] = mapped_column(Text, nullable=True, unique=True, index=True)
+    # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
     # No email column on this table. The encrypted recipient address
     # lives on ``EmailDispatch.encrypted_email`` — one copy per
     # (signup, channel) row the email applies to. Absence of a

@@ -23,7 +23,8 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import Form, User
+from ..models import Form, FormSubmission, User
+from ..schemas.common import EditLinkRecoverOut
 from ..schemas.forms import (
     FormCreate,
     FormListOut,
@@ -32,7 +33,7 @@ from ..schemas.forms import (
     FormSummaryOut,
     FormUpdate,
 )
-from ..services import access, crud
+from ..services import access, crud, edit_token
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -253,6 +254,28 @@ def form_summary(
         submission_count=forms_svc.submission_count(db, form_id),
         questions=forms_svc.question_aggregates(db, form_id),
     )
+
+
+@router.post("/{form_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)
+@limiter.limit(Limits.ORG_WRITE)
+def recover_submission_edit_link(
+    request: Request,
+    form_id: str,
+    submission_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EditLinkRecoverOut:
+    """Organiser recovery of a respondent's lost magic link — rotates
+    the token (never reveals it) and permanently stamps
+    ``link_recovered_at``; see ``services/edit_token.recover``."""
+    form = access.get_form_for_user(db, form_id, user)
+    sub = db.query(FormSubmission).filter(FormSubmission.id == submission_id, FormSubmission.form_id == form.id).first()
+    if sub is None:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    raw = edit_token.recover(sub)
+    db.commit()
+    logger.info("form_edit_link_recovered", form_id=form.id, submission_id=submission_id, actor_id=user.id)
+    return EditLinkRecoverOut(edit_token=raw)
 
 
 @router.get("/{form_id}/submissions", response_model=list[FormSubmissionOut])

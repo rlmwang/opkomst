@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
+import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
@@ -360,6 +361,7 @@ async function leave(): Promise<void> {
 
       <!-- Personal mode: my turns + up-for-grabs -->
       <template v-if="status === 'personal' && personal">
+        <RecoveredNotice :recovered-at="personal.link_recovered_at" :locale="locale" />
         <div class="card stack">
           <h2>{{ ch.myTurns }}</h2>
           <div class="cal-legend muted">

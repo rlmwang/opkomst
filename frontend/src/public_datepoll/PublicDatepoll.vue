@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
+import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -66,8 +67,11 @@ function hydrate(p: PublicDatepoll): void {
   for (const s of p.slots) answers[s.id] = null;
 }
 
+const recoveredAt = ref<string | null>(null);
+
 async function prefillFromSubmission(): Promise<void> {
   const sub = await fetchSubmission(editToken!);
+  recoveredAt.value = sub.link_recovered_at ?? null;
   displayName.value = sub.display_name ?? "";
   note.value = sub.note ?? "";
   for (const [slotId, availability] of Object.entries(sub.answers)) {
@@ -229,6 +233,7 @@ async function withdraw(): Promise<void> {
       </template>
 
       <template v-else>
+        <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
         <Disclosure :locale="locale" />
 
         <!-- Pseudonym + the optional note up top, mirroring the events

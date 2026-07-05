@@ -197,7 +197,11 @@ def get_form_submission(token: str, db: Session = Depends(get_db)) -> FormEditOu
     """Current values of a submission, for pre-filling the edit form.
     Gated by the secret token (the link)."""
     sub = _submission_by_token(db, token)
-    return FormEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+    return FormEditOut(
+        display_name=sub.display_name,
+        answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+        link_recovered_at=sub.link_recovered_at,
+    )
 
 
 @router.put("/by-token/{token}", response_model=FormEditOut)
@@ -217,7 +221,11 @@ def update_form_submission(
     _write_responses(db, sub.form_id, sub.id, submitted)
     db.commit()
     logger.info("form_submission_edited", form_id=sub.form_id, submission_id=sub.id)
-    return FormEditOut(display_name=sub.display_name, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+    return FormEditOut(
+        display_name=sub.display_name,
+        answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+        link_recovered_at=sub.link_recovered_at,
+    )
 
 
 @router.post("/by-token/{token}/withdraw", status_code=204)

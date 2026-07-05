@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
+import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicHero from "@/public_shared/PublicHero.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -61,8 +62,11 @@ onMounted(async () => {
   }
 });
 
+const recoveredAt = ref<string | null>(null);
+
 async function prefillFromSubmission(form_: PublicForm): Promise<void> {
   const sub = await fetchSubmission(editToken!);
+  recoveredAt.value = sub.link_recovered_at ?? null;
   displayName.value = sub.display_name ?? "";
   for (const q of form_.questions) {
     const v = sub.answers[q.id];
@@ -223,6 +227,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
       </template>
 
       <template v-else>
+        <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
         <Disclosure :locale="locale" />
 
         <form class="card stack form-card" novalidate @submit.prevent="submit">

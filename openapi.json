@@ -868,6 +868,18 @@
             ],
             "title": "Display Name"
           },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
           "note": {
             "anyOf": [
               {
@@ -1331,6 +1343,18 @@
             ],
             "title": "Display Name"
           },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
           "note": {
             "anyOf": [
               {
@@ -1551,6 +1575,20 @@
           "name"
         ],
         "title": "DatepollUpdate",
+        "type": "object"
+      },
+      "EditLinkRecoverOut": {
+        "description": "The freshly-minted raw edit token after an organiser recovers a\nparticipant's lost magic link (``services/edit_token.recover``).\nHanded out exactly once; the old link is invalidated and the row's\n``link_recovered_at`` is stamped permanently. One shape for all\nfour submission types.",
+        "properties": {
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edit_token"
+        ],
+        "title": "EditLinkRecoverOut",
         "type": "object"
       },
       "EmailHealthOut": {
@@ -2411,6 +2449,18 @@
               }
             ],
             "title": "Display Name"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
           }
         },
         "required": [
@@ -2872,6 +2922,18 @@
             ],
             "title": "Display Name"
           },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
           "submission_id": {
             "title": "Submission Id",
             "type": "string"
@@ -3209,6 +3271,18 @@
           "has_email": {
             "title": "Has Email",
             "type": "boolean"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
           },
           "my_shifts": {
             "items": {
@@ -4523,6 +4597,18 @@
             "title": "Help Choices",
             "type": "array"
           },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
           "party_size": {
             "title": "Party Size",
             "type": "integer"
@@ -4572,6 +4658,18 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
           },
           "party_size": {
             "title": "Party Size",
@@ -4746,6 +4844,18 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
           },
           "load": {
             "title": "Load",
@@ -7663,6 +7773,74 @@
         ]
       }
     },
+    "/api/v1/chores/{roster_id}/volunteers/{volunteer_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a volunteer's lost personal-page link \u2014\nrotates the token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
+        "operationId": "recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "roster_id",
+            "required": true,
+            "schema": {
+              "title": "Roster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "volunteer_id",
+            "required": true,
+            "schema": {
+              "title": "Volunteer Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Volunteer Edit Link",
+        "tags": [
+          "chores"
+        ]
+      }
+    },
     "/api/v1/datepolls": {
       "get": {
         "operationId": "list_datepolls_api_v1_datepolls_get",
@@ -8600,6 +8778,74 @@
           }
         },
         "summary": "Datepoll Submissions",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepolls/{datepoll_id}/submissions/{submission_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
+        "operationId": "recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Submission Edit Link",
         "tags": [
           "datepolls"
         ]
@@ -9934,6 +10180,74 @@
         ]
       }
     },
+    "/api/v1/events/{event_id}/signups/{signup_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a participant's lost magic link. Only the\ntoken's hash is stored, so this *rotates* rather than reveals: the\nold link stops working, the fresh raw token is returned exactly\nonce, and ``link_recovered_at`` is stamped permanently \u2014 the public\nedit page discloses that an organiser has held the link.",
+        "operationId": "recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "title": "Signup Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Signup Edit Link",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
     "/api/v1/events/{event_id}/stats": {
       "get": {
         "operationId": "event_stats_endpoint_api_v1_events__event_id__stats_get",
@@ -11081,6 +11395,74 @@
           }
         },
         "summary": "Form Submissions",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/forms/{form_id}/submissions/{submission_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
+        "operationId": "recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Submission Edit Link",
         "tags": [
           "forms"
         ]

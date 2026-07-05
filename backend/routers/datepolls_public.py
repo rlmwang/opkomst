@@ -143,7 +143,12 @@ def submit_datepoll(
 def get_datepoll_submission(token: str, db: Session = Depends(get_db)) -> DatepollEditOut:
     """Current values of a submission, for pre-filling the edit form."""
     sub = _submission_by_token(db, token)
-    return DatepollEditOut(display_name=sub.display_name, note=sub.note, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+    return DatepollEditOut(
+        display_name=sub.display_name,
+        note=sub.note,
+        answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+        link_recovered_at=sub.link_recovered_at,
+    )
 
 
 @router.put("/by-token/{token}", response_model=DatepollEditOut)
@@ -164,7 +169,12 @@ def update_datepoll_submission(
     _write_responses(db, sub.id, by_slot)
     db.commit()
     logger.info("datepoll_submission_edited", datepoll_id=sub.datepoll_id, submission_id=sub.id)
-    return DatepollEditOut(display_name=sub.display_name, note=sub.note, answers=_answers_for(db, sub.id))  # type: ignore[arg-type]
+    return DatepollEditOut(
+        display_name=sub.display_name,
+        note=sub.note,
+        answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+        link_recovered_at=sub.link_recovered_at,
+    )
 
 
 @router.post("/by-token/{token}/withdraw", status_code=204)

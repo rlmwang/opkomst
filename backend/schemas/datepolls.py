@@ -163,6 +163,9 @@ class DatepollEditOut(BaseModel):
     display_name: str | None
     note: str | None = None
     answers: dict[str, Availability]
+    # Non-NULL = an organiser has copied this submission's secret link
+    # at least once; drives the permanent notice banner on the edit page.
+    link_recovered_at: datetime | None = None
 
 
 class DatepollSlotSummary(BaseModel):
@@ -201,3 +204,5 @@ class DatepollSubmissionOut(BaseModel):
     note: str | None
     created_at: datetime
     answers: dict[str, str]
+    # Non-NULL = an organiser recovered this submission's edit link.
+    link_recovered_at: datetime | None = None

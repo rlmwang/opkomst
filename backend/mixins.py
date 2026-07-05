@@ -20,6 +20,27 @@ class UUIDMixin:
         return mapped_column(Text, primary_key=True, default=_uuid7_str)
 
 
+class EditTokenMixin:
+    """The magic-link columns shared by every public submission row
+    (Signup, FormSubmission, DatepollSubmission, Volunteer).
+
+    ``edit_token_hash`` is the SHA-256 of the secret edit-link token —
+    the raw token is never stored and the organiser never sees it (see
+    ``services/edit_token.py``). ``link_recovered_at`` is stamped every
+    time an organiser recovers the link (``edit_token.recover`` mints a
+    fresh token over the old hash) and is never cleared: non-NULL means
+    "an organiser has held this row's secret link at least once", which
+    permanently drives the notice banner on the public edit page."""
+
+    @declared_attr
+    def edit_token_hash(cls) -> Mapped[str | None]:
+        return mapped_column(Text, nullable=True, unique=True, index=True)
+
+    @declared_attr
+    def link_recovered_at(cls) -> Mapped[datetime | None]:
+        return mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class TimestampMixin:
     @declared_attr
     def created_at(cls) -> Mapped[datetime]:

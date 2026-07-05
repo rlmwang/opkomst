@@ -293,6 +293,7 @@ def submissions(db: Session, datepoll_id: str) -> list[DatepollSubmissionOut]:
             note=s.note,
             created_at=s.created_at,
             answers=answers[s.id],
+            link_recovered_at=s.link_recovered_at,
         )
         for s in subs
     ]

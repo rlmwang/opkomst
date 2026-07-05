@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
 import { useFormClipboard } from "@/composables/useFormClipboard";
@@ -46,6 +47,12 @@ const otherError = computed(
 
 const summaryQuery = useFormSummary(computed(() => props.formId));
 const summary = computed(() => summaryQuery.data.value ?? null);
+
+// Rows for the responses pill's recovery popover.
+async function recoverRows(): Promise<RecoverableRow[]> {
+  const subs = await fetchFormSubmissions(props.formId);
+  return subs.map((s) => ({ id: s.submission_id, name: s.display_name, recoveredAt: s.link_recovered_at ?? null }));
+}
 
 // --- CSV export ---------------------------------------------------
 // One row per submission. Columns: submission id + submission
@@ -175,10 +182,14 @@ async function exportCsv() {
               :disabled="!summary || summary.submission_count === 0"
               @click="exportCsv"
             />
-            <div v-if="summary" class="count-pill">
-              <span class="count">{{ summary.submission_count }}</span>
-              <span class="label">{{ t("forms.details.responses") }}</span>
-            </div>
+            <RecoverLinksPill
+              v-if="summary && form"
+              :count="summary.submission_count"
+              :label="t('forms.details.responses')"
+              :load-rows="recoverRows"
+              :recover-path="(id: string) => `/api/v1/forms/${props.formId}/submissions/${id}/edit-link`"
+              :public-url="(tok: string) => `${publicFormUrl(form!.slug)}?s=${tok}`"
+            />
           </div>
         </div>
 

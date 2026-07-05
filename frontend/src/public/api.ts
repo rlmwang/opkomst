@@ -44,6 +44,8 @@ export interface SignupValues {
   party_size: number;
   source_choice: string | null;
   help_choices: string[];
+  /** Non-null = an organiser recovered this signup's edit link. */
+  link_recovered_at?: string | null;
 }
 
 /** The edit payload omits email: the address lives on decoupled

@@ -42,6 +42,10 @@ export interface ChromeStrings {
   imageCredit: string;
   editPrompt: string;
   editWarning: string;
+  /** Permanent notice on the edit page once an organiser has copied
+   *  (re-minted) this submission's secret link — ``{date}`` is the most
+   *  recent copy. Transparency contract: never hidden, never cleared. */
+  linkRecovered: string;
   copy: string;
   copied: string;
 }
@@ -67,7 +71,10 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerLink: "bekijk de broncode",
     imageCredit: "Ontwerp:",
     editPrompt: "Wil je dit later aanpassen? Bewaar dan deze link:",
-    editWarning: "Sla 'm op voordat je deze pagina sluit, want we kunnen de link niet opnieuw sturen.",
+    editWarning:
+      "Sla 'm op voordat je deze pagina sluit. Kwijt? Een organisator kan een nieuwe maken; dat wordt hier dan gemeld.",
+    linkRecovered:
+      "Een organisator heeft op {date} de geheime link van deze inzending gekopieerd (de vorige link verviel daarmee). Niet op jouw verzoek? Meld je dan af en meld je opnieuw aan voor een verse link.",
     copy: "Kopiëren",
     copied: "Gekopieerd",
   },
@@ -91,7 +98,9 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerLink: "view the source",
     imageCredit: "Design:",
     editPrompt: "Want to change this later? Keep this link:",
-    editWarning: "Save it before you close this page — we can't send the link again.",
+    editWarning: "Save it before you close this page. Lost it? An organiser can mint a new one; that gets noted here.",
+    linkRecovered:
+      "An organiser copied this entry's secret link on {date} (the previous link stopped working). Not at your request? Withdraw and sign up again for a fresh link.",
     copy: "Copy",
     copied: "Copied",
   },

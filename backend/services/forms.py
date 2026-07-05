@@ -371,6 +371,7 @@ def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
             display_name=s.display_name,
             created_at=s.created_at,
             answers=answers[s.id],
+            link_recovered_at=s.link_recovered_at,
         )
         for s in subs
     ]
