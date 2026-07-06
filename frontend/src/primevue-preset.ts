@@ -14,13 +14,13 @@ import Aura from "@primeuix/themes/aura";
 export const OpkomstPreset = definePreset(Aura, {
   components: {
     toast: {
-      // All three severities anchored on the brand palette so toasts
-      // read as one coherent family on the cream background. Success
-      // and error share the brand-red palette (Aura's defaults are
-      // off-brand green and bright red); they're distinguished by the
-      // built-in severity icons (check vs exclamation). Warn keeps a
-      // warm amber/sand that harmonises with the cream surfaces
-      // instead of Aura's screaming yellow.
+      // ONE toast colour: every severity sits on the brand-red palette
+      // (Aura's defaults are off-brand green/yellow/red), distinguished
+      // only by the built-in severity icons (check / triangle /
+      // exclamation). Severity colour-coding isn't worth the visual
+      // noise — toasts are rare enough that users read the text, not
+      // the hue. The public mini-apps' PublicToast.vue mirrors these
+      // exact values.
       colorScheme: {
         light: {
           success: {
@@ -46,14 +46,14 @@ export const OpkomstPreset = definePreset(Aura, {
             },
           },
           warn: {
-            background: "color-mix(in srgb, #fff5e2, transparent 5%)",
-            borderColor: "#ead9b3",
-            color: "#7a5b00",
+            background: "color-mix(in srgb, {primary.50}, transparent 5%)",
+            borderColor: "{primary.200}",
+            color: "{primary.600}",
             detailColor: "{surface.700}",
-            shadow: "0px 4px 8px 0px color-mix(in srgb, #b58a1a, transparent 96%)",
+            shadow: "0px 4px 8px 0px color-mix(in srgb, {primary.500}, transparent 96%)",
             closeButton: {
-              hoverBackground: "#f6e4b8",
-              focusRing: { color: "#7a5b00", shadow: "none" },
+              hoverBackground: "{primary.100}",
+              focusRing: { color: "{primary.600}", shadow: "none" },
             },
           },
         },

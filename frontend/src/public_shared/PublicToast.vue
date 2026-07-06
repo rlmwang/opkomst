@@ -29,12 +29,16 @@ const state = usePublicToasts();
   width: max-content;
   max-width: 90vw;
 }
+/* Same family as the organiser app's PrimeVue toasts (see
+ * primevue-preset.ts): pale primary-50 card, primary-200 border,
+ * primary-600 text — one toast look across the whole product. */
 .toast {
-  background: var(--brand-red);
-  color: #fff;
+  background: color-mix(in srgb, #fdf2f2, transparent 5%);
+  border: 1px solid #f5b0b4;
+  color: #8b000a;
   padding: 0.625rem 1rem;
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 8px color-mix(in srgb, #9f000b, transparent 96%);
   font-size: 0.9375rem;
   line-height: 1.35;
   text-align: center;
