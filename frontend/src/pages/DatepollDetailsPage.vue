@@ -408,7 +408,7 @@ async function exportCsv() {
 .grid { border-collapse: collapse; font-size: 0.8125rem; }
 .grid th, .grid td { border: 1px solid var(--brand-border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
 .grid th.who, .grid td.who { text-align: left; position: sticky; left: 0; background: var(--brand-surface); }
-.grid th.note-col, .grid td.note-col { text-align: left; white-space: normal; min-width: 8rem; max-width: 16rem; }
+.grid th.note-col, .grid td.note-col { text-align: left; white-space: pre-line; min-width: 8rem; max-width: 16rem; }
 /* Slot columns (everything between respondent and note) share one
  * fixed width so they line up evenly. */
 .grid th.slot-th, .grid tbody td:not(.who):not(.note-col) { width: 4rem; }

@@ -345,7 +345,7 @@ function dateWindow(): string {
 /* Overview chrome (.overview, .overview-body, .overview-text,
  * .overview-meta, .detail-image, .link-row, .qr*) is shared from
  * theme.css. Only chore-specific list/stat styles stay here. */
-.description { margin: 0; }
+.description { margin: 0; white-space: pre-line; }
 .chore-list {
   list-style: none;
   margin: 0.5rem 0 0;

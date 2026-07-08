@@ -289,7 +289,11 @@
     h2 { font-size: 1rem; }
   }
 
-  .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+  /* ``pre-line`` so newlines the author typed in a description / note are
+   * honoured. It still collapses stray runs of spaces and wraps like
+   * ``normal``, so it's a no-op for the single-line labels that also use
+   * ``.muted`` — only multi-line user text changes. */
+  .muted { color: var(--brand-text-muted); font-size: 0.875rem; white-space: pre-line; }
 
   /* Inline link for metadata lines ("location · datetime"). Keeps
    * the surrounding text colour with a dotted underline so the link

@@ -594,7 +594,7 @@ function askTriggerNow(channel: EmailChannel) {
   flex-direction: column;
   gap: 0.375rem;
 }
-.texts li { line-height: 1.45; }
+.texts li { line-height: 1.45; white-space: pre-line; }
 
 /* --- Email-delivery card ------------------------------------------ */
 /* Six chips, one per delivery state, in equal-width grid columns so
