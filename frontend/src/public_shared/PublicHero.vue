@@ -20,11 +20,20 @@ defineProps<{
 </template>
 
 <style scoped>
-.hero { margin: 0; }
+/* Bottom margin so the title beneath isn't cramped against the image.
+ * The frame is a fixed 4:5 at every width — capped at 320×400 and centred,
+ * matching the event page — so it looks identical on mobile and desktop and
+ * creators can design to one 4:5 frame. (Was ``width:100% + max-height``,
+ * which held 4:5 only on narrow phones and went letterbox-wide on desktop.) */
+.hero {
+  margin: 0 0 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .hero-img {
-  display: block;
   width: 100%;
-  max-height: 400px;
+  max-width: 320px;
   aspect-ratio: 4 / 5;
   object-fit: cover;
   border-radius: 12px;
