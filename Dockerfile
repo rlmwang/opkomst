@@ -29,7 +29,11 @@ COPY frontend/package.json frontend/package-lock.json* ./
 # but tarballs come from the cache instead of the network.
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
-RUN npm run build
+# ``build-only`` = ``vite build`` without ``vue-tsc``. Type-checking runs in
+# pre-push (lefthook) and CI, so re-running it here is redundant — and
+# ``vue-tsc`` is the memory hog that OOM-kills the build on the 1.9 GB VPS,
+# taking the site down. The image build just needs the bundle.
+RUN npm run build-only
 
 # ---------------------------------------------------------------------------
 # Stage 2 — Python runtime
