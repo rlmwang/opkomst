@@ -188,6 +188,9 @@ function addCommonSlot(): void {
   const slot = buildSlot(newCommon, commonSlots.value);
   if (!slot) return;
   commonSlots.value = [...commonSlots.value, slot].sort((a, b) => a.start.localeCompare(b.start));
+  // It now applies to every day, so drop any per-day copy of the same range
+  // rather than showing it as both an all-days chip and a this-day chip.
+  dropPerDayCommonDupes();
   newCommon.start = "";
   newCommon.end = "";
 }
@@ -199,6 +202,19 @@ function slotKey(s: TimeSlot): string {
 /** Is a common slot active (not excluded) on this day? */
 function isCommonOn(iso: string, s: TimeSlot): boolean {
   return !(excluded[iso] ?? []).includes(slotKey(s));
+}
+
+/** The one invariant that keeps a range from rendering twice: a range
+ *  covered by an *active* common slot on a day must not also sit in that
+ *  day's own ``slots[iso]``. Called after any change that can introduce the
+ *  overlap (draft restore, adding a common slot). Old drafts saved before
+ *  this invariant existed can carry the overlap, so this heals them too. */
+function dropPerDayCommonDupes(): void {
+  const keys = new Set(commonSlots.value.map(slotKey));
+  for (const iso of Object.keys(slots)) {
+    slots[iso] = slots[iso].filter((s) => !(keys.has(slotKey(s)) && isCommonOn(iso, s)));
+    if (slots[iso].length === 0) delete slots[iso];
+  }
 }
 
 /** Toggle a common slot on/off for a single day. */
@@ -228,6 +244,50 @@ function removeCommonSlot(index: number): void {
 function effectiveSlots(iso: string): TimeSlot[] {
   const common = commonSlots.value.filter((s) => isCommonOn(iso, s));
   return [...common, ...(slots[iso] ?? [])].sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/** Rebuild the slot editor from a saved poll. The wire has no "all days"
+ *  concept — ``submit`` flattens every common slot into per-day rows — so
+ *  reconstruct it on load: a timed range present on *every* selected day
+ *  becomes one common slot (only worth doing with more than one day), and
+ *  the rest stay per-day. Building the two lists disjoint means a range
+ *  never shows as both an all-days chip and a this-day chip. Fully
+ *  authoritative: it resets ``commonSlots``, ``slots`` and ``excluded``. */
+function hydrateSlotState(
+  serverSlots: { on_date: string; start_time?: string | null; end_time?: string | null }[],
+  isos: string[],
+): void {
+  const perDay: Record<string, TimeSlot[]> = {};
+  for (const s of serverSlots) {
+    if (s.start_time && s.end_time) {
+      (perDay[s.on_date] ??= []).push({ start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) });
+    }
+  }
+  const counts = new Map<string, { slot: TimeSlot; n: number }>();
+  for (const iso of isos) {
+    for (const s of perDay[iso] ?? []) {
+      const e = counts.get(slotKey(s)) ?? { slot: s, n: 0 };
+      e.n += 1;
+      counts.set(slotKey(s), e);
+    }
+  }
+  const commonKeys = new Set<string>();
+  const common: TimeSlot[] = [];
+  if (isos.length > 1) {
+    for (const { slot, n } of counts.values()) {
+      if (n === isos.length) {
+        common.push(slot);
+        commonKeys.add(slotKey(slot));
+      }
+    }
+  }
+  commonSlots.value = common.sort((a, b) => a.start.localeCompare(b.start));
+  for (const k of Object.keys(slots)) delete slots[k];
+  for (const k of Object.keys(excluded)) delete excluded[k];
+  for (const iso of isos) {
+    const extras = (perDay[iso] ?? []).filter((s) => !commonKeys.has(slotKey(s)));
+    if (extras.length) slots[iso] = extras.sort((a, b) => a.start.localeCompare(b.start));
+  }
 }
 
 // Compact chip label, e.g. "za 12 jul" — the long format is too wide
@@ -271,13 +331,9 @@ watch(
     chapterId.value = existing.chapter_id;
     set(existing.location ?? null, existing.latitude ?? null, existing.longitude ?? null);
     const existingSlots = existing.slots ?? [];
-    selectedDates.value = [...new Set(existingSlots.map((s) => s.on_date))].map(fromISODate);
-    for (const k of Object.keys(slots)) delete slots[k];
-    for (const s of existingSlots) {
-      if (s.start_time && s.end_time) {
-        (slots[s.on_date] ??= []).push({ start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) });
-      }
-    }
+    const isos = [...new Set(existingSlots.map((s) => s.on_date))].sort();
+    selectedDates.value = isos.map(fromISODate);
+    hydrateSlotState(existingSlots, isos);
     if (draftReady) restoreDraftOnce();
   },
   { immediate: true },
@@ -331,6 +387,7 @@ function applyDraft(d: DatepollDraft): void {
   commonSlots.value = (d.commonSlots ?? []).map((s) => ({ ...s }));
   for (const k of Object.keys(excluded)) delete excluded[k];
   for (const [iso, keys] of Object.entries(d.excluded ?? {})) excluded[iso] = [...keys];
+  dropPerDayCommonDupes();
 }
 
 const { loadDraft, clearDraft } = useFormDraft<DatepollDraft>({
