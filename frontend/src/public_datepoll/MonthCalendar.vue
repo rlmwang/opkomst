@@ -22,6 +22,9 @@ const props = defineProps<{
   slotsByIso: Record<string, SlotCell[]>;
   answers: Record<string, Availability | null>;
   locale: Locale;
+  // Shared column template (see PublicDatepoll): one fixed grid so every
+  // stacked month lines up with the next and with the weekday header.
+  columns: string;
 }>();
 const emit = defineEmits<{ toggle: [slotId: string] }>();
 
@@ -37,7 +40,7 @@ function dayClass(iso: string) {
 </script>
 
 <template>
-  <MonthGrid :month="monthStr" :locale="locale" :weekdays="weekdays" :nav="false" :day-class="dayClass">
+  <MonthGrid :month="monthStr" :locale="locale" :weekdays="weekdays" :nav="false" :day-class="dayClass" :columns="columns">
     <template #day="{ iso }">
       <div v-if="slotsByIso[iso]?.length" class="votes">
         <button

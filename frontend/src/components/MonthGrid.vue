@@ -31,6 +31,13 @@ const props = withDefaults(
     // its own stacking context above sibling cells so the popover (and its
     // buttons) reliably sit on top and receive hover/clicks.
     activeIso?: string | null;
+    // An explicit ``grid-template-columns`` shared by the header and every
+    // stacked grid. Callers that render several months at once (datepoll)
+    // pass one fixed template so the day columns line up across months and
+    // with the weekday header — and can give it a min column width so the
+    // grid scrolls rather than squashing when every weekday is in play.
+    // Unset: each grid sizes its own columns by which carry content.
+    columns?: string;
   }>(),
   { nav: true },
 );
@@ -111,10 +118,10 @@ function onCellClick(c: Cell) {
       <button type="button" class="mg-navbtn" :aria-label="nextLabel" @click="shift(1)">›</button>
     </div>
     <p v-else class="mg-title">{{ monthLabel }}</p>
-    <div class="mg-dow" :style="{ gridTemplateColumns: columnTemplate }">
+    <div class="mg-dow" :style="{ gridTemplateColumns: columns ?? columnTemplate }">
       <span v-for="(w, i) in weekdays" :key="`h${i}`">{{ w }}</span>
     </div>
-    <div class="mg-grid" :style="{ gridTemplateColumns: columnTemplate }">
+    <div class="mg-grid" :style="{ gridTemplateColumns: columns ?? columnTemplate }">
       <div
         v-for="(c, i) in cells"
         :key="i"

@@ -122,6 +122,17 @@ const slotsByIso = computed<Record<string, { id: string; label: string | null }[
   return out;
 });
 
+// One fixed column template shared by the weekday header and every stacked
+// month, so day cells line up down the page. Each column gets a real minimum
+// width, so when all seven weekdays are in play the grid overflows into a
+// horizontal scroll (the card grows to match) instead of squashing the cells.
+// Timed polls carry wider pills ("19:30–21:30 ✓") than whole-day dots, so
+// they get a roomier floor.
+const calendarColumns = computed(() => {
+  const timed = (poll.value?.slots ?? []).some((s) => s.start_time && s.end_time);
+  return `repeat(7, minmax(${timed ? "5.25rem" : "3rem"}, 1fr))`;
+});
+
 const months = computed(() => {
   const seen = new Set<string>();
   const out: { year: number; month: number }[] = [];
@@ -251,7 +262,7 @@ async function withdraw(): Promise<void> {
           />
         </div>
 
-        <div class="card">
+        <div class="card poll-calendar">
           <p class="legend">
             <span class="intro-text">{{ d.intro }}</span>
             <span class="swatch yes">{{ d.yes }}</span>
@@ -266,6 +277,7 @@ async function withdraw(): Promise<void> {
             :slots-by-iso="slotsByIso"
             :answers="answers"
             :locale="locale"
+            :columns="calendarColumns"
             @toggle="toggle"
           />
         </div>
@@ -323,9 +335,17 @@ async function withdraw(): Promise<void> {
 .swatch.yes { background: var(--brand-green); }
 .swatch.maybe { background: var(--brand-amber); }
 .swatch.no { background: #6b6b6b; }
-/* Each month renders at full content width, stacked vertically — the
- * cells are wide enough to hold their time-slot pills inline. */
-.card :deep(.month):last-child { margin-bottom: 0; }
+/* When every weekday carries a slot the calendar is wider than a phone
+ * viewport. Let this one card grow to its calendar's width (the surface
+ * then sits behind every day cell) and the page scrolls horizontally to
+ * reach it. ``min-width: 100%`` keeps it flush with the tight sibling
+ * cards whenever the calendar does fit. */
+.poll-calendar { width: max-content; min-width: 100%; }
+/* Keep the intro/legend from dictating the card's width: cap it to the
+ * viewport so it wraps instead of forcing a scroll the calendar didn't. */
+.legend { max-width: calc(100vw - 3rem); }
+/* Breathing room between stacked months. */
+.poll-calendar :deep(.mg) + :deep(.mg) { margin-top: 1rem; }
 .submit-card { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
 .error { color: var(--brand-red); margin: 0; }
 /* .btn-primary (+ .full) comes from ``src/public_shared/forms.css``. */
