@@ -2,7 +2,6 @@
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import Textarea from "primevue/textarea";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -11,6 +10,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
+import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import { useFormDraft } from "@/composables/useFormDraft";
@@ -305,12 +305,9 @@ async function submit() {
   >
     <section class="form-section">
       <InputText v-model="name" :placeholder="t('forms.edit.namePlaceholder')" fluid />
-      <Textarea
+      <RichTextField
         v-model="description"
         :placeholder="t('forms.edit.descriptionPlaceholder')"
-        rows="2"
-        auto-resize
-        fluid
       />
       <Select
         v-model="chapterId"

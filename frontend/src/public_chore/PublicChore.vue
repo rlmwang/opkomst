@@ -3,7 +3,7 @@ import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
-import PublicHero from "@/public_shared/PublicHero.vue";
+import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -349,15 +349,13 @@ async function leave(): Promise<void> {
     <EditLink v-if="status === 'enrolled'" :url="editUrl" :locale="locale" />
 
     <template v-else-if="roster && (status === 'enrol' || status === 'personal')">
-      <PublicHero
+      <PublicTopCard
+        :title="roster.name"
         :image-url="roster.image_url"
         :artist="roster.image_artist_instagram"
         :credit-label="c.imageCredit"
+        :description-html="roster.description"
       />
-      <div class="card stack">
-        <h1>{{ roster.name }}</h1>
-        <p v-if="roster.description" class="muted">{{ roster.description }}</p>
-      </div>
 
       <!-- Personal mode: my turns + up-for-grabs -->
       <template v-if="status === 'personal' && personal">

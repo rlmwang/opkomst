@@ -42,6 +42,7 @@ from ..services import datepolls as datepolls_svc
 from ..services import event_stats
 from ..services import events as events_svc
 from ..services import forms as forms_svc
+from ..services.sanitize import html_to_text
 
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -117,8 +118,12 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     # to "{location} · {date}" which is the next-most-useful at-
     # a-glance summary. Truncated to ~200 chars — Facebook caps
     # display around there and WhatsApp lower.
-    if event.topic:
-        description = event.topic
+    # ``topic`` is sanitized rich-text HTML; flatten it to plain text
+    # before it lands in a ``<meta>`` attribute (tags would otherwise
+    # show up literally in link previews).
+    topic_text = html_to_text(event.topic)
+    if topic_text:
+        description = topic_text
     else:
         description = f"{event.location} · {event.starts_at.strftime('%-d %b %Y')}"
     if len(description) > 200:
@@ -160,7 +165,7 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=poll.name,
-        description=poll.description or poll.name,
+        description=html_to_text(poll.description) or poll.name,
         canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
         og_image=_OG_IMAGE_URL,
         twitter_card="summary",
@@ -174,7 +179,7 @@ def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=roster.name,
-        description=roster.description or roster.name,
+        description=html_to_text(roster.description) or roster.name,
         canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
         og_image=_OG_IMAGE_URL,
         twitter_card="summary",

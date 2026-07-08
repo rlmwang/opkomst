@@ -752,7 +752,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -1487,7 +1487,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -1825,7 +1825,7 @@
           "topic": {
             "anyOf": [
               {
-                "maxLength": 200,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -2365,7 +2365,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -3027,7 +3027,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -3719,7 +3719,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {
@@ -4147,7 +4147,7 @@
           "description": {
             "anyOf": [
               {
-                "maxLength": 2000,
+                "maxLength": 8000,
                 "type": "string"
               },
               {

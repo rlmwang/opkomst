@@ -4,7 +4,8 @@ import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
-import PublicHero from "@/public_shared/PublicHero.vue";
+import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
+import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { showToast } from "@/public_shared/publicToast";
@@ -244,25 +245,24 @@ async function withdraw(): Promise<void> {
          submit the body is replaced by a thanks card below it, same
          shape as the events confirmation. -->
     <template v-else-if="poll">
-      <div class="card title-card">
-        <PublicHero
-          :image-url="poll.image_url"
-          :artist="poll.image_artist_instagram"
-          :credit-label="c.imageCredit"
-        />
-        <h1>{{ poll.name }}</h1>
-        <p v-if="poll.description" class="muted">{{ poll.description }}</p>
-        <a
-          v-if="poll.location"
-          class="location"
-          :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-          {{ poll.location }}
-        </a>
-      </div>
+      <PublicTopCard
+        :title="poll.name"
+        :image-url="poll.image_url"
+        :artist="poll.image_artist_instagram"
+        :credit-label="c.imageCredit"
+        :description-html="poll.description"
+      >
+        <template v-if="poll.location" #meta>
+          <PublicMetaRow
+            :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
+          >
+            <template #icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+            </template>
+            {{ poll.location }}
+          </PublicMetaRow>
+        </template>
+      </PublicTopCard>
 
       <template v-if="status === 'submitted'">
         <div class="card stack thanks-card">
@@ -352,20 +352,7 @@ async function withdraw(): Promise<void> {
 
 <style scoped>
 .muted { color: var(--brand-text-muted); }
-.title-card h1 { margin: 0; overflow-wrap: anywhere; }
 .thanks-card h2 { margin: 0; }
-.title-card .muted { margin: 0.5rem 0 0; }
-.location {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin: 0.5rem 0 0;
-  color: var(--brand-red);
-  text-decoration: none;
-  font-size: 0.9375rem;
-}
-.location:hover { text-decoration: underline; }
-.location svg { flex: none; }
 .intro-text { color: var(--brand-text-muted); margin-right: auto; }
 /* Text boxes use the shared ``.input`` (forms.css). */
 .name-card { display: flex; flex-direction: column; gap: 0.625rem; }

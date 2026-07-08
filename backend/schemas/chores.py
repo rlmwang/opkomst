@@ -22,7 +22,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail
+from .common import Description, DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
 
 
 class ChoreIn(BaseModel):
@@ -33,7 +33,7 @@ class ChoreIn(BaseModel):
 
     id: str | None = None
     name: str = Field(min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
+    description: Description
     cycle_slots: list[int] = Field(default_factory=list, max_length=64)
     people_per_shift: int = Field(default=1, ge=1, le=20)
     emoji: str | None = Field(default=None, max_length=8)
@@ -57,7 +57,7 @@ class RosterCreate(BaseModel):
 
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
+    description: RichText
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     location: str | None = Field(default=None, max_length=200)

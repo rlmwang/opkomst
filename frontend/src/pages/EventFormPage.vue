@@ -3,7 +3,6 @@ import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import Textarea from "primevue/textarea";
 import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -12,6 +11,7 @@ import EditableList from "@/components/EditableList.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
+import RichTextField from "@/components/RichTextField.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import { useLocationField } from "@/composables/useLocationField";
 import {
@@ -20,13 +20,14 @@ import {
   useEventList,
   useUpdateEvent,
 } from "@/composables/useEvents";
+import { firstFieldError } from "@/api/client";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ eventId?: string }>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
@@ -401,11 +402,20 @@ async function submit() {
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
     void router.push(`/events/${result.id}/details`);
-  } catch {
-    // Validation feedback is handled up-front; everything else
-    // collapses to a localised generic so users never see raw
-    // Pydantic / FastAPI English.
-    toasts.error(t("event.saveFailed"));
+  } catch (err) {
+    // Most validation is caught up-front; a field-level 422 that slips
+    // through (e.g. a paste over the length cap) is surfaced with the
+    // offending field named in the user's language, never raw Pydantic
+    // English. Anything else collapses to the generic.
+    const fe = firstFieldError(err);
+    const label = fe && te(`event.fields.${fe.field}`) ? t(`event.fields.${fe.field}`) : null;
+    if (fe && label && fe.type === "string_too_long" && fe.limit != null) {
+      toasts.error(t("event.tooLong", { field: label, max: fe.limit }));
+    } else if (fe && label) {
+      toasts.error(t("event.invalidField", { field: label }));
+    } else {
+      toasts.error(t("event.saveFailed"));
+    }
   } finally {
     submitting.value = false;
   }
@@ -422,13 +432,7 @@ async function submit() {
   >
       <section class="form-section">
         <InputText v-model="name" :placeholder="t('event.name')" fluid />
-        <Textarea
-          v-model="topic"
-          :placeholder="t('event.topic')"
-          auto-resize
-          rows="3"
-          fluid
-        />
+        <RichTextField v-model="topic" :placeholder="t('event.topic')" />
         <Select
           v-model="chapterId"
           :options="userChapterOptions"

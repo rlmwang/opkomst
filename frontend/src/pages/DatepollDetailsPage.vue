@@ -3,6 +3,7 @@ import Button from "primevue/button";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
+import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import MonthCalendar from "@/components/MonthCalendar.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
@@ -182,62 +183,29 @@ async function exportCsv() {
     </AppCard>
 
     <template v-else-if="poll">
-      <AppCard :stack="false" class="overview">
-        <h1>
-          {{ poll.name }}
-          <span v-if="poll.chapter_name" class="chapter-chip">{{ poll.chapter_name }}</span>
-        </h1>
-        <figure v-if="poll.image_url" class="detail-image">
-          <img :src="poll.image_url" :alt="poll.name" />
-          <figcaption v-if="poll.image_artist_instagram" class="muted">
-            {{ t("imageField.credit") }}
-            <a :href="`https://instagram.com/${poll.image_artist_instagram}`" target="_blank" rel="noopener">@{{ poll.image_artist_instagram }}</a>
-          </figcaption>
-        </figure>
-        <div class="overview-body">
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('datepolls.share.copyQr')"
-            :aria-label="t('datepolls.share.copyQr')"
-            @click="copyQr(poll.slug)"
-          >
-            <img :src="datepollQrUrl(poll.slug)" alt="" class="qr" />
-          </button>
-          <div class="overview-text">
-            <p v-if="poll.description" class="muted description">{{ poll.description }}</p>
+      <DetailHeaderCard
+        :title="poll.name"
+        :chapter-name="poll.chapter_name"
+        :image-url="poll.image_url"
+        :image-artist="poll.image_artist_instagram"
+        :description-html="poll.description"
+        :qr-src="datepollQrUrl(poll.slug)"
+        :public-url="publicDatepollUrl(poll.slug)"
+        :edit-to="`/datepolls/${poll.id}/edit`"
+        @copy-qr="copyQr(poll.slug)"
+        @copy-link="copyLink(poll.slug)"
+      >
+        <template v-if="poll.location" #meta>
+          <p class="muted overview-meta">
             <a
-              v-if="poll.location"
-              class="location"
               :href="mapLink({ location: poll.location, latitude: poll.latitude ?? null, longitude: poll.longitude ?? null })"
               target="_blank"
               rel="noopener"
-            >
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-              {{ poll.location }}
-            </a>
-            <div class="link-row">
-              <a :href="publicDatepollUrl(poll.slug)" target="_blank" rel="noopener">
-                {{ publicDatepollUrl(poll.slug) }}
-              </a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('datepolls.share.copyLink')"
-                :aria-label="t('datepolls.share.copyLink')"
-                @click="copyLink(poll.slug)"
-              />
-            </div>
-            <div>
-              <router-link :to="`/datepolls/${poll.id}/edit`">
-                <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </AppCard>
+              class="meta-link"
+            >{{ poll.location }}</a>
+          </p>
+        </template>
+      </DetailHeaderCard>
 
       <!-- Proposed dates overview — the poll's candidate slots, shown
            independently of any responses (mirrors the chore details
@@ -343,21 +311,9 @@ async function exportCsv() {
 </template>
 
 <style scoped>
-/* Overview card (.overview*, .detail-image, .qr*), .summary-header /
- * .header-actions, and the mobile stack override are shared from
- * theme.css. Only the datepoll-specific location link stays here. */
-.description { margin: 0; }
-.location {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  width: fit-content;
-  color: var(--brand-red);
-  text-decoration: none;
-  font-size: 0.9375rem;
-}
-.location:hover { text-decoration: underline; }
-.location svg { flex: none; }
+/* The overview header is the shared ``DetailHeaderCard``; its chrome and
+ * the .summary-header / .header-actions + mobile stack override are all
+ * shared from theme.css. */
 
 /* Per-slot tally — one row per slot: the date (time below) on the left,
  * a yes/maybe/no SegmentedBar on the right. Mirrors the chore tally. */

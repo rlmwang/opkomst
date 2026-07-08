@@ -63,6 +63,7 @@ from ..models import (
 from . import encryption
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
+from .sanitize import html_to_text
 
 logger = structlog.get_logger()
 
@@ -174,7 +175,7 @@ def build_reminder_context(event: Event) -> dict[str, Any]:
     return {
         "event_name": event.name,
         "event_url": build_url(f"e/{event.slug}"),
-        "topic": event.topic,
+        "topic": html_to_text(event.topic),
         "starts_at": event.starts_at,
         "ends_at": event.ends_at,
         "event_date": _format_date(event.starts_at, event.locale),

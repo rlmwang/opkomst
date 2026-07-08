@@ -295,6 +295,18 @@
    * ``.muted`` — only multi-line user text changes. */
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; white-space: pre-line; }
 
+  /* The one home for the sanitized rich-text "details" body (event
+   * topic, form / datepoll / roster description), rendered with
+   * ``v-html`` so it can't be reached by scoped styles. Shared by the
+   * four public pages, the admin previews, and the agenda cards. The
+   * treatment is the readable datepoll style, de-italicised: upright,
+   * muted, comfortable line-height. Marks (``u`` / ``s``) render with
+   * their browser defaults; only links get brand styling. */
+  .richtext { font-size: 1rem; line-height: 1.5; color: var(--brand-text-muted); }
+  .richtext p { margin: 0 0 0.5rem; }
+  .richtext p:last-child { margin-bottom: 0; }
+  .richtext a { color: var(--brand-red); text-decoration: underline; }
+
   /* Inline link for metadata lines ("location · datetime"). Keeps
    * the surrounding text colour with a dotted underline so the link
    * affordance is visible without dominating; brand-red on hover. */

@@ -4,7 +4,7 @@ import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
-import PublicHero from "@/public_shared/PublicHero.vue";
+import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { showToast } from "@/public_shared/publicToast";
@@ -208,15 +208,13 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
          submit the form is replaced by a thanks card below it, same
          shape as the events confirmation. -->
     <template v-else-if="form">
-      <div class="card title-card">
-        <PublicHero
-          :image-url="form.image_url"
-          :artist="form.image_artist_instagram"
-          :credit-label="c.imageCredit"
-        />
-        <h1>{{ form.name }}</h1>
-        <p v-if="form.description" class="muted">{{ form.description }}</p>
-      </div>
+      <PublicTopCard
+        :title="form.name"
+        :image-url="form.image_url"
+        :artist="form.image_artist_instagram"
+        :credit-label="c.imageCredit"
+        :description-html="form.description"
+      />
 
       <template v-if="status === 'submitted'">
         <div class="card stack thanks-card">
@@ -333,7 +331,6 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
 <style scoped>
 .muted { color: var(--brand-text-muted); margin: 0.5rem 0 0; }
-.title-card h1 { margin: 0; overflow-wrap: anywhere; }
 .thanks-card h2 { margin: 0; }
 .form-card { display: flex; flex-direction: column; gap: 1.25rem; }
 .q-block { display: flex; flex-direction: column; gap: 0.5rem; }

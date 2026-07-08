@@ -3,7 +3,6 @@ import Button from "primevue/button";
 import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import Textarea from "primevue/textarea";
 import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -15,6 +14,7 @@ import { DEFAULT_CHORE_EMOJI, firstUnusedEmoji } from "@/components/EmojiPicker.
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
+import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import type { ChoreIn, RosterCreate, RosterUpdate } from "@/api/types";
 import { chapterList, useChapters } from "@/composables/useChapters";
@@ -386,12 +386,9 @@ async function submit() {
     <!-- Basics -->
     <section class="form-section">
       <InputText v-model="name" :placeholder="t('chores.edit.namePlaceholder')" fluid />
-      <Textarea
+      <RichTextField
         v-model="description"
         :placeholder="t('chores.edit.descriptionPlaceholder')"
-        rows="2"
-        auto-resize
-        fluid
       />
       <Select
         v-model="chapterId"

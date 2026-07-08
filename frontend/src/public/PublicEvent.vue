@@ -6,10 +6,12 @@ import { isValidEmail } from "@/lib/validate";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
-import PublicHero from "@/public_shared/PublicHero.vue";
+import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
+import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import { chromeStrings } from "@/public_shared/strings";
+import { stripHtml } from "@/public_shared/stripHtml";
 import { showToast } from "@/public_shared/publicToast";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -221,7 +223,7 @@ const calLinks = computed(() => {
   const utc = (iso: string) =>
     new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const publicUrl = `${window.location.origin}/e/${e.slug}`;
-  const desc = [e.topic ?? "", publicUrl].filter(Boolean).join("\n\n");
+  const desc = [stripHtml(e.topic), publicUrl].filter(Boolean).join("\n\n");
   const ics = `/api/v1/events/by-slug/${e.slug}/event.ics`;
   const google =
     `https://calendar.google.com/calendar/render?action=TEMPLATE` +
@@ -368,64 +370,51 @@ watch(event, (e) => {
     <PublicNotice v-else-if="event?.archived" :title="event.name" :message="c.unavailable" />
 
     <template v-else>
-      <div class="card event-header">
-        <PublicHero
-          :image-url="event?.image_url ?? null"
-          :artist="event?.image_artist_instagram ?? null"
-          :credit-label="t.imageCredit"
-        />
-        <div class="event-title">
-          <h1 v-if="event">{{ event.name }}</h1>
-          <h1 v-else class="skeleton-line skeleton-title" aria-hidden="true"></h1>
-          <p v-if="event?.topic" class="event-topic">{{ event.topic }}</p>
-        </div>
-
-        <dl class="event-meta">
-          <div class="meta-row">
-            <span class="icon" aria-hidden="true">
+      <PublicTopCard
+        :title="event?.name ?? null"
+        :image-url="event?.image_url ?? null"
+        :artist="event?.image_artist_instagram ?? null"
+        :credit-label="t.imageCredit"
+        :description-html="event?.topic ?? null"
+      >
+        <template v-if="event" #meta>
+          <PublicMetaRow>
+            <template #icon>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </span>
-            <span v-if="event">{{ formatDate(event.starts_at, locale) }}</span>
-            <span v-else class="skeleton-line skeleton-meta" aria-hidden="true"></span>
-          </div>
-          <div class="meta-row">
-            <span class="icon" aria-hidden="true">
+            </template>
+            {{ formatDate(event.starts_at, locale) }}
+          </PublicMetaRow>
+          <PublicMetaRow>
+            <template #icon>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </span>
-            <span v-if="event">{{ formatTimeRange(event.starts_at, event.ends_at, locale) }}</span>
-            <span v-else class="skeleton-line skeleton-meta" aria-hidden="true"></span>
-          </div>
-          <div class="meta-row">
-            <span class="icon" aria-hidden="true">
+            </template>
+            {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
+          </PublicMetaRow>
+          <PublicMetaRow
+            :href="mapLink({ location: event.location, latitude: event.latitude, longitude: event.longitude })"
+          >
+            <template #icon>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            </span>
-            <a
-              v-if="event"
-              :href="mapLink({ location: event.location, latitude: event.latitude, longitude: event.longitude })"
-              target="_blank"
-              rel="noopener"
-              class="meta-link"
-            >
-              {{ event.location }}
-              <svg class="external" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
-            <span v-else class="skeleton-line skeleton-meta" aria-hidden="true"></span>
-          </div>
-        </dl>
+            </template>
+            {{ event.location }}
+          </PublicMetaRow>
+        </template>
 
-        <div v-if="event && calLinks" class="event-actions">
-          <details class="cal">
-            <summary class="cal-button">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="20"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
-              {{ t.addToCalendar }}
-            </summary>
-            <ul class="cal-menu" role="menu">
-              <li role="none"><a :href="calLinks.google" target="_blank" rel="noopener" role="menuitem">Google</a></li>
-              <li role="none"><a :href="calLinks.ics" role="menuitem">{{ t.calIcs }}</a></li>
-            </ul>
-          </details>
-        </div>
-      </div>
+        <template v-if="event && calLinks" #actions>
+          <div class="event-actions">
+            <details class="cal">
+              <summary class="cal-button">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="20"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                {{ t.addToCalendar }}
+              </summary>
+              <ul class="cal-menu" role="menu">
+                <li role="none"><a :href="calLinks.google" target="_blank" rel="noopener" role="menuitem">Google</a></li>
+                <li role="none"><a :href="calLinks.ics" role="menuitem">{{ t.calIcs }}</a></li>
+              </ul>
+            </details>
+          </div>
+        </template>
+      </PublicTopCard>
 
       <div v-if="event && !submitted" class="card privacy-card">
         <details>
@@ -699,65 +688,10 @@ watch(event, (e) => {
   transform: rotate(45deg);
 }
 
-/* Event header card with absolute-positioned cal button. The hero is the
- * shared ``PublicHero`` (one 4:5 frame across every public page); the flex
- * ``gap`` already spaces it from the title, so cancel the hero's own bottom
- * margin here to avoid doubling it. */
-.event-header {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.event-header :deep(.hero) {
-  margin-bottom: 0;
-}
-.event-title h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  line-height: 1.25;
-}
-.event-topic {
-  margin: 0.75rem 0 0;
-  padding: 0.25rem 0;
-  color: var(--brand-text-muted);
-  font-style: italic;
-  font-size: 1.0625rem;
-  line-height: 1.5;
-}
-
-.event-meta {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-}
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 0.95rem;
-  line-height: 1.3;
-}
-.meta-row > .icon {
-  color: var(--brand-red);
-  width: 1rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.meta-link {
-  color: inherit;
-  text-decoration: none;
-}
-.meta-link:hover { text-decoration: underline; text-decoration-color: var(--brand-red); }
-.meta-link .external {
-  color: var(--brand-text-muted);
-  margin-left: 0.3rem;
-  vertical-align: -1px;
-}
-
+/* The "add to calendar" popup, pinned to the corner of the shared
+ * ``PublicTopCard`` (which is ``position: relative``). Header layout,
+ * title, meta rows, and the details body all live in that shared
+ * component now. */
 .event-actions {
   position: absolute;
   right: 0.75rem;

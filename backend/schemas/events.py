@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail
+from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
 
 
 class EventCreate(BaseModel):
@@ -12,7 +12,7 @@ class EventCreate(BaseModel):
     # already scoped to the user's live chapters so this is
     # really a defence-in-depth check.
     chapter_id: str
-    topic: str | None = Field(default=None, max_length=200)
+    topic: RichText
     location: str = Field(min_length=1, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)

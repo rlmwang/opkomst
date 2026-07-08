@@ -3,6 +3,7 @@ import Button from "primevue/button";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
+import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
@@ -103,51 +104,18 @@ async function exportCsv() {
            body grid with text on the left (public URL + copy +
            edit) and the QR thumbnail on the right (clickable to
            copy the QR PNG to the clipboard). -->
-      <AppCard :stack="false" class="overview">
-        <h1>
-          {{ form.name }}
-          <span v-if="form.chapter_name" class="chapter-chip">{{ form.chapter_name }}</span>
-        </h1>
-        <figure v-if="form.image_url" class="detail-image">
-          <img :src="form.image_url" :alt="form.name" />
-          <figcaption v-if="form.image_artist_instagram" class="muted">
-            {{ t("imageField.credit") }}
-            <a :href="`https://instagram.com/${form.image_artist_instagram}`" target="_blank" rel="noopener">@{{ form.image_artist_instagram }}</a>
-          </figcaption>
-        </figure>
-        <div class="overview-body">
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('forms.share.copyQr')"
-            :aria-label="t('forms.share.copyQr')"
-            @click="copyQr(form.slug)"
-          >
-            <img :src="formQrUrl(form.slug)" alt="" class="qr" />
-          </button>
-          <div class="overview-text">
-            <div class="link-row">
-              <a :href="publicFormUrl(form.slug)" target="_blank" rel="noopener">
-                {{ publicFormUrl(form.slug) }}
-              </a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('forms.share.copyLink')"
-                :aria-label="t('forms.share.copyLink')"
-                @click="copyLink(form.slug)"
-              />
-            </div>
-            <div>
-              <router-link :to="`/forms/${form.id}/edit`">
-                <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </AppCard>
+      <DetailHeaderCard
+        :title="form.name"
+        :chapter-name="form.chapter_name"
+        :image-url="form.image_url"
+        :image-artist="form.image_artist_instagram"
+        :description-html="form.description"
+        :qr-src="formQrUrl(form.slug)"
+        :public-url="publicFormUrl(form.slug)"
+        :edit-to="`/forms/${form.id}/edit`"
+        @copy-qr="copyQr(form.slug)"
+        @copy-link="copyLink(form.slug)"
+      />
 
       <!-- Defined questions overview — the questionnaire's structure,
            shown independently of any responses (mirrors the chore

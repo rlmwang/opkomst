@@ -1,4 +1,12 @@
 {
+  "richtext": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strike": "Strikethrough",
+    "link": "Link",
+    "linkPrompt": "What URL should the link point to?"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
@@ -6,7 +14,10 @@
     "remove": "Remove",
     "loading": "Loading…",
     "error": "Something went wrong",
-    "invalidEmail": "That email address looks wrong"
+    "invalidEmail": "That email address looks wrong",
+    "copyLink": "Copy link",
+    "copyQr": "Copy QR",
+    "imageCredit": "Design:"
   },
   "recoverLink": {
     "open": "View signups",
@@ -663,6 +674,14 @@
     "create": "Create event",
     "save": "Save",
     "saveFailed": "Save failed",
+    "tooLong": "{field} can be at most {max} characters.",
+    "invalidField": "{field} is invalid.",
+    "fields": {
+      "name": "The name",
+      "topic": "The description",
+      "location": "The location",
+      "image_artist_instagram": "The artist's Instagram"
+    },
     "fillName": "Fill in the event name",
     "fillLocation": "Fill in the location",
     "fillDate": "Pick the event date",

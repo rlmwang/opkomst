@@ -3,6 +3,7 @@ import Button from "primevue/button";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
+import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
@@ -204,74 +205,35 @@ function askTriggerNow(channel: EmailChannel) {
        the page no longer waits on the slowest fetch. -->
   <DetailsPageShell :loaded="!!event" :skeleton-rows="4">
     <template v-if="event">
-<AppCard :stack="false" class="overview">
-        <h1>
-          {{ event.name }}
-          <span v-if="event.chapter_name" class="chapter-chip">{{ event.chapter_name }}</span>
-        </h1>
-        <!-- Hero image + artist credit. Same 4:5 crop attendees
-             see; click the image to open the raw file (useful for
-             "I need to forward this to someone"). Editing happens
-             on the event form, not here. -->
-        <figure v-if="event.image_url" class="event-image-figure">
-          <a :href="event.image_url" target="_blank" rel="noopener">
-            <img :src="event.image_url" :alt="event.name" class="event-image" />
-          </a>
-          <figcaption v-if="event.image_artist_instagram" class="muted event-image-credit">
-            {{ t("event.imageCredit") }}
+<DetailHeaderCard
+        :title="event.name"
+        :chapter-name="event.chapter_name"
+        :image-url="event.image_url"
+        :image-artist="event.image_artist_instagram"
+        :image-href="event.image_url"
+        :description-html="event.topic"
+        :qr-src="eventQrUrl(event.slug)"
+        :public-url="publicEventUrl(event.slug)"
+        :edit-to="`/events/${event.id}/edit`"
+        @copy-qr="copyQr(event.slug)"
+        @copy-link="copyLink(event.slug)"
+      >
+        <template #meta>
+          <p class="muted overview-meta">
             <a
-              :href="`https://instagram.com/${event.image_artist_instagram}`"
+              :href="mapLink({
+                location: event.location,
+                latitude: event.latitude,
+                longitude: event.longitude,
+              })"
               target="_blank"
               rel="noopener"
-            >@{{ event.image_artist_instagram }}</a>
-          </figcaption>
-        </figure>
-        <div class="overview-body">
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('event.share.copyQr')"
-            :aria-label="t('event.share.copyQr')"
-            @click="copyQr(event.slug)"
-          >
-            <img :src="eventQrUrl(event.slug)" alt="" class="qr" />
-          </button>
-          <div class="overview-text">
-            <p class="muted overview-meta">
-              <a
-                :href="mapLink({
-                  location: event.location,
-                  latitude: event.latitude,
-                  longitude: event.longitude,
-                })"
-                target="_blank"
-                rel="noopener"
-                class="meta-link"
-              >{{ event.location }}</a>
-              · {{ formatDateTime(event.starts_at, locale) }}
-            </p>
-            <div class="link-row">
-              <a :href="publicEventUrl(event.slug)" target="_blank" rel="noopener">
-                {{ publicEventUrl(event.slug) }}
-              </a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('event.share.copyLink')"
-                :aria-label="t('event.share.copyLink')"
-                @click="copyLink(event.slug)"
-              />
-            </div>
-            <div>
-              <router-link :to="`/events/${event.id}/edit`">
-                <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </AppCard>
+              class="meta-link"
+            >{{ event.location }}</a>
+            · {{ formatDateTime(event.starts_at, locale) }}
+          </p>
+        </template>
+      </DetailHeaderCard>
 
       <AppCard>
         <div class="summary-header">
@@ -438,35 +400,9 @@ function askTriggerNow(channel: EmailChannel) {
 </template>
 
 <style scoped>
-/* --- Overview (title + meta + URL + QR + edit) -------------------- */
-/* 4:5 hero on the organiser's overview card. ``max-width: 320px``
- * matches the form preview — a quick glance for the organiser,
- * not a hero spread. */
-.event-image-figure {
-  margin: 0 0 0.75rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-.event-image-figure img {
-  display: block;
-  max-width: 320px;
-  width: 100%;
-  height: auto;
-  border-radius: 8px;
-}
-.event-image-credit {
-  font-size: 0.75rem;
-}
-.event-image-credit a {
-  color: inherit;
-  text-decoration: underline;
-}
-/* Body row: meta + URL+copy on the left, QR on the right. The QR
- * starts at the same vertical position as the meta line. */
-
-/* Signups + feedback card headers use the shared .summary-header /
+/* The overview header (title + image + meta + description + URL + QR +
+ * edit) is the shared ``DetailHeaderCard``. Signups + feedback card
+ * headers use the shared .summary-header /
  * .header-actions + .count-pill from theme.css. */
 .subhead {
   /* Calm h3 — same family/weight/colour as the card's h2, just a

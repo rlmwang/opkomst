@@ -20,7 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import DisplayName, InstagramHandle, Locale
+from .common import DisplayName, InstagramHandle, Locale, RichText
 
 Availability = Literal["yes", "no", "maybe"]
 
@@ -59,7 +59,7 @@ class DatepollCreate(BaseModel):
 
     chapter_id: str
     name: str = Field(min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
+    description: RichText
     location: str | None = Field(default=None, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)

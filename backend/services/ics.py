@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from ..models import Event
+from .sanitize import html_to_text
 
 # Event datetimes are naive Europe/Amsterdam wall clock (see
 # ``models/events.py``). ICS DTSTART/DTEND need an absolute UTC
@@ -91,8 +92,11 @@ def build_event_ics(event: Event, *, public_base_url: str) -> str:
     # so the calendar entry has a clickable link back to the
     # signup page even on clients that don't render the URL field.
     description_parts: list[str] = []
-    if event.topic:
-        description_parts.append(_escape(event.topic))
+    # ``topic`` is sanitized rich-text HTML; flatten to plain text before
+    # the RFC-5545 escape so tags don't appear raw in the calendar entry.
+    topic_text = html_to_text(event.topic)
+    if topic_text:
+        description_parts.append(_escape(topic_text))
     description_parts.append(_escape(public_url))
     description = "\\n\\n".join(description_parts)
 

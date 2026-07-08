@@ -1,4 +1,12 @@
 {
+  "richtext": {
+    "bold": "Vet",
+    "italic": "Cursief",
+    "underline": "Onderstreept",
+    "strike": "Doorgehaald",
+    "link": "Link",
+    "linkPrompt": "Naar welke URL moet de link wijzen?"
+  },
   "common": {
     "save": "Opslaan",
     "cancel": "Annuleren",
@@ -6,7 +14,10 @@
     "remove": "Verwijderen",
     "loading": "Laden…",
     "error": "Er ging iets mis",
-    "invalidEmail": "Dit e-mailadres lijkt niet te kloppen"
+    "invalidEmail": "Dit e-mailadres lijkt niet te kloppen",
+    "copyLink": "Kopieer link",
+    "copyQr": "Kopieer QR",
+    "imageCredit": "Ontwerp:"
   },
   "recoverLink": {
     "open": "Aanmeldingen bekijken",
@@ -663,6 +674,14 @@
     "create": "Evenement aanmaken",
     "save": "Opslaan",
     "saveFailed": "Opslaan mislukt",
+    "tooLong": "{field} mag maximaal {max} tekens bevatten.",
+    "invalidField": "{field} is ongeldig.",
+    "fields": {
+      "name": "De naam",
+      "topic": "De omschrijving",
+      "location": "De locatie",
+      "image_artist_instagram": "De Instagram van de maker"
+    },
     "fillName": "Vul de naam van het evenement in",
     "fillLocation": "Vul de locatie in",
     "fillDate": "Kies de datum van het evenement",

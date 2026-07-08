@@ -21,6 +21,38 @@ export class ApiError extends Error {
   }
 }
 
+/** The first field-level problem in a FastAPI 422 response, or ``null``
+ * for any other error. Lets a form surface *which* field and *why* in
+ * the user's language instead of collapsing everything to a generic
+ * "save failed". ``field`` is the last string segment of Pydantic's
+ * ``loc`` (skipping the ``"body"`` prefix); ``limit`` is the character
+ * cap for a ``string_too_long``. */
+export interface FieldError {
+  field: string;
+  type: string;
+  limit?: number;
+}
+
+export function firstFieldError(err: unknown): FieldError | null {
+  if (!(err instanceof ApiError) || err.status !== 422) return null;
+  const detail = (err.body as { detail?: unknown } | undefined)?.detail;
+  if (!Array.isArray(detail) || detail.length === 0) return null;
+  const first = detail[0] as {
+    loc?: unknown[];
+    type?: string;
+    ctx?: { max_length?: number };
+  };
+  const loc = Array.isArray(first.loc) ? first.loc : [];
+  const field = [...loc]
+    .reverse()
+    .find((p): p is string => typeof p === "string" && p !== "body");
+  return {
+    field: field ?? "",
+    type: String(first.type ?? ""),
+    limit: first.ctx?.max_length,
+  };
+}
+
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

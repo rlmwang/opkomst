@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
+import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
@@ -145,51 +146,22 @@ function dateWindow(): string {
 <template>
   <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
     <template v-if="roster">
-      <AppCard :stack="false" class="overview">
-        <h1>
-          {{ roster.name }}
-          <span v-if="roster.chapter_name" class="chapter-chip">{{ roster.chapter_name }}</span>
-        </h1>
-        <figure v-if="roster.image_url" class="detail-image">
-          <img :src="roster.image_url" :alt="roster.name" />
-          <figcaption v-if="roster.image_artist_instagram" class="muted">
-            {{ t("imageField.credit") }}
-            <a :href="`https://instagram.com/${roster.image_artist_instagram}`" target="_blank" rel="noopener">@{{ roster.image_artist_instagram }}</a>
-          </figcaption>
-        </figure>
-        <div class="overview-body">
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('chores.share.copyQr')"
-            :aria-label="t('chores.share.copyQr')"
-            @click="copyQr(roster.slug)"
-          >
-            <img :src="choreQrUrl(roster.slug)" alt="" class="qr" />
-          </button>
-          <div class="overview-text">
-            <p class="muted overview-meta">{{ cadence }} · {{ dateWindow() }}</p>
-            <p v-if="roster.description" class="description">{{ roster.description }}</p>
-            <div class="link-row">
-              <a :href="publicChoreUrl(roster.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(roster.slug) }}</a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('chores.share.copyLink')"
-                :aria-label="t('chores.share.copyLink')"
-                @click="copyLink(roster.slug)"
-              />
-            </div>
-            <div>
-              <router-link :to="`/chores/${roster.id}/edit`">
-                <Button :label="t('chores.details.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
-              </router-link>
-            </div>
-          </div>
-        </div>
-      </AppCard>
+      <DetailHeaderCard
+        :title="roster.name"
+        :chapter-name="roster.chapter_name"
+        :image-url="roster.image_url"
+        :image-artist="roster.image_artist_instagram"
+        :description-html="roster.description"
+        :qr-src="choreQrUrl(roster.slug)"
+        :public-url="publicChoreUrl(roster.slug)"
+        :edit-to="`/chores/${roster.id}/edit`"
+        @copy-qr="copyQr(roster.slug)"
+        @copy-link="copyLink(roster.slug)"
+      >
+        <template #meta>
+          <p class="muted overview-meta">{{ cadence }} · {{ dateWindow() }}</p>
+        </template>
+      </DetailHeaderCard>
 
       <AppCard>
         <div class="summary-header">
@@ -345,7 +317,6 @@ function dateWindow(): string {
 /* Overview chrome (.overview, .overview-body, .overview-text,
  * .overview-meta, .detail-image, .link-row, .qr*) is shared from
  * theme.css. Only chore-specific list/stat styles stay here. */
-.description { margin: 0; white-space: pre-line; }
 .chore-list {
   list-style: none;
   margin: 0.5rem 0 0;
