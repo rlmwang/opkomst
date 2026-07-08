@@ -79,6 +79,7 @@ def _ensure_event(
     source_options: list[str],
     help_options: list[str],
     chapter_id: str | None,
+    topic: str = "Demo",
 ) -> Event:
     existing = db.query(Event).filter(Event.name == name, Event.created_by == created_by).first()
     if existing:
@@ -86,7 +87,7 @@ def _ensure_event(
     event = Event(
         slug=new_slug(),
         name=name,
-        topic="Demo",
+        topic=topic,
         location=location,
         starts_at=starts_at,
         ends_at=ends_at,
@@ -182,6 +183,78 @@ def run_local_demo() -> None:
             help_options=help_options,
             chapter_id=amsterdam_id,
         )
+
+        # A couple more upcoming events so the public chapter agenda
+        # (``/e/amsterdam``) renders a populated grid on first boot.
+        # No image_url on these, so they show the muted-RSP-logo default.
+        _ensure_event(
+            db,
+            name="Ledenvergadering",
+            location="Volkshuis, Amsterdam-Oost",
+            starts_at=now + timedelta(days=10),
+            ends_at=now + timedelta(days=10, hours=2),
+            created_by=organiser.id,
+            source_options=sources,
+            help_options=help_options,
+            chapter_id=amsterdam_id,
+            topic="Bespreek de plannen voor het najaar en kies de nieuwe werkgroepcoördinatoren.",
+        )
+        _ensure_event(
+            db,
+            name="Scholingsavond: organiseren op je werk",
+            location="De Nieuwe Liefde, Amsterdam",
+            starts_at=now + timedelta(days=18),
+            ends_at=now + timedelta(days=18, hours=3),
+            created_by=organiser.id,
+            source_options=sources,
+            help_options=help_options,
+            chapter_id=amsterdam_id,
+            topic="Een praktische avond over hoe je collega's mee krijgt in actie.",
+        )
+        # An unlisted upcoming event: reachable by link, hidden from the
+        # agenda — demonstrates the ``listed`` toggle.
+        hidden = _ensure_event(
+            db,
+            name="Besloten werkgroepoverleg",
+            location="Online",
+            starts_at=now + timedelta(days=5),
+            ends_at=now + timedelta(days=5, hours=1),
+            created_by=organiser.id,
+            source_options=sources,
+            help_options=help_options,
+            chapter_id=amsterdam_id,
+            topic="Intern overleg, niet op de agenda.",
+        )
+        hidden.listed = False
+        db.flush()
+
+        # Utrecht gets its own events so the second chapter's agenda
+        # (``/e/utrecht``) isn't empty on first boot.
+        if utrecht_id:
+            _ensure_event(
+                db,
+                name="Kennismaking nieuwe leden",
+                location="Buurthuis Lombok, Utrecht",
+                starts_at=now + timedelta(days=7),
+                ends_at=now + timedelta(days=7, hours=2),
+                created_by=organiser.id,
+                source_options=sources,
+                help_options=help_options,
+                chapter_id=utrecht_id,
+                topic="Welkom! Maak kennis met de afdeling en de lopende campagnes.",
+            )
+            _ensure_event(
+                db,
+                name="Buurtactie tegen de huurverhoging",
+                location="Kanaalstraat, Utrecht",
+                starts_at=now - timedelta(days=4, hours=2),
+                ends_at=now - timedelta(days=4),
+                created_by=organiser.id,
+                source_options=sources,
+                help_options=help_options,
+                chapter_id=utrecht_id,
+                topic="Terugblik op de deur-aan-deur actie in Lombok.",
+            )
 
         # Idempotent demo signups. Past event gets one signup in
         # every feedback-email lifecycle state, so the details

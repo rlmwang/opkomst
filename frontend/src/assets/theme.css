@@ -70,6 +70,14 @@
     padding: 1.5rem 1rem;
   }
 
+  /* Wider column for grid layouts (the public chapter agenda). Same
+   * centring + padding as ``.container``, just a roomier cap. */
+  .container-wide {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+  }
+
   .card {
     background: var(--brand-surface);
     border: 1px solid var(--brand-border);

@@ -17,7 +17,7 @@ WEEKLY_WED = [date(2026, 1, 7), date(2026, 1, 14), date(2026, 1, 21), date(2026,
 
 def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1, activate=True):
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
-    chapter = Chapter(name="C")
+    chapter = Chapter(name="C", slug="c")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(

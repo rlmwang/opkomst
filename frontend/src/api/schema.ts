@@ -336,6 +336,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/chapters/by-slug/{slug}/agenda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chapter Agenda */
+        get: operations["chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chapters/{chapter_id}": {
         parameters: {
             query?: never;
@@ -2374,6 +2391,19 @@ export interface components {
             tentative: boolean;
         };
         /**
+         * ChapterAgendaOut
+         * @description A chapter's public agenda: its identity, the upcoming events, and
+         *     a recent-past section (back to the start of the last full calendar
+         *     month).
+         */
+        ChapterAgendaOut: {
+            chapter: components["schemas"]["ChapterPublicOut"];
+            /** Past */
+            past: components["schemas"]["EventCardOut"][];
+            /** Upcoming */
+            upcoming: components["schemas"]["EventCardOut"][];
+        };
+        /**
          * ChapterArchiveRequest
          * @description Optional reassignment targets when archiving a chapter.
          *     Both default to None — rows that aren't reassigned simply
@@ -2411,6 +2441,8 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * ChapterPatch
@@ -2428,6 +2460,21 @@ export interface components {
             city_lon?: number | null;
             /** Name */
             name?: string | null;
+            /** Slug */
+            slug?: string | null;
+        };
+        /**
+         * ChapterPublicOut
+         * @description Slim public projection of a chapter for the agenda page: no ids,
+         *     counts, or membership — just what the header renders.
+         */
+        ChapterPublicOut: {
+            /** City */
+            city: string | null;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
         };
         /**
          * ChapterRef
@@ -2961,6 +3008,38 @@ export interface components {
              */
             email_reminders: boolean;
         };
+        /**
+         * EventCardOut
+         * @description One event as it appears on a chapter agenda card. Deliberately
+         *     narrower than ``EventOut``: no coordinates, option lists, or lifecycle
+         *     flags, so the public grid leaks less than the sign-up page.
+         */
+        EventCardOut: {
+            /** Attendee Count */
+            attendee_count: number;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Image Artist Instagram */
+            image_artist_instagram: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /** Location */
+            location: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Topic */
+            topic: string | null;
+        };
         /** EventCreate */
         EventCreate: {
             /** Chapter Id */
@@ -2981,6 +3060,11 @@ export interface components {
             image_artist_instagram?: string | null;
             /** Latitude */
             latitude?: number | null;
+            /**
+             * Listed
+             * @default true
+             */
+            listed: boolean;
             /**
              * Locale
              * @default nl
@@ -3035,6 +3119,8 @@ export interface components {
             image_url: string | null;
             /** Latitude */
             latitude: number | null;
+            /** Listed */
+            listed: boolean;
             /**
              * Locale
              * @enum {string}
@@ -4724,6 +4810,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChapterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterAgendaOut"];
                 };
             };
             /** @description Validation Error */

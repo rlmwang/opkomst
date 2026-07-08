@@ -63,6 +63,7 @@ def create_event(
         help_options=data.help_options,
         feedback_enabled=data.feedback_enabled,
         reminder_enabled=data.reminder_enabled,
+        listed=data.listed,
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
@@ -224,6 +225,7 @@ def update_event(
     event.help_options = data.help_options
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled
+    event.listed = data.listed
     event.locale = data.locale
     event.image_artist_instagram = data.image_artist_instagram
 

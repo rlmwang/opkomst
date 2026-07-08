@@ -122,6 +122,7 @@ const newHelp = ref("");
 const imageArtistInstagram = ref("");
 const feedbackEnabled = ref(true);
 const reminderEnabled = ref(true);
+const listed = ref(true);
 // Default to the organiser's UI locale — they can override per-event
 // (e.g. an English-language event in NL).
 const eventLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
@@ -149,6 +150,7 @@ interface FormDraft {
   newHelp: string;
   feedbackEnabled: boolean;
   reminderEnabled: boolean;
+  listed: boolean;
   eventLocale: "nl" | "en";
   imageArtistInstagram: string;
 }
@@ -170,6 +172,7 @@ function snapshot(): FormDraft {
     newHelp: newHelp.value,
     feedbackEnabled: feedbackEnabled.value,
     reminderEnabled: reminderEnabled.value,
+    listed: listed.value,
     eventLocale: eventLocale.value,
     imageArtistInstagram: imageArtistInstagram.value,
   };
@@ -191,6 +194,7 @@ function applyDraft(d: FormDraft) {
   newHelp.value = d.newHelp ?? "";
   feedbackEnabled.value = d.feedbackEnabled;
   reminderEnabled.value = d.reminderEnabled ?? true;
+  listed.value = d.listed ?? true;
   eventLocale.value = d.eventLocale ?? "nl";
   imageArtistInstagram.value = d.imageArtistInstagram ?? "";
 }
@@ -202,7 +206,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   sources: [
     name, chapterId, topic, location, latitude, longitude, eventDate, startTime, endTime,
     sources, newSource, helpOptions, newHelp,
-    feedbackEnabled, reminderEnabled, eventLocale, imageArtistInstagram,
+    feedbackEnabled, reminderEnabled, listed, eventLocale, imageArtistInstagram,
   ],
 });
 
@@ -315,6 +319,7 @@ onMounted(async () => {
     helpOptions.value = [...existing.help_options];
     feedbackEnabled.value = existing.feedback_enabled;
     reminderEnabled.value = existing.reminder_enabled;
+    listed.value = existing.listed;
     eventLocale.value = existing.locale;
     imageUrl.value = existing.image_url;
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
@@ -390,6 +395,7 @@ async function submit() {
       help_options: helpOptions.value,
       feedback_enabled: feedbackEnabled.value,
       reminder_enabled: reminderEnabled.value,
+      listed: listed.value,
       locale: eventLocale.value,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
     };
@@ -547,6 +553,12 @@ async function submit() {
           <strong>{{ t("event.questionnaireToggle") }}</strong>
         </label>
         <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
+
+        <label class="toggle-row" for="listedToggle">
+          <ToggleSwitch v-model="listed" inputId="listedToggle" />
+          <strong>{{ t("event.listedToggle") }}</strong>
+        </label>
+        <p class="muted toggle-help">{{ t("event.listedHelp") }}</p>
       </section>
 
       <section class="form-section">

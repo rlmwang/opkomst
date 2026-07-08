@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event
 from . import user_chapters as user_chapters_svc
+from .slug import chapter_slug
 
 
 class ChapterNotFound(Exception):
@@ -82,6 +83,12 @@ def find_any_by_id(db: Session, chapter_id: str) -> Chapter | None:
     return db.query(Chapter).filter(Chapter.id == chapter_id).first()
 
 
+def find_live_by_slug(db: Session, slug: str) -> Chapter | None:
+    """Live chapter by its public slug, or ``None``. Drives the public
+    agenda page (``/e/{slug}``)."""
+    return _live(db).filter(Chapter.slug == slug).first()
+
+
 def _require_live(db: Session, chapter_id: str) -> Chapter:
     row = find_by_id(db, chapter_id)
     if row is None:
@@ -108,8 +115,30 @@ def name_exists_active(db: Session, name: str, *, exclude_id: str | None = None)
     return q.first() is not None
 
 
+def slug_exists_active(db: Session, slug: str, *, exclude_id: str | None = None) -> bool:
+    q = _live(db).filter(Chapter.slug == slug)
+    if exclude_id is not None:
+        q = q.filter(Chapter.id != exclude_id)
+    return q.first() is not None
+
+
+def _unique_slug(db: Session, base: str, *, exclude_id: str | None = None) -> str:
+    """Make ``base`` unique across live chapters, appending ``-2``,
+    ``-3``, … on collision. ``base`` comes from ``chapter_slug`` so it is
+    already event-shape-safe; the numeric suffix keeps it that way (it
+    always contains a hyphen)."""
+    if not slug_exists_active(db, base, exclude_id=exclude_id):
+        return base
+    n = 2
+    while slug_exists_active(db, f"{base}-{n}", exclude_id=exclude_id):
+        n += 1
+    return f"{base}-{n}"
+
+
 def create(db: Session, *, name: str) -> Chapter:
-    chapter = Chapter(name=normalise_name(name))
+    name = normalise_name(name)
+    slug = _unique_slug(db, chapter_slug(name))
+    chapter = Chapter(name=name, slug=slug)
     db.add(chapter)
     db.flush()
     return chapter
@@ -120,6 +149,7 @@ def update(
     *,
     chapter_id: str,
     name: str | None = None,
+    slug: str | None = None,
     city: str | None = None,
     city_lat: float | None = None,
     city_lon: float | None = None,
@@ -139,6 +169,12 @@ def update(
             if name_exists_active(db, name, exclude_id=chapter_id):
                 raise ChapterRuleViolation("Name already in use")
             changes["name"] = name
+    if slug is not None:
+        slug = slug.strip().lower()
+        if slug != row.slug:
+            if slug_exists_active(db, slug, exclude_id=chapter_id):
+                raise ChapterRuleViolation("Slug already in use")
+            changes["slug"] = slug
     if set_city:
         changes["city"] = city
         changes["city_lat"] = city_lat
@@ -214,6 +250,11 @@ def restore(db: Session, *, chapter_id: str) -> Chapter:
         raise ChapterRuleViolation(
             f"Name '{row.name}' is already in use by another chapter — rename or delete that one first."
         )
+    # A live chapter may have claimed this slug while the row was
+    # archived; re-mint a unique one from the name so restore can't trip
+    # the partial-unique slug index.
+    if slug_exists_active(db, row.slug):
+        row.slug = _unique_slug(db, chapter_slug(row.name))
     row.deleted_at = None
     db.flush()
     return row

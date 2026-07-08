@@ -1,8 +1,10 @@
+import re
 from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field
 
 from ..services.sanitize import VISIBLE_MAX_LENGTH, html_to_text, sanitize_richtext
+from ..services.slug import is_event_slug
 
 # Two-letter ISO language tag. Drives the public-page UI language and,
 # where applicable, the locale of the email sent afterwards. Two values
@@ -83,6 +85,23 @@ RichText = Annotated[
     Field(default=None, max_length=8000),
     AfterValidator(_sanitize_and_bound),
 ]
+
+
+def _validate_chapter_slug(v: str) -> str:
+    """A chapter's public-agenda slug: lowercase kebab, and never the
+    reserved 8-char event-slug shape (so ``/e/{ident}`` dispatch can tell
+    a chapter from an event without a lookup)."""
+    v = v.strip().lower()
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", v):
+        raise ValueError("Slug may contain only lowercase letters, digits, and single hyphens.")
+    if is_event_slug(v):
+        raise ValueError("Slug may not use the reserved 8-character event shape.")
+    return v
+
+
+# Human-readable chapter slug at the schema boundary. Shared by chapter
+# create/patch so the two can't drift on what a valid slug is.
+ChapterSlug = Annotated[str, Field(min_length=1, max_length=50), AfterValidator(_validate_chapter_slug)]
 
 
 class EditLinkRecoverOut(BaseModel):

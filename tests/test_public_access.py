@@ -14,7 +14,7 @@ from backend.services import edit_token, public_access
 def _seed(db) -> tuple[Roster, str]:
     """A roster + one volunteer holding a fresh edit token (raw)."""
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
-    chapter = Chapter(name="C")
+    chapter = Chapter(name="C", slug="c")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(slug="rost0001", name="R", created_by=user.id, chapter_id=chapter.id, starts_on=date(2026, 1, 5))

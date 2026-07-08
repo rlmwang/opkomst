@@ -61,7 +61,7 @@ def test_cross_chapter_is_404(client, organiser_headers, admin_headers, db):
     # Admin creates a poll in a fresh chapter the organiser isn't in.
     from backend.models import Chapter
 
-    other = Chapter(name="Other chapter")
+    other = Chapter(name="Other chapter", slug="other-chapter")
     db.add(other)
     db.commit()
     body = {"chapter_id": other.id, "name": "Hidden", "locale": "nl", "slots": []}

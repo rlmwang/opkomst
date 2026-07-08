@@ -23,6 +23,23 @@ from ..models import Chapter, Event, Signup
 from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
 
 
+def attendee_totals(db: Session, event_ids: list[str]) -> dict[str, int]:
+    """``event_id -> SUM(party_size)`` for the given events (missing key
+    means zero signups). One grouped SELECT; shared by ``enrich`` and the
+    public agenda so headcount is computed one way."""
+    if not event_ids:
+        return {}
+    return {
+        event_id: int(total or 0)
+        for event_id, total in (
+            db.query(Signup.event_id, func.coalesce(func.sum(Signup.party_size), 0))
+            .filter(Signup.event_id.in_(event_ids))
+            .group_by(Signup.event_id)
+            .all()
+        )
+    }
+
+
 def enrich(db: Session, events: list[Event]) -> list[EventOut]:
     """Build ``EventOut`` DTOs with batched lookups for chapter
     names + per-event attendee totals. Always batches; single-
@@ -34,15 +51,7 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
     event_ids = [e.id for e in events]
     chapter_ids = sorted({e.chapter_id for e in events if e.chapter_id})
 
-    totals: dict[str, int] = {
-        event_id: int(total or 0)
-        for event_id, total in (
-            db.query(Signup.event_id, func.coalesce(func.sum(Signup.party_size), 0))
-            .filter(Signup.event_id.in_(event_ids))
-            .group_by(Signup.event_id)
-            .all()
-        )
-    }
+    totals = attendee_totals(db, event_ids)
     chapter_names: dict[str, str] = {}
     if chapter_ids:
         rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids)).all()
@@ -63,6 +72,7 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             help_options=e.help_options,
             feedback_enabled=e.feedback_enabled,
             reminder_enabled=e.reminder_enabled,
+            listed=e.listed,
             locale=e.locale,
             chapter_id=e.chapter_id,
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,

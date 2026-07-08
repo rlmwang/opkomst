@@ -45,6 +45,9 @@ class EventCreate(BaseModel):
     help_options: list[str] = Field(default_factory=list)
     feedback_enabled: bool = True
     reminder_enabled: bool = True
+    # Show this event on its chapter's public agenda. Default on;
+    # opt a private/internal event out.
+    listed: bool = True
     locale: Locale = "nl"
 
     @field_validator("source_options")
@@ -80,6 +83,7 @@ class EventOut(BaseModel):
     help_options: list[str]
     feedback_enabled: bool
     reminder_enabled: bool
+    listed: bool
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None

@@ -109,7 +109,7 @@ def test_unique_slot_per_poll(db):
     from backend.models import Chapter, Datepoll, DatepollSlot, User
 
     user = User(email="dp-uniq@local.dev", name="DP", role="organiser", is_approved=True)
-    ch = Chapter(name="C-uniq")
+    ch = Chapter(name="C-uniq", slug="c-uniq")
     db.add_all([user, ch])
     db.flush()
     poll = Datepoll(slug="uniqslug", name="P", locale="nl", chapter_id=ch.id, created_by=user.id)
@@ -155,7 +155,7 @@ def test_db_check_rejects_bad_availability(db):
     )
 
     user = User(email="dp-check@local.dev", name="DP", role="organiser", is_approved=True)
-    ch = Chapter(name="C-check")
+    ch = Chapter(name="C-check", slug="c-check")
     db.add_all([user, ch])
     db.flush()
     poll = Datepoll(slug="checkslug", name="P", locale="nl", chapter_id=ch.id, created_by=user.id)

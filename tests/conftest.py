@@ -234,7 +234,7 @@ def chapter_id(db) -> str:
     skip-the-HTTP rationale as ``admin_token``."""
     from backend.models import Chapter
 
-    chapter = Chapter(name="Amsterdam")
+    chapter = Chapter(name="Amsterdam", slug="amsterdam")
     db.add(chapter)
     db.commit()
     db.refresh(chapter)

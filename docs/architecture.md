@@ -36,14 +36,14 @@ admin-driven change history.
 | Model | Notes |
 |---|---|
 | `User` | Email is partial-unique across live rows (``deleted_at IS NULL``). Re-registering a soft-deleted email un-deletes the row. JWT `sub` is `user.id` — a soft-delete invalidates the JWT (the lookup filters on `deleted_at IS NULL`). |
-| `Chapter` | Local chapter. Soft-delete via `deleted_at`; restore clears the column. Name unique across live chapters. Optional anchor city drives proximity bias on event-creation address autocomplete. |
+| `Chapter` | Local chapter. Soft-delete via `deleted_at`; restore clears the column. Name unique across live chapters. Human-readable `slug` (unique across live chapters, never the 8-char event shape) drives the public agenda at `/e/{chapter}`. Optional anchor city drives proximity bias on event-creation address autocomplete. |
 | `UserChapter` | Many-to-many user↔chapter membership. Composite PK ``(user_id, chapter_id)``; CASCADE on user / chapter hard-delete; preserved on chapter soft-delete (a restore brings members back). Read paths filter on ``Chapter.deleted_at IS NULL`` so soft-deleted memberships drop out of /me, the access scope, and admin usage counts. |
 
 ### Archive-only
 
 | Model | Notes |
 |---|---|
-| `Event` | `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. Slug is unique across the table — archive doesn't free the slug since it may be in bookmarks. `locale` drives the public sign-up page language and the feedback email language. |
+| `Event` | `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. Slug is unique across the table — archive doesn't free the slug since it may be in bookmarks. `listed` (default true) controls whether the event shows on its chapter's public agenda; the `/e/{slug}` sign-up link works regardless. `locale` drives the public sign-up page language and the feedback email language. |
 | `Form` | Standalone questionnaire. Same `archived_at` shape as `Event`; same chapter scoping. No relation to `Event`. `slug` is unique across the table; public fill-out lives at `/f/:slug`. |
 
 ### Append-only / row-id-stable
@@ -108,6 +108,7 @@ All under `/api/v1/`.
 | ArchivedEventsPage | `/events/archived` | approved |
 | QuestionnairePreviewPage | `/questionnaire` | approved |
 | PublicEventPage | `/e/:slug` | public (locale follows event; served by ``spa.py`` as a separate mini-app — payload + OG meta inlined into the HTML) |
+| PublicChapterAgenda | `/e/:chapter` | public (separate mini-app; the `/e/` handler dispatches by slug shape: an 8-char event slug serves the sign-up page, anything else is a chapter slug → the agenda grid of that chapter's upcoming + recent-past events) |
 | FeedbackPage | `/e/:slug/feedback?t=` | public (locale follows event) |
 | FormListPage | `/forms` | required (active forms list; reuses ``ListPageView``) |
 | ArchivedFormsPage | `/forms/archived` | approved |

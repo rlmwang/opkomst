@@ -163,12 +163,14 @@ One Alembic revision for steps 1 and 2 together:
      `undefined` → dev fetch). Wrap in `PublicShell` with the new `wide`
      prop. Render the chapter header, the upcoming grid, and (if
      non-empty) the past grid.
-   - `EventCard.vue`: `PublicHero` (image + IG attribution) or the 4:5
-     branded placeholder when `image_url` is null; date/time via the
-     sign-up page's `formatDate`/`formatTimeRange` (extract to
-     `public_shared` if not already shared); title, topic, location, and
-     the `Aanmelden` link to `/e/{slug}`. A `past` prop applies the dim +
-     "N kwamen" treatment.
+   - `EventCard.vue`: `PublicHero` (image + IG attribution) when
+     `image_url` is set; otherwise a card-local **muted RSP logo**
+     default in the same 4:5 frame (`/rsp-logo.png` centred on a muted
+     brand ground, desaturated + dimmed via CSS, no caption) so the grid
+     stays even. Date/time via the sign-up page's
+     `formatDate`/`formatTimeRange` (extract to `public_shared` if not
+     already shared); title, topic, location, and the `Aanmelden` link to
+     `/e/{slug}`. A `past` prop applies the dim + "N kwamen" treatment.
 4. **Shared shell** `frontend/src/public_shared/PublicShell.vue`: add a
    `wide?: boolean` prop that swaps `.container` for `.container-wide`.
    Add `.container-wide` (max-width ~1120px) to `frontend/src/assets/theme.css`
@@ -206,9 +208,10 @@ One Alembic revision for steps 1 and 2 together:
   `/e/{kebab}` serves the agenda; the two never collide; unknown of each
   degrades to the right not-found shell.
 - **e2e**: create a chapter (with a slug) + two upcoming and one just-past
-  listed event + one unlisted event; open `/e/{chapter}`; assert two
-  upcoming cards, one past card, no unlisted card; click `Aanmelden`
-  through to `/e/{slug}`.
+  listed event + one unlisted event, one of them with no image; open
+  `/e/{chapter}`; assert two upcoming cards, one past card, no unlisted
+  card, and that the imageless card shows the muted-RSP-logo default (not
+  a collapsed frame); click `Aanmelden` through to `/e/{slug}`.
 
 ## 9. Wrap-up
 

@@ -29,7 +29,7 @@ def _ensure_test_chapter(db: Session, chapter_id: str) -> None:
     ``Event.chapter_id`` resolves. Idempotent."""
     existing = db.query(Chapter).filter(Chapter.id == chapter_id).first()
     if existing is None:
-        db.add(Chapter(id=chapter_id, name=f"chapter-{chapter_id}"))
+        db.add(Chapter(id=chapter_id, name=f"chapter-{chapter_id}", slug=f"chapter-{chapter_id}"))
         db.flush()
 
 

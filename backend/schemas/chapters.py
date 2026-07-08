@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from .common import ChapterSlug
+
 
 class ChapterOut(BaseModel):
     """One chapter, live or archived. ``archived`` mirrors
@@ -8,6 +10,7 @@ class ChapterOut(BaseModel):
 
     id: str
     name: str
+    slug: str
     archived: bool
     # Anchor city — display name + centroid coords. Used by the
     # event-creation address picker to bias suggestions toward
@@ -17,6 +20,15 @@ class ChapterOut(BaseModel):
     city: str | None
     city_lat: float | None
     city_lon: float | None
+
+
+class ChapterPublicOut(BaseModel):
+    """Slim public projection of a chapter for the agenda page: no ids,
+    counts, or membership — just what the header renders."""
+
+    name: str
+    slug: str
+    city: str | None
 
 
 class ChapterCreate(BaseModel):
@@ -30,6 +42,7 @@ class ChapterPatch(BaseModel):
     with a city display name that has no coordinates."""
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    slug: ChapterSlug | None = None
     city: str | None = Field(default=None, max_length=120)
     city_lat: float | None = Field(default=None, ge=-90, le=90)
     city_lon: float | None = Field(default=None, ge=-180, le=180)

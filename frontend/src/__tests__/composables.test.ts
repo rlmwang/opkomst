@@ -227,6 +227,7 @@ describe("useEvents composables", () => {
       help_options: [],
       feedback_enabled: true,
       reminder_enabled: false,
+      listed: true,
       locale: "nl" as const,
     };
     mockPost.mockResolvedValueOnce({ id: "ev1" });

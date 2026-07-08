@@ -23,14 +23,21 @@ import { defineConfig, type Plugin } from "vite";
  * mini-app code.
  */
 function publicEventDevRoute(): Plugin {
+  // The ``/e/`` namespace is shared: an 8-char event slug (nanoid
+  // alphabet) serves the sign-up page; anything else is a chapter slug →
+  // the agenda page. This mirrors the ``is_event_slug`` dispatch in
+  // ``backend/routers/spa.py`` so both dev and prod route the same way.
+  const eventSlug = /^\/e\/[23456789abcdefghijkmnpqrstuvwxyz]{8}(?:[/?#]|$)/;
   return {
     name: "opkomst-public-event-dev-route",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        const url = req.url ?? "";
-        if (/^\/e\/[^/?#]+/.test(url.split("?")[0])) {
-          req.url = "/public-event.html";
+        const path = (req.url ?? "").split("?")[0];
+        if (/^\/e\/[^/?#]+/.test(path)) {
+          req.url = eventSlug.test(req.url ?? "")
+            ? "/public-event.html"
+            : "/public-chapter.html";
         }
         next();
       });
@@ -159,6 +166,9 @@ export default defineConfig({
         // Same split again: dedicated bundle graph for ``/c/{slug}``.
         publicChore: fileURLToPath(
           new URL("./public-chore.html", import.meta.url),
+        ),
+        publicChapter: fileURLToPath(
+          new URL("./public-chapter.html", import.meta.url),
         ),
       },
       output: {

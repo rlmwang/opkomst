@@ -70,7 +70,7 @@ def test_summary_and_ledger_read_one_source():
 
 def _orm_roster(db):
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
-    chapter = Chapter(name="C")
+    chapter = Chapter(name="C", slug="c")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(

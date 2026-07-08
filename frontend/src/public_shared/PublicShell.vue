@@ -12,13 +12,17 @@ import type { Locale } from "./strings";
  *  ``document.documentElement.lang`` in sync. */
 const locale = defineModel<Locale>("locale", { required: true });
 
+// The sign-up / fill pages use the narrow 720px column; the chapter
+// agenda opts into a wider ~1120px container for its card grid.
+defineProps<{ wide?: boolean }>();
+
 watch(locale, (l) => {
   document.documentElement.lang = l;
 }, { immediate: true });
 </script>
 
 <template>
-  <div class="container stack">
+  <div class="stack" :class="wide ? 'container-wide' : 'container'">
     <PublicToast />
     <header class="public-header">
       <BrandMark />

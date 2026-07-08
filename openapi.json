@@ -198,6 +198,35 @@
         "title": "CalendarDayOut",
         "type": "object"
       },
+      "ChapterAgendaOut": {
+        "description": "A chapter's public agenda: its identity, the upcoming events, and\na recent-past section (back to the start of the last full calendar\nmonth).",
+        "properties": {
+          "chapter": {
+            "$ref": "#/components/schemas/ChapterPublicOut"
+          },
+          "past": {
+            "items": {
+              "$ref": "#/components/schemas/EventCardOut"
+            },
+            "title": "Past",
+            "type": "array"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/EventCardOut"
+            },
+            "title": "Upcoming",
+            "type": "array"
+          }
+        },
+        "required": [
+          "chapter",
+          "upcoming",
+          "past"
+        ],
+        "title": "ChapterAgendaOut",
+        "type": "object"
+      },
       "ChapterArchiveRequest": {
         "description": "Optional reassignment targets when archiving a chapter.\nBoth default to None \u2014 rows that aren't reassigned simply\nstay linked to the soft-deleted chapter (events become\ninvisible until restore, users still have a chapter_id\npointing at the archived chapter).",
         "properties": {
@@ -289,11 +318,16 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "name",
+          "slug",
           "archived",
           "city",
           "city_lat",
@@ -355,9 +389,53 @@
               }
             ],
             "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
           }
         },
         "title": "ChapterPatch",
+        "type": "object"
+      },
+      "ChapterPublicOut": {
+        "description": "Slim public projection of a chapter for the agenda page: no ids,\ncounts, or membership \u2014 just what the header renders.",
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "slug",
+          "city"
+        ],
+        "title": "ChapterPublicOut",
         "type": "object"
       },
       "ChapterRef": {
@@ -1722,6 +1800,83 @@
         "title": "EnrollIn",
         "type": "object"
       },
+      "EventCardOut": {
+        "description": "One event as it appears on a chapter agenda card. Deliberately\nnarrower than ``EventOut``: no coordinates, option lists, or lifecycle\nflags, so the public grid leaks less than the sign-up page.",
+        "properties": {
+          "attendee_count": {
+            "title": "Attendee Count",
+            "type": "integer"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "topic",
+          "starts_at",
+          "ends_at",
+          "location",
+          "image_url",
+          "image_artist_instagram",
+          "attendee_count"
+        ],
+        "title": "EventCardOut",
+        "type": "object"
+      },
       "EventCreate": {
         "properties": {
           "chapter_id": {
@@ -1769,6 +1924,11 @@
               }
             ],
             "title": "Latitude"
+          },
+          "listed": {
+            "default": true,
+            "title": "Listed",
+            "type": "boolean"
           },
           "locale": {
             "default": "nl",
@@ -1931,6 +2091,10 @@
             ],
             "title": "Latitude"
           },
+          "listed": {
+            "title": "Listed",
+            "type": "boolean"
+          },
           "locale": {
             "enum": [
               "nl",
@@ -2004,6 +2168,7 @@
           "help_options",
           "feedback_enabled",
           "reminder_enabled",
+          "listed",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -5727,6 +5892,48 @@
         "summary": "Create Chapter",
         "tags": [
           "chapters"
+        ]
+      }
+    },
+    "/api/v1/chapters/by-slug/{slug}/agenda": {
+      "get": {
+        "operationId": "chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterAgendaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chapter Agenda",
+        "tags": [
+          "chapters-public"
         ]
       }
     },

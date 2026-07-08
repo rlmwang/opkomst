@@ -51,6 +51,7 @@ const loaded = computed(() => !chaptersQuery.isLoading.value);
 // --- Edit-chapter dialog (name + city) -------------------------------
 const editDialog = useDialog<Chapter>();
 const editName = ref<string>("");
+const editSlug = ref<string>("");
 const editCity = ref<{ city: string | null; city_lat: number | null; city_lon: number | null }>({
   city: null,
   city_lat: null,
@@ -59,6 +60,7 @@ const editCity = ref<{ city: string | null; city_lat: number | null; city_lon: n
 
 function openEditChapter(a: Chapter) {
   editName.value = a.name;
+  editSlug.value = a.slug;
   editCity.value = { city: a.city, city_lat: a.city_lat, city_lon: a.city_lon };
   editDialog.openWith(a);
 }
@@ -77,6 +79,7 @@ async function submitEditChapter() {
         id: target.id,
         payload: {
           name: trimmed,
+          slug: editSlug.value.trim(),
           city: editCity.value.city,
           city_lat: editCity.value.city_lat,
           city_lon: editCity.value.city_lon,
@@ -275,6 +278,8 @@ async function submitDelete() {
     >
       <p class="muted dialog-text">{{ t("chapters.editDialogBody") }}</p>
       <InputText v-model="editName" :placeholder="t('chapters.namePlaceholder')" fluid />
+      <InputText v-model="editSlug" :placeholder="t('chapters.slugPlaceholder')" fluid />
+      <p class="muted dialog-text">{{ t("chapters.slugHelp", { slug: editSlug || "…" }) }}</p>
       <CityPicker v-model="editCity" :placeholder="t('chapters.cityPlaceholder')" />
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="editDialog.close()" />

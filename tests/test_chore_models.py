@@ -14,7 +14,7 @@ from backend.models import Chapter, Chore, Enrollment, Roster, Shift, User, Volu
 def _seed(db):
     """A user + chapter + one roster with one chore."""
     user = User(email="o@local.dev", name="Organiser", role="organiser", is_approved=True)
-    chapter = Chapter(name="Test Chapter")
+    chapter = Chapter(name="Test Chapter", slug="test-chapter")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(

@@ -53,6 +53,7 @@ def _to_out(row: Chapter) -> ChapterOut:
     return ChapterOut(
         id=row.id,
         name=row.name,
+        slug=row.slug,
         archived=row.deleted_at is not None,
         city=row.city,
         city_lat=row.city_lat,
@@ -112,6 +113,7 @@ def patch_chapter(
             db,
             chapter_id=chapter_id,
             name=data.name,
+            slug=data.slug,
             city=data.city,
             city_lat=data.city_lat,
             city_lon=data.city_lon,

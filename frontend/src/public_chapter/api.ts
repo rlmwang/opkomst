@@ -1,0 +1,53 @@
+// Hand-written types + fetch for the chapter-agenda mini-app. Mirrors
+// the backend ``ChapterAgendaOut`` / ``EventCardOut`` shapes. Kept off
+// the generated schema.ts to keep the public bundle lean (same choice as
+// the other public mini-apps).
+
+export interface EventCard {
+  slug: string;
+  name: string;
+  topic: string | null;
+  starts_at: string;
+  ends_at: string;
+  location: string;
+  image_url: string | null;
+  image_artist_instagram: string | null;
+  attendee_count: number;
+}
+
+export interface ChapterPublic {
+  name: string;
+  slug: string;
+  city: string | null;
+}
+
+export interface ChapterAgenda {
+  chapter: ChapterPublic;
+  upcoming: EventCard[];
+  past: EventCard[];
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+// Dev-only fallback: in ``vite dev`` the HTML has no server-injected
+// payload (``window.__OPKOMST_CHAPTER__ === undefined``), so fetch the
+// agenda over the ``/api`` proxy. In production the payload is inlined.
+export async function fetchChapterAgenda(slug: string): Promise<ChapterAgenda> {
+  const r = await fetch(`/api/v1/chapters/by-slug/${encodeURIComponent(slug)}/agenda`);
+  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
+  return r.json();
+}
+
+declare global {
+  interface Window {
+    __OPKOMST_CHAPTER__?: ChapterAgenda | null;
+  }
+}

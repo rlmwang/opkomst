@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -51,6 +52,11 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     # Independent of the feedback toggle — both can be on,
     # both can be off.
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # When True, the event appears on its chapter's public agenda
+    # (``/e/{chapter}``). Default on; an organiser opts a private or
+    # internal event out. The direct ``/e/{slug}`` sign-up link works
+    # regardless of this flag.
+    listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
     __table_args__ = (Index("ix_events_archived_chapter", "archived_at", "chapter_id"),)
 

@@ -55,9 +55,12 @@ disclosure for free.
 
 The card reuses the shared `PublicHero` (4:5 frame, Instagram
 attribution, renders nothing when there is no image). A card whose event
-has no `image_url` gets a **branded placeholder** in the same 4:5 frame
-(solid `--brand` block with the chapter initial), so the grid stays even
-instead of collapsing rows of different heights. Below the frame: date
+has no `image_url` gets a **default image**: a muted RSP logo, the
+existing `/rsp-logo.png` asset centred in the same 4:5 frame on a muted
+brand-tinted ground (desaturated + reduced opacity via CSS, so no second
+asset to maintain). This keeps the grid even instead of collapsing rows
+of different heights, and reads as "an RSP event" rather than a blank
+tile. It carries no attribution caption. Below the frame: date
 and time (`formatDate` + `formatTimeRange`, the sign-up page's
 formatters), the location line, the title (`name`), the optional `topic`
 as a subtitle, and the **Aanmelden** button linking to `/e/{slug}`.
@@ -264,8 +267,11 @@ frontend/src/public_chapter/
 - **Grid.** `display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap`.
   The past grid uses a smaller `minmax` and the `.past` dimming.
 - **Hero reuse.** `EventCard` renders the shared `PublicHero` for the
-  poster and attribution; the no-image placeholder is a card-local
-  fallback in the same 4:5 frame. The card also reuses the shared
+  poster and attribution. `PublicHero` renders nothing on a null image,
+  so the muted-RSP-logo default is a **card-local** element in the same
+  4:5 frame (not `PublicHero`, which would otherwise want an attribution
+  caption): the `/rsp-logo.png` asset centred on a muted brand ground,
+  desaturated and dimmed via CSS. The card also reuses the shared
   `.richtext` details style and `PublicMetaRow` (see
   `docs/design-richtext-details.md`, Shared public top card), so a grid
   card and a full page header read as one system.
@@ -348,6 +354,11 @@ the existing `EventCreate` / event update schemas.
    less than the sign-up page. (recommendation)
 6. **Wider via a `wide` prop on the shared `PublicShell`** (~1120px),
    not a second shell. (recommendation)
+7. **Default card image = muted RSP logo.** An event with no `image_url`
+   shows the `/rsp-logo.png` asset centred on a muted brand ground
+   (desaturated + dimmed via CSS, no second asset), keeping the grid even
+   and on-brand. The OG link-preview image is unchanged (favicon
+   fallback). (confirmed)
 
 ## Out of scope
 

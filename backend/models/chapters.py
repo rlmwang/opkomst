@@ -19,6 +19,11 @@ class Chapter(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "chapters"
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
+    # Human-readable kebab slug for the public agenda URL
+    # (``/e/{slug}``). Unique across live chapters; never has the
+    # 8-char event-slug shape (see ``services.slug.chapter_slug``) so
+    # ``/e/{ident}`` dispatch is unambiguous.
+    slug: Mapped[str] = mapped_column(Text, nullable=False)
     # Optional anchor city — used to bias address autocomplete on
     # event creation toward streets near this chapter's home town.
     # Stored as display name (``city``) plus the centroid coords
@@ -37,6 +42,15 @@ class Chapter(UUIDMixin, TimestampMixin, Base):
         Index(
             "uq_chapters_name_live",
             "name",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # Slug is unique across live chapters — same live-scoped shape as
+        # the name index; ``services.chapters.slug_exists_active`` is the
+        # dupe gate that drives collision suffixing.
+        Index(
+            "uq_chapters_slug_live",
+            "slug",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),

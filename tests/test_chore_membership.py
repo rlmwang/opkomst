@@ -16,7 +16,7 @@ TODAY = date(2026, 1, 5)  # a Monday
 
 def _roster(db):
     user = User(email="o@local.dev", name="O", role="organiser", is_approved=True)
-    chapter = Chapter(name="C")
+    chapter = Chapter(name="C", slug="c")
     db.add_all([user, chapter])
     db.commit()
     roster = Roster(

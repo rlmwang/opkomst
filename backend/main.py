@@ -13,6 +13,7 @@ from .database import engine
 from .routers import admin as admin_router
 from .routers import auth as auth_router
 from .routers import chapters as chapters_router
+from .routers import chapters_public as chapters_public_router
 from .routers import chores as chores_router
 from .routers import chores_public as chores_public_router
 from .routers import datepolls as datepolls_router
@@ -108,6 +109,7 @@ app.add_middleware(TimingMiddleware)
 
 app.include_router(auth_router.router)
 app.include_router(admin_router.router)
+app.include_router(chapters_public_router.router)
 app.include_router(chapters_router.router)
 app.include_router(events_router.router)
 app.include_router(events_public_router.router)

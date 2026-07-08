@@ -36,13 +36,16 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Datepoll, Event, Form, Roster
+from ..models import Chapter, Datepoll, Event, Form, Roster
+from ..services import agenda as agenda_svc
+from ..services import chapters as chapters_svc
 from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
 from ..services import event_stats
 from ..services import events as events_svc
 from ..services import forms as forms_svc
 from ..services.sanitize import html_to_text
+from ..services.slug import is_event_slug
 
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -67,6 +70,7 @@ _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
 _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
 _DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
 _CHORE_INJECTION_MARKER = "<!-- OPKOMST_CHORE_INJECTION -->"
+_CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # Static OG image — same favicon the browser tab uses, lives at
@@ -186,6 +190,20 @@ def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
     )
 
 
+def _build_chapter_head_meta(chapter: Chapter | None, slug: str) -> str:
+    """Per-chapter agenda link-preview ``<head>``. Title is
+    ``Agenda · {name}``; favicon card."""
+    if chapter is None:
+        return "<title>opkomst.nu</title>"
+    return _og_head(
+        name=f"Agenda · {chapter.name}",
+        description=chapter.name,
+        canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
+        og_image=_OG_IMAGE_URL,
+        twitter_card="summary",
+    )
+
+
 class _ImmutableStatic(StaticFiles):
     async def get_response(self, path: str, scope: Scope):  # type: ignore[no-untyped-def]
         response = await super().get_response(path, scope)
@@ -292,6 +310,20 @@ def _serve_public_roster(slug: str, db: Session) -> HTMLResponse:
     )
 
 
+def _serve_public_chapter(slug: str, db: Session) -> HTMLResponse:
+    # Unknown/soft-deleted chapter slug inlines null; the mini-app shows a
+    # "chapter not found" state, same tri-state as the other pages.
+    chapter = chapters_svc.find_live_by_slug(db, slug)
+    payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json()) if chapter is not None else None
+    return _serve_public_app(
+        html_name="public-chapter.html",
+        window_var="__OPKOMST_CHAPTER__",
+        payload_marker=_CHAPTER_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_chapter_head_meta(chapter, slug),
+    )
+
+
 def mount(app: FastAPI) -> None:
     if not _DIST.is_dir():
         return
@@ -299,9 +331,13 @@ def mount(app: FastAPI) -> None:
     app.mount("/assets", _ImmutableStatic(directory=_DIST / "assets"), name="assets")
     dist_resolved = _DIST.resolve()
 
-    @app.get("/e/{slug}", include_in_schema=False)
-    def _public_event(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_event(slug, db)
+    @app.get("/e/{ident}", include_in_schema=False)
+    def _public_event(ident: str, db: Session = Depends(get_db)) -> HTMLResponse:
+        # The ``/e/`` namespace is shared: an 8-char event slug serves the
+        # sign-up page; anything else is a chapter slug → the agenda.
+        if is_event_slug(ident):
+            return _serve_public_event(ident, db)
+        return _serve_public_chapter(ident, db)
 
     @app.get("/f/{slug}", include_in_schema=False)
     def _public_form(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
