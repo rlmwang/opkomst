@@ -133,32 +133,34 @@ const calendarColumns = computed(() => {
   return `repeat(7, minmax(${timed ? "5.25rem" : "3rem"}, 1fr))`;
 });
 
-// Right-edge affordance: when the calendar is wider than the viewport the
-// page scrolls sideways to reach the later weekdays. Show an arrow until the
-// visitor has scrolled to the end, so it's clear more days exist to the right.
+// Right-edge affordance: the stacked calendars live in their own horizontal
+// scroller (``.cal-scroll``), so we read *that element's* own scroll metrics
+// — reliable on every browser, unlike page-level ``scrollX`` which reads
+// inconsistently across mobile engines. Show the arrow whenever there's more
+// calendar to the right of the current position; hide it once at the end.
 const canScrollRight = ref(false);
+const calScroll = ref<HTMLElement | null>(null);
 function updateScrollHint(): void {
-  const el = document.documentElement;
-  const room = el.scrollWidth - el.clientWidth;
-  canScrollRight.value = room > 1 && window.scrollX < room - 1;
+  const el = calScroll.value;
+  canScrollRight.value = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1;
 }
 function nudgeRight(): void {
-  window.scrollBy({ left: document.documentElement.clientWidth * 0.6, behavior: "smooth" });
+  const el = calScroll.value;
+  el?.scrollBy({ left: el.clientWidth * 0.6, behavior: "smooth" });
 }
-onMounted(() => {
-  window.addEventListener("scroll", updateScrollHint, { passive: true });
-  window.addEventListener("resize", updateScrollHint);
+// Recompute when the scroller mounts and whenever its size/content changes
+// (poll load, viewport resize, rotation). The template's ``@scroll`` handles
+// scrolling itself.
+let scrollObserver: ResizeObserver | null = null;
+watch(calScroll, (el) => {
+  scrollObserver?.disconnect();
+  if (el) {
+    scrollObserver = new ResizeObserver(() => updateScrollHint());
+    scrollObserver.observe(el);
+    updateScrollHint();
+  }
 });
-onUnmounted(() => {
-  window.removeEventListener("scroll", updateScrollHint);
-  window.removeEventListener("resize", updateScrollHint);
-});
-// Re-measure once the calendar has actually rendered (poll loaded) or
-// re-rendered at a new width (locale / column template changed).
-watch([status, calendarColumns], async () => {
-  await nextTick();
-  updateScrollHint();
-});
+onUnmounted(() => scrollObserver?.disconnect());
 
 const months = computed(() => {
   const seen = new Set<string>();
@@ -296,17 +298,29 @@ async function withdraw(): Promise<void> {
             <span class="swatch maybe">{{ d.maybe }}</span>
             <span class="swatch no">{{ d.no }}</span>
           </p>
-          <MonthCalendar
-            v-for="m in months"
-            :key="`${m.year}-${m.month}`"
-            :year="m.year"
-            :month="m.month"
-            :slots-by-iso="slotsByIso"
-            :answers="answers"
-            :locale="locale"
-            :columns="calendarColumns"
-            @toggle="toggle"
-          />
+          <div ref="calScroll" class="cal-scroll" @scroll="updateScrollHint">
+            <MonthCalendar
+              v-for="m in months"
+              :key="`${m.year}-${m.month}`"
+              :year="m.year"
+              :month="m.month"
+              :slots-by-iso="slotsByIso"
+              :answers="answers"
+              :locale="locale"
+              :columns="calendarColumns"
+              @toggle="toggle"
+            />
+          </div>
+          <button
+            v-show="canScrollRight"
+            type="button"
+            class="scroll-hint"
+            :aria-label="d.scrollHint"
+            :title="d.scrollHint"
+            @click="nudgeRight"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
         </div>
 
         <div class="card submit-card">
@@ -333,17 +347,6 @@ async function withdraw(): Promise<void> {
         </div>
       </template>
     </template>
-
-    <button
-      v-show="canScrollRight"
-      type="button"
-      class="scroll-hint"
-      :aria-label="d.scrollHint"
-      :title="d.scrollHint"
-      @click="nudgeRight"
-    >
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-    </button>
   </PublicShell>
 </template>
 
@@ -373,21 +376,18 @@ async function withdraw(): Promise<void> {
 .swatch.yes { background: var(--brand-green); }
 .swatch.maybe { background: var(--brand-amber); }
 .swatch.no { background: #6b6b6b; }
-/* When every weekday carries a slot the calendar is wider than a phone
- * viewport. Let this one card grow to its calendar's width (the surface
- * then sits behind every day cell) and the page scrolls horizontally to
- * reach it. ``min-width: 100%`` keeps it flush with the tight sibling
- * cards whenever the calendar does fit. */
-.poll-calendar { width: max-content; min-width: 100%; }
-/* Keep the intro/legend from dictating the card's width: cap it to the
- * viewport so it wraps instead of forcing a scroll the calendar didn't. */
-.legend { max-width: calc(100vw - 3rem); }
+/* The card stays flush with its siblings; the calendars scroll inside their
+ * own container when a full week is wider than the card, so the page never
+ * scrolls sideways and the surface always frames the days. ``position:
+ * relative`` anchors the scroll-cue arrow. */
+.poll-calendar { position: relative; }
+.cal-scroll { overflow-x: auto; }
 /* Breathing room between stacked months. */
-.poll-calendar :deep(.mg) + :deep(.mg) { margin-top: 1rem; }
-/* Floating right-edge scroll cue — only while the page can still scroll
- * right (see canScrollRight). Tapping nudges toward the later weekdays. */
+.cal-scroll :deep(.mg) + :deep(.mg) { margin-top: 1rem; }
+/* Right-edge scroll cue, pinned to the calendar — shown only while there's
+ * more calendar to the right (see canScrollRight). Tapping nudges onward. */
 .scroll-hint {
-  position: fixed;
+  position: absolute;
   top: 50%;
   right: 0.5rem;
   transform: translateY(-50%);
