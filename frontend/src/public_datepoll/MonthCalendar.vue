@@ -87,6 +87,14 @@ function dayClass(iso: string) {
 .vote-time {
   white-space: nowrap;
 }
+/* Always reserve the toggle glyph's slot — a fixed-width box whether it's
+ * empty (unset) or showing ✓/~/✕ — so the pill and its time label don't
+ * shift sideways the moment you tap. */
+.vote-glyph {
+  flex: none;
+  width: 1em;
+  text-align: center;
+}
 .vote.yes {
   background: var(--brand-green);
   color: #fff;

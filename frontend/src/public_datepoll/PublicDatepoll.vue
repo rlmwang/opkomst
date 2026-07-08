@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import EditLink from "@/public_shared/EditLink.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
@@ -131,6 +131,33 @@ const slotsByIso = computed<Record<string, { id: string; label: string | null }[
 const calendarColumns = computed(() => {
   const timed = (poll.value?.slots ?? []).some((s) => s.start_time && s.end_time);
   return `repeat(7, minmax(${timed ? "5.25rem" : "3rem"}, 1fr))`;
+});
+
+// Right-edge affordance: when the calendar is wider than the viewport the
+// page scrolls sideways to reach the later weekdays. Show an arrow until the
+// visitor has scrolled to the end, so it's clear more days exist to the right.
+const canScrollRight = ref(false);
+function updateScrollHint(): void {
+  const el = document.documentElement;
+  const room = el.scrollWidth - el.clientWidth;
+  canScrollRight.value = room > 1 && window.scrollX < room - 1;
+}
+function nudgeRight(): void {
+  window.scrollBy({ left: document.documentElement.clientWidth * 0.6, behavior: "smooth" });
+}
+onMounted(() => {
+  window.addEventListener("scroll", updateScrollHint, { passive: true });
+  window.addEventListener("resize", updateScrollHint);
+});
+onUnmounted(() => {
+  window.removeEventListener("scroll", updateScrollHint);
+  window.removeEventListener("resize", updateScrollHint);
+});
+// Re-measure once the calendar has actually rendered (poll loaded) or
+// re-rendered at a new width (locale / column template changed).
+watch([status, calendarColumns], async () => {
+  await nextTick();
+  updateScrollHint();
 });
 
 const months = computed(() => {
@@ -306,6 +333,17 @@ async function withdraw(): Promise<void> {
         </div>
       </template>
     </template>
+
+    <button
+      v-show="canScrollRight"
+      type="button"
+      class="scroll-hint"
+      :aria-label="d.scrollHint"
+      :title="d.scrollHint"
+      @click="nudgeRight"
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+    </button>
   </PublicShell>
 </template>
 
@@ -346,6 +384,35 @@ async function withdraw(): Promise<void> {
 .legend { max-width: calc(100vw - 3rem); }
 /* Breathing room between stacked months. */
 .poll-calendar :deep(.mg) + :deep(.mg) { margin-top: 1rem; }
+/* Floating right-edge scroll cue — only while the page can still scroll
+ * right (see canScrollRight). Tapping nudges toward the later weekdays. */
+.scroll-hint {
+  position: fixed;
+  top: 50%;
+  right: 0.5rem;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand-red);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  animation: scroll-hint-nudge 1.3s ease-in-out infinite;
+}
+@keyframes scroll-hint-nudge {
+  0%, 100% { transform: translateY(-50%) translateX(0); }
+  50% { transform: translateY(-50%) translateX(3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint { animation: none; }
+}
 .submit-card { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
 .error { color: var(--brand-red); margin: 0; }
 /* .btn-primary (+ .full) comes from ``src/public_shared/forms.css``. */

@@ -13,6 +13,7 @@ export interface DatepollStrings {
   maybe: string;
   no: string;
   notePlaceholder: string;
+  scrollHint: string;
   pickOne: string;
   thanksBody: string;
   withdrawConfirm: string;
@@ -26,6 +27,7 @@ const dict: Record<Locale, DatepollStrings> = {
     maybe: "Misschien",
     no: "Nee",
     notePlaceholder: "Opmerking (optioneel)",
+    scrollHint: "Meer dagen naar rechts",
     pickOne: "Geef bij minstens één moment je beschikbaarheid aan.",
     thanksBody: "Je reactie is binnen.",
     withdrawConfirm: "Je reactie intrekken? Je beschikbaarheid wordt verwijderd.",
@@ -37,6 +39,7 @@ const dict: Record<Locale, DatepollStrings> = {
     maybe: "Maybe",
     no: "No",
     notePlaceholder: "Note (optional)",
+    scrollHint: "More days to the right",
     pickOne: "Set your availability for at least one option.",
     thanksBody: "Your response is in.",
     withdrawConfirm: "Withdraw your response? Your availability will be deleted.",
