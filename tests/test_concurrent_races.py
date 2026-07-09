@@ -17,7 +17,7 @@ from typing import Any
 from unittest.mock import patch
 
 from _helpers import commit
-from _helpers.events import make_event
+from _helpers.events import first_occurrence, make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
 
 from backend.database import SessionLocal
@@ -97,7 +97,7 @@ def test_parallel_reapers_do_not_double_finalise(db: Any, fake_email: Any) -> No
         rows = (
             fresh.query(EmailDispatch)
             .filter(
-                EmailDispatch.event_id == e.id,
+                EmailDispatch.occurrence_id == first_occurrence(e).id,
                 EmailDispatch.channel == EmailChannel.REMINDER,
             )
             .all()

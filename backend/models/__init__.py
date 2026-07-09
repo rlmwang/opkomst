@@ -2,7 +2,7 @@ from .chapters import Chapter
 from .chores import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from .datepolls import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from .email_dispatch import EmailChannel, EmailDispatch, EmailStatus
-from .events import Event, Signup
+from .events import Event, Occurrence, Registration, Signup
 from .feedback import FeedbackResponse, FeedbackToken
 from .forms import Form, FormQuestion, FormResponse, FormSubmission
 from .users import LoginToken, RegistrationToken, User, UserChapter
@@ -26,6 +26,8 @@ __all__ = [
     "FormResponse",
     "FormSubmission",
     "LoginToken",
+    "Occurrence",
+    "Registration",
     "RegistrationToken",
     "Roster",
     "Shift",

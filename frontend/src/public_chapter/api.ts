@@ -3,6 +3,9 @@
 // the generated schema.ts to keep the public bundle lean (same choice as
 // the other public mini-apps).
 
+// One agenda card is a single OCCURRENCE (``slug`` is the occurrence
+// slug, linked as ``/e/{slug}``). ``index`` + ``total_sessions`` drive
+// the "sessie i van N" badge (``total_sessions`` null = open-ended).
 export interface EventCard {
   slug: string;
   name: string;
@@ -13,6 +16,8 @@ export interface EventCard {
   image_url: string | null;
   image_artist_instagram: string | null;
   attendee_count: number;
+  index: number;
+  total_sessions: number | null;
 }
 
 export interface ChapterPublic {

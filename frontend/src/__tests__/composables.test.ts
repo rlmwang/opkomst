@@ -221,8 +221,13 @@ describe("useEvents composables", () => {
       location: "X",
       latitude: null,
       longitude: null,
-      starts_at: "2026-05-01T18:00:00",
-      ends_at: "2026-05-01T20:00:00",
+      starts_on: "2026-05-01",
+      start_time: "18:00:00",
+      end_time: "20:00:00",
+      period_weeks: 1,
+      cycle_slots: [4],
+      span_weeks: 6,
+      horizon_days: 90,
       source_options: ["F"],
       help_options: [],
       feedback_enabled: true,
@@ -257,6 +262,26 @@ describe("useEvents composables", () => {
     await m.mutateAsync("ev1");
 
     expect(mockPost).toHaveBeenCalledWith("/api/v1/events/ev1/restore");
+  });
+
+  it("useEventOccurrences GETs the occurrence panel URL", async () => {
+    const { useEventOccurrences } = await import("@/composables/useEvents");
+    mockGet.mockResolvedValueOnce({ total_sessions: 6, occurrences: [], projected: [] });
+
+    const q = withSetup(() => useEventOccurrences("ev1"));
+    await q.refetch();
+
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/events/ev1/occurrences");
+  });
+
+  it("useDeleteSignup DELETEs the line-item URL", async () => {
+    const { useDeleteSignup } = await import("@/composables/useEvents");
+    mockDel.mockResolvedValueOnce(undefined as never);
+
+    const m = withSetup(() => useDeleteSignup());
+    await m.mutateAsync({ eventId: "ev1", occurrenceId: "oc1", signupId: "su1" });
+
+    expect(mockDel).toHaveBeenCalledWith("/api/v1/events/ev1/signups/su1");
   });
 
   // ``usePublicSignup`` removed: the public sign-up form moved to

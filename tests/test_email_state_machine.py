@@ -25,6 +25,7 @@ from backend.models import (
     EmailDispatch,
     EmailStatus,
     Event,
+    Occurrence,
 )
 from backend.services import mail_lifecycle
 
@@ -107,19 +108,20 @@ def _reap_partial(_signup_id: str) -> None:
 
 
 def _post_event_purge(_signup_id: str) -> None:
-    """Push the event ≥7 days into the past, run the reaper.
+    """Push the occurrence ≥7 days into the past, run the reaper.
     Both ``starts_at`` and ``ends_at`` move so the predicate
     fires for both REMINDER (``starts_at <= now``) and FEEDBACK
     (``ends_at <= now - 7d``); the table-test only seeds REMINDER
     rows, so without the ``starts_at`` mutation the reaper would
-    skip them."""
+    skip them. Occurrence datetimes are naive wall-clock, so use
+    a naive ``now`` for the shift."""
     db = SessionLocal()
     try:
-        now = datetime.now(UTC)
-        db.query(Event).update(
+        now = datetime.now(UTC).replace(tzinfo=None)
+        db.query(Occurrence).update(
             {
-                Event.starts_at: now - timedelta(days=14),
-                Event.ends_at: now - timedelta(days=14) + timedelta(hours=2),
+                Occurrence.starts_at: now - timedelta(days=14),
+                Occurrence.ends_at: now - timedelta(days=14) + timedelta(hours=2),
             }
         )
         db.commit()
@@ -223,7 +225,7 @@ def test_state_transition_table(
             fresh = SessionLocal()
             try:
                 fresh.query(EmailDispatch).filter(
-                    EmailDispatch.event_id == s.event_id,
+                    EmailDispatch.occurrence_id == s.occurrence_id,
                     EmailDispatch.channel == EmailChannel.REMINDER,
                 ).update({EmailDispatch.encrypted_email: None})
                 fresh.commit()

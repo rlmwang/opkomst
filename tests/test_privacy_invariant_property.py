@@ -40,6 +40,8 @@ from backend.models import (
     EmailDispatch,
     EmailStatus,
     Event,
+    Occurrence,
+    Registration,
     Signup,
 )
 from backend.services import encryption, mail_lifecycle
@@ -71,8 +73,10 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
             slug="slug1",
             name="Demo",
             location="Test",
-            starts_at=starts_at,
-            ends_at=ends_at,
+            starts_on=starts_at.date(),
+            start_time=starts_at.replace(tzinfo=None).time(),
+            end_time=ends_at.replace(tzinfo=None).time(),
+            cycle_slots=[],
             source_options=["x"],
             help_options=[],
             feedback_enabled=True,
@@ -83,10 +87,25 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         )
         db.add(e)
         db.flush()
-        s = Signup(
+        occ = Occurrence(
+            id="occ-1",
+            event_id="evt-1",
+            slug="occslug1",
+            starts_at=starts_at.replace(tzinfo=None),
+            ends_at=ends_at.replace(tzinfo=None),
+        )
+        db.add(occ)
+        db.flush()
+        registration = Registration(
             event_id="evt-1",
             display_name="A",
             party_size=1,
+        )
+        db.add(registration)
+        db.flush()
+        s = Signup(
+            registration_id=registration.id,
+            occurrence_id="occ-1",
             source_choice="x",
             help_choices=[],
         )
@@ -95,7 +114,7 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         for channel in (EmailChannel.REMINDER, EmailChannel.FEEDBACK):
             db.add(
                 EmailDispatch(
-                    event_id="evt-1",
+                    occurrence_id="occ-1",
                     channel=channel,
                     status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt("alice@example.test"),
@@ -113,7 +132,7 @@ def _check_invariant(signup_id: str) -> None:
     row that finalises; no cross-table existence check needed."""
     db = SessionLocal()
     try:
-        rows = db.query(EmailDispatch).filter(EmailDispatch.event_id == "evt-1").all()
+        rows = db.query(EmailDispatch).filter(EmailDispatch.occurrence_id == "occ-1").all()
         for d in rows:
             if d.status != EmailStatus.PENDING:
                 assert d.encrypted_email is None, (
@@ -128,7 +147,7 @@ def _check_no_state_regression(signup_id: str, last_seen: dict[str, EmailStatus]
     FAILED). Reverts are forbidden."""
     db = SessionLocal()
     try:
-        rows = db.query(EmailDispatch).filter(EmailDispatch.event_id == "evt-1").all()
+        rows = db.query(EmailDispatch).filter(EmailDispatch.occurrence_id == "occ-1").all()
         for r in rows:
             key = f"{r.id}"
             prev = last_seen.get(key)
@@ -221,9 +240,13 @@ class WipeInvariantMachine(RuleBasedStateMachine):
             db.close()
 
     def _mutate_event(self, **fields: Any) -> None:
+        # The window predicates now compare against the Occurrence's naive
+        # wall-clock datetimes, so mutate the occurrence, stripping any
+        # tzinfo the caller passed (the column is timezone-naive).
+        naive = {k: (v.replace(tzinfo=None) if hasattr(v, "tzinfo") and v.tzinfo else v) for k, v in fields.items()}
         db = SessionLocal()
         try:
-            db.query(Event).filter(Event.id == "evt-1").update(fields)
+            db.query(Occurrence).filter(Occurrence.event_id == "evt-1").update(naive)
             db.commit()
         finally:
             db.close()

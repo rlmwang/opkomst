@@ -37,6 +37,8 @@ from .models import (
     FormQuestion,
     FormResponse,
     FormSubmission,
+    Occurrence,
+    Registration,
     Roster,
     Shift,
     ShiftEvent,
@@ -46,7 +48,7 @@ from .models import (
     VolunteerAvailability,
 )
 from .services import chapters as chapters_svc
-from .services import chore_tick, edit_token, encryption
+from .services import chore_tick, edit_token, encryption, event_recurrence
 from .services import user_chapters as user_chapters_svc
 from .services.events import now_wallclock
 from .services.slug import new_slug
@@ -73,24 +75,36 @@ def _ensure_event(
     *,
     name: str,
     location: str,
-    starts_at: datetime,
-    ends_at: datetime,
+    first_starts_at: datetime,
+    first_ends_at: datetime,
     created_by: str,
     source_options: list[str],
     help_options: list[str],
     chapter_id: str | None,
     topic: str = "Demo",
+    weekly_weeks: int | None = None,
 ) -> Event:
+    """Create a demo event and materialise its in-horizon occurrences. The
+    date + times of ``first_starts_at`` / ``first_ends_at`` become the
+    anchor + time of day. Defaults to a one-off; pass ``weekly_weeks`` for a
+    weekly demo course running that many weeks (on the anchor's weekday).
+    Idempotent on ``(name, created_by)``."""
     existing = db.query(Event).filter(Event.name == name, Event.created_by == created_by).first()
     if existing:
         return existing
+    starts_on = first_starts_at.date()
+    cycle_slots = [starts_on.weekday()] if weekly_weeks else []
     event = Event(
         slug=new_slug(),
         name=name,
         topic=topic,
         location=location,
-        starts_at=starts_at,
-        ends_at=ends_at,
+        starts_on=starts_on,
+        start_time=first_starts_at.time(),
+        end_time=first_ends_at.time(),
+        period_weeks=1,
+        cycle_slots=cycle_slots,
+        span_weeks=weekly_weeks,
         source_options=source_options,
         help_options=help_options,
         feedback_enabled=True,
@@ -101,8 +115,18 @@ def _ensure_event(
     )
     db.add(event)
     db.flush()
+    # Back-fill past sessions too, so a demo course that straddles "now" (and
+    # the past demo events) have believable history on first boot. Production
+    # never fabricates past occurrences.
+    event_recurrence.materialise(db, event, now_wallclock(), include_past=True)
     logger.info("seed_event_created", event_id=event.id, slug=event.slug, name=name)
     return event
+
+
+def _first_occurrence(event: Event) -> Occurrence:
+    """The demo events materialise occurrence 0 immediately, so this is
+    always present right after ``_ensure_event``."""
+    return min(event.occurrences, key=lambda o: o.starts_at)
 
 
 def run_local_demo() -> None:
@@ -164,8 +188,8 @@ def run_local_demo() -> None:
             db,
             name="Buurtbijeenkomst Wonen",
             location="Buurthuis Centrum",
-            starts_at=now + timedelta(days=3),
-            ends_at=now + timedelta(days=3, hours=2),
+            first_starts_at=now + timedelta(days=3),
+            first_ends_at=now + timedelta(days=3, hours=2),
             created_by=organiser.id,
             source_options=sources,
             help_options=help_options,
@@ -176,8 +200,8 @@ def run_local_demo() -> None:
             db,
             name="Demonstratie Klimaatrechtvaardigheid",
             location="Dam, Amsterdam",
-            starts_at=now - timedelta(days=2, hours=2),
-            ends_at=now - timedelta(days=2),
+            first_starts_at=now - timedelta(days=2, hours=2),
+            first_ends_at=now - timedelta(days=2),
             created_by=organiser.id,
             source_options=sources,
             help_options=help_options,
@@ -191,8 +215,8 @@ def run_local_demo() -> None:
             db,
             name="Ledenvergadering",
             location="Volkshuis, Amsterdam-Oost",
-            starts_at=now + timedelta(days=10),
-            ends_at=now + timedelta(days=10, hours=2),
+            first_starts_at=now + timedelta(days=10),
+            first_ends_at=now + timedelta(days=10, hours=2),
             created_by=organiser.id,
             source_options=sources,
             help_options=help_options,
@@ -203,8 +227,8 @@ def run_local_demo() -> None:
             db,
             name="Scholingsavond: organiseren op je werk",
             location="De Nieuwe Liefde, Amsterdam",
-            starts_at=now + timedelta(days=18),
-            ends_at=now + timedelta(days=18, hours=3),
+            first_starts_at=now + timedelta(days=18),
+            first_ends_at=now + timedelta(days=18, hours=3),
             created_by=organiser.id,
             source_options=sources,
             help_options=help_options,
@@ -217,8 +241,8 @@ def run_local_demo() -> None:
             db,
             name="Besloten werkgroepoverleg",
             location="Online",
-            starts_at=now + timedelta(days=5),
-            ends_at=now + timedelta(days=5, hours=1),
+            first_starts_at=now + timedelta(days=5),
+            first_ends_at=now + timedelta(days=5, hours=1),
             created_by=organiser.id,
             source_options=sources,
             help_options=help_options,
@@ -228,6 +252,29 @@ def run_local_demo() -> None:
         hidden.listed = False
         db.flush()
 
+        # A recurring course (six weekly sessions) that straddles "now": it
+        # started ~2.5 weeks ago, so the first three sessions are in the past
+        # (frozen history) and the last three are still upcoming. This gives
+        # the local frontend a real multi-occurrence dataset that exercises
+        # both states everywhere: the agenda shows the next couple of upcoming
+        # sessions, the detail page's calendar has past + future days, and the
+        # public sign-up / manage calendar shows editable-future alongside
+        # locked-past cells.
+        course_anchor = (now - timedelta(days=17)).replace(hour=19, minute=0, second=0, microsecond=0)
+        course = _ensure_event(
+            db,
+            name="Boksles voor beginners",
+            location="Sporthal De Kaai, Amsterdam",
+            first_starts_at=course_anchor,
+            first_ends_at=course_anchor.replace(hour=20, minute=30),
+            created_by=organiser.id,
+            source_options=sources,
+            help_options=help_options,
+            chapter_id=amsterdam_id,
+            topic="Zes wekelijkse lessen. Schrijf je in voor de hele reeks of losse lessen.",
+            weekly_weeks=6,
+        )
+
         # Utrecht gets its own events so the second chapter's agenda
         # (``/e/utrecht``) isn't empty on first boot.
         if utrecht_id:
@@ -235,8 +282,8 @@ def run_local_demo() -> None:
                 db,
                 name="Kennismaking nieuwe leden",
                 location="Buurthuis Lombok, Utrecht",
-                starts_at=now + timedelta(days=7),
-                ends_at=now + timedelta(days=7, hours=2),
+                first_starts_at=now + timedelta(days=7),
+                first_ends_at=now + timedelta(days=7, hours=2),
                 created_by=organiser.id,
                 source_options=sources,
                 help_options=help_options,
@@ -247,8 +294,8 @@ def run_local_demo() -> None:
                 db,
                 name="Buurtactie tegen de huurverhoging",
                 location="Kanaalstraat, Utrecht",
-                starts_at=now - timedelta(days=4, hours=2),
-                ends_at=now - timedelta(days=4),
+                first_starts_at=now - timedelta(days=4, hours=2),
+                first_ends_at=now - timedelta(days=4),
                 created_by=organiser.id,
                 source_options=sources,
                 help_options=help_options,
@@ -256,12 +303,13 @@ def run_local_demo() -> None:
                 topic="Terugblik op de deur-aan-deur actie in Lombok.",
             )
 
-        # Idempotent demo signups. Past event gets one signup in
-        # every feedback-email lifecycle state, so the details
-        # page shows the full UX without needing real SMTP.
+        # Idempotent demo signups. Each is a booking (registration) with one
+        # line item on the given occurrence. The past event gets one signup in
+        # every feedback-email lifecycle state, so the details page shows the
+        # full UX without needing real SMTP.
         def _seed_signup(
             *,
-            event_id: str,
+            occurrence_id: str,
             display_name: str,
             party_size: int,
             source: str,
@@ -271,23 +319,32 @@ def run_local_demo() -> None:
             feedback_sent_at: datetime | None = None,
             feedback_message_id: str | None = None,
         ) -> None:
-            signup = Signup(
-                event_id=event_id,
+            _, token_hash = edit_token.new_edit_token()
+            registration = Registration(
+                event_id=db.query(Occurrence.event_id).filter(Occurrence.id == occurrence_id).scalar(),
                 display_name=display_name,
                 party_size=party_size,
-                source_choice=source,
-                help_choices=help_choices,
+                edit_token_hash=token_hash,
             )
-            db.add(signup)
+            db.add(registration)
+            db.flush()
+            db.add(
+                Signup(
+                    registration_id=registration.id,
+                    occurrence_id=occurrence_id,
+                    source_choice=source,
+                    help_choices=help_choices,
+                )
+            )
             if feedback_status is not None:
-                # Pending dispatches carry the encrypted address;
-                # terminal-state rows have it nulled (matches the
-                # production lifecycle). The dispatch row points
-                # at the event directly — no link to this signup.
+                # Pending dispatches carry the encrypted address; terminal-state
+                # rows have it nulled (matches the production lifecycle). The
+                # dispatch row points at the occurrence directly — no link to
+                # the booking or line item.
                 ciphertext = encryption.encrypt(email) if email and feedback_status == EmailStatus.PENDING else None
                 db.add(
                     EmailDispatch(
-                        event_id=event_id,
+                        occurrence_id=occurrence_id,
                         channel=EmailChannel.FEEDBACK,
                         status=feedback_status,
                         sent_at=feedback_sent_at,
@@ -296,24 +353,26 @@ def run_local_demo() -> None:
                     )
                 )
 
-        if not db.query(Signup).filter(Signup.event_id == upcoming.id).first():
+        upcoming_occ = _first_occurrence(upcoming)
+        past_occ = _first_occurrence(past)
+        if not db.query(Signup).filter(Signup.occurrence_id == upcoming_occ.id).first():
             _seed_signup(
-                event_id=upcoming.id,
+                occurrence_id=upcoming_occ.id,
                 display_name="Anon Buur",
                 party_size=2,
                 source="Flyer",
                 help_choices=["Opbouwen"],
             )
-        if not db.query(Signup).filter(Signup.event_id == past.id).first():
+        if not db.query(Signup).filter(Signup.occurrence_id == past_occ.id).first():
             _seed_signup(
-                event_id=past.id,
+                occurrence_id=past_occ.id,
                 display_name="Demo Anon",
                 party_size=1,
                 source="Social media",
                 help_choices=["Opbouwen", "Afbreken"],
             )
             _seed_signup(
-                event_id=past.id,
+                occurrence_id=past_occ.id,
                 display_name="Pim",
                 party_size=1,
                 source="Flyer",
@@ -322,7 +381,7 @@ def run_local_demo() -> None:
                 feedback_status=EmailStatus.PENDING,
             )
             _seed_signup(
-                event_id=past.id,
+                occurrence_id=past_occ.id,
                 display_name="Sien",
                 party_size=2,
                 source="Mond-tot-mond",
@@ -332,7 +391,7 @@ def run_local_demo() -> None:
                 feedback_message_id="<demo-sent@local.dev>",
             )
             _seed_signup(
-                event_id=past.id,
+                occurrence_id=past_occ.id,
                 display_name="Mira",
                 party_size=3,
                 source="Mond-tot-mond",
@@ -341,9 +400,31 @@ def run_local_demo() -> None:
                 feedback_sent_at=now - timedelta(days=1, hours=20),
             )
 
-        existing_resp = db.query(FeedbackResponse).filter(FeedbackResponse.event_id == past.id).first()
+        existing_resp = db.query(FeedbackResponse).filter(FeedbackResponse.occurrence_id == past_occ.id).first()
         if existing_resp is None:
-            _seed_demo_responses(db, past.id)
+            _seed_demo_responses(db, past_occ.id)
+
+        # A multi-occurrence booking that spans the "now" line: this person is
+        # on the course's middle four sessions (two already past, two still
+        # upcoming), so the manage page (secret edit link) showcases both
+        # locked-past sessions and editable-future ones at once.
+        course_occs = sorted(course.occurrences, key=lambda o: o.starts_at)[1:5]
+        if course_occs and not db.query(Signup).filter(Signup.occurrence_id == course_occs[0].id).first():
+            _, course_token = edit_token.new_edit_token()
+            course_reg = Registration(
+                event_id=course.id, display_name="Vaste ganger", party_size=1, edit_token_hash=course_token
+            )
+            db.add(course_reg)
+            db.flush()
+            for occ in course_occs:
+                db.add(
+                    Signup(
+                        registration_id=course_reg.id,
+                        occurrence_id=occ.id,
+                        source_choice="Social media",
+                        help_choices=[],
+                    )
+                )
 
         _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
         _seed_forms(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
@@ -688,7 +769,10 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
             _q(survey.id, 1, "rating", "Hoe tevreden ben je met de afdeling?", low="Ontevreden", high="Zeer tevreden"),
             _q(survey.id, 2, "single_choice", "Hoe vaak kom je langs?", options=["Wekelijks", "Maandelijks", "Zelden"]),
             _q(
-                survey.id, 3, "multi_choice", "Welke thema's spreken je aan?",
+                survey.id,
+                3,
+                "multi_choice",
+                "Welke thema's spreken je aan?",
                 options=["Wonen", "Klimaat", "Zorg", "Werk"],
             ),
             _q(survey.id, 4, "short_text", "Waar kunnen we mee helpen?", required=False),
@@ -814,7 +898,7 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
         _respond(visit.id, vslots, "Sam", None, ["maybe", "yes"])
 
 
-def _seed_demo_responses(db: Session, event_id: str) -> None:
+def _seed_demo_responses(db: Session, occurrence_id: str) -> None:
     from .services.feedback_questions import BY_KEY
 
     for submission in _DEMO_SUBMISSIONS:
@@ -826,11 +910,11 @@ def _seed_demo_responses(db: Session, event_id: str) -> None:
                 continue
             db.add(
                 FeedbackResponse(
-                    event_id=event_id,
+                    occurrence_id=occurrence_id,
                     question_key=key,
                     submission_id=sub_id,
                     answer_int=value if isinstance(value, int) else None,
                     answer_text=value if isinstance(value, str) else None,
                 )
             )
-    logger.info("seed_demo_feedback", event_id=event_id, count=len(_DEMO_SUBMISSIONS))
+    logger.info("seed_demo_feedback", occurrence_id=occurrence_id, count=len(_DEMO_SUBMISSIONS))

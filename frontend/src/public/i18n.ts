@@ -1,12 +1,10 @@
 /**
- * Inline i18n for the public sign-up mini-app. Strings copied
- * VERBATIM from ``src/locales/{nl,en}.json`` — the public flow
- * has user-tested copy that must not drift. If a string changes
- * here, also update the JSON for parity (the admin SPA's
- * ``FeedbackPage`` for instance shares some of these via vue-i18n).
+ * Inline i18n for the public sign-up mini-app. Plain-string copy is kept
+ * in parity with the ``public`` block of ``src/locales/{nl,en}.json``;
+ * the parameterised session labels mirror ``event.occurrences.*`` there.
+ * If a string changes here, update the JSON too.
  *
- * Keeps the public bundle off vue-i18n (~18 KB gzip we'd be
- * using <1% of).
+ * Keeps the public bundle off vue-i18n (~18 KB gzip we'd be using <1% of).
  */
 
 export type Locale = "nl" | "en";
@@ -24,22 +22,37 @@ interface Strings {
   displayName: string;
   partySize: string;
   sourcePlaceholder: string;
-  emailFor: { reminderAndFeedback: string; reminderOnly: string; feedbackOnly: string };
+  emailPlaceholder: string;
   emailUses: { reminder: string; feedback: string };
   submit: string;
   submitFail: string;
   fillName: string;
   fillSource: string;
+  // Occurrence checklist.
+  sessionsTitle: string;
+  allUpcoming: string;
+  sessionOf: (i: number, n: number) => string;
+  sessionOpen: (i: number) => string;
+  notYetOpen: string;
+  pickSession: string;
+  prevMonth: string;
+  nextMonth: string;
+  pickerExplainer: string;
+  reminderOptIn: string;
+  reminderOptOut: string;
+  // Booking edit.
+  bookingSessions: string;
+  withdrawFromSession: string;
+  withdrawSessionConfirm: string;
+  withdrawConfirm: string;
+  withdrawn: string;
   thanks: string;
   thanksBody: string;
   thanksBodyNoEmail: string;
-  withdrawConfirm: string;
-  withdrawn: string;
   explainerTitle: string;
   explainerIntro: string;
   explainerEmailIntro: string;
   explainerEmailOutro: string;
-  explainerNoEmail: string;
   explainerSource: string;
   explainerLink: string;
   imageCredit: string;
@@ -59,11 +72,7 @@ const dict: Record<Locale, Strings> = {
     displayName: "(Schuil)naam",
     partySize: "Aantal personen",
     sourcePlaceholder: "Hoe heb je ons gevonden?",
-    emailFor: {
-      reminderAndFeedback: "E-mailadres (voor één herinnering + één feedbackmail)",
-      reminderOnly: "E-mailadres (voor één herinnering vooraf)",
-      feedbackOnly: "E-mailadres (voor één feedbackmail)",
-    },
+    emailPlaceholder: "E-mailadres (optioneel, voor herinnering + feedback)",
     emailUses: {
       reminder: "Een herinnering, een paar dagen voor het evenement.",
       feedback: "Een korte feedbackmail, kort na afloop.",
@@ -72,20 +81,34 @@ const dict: Record<Locale, Strings> = {
     submitFail: "Aanmelden mislukt",
     fillName: "Vul een naam in",
     fillSource: "Kies hoe je ons hebt gevonden",
+    sessionsTitle: "Voor welke sessies wil je je aanmelden?",
+    allUpcoming: "Alle komende sessies",
+    sessionOf: (i, n) => `sessie ${i} van ${n}`,
+    sessionOpen: (i) => `sessie ${i}`,
+    notYetOpen: "nog niet open",
+    pickSession: "Kies minstens één sessie",
+    prevMonth: "Vorige maand",
+    nextMonth: "Volgende maand",
+    pickerExplainer: "Tik op de gemarkeerde dagen om je sessies te kiezen.",
+    reminderOptIn: "Latere sessies moet je zelf toevoegen wanneer ze verschijnen.",
+    reminderOptOut: "Latere sessies moet je zelf laten vallen wanneer ze verschijnen.",
+    bookingSessions: "Je sessies",
+    withdrawFromSession: "Afmelden",
+    withdrawSessionConfirm:
+      "Je afmelden voor deze sessie? Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
     withdrawConfirm:
-      "Je afmelden? Je aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
+      "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
     withdrawn: "Je bent afgemeld.",
-    thanks: "Bedankt – je aanmelding is binnen.",
+    thanks: "Bedankt, je aanmelding is binnen.",
     thanksBody:
       "Tot dan! Heb je een mailadres achtergelaten? Dan krijg je de dag erna een korte feedbackmail; daarna gooien we je adres weg.",
     thanksBodyNoEmail: "Tot dan!",
     explainerTitle: "Privacy & open source",
     explainerIntro:
-      "We vragen alleen wat we echt nodig hebben. Een schuilnaam mag – we tellen alleen koppen.",
+      "We vragen alleen wat we echt nodig hebben. Een schuilnaam mag, we tellen alleen koppen.",
     explainerEmailIntro:
       "Je mailadres is optioneel. Als je het achterlaat, bewaren we het versleuteld en gebruiken we het voor:",
     explainerEmailOutro: "Zijn alle mails verstuurd, dan gooien we je adres weg.",
-    explainerNoEmail: "We vragen verder geen contactgegevens.",
     explainerSource: "De code van deze app is",
     explainerLink: "openbaar in te zien",
     imageCredit: "Ontwerp:",
@@ -103,11 +126,7 @@ const dict: Record<Locale, Strings> = {
     displayName: "(Pseudo)name",
     partySize: "Number of people",
     sourcePlaceholder: "How did you find us?",
-    emailFor: {
-      reminderAndFeedback: "Email (for one reminder + one feedback message)",
-      reminderOnly: "Email (for one reminder before the event)",
-      feedbackOnly: "Email (for one feedback message)",
-    },
+    emailPlaceholder: "Email (optional, for a reminder + feedback)",
     emailUses: {
       reminder: "One reminder about 3 days before the event starts.",
       feedback: "One short feedback message shortly after the event.",
@@ -116,21 +135,35 @@ const dict: Record<Locale, Strings> = {
     submitFail: "Sign-up failed",
     fillName: "Fill in a name",
     fillSource: "Pick how you found us",
+    sessionsTitle: "Which sessions do you want to join?",
+    allUpcoming: "All upcoming sessions",
+    sessionOf: (i, n) => `session ${i} of ${n}`,
+    sessionOpen: (i) => `session ${i}`,
+    notYetOpen: "not open yet",
+    pickSession: "Pick at least one session",
+    prevMonth: "Previous month",
+    nextMonth: "Next month",
+    pickerExplainer: "Tap the highlighted days to choose your sessions.",
+    reminderOptIn: "You'll need to add later sessions yourself as they appear.",
+    reminderOptOut: "You'll need to drop later sessions yourself as they appear.",
+    bookingSessions: "Your sessions",
+    withdrawFromSession: "Withdraw",
+    withdrawSessionConfirm:
+      "Withdraw from this session? A reminder or feedback email that's already scheduled may still arrive.",
     withdrawConfirm:
-      "Withdraw your sign-up? It will be removed. A reminder or feedback email that's already scheduled may still arrive.",
+      "Withdraw from every session? Your whole sign-up will be removed. A reminder or feedback email that's already scheduled may still arrive.",
     withdrawn: "You've withdrawn.",
-    thanks: "Thanks — we got your sign-up.",
+    thanks: "Thanks, we got your sign-up.",
     thanksBody:
       "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
     thanksBodyNoEmail: "See you then!",
     explainerTitle: "Privacy & open source",
     explainerIntro:
-      "We only ask for what we need. Your name can be a pseudonym — it just helps us with the head count.",
+      "We only ask for what we need. Your name can be a pseudonym, it just helps us with the head count.",
     explainerEmailIntro:
       "Your email is optional. If you leave it, we store it encrypted and use it for:",
     explainerEmailOutro:
       "Once every email related to this event has been sent, we permanently delete your address.",
-    explainerNoEmail: "We're not asking for any contact details for this event.",
     explainerSource: "The full source code of this app is",
     explainerLink: "openly available",
     imageCredit: "Design:",
@@ -138,9 +171,9 @@ const dict: Record<Locale, Strings> = {
 };
 
 export function pickLocale(eventLocale: string | undefined): Locale {
-  // ``?lang=`` URL override beats the event's own locale; useful
-  // for share-with-an-English-speaking-friend cases without
-  // touching the organiser-side setting.
+  // ``?lang=`` URL override beats the event's own locale; useful for
+  // share-with-an-English-speaking-friend cases without touching the
+  // organiser-side setting.
   const url = new URL(window.location.href);
   const override = url.searchParams.get("lang");
   if (override === "nl" || override === "en") return override;

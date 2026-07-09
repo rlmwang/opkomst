@@ -11,8 +11,13 @@ import {
   useRestoreEvent,
 } from "@/composables/useEvents";
 import { formatDateTime } from "@/lib/format";
+import { recurrenceHint } from "@/lib/recurrence";
 
 const { t, locale } = useI18n();
+
+function hint(e: EventOut): string {
+  return recurrenceHint(t, e);
+}
 
 const {
   chapterFilter,
@@ -53,7 +58,9 @@ const {
             <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
           </h3>
           <p class="muted">
-            {{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}
+            {{ e.location }} ·
+            {{ formatDateTime(e.next_starts_at ?? `${e.starts_on}T${e.start_time}`, locale) }} ·
+            {{ hint(e) }}
           </p>
         </div>
         <div class="row-actions">

@@ -111,6 +111,12 @@ _CRON_MONITORS: dict[str, Any] = {
         "max_runtime": 30,
         "timezone": "UTC",
     },
+    "opkomst-cli-event-tick": {
+        "schedule": {"type": "crontab", "value": "0 2 * * *"},
+        "checkin_margin": 30,
+        "max_runtime": 30,
+        "timezone": "UTC",
+    },
 }
 
 
@@ -129,6 +135,7 @@ def _monitor_slug(args: argparse.Namespace) -> str | None:
         "reap-auth-tokens",
         "pending-digest",
         "roster-tick",
+        "event-tick",
     }:
         return f"opkomst-cli-{args.cmd}"
     return None
@@ -202,6 +209,22 @@ def _roster_tick() -> int:
         db.close()
 
 
+def _event_tick() -> int:
+    """Materialise the incoming horizon edge of concrete occurrences for
+    every live event. Returns the number of occurrences created (for the
+    cron log)."""
+    from .services import event_recurrence
+    from .services.events import now_wallclock
+
+    db = SessionLocal()
+    try:
+        events, occurrences = event_recurrence.run_tick(db, now_wallclock())
+        logger.info("cli_event_tick", events=events, occurrences=occurrences)
+        return occurrences
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m backend.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -226,6 +249,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser(
         "roster-tick",
         help="Generate + fairly assign chore shifts on the rolling horizon.",
+    )
+    sub.add_parser(
+        "event-tick",
+        help="Materialise concrete event occurrences on the rolling horizon.",
     )
     sub.add_parser(
         "migrate",
@@ -272,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
             _pending_digest()
         elif args.cmd == "roster-tick":
             _roster_tick()
+        elif args.cmd == "event-tick":
+            _event_tick()
         elif args.cmd == "migrate":
             # ``run_migrations()`` already ran above as part of the
             # cron preamble — this branch exists so the API

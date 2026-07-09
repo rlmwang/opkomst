@@ -39,25 +39,27 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "chapter_id": me["chapters"][0]["id"],
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T18:00:00",
-            "ends_at": "2026-05-01T20:00:00",
+            "starts_on": "2026-09-01",
+            "start_time": "18:00:00",
+            "end_time": "20:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
         },
     )
     eid = r.json()["id"]
-    slug = r.json()["slug"]
+    occ = client.get(f"/api/v1/events/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
         json={
             "display_name": "Alice",
             "party_size": 2,
             "source_choice": "F",
             "email": "alice@local.dev",
+            "occurrence_ids": [occ["id"]],
         },
     )
-    r = client.get(f"/api/v1/events/{eid}/signups", headers=organiser_headers)
+    r = client.get(f"/api/v1/events/{eid}/occurrences/{occ['id']}/signups", headers=organiser_headers)
     assert r.status_code == 200
     rows = r.json()
     # The privacy invariant is field-level: the email-side fields
@@ -78,7 +80,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
 
 
 def test_feedback_response_has_no_signup_link():
-    """``FeedbackResponse`` only has ``event_id``, ``question_key``,
+    """``FeedbackResponse`` only has ``occurrence_id``, ``question_key``,
     ``submission_id``. No ``signup_id`` column."""
     from backend.models import FeedbackResponse
 
@@ -86,7 +88,7 @@ def test_feedback_response_has_no_signup_link():
     assert "signup_id" not in cols, cols
     # Spot-check that what should be there, is.
     assert "submission_id" in cols
-    assert "event_id" in cols
+    assert "occurrence_id" in cols
 
 
 def test_encrypt_only_called_from_allowlisted_callers():

@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..models import DatepollSubmission, FormSubmission, Signup, Volunteer
+    from ..models import DatepollSubmission, FormSubmission, Registration, Volunteer
 
 
 def new_edit_token() -> tuple[str, str]:
@@ -43,7 +43,7 @@ def hash_edit_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
-def recover(row: "Signup | FormSubmission | DatepollSubmission | Volunteer") -> str:
+def recover(row: "Registration | FormSubmission | DatepollSubmission | Volunteer") -> str:
     """Organiser recovery: rotate the row's secret link and return the
     new raw token (to hand to the organiser exactly once). Invalidates
     the old link and stamps ``link_recovered_at`` — stamped on *every*

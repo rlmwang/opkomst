@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import MonthGrid from "@/components/MonthGrid.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
+import type { SignupSummary } from "@/api/types";
 import {
   eventList,
-  type SignupSummary,
   useDeleteSignup,
   useEventList,
-  useEventSignups,
-  useEventStats,
+  useEventOccurrences,
+  useOccurrenceSignups,
+  useOccurrenceStats,
   useSendEmailsNow,
 } from "@/composables/useEvents";
 import { useEventClipboard } from "@/composables/useEventClipboard";
@@ -22,8 +24,9 @@ import { useGuardedMutation } from "@/composables/useGuardedMutation";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { barWidth, formatDateTime } from "@/lib/format";
+import { barWidth, formatDate, formatDateTime, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
+import { recurrenceHint } from "@/lib/recurrence";
 import { useToasts } from "@/lib/toasts";
 import {
   type EmailChannel,
@@ -41,21 +44,120 @@ const eventsQuery = useEventList();
 const events = eventList(eventsQuery);
 const event = computed(() => events.value.find((e) => e.id === props.eventId) ?? null);
 
-const statsQuery = useEventStats(computed(() => props.eventId));
-const stats = computed(() => statsQuery.data.value ?? null);
+const occurrencesQuery = useEventOccurrences(computed(() => props.eventId));
+const occurrenceList = computed(() => occurrencesQuery.data.value ?? null);
+const occurrences = computed(() => occurrenceList.value?.occurrences ?? []);
+const projected = computed(() => occurrenceList.value?.projected ?? []);
 
-const signupsQuery = useEventSignups(computed(() => props.eventId));
-const signups = computed(() => signupsQuery.data.value ?? []);
+// The occurrence whose public page + QR the header surfaces: the soonest
+// session that hasn't ended, else the most recent one. Null while the
+// occurrence list is still loading or a rolling series has none yet.
+const primaryOccurrence = computed(() => {
+  const list = occurrences.value;
+  if (list.length === 0) return null;
+  const now = Date.now();
+  return list.find((o) => new Date(o.ends_at).getTime() > now) ?? list[list.length - 1];
+});
 
-// Rows for the participants pill's recovery popover — refetched on
-// open so a just-recovered stamp is never stale.
+const recurrenceSummary = computed(() =>
+  event.value ? recurrenceHint(t, event.value) : "",
+);
+
+// --- "Aanmeldingen" calendar day switcher ---------------------------
+// Occurrences keyed by their date; the calendar highlights those days,
+// clicking one selects which day's sign-ups + stats show below.
+const isoDate = (dt: string) => dt.slice(0, 10);
+const occByIso = computed(() => {
+  const m = new Map<string, (typeof occurrences.value)[number]>();
+  for (const o of occurrences.value) m.set(isoDate(o.starts_at), o);
+  return m;
+});
+const projectedIsos = computed(() => new Set(projected.value.map((p) => isoDate(p.starts_at))));
+
+const selectedIso = ref<string | null>(null);
+// Default to the primary occurrence once loaded; keep the user's pick after.
+watch(primaryOccurrence, (occ) => {
+  if (!selectedIso.value && occ) selectedIso.value = isoDate(occ.starts_at);
+}, { immediate: true });
+
+const selectedOccurrence = computed(() =>
+  selectedIso.value ? (occByIso.value.get(selectedIso.value) ?? null) : null,
+);
+const selectedOccurrenceId = computed(() => selectedOccurrence.value?.id ?? null);
+
+// The selected day's sign-ups + aggregated stats — the same content the
+// card has always shown, now scoped to one occurrence.
+const daySignupsQuery = useOccurrenceSignups(computed(() => props.eventId), selectedOccurrenceId);
+const daySignups = computed(() => daySignupsQuery.data.value ?? []);
+const dayStatsQuery = useOccurrenceStats(computed(() => props.eventId), selectedOccurrenceId);
+const dayStats = computed(() => dayStatsQuery.data.value ?? null);
+
+const deleteSignupMutation = useDeleteSignup();
+
+// Recover rows are refetched on popover open so a just-recovered stamp is
+// never stale. ``id`` is the booking (registration) id — the recover
+// target — not the line-item id.
 async function recoverRows(): Promise<RecoverableRow[]> {
-  const fresh = (await signupsQuery.refetch()).data ?? [];
-  return fresh.map((s) => ({ id: s.id, name: s.display_name, recoveredAt: s.link_recovered_at ?? null }));
+  const fresh = (await daySignupsQuery.refetch()).data ?? [];
+  return fresh.map((s) => ({
+    id: s.registration_id,
+    name: s.display_name,
+    recoveredAt: s.link_recovered_at ?? null,
+  }));
+}
+
+const askDeleteSignup = useGuardedMutation(deleteSignupMutation, (s: SignupSummary) => ({
+  vars: { eventId: props.eventId, occurrenceId: selectedOccurrenceId.value ?? "", signupId: s.id },
+  ok: t("event.deleteSignup.ok"),
+  fail: t("event.deleteSignup.fail"),
+  confirm: {
+    header: t("event.deleteSignup.confirmTitle"),
+    message: t("event.deleteSignup.confirmBody", { name: s.display_name ?? t("event.signupAnonymous") }),
+    icon: "pi pi-exclamation-triangle",
+    rejectLabel: t("common.cancel"),
+    acceptLabel: t("event.deleteSignup.confirm"),
+  },
+}));
+
+// Tabular layout: name | one column per help_option | party_size | delete.
+const signupGridTemplate = computed(() => {
+  const n = event.value?.help_options.length ?? 0;
+  return n > 0 ? `minmax(0, 1fr) repeat(${n}, auto) auto auto` : "minmax(0, 1fr) auto auto";
+});
+
+// Which session the selected day is, for the caption above the breakdowns.
+const selectedBadge = computed(() => {
+  const occ = selectedOccurrence.value;
+  const total = occurrenceList.value?.total_sessions ?? null;
+  if (!occ) return "";
+  return total === null
+    ? t("event.occurrences.sessionOpen", { i: occ.index + 1 })
+    : t("event.occurrences.sessionOf", { i: occ.index + 1, n: total });
+});
+
+const calendarMonth = ref<string | null>(null);
+const shownMonth = computed({
+  get: () => calendarMonth.value ?? (selectedIso.value ?? isoDate(new Date().toISOString())).slice(0, 7),
+  set: (v: string) => { calendarMonth.value = v; },
+});
+
+const weekdayLabels = computed(() =>
+  (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((d) => t(`chores.edit.weekday.${d}`)),
+);
+
+function dayClass(iso: string): Record<string, boolean> {
+  return {
+    "has-occurrence": occByIso.value.has(iso),
+    selected: iso === selectedIso.value,
+    projected: projectedIsos.value.has(iso),
+  };
+}
+const dayClickable = (iso: string) => occByIso.value.has(iso);
+function onDayClick(iso: string) {
+  if (occByIso.value.has(iso)) selectedIso.value = iso;
 }
 
 const sendEmailsMutation = useSendEmailsNow();
-const deleteSignupMutation = useDeleteSignup();
 
 const summaryQuery = useFeedbackSummary(computed(() => props.eventId));
 const summary = computed(() => summaryQuery.data.value ?? null);
@@ -84,39 +186,6 @@ const triggerNow = useGuardedMutation(sendEmailsMutation, (channel: EmailChannel
     },
   };
 });
-
-// Tabular layout for the signup-list foldable: name in column 1,
-// one column per configured help_option (so chips of the same kind
-// stack vertically), party_size next, then a trailing column for
-// the per-row delete button.
-const signupGridTemplate = computed(() => {
-  const n = event.value?.help_options.length ?? 0;
-  return n > 0
-    ? `minmax(0, 1fr) repeat(${n}, auto) auto auto`
-    : "minmax(0, 1fr) auto auto";
-});
-
-// Per-row hard-delete. Targets the "I made an accidental sign-up
-// myself" case the most. Heads-up in the confirm body that any
-// pending reminder/feedback emails are *not* cancelled — by design,
-// signup rows and email_dispatches don't link.
-const askDeleteSignup = useGuardedMutation(
-  deleteSignupMutation,
-  (s: SignupSummary) => ({
-    vars: { eventId: props.eventId, signupId: s.id },
-    ok: t("event.deleteSignup.ok"),
-    fail: t("event.deleteSignup.fail"),
-    confirm: {
-      header: t("event.deleteSignup.confirmTitle"),
-      message: t("event.deleteSignup.confirmBody", {
-        name: s.display_name ?? t("event.signupAnonymous"),
-      }),
-      icon: "pi pi-exclamation-triangle",
-      rejectLabel: t("common.cancel"),
-      acceptLabel: t("event.deleteSignup.confirm"),
-    },
-  }),
-);
 
 const responsesLine = computed(() => {
   if (!summary.value) return "";
@@ -151,7 +220,7 @@ async function exportCsv() {
     // ``{YYYY-MM-DD}-{name-slug}-{entity-id}.csv`` — date first so
     // the file sorts chronologically next to other event exports;
     // entity id last as the canonical disambiguator.
-    const date = event.value.starts_at.slice(0, 10);
+    const date = event.value.starts_on;
     const slug = filenameSlug(event.value.name);
     downloadCsv(`${date}-${slug}-${event.value.id}.csv`, [header, ...rows]);
   } catch {
@@ -212,11 +281,11 @@ function askTriggerNow(channel: EmailChannel) {
         :image-artist="event.image_artist_instagram"
         :image-href="event.image_url"
         :description-html="event.topic"
-        :qr-src="eventQrUrl(event.slug)"
-        :public-url="publicEventUrl(event.slug)"
+        :qr-src="eventQrUrl(primaryOccurrence?.slug ?? '')"
+        :public-url="primaryOccurrence ? publicEventUrl(primaryOccurrence.slug) : ''"
         :edit-to="`/events/${event.id}/edit`"
-        @copy-qr="copyQr(event.slug)"
-        @copy-link="copyLink(event.slug)"
+        @copy-qr="primaryOccurrence && copyQr(primaryOccurrence.slug)"
+        @copy-link="primaryOccurrence && copyLink(primaryOccurrence.slug)"
       >
         <template #meta>
           <p class="muted overview-meta">
@@ -230,75 +299,113 @@ function askTriggerNow(channel: EmailChannel) {
               rel="noopener"
               class="meta-link"
             >{{ event.location }}</a>
-            · {{ formatDateTime(event.starts_at, locale) }}
+            · {{ recurrenceSummary }}
+            <template v-if="event.next_starts_at">
+              · {{ t("event.nextSession") }} {{ formatDateTime(event.next_starts_at, locale) }}
+            </template>
           </p>
         </template>
       </DetailHeaderCard>
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("event.signupsTitle") }}</h2>
+          <h2>{{ t("event.signupsHeading") }}</h2>
           <RecoverLinksPill
-            v-if="stats && event"
-            :count="stats.total_attendees"
+            v-if="selectedOccurrence"
+            :count="selectedOccurrence.attendee_count"
             :label="t('event.totalAttendees')"
             :load-rows="recoverRows"
-            :recover-path="(id: string) => `/api/v1/events/${props.eventId}/signups/${id}/edit-link`"
-            :public-url="(tok: string) => `${publicEventUrl(event!.slug)}?s=${tok}`"
+            :recover-path="(id: string) => `/api/v1/events/${props.eventId}/registrations/${id}/edit-link`"
+            :public-url="(tok: string) => `${publicEventUrl(selectedOccurrence!.slug)}?s=${tok}`"
           />
         </div>
 
-        <AppSkeleton v-if="!stats" :rows="2" />
+        <AppSkeleton v-if="!occurrenceList" :rows="3" />
         <template v-else>
-        <div v-if="stats.by_help && Object.keys(stats.by_help).length > 0" class="subgroup">
-          <h3 class="subhead">{{ t("event.byHelp") }}</h3>
-          <div v-for="(count, opt) in stats.by_help" :key="opt" class="list-row">
-            <span class="list-row-label">{{ opt }}</span>
-            <span class="row-count">{{ count }}</span>
-          </div>
-        </div>
+          <p v-if="occurrences.length === 0 && projected.length === 0" class="muted">
+            {{ t("event.occurrences.none") }}
+          </p>
 
-        <div v-if="Object.keys(stats.by_source).length > 0" class="subgroup">
-          <h3 class="subhead">{{ t("event.bySource") }}</h3>
-          <div v-for="(count, src) in stats.by_source" :key="src" class="list-row">
-            <span class="list-row-label">{{ src }}</span>
-            <span class="row-count">{{ count }}</span>
-          </div>
-        </div>
+          <!-- A recurring event: a calendar of its sessions across the
+               top. Clicking a highlighted day switches which day's sign-ups
+               + stats show below, in the same format as a one-off. -->
+          <MonthGrid
+            v-if="event.cycle_slots.length > 0 && occurrences.length > 0"
+            v-model:month="shownMonth"
+            :locale="locale"
+            :weekdays="weekdayLabels"
+            :day-class="dayClass"
+            :clickable="dayClickable"
+            :prev-label="t('event.occurrences.prevMonth')"
+            :next-label="t('event.occurrences.nextMonth')"
+            @day-click="onDayClick"
+          />
 
-        <details v-if="signups.length > 0" class="subgroup signup-list">
-          <summary class="subhead">{{ t("event.signupList") }}</summary>
-          <div
-            class="signup-grid"
-            :style="{ gridTemplateColumns: signupGridTemplate }"
-          >
-            <div
-              v-for="s in signups"
-              :key="s.id"
-              class="signup-row"
-            >
-              <span class="signup-name">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
-              <span
-                v-for="opt in event.help_options"
-                :key="opt"
-                class="help-cell"
-              >
-                <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
+          <template v-if="selectedOccurrence">
+            <p v-if="event.cycle_slots.length > 0" class="day-caption">
+              <span class="day-date">{{ formatDate(selectedOccurrence.starts_at, locale) }}</span>
+              <span class="muted">· {{ formatTimeRange(selectedOccurrence.starts_at, selectedOccurrence.ends_at, locale) }}</span>
+              <span class="day-badge">{{ selectedBadge }}</span>
+            </p>
+
+            <template v-if="dayStats">
+              <div v-if="Object.keys(dayStats.by_help).length > 0" class="subgroup">
+                <h3 class="subhead">{{ t("event.byHelp") }}</h3>
+                <div v-for="(count, opt) in dayStats.by_help" :key="opt" class="list-row">
+                  <span class="list-row-label">{{ opt }}</span>
+                  <span class="row-count">{{ count }}</span>
+                </div>
+              </div>
+              <div v-if="Object.keys(dayStats.by_source).length > 0" class="subgroup">
+                <h3 class="subhead">{{ t("event.bySource") }}</h3>
+                <div v-for="(count, src) in dayStats.by_source" :key="src" class="list-row">
+                  <span class="list-row-label">{{ src }}</span>
+                  <span class="row-count">{{ count }}</span>
+                </div>
+              </div>
+            </template>
+
+            <details v-if="daySignups.length > 0" class="subgroup signup-list">
+              <summary class="subhead">{{ t("event.signupList") }}</summary>
+              <div class="signup-grid" :style="{ gridTemplateColumns: signupGridTemplate }">
+                <div v-for="s in daySignups" :key="s.id" class="signup-row">
+                  <span class="signup-name">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
+                  <span v-for="opt in event.help_options" :key="opt" class="help-cell">
+                    <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
+                  </span>
+                  <span class="row-count signup-count">{{ s.party_size }}</span>
+                  <Button
+                    icon="pi pi-trash"
+                    size="small"
+                    severity="secondary"
+                    text
+                    class="signup-delete"
+                    v-tooltip.top="t('event.deleteSignup.title')"
+                    :aria-label="t('event.deleteSignup.title')"
+                    @click="askDeleteSignup(s)"
+                  />
+                </div>
+              </div>
+            </details>
+            <p v-else class="muted">{{ t("event.occurrences.noSignups") }}</p>
+          </template>
+
+          <!-- Beyond-horizon dates: shown for context, no page yet,
+               so not sign-up-able and read-only here. -->
+          <div v-if="projected.length > 0" class="subgroup projected">
+            <h3 class="subhead">{{ t("event.occurrences.projectedHeading") }}</h3>
+            <div v-for="p in projected" :key="p.index" class="list-row">
+              <span class="list-row-label">
+                {{ formatDate(p.starts_at, locale) }}
+                <span class="muted">· {{ formatTimeRange(p.starts_at, p.ends_at, locale) }}</span>
               </span>
-              <span class="row-count signup-count">{{ s.party_size }}</span>
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                severity="secondary"
-                text
-                class="signup-delete"
-                v-tooltip.top="t('event.deleteSignup.title')"
-                :aria-label="t('event.deleteSignup.title')"
-                @click="askDeleteSignup(s)"
-              />
+              <span class="muted projected-badge">
+                {{ occurrenceList.total_sessions === null
+                  ? t("event.occurrences.sessionOpen", { i: p.index + 1 })
+                  : t("event.occurrences.sessionOf", { i: p.index + 1, n: occurrenceList.total_sessions }) }}
+              </span>
             </div>
           </div>
-        </details>
         </template>
       </AppCard>
 
@@ -426,9 +533,45 @@ function askTriggerNow(channel: EmailChannel) {
   min-width: 1.5rem;
   text-align: right;
 }
-/* Foldable individual-signup list — same layout as the other
- * subgroups; the <summary> takes the .subhead role and renders as
- * a click target. The list-row inside still spaces out at .25rem. */
+/* Calendar day-switcher: highlight the event's session days, fill the
+ * selected one, mute beyond-horizon projected dates. Cells live inside
+ * MonthGrid, so reach them with :deep. */
+:deep(.mg-cell.has-occurrence) {
+  background: var(--brand-bg);
+  border-color: var(--brand-border);
+  font-weight: 600;
+}
+:deep(.mg-cell.projected) {
+  color: var(--brand-text-muted);
+  border-style: dashed;
+}
+:deep(.mg-cell.selected) {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+}
+:deep(.mg-cell.selected .mg-num) { color: #fff; }
+
+/* Which day the breakdowns + list below belong to (recurring only). */
+.day-caption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+}
+.day-date { font-weight: 600; }
+.day-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 0.75rem;
+  background: var(--brand-bg);
+  color: var(--brand-text-muted);
+  white-space: nowrap;
+}
+
+/* Signup list — a single foldable of the day's attendees, identical to
+ * the original event card (name | one column per help_option | count |
+ * delete). */
 .signup-list summary {
   cursor: pointer;
   user-select: none;
@@ -437,22 +580,14 @@ function askTriggerNow(channel: EmailChannel) {
   align-items: center;
   gap: 0.5rem;
 }
-.signup-list summary::-webkit-details-marker {
-  display: none;
-}
+.signup-list summary::-webkit-details-marker { display: none; }
 .signup-list summary::before {
   content: "›";
   display: inline-block;
   transition: transform 120ms ease-out;
   color: var(--brand-text-muted);
 }
-.signup-list[open] > summary::before {
-  transform: rotate(90deg);
-}
-/* Tabular signup list — name | one column per help_option | count.
- * Parent grid declares the columns; every row is a subgrid that
- * reuses them, so chips of the same kind stack vertically while
- * each row is still a real container we can hover and pad. */
+.signup-list[open] > summary::before { transform: rotate(90deg); }
 .signup-grid {
   display: grid;
   column-gap: 0.5rem;
@@ -467,9 +602,7 @@ function askTriggerNow(channel: EmailChannel) {
   border-radius: 6px;
   transition: background 120ms ease;
 }
-.signup-row:hover {
-  background: var(--brand-bg);
-}
+.signup-row:hover { background: var(--brand-bg); }
 .signup-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -479,9 +612,6 @@ function askTriggerNow(channel: EmailChannel) {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  /* Min-width keeps a column open even when nobody picked the
-   * option — otherwise an unused column would collapse and pull
-   * neighbouring chips out of vertical alignment. */
   min-width: 0;
 }
 .help-chip {
@@ -492,8 +622,11 @@ function askTriggerNow(channel: EmailChannel) {
   color: var(--brand-text-muted);
   white-space: nowrap;
 }
-.signup-count {
-  text-align: right;
+.signup-count { text-align: right; }
+.projected { margin-top: 0.5rem; }
+.projected-badge {
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 /* --- Feedback card ------------------------------------------------- */

@@ -34,8 +34,9 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   const base = {
     chapter_id: chapterId,
     location: "Amsterdam",
-    starts_at: startsAt.toISOString().slice(0, 19),
-    ends_at: endsAt.toISOString().slice(0, 19),
+    starts_on: startsAt.toISOString().slice(0, 10),
+    start_time: "19:00:00",
+    end_time: "21:00:00",
     source_options: ["Mond-tot-mond"],
     help_options: [],
     feedback_enabled: false,
@@ -52,6 +53,11 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   });
   expect(listedRes.ok()).toBeTruthy();
   const listed = await listedRes.json();
+  // The agenda card + public page key on the OCCURRENCE slug now.
+  const listedOccRes = await request.get(`/api/v1/events/${listed.id}/occurrences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const listedOccSlug = (await listedOccRes.json()).occurrences[0].slug as string;
 
   const hiddenRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
@@ -76,5 +82,5 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
     .filter({ hasText: listedName })
     .getByRole("link", { name: /aanmelden|sign up/i })
     .click();
-  await expect(v).toHaveURL(new RegExp(`/e/${listed.slug}`));
+  await expect(v).toHaveURL(new RegExp(`/e/${listedOccSlug}`));
 });

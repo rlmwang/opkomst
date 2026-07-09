@@ -9,25 +9,37 @@ clock fixture together. Verifies the privacy invariant
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from _helpers.events import make_event
+from _helpers.events import first_occurrence, make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Signup
+from backend.models import EmailChannel, EmailStatus, Occurrence, Signup
 from backend.services import mail_lifecycle
 
 # ---- Helpers --------------------------------------------------
 
 
-def _public_signup(client: Any, slug: str, *, email: str | None) -> Any:
+def _public_signup(client: Any, event: Any, *, email: str | None) -> Any:
+    """Sign up on the event's first (public) occurrence, booking every
+    upcoming session so the fixture stays a single-line-item booking."""
     payload: dict[str, object] = {
         "display_name": "Alice",
         "party_size": 1,
         "source_choice": "Mond-tot-mond",
+        "all_upcoming": True,
     }
     if email is not None:
         payload["email"] = email
-    return client.post(f"/api/v1/events/by-slug/{slug}/signups", json=payload)
+    return client.post(f"/api/v1/events/by-slug/{first_occurrence(event).slug}/signups", json=payload)
+
+
+def _signup_for_event(session: Any, event_id: str) -> Signup | None:
+    return (
+        session.query(Signup)
+        .join(Occurrence, Occurrence.id == Signup.occurrence_id)
+        .filter(Occurrence.event_id == event_id)
+        .first()
+    )
 
 
 def _signup_row(session_factory: Any) -> Signup:
@@ -57,7 +69,7 @@ def test_e2e_both_channels_send_then_wipe(db: Any, client: Any, fake_email: Any,
     )
     db.commit()
 
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, e, email="alice@example.com")
     assert r.status_code == 201, r.text
 
     # Just after signup: ciphertext stored, both dispatches pending.
@@ -116,7 +128,7 @@ def test_e2e_no_email_means_no_ciphertext_no_dispatches(db: Any, client: Any, fa
     e = make_event(db, starts_in=timedelta(days=4))
     db.commit()
 
-    r = _public_signup(client, e.slug, email=None)
+    r = _public_signup(client, e, email=None)
     assert r.status_code == 201
 
     row = _signup_row(SessionLocal)
@@ -148,7 +160,7 @@ def test_e2e_reminder_only_event_wipes_after_reminder(db: Any, client: Any, fake
     )
     db.commit()
 
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, e, email="alice@example.com")
     assert r.status_code == 201
 
     row = _signup_row(SessionLocal)
@@ -187,7 +199,7 @@ def test_e2e_toggle_off_before_window_no_emails_immediate_wipe(
     e = make_event(db, starts_in=timedelta(days=4))
     db.commit()
 
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, e, email="alice@example.com")
     assert r.status_code == 201
 
     row = _signup_row(SessionLocal)
@@ -238,19 +250,20 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
     future_event = make_event(db, starts_in=timedelta(days=4), name="future")
     db.commit()
 
-    r = _public_signup(client, past_event.slug, email="alice@example.com")
+    r = _public_signup(client, past_event, email="alice@example.com")
     assert r.status_code == 201
-    r = _public_signup(client, future_event.slug, email="bob@example.com")
+    r = _public_signup(client, future_event, email="bob@example.com")
     assert r.status_code == 201
 
     fresh = SessionLocal()
     try:
-        from backend.models import Event as EventModel
-
-        ev = fresh.query(EventModel).filter_by(id=future_event.id).first()
-        assert ev is not None
-        ev.starts_at = datetime.now(UTC) + timedelta(days=30)
-        ev.ends_at = ev.starts_at + timedelta(hours=2)
+        # Push the future event's occurrence well past the reminder window
+        # so the reaper leaves it alone. Occurrence datetimes are naive
+        # wall-clock, so strip tzinfo.
+        new_start = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=30)
+        for o in fresh.query(Occurrence).filter_by(event_id=future_event.id).all():
+            o.starts_at = new_start
+            o.ends_at = new_start + timedelta(hours=2)
         fresh.commit()
     finally:
         fresh.close()
@@ -262,8 +275,8 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
 
     fresh = SessionLocal()
     try:
-        past_signup = fresh.query(Signup).filter(Signup.event_id == past_event.id).first()
-        future_signup = fresh.query(Signup).filter(Signup.event_id == future_event.id).first()
+        past_signup = _signup_for_event(fresh, past_event.id)
+        future_signup = _signup_for_event(fresh, future_event.id)
         assert past_signup is not None and future_signup is not None
         d_past = get_dispatch(fresh, past_signup, EmailChannel.REMINDER)
         assert d_past is not None and d_past.status == EmailStatus.FAILED
@@ -281,7 +294,7 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
 
     fresh = SessionLocal()
     try:
-        past_signup = fresh.query(Signup).filter(Signup.event_id == past_event.id).first()
+        past_signup = _signup_for_event(fresh, past_event.id)
         assert past_signup is not None
         d_f = get_dispatch(fresh, past_signup, EmailChannel.FEEDBACK)
         assert d_f is not None and d_f.status == EmailStatus.SENT
@@ -301,7 +314,7 @@ def test_e2e_smtp_failure_wipes_via_failed_path(db: Any, client: Any, fake_email
     db.commit()
 
     fake_email.fail_n_times("alice@example.com", 999)
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, e, email="alice@example.com")
     assert r.status_code == 201
 
     clock.advance(days=3)
@@ -344,7 +357,7 @@ def test_e2e_signup_writes_naive_wallclock_starts_at_to_db(db: Any, client: Any,
     e = make_event(db, starts_in=timedelta(days=2))
     db.commit()
 
-    r = _public_signup(client, e.slug, email="alice@example.com")
+    r = _public_signup(client, e, email="alice@example.com")
     assert r.status_code == 201
 
     fresh = SessionLocal()
@@ -353,6 +366,7 @@ def test_e2e_signup_writes_naive_wallclock_starts_at_to_db(db: Any, client: Any,
 
         ev = fresh.query(EventModel).filter_by(id=e.id).first()
         assert ev is not None
-        assert ev.starts_at.tzinfo is None
+        assert ev.start_time.tzinfo is None
+        assert all(o.starts_at.tzinfo is None for o in ev.occurrences)
     finally:
         fresh.close()

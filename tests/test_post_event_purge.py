@@ -35,7 +35,7 @@ def test_purge_finalises_pending_for_old_event(db: Any) -> None:
     fresh = SessionLocal()
     try:
         # Pending dispatch transitioned to FAILED; ciphertext nulled.
-        d = fresh.query(EmailDispatch).filter(EmailDispatch.event_id == s.event_id).one()
+        d = fresh.query(EmailDispatch).filter(EmailDispatch.occurrence_id == s.occurrence_id).one()
         assert d.status == EmailStatus.FAILED
         assert d.encrypted_email is None
         assert not has_any_ciphertext(fresh, s)
@@ -145,7 +145,7 @@ def test_purge_is_a_backstop_for_stuck_pending(db: Any) -> None:
         d = (
             fresh.query(EmailDispatch)
             .filter(
-                EmailDispatch.event_id == s.event_id,
+                EmailDispatch.occurrence_id == s.occurrence_id,
                 EmailDispatch.channel == EmailChannel.FEEDBACK,
             )
             .one()

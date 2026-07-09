@@ -6,7 +6,7 @@ visible-length gate, and that every entity body field actually runs
 through the sanitizer while the per-chore label stays plain.
 """
 
-from datetime import date, datetime
+from datetime import date, time
 
 import pytest
 from pydantic import ValidationError
@@ -23,6 +23,7 @@ from backend.services.sanitize import (
 
 # --- The XSS matrix -------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -30,11 +31,11 @@ from backend.services.sanitize import (
         "<img src=x onerror=alert(1)>",
         '<a href="javascript:alert(1)">x</a>',
         '<a href="data:text/html,<script>alert(1)</script>">x</a>',
-        "<b onclick=\"steal()\">c</b>",
+        '<b onclick="steal()">c</b>',
         "<style>body{background:url(evil)}</style>text",
         "<svg><script>alert(1)</script></svg>",
         "<iframe src=evil></iframe>",
-        "<a href=\"vbscript:msgbox(1)\">x</a>",
+        '<a href="vbscript:msgbox(1)">x</a>',
     ],
 )
 def test_no_script_or_handlers_survive(payload: str) -> None:
@@ -51,9 +52,7 @@ def test_no_script_or_handlers_survive(payload: str) -> None:
 
 
 def test_marks_survive_intact() -> None:
-    out = sanitize_richtext(
-        "<strong>b</strong><em>i</em><u>u</u><s>s</s><p>para</p>"
-    )
+    out = sanitize_richtext("<strong>b</strong><em>i</em><u>u</u><s>s</s><p>para</p>")
     assert out == "<strong>b</strong><em>i</em><u>u</u><s>s</s><p>para</p>"
 
 
@@ -81,12 +80,13 @@ def test_empty_and_whitespace_collapse_to_none() -> None:
 
 
 def test_idempotent() -> None:
-    once = sanitize_richtext('<strong>x</strong><script>bad()</script>')
+    once = sanitize_richtext("<strong>x</strong><script>bad()</script>")
     twice = sanitize_richtext(once)
     assert once == twice
 
 
 # --- Plaintext inverse (OG / ICS / email) ---------------------------------
+
 
 def test_html_to_text_strips_tags() -> None:
     assert html_to_text("<strong>Voku</strong> &amp; docu") == "Voku & docu"
@@ -97,14 +97,16 @@ def test_html_to_text_strips_tags() -> None:
 
 # --- The chokepoint: every body field sanitizes ---------------------------
 
+
 def _event(topic: str) -> EventCreate:
     return EventCreate(
         name="x",
         chapter_id="c",
         topic=topic,
         location="loc",
-        starts_at=datetime(2026, 7, 1, 10),
-        ends_at=datetime(2026, 7, 1, 12),
+        starts_on=date(2026, 7, 1),
+        start_time=time(10, 0),
+        end_time=time(12, 0),
         source_options=["w"],
         image_artist_instagram=None,
     )
@@ -116,7 +118,9 @@ def test_event_topic_is_sanitized() -> None:
 
 def test_form_description_is_sanitized() -> None:
     f = FormCreate(
-        name="f", chapter_id="c", description="<script>x</script>ok",
+        name="f",
+        chapter_id="c",
+        description="<script>x</script>ok",
         image_artist_instagram=None,
     )
     assert f.description == "ok"
@@ -124,7 +128,9 @@ def test_form_description_is_sanitized() -> None:
 
 def test_datepoll_description_is_sanitized() -> None:
     d = DatepollCreate(
-        name="d", chapter_id="c", description="<img src=x onerror=y>ok",
+        name="d",
+        chapter_id="c",
+        description="<img src=x onerror=y>ok",
         image_artist_instagram=None,
     )
     assert (d.description or "") == "ok"
@@ -151,6 +157,7 @@ def test_per_chore_description_stays_plain() -> None:
 
 
 # --- Visible-length gate --------------------------------------------------
+
 
 def test_visible_length_over_cap_rejected() -> None:
     with pytest.raises(ValidationError):

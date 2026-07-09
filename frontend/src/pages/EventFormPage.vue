@@ -7,10 +7,12 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import CycleGridPicker from "@/components/CycleGridPicker.vue";
 import EditableList from "@/components/EditableList.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
+import NumberStepper from "@/components/NumberStepper.vue";
 import RichTextField from "@/components/RichTextField.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
 import { useLocationField } from "@/composables/useLocationField";
@@ -81,6 +83,37 @@ const eventDate = ref<Date | null>(null);
 // overwrite these defaults below.
 const startTime = ref<Date | null>(_timeAt(20));
 const endTime = ref<Date | null>(_timeAt(22));
+
+// --- Recurrence rule (the roster's k-week cycle) ---------------------
+// The date + time pickers above fix the anchor (start date) and the
+// shared time of day. ``repeats`` reveals the recurrence controls: a
+// ``periodWeeks`` cycle length (the CycleGridPicker's week-rows), the
+// ``cycleSlots`` weekday grid, and a span — ``spanWeeks`` weeks unless
+// ``openEnded`` (doorlopend). A one-off is ``repeats === false`` (empty
+// ``cycle_slots``). ``horizon_days`` is a fixed 90-day materialisation
+// window — no UI control (see submit()).
+const repeats = ref(false);
+const periodWeeks = ref(1);
+const cycleSlots = ref<number[]>([]);
+const spanWeeks = ref(6);
+const openEnded = ref(false);
+
+// Lowering the cycle length drops now-out-of-range weekday offsets, so
+// the payload never carries a slot the shorter cycle can't hold (mirrors
+// ChoresEditPage).
+watch(periodWeeks, (next, prev) => {
+  if (next >= prev) return;
+  const hi = 7 * next;
+  cycleSlots.value = cycleSlots.value.filter((s) => s < hi);
+});
+
+// Map the controls onto the wire fields.
+const wirePeriodWeeks = computed(() => (repeats.value ? Math.max(1, Math.floor(periodWeeks.value || 1)) : 1));
+const wireCycleSlots = computed(() => (repeats.value ? cycleSlots.value : []));
+const wireSpanWeeks = computed<number | null>(() => {
+  if (!repeats.value || openEnded.value) return null;
+  return Math.max(1, Math.floor(spanWeeks.value || 1));
+});
 // Default ``How did you find us?`` options, ordered by typical
 // frequency for grassroots events (word of mouth dominates, posters
 // are the long tail) and seeded in the organiser's current locale.
@@ -144,6 +177,11 @@ interface FormDraft {
   eventDate: string | null;
   startTime: string | null;
   endTime: string | null;
+  repeats: boolean;
+  periodWeeks: number;
+  cycleSlots: number[];
+  spanWeeks: number;
+  openEnded: boolean;
   sources: string[];
   newSource: string;
   helpOptions: string[];
@@ -166,6 +204,11 @@ function snapshot(): FormDraft {
     eventDate: eventDate.value?.toISOString() ?? null,
     startTime: startTime.value?.toISOString() ?? null,
     endTime: endTime.value?.toISOString() ?? null,
+    repeats: repeats.value,
+    periodWeeks: periodWeeks.value,
+    cycleSlots: [...cycleSlots.value],
+    spanWeeks: spanWeeks.value,
+    openEnded: openEnded.value,
     sources: [...sources.value],
     newSource: newSource.value,
     helpOptions: [...helpOptions.value],
@@ -188,6 +231,11 @@ function applyDraft(d: FormDraft) {
   eventDate.value = d.eventDate ? new Date(d.eventDate) : null;
   startTime.value = d.startTime ? new Date(d.startTime) : null;
   endTime.value = d.endTime ? new Date(d.endTime) : null;
+  repeats.value = d.repeats ?? false;
+  periodWeeks.value = d.periodWeeks ?? 1;
+  cycleSlots.value = [...(d.cycleSlots ?? [])];
+  spanWeeks.value = d.spanWeeks ?? 6;
+  openEnded.value = d.openEnded ?? false;
   sources.value = [...d.sources];
   newSource.value = d.newSource;
   helpOptions.value = [...(d.helpOptions ?? [])];
@@ -205,6 +253,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   apply: applyDraft,
   sources: [
     name, chapterId, topic, location, latitude, longitude, eventDate, startTime, endTime,
+    repeats, periodWeeks, cycleSlots, spanWeeks, openEnded,
     sources, newSource, helpOptions, newHelp,
     feedbackEnabled, reminderEnabled, listed, eventLocale, imageArtistInstagram,
   ],
@@ -216,19 +265,29 @@ function _timeAt(hours: number): Date {
   return d;
 }
 
+// Parse a naive ``HH:MM:SS`` time into a Date (date portion irrelevant —
+// only the DatePicker's time part is read back out).
+function _timeFromString(hms: string): Date {
+  const [h, m] = hms.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
 function combine(date: Date, time: Date): Date {
   const d = new Date(date);
   d.setHours(time.getHours(), time.getMinutes(), 0, 0);
   return d;
 }
 
-// Backend stores event datetimes as naive wall-clock (the user
-// types 18:00, we send 18:00, the email later shows 18:00). The
-// usual ``.toISOString()`` would convert to UTC and lose that.
-// ``sv-SE`` locale gives ``YYYY-MM-DD HH:MM:SS`` from local time;
-// swap the space for ``T`` to get ISO 8601 without a zone suffix.
-function naiveISO(d: Date): string {
-  return d.toLocaleString("sv-SE").replace(" ", "T");
+// Backend stores event date + times as naive wall-clock (the user types
+// 18:00, we send 18:00, the email later shows 18:00) — no zone suffix.
+// ``sv-SE`` locale gives ``YYYY-MM-DD`` / ``HH:MM:SS`` from local time.
+function naiveDate(d: Date): string {
+  return d.toLocaleDateString("sv-SE");
+}
+function naiveTime(d: Date): string {
+  return d.toLocaleTimeString("sv-SE");
 }
 
 function addSource() {
@@ -310,11 +369,17 @@ onMounted(async () => {
     location.value = existing.location;
     latitude.value = existing.latitude;
     longitude.value = existing.longitude;
-    const start = new Date(existing.starts_at);
-    const end = new Date(existing.ends_at);
-    eventDate.value = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    startTime.value = new Date(start);
-    endTime.value = new Date(end);
+    // ``starts_on`` is a date, ``start_time`` / ``end_time`` are times.
+    const [sy, sm, sd] = existing.starts_on.split("-").map(Number);
+    eventDate.value = new Date(sy, sm - 1, sd);
+    startTime.value = _timeFromString(existing.start_time);
+    endTime.value = _timeFromString(existing.end_time);
+    // Reverse-map the recurrence rule onto the controls.
+    repeats.value = existing.cycle_slots.length > 0;
+    periodWeeks.value = existing.period_weeks;
+    cycleSlots.value = [...existing.cycle_slots];
+    openEnded.value = existing.span_weeks === null;
+    spanWeeks.value = existing.span_weeks ?? 6;
     sources.value = [...existing.source_options];
     helpOptions.value = [...existing.help_options];
     feedbackEnabled.value = existing.feedback_enabled;
@@ -380,6 +445,10 @@ async function submit() {
     toasts.warn(t("event.endAfterStart"));
     return;
   }
+  if (repeats.value && wireCycleSlots.value.length === 0) {
+    toasts.warn(t("event.fillCycleSlots"));
+    return;
+  }
   submitting.value = true;
   try {
     const payload = {
@@ -389,8 +458,13 @@ async function submit() {
       location: trimmedLocation,
       latitude: latitude.value,
       longitude: longitude.value,
-      starts_at: naiveISO(startsAt),
-      ends_at: naiveISO(endsAt),
+      starts_on: naiveDate(eventDate.value),
+      start_time: naiveTime(startTime.value),
+      end_time: naiveTime(endTime.value),
+      period_weeks: wirePeriodWeeks.value,
+      cycle_slots: wireCycleSlots.value,
+      span_weeks: wireSpanWeeks.value,
+      horizon_days: 90,
       source_options: sources.value,
       help_options: helpOptions.value,
       feedback_enabled: feedbackEnabled.value,
@@ -475,6 +549,37 @@ async function submit() {
             fluid
           />
         </div>
+      </section>
+
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("event.repeatHeading") }}</h2>
+        <p class="muted section-explainer">{{ t("event.repeatExplainer") }}</p>
+        <label class="toggle-row">
+          <ToggleSwitch v-model="repeats" />
+          <span>{{ t("event.repeat.toggle") }}</span>
+        </label>
+
+        <template v-if="repeats">
+          <div class="repeat-row">
+            <span class="repeat-label">{{ t("event.repeat.everyLead") }}</span>
+            <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('event.repeat.everyWeeks')" />
+            <span class="repeat-label">{{ t("event.repeat.everyTrail") }}</span>
+          </div>
+
+          <p class="muted section-explainer">{{ t("event.repeat.gridExplainer") }}</p>
+          <CycleGridPicker v-model="cycleSlots" :period-weeks="periodWeeks" />
+
+          <label class="toggle-row">
+            <ToggleSwitch v-model="openEnded" />
+            <span>{{ t("event.span.openEnded") }}</span>
+          </label>
+          <div v-if="!openEnded" class="repeat-row">
+            <span class="repeat-label">{{ t("event.span.forLead") }}</span>
+            <NumberStepper v-model="spanWeeks" :min="1" :max="104" :aria-label="t('event.span.weeks')" />
+            <span class="repeat-label">{{ t("event.span.weeksTrail") }}</span>
+          </div>
+          <p v-else class="muted section-explainer">{{ t("event.span.openEndedHelp") }}</p>
+        </template>
       </section>
 
       <ImageField
@@ -589,6 +694,17 @@ async function submit() {
 }
 .time-row > * {
   flex: 1;
+}
+/* Recurrence rows: a stepper flanked by inline labels ("elke … weken",
+ * "… sessies"). */
+.repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.repeat-label {
+  color: var(--brand-text-muted);
 }
 /* Footer (Cancel + Save buttons) is owned by FormPageShell —
  * see ``FormPageShell.vue::.form-footer``. */

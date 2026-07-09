@@ -10,39 +10,50 @@ without a router fixture.
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
-from ..models import EmailChannel, EmailDispatch, FeedbackResponse, Signup
+from ..models import EmailChannel, EmailDispatch, FeedbackResponse, Occurrence, Signup
 from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary
 from .feedback_questions import QUESTIONS
 from .ratings import rating_distribution
 
+# Feedback is per occurrence; the organiser summary is per event, so every
+# aggregate scopes to the event's occurrences via this subquery.
+
+
+def _event_occurrence_ids(db: Session, event_id: str):
+    return db.query(Occurrence.id).filter(Occurrence.event_id == event_id)
+
 
 def submission_count(db: Session, event_id: str) -> int:
-    """Distinct submission ids for the event."""
+    """Distinct submission ids across the event's occurrences."""
     return (
         db.query(func.count(distinct(FeedbackResponse.submission_id)))
-        .filter(FeedbackResponse.event_id == event_id)
+        .filter(FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)))
         .scalar()
         or 0
     )
 
 
 def signup_count(db: Session, event_id: str) -> int:
-    return db.query(func.count(Signup.id)).filter(Signup.event_id == event_id).scalar() or 0
+    """Line items across the event's occurrences — attendance is per
+    occurrence, so a course-booker counts once per session."""
+    return (
+        db.query(func.count(Signup.id)).filter(Signup.occurrence_id.in_(_event_occurrence_ids(db, event_id))).scalar()
+        or 0
+    )
 
 
 def email_health(db: Session, event_id: str, signups: int) -> dict[str, EmailHealthOut]:
-    """Per-channel delivery health. ``not_applicable`` is signups
-    without a dispatch row for the channel — derived from the gap
-    between ``signups`` and the channel's row count, since the
-    dispatch table holds ``event_id`` directly and a missing row
-    means no email was queued for that signup."""
+    """Per-channel delivery health across the event's occurrences.
+    ``not_applicable`` is line items without a dispatch row for the
+    channel — derived from the gap between ``signups`` and the channel's
+    row count (a missing row means no email was queued)."""
     rows = (
         db.query(
             EmailDispatch.channel,
             EmailDispatch.status,
             func.count(EmailDispatch.id),
         )
-        .filter(EmailDispatch.event_id == event_id)
+        .filter(EmailDispatch.occurrence_id.in_(_event_occurrence_ids(db, event_id)))
         .group_by(EmailDispatch.channel, EmailDispatch.status)
         .all()
     )
@@ -75,7 +86,7 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
             rows = (
                 db.query(FeedbackResponse.answer_int, func.count(FeedbackResponse.id))
                 .filter(
-                    FeedbackResponse.event_id == event_id,
+                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
                     FeedbackResponse.question_key == q.key,
                     FeedbackResponse.answer_int.is_not(None),
                 )
@@ -96,7 +107,7 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
             texts = (
                 db.query(FeedbackResponse.answer_text)
                 .filter(
-                    FeedbackResponse.event_id == event_id,
+                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
                     FeedbackResponse.question_key == q.key,
                     FeedbackResponse.answer_text.is_not(None),
                 )

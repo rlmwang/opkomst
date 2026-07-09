@@ -43,20 +43,22 @@ admin-driven change history.
 
 | Model | Notes |
 |---|---|
-| `Event` | `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. Slug is unique across the table — archive doesn't free the slug since it may be in bookmarks. `listed` (default true) controls whether the event shows on its chapter's public agenda; the `/e/{slug}` sign-up link works regardless. `locale` drives the public sign-up page language and the feedback email language. |
+| `Event` | The **definition** — the shared content plus a recurrence rule (`first_starts_at`/`first_ends_at` anchor, `cadence_weeks`, `occurrence_count` span [null = open-ended, 1 = one-off], `horizon_days`). No single date: concrete dates are `Occurrence` rows. `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. The event's own slug is organiser-internal; the public slug lives on `Occurrence`. `listed` (default true) controls whether the event's occurrences show on its chapter's public agenda. `locale` drives the public sign-up page + feedback email language. |
+| `Occurrence` | A materialised, dated instance of an `Event` (`event_id` FK, `ON DELETE CASCADE`). Carries only what is its own: `index` (0-based, for "sessie i van N"), its own public `slug` (`/e/{slug}`), and `starts_at`/`ends_at` (materialised = anchor shifted `index * cadence_weeks` whole weeks). All content is read through `event_id`. Materialised over time by the `event-tick` cron inside `horizon_days`; a one-off's single occurrence is created at event-creation. `UNIQUE(event_id, index)`. |
+| `Registration` | One person's booking (the order header) against an event: `event_id` FK, `display_name` (optional pseudonym), `party_size`, and the single edit-link (`edit_token_hash` + `link_recovered_at` from `EditTokenMixin`). No email column — the address lives only on the per-occurrence `EmailDispatch` rows. |
 | `Form` | Standalone questionnaire. Same `archived_at` shape as `Event`; same chapter scoping. No relation to `Event`. `slug` is unique across the table; public fill-out lives at `/f/:slug`. |
 
 ### Append-only / row-id-stable
 
 | Model | Notes |
 |---|---|
-| `Signup` | `event_id` FK to `Event.id` (`ON DELETE CASCADE`). Holds AES-GCM-encrypted email blob (nulled after every dispatch row pointing at the signup is finalised). |
-| `EmailDispatch` | One row per (event, channel). `status` cycles ``pending`` → ``sent`` / ``failed`` (terminal). `message_id` is pre-minted before SMTP so a process crash mid-send is recoverable by the partial-sends reaper, and ends up on the outbound `Message-ID:` header so log lines correlate with provider-side records. |
+| `Signup` | A booking's **line item**: one `Registration` (`registration_id` FK, `ON DELETE CASCADE`) attending one `Occurrence` (`occurrence_id` FK, `ON DELETE CASCADE`), plus that line's `source_choice` + `help_choices`. `UNIQUE(registration_id, occurrence_id)`. No email — the address graph keys on the occurrence and never references a line item. Signing up for several sessions at once is one registration with several line items. |
+| `EmailDispatch` | One row per (occurrence, channel, attendee). Holds the AES-GCM-encrypted address (nulled the instant the row finalises). `status` cycles ``pending`` → ``sent`` / ``failed`` (terminal). `message_id` is pre-minted before SMTP so a process crash mid-send is recoverable by the partial-sends reaper, and ends up on the outbound `Message-ID:` header so log lines correlate with provider-side records. |
 | `LoginToken` | One-shot sign-in magic-link token. URL-safe random, 30-min TTL. Deleted on redeem; the daily ``reap-auth-tokens`` cron purges expired rows. |
 | `RegistrationToken` | One-shot "finish creating your account" token, minted when ``/auth/login-link`` receives an unknown email. Keyed on the email (no ``User`` row yet); URL-safe random, 30-min TTL. Single outstanding token per email — a fresh ``/auth/login-link`` for the same unknown email deletes the prior row. Deleted on every terminal outcome of ``/auth/complete-registration`` (success, expired, race) and reaped daily by ``reap-auth-tokens``. |
 | `FeedbackQuestion` | The five fixed questions, keyed for i18n. |
-| `FeedbackToken` | One-time URL-safe token. `signup_id` + `event_id` FKs. Deleted on response submit or send-failure. |
-| `FeedbackResponse` | `event_id`, `question_id`, `submission_id` (random per submission). **No link to signup** by design — privacy invariant. |
+| `FeedbackToken` | One-time URL-safe token. `occurrence_id` FK only (feedback is per occurrence). No `signup_id` — the token never references the attendee it authorises. Deleted on response submit or send-failure. |
+| `FeedbackResponse` | `occurrence_id`, `question_key`, `submission_id` (random per submission). **No link to signup** by design — privacy invariant. |
 | `FormQuestion` | Per-form question rows. `form_id` FK (`ON DELETE CASCADE`). `kind` is one of `rating` / `text` / `short_text` / `single_choice` / `multi_choice`; the enum is enforced at the schema layer and the public submit handler. `options` is a JSON list for the two choice kinds; `low_label` / `high_label` are the optional scale captions for `rating`. Diff-applied by id on update — renaming or reordering doesn't reset the row's identity, so its responses stay attached. |
 | `FormResponse` | One row per (submission, question). `submission_id` is a random per-submission token with **no link** to any user or session — same privacy invariant as `FeedbackResponse`. `form_id` cascades; `question_id` also cascades, so an organiser dropping a question deletes the responses to it. |
 | `AuditLog` | `actor_id` / `target_id` reference `User.id` (no FK so a soft-deleted user's history survives). Records approve / promote / demote / assign_chapter / delete. |
@@ -88,8 +90,9 @@ All under `/api/v1/`.
 | `auth.py` | login-link (request — branches on whether email is registered), login (redeem login token), complete-registration (redeem registration token + supply name), /me | public POST + bearer; rate-limited |
 | `admin.py` | list users, approve (multi-chapter), set-chapters (replace full membership set), promote, demote, rename, delete | admin |
 | `chapters.py` | list, create, patch (name + city), archive, restore, usage | mixed |
-| `events.py` | list, list-archived, create, by-slug, qr.svg, update, archive, restore, send-emails-now (per channel), stats, signups, image upload (4:3 hero, PUT to GitHub Contents API → ``raw.githubusercontent.com``; 503 when ``GITHUB_IMAGES_*`` unset), image delete | scoped to user's chapter set; ``?chapter_id=`` narrows the list to one chapter (validated against the user's set) |
-| `signups.py` | public POST | none (public); rate-limited |
+| `events.py` | list, list-archived, create (materialises occurrences), update (reconciles future occurrences), archive, restore, send-emails-now (per channel), stats, occurrence list, per-occurrence signups, image upload (4:3 hero, PUT to GitHub Contents API → ``raw.githubusercontent.com``; 503 when ``GITHUB_IMAGES_*`` unset), image delete | scoped to user's chapter set; ``?chapter_id=`` narrows the list to one chapter (validated against the user's set) |
+| `events_public.py` | by-slug (occurrence), event.ics, qr.svg, feedback-preview, email-preview — all keyed by the public occurrence slug | none (public) |
+| `signups.py` | public multi-occurrence booking POST (by occurrence slug), booking edit + per-occurrence withdraw (by token), organiser edit-link recover + line-item delete | none on public paths (rate-limited); organiser paths scoped |
 | `feedback.py` | questions list, public form GET, public submit, organiser summary, organiser submissions list (CSV source) | mixed; rate-limited on public submit |
 | `forms.py` | list, list-archived, create, get, update (diff-applies the question payload), archive, restore, delete-only-when-archived, summary, submissions (CSV source) | scoped to user's chapter set; same lifecycle shape as events.py |
 | `forms_public.py` | public form fetch by slug, public submit | none (public); rate-limited on submit; archived forms 410 |
@@ -104,11 +107,11 @@ All under `/api/v1/`.
 | DashboardPage | `/events` | required (events list with search + skeleton loading) |
 | AdminPage | `/admin` | admin (chapters + users with city picker, search, skeleton loading) |
 | EventFormPage | `/events/new`, `/events/:id/edit` | approved (locale picker, draft persisted to localStorage) |
-| EventDetailsPage | `/events/:id/details` | approved (overview + signups + per-submission CSV export) |
+| EventDetailsPage | `/events/:id/details` | approved (overview + read-only occurrence list with per-occurrence signups + per-submission CSV export) |
 | ArchivedEventsPage | `/events/archived` | approved |
 | QuestionnairePreviewPage | `/questionnaire` | approved |
-| PublicEventPage | `/e/:slug` | public (locale follows event; served by ``spa.py`` as a separate mini-app — payload + OG meta inlined into the HTML) |
-| PublicChapterAgenda | `/e/:chapter` | public (separate mini-app; the `/e/` handler dispatches by slug shape: an 8-char event slug serves the sign-up page, anything else is a chapter slug → the agenda grid of that chapter's upcoming + recent-past events) |
+| PublicEventPage | `/e/:slug` | public (`:slug` is an **occurrence** slug; the sign-up form offers a checklist of the event's upcoming occurrences + an "all upcoming" shortcut. locale follows event; served by ``spa.py`` as a separate mini-app — payload + OG meta inlined into the HTML) |
+| PublicChapterAgenda | `/e/:chapter` | public (separate mini-app; the `/e/` handler dispatches by slug shape: an 8-char occurrence slug serves the sign-up page, anything else is a chapter slug → the agenda grid of that chapter's upcoming + recent-past **occurrences**, each its own card) |
 | FeedbackPage | `/e/:slug/feedback?t=` | public (locale follows event) |
 | FormListPage | `/forms` | required (active forms list; reuses ``ListPageView``) |
 | ArchivedFormsPage | `/forms/archived` | approved |
@@ -127,16 +130,16 @@ branches inside ``mail_lifecycle.py``. A new channel is a new
 builder, a template, and a branch — never a parallel code path.
 
 ```
-Public signup form
-  ↓ encryption.encrypt(email) → Signup.encrypted_email
-  For each channel applicable to this event (toggle on +
-  email present + window viable), insert a SignupEmailDispatch
-  row with status='pending'.
+Public signup form (one booking over the picked occurrences)
+  ↓ create one Registration + one Signup line item per occurrence
+  For each occurrence × channel applicable (toggle on + email
+  present + window viable), insert an EmailDispatch row keyed on
+  the occurrence with status='pending' and encryption.encrypt(email).
 
 Hourly cron tick (or organiser "send now" button)
   python -m backend.cli dispatch reminder
   python -m backend.cli dispatch feedback
-  ↓ for each PENDING dispatch whose event satisfies the
+  ↓ for each PENDING dispatch whose occurrence satisfies the
     channel's window predicate
   Conditional UPDATE pre-mints message_id (atomic claim:
     filtered on status='pending' AND message_id IS NULL).

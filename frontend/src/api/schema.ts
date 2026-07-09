@@ -1466,19 +1466,74 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Signup
-         * @description Current values of a signup, for pre-filling the edit form.
-         *     Email is never returned (it isn't reachable from a signup).
+         * Get Booking
+         * @description The whole booking behind an edit-link token, for the edit page.
+         *     Email is never returned (it isn't reachable from a booking).
          */
-        get: operations["get_signup_api_v1_events_by_token__token__get"];
+        get: operations["get_booking_api_v1_events_by_token__token__get"];
         /**
-         * Update Signup
-         * @description Update a signup's non-email fields via its edit-link token.
-         *     Email + dispatch rows are untouched — there is no path from a
-         *     signup to its encrypted address (principle #2).
+         * Update Booking
+         * @description Update a booking's name + party size via its edit-link token.
+         *     Email + dispatch rows are untouched — there is no path from a booking
+         *     to its encrypted address (principle #2).
          */
-        put: operations["update_signup_api_v1_events_by_token__token__put"];
+        put: operations["update_booking_api_v1_events_by_token__token__put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/by-token/{token}/occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Booking Occurrences
+         * @description Replace a booking's **future** session set from the manage-page
+         *     calendar. Diffs the chosen future occurrences against the booking's
+         *     current future line items: adds a line item for each newly-selected
+         *     occurrence, deletes it for each deselected one, and never touches a line
+         *     item whose session has already started (frozen attendance).
+         *
+         *     ``all_upcoming`` resolves server-side to every future occurrence, so a
+         *     stale page can't miss a just-materialised session. Newly-added sessions
+         *     get a line item only, not an email dispatch: the recipient address isn't
+         *     reachable from a booking (principle #2), so reminder/feedback mail only
+         *     ever covers sessions signed up for with an email at sign-up time.
+         */
+        put: operations["set_booking_occurrences_api_v1_events_by_token__token__occurrences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Occurrence
+         * @description Withdraw the booking from one occurrence — per-occurrence withdrawal
+         *     is how absence is reported. Deletes only that ``Signup`` line item (no
+         *     email lives on it). If it was the booking's last line item, the empty
+         *     ``Registration`` is deleted too. Any pending ``EmailDispatch`` for the
+         *     occurrence is untouched by design (no signup link), so an already-
+         *     scheduled email may still arrive.
+         */
+        post: operations["withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1495,15 +1550,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Withdraw Signup
-         * @description Withdraw a signup via its edit-link token — the attendee removing
-         *     their own headcount. Deletes only the ``Signup`` row (no email lives
-         *     on it). Any pending ``EmailDispatch`` for this event is untouched by
-         *     design (no signup_id link), so an already-scheduled reminder/feedback
-         *     email may still arrive; the public page warns about this before
-         *     calling. Mirrors the organiser delete, minus the RBAC.
+         * Withdraw Booking
+         * @description Withdraw the whole booking — the attendee removing themselves from
+         *     every occurrence at once. Deletes the ``Registration`` (its line items
+         *     cascade). Pending dispatches are untouched by design.
          */
-        post: operations["withdraw_signup_api_v1_events_by_token__token__withdraw_post"];
+        post: operations["withdraw_booking_api_v1_events_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1635,6 +1687,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/{event_id}/occurrences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Event Occurrences
+         * @description The occurrence panel on the organiser detail page: the materialised
+         *     occurrences with per-session headcount + line-item counts, plus the
+         *     projected future dates that aren't rows yet. Strictly read-only per
+         *     occurrence — the only actions are on the event itself.
+         */
+        get: operations["event_occurrences_api_v1_events__event_id__occurrences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/signups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Occurrence Signups
+         * @description Per-line-item list for one occurrence of the organiser's event.
+         *     Returns display_name + party_size + help_choices — never email,
+         *     source, or feedback-email status.
+         */
+        get: operations["occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Occurrence Stats
+         * @description Aggregated source/help breakdown for one occurrence — the "stats of
+         *     that day" behind the detail page's calendar day switcher. Aggregate
+         *     only, never linked to a person.
+         */
+        get: operations["occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/events/{event_id}/registrations/{registration_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Booking Edit Link
+         * @description Organiser recovery of a participant's lost magic link. Only the
+         *     token's hash is stored, so this *rotates* rather than reveals: the old
+         *     link stops working, the fresh raw token is returned exactly once, and
+         *     ``link_recovered_at`` is stamped permanently.
+         */
+        post: operations["recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/restore": {
         parameters: {
             query?: never;
@@ -1675,28 +1817,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/signups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Event Signups
-         * @description Per-signup list for the organiser details page. Returns
-         *     display_name + party_size + help_choices — never email,
-         *     source, or feedback-email status.
-         */
-        get: operations["event_signups_api_v1_events__event_id__signups_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/events/{event_id}/signups/{signup_id}": {
         parameters: {
             query?: never;
@@ -1709,44 +1829,12 @@ export interface paths {
         post?: never;
         /**
          * Delete Signup
-         * @description Organiser-only hard-delete of a single signup row. Targets
-         *     the case where someone (often the organiser themselves) wants
-         *     a stray sign-up gone — accidental submission, duplicate row,
-         *     test data left in a real event.
-         *
-         *     Privacy invariant unaffected: ``Signup`` carries no email, so
-         *     deleting the row removes only headcount + display-name. Any
-         *     pending ``EmailDispatch`` rows for this event live on by
-         *     design (no signup_id link); the worker may still send a
-         *     reminder/feedback email to the address the deleted signup
-         *     submitted. That decoupling is the whole point — see
-         *     ``models/email_dispatch.py``.
+         * @description Organiser-only hard-delete of a single sign-up line item — a stray
+         *     or duplicate booking on one occurrence. Privacy invariant unaffected:
+         *     ``Signup`` carries no email. Any pending ``EmailDispatch`` for the
+         *     occurrence lives on by design (no signup link).
          */
         delete: operations["delete_signup_api_v1_events__event_id__signups__signup_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/events/{event_id}/signups/{signup_id}/edit-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Recover Signup Edit Link
-         * @description Organiser recovery of a participant's lost magic link. Only the
-         *     token's hash is stored, so this *rotates* rather than reveals: the
-         *     old link stops working, the fresh raw token is returned exactly
-         *     once, and ``link_recovered_at`` is stamped permanently — the public
-         *     edit page discloses that an organiser has held the link.
-         */
-        post: operations["recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2353,6 +2441,88 @@ export interface components {
             file: string;
         };
         /**
+         * BookingEditIn
+         * @description Edit the booking-level fields (name + headcount). Per-occurrence
+         *     membership is changed by withdrawing individual occurrences, not
+         *     here. Email + dispatch rows are unreachable from a booking
+         *     (principle #2).
+         */
+        BookingEditIn: {
+            /** Display Name */
+            display_name?: string | null;
+            /** Party Size */
+            party_size: number;
+        };
+        /**
+         * BookingOccurrenceOut
+         * @description One occurrence a booking is on, as shown on the manage page.
+         *     ``is_past`` marks a session that has already started: it is frozen
+         *     history (attended), rendered locked and never editable.
+         */
+        BookingOccurrenceOut: {
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Help Choices */
+            help_choices: string[];
+            /** Index */
+            index: number;
+            /** Is Past */
+            is_past: boolean;
+            /** Occurrence Id */
+            occurrence_id: string;
+            /** Slug */
+            slug: string;
+            /** Source Choice */
+            source_choice: string | null;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+        };
+        /**
+         * BookingOccurrencesIn
+         * @description Replace a booking's **future** session set (the manage-page calendar).
+         *     Past sessions are frozen and never referenced here. Same target shape as
+         *     a sign-up: explicit ids, or ``all_upcoming`` for server resolution.
+         */
+        BookingOccurrencesIn: {
+            /**
+             * All Upcoming
+             * @default false
+             */
+            all_upcoming: boolean;
+            /** Occurrence Ids */
+            occurrence_ids?: string[];
+        };
+        /**
+         * BookingOut
+         * @description The whole booking behind an edit-link token: the person's details,
+         *     the occurrences they're on, and the event content needed to render.
+         */
+        BookingOut: {
+            /** Display Name */
+            display_name: string | null;
+            /** Event Name */
+            event_name: string;
+            /** Event Slug */
+            event_slug: string;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Occurrences */
+            occurrences: components["schemas"]["BookingOccurrenceOut"][];
+            /** Party Size */
+            party_size: number;
+        };
+        /**
          * CalendarAssigneeOut
          * @description One assignment on a calendar day. ``name`` is the pseudonym (``None``
          *     = anonymous); ``open`` marks an unassigned slot; ``status`` is the shift
@@ -2392,16 +2562,16 @@ export interface components {
         };
         /**
          * ChapterAgendaOut
-         * @description A chapter's public agenda: its identity, the upcoming events, and
-         *     a recent-past section (back to the start of the last full calendar
-         *     month).
+         * @description A chapter's public agenda: its identity, the upcoming occurrences
+         *     (within a rolling one-month display window), and a recent-past section
+         *     (back to the start of the last full calendar month).
          */
         ChapterAgendaOut: {
             chapter: components["schemas"]["ChapterPublicOut"];
             /** Past */
-            past: components["schemas"]["EventCardOut"][];
+            past: components["schemas"]["OccurrenceCardOut"][];
             /** Upcoming */
-            upcoming: components["schemas"]["EventCardOut"][];
+            upcoming: components["schemas"]["OccurrenceCardOut"][];
         };
         /**
          * ChapterArchiveRequest
@@ -3009,46 +3179,24 @@ export interface components {
             email_reminders: boolean;
         };
         /**
-         * EventCardOut
-         * @description One event as it appears on a chapter agenda card. Deliberately
-         *     narrower than ``EventOut``: no coordinates, option lists, or lifecycle
-         *     flags, so the public grid leaks less than the sign-up page.
+         * EventCreate
+         * @description Create/edit payload for an event definition. Carries the shared
+         *     content and the recurrence rule (the roster's k-week cycle) — never a
+         *     single concrete date. A one-off is ``cycle_slots = []``; a recurring
+         *     event picks weekday slots on a ``period_weeks`` cycle, running for
+         *     ``span_weeks`` weeks (``None`` = open-ended). Concrete dates are
+         *     ``Occurrence`` rows the tick materialises.
          */
-        EventCardOut: {
-            /** Attendee Count */
-            attendee_count: number;
-            /**
-             * Ends At
-             * Format: date-time
-             */
-            ends_at: string;
-            /** Image Artist Instagram */
-            image_artist_instagram: string | null;
-            /** Image Url */
-            image_url: string | null;
-            /** Location */
-            location: string;
-            /** Name */
-            name: string;
-            /** Slug */
-            slug: string;
-            /**
-             * Starts At
-             * Format: date-time
-             */
-            starts_at: string;
-            /** Topic */
-            topic: string | null;
-        };
-        /** EventCreate */
         EventCreate: {
             /** Chapter Id */
             chapter_id: string;
+            /** Cycle Slots */
+            cycle_slots?: number[];
             /**
-             * Ends At
-             * Format: date-time
+             * End Time
+             * Format: time
              */
-            ends_at: string;
+            end_time: string;
             /**
              * Feedback Enabled
              * @default true
@@ -3056,6 +3204,11 @@ export interface components {
             feedback_enabled: boolean;
             /** Help Options */
             help_options?: string[];
+            /**
+             * Horizon Days
+             * @default 90
+             */
+            horizon_days: number;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
             /** Latitude */
@@ -3078,21 +3231,37 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Period Weeks
+             * @default 1
+             */
+            period_weeks: number;
+            /**
              * Reminder Enabled
              * @default true
              */
             reminder_enabled: boolean;
             /** Source Options */
             source_options: string[];
+            /** Span Weeks */
+            span_weeks?: number | null;
             /**
-             * Starts At
-             * Format: date-time
+             * Start Time
+             * Format: time
              */
-            starts_at: string;
+            start_time: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
             /** Topic */
             topic?: string | null;
         };
-        /** EventOut */
+        /**
+         * EventOut
+         * @description Organiser-side event DTO: the definition + its recurrence rule + a
+         *     couple of derived read-model fields (next occurrence, headcount).
+         */
         EventOut: {
             /** Archived */
             archived: boolean;
@@ -3102,15 +3271,19 @@ export interface components {
             chapter_id: string | null;
             /** Chapter Name */
             chapter_name: string | null;
+            /** Cycle Slots */
+            cycle_slots: number[];
             /**
-             * Ends At
-             * Format: date-time
+             * End Time
+             * Format: time
              */
-            ends_at: string;
+            end_time: string;
             /** Feedback Enabled */
             feedback_enabled: boolean;
             /** Help Options */
             help_options: string[];
+            /** Horizon Days */
+            horizon_days: number;
             /** Id */
             id: string;
             /** Image Artist Instagram */
@@ -3132,23 +3305,38 @@ export interface components {
             longitude: number | null;
             /** Name */
             name: string;
+            /** Next Slug */
+            next_slug: string | null;
+            /** Next Starts At */
+            next_starts_at: string | null;
+            /** Period Weeks */
+            period_weeks: number;
             /** Reminder Enabled */
             reminder_enabled: boolean;
             /** Slug */
             slug: string;
             /** Source Options */
             source_options: string[];
+            /** Span Weeks */
+            span_weeks: number | null;
             /**
-             * Starts At
-             * Format: date-time
+             * Start Time
+             * Format: time
              */
-            starts_at: string;
+            start_time: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
             /** Topic */
             topic: string | null;
         };
         /**
          * EventStatsOut
-         * @description Organiser-only aggregate. Never includes individual signups.
+         * @description Organiser-only aggregate over the event's sign-up line items
+         *     (attendance is per occurrence, so these are per-line-item counts).
+         *     Never includes individual signups.
          */
         EventStatsOut: {
             /** By Help */
@@ -3163,6 +3351,81 @@ export interface components {
             total_attendees: number;
             /** Total Signups */
             total_signups: number;
+        };
+        /**
+         * EventUpdate
+         * @description Edit payload. Same shape as create, but a lowered ``period_weeks``
+         *     clamps now-out-of-range ``cycle_slots`` away instead of 422-ing.
+         */
+        EventUpdate: {
+            /** Chapter Id */
+            chapter_id: string;
+            /** Cycle Slots */
+            cycle_slots?: number[];
+            /**
+             * End Time
+             * Format: time
+             */
+            end_time: string;
+            /**
+             * Feedback Enabled
+             * @default true
+             */
+            feedback_enabled: boolean;
+            /** Help Options */
+            help_options?: string[];
+            /**
+             * Horizon Days
+             * @default 90
+             */
+            horizon_days: number;
+            /** Image Artist Instagram */
+            image_artist_instagram?: string | null;
+            /** Latitude */
+            latitude?: number | null;
+            /**
+             * Listed
+             * @default true
+             */
+            listed: boolean;
+            /**
+             * Locale
+             * @default nl
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location: string;
+            /** Longitude */
+            longitude?: number | null;
+            /** Name */
+            name: string;
+            /**
+             * Period Weeks
+             * @default 1
+             */
+            period_weeks: number;
+            /**
+             * Reminder Enabled
+             * @default true
+             */
+            reminder_enabled: boolean;
+            /** Source Options */
+            source_options: string[];
+            /** Span Weeks */
+            span_weeks?: number | null;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /** Topic */
+            topic?: string | null;
         };
         /** FeedbackAnswerIn */
         FeedbackAnswerIn: {
@@ -3628,6 +3891,84 @@ export interface components {
             token: string;
         };
         /**
+         * OccurrenceCardOut
+         * @description One occurrence as it appears on a chapter agenda card. Deliberately
+         *     narrower than the sign-up DTO: no coordinates, option lists, or
+         *     lifecycle flags, so the public grid leaks less than the sign-up page.
+         *     ``index`` + ``total_sessions`` drive the "sessie i van N" badge
+         *     (``total_sessions`` null = open-ended series).
+         */
+        OccurrenceCardOut: {
+            /** Attendee Count */
+            attendee_count: number;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Image Artist Instagram */
+            image_artist_instagram: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /** Index */
+            index: number;
+            /** Location */
+            location: string;
+            /** Name */
+            name: string;
+            /** Slug */
+            slug: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /** Topic */
+            topic: string | null;
+            /** Total Sessions */
+            total_sessions: number | null;
+        };
+        /**
+         * OccurrenceListOut
+         * @description The occurrence list behind the organiser detail page's calendar day
+         *     switcher: materialised occurrences with counts, plus the projected
+         *     future dates. ``total_sessions`` is the "van N" (null = open-ended).
+         */
+        OccurrenceListOut: {
+            /** Occurrences */
+            occurrences: components["schemas"]["OccurrenceOut"][];
+            /** Projected */
+            projected: components["schemas"]["ProjectedOccurrenceOut"][];
+            /** Total Sessions */
+            total_sessions: number | null;
+        };
+        /**
+         * OccurrenceOut
+         * @description One materialised occurrence in the organiser's read-only list.
+         */
+        OccurrenceOut: {
+            /** Attendee Count */
+            attendee_count: number;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Id */
+            id: string;
+            /** Index */
+            index: number;
+            /** Signup Count */
+            signup_count: number;
+            /** Slug */
+            slug: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+        };
+        /**
          * OutlookShiftOut
          * @description A projected (not yet pinned) shift beyond the commit horizon.
          *     Tentative: no row id, may still change as the roster/pool evolves.
@@ -3730,6 +4071,25 @@ export interface components {
             status: string;
         };
         /**
+         * ProjectedOccurrenceOut
+         * @description A beyond-horizon future date shown for context only: it has no row
+         *     and no page yet, so it is not sign-up-able.
+         */
+        ProjectedOccurrenceOut: {
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Index */
+            index: number;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+        };
+        /**
          * PublicDatepollOut
          * @description What the public fill-out page (``/d/{slug}``) reads.
          */
@@ -3759,6 +4119,51 @@ export interface components {
             slots: components["schemas"]["DatepollSlotOut"][];
         };
         /**
+         * PublicEventOut
+         * @description The JSON the public per-occurrence sign-up page reads: the event
+         *     content (read through the parent), the landing occurrence, the
+         *     upcoming occurrences the visitor can also book, and the projected
+         *     future dates shown as not-yet-open.
+         */
+        PublicEventOut: {
+            /** Archived */
+            archived: boolean;
+            current: components["schemas"]["PublicOccurrenceOut"];
+            /** Event Slug */
+            event_slug: string;
+            /** Help Options */
+            help_options: string[];
+            /** Image Artist Instagram */
+            image_artist_instagram: string | null;
+            /** Image Url */
+            image_url: string | null;
+            /** Is Recurring */
+            is_recurring: boolean;
+            /** Latitude */
+            latitude: number | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location: string;
+            /** Longitude */
+            longitude: number | null;
+            /** Name */
+            name: string;
+            /** Projected */
+            projected: components["schemas"]["ProjectedOccurrenceOut"][];
+            /** Source Options */
+            source_options: string[];
+            /** Topic */
+            topic: string | null;
+            /** Total Sessions */
+            total_sessions: number | null;
+            /** Upcoming */
+            upcoming: components["schemas"]["PublicOccurrenceOut"][];
+        };
+        /**
          * PublicFormOut
          * @description What the public fill-out page (``/f/{slug}``) reads. No
          *     chapter id, no internal timestamps — just the form name +
@@ -3782,6 +4187,32 @@ export interface components {
             name: string;
             /** Questions */
             questions: components["schemas"]["FormQuestionOut"][];
+        };
+        /**
+         * PublicOccurrenceOut
+         * @description A materialised, sign-up-able occurrence on the public form's
+         *     checklist. ``is_current`` marks the one whose page the visitor
+         *     landed on (pre-selected).
+         */
+        PublicOccurrenceOut: {
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Id */
+            id: string;
+            /** Index */
+            index: number;
+            /** Is Current */
+            is_current: boolean;
+            /** Slug */
+            slug: string;
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
         };
         /**
          * PublicRosterOut
@@ -4142,10 +4573,9 @@ export interface components {
         };
         /**
          * SignupAck
-         * @description Public response after a successful signup. Returns nothing
-         *     identifying — just confirms the booking landed, plus the secret
-         *     edit-link token (shown once so the page can render the magic
-         *     edit link; never stored raw, never recoverable).
+         * @description Public response after a successful booking. Returns nothing
+         *     identifying — just the secret edit-link token (shown once so the page
+         *     can render the magic edit link; never stored raw, never recoverable).
          */
         SignupAck: {
             /** Edit Token */
@@ -4156,61 +4586,39 @@ export interface components {
              */
             status: string;
         };
-        /** SignupCreate */
+        /**
+         * SignupCreate
+         * @description One public booking: a person and the occurrences they picked.
+         *     Creates one registration with one line item per occurrence.
+         */
         SignupCreate: {
+            /**
+             * All Upcoming
+             * @default false
+             */
+            all_upcoming: boolean;
             /** Display Name */
             display_name?: string | null;
             /** Email */
             email?: string | null;
             /** Help Choices */
             help_choices?: string[];
+            /** Occurrence Ids */
+            occurrence_ids?: string[];
             /** Party Size */
             party_size: number;
             /** Source Choice */
             source_choice?: string | null;
-        };
-        /**
-         * SignupEditIn
-         * @description Edit payload for an existing signup, reached via the edit-link
-         *     token. The non-email fields only — ``EmailDispatch`` carries no
-         *     ``signup_id`` (principle #2), so the email can't be reached from a
-         *     signup and isn't editable here.
-         */
-        SignupEditIn: {
-            /** Display Name */
-            display_name?: string | null;
-            /** Help Choices */
-            help_choices?: string[];
-            /** Party Size */
-            party_size: number;
-            /** Source Choice */
-            source_choice?: string | null;
-        };
-        /**
-         * SignupEditOut
-         * @description Current values of a signup, for pre-filling the edit form. No
-         *     email (never readable from a signup).
-         */
-        SignupEditOut: {
-            /** Display Name */
-            display_name: string | null;
-            /** Help Choices */
-            help_choices: string[];
-            /** Link Recovered At */
-            link_recovered_at?: string | null;
-            /** Party Size */
-            party_size: number;
-            /** Source Choice */
-            source_choice: string | null;
         };
         /**
          * SignupSummaryOut
-         * @description A single signup as seen on the organiser's details page.
-         *     Deliberately minimal — name, headcount, help-choices. Never
-         *     email, source, or feedback-email status; those exist on the
-         *     model but are private to the worker. ``id`` is exposed so the
-         *     organiser can target an individual row for deletion (e.g.
-         *     cleaning up an accidental sign-up they made themselves).
+         * @description A single line item as seen on the organiser's per-occurrence
+         *     details page. Name + headcount come from the parent booking
+         *     (registration); help-choices from the line item. Never email, source,
+         *     or feedback-email status — the day's source breakdown is an aggregate
+         *     (see the occurrence stats endpoint), never linked to a person. ``id`` is
+         *     the line-item id (delete target); ``registration_id`` is the booking
+         *     (edit-link recovery target).
          */
         SignupSummaryOut: {
             /** Display Name */
@@ -4223,6 +4631,8 @@ export interface components {
             link_recovered_at?: string | null;
             /** Party Size */
             party_size: number;
+            /** Registration Id */
+            registration_id: string;
         };
         /**
          * StatusResponse
@@ -6808,7 +7218,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventOut"];
+                    "application/json": components["schemas"]["PublicEventOut"];
                 };
             };
             /** @description Validation Error */
@@ -6982,7 +7392,7 @@ export interface operations {
             };
         };
     };
-    get_signup_api_v1_events_by_token__token__get: {
+    get_booking_api_v1_events_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -6999,7 +7409,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignupEditOut"];
+                    "application/json": components["schemas"]["BookingOut"];
                 };
             };
             /** @description Validation Error */
@@ -7013,7 +7423,7 @@ export interface operations {
             };
         };
     };
-    update_signup_api_v1_events_by_token__token__put: {
+    update_booking_api_v1_events_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -7024,7 +7434,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SignupEditIn"];
+                "application/json": components["schemas"]["BookingEditIn"];
             };
         };
         responses: {
@@ -7034,7 +7444,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SignupEditOut"];
+                    "application/json": components["schemas"]["BookingOut"];
                 };
             };
             /** @description Validation Error */
@@ -7048,7 +7458,72 @@ export interface operations {
             };
         };
     };
-    withdraw_signup_api_v1_events_by_token__token__withdraw_post: {
+    set_booking_occurrences_api_v1_events_by_token__token__occurrences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BookingOccurrencesIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+                occurrence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_booking_api_v1_events_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7090,7 +7565,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EventCreate"];
+                "application/json": components["schemas"]["EventUpdate"];
             };
         };
         responses: {
@@ -7314,6 +7789,141 @@ export interface operations {
             };
         };
     };
+    event_occurrences_api_v1_events__event_id__occurrences_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OccurrenceListOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+                occurrence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignupSummaryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+                occurrence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventStatsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+                registration_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_event_api_v1_events__event_id__restore_post: {
         parameters: {
             query?: never;
@@ -7383,39 +7993,6 @@ export interface operations {
             };
         };
     };
-    event_signups_api_v1_events__event_id__signups_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SignupSummaryOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     delete_signup_api_v1_events__event_id__signups__signup_id__delete: {
         parameters: {
             query?: never;
@@ -7436,40 +8013,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                event_id: string;
-                signup_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EditLinkRecoverOut"];
-                };
             };
             /** @description Validation Error */
             422: {

@@ -28,8 +28,9 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "chapter_id": _first_chapter_id(client, headers),
         "topic": None,
         "location": "Adam",
-        "starts_at": "2026-05-01T18:00:00",
-        "ends_at": "2026-05-01T20:00:00",
+        "starts_on": "2026-09-01",
+        "start_time": "18:00:00",
+        "end_time": "20:00:00",
         "source_options": ["Flyer"],
         "feedback_enabled": True,
         "reminder_enabled": False,
@@ -39,6 +40,16 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
     r = client.post("/api/v1/events", headers=headers, json=payload)
     assert r.status_code == 201, r.text
     return r.json()
+
+
+def _first_occurrence(client: Any, headers: Any, event_id: str) -> dict[str, Any]:
+    """The event's first materialised occurrence — its public slug is the
+    per-occurrence public surface (signups / qr / ics / previews)."""
+    return client.get(f"/api/v1/events/{event_id}/occurrences", headers=headers).json()["occurrences"][0]
+
+
+def _occ_slug(client: Any, headers: Any, event: dict[str, Any]) -> str:
+    return _first_occurrence(client, headers, event["id"])["slug"]
 
 
 # --- create gating -------------------------------------------------
@@ -54,8 +65,9 @@ def test_create_event_missing_chapter_id_returns_422(client, organiser_headers):
             "name": "X",
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T18:00:00",
-            "ends_at": "2026-05-01T20:00:00",
+            "starts_on": "2026-05-01",
+            "start_time": "18:00:00",
+            "end_time": "20:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
@@ -80,8 +92,9 @@ def test_create_event_with_chapter_outside_users_set_returns_403(client, admin_h
             "chapter_id": other,
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T18:00:00",
-            "ends_at": "2026-05-01T20:00:00",
+            "starts_on": "2026-05-01",
+            "start_time": "18:00:00",
+            "end_time": "20:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
@@ -106,14 +119,98 @@ def test_create_event_with_admin_globally_works(client, admin_headers):
             "chapter_id": chapter_id,
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T18:00:00",
-            "ends_at": "2026-05-01T20:00:00",
+            "starts_on": "2026-05-01",
+            "start_time": "18:00:00",
+            "end_time": "20:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
         },
     )
     assert r.status_code == 201, r.text
+
+
+# --- multi-occurrence booking (one registration, many line items) ----
+
+
+def test_recurring_signup_creates_one_registration_with_many_line_items(client, organiser_headers):
+    """A genuinely recurring event (multiple occurrences) signed up for
+    several occurrences in one submission produces exactly one
+    ``Registration`` with one ``Signup`` line item per occurrence, plus one
+    per-occurrence feedback dispatch — the multi-occurrence sign-up the
+    design makes native to the model."""
+    # 2026-08-01 is a Saturday (weekday 5); weekly for 3 weeks.
+    event = _new_event(
+        client,
+        organiser_headers,
+        name="Boksles",
+        starts_on="2026-08-01",
+        start_time="18:00:00",
+        end_time="20:00:00",
+        period_weeks=1,
+        cycle_slots=[5],
+        span_weeks=3,
+        feedback_enabled=True,
+        reminder_enabled=False,
+    )
+    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    assert len(occs) == 3  # weekly × 3, all inside the 90-day horizon
+    occ_ids = [o["id"] for o in occs]
+
+    ack = client.post(
+        f"/api/v1/events/by-slug/{occs[0]['slug']}/signups",
+        json={
+            "display_name": "Sam",
+            "party_size": 2,
+            "email": "sam@local.dev",
+            "occurrence_ids": occ_ids,  # the explicit multi-id path
+        },
+    )
+    assert ack.status_code == 201, ack.text
+
+    db = SessionLocal()
+    try:
+        from backend.models import EmailChannel, EmailDispatch, Occurrence, Registration, Signup
+
+        occ_id_set = [o.id for o in db.query(Occurrence).filter(Occurrence.event_id == event["id"]).all()]
+        regs = db.query(Registration).filter(Registration.event_id == event["id"]).all()
+        assert len(regs) == 1  # one booking header
+        assert regs[0].party_size == 2
+        line_items = db.query(Signup).filter(Signup.registration_id == regs[0].id).all()
+        assert len(line_items) == 3  # one line item per occurrence
+        assert sorted(s.occurrence_id for s in line_items) == sorted(occ_ids)
+        # One feedback dispatch per occurrence (reminders off).
+        dispatches = (
+            db.query(EmailDispatch)
+            .filter(EmailDispatch.occurrence_id.in_(occ_id_set), EmailDispatch.channel == EmailChannel.FEEDBACK)
+            .all()
+        )
+        assert len(dispatches) == 3
+    finally:
+        db.close()
+
+
+def test_finite_event_materialises_all_sessions_past_horizon(client, organiser_headers):
+    """A finite course materialises every session up front, even ones beyond
+    the 90-day horizon, so "20 sessies" resolves to 20 findable occurrences
+    (not a horizon-clipped subset) with nothing left as a projection."""
+    # 2026-08-03 is a Monday (weekday 0); weekly for 20 weeks runs ~4.5
+    # months out, well past the default 90-day materialisation horizon.
+    event = _new_event(
+        client,
+        organiser_headers,
+        name="Cursus",
+        starts_on="2026-08-03",
+        start_time="18:00:00",
+        end_time="20:00:00",
+        period_weeks=1,
+        cycle_slots=[0],
+        span_weeks=20,
+    )
+    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()
+    assert len(occs["occurrences"]) == 20  # all sessions are real rows
+    assert occs["projected"] == []  # a finite event has nothing beyond a horizon
+    assert occs["total_sessions"] == 20
 
 
 def test_list_events_filter_by_chapter(client, admin_headers, organiser_headers):
@@ -178,8 +275,9 @@ def test_update_event_to_chapter_outside_users_set_returns_403(client, admin_hea
         "chapter_id": other,
         "topic": None,
         "location": event["location"],
-        "starts_at": event["starts_at"],
-        "ends_at": event["ends_at"],
+        "starts_on": event["starts_on"],
+        "start_time": event["start_time"],
+        "end_time": event["end_time"],
         "source_options": event["source_options"],
         "feedback_enabled": event["feedback_enabled"],
         "reminder_enabled": event["reminder_enabled"],
@@ -199,14 +297,15 @@ def test_create_event_with_invalid_time_window_returns_400(client, organiser_hea
             "chapter_id": me["chapters"][0]["id"],
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T20:00:00",
-            "ends_at": "2026-05-01T18:00:00",  # backwards
+            "starts_on": "2026-05-01",
+            "start_time": "20:00:00",
+            "end_time": "18:00:00",  # backwards
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
         },
     )
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
 # --- update --------------------------------------------------------
@@ -222,8 +321,9 @@ def test_update_event_happy_path(client, organiser_headers):
             "chapter_id": event["chapter_id"],
             "topic": "Updated topic",
             "location": "Utrecht",
-            "starts_at": "2026-05-02T18:00:00",
-            "ends_at": "2026-05-02T21:00:00",
+            "starts_on": "2026-05-02",
+            "start_time": "18:00:00",
+            "end_time": "21:00:00",
             "source_options": ["Flyer", "Word"],
             "feedback_enabled": False,
             "reminder_enabled": True,
@@ -251,14 +351,15 @@ def test_update_event_invalid_time_window_returns_400(client, organiser_headers)
             "chapter_id": event["chapter_id"],
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T20:00:00",
-            "ends_at": "2026-05-01T18:00:00",
+            "starts_on": "2026-05-01",
+            "start_time": "20:00:00",
+            "end_time": "18:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
         },
     )
-    assert r.status_code == 400
+    assert r.status_code == 422
 
 
 def test_update_unknown_event_returns_404(client, organiser_headers):
@@ -271,8 +372,9 @@ def test_update_unknown_event_returns_404(client, organiser_headers):
             "chapter_id": me["chapters"][0]["id"],
             "topic": None,
             "location": "Adam",
-            "starts_at": "2026-05-01T18:00:00",
-            "ends_at": "2026-05-01T20:00:00",
+            "starts_on": "2026-05-01",
+            "start_time": "18:00:00",
+            "end_time": "20:00:00",
             "source_options": ["F"],
             "feedback_enabled": True,
             "locale": "nl",
@@ -320,13 +422,15 @@ def test_email_preview_reminder_for_disabled_channel_returns_404(client, organis
     """Reminder preview on an event with reminder disabled must 404
     — previewing email a visitor will never receive misleads."""
     event = _new_event(client, organiser_headers, reminder_enabled=False)
-    r = client.get(f"/api/v1/events/by-slug/{event['slug']}/email-preview/reminder")
+    slug = _occ_slug(client, organiser_headers, event)
+    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/reminder")
     assert r.status_code == 404
 
 
 def test_email_preview_feedback_when_enabled_returns_html(client, organiser_headers):
     event = _new_event(client, organiser_headers, feedback_enabled=True)
-    r = client.get(f"/api/v1/events/by-slug/{event['slug']}/email-preview/feedback")
+    slug = _occ_slug(client, organiser_headers, event)
+    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/feedback")
     assert r.status_code == 200
     # HTML response — Content-Type is text/html.
     assert r.headers["content-type"].startswith("text/html")
@@ -336,7 +440,8 @@ def test_email_preview_feedback_when_enabled_returns_html(client, organiser_head
 
 def test_email_preview_unknown_channel_returns_404(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    r = client.get(f"/api/v1/events/by-slug/{event['slug']}/email-preview/no-such")
+    slug = _occ_slug(client, organiser_headers, event)
+    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/no-such")
     assert r.status_code == 404
 
 
@@ -345,7 +450,8 @@ def test_email_preview_unknown_channel_returns_404(client, organiser_headers):
 
 def test_qr_returns_svg(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    r = client.get(f"/api/v1/events/by-slug/{event['slug']}/qr.svg")
+    slug = _occ_slug(client, organiser_headers, event)
+    r = client.get(f"/api/v1/events/by-slug/{slug}/qr.svg")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/svg+xml"
     assert r.content.lstrip().startswith(b"<?xml") or r.content.lstrip().startswith(b"<svg")
@@ -355,15 +461,16 @@ def test_qr_returns_svg(client, organiser_headers):
 # --- signup delete -------------------------------------------------
 
 
-def _public_signup(client, slug: str, *, name: str | None = "Anon") -> dict:
+def _public_signup(client, occ_slug: str, *, name: str | None = "Anon") -> dict:
     r = client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/events/by-slug/{occ_slug}/signups",
         json={
             "display_name": name,
             "party_size": 1,
             "source_choice": "Flyer",
             "help_choices": [],
             "email": None,
+            "all_upcoming": True,
         },
     )
     assert r.status_code == 201, r.text
@@ -371,15 +478,17 @@ def _public_signup(client, slug: str, *, name: str | None = "Anon") -> dict:
 
 
 def _list_signups(client, headers, event_id: str) -> list[dict]:
-    r = client.get(f"/api/v1/events/{event_id}/signups", headers=headers)
+    occ = _first_occurrence(client, headers, event_id)
+    r = client.get(f"/api/v1/events/{event_id}/occurrences/{occ['id']}/signups", headers=headers)
     assert r.status_code == 200, r.text
     return r.json()
 
 
 def test_delete_signup_removes_only_targeted_row(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    _public_signup(client, event["slug"], name="Keep")
-    _public_signup(client, event["slug"], name="Remove")
+    slug = _occ_slug(client, organiser_headers, event)
+    _public_signup(client, slug, name="Keep")
+    _public_signup(client, slug, name="Remove")
 
     rows = _list_signups(client, organiser_headers, event["id"])
     assert {r["display_name"] for r in rows} == {"Keep", "Remove"}
@@ -406,7 +515,7 @@ def test_delete_signup_unknown_id_returns_404(client, organiser_headers):
 
 def test_delete_signup_requires_auth(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    _public_signup(client, event["slug"])
+    _public_signup(client, _occ_slug(client, organiser_headers, event))
     rows = _list_signups(client, organiser_headers, event["id"])
     r = client.delete(f"/api/v1/events/{event['id']}/signups/{rows[0]['id']}")
     assert r.status_code in (401, 403)
@@ -414,11 +523,12 @@ def test_delete_signup_requires_auth(client, organiser_headers):
 
 def test_event_ics_carries_uid_and_dates(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    r = client.get(f"/api/v1/events/by-slug/{event['slug']}/event.ics")
+    occ = _first_occurrence(client, organiser_headers, event["id"])
+    r = client.get(f"/api/v1/events/by-slug/{occ['slug']}/event.ics")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/calendar")
     body = r.text
-    assert f"UID:{event['id']}" in body
+    assert f"UID:{occ['id']}" in body
     assert "BEGIN:VEVENT" in body
     assert "END:VEVENT" in body
     assert event["name"] in body

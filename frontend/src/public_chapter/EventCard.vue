@@ -16,6 +16,12 @@ const props = defineProps<{ event: EventCard; locale: Locale; past?: boolean }>(
 const t = computed(() => strings(props.locale));
 const c = computed(() => chromeStrings(props.locale));
 const href = computed(() => `/e/${props.event.slug}`);
+const sessionBadge = computed(() =>
+  props.event.total_sessions === null
+    ? t.value.sessionOpen(props.event.index + 1)
+    : t.value.sessionOf(props.event.index + 1, props.event.total_sessions),
+);
+
 </script>
 
 <template>
@@ -34,6 +40,7 @@ const href = computed(() => `/e/${props.event.slug}`);
       <p class="card-when">
         {{ formatDate(event.starts_at, locale) }} ·
         {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
+        <span class="session-badge">{{ sessionBadge }}</span>
       </p>
       <p class="card-where">
         <a
@@ -98,6 +105,15 @@ const href = computed(() => `/e/${props.event.slug}`);
   margin: 0;
   font-size: 0.9375rem;
   color: var(--brand-text-muted);
+}
+.session-badge {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.4rem;
+  margin-left: 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--brand-bg);
+  border: 1px solid var(--brand-border);
+  white-space: nowrap;
 }
 .card-where {
   margin: 0;

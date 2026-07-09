@@ -30,7 +30,7 @@ Notable robustness choices:
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from ..models import Event
+from ..models import Event, Occurrence
 from .sanitize import html_to_text
 
 # Event datetimes are naive Europe/Amsterdam wall clock (see
@@ -80,12 +80,15 @@ def _fmt_utc(dt: datetime) -> str:
     return dt.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
-def build_event_ics(event: Event, *, public_base_url: str) -> str:
-    """Render a single-event ``text/calendar`` payload."""
+def build_occurrence_ics(occurrence: Occurrence, event: Event, *, public_base_url: str) -> str:
+    """Render a single-occurrence ``text/calendar`` payload. The public
+    page is per occurrence, so ``UID`` is the occurrence's stable id and
+    the DTSTART/DTEND are its concrete dates; the content (name, topic,
+    location, geo) is read through the event."""
     from ..config import settings
 
     domain = settings.message_id_domain
-    public_url = f"{public_base_url.rstrip('/')}/e/{event.slug}"
+    public_url = f"{public_base_url.rstrip('/')}/e/{occurrence.slug}"
     now = datetime.now(UTC)
 
     # DESCRIPTION combines the topic (if any) with the public URL,
@@ -108,10 +111,10 @@ def build_event_ics(event: Event, *, public_base_url: str) -> str:
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
-        f"UID:{event.id}@{domain}",
+        f"UID:{occurrence.id}@{domain}",
         f"DTSTAMP:{_fmt_utc(now)}",
-        f"DTSTART:{_fmt_utc(event.starts_at)}",
-        f"DTEND:{_fmt_utc(event.ends_at)}",
+        f"DTSTART:{_fmt_utc(occurrence.starts_at)}",
+        f"DTEND:{_fmt_utc(occurrence.ends_at)}",
         f"SUMMARY:{_escape(event.name)}",
         f"LOCATION:{_escape(event.location)}",
         f"URL:{public_url}",

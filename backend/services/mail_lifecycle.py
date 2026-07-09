@@ -56,6 +56,7 @@ from ..models import (
     EmailStatus,
     Event,
     FeedbackToken,
+    Occurrence,
     Roster,
     Shift,
     Volunteer,
@@ -95,13 +96,13 @@ CHORE_ARCHIVE_PURGE_DELAY = timedelta(days=7)
 
 
 def _reminder_window(now: datetime) -> Any:
-    """Reminder fires while ``now < event.starts_at <= now+72h``."""
-    return (Event.starts_at > now) & (Event.starts_at <= now + REMINDER_WINDOW)
+    """Reminder fires while ``now < occurrence.starts_at <= now+72h``."""
+    return (Occurrence.starts_at > now) & (Occurrence.starts_at <= now + REMINDER_WINDOW)
 
 
 def _feedback_window(now: datetime) -> Any:
-    """Feedback fires when the event ended ≥24h ago."""
-    return Event.ends_at <= now - FEEDBACK_DELAY
+    """Feedback fires when the occurrence ended ≥24h ago."""
+    return Occurrence.ends_at <= now - FEEDBACK_DELAY
 
 
 # --- Context builders ---------------------------------------------
@@ -169,17 +170,18 @@ def _osm_url(event: Event) -> str:
     return f"https://www.openstreetmap.org/search?query={quote(event.location)}"
 
 
-def build_reminder_context(event: Event) -> dict[str, Any]:
-    """Public so events.py's per-event preview can render without
-    touching a real send path."""
+def build_reminder_context(occurrence: Occurrence, event: Event) -> dict[str, Any]:
+    """Reminder template context for one occurrence: its date/time and its
+    own public page, the content read through the event. Public so the
+    per-occurrence email preview can render without a real send path."""
     return {
         "event_name": event.name,
-        "event_url": build_url(f"e/{event.slug}"),
+        "event_url": build_url(f"e/{occurrence.slug}"),
         "topic": html_to_text(event.topic),
-        "starts_at": event.starts_at,
-        "ends_at": event.ends_at,
-        "event_date": _format_date(event.starts_at, event.locale),
-        "event_time": _format_time_range(event.starts_at, event.ends_at),
+        "starts_at": occurrence.starts_at,
+        "ends_at": occurrence.ends_at,
+        "event_date": _format_date(occurrence.starts_at, event.locale),
+        "event_time": _format_time_range(occurrence.starts_at, occurrence.ends_at),
         "location": event.location,
         "map_url": _osm_url(event),
         "image_url": event.image_url,
@@ -187,10 +189,10 @@ def build_reminder_context(event: Event) -> dict[str, Any]:
     }
 
 
-def build_feedback_context(event: Event) -> dict[str, Any]:
-    """For the live worker the URL is appended in
-    ``_process_one`` once the per-signup token is minted. The
-    preview path passes a synthetic token in directly."""
+def build_feedback_context(occurrence: Occurrence, event: Event) -> dict[str, Any]:
+    """Feedback template context for one occurrence. For the live worker
+    the ``feedback_url`` is appended in ``_process_one`` once the per-
+    occurrence token is minted; the preview path passes a synthetic token."""
     return {
         "event_name": event.name,
         "image_url": event.image_url,
@@ -210,8 +212,8 @@ class _ChannelDef:
 
     template: str
     toggle: Any  # SQLAlchemy column on Event
-    window: Callable[[datetime], Any]  # SQL predicate factory
-    context: Callable[[Event], dict[str, Any]]
+    window: Callable[[datetime], Any]  # SQL predicate factory on Occurrence
+    context: Callable[[Occurrence, Event], dict[str, Any]]
 
 
 CHANNELS: dict[EmailChannel, _ChannelDef] = {
@@ -253,6 +255,7 @@ def _drop_feedback_token(db: Session, token: str | None) -> None:
 def _process_one(
     db: Session,
     channel: EmailChannel,
+    occurrence: Occurrence,
     event: Event,
     dispatch_id: str,
     ciphertext: bytes,
@@ -268,8 +271,8 @@ def _process_one(
     refresh on a row a parallel ``retire_event_channels`` may
     have already deleted (raising ``ObjectDeletedError``).
 
-    The ``Event`` ORM row stays — we read multiple fields off
-    it and no transaction deletes events mid-sweep, so the
+    The ``Occurrence`` / ``Event`` ORM rows stay — we read fields
+    off them and no transaction deletes them mid-sweep, so the
     expiration risk doesn't apply."""
 
     # Step 1 — atomic claim. Set message_id only when the row is
@@ -315,18 +318,18 @@ def _process_one(
     # without dict-with-private-key threading. The token never
     # references a signup — privacy contract.
     feedback_token: str | None = None
-    template_context = dict(CHANNELS[channel].context(event))
+    template_context = dict(CHANNELS[channel].context(occurrence, event))
     if channel == EmailChannel.FEEDBACK:
         feedback_token = secrets.token_urlsafe(32)
         db.add(
             FeedbackToken(
                 token=feedback_token,
-                event_id=event.id,
+                occurrence_id=occurrence.id,
                 expires_at=datetime.now(UTC) + FEEDBACK_TOKEN_TTL,
             )
         )
         db.commit()
-        template_context["feedback_url"] = build_url(f"e/{event.slug}/feedback", t=feedback_token)
+        template_context["feedback_url"] = build_url(f"e/{occurrence.slug}/feedback", t=feedback_token)
 
     sent = send_with_retry(
         to=plaintext,
@@ -416,8 +419,9 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
     db = SessionLocal()
     try:
         rows = (
-            db.query(EmailDispatch.id, EmailDispatch.encrypted_email, Event)
-            .join(Event, Event.id == EmailDispatch.event_id)
+            db.query(EmailDispatch.id, EmailDispatch.encrypted_email, Occurrence, Event)
+            .join(Occurrence, Occurrence.id == EmailDispatch.occurrence_id)
+            .join(Event, Event.id == Occurrence.event_id)
             .filter(
                 EmailDispatch.channel == channel,
                 EmailDispatch.status == EmailStatus.PENDING,
@@ -428,8 +432,8 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .limit(email_batch_size())
             .all()
         )
-        for dispatch_id, ciphertext, event in rows:
-            _process_one(db, channel, event, dispatch_id, ciphertext)
+        for dispatch_id, ciphertext, occurrence, event in rows:
+            _process_one(db, channel, occurrence, event, dispatch_id, ciphertext)
         db.commit()
         return len(rows)
     finally:
@@ -511,8 +515,9 @@ def retire_event_channels(
     their ``encrypted_email`` with them."""
     if not channels:
         return
+    event_occurrences = db.query(Occurrence.id).filter(Occurrence.event_id == event_id)
     db.query(EmailDispatch).filter(
-        EmailDispatch.event_id == event_id,
+        EmailDispatch.occurrence_id.in_(event_occurrences),
         EmailDispatch.channel.in_(channels),
         EmailDispatch.status == EmailStatus.PENDING,
         EmailDispatch.message_id.is_(None),
@@ -592,10 +597,10 @@ def reap_expired() -> int:
     """Daily reaper. Finalises any pending dispatch whose channel
     window has long passed:
 
-    * REMINDER — event ``starts_at <= now``; the regular sweep
-      won't pick these up (its window predicate excludes events
+    * REMINDER — occurrence ``starts_at <= now``; the regular sweep
+      won't pick these up (its window predicate excludes occurrences
       whose ``starts_at`` is already in the past).
-    * FEEDBACK — event ``ends_at <= now - POST_EVENT_PURGE_DELAY``.
+    * FEEDBACK — occurrence ``ends_at <= now - POST_EVENT_PURGE_DELAY``.
 
     Sets status=FAILED, sent_at=now, encrypted_email=NULL in one
     UPDATE so the privacy contract holds even when every other
@@ -612,12 +617,12 @@ def reap_expired() -> int:
     feedback_cutoff = now - POST_EVENT_PURGE_DELAY
     db = SessionLocal()
     try:
-        event_window_closed = (
-            db.query(Event.id)
+        occurrence_window_closed = (
+            db.query(Occurrence.id)
             .filter(
-                Event.id == EmailDispatch.event_id,
-                ((EmailDispatch.channel == EmailChannel.REMINDER) & (Event.starts_at <= now))
-                | ((EmailDispatch.channel == EmailChannel.FEEDBACK) & (Event.ends_at <= feedback_cutoff)),
+                Occurrence.id == EmailDispatch.occurrence_id,
+                ((EmailDispatch.channel == EmailChannel.REMINDER) & (Occurrence.starts_at <= now))
+                | ((EmailDispatch.channel == EmailChannel.FEEDBACK) & (Occurrence.ends_at <= feedback_cutoff)),
             )
             .exists()
         )
@@ -625,7 +630,7 @@ def reap_expired() -> int:
             db.query(EmailDispatch)
             .filter(
                 EmailDispatch.status == EmailStatus.PENDING,
-                event_window_closed,
+                occurrence_window_closed,
             )
             .update(
                 {

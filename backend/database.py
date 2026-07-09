@@ -102,10 +102,10 @@ def warmup() -> None:
             # Compile the slug-lookup query shape (the exact same
             # call ``_serve_public_event`` makes — this is the
             # one that was costing 4 s of handler time cold).
-            events_svc.get_event_by_slug_any(db, "__warmup__")
+            events_svc.get_occurrence_by_slug_any(db, "__warmup__")
             # Other query shapes used by the dashboard / details
             # page on first navigation after login.
-            db.query(Signup.event_id).filter(Signup.event_id == "_warmup_").limit(0).all()
+            db.query(Signup.occurrence_id).filter(Signup.occurrence_id == "_warmup_").limit(0).all()
             db.query(Chapter.id, Chapter.name).filter(Chapter.id == "_warmup_").limit(0).all()
         finally:
             db.close()
@@ -128,17 +128,25 @@ def warmup() -> None:
             location="warmup",
             latitude=None,
             longitude=None,
-            starts_at="2026-01-01T00:00:00+00:00",  # type: ignore[arg-type]
-            ends_at="2026-01-01T01:00:00+00:00",  # type: ignore[arg-type]
+            starts_on="2026-01-01",  # type: ignore[arg-type]
+            start_time="18:00:00",  # type: ignore[arg-type]
+            end_time="20:00:00",  # type: ignore[arg-type]
+            period_weeks=1,
+            cycle_slots=[],
+            span_weeks=None,
+            horizon_days=90,
             source_options=[],
             help_options=[],
             feedback_enabled=False,
             reminder_enabled=False,
+            listed=True,
             locale="nl",
             chapter_id=None,
             chapter_name=None,
             image_url=None,
             image_artist_instagram=None,
+            next_starts_at=None,
+            next_slug="__warmup__",
             attendee_count=0,
             archived=False,
         ).model_dump_json()

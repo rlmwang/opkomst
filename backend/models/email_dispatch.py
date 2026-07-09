@@ -56,20 +56,22 @@ class EmailStatus(StrEnum):
 
 
 class EmailDispatch(UUIDMixin, TimestampMixin, Base):
-    """One per (event, channel, attendee). Created at public-signup
+    """One per (occurrence, channel, attendee). Created at public-signup
     time when the channel applies; updated by the worker as the
     lifecycle progresses; deleted by the reapers / toggle-off
     cleanup when the channel no longer applies.
 
-    No ``signup_id`` column. The dispatch carries the email work
-    against an event; the signup record carries the survey
-    answers. They live next to each other, never linked."""
+    Keyed on the occurrence, because reminders and feedback fire per
+    occurrence date. No ``signup_id``/``registration_id`` column: the
+    dispatch carries the email work against an occurrence; the sign-up line
+    items carry the survey answers. They live next to each other, never
+    linked."""
 
     __tablename__ = "email_dispatches"
 
-    event_id: Mapped[str] = mapped_column(
+    occurrence_id: Mapped[str] = mapped_column(
         Text,
-        ForeignKey("events.id", ondelete="CASCADE"),
+        ForeignKey("occurrences.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -101,7 +103,7 @@ class EmailDispatch(UUIDMixin, TimestampMixin, Base):
 
     __table_args__ = (
         # Worker sweep filter — covers the
-        # ``WHERE event_id = ? AND channel = ? AND status = 'pending'``
-        # predicate used by run_for_event and the scope filters.
-        Index("ix_dispatches_event_channel_status", "event_id", "channel", "status"),
+        # ``WHERE occurrence_id = ? AND channel = ? AND status = 'pending'``
+        # predicate used by run_for_occurrence and the scope filters.
+        Index("ix_dispatches_occurrence_channel_status", "occurrence_id", "channel", "status"),
     )

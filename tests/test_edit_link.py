@@ -137,8 +137,9 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
         "chapter_id": _chapter_id(client, headers),
         "topic": None,
         "location": "Adam",
-        "starts_at": "2027-05-01T18:00:00",
-        "ends_at": "2027-05-01T20:00:00",
+        "starts_on": "2027-05-01",
+        "start_time": "18:00:00",
+        "end_time": "20:00:00",
         "source_options": ["Flyer"],
         "help_options": ["opbouwen"],
         "feedback_enabled": True,
@@ -151,51 +152,65 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
     return r.json()
 
 
+def _first_occurrence(client: Any, headers: Any, event: dict[str, Any]) -> dict[str, Any]:
+    """The event's first materialised occurrence — its public slug is the
+    per-occurrence sign-up target, its id the withdraw/target key."""
+    return client.get(f"/api/v1/events/{event['id']}/occurrences", headers=headers).json()["occurrences"][0]
+
+
+def _occurrence_signups(client: Any, headers: Any, event: dict[str, Any]) -> list[dict[str, Any]]:
+    occ = _first_occurrence(client, headers, event)
+    return client.get(f"/api/v1/events/{event['id']}/occurrences/{occ['id']}/signups", headers=headers).json()
+
+
+def _dispatch_count(event_id: str) -> int:
+    from backend.database import SessionLocal
+    from backend.models import EmailDispatch, Occurrence
+
+    db = SessionLocal()
+    try:
+        occ_ids = [o.id for o in db.query(Occurrence).filter(Occurrence.event_id == event_id).all()]
+        return db.query(EmailDispatch).filter(EmailDispatch.occurrence_id.in_(occ_ids)).count()
+    finally:
+        db.close()
+
+
 def test_event_edit_roundtrip(client, organiser_headers):
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 2, "help_choices": ["opbouwen"]},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, "help_choices": ["opbouwen"], "all_upcoming": True},
     ).json()["edit_token"]
 
     pre = client.get(f"/api/v1/events/by-token/{token}").json()
-    assert pre["party_size"] == 2 and pre["help_choices"] == ["opbouwen"]
+    assert pre["party_size"] == 2 and pre["occurrences"][0]["help_choices"] == ["opbouwen"]
     assert "email" not in pre  # email never reachable from a signup
 
     r = client.put(
         f"/api/v1/events/by-token/{token}",
-        json={"display_name": "Sam", "party_size": 5, "help_choices": []},
+        json={"display_name": "Sam", "party_size": 5},
     )
     assert r.status_code == 200
     assert r.json()["party_size"] == 5
 
 
 def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers):
-    from backend.database import SessionLocal
-    from backend.models import EmailDispatch
-
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev"},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
-    db = SessionLocal()
-    try:
-        before = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
-    finally:
-        db.close()
+    before = _dispatch_count(event["id"])
     assert before >= 1  # feedback dispatch created
 
     client.put(
         f"/api/v1/events/by-token/{token}",
-        json={"display_name": "Sam edited", "party_size": 3, "help_choices": []},
+        json={"display_name": "Sam edited", "party_size": 3},
     )
-    db = SessionLocal()
-    try:
-        after = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
-    finally:
-        db.close()
+    after = _dispatch_count(event["id"])
     assert after == before  # edit didn't touch the email side at all
 
 
@@ -235,11 +250,97 @@ def test_datepoll_withdraw(client, organiser_headers):
     assert summary["submission_count"] == 0
 
 
+def test_manage_recurring_booking_calendar(client, organiser_headers):
+    """The secret-link manage page can add and remove FUTURE sessions (not
+    just cancel), while PAST sessions are frozen: marked ``is_past``, left
+    untouched by a session-set update, and un-withdrawable (409)."""
+    from datetime import datetime, timedelta
+
+    from backend.database import SessionLocal
+    from backend.models import Event as EventModel
+    from backend.models import Registration, Signup
+    from backend.services import event_recurrence
+    from backend.services.events import now_wallclock
+
+    # A recurring event straddling now: weekly ×6 from 16 days ago → three
+    # sessions clearly past, three clearly future.
+    anchor = now_wallclock() - timedelta(days=16)
+    event = _create_event(
+        client,
+        organiser_headers,
+        name="Cursus",
+        starts_on=anchor.date().isoformat(),
+        start_time="19:00:00",
+        end_time="21:00:00",
+        period_weeks=1,
+        cycle_slots=[anchor.weekday()],
+        span_weeks=6,
+    )
+    # Production skips fabricating past sessions, so back-fill the ones that
+    # would exist for a course that has actually been running (as the seed
+    # does), to exercise the past-frozen behaviour.
+    db = SessionLocal()
+    try:
+        ev = db.query(EventModel).filter(EventModel.id == event["id"]).one()
+        event_recurrence.materialise(db, ev, now_wallclock(), include_past=True)
+        db.commit()
+    finally:
+        db.close()
+    now = now_wallclock()
+    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    past = [o for o in occs if datetime.fromisoformat(o["starts_at"]) <= now]
+    future = [o for o in occs if datetime.fromisoformat(o["starts_at"]) > now]
+    assert len(past) >= 2 and len(future) >= 3
+
+    # Public sign-up for the first future session; grab the raw edit token.
+    token = client.post(
+        f"/api/v1/events/by-slug/{future[0]['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "occurrence_ids": [future[0]["id"]]},
+    ).json()["edit_token"]
+
+    # Inject a PAST line item on the same booking (the API can't book a past
+    # session, so we seed one directly, as a real attended-then-edited case).
+    db = SessionLocal()
+    try:
+        reg = db.query(Registration).filter(Registration.event_id == event["id"]).one()
+        db.add(Signup(registration_id=reg.id, occurrence_id=past[-1]["id"], source_choice=None, help_choices=[]))
+        db.commit()
+    finally:
+        db.close()
+
+    # GET flags past vs future correctly.
+    booking = client.get(f"/api/v1/events/by-token/{token}").json()
+    by_id = {o["occurrence_id"]: o for o in booking["occurrences"]}
+    assert by_id[past[-1]["id"]]["is_past"] is True
+    assert by_id[future[0]["id"]]["is_past"] is False
+
+    # Manage: add a second future session (future[1]) to the selection.
+    r = client.put(
+        f"/api/v1/events/by-token/{token}/occurrences",
+        json={"occurrence_ids": [future[0]["id"], future[1]["id"]], "all_upcoming": False},
+    )
+    assert r.status_code == 200, r.text
+    ids = {o["occurrence_id"] for o in r.json()["occurrences"]}
+    assert future[0]["id"] in ids and future[1]["id"] in ids  # added
+    assert past[-1]["id"] in ids  # past untouched
+
+    # Deselect every future session: only the frozen past one remains.
+    r = client.put(
+        f"/api/v1/events/by-token/{token}/occurrences",
+        json={"occurrence_ids": [], "all_upcoming": False},
+    )
+    assert {o["occurrence_id"] for o in r.json()["occurrences"]} == {past[-1]["id"]}
+
+    # A past session can't be withdrawn after it happened.
+    assert client.post(f"/api/v1/events/by-token/{token}/occurrences/{past[-1]['id']}/withdraw").status_code == 409
+
+
 def test_event_withdraw_deletes_signup(client, organiser_headers):
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 2, "help_choices": []},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
 
     assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
@@ -247,31 +348,21 @@ def test_event_withdraw_deletes_signup(client, organiser_headers):
 
 
 def test_event_withdraw_leaves_email_dispatches_intact(client, organiser_headers):
-    from backend.database import SessionLocal
-    from backend.models import EmailDispatch
-
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev"},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
-    db = SessionLocal()
-    try:
-        before = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
-    finally:
-        db.close()
+    before = _dispatch_count(event["id"])
     assert before >= 1  # feedback dispatch created at signup
 
     assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
 
     # Withdrawing the signup leaves the decoupled dispatch rows alone, by
     # design (no signup_id link) — the person may still get the email.
-    db = SessionLocal()
-    try:
-        after = db.query(EmailDispatch).filter(EmailDispatch.event_id == event["id"]).count()
-    finally:
-        db.close()
+    after = _dispatch_count(event["id"])
     assert after == before
 
 
@@ -297,36 +388,39 @@ def _recover(client: Any, headers: Any, path: str) -> str:
 
 def test_event_recovery_rotates_and_stamps(client, organiser_headers):
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     old = client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 2, "help_choices": []},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
-    rows = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()
+    rows = _occurrence_signups(client, organiser_headers, event)
     assert rows[0]["link_recovered_at"] is None
-    fresh = _recover(client, organiser_headers, f"/api/v1/events/{event['id']}/signups/{rows[0]['id']}/edit-link")
+    rid = rows[0]["registration_id"]
+    fresh = _recover(client, organiser_headers, f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link")
 
     assert client.get(f"/api/v1/events/by-token/{old}").status_code == 404  # old link dead
     page = client.get(f"/api/v1/events/by-token/{fresh}")
     assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
-    rows = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()
+    rows = _occurrence_signups(client, organiser_headers, event)
     assert rows[0]["link_recovered_at"] is not None
 
 
 def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organiser_headers):
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 1, "help_choices": []},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
-    sid = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()[0]["id"]
-    path = f"/api/v1/events/{event['id']}/signups/{sid}/edit-link"
+    rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]
+    path = f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link"
     token = _recover(client, organiser_headers, path)
     first = client.get(f"/api/v1/events/by-token/{token}").json()["link_recovered_at"]
 
     # The participant editing their signup never clears the stamp.
     r = client.put(
         f"/api/v1/events/by-token/{token}",
-        json={"display_name": "Sam", "party_size": 3, "help_choices": []},
+        json={"display_name": "Sam", "party_size": 3},
     )
     assert r.status_code == 200 and r.json()["link_recovered_at"] == first
 
@@ -338,13 +432,14 @@ def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organ
 
 def test_event_recovery_requires_auth_and_scope(client, organiser_headers):
     event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/events/by-slug/{event['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 1, "help_choices": []},
+        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
-    sid = client.get(f"/api/v1/events/{event['id']}/signups", headers=organiser_headers).json()[0]["id"]
-    assert client.post(f"/api/v1/events/{event['id']}/signups/{sid}/edit-link").status_code == 401
-    r = client.post(f"/api/v1/events/{event['id']}/signups/does-not-exist/edit-link", headers=organiser_headers)
+    rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]
+    assert client.post(f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link").status_code == 401
+    r = client.post(f"/api/v1/events/{event['id']}/registrations/does-not-exist/edit-link", headers=organiser_headers)
     assert r.status_code == 404
 
 

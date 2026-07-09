@@ -15,7 +15,7 @@ from _helpers.events import make_event
 from _helpers.signups import get_dispatch, make_signup
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Signup
+from backend.models import EmailChannel, EmailStatus, Registration, Signup
 from backend.services import mail_lifecycle
 
 
@@ -49,7 +49,7 @@ def test_parallel_reminder_sweeps_send_each_row_once(db: Any, fake_email: Any) -
             assert d is not None
             assert d.status == EmailStatus.SENT, d.status
         # Sanity: no signup was left stranded.
-        rows = fresh.query(Signup).filter(Signup.display_name.like("P%")).all()
+        rows = fresh.query(Signup).join(Registration).filter(Registration.display_name.like("P%")).all()
         assert len(rows) == 5
     finally:
         fresh.close()

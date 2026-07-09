@@ -1,88 +1,156 @@
-from datetime import datetime
+from datetime import date, datetime, time
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
     Index,
     Integer,
     Text,
+    Time,
+    UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
 
 
 class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
-    """One event row. ``archived_at`` flips for archive/restore;
-    edits overwrite in place. The slug is unique across the
-    table; archived events keep their slug (the public surface
-    404s on archive — see ``test_public_archived.py``)."""
+    """The definition of an event — recurring or one-off. It holds the shared
+    content and the recurrence rule; concrete dates are ``Occurrence`` rows,
+    materialised over time by the tick. A one-off is ``cycle_slots == []``,
+    with its single occurrence (on ``starts_on``) created at once.
+
+    The recurrence rule is the chores roster's k-week cycle, reused: a
+    ``period_weeks`` cycle length, a ``starts_on`` anchor, and ``cycle_slots``
+    weekday offsets (``week*7 + weekday``, Mon=0), with the pure date math in
+    ``services/recurrence.py``. Events add a shared wall-clock time of day
+    (``start_time`` / ``end_time``) over the all-day roster.
+
+    The public sign-up page is per occurrence (``Occurrence.slug``); the event
+    row has no public page of its own. ``archived_at`` archives the whole
+    event (all its occurrences); edits overwrite in place."""
 
     __tablename__ = "events"
 
     # Spine (slug, name, image_url, image_artist_instagram, locale,
-    # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
+    # created_by, chapter_id, archived_at) comes from OrgEntityMixin. The
+    # slug here is organiser-internal — the public slug lives on Occurrence.
     topic: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    # Naive wall-clock timestamps. The organiser types a date+time
-    # in the form; that's what we store and that's what we display
-    # back. We do no timezone math anywhere — the app is Dutch-only
-    # and the implicit frame is Europe/Amsterdam wall clock. Only
-    # the ICS export and the Google-Calendar URL attach a zone (at
-    # the boundary) because external calendar imports need an
-    # absolute instant. Compare against
-    # ``services.events.now_wallclock`` (NOT ``datetime.now(UTC)``).
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    # Optional list of "I can help with" tasks (e.g. opbouwen / afbreken).
-    # Empty list means the question isn't shown on the public form.
     help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # When True, signups who leave an email get a single reminder
-    # email roughly 3 days before the event starts (see
-    # ``services.mail_lifecycle`` REMINDER channel).
-    # Independent of the feedback toggle — both can be on,
-    # both can be off.
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    # When True, the event appears on its chapter's public agenda
-    # (``/e/{chapter}``). Default on; an organiser opts a private or
-    # internal event out. The direct ``/e/{slug}`` sign-up link works
-    # regardless of this flag.
     listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+
+    # The recurrence rule (roster's k-week cycle + a time of day).
+    # ``starts_on`` anchors cycle week 0 (first Monday on/after it, derived by
+    # ``recurrence.first_cycle_monday``) and is the earliest date an
+    # occurrence may fall on. ``start_time`` / ``end_time`` are the shared
+    # naive Europe/Amsterdam wall-clock time applied to every occurrence date.
+    # ``period_weeks`` is the cycle length k (1 = weekly). ``cycle_slots`` are
+    # the selected weekday offsets (``week*7 + weekday``, Mon=0, 0..7k-1);
+    # ``[]`` means a one-off (a single occurrence on ``starts_on``).
+    # ``span_weeks`` runs the pattern that many weeks from ``starts_on``;
+    # NULL = open-ended (rolling). ``horizon_days`` bounds how far ahead the
+    # tick materialises concrete occurrences.
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    end_time: Mapped[time] = mapped_column(Time, nullable=False)
+    period_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default=text("1"))
+    cycle_slots: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
+    span_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    horizon_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90, server_default=text("90"))
 
     __table_args__ = (Index("ix_events_archived_chapter", "archived_at", "chapter_id"),)
 
+    occurrences: Mapped[list["Occurrence"]] = relationship(
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="Occurrence.starts_at",
+    )
 
-class Signup(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
-    __tablename__ = "signups"
+
+class Occurrence(UUIDMixin, TimestampMixin, Base):
+    """One materialised, dated instance of an ``Event``. It carries only what
+    is genuinely its own: its concrete wall-clock datetimes (the pattern date
+    + the event's time of day) and its own public sign-up slug. All content
+    (name, location, questions, ...) is read through ``event_id`` — nothing is
+    copied, so editing the event updates every occurrence at once. Its
+    "sessie i van N" ordinal is not stored; it is the occurrence's date rank,
+    derived at read time, so a rule edit that changes which dates recur can't
+    leave a stale ordinal behind."""
+
+    __tablename__ = "occurrences"
 
     event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
-    # Display name is optional — visitors can sign up anonymously,
-    # leaving the organiser to count headcount from ``party_size`` only.
+    # 8-char nanoid, the public URL (/e/{slug}). Unique across the table.
+    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+    # Naive wall-clock = on_date + event.start_time / end_time.
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("event_id", "starts_at", name="uq_occurrences_event_starts_at"),
+        Index("ix_occurrences_event_starts", "event_id", "starts_at"),
+    )
+
+    event: Mapped["Event"] = relationship(back_populates="occurrences")
+
+
+class Registration(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
+    """One person's booking against an event — the order header that groups
+    the per-occurrence line items (``Signup``) made in one submission. It
+    holds the single edit link, an optional pseudonym, and the party size.
+
+    No email column. The encrypted recipient address lives only on the
+    per-occurrence ``EmailDispatch`` rows, decoupled from this graph, so the
+    booking can group a person's occurrences for their own edit page without
+    ever linking to the email graph. ``edit_token_hash`` +
+    ``link_recovered_at`` come from EditTokenMixin."""
+
+    __tablename__ = "registrations"
+
+    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     party_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    # ``source_choice`` is optional too. NULL means the visitor didn't
-    # answer "how did you find us"; the organiser-side breakdown
-    # excludes those.
+
+    signups: Mapped[list["Signup"]] = relationship(
+        back_populates="registration",
+        cascade="all, delete-orphan",
+    )
+
+
+class Signup(UUIDMixin, TimestampMixin, Base):
+    """A line item: one booking (``registration_id``) attending one occurrence
+    (``occurrence_id``). Headcount for an occurrence is ``SUM(party_size)``
+    over the registrations of its line items. The optional ``source_choice``
+    and ``help_choices`` are captured per line item (copied from the one
+    submission onto each occurrence) so per-occurrence breakdowns stay exact.
+
+    No email here — the address graph (``EmailDispatch``) keys on the
+    occurrence and never references a line item or a registration."""
+
+    __tablename__ = "signups"
+
+    registration_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("registrations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    occurrence_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("occurrences.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     source_choice: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Subset of the parent event's ``help_options`` the attendee opted
-    # into (e.g. ["opbouwen"]). Empty when the event has no help_options
-    # configured or the attendee skipped the question.
     help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
-    # No email column on this table. The encrypted recipient address
-    # lives on ``EmailDispatch.encrypted_email`` — one copy per
-    # (signup, channel) row the email applies to. Absence of a
-    # dispatch row for a (signup, channel) pair means "this channel
-    # doesn't apply / never will" (no email at signup time, toggle
-    # off, expired window, or retired by toggle-off cleanup); the
-    # address physically can't exist without a row that intends to
-    # use it.
+
+    __table_args__ = (UniqueConstraint("registration_id", "occurrence_id", name="uq_signups_registration_occurrence"),)
+
+    registration: Mapped["Registration"] = relationship(back_populates="signups")
+    occurrence: Mapped["Occurrence"] = relationship()

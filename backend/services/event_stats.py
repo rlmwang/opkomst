@@ -1,57 +1,121 @@
 """Event read aggregates.
 
-Three pure-ish helpers the events routers compose:
+Helpers the events routers compose:
 
-* ``enrich`` — batched chapter-name + attendee-total lookup that
-  turns a list of ORM ``Event`` rows into ``EventOut`` DTOs. Used
-  by every list endpoint and by the single-event paths via the
-  ``to_out`` convenience wrapper.
-* ``per_event_stats`` — source/help breakdowns for one event.
-* ``signups_summary`` — name + party_size + help_choices, the
-  organiser-side per-signup list. Privacy-bounded: never email,
-  source, or feedback-email status.
+* ``enrich`` — batched chapter-name + booking headcount + next-occurrence
+  lookup that turns ORM ``Event`` rows into ``EventOut`` DTOs. Used by
+  every list endpoint and the single-event paths via ``to_out``.
+* ``occurrence_totals`` / ``occurrence_signup_counts`` — per-occurrence
+  headcount + line-item counts, for the organiser occurrence panel and
+  the public agenda.
+* ``per_event_stats`` — source/help breakdowns over the event's line
+  items (attendance is per occurrence).
+* ``occurrence_signups_summary`` — name + party_size + help_choices for
+  one occurrence's line items. Privacy-bounded: never email, source, or
+  feedback-email status.
 
-Routers stay thin (input validation + auth + a small combine);
-the SQL lives here where it can be unit-tested without a router
-fixture, mirroring ``services/feedback_stats.py``.
+Routers stay thin; the SQL lives here where it can be unit-tested.
 """
+
+from datetime import datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Event, Signup
+from ..models import Chapter, Event, Occurrence, Registration, Signup
 from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
+from .events import now_wallclock
 
 
-def attendee_totals(db: Session, event_ids: list[str]) -> dict[str, int]:
-    """``event_id -> SUM(party_size)`` for the given events (missing key
-    means zero signups). One grouped SELECT; shared by ``enrich`` and the
-    public agenda so headcount is computed one way."""
+def registration_totals(db: Session, event_ids: list[str]) -> dict[str, int]:
+    """``event_id -> SUM(party_size)`` over the event's bookings — how many
+    people signed up for the course, each booking counted once regardless
+    of how many sessions it covers."""
     if not event_ids:
         return {}
     return {
         event_id: int(total or 0)
         for event_id, total in (
-            db.query(Signup.event_id, func.coalesce(func.sum(Signup.party_size), 0))
-            .filter(Signup.event_id.in_(event_ids))
-            .group_by(Signup.event_id)
+            db.query(Registration.event_id, func.coalesce(func.sum(Registration.party_size), 0))
+            .filter(Registration.event_id.in_(event_ids))
+            .group_by(Registration.event_id)
             .all()
         )
     }
 
 
+def occurrence_totals(db: Session, occurrence_ids: list[str]) -> dict[str, int]:
+    """``occurrence_id -> SUM(party_size)`` over the registrations that have
+    a line item on the occurrence — that session's headcount. Shared by the
+    organiser occurrence panel and the public agenda so headcount is
+    computed one way."""
+    if not occurrence_ids:
+        return {}
+    return {
+        occ_id: int(total or 0)
+        for occ_id, total in (
+            db.query(Signup.occurrence_id, func.coalesce(func.sum(Registration.party_size), 0))
+            .join(Registration, Registration.id == Signup.registration_id)
+            .filter(Signup.occurrence_id.in_(occurrence_ids))
+            .group_by(Signup.occurrence_id)
+            .all()
+        )
+    }
+
+
+def occurrence_signup_counts(db: Session, occurrence_ids: list[str]) -> dict[str, int]:
+    """``occurrence_id -> COUNT(line items)`` for the given occurrences."""
+    if not occurrence_ids:
+        return {}
+    return {
+        occ_id: int(n or 0)
+        for occ_id, n in (
+            db.query(Signup.occurrence_id, func.count(Signup.id))
+            .filter(Signup.occurrence_id.in_(occurrence_ids))
+            .group_by(Signup.occurrence_id)
+            .all()
+        )
+    }
+
+
+def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[str, tuple[datetime | None, str | None]]:
+    """``event_id -> (next_starts_at, link_slug)``. ``next_starts_at`` is the
+    soonest occurrence that hasn't ended (``None`` when every session is
+    past). ``link_slug`` is that same first-upcoming occurrence's public
+    slug, falling back to the most recent past occurrence's slug so the
+    dashboard card + detail header always have a working link/QR target."""
+    if not event_ids:
+        return {}
+    rows = (
+        db.query(Occurrence.event_id, Occurrence.starts_at, Occurrence.ends_at, Occurrence.slug)
+        .filter(Occurrence.event_id.in_(event_ids))
+        .all()
+    )
+    by_event: dict[str, list[tuple[datetime, datetime, str]]] = {}
+    for eid, starts, ends, slug in rows:
+        by_event.setdefault(eid, []).append((starts, ends, slug))
+    out: dict[str, tuple[datetime | None, str | None]] = {}
+    for eid, occs in by_event.items():
+        occs.sort(key=lambda t: t[0])
+        upcoming = [(s, slug) for s, e, slug in occs if e > now]
+        if upcoming:
+            out[eid] = (upcoming[0][0], upcoming[0][1])
+        else:
+            out[eid] = (None, occs[-1][2])  # all past: link to the most recent one
+    return out
+
+
 def enrich(db: Session, events: list[Event]) -> list[EventOut]:
-    """Build ``EventOut`` DTOs with batched lookups for chapter
-    names + per-event attendee totals. Always batches; single-
-    event endpoints wrap a 1-list and unwrap the result. The cost
-    for N=1 is the same two SELECTs the inline path used to
-    issue, so single-event callers don't pay extra."""
+    """Build ``EventOut`` DTOs with batched lookups for chapter names,
+    booking headcount, and next-occurrence start. Single-event endpoints
+    wrap a 1-list and unwrap the result."""
     if not events:
         return []
     event_ids = [e.id for e in events]
     chapter_ids = sorted({e.chapter_id for e in events if e.chapter_id})
 
-    totals = attendee_totals(db, event_ids)
+    totals = registration_totals(db, event_ids)
+    next_occ = _next_occurrence(db, event_ids, now_wallclock())
     chapter_names: dict[str, str] = {}
     if chapter_ids:
         rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids)).all()
@@ -66,8 +130,13 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             location=e.location,
             latitude=e.latitude,
             longitude=e.longitude,
-            starts_at=e.starts_at,
-            ends_at=e.ends_at,
+            starts_on=e.starts_on,
+            start_time=e.start_time,
+            end_time=e.end_time,
+            period_weeks=e.period_weeks,
+            cycle_slots=e.cycle_slots,
+            span_weeks=e.span_weeks,
+            horizon_days=e.horizon_days,
             source_options=e.source_options,
             help_options=e.help_options,
             feedback_enabled=e.feedback_enabled,
@@ -78,6 +147,8 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,
             image_url=e.image_url,
             image_artist_instagram=e.image_artist_instagram,
+            next_starts_at=next_occ.get(e.id, (None, None))[0],
+            next_slug=next_occ.get(e.id, (None, None))[1],
             attendee_count=int(totals.get(e.id, 0)),
             archived=e.archived_at is not None,
         )
@@ -90,11 +161,15 @@ def to_out(db: Session, event: Event) -> EventOut:
     return enrich(db, [event])[0]
 
 
-def per_event_stats(db: Session, event: Event) -> EventStatsOut:
-    """Source/help breakdowns for one event. Pure SQL aggregates."""
+def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventStatsOut:
+    """Source/help breakdowns over the line items matching ``signup_filter``
+    (an event's occurrences, or a single occurrence). Aggregated only: the
+    ``by_source`` counts never link a source answer to a person."""
     rows = (
-        db.query(Signup.source_choice, func.count(Signup.id), func.sum(Signup.party_size))
-        .filter(Signup.event_id == event.id)
+        db.query(Signup.source_choice, func.count(Signup.id), func.coalesce(func.sum(Registration.party_size), 0))
+        .join(Occurrence, Occurrence.id == Signup.occurrence_id)
+        .join(Registration, Registration.id == Signup.registration_id)
+        .filter(signup_filter)
         .group_by(Signup.source_choice)
         .all()
     )
@@ -102,9 +177,11 @@ def per_event_stats(db: Session, event: Event) -> EventStatsOut:
     total_attendees = sum(int(s or 0) for _, _, s in rows)
     by_source = {src: int(c) for src, c, _ in rows if src is not None}
 
-    by_help: dict[str, int] = {opt: 0 for opt in event.help_options}
-    if event.help_options:
-        choice_lists = db.query(Signup.help_choices).filter(Signup.event_id == event.id).all()
+    by_help: dict[str, int] = {opt: 0 for opt in help_options}
+    if help_options:
+        choice_lists = (
+            db.query(Signup.help_choices).join(Occurrence, Occurrence.id == Signup.occurrence_id).filter(signup_filter)
+        ).all()
         for (choices,) in choice_lists:
             for choice in choices or []:
                 if choice in by_help:
@@ -118,19 +195,45 @@ def per_event_stats(db: Session, event: Event) -> EventStatsOut:
     )
 
 
-def signups_summary(db: Session, event: Event) -> list[SignupSummaryOut]:
-    """Per-signup list for the organiser details page. Returns
-    display_name + party_size + help_choices — never email,
-    source, or feedback-email status."""
+def per_event_stats(db: Session, event: Event) -> EventStatsOut:
+    """Source/help breakdowns over the event's sign-up line items. A line
+    item joins through its occurrence to the event; attendance is per
+    occurrence, so a course-booker is counted once per session."""
+    return _stats_for(db, help_options=event.help_options, signup_filter=Occurrence.event_id == event.id)
+
+
+def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: list[str]) -> EventStatsOut:
+    """The same source/help breakdown scoped to one occurrence — the "stats
+    of that day" behind the detail page's calendar day switcher."""
+    return _stats_for(db, help_options=help_options, signup_filter=Signup.occurrence_id == occurrence.id)
+
+
+def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[SignupSummaryOut]:
+    """Per-line-item list for one occurrence on the organiser details page.
+    Name + headcount come from the parent booking; help-choices from the
+    line item. Never email, source, or feedback-email status."""
     rows = (
-        db.query(Signup.id, Signup.display_name, Signup.party_size, Signup.help_choices, Signup.link_recovered_at)
-        .filter(Signup.event_id == event.id)
+        db.query(
+            Signup.id,
+            Signup.registration_id,
+            Registration.display_name,
+            Registration.party_size,
+            Registration.link_recovered_at,
+            Signup.help_choices,
+        )
+        .join(Registration, Registration.id == Signup.registration_id)
+        .filter(Signup.occurrence_id == occurrence.id)
         .order_by(Signup.created_at.asc())
         .all()
     )
     return [
         SignupSummaryOut(
-            id=sid, display_name=name, party_size=size, help_choices=help_choices or [], link_recovered_at=recovered
+            id=sid,
+            registration_id=rid,
+            display_name=name,
+            party_size=size,
+            link_recovered_at=recovered,
+            help_choices=help_choices or [],
         )
-        for sid, name, size, help_choices, recovered in rows
+        for sid, rid, name, size, recovered, help_choices in rows
     ]

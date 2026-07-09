@@ -10,42 +10,37 @@ import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
+import MonthGrid from "@/components/MonthGrid.vue";
 import { chromeStrings } from "@/public_shared/strings";
 import { stripHtml } from "@/public_shared/stripHtml";
 import { showToast } from "@/public_shared/publicToast";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import BrandedSelect from "./BrandedSelect.vue";
-import { ApiError, type PublicEvent, fetchEventBySlug, fetchSignup, postSignup, putSignup, withdrawSignup } from "./api";
+import {
+  ApiError,
+  type Booking,
+  type PublicEvent,
+  fetchBooking,
+  fetchEventBySlug,
+  postSignup,
+  putBooking,
+  putBookingOccurrences,
+  withdrawBooking,
+} from "./api";
 import { type Locale, pickLocale, strings } from "./i18n";
 
 const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
-// ``?s={token}`` puts the page in edit mode: pre-fill the existing
-// signup and PUT instead of POST. Email is never editable (no path
-// from a signup to its decoupled dispatch rows), so the email field
-// is hidden in this mode. ``confirmSaved`` records the token AND routes
-// the URL onto it so a refresh reopens the edit page.
+// ``?s={token}`` puts the page in booking-edit mode: fetch the whole
+// booking by token, edit name + party size, and manage per-occurrence
+// withdrawals. ``confirmSaved`` records the token AND routes the URL onto
+// it so a refresh reopens the edit page.
 const { editToken, editUrl, confirmSaved } = useEditLink("e", () => slug);
 const editing = editToken !== null;
 
-// Server-side-injected event payload. Synchronous, no round-trip
-// on first paint — ``backend/routers/spa.py`` writes
-// ``window.__OPKOMST_EVENT__`` into the served HTML before the
-// JS bundle even parses:
-//   * ``PublicEvent`` object → event exists, render the form.
-//   * ``null`` → backend looked the slug up and didn't find it
-//     (or the slug shape is invalid). Render not-found.
-//   * ``undefined`` → dev mode (Vite serving public-event.html
-//     without the backend's SPA handler in front). Fall back to
-//     a fetch so dev still works; 404 from that fetch means the
-//     same as the inlined-null case.
-//
-// Three independent state flags rather than one tri-state value
-// because the logic split out cleanly: ``loadFailed`` for
-// transport errors (5xx, network), ``notFound`` for "this slug
-// is unknown", everything else gates on ``event`` being truthy.
-// Earlier shape conflated "event is null" with "still loading"
-// and the skeleton shimmer never went away on a 404.
+// Server-side-injected event payload (per-occurrence). Synchronous, no
+// round-trip on first paint. ``null`` = unknown slug (render not-found);
+// ``undefined`` = dev mode without the SPA handler → fall back to fetch.
 const initial = window.__OPKOMST_EVENT__;
 const event = ref<PublicEvent | null>(initial ?? null);
 const notFound = ref(initial === null);
@@ -65,17 +60,24 @@ if (initial === undefined) {
     });
 }
 
-// Locale: ``?lang=`` URL override beats the event's own locale.
 const locale = ref<Locale>(pickLocale(event.value?.locale));
 watch(event, (e) => {
   if (e) locale.value = pickLocale(e.locale);
+  // Dev-mode async load: pre-check the landing occurrence when the form
+  // had no stored draft (production injects the event synchronously, so
+  // the initial draft already carries current.id).
+  if (e && !editing && !hadStoredDraft && selectedIds.value.length === 0 && !allUpcoming.value) {
+    selectedIds.value = [e.current.id];
+  }
 });
 const t = computed(() => strings(locale.value));
-// Shared chrome copy (the false-url / error screens) so the public
-// pages read identically across events / forms / datepolls.
 const c = computed(() => chromeStrings(locale.value));
 
-// --- form state — survives a refresh on flaky mobile connections ---
+// A one-off event skips the calendar picker and behaves like a plain
+// single sign-up.
+const isOneOff = computed(() => !event.value?.is_recurring);
+
+// --- form state (create mode) — survives a refresh on flaky mobile ---
 const draftKey = `signup-draft:${slug}`;
 type Draft = {
   displayName: string;
@@ -83,6 +85,8 @@ type Draft = {
   sourceChoice: string | null;
   helpChoices: string[];
   email: string;
+  occurrenceIds: string[];
+  allUpcoming: boolean;
 };
 function emptyDraft(): Draft {
   return {
@@ -91,12 +95,18 @@ function emptyDraft(): Draft {
     sourceChoice: null,
     helpChoices: [],
     email: "",
+    occurrenceIds: event.value ? [event.value.current.id] : [],
+    allUpcoming: false,
   };
 }
+let hadStoredDraft = false;
 const initialDraft: Draft = (() => {
   try {
     const raw = sessionStorage.getItem(draftKey);
-    if (raw) return { ...emptyDraft(), ...JSON.parse(raw) };
+    if (raw) {
+      hadStoredDraft = true;
+      return { ...emptyDraft(), ...JSON.parse(raw) };
+    }
   } catch { /* ignore */ }
   return emptyDraft();
 })();
@@ -105,9 +115,12 @@ const partySize = ref(initialDraft.partySize);
 const sourceChoice = ref<string | null>(initialDraft.sourceChoice);
 const helpChoices = ref<string[]>(initialDraft.helpChoices);
 const email = ref(initialDraft.email);
+// Checked occurrence ids + the "all upcoming" shortcut.
+const selectedIds = ref<string[]>(initialDraft.occurrenceIds);
+const allUpcoming = ref(initialDraft.allUpcoming);
 
 watch(
-  [displayName, partySize, sourceChoice, helpChoices, email],
+  [displayName, partySize, sourceChoice, helpChoices, email, selectedIds, allUpcoming],
   () => {
     try {
       sessionStorage.setItem(
@@ -118,6 +131,8 @@ watch(
           sourceChoice: sourceChoice.value,
           helpChoices: helpChoices.value,
           email: email.value,
+          occurrenceIds: selectedIds.value,
+          allUpcoming: allUpcoming.value,
         } satisfies Draft),
       );
     } catch { /* ignore quota / private-mode */ }
@@ -133,38 +148,45 @@ const submitted = ref(false);
 const withdrawn = ref(false);
 const errorMsg = ref<string | null>(null);
 
+// --- booking edit mode ---------------------------------------------
+const booking = ref<Booking | null>(null);
+const recoveredAt = ref<string | null>(null);
+
 // Dirty/revert/saved state for the shared edit bar (edit mode only).
 const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
+  // Dirty tracks name, party size, AND the future session selection, so the
+  // edit bar's Save/Revert cover calendar changes too.
   snapshot: () => ({
     name: displayName.value,
     party: partySize.value,
-    source: sourceChoice.value,
-    help: [...helpChoices.value].sort(),
-    email: email.value,
+    sessions: [...selectedIds.value].sort().join(","),
   }),
   apply: (s) => {
     displayName.value = s.name;
     partySize.value = s.party;
-    sourceChoice.value = s.source;
-    helpChoices.value = [...s.help];
-    email.value = s.email;
+    selectedIds.value = s.sessions ? s.sessions.split(",") : [];
   },
 });
 
-// Permanent transparency banner: an organiser has copied this signup's
-// secret link (see RecoveredNotice).
-const recoveredAt = ref<string | null>(null);
+// The booking's future sessions (pre-selection) vs its past sessions (frozen
+// history, shown locked on the calendar).
+function bookedFutureIds(b: Booking): string[] {
+  return b.occurrences.filter((o) => !o.is_past).map((o) => o.occurrence_id);
+}
+const pastBookedIsos = computed(
+  () => new Set((booking.value?.occurrences ?? []).filter((o) => o.is_past).map((o) => o.starts_at.slice(0, 10))),
+);
 
 if (editing) {
-  // Pre-fill from the server, overriding any leftover draft. Email is
-  // not returned and stays blank (the field is hidden anyway).
-  fetchSignup(editToken!)
-    .then((s) => {
-      recoveredAt.value = s.link_recovered_at ?? null;
-      displayName.value = s.display_name ?? "";
-      partySize.value = s.party_size;
-      sourceChoice.value = s.source_choice;
-      helpChoices.value = s.help_choices;
+  fetchBooking(editToken!)
+    .then((b) => {
+      booking.value = b;
+      recoveredAt.value = b.link_recovered_at ?? null;
+      displayName.value = b.display_name ?? "";
+      partySize.value = b.party_size;
+      locale.value = pickLocale(b.locale);
+      selectedIds.value = bookedFutureIds(b);
+      allUpcoming.value = false;
       captureBaseline();
     })
     .catch((err) => {
@@ -176,43 +198,97 @@ if (editing) {
     });
 }
 
-const emailFieldShown = computed(
-  () => Boolean(event.value && (event.value.feedback_enabled || event.value.reminder_enabled)),
-);
-const emailPlaceholder = computed(() => {
-  const e = event.value;
-  if (!e) return "";
-  const r = e.reminder_enabled, q = e.feedback_enabled;
-  if (r && q) return t.value.emailFor.reminderAndFeedback;
-  if (r) return t.value.emailFor.reminderOnly;
-  return t.value.emailFor.feedbackOnly;
+// The landing occurrence and its date/time.
+const current = computed(() => event.value?.current ?? null);
+
+// Session badge for one occurrence ("sessie i van N", or "sessie i" for
+// an open-ended series).
+function sessionBadge(index: number): string {
+  const count = event.value?.total_sessions ?? null;
+  return count === null ? t.value.sessionOpen(index + 1) : t.value.sessionOf(index + 1, count);
+}
+
+function toggleOccurrence(id: string, on: boolean) {
+  if (on) {
+    if (!selectedIds.value.includes(id)) selectedIds.value = [...selectedIds.value, id];
+  } else {
+    selectedIds.value = selectedIds.value.filter((x) => x !== id);
+  }
+}
+
+// --- calendar date picker (recurring events) -----------------------
+const isoDate = (dt: string) => dt.slice(0, 10);
+const upcomingByIso = computed(() => {
+  const m = new Map<string, PublicEvent["upcoming"][number]>();
+  for (const o of event.value?.upcoming ?? []) m.set(isoDate(o.starts_at), o);
+  return m;
+});
+const projectedIsos = computed(() => new Set((event.value?.projected ?? []).map((p) => isoDate(p.starts_at))));
+// ``selectedIds`` is the single source of truth in both modes; the calendar
+// just reflects it. The "select all" toggle is opt-in vs opt-out: flipping
+// it seeds the selection (all / just the landing date), then the visitor
+// adds or deselects individual days on top of that.
+const upcomingIds = computed(() => (event.value?.upcoming ?? []).map((o) => o.id));
+const selectedIsos = computed(() => {
+  const s = new Set<string>();
+  for (const o of event.value?.upcoming ?? []) {
+    if (selectedIds.value.includes(o.id)) s.add(isoDate(o.starts_at));
+  }
+  return s;
+});
+watch(allUpcoming, (on) => {
+  if (on) {
+    selectedIds.value = [...upcomingIds.value];
+  } else {
+    // Off: sign-up falls back to the landing date; manage deselects every
+    // future session (past ones are frozen and unaffected).
+    selectedIds.value = editing ? [] : current.value ? [current.value.id] : [];
+  }
 });
 
+// Monday-first short weekday labels, locale-aware — no extra i18n keys.
+const weekdayLabels = computed(() => {
+  const fmt = new Intl.DateTimeFormat(locale.value === "en" ? "en-GB" : "nl-NL", { weekday: "short" });
+  return [...Array(7)].map((_, i) => fmt.format(new Date(2024, 0, 1 + i))); // 2024-01-01 is a Monday
+});
+
+const pickerMonth = ref<string | null>(null);
+const shownMonth = computed({
+  get: () => pickerMonth.value ?? isoDate(current.value?.starts_at ?? new Date().toISOString()).slice(0, 7),
+  set: (v: string) => { pickerMonth.value = v; },
+});
+
+function dayClass(iso: string): Record<string, boolean> {
+  return {
+    "has-occurrence": upcomingByIso.value.has(iso),
+    selected: selectedIsos.value.has(iso),
+    projected: projectedIsos.value.has(iso),
+    // Past sessions this booking attended: shown locked (manage mode only).
+    attended: pastBookedIsos.value.has(iso),
+  };
+}
+// Every available date is toggleable in both modes (opt-in adds, opt-out
+// deselects) — never locked.
+const dayClickable = (iso: string) => upcomingByIso.value.has(iso);
+function onDayClick(iso: string) {
+  const occ = upcomingByIso.value.get(iso);
+  if (occ) toggleOccurrence(occ.id, !selectedIds.value.includes(occ.id));
+}
+
+// The reminder shown behind the select-all toggle depends on the mode.
+const reminder = computed(() => (allUpcoming.value ? t.value.reminderOptOut : t.value.reminderOptIn));
+
+// --- email transparency --------------------------------------------
 interface EmailUseBullet {
   text: string;
   previewUrl: string;
 }
-
-// Bullets in the privacy explainer that name each email the
-// visitor can expect, with a link to a server-rendered preview of
-// the exact HTML that'll arrive — privacy-by-transparency.
 const emailUseBullets = computed<EmailUseBullet[]>(() => {
-  const e = event.value;
-  if (!e) return [];
-  const bullets: EmailUseBullet[] = [];
-  if (e.reminder_enabled) {
-    bullets.push({
-      text: t.value.emailUses.reminder,
-      previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/reminder`,
-    });
-  }
-  if (e.feedback_enabled) {
-    bullets.push({
-      text: t.value.emailUses.feedback,
-      previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/feedback`,
-    });
-  }
-  return bullets;
+  if (!event.value) return [];
+  return [
+    { text: t.value.emailUses.reminder, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/reminder` },
+    { text: t.value.emailUses.feedback, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/feedback` },
+  ];
 });
 
 // --- add-to-calendar dropdown (native ``<details>`` for the popup) ---
@@ -222,70 +298,41 @@ const calLinks = computed(() => {
   const enc = encodeURIComponent;
   const utc = (iso: string) =>
     new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const publicUrl = `${window.location.origin}/e/${e.slug}`;
+  const publicUrl = `${window.location.origin}/e/${e.current.slug}`;
   const desc = [stripHtml(e.topic), publicUrl].filter(Boolean).join("\n\n");
-  const ics = `/api/v1/events/by-slug/${e.slug}/event.ics`;
+  const ics = `/api/v1/events/by-slug/${e.current.slug}/event.ics`;
   const google =
     `https://calendar.google.com/calendar/render?action=TEMPLATE` +
     `&text=${enc(e.name)}` +
-    `&dates=${utc(e.starts_at)}/${utc(e.ends_at)}` +
+    `&dates=${utc(e.current.starts_at)}/${utc(e.current.ends_at)}` +
     `&details=${enc(desc)}` +
     `&location=${enc(e.location)}`;
   return { google, ics };
 });
 
-// Headcount field is a positive integer 1–50. We block invalid
-// characters at the ``beforeinput`` event so the visitor never
-// SEES junk in the field — typing a letter or period just does
-// nothing instead of being rejected after the fact. Backspace,
-// delete, arrow keys etc. are all ``deleteContent*`` /
-// ``historyUndo`` etc. types and pass through. Pasted strings
-// are validated the same way.
+// --- party-size input guards (create mode) -------------------------
 function onPartyBeforeInput(ev: InputEvent) {
-  // Insertion events carry the proposed text in ``data``;
-  // everything else (deletion, history) has data null/empty.
   if (ev.data == null) return;
-  if (!/^\d+$/.test(ev.data)) {
-    ev.preventDefault();
-  }
+  if (!/^\d+$/.test(ev.data)) ev.preventDefault();
 }
 function onPartyInput(ev: Event) {
-  // Anything that DID get into the field is digits only (the
-  // beforeinput guard ensures it). Parse + clamp to 1–50.
   const raw = (ev.target as HTMLInputElement).value;
-  if (raw === "") return; // mid-edit blank — wait for blur
+  if (raw === "") return;
   const n = parseInt(raw, 10);
-  if (Number.isFinite(n)) {
-    partySize.value = Math.min(50, Math.max(1, n));
-  }
+  if (Number.isFinite(n)) partySize.value = Math.min(50, Math.max(1, n));
 }
 function normalisePartySize(ev: FocusEvent) {
   let n = partySize.value;
-  if (typeof n !== "number" || !Number.isFinite(n) || n < 1) {
-    n = 1;
-  } else {
-    n = Math.min(50, Math.max(1, Math.floor(n)));
-  }
+  if (typeof n !== "number" || !Number.isFinite(n) || n < 1) n = 1;
+  else n = Math.min(50, Math.max(1, Math.floor(n)));
   partySize.value = n;
-  // Force the input element to reflect the model in case the
-  // visitor cleared the field (model held the last valid value
-  // but the visible input was empty).
   (ev.target as HTMLInputElement).value = String(n);
 }
 
-// Prevent the implicit "Enter from any input → submit the form"
-// browser default. With no edit-after-submit affordance, an
-// accidental Enter while typing would lock in a half-finished
-// signup. The submit button itself still works: native focus +
-// Enter activates a focused button, and a click event isn't
-// affected. Textareas are unaffected too — they'd want Enter for
-// newlines anyway, and we don't have any.
 function onFormKeydown(ev: KeyboardEvent) {
   if (ev.key !== "Enter") return;
   const target = ev.target as HTMLElement | null;
-  // Allow Enter-on-button (the deliberate confirm path).
   if (target && target.tagName === "BUTTON") return;
-  // Allow Enter inside a textarea (newline) if we ever add one.
   if (target && target.tagName === "TEXTAREA") return;
   ev.preventDefault();
 }
@@ -303,31 +350,32 @@ async function submit() {
     showToast(c.value.invalidEmail);
     return;
   }
+  // One-off: the single current occurrence is implied.
+  const ids = isOneOff.value ? [event.value.current.id] : selectedIds.value;
+  // Opt-out with nothing deselected → let the server resolve "every future
+  // occurrence" (robust to a stale page). Any deselection, or opt-in, sends
+  // the explicit picks.
+  const fullOptOut =
+    allUpcoming.value && upcomingIds.value.length > 0 && upcomingIds.value.every((id) => ids.includes(id));
+  if (!isOneOff.value && !fullOptOut && ids.length === 0) {
+    showToast(t.value.pickSession);
+    return;
+  }
   submitting.value = true;
   try {
-    if (editing) {
-      await putSignup(editToken!, {
-        display_name: trimmedName || null,
-        party_size: partySize.value,
-        source_choice: sourceChoice.value,
-        help_choices: helpChoices.value,
-      });
-      // Edit-mode save stays on the page: re-baseline + flash "Saved".
-      captureBaseline();
-      flashSaved();
-      clearDraft();
-    } else {
-      const ack = await postSignup(slug, {
-        display_name: trimmedName || null,
-        party_size: partySize.value,
-        source_choice: sourceChoice.value,
-        help_choices: helpChoices.value,
-        email: trimmedEmail || null,
-      });
-      confirmSaved(ack.edit_token);
-      submitted.value = true;
-      clearDraft();
-    }
+    const ack = await postSignup(event.value.current.slug, {
+      display_name: trimmedName || null,
+      party_size: partySize.value,
+      source_choice: sourceChoice.value,
+      help_choices: helpChoices.value,
+      email: trimmedEmail || null,
+      occurrence_ids: fullOptOut ? [] : ids,
+      all_upcoming: fullOptOut,
+    });
+    confirmSaved(ack.edit_token);
+    emailWasEntered.value = Boolean(trimmedEmail);
+    submitted.value = true;
+    clearDraft();
   } catch {
     errorMsg.value = t.value.submitFail;
   } finally {
@@ -335,13 +383,51 @@ async function submit() {
   }
 }
 
-async function withdraw() {
+// Whether the thanks screen promises a feedback mail (only if an email
+// was actually left).
+const emailWasEntered = ref(false);
+
+async function saveBooking() {
+  errorMsg.value = null;
+  const trimmedName = displayName.value.trim();
+  if (!trimmedName) {
+    showToast(c.value.nameRequired);
+    return;
+  }
+  submitting.value = true;
+  try {
+    let b = await putBooking(editToken!, {
+      display_name: trimmedName || null,
+      party_size: partySize.value,
+    });
+    // Recurring event: also persist the future session selection from the
+    // calendar (one-off has no editable session set).
+    if (!isOneOff.value) {
+      const fullOptOut =
+        allUpcoming.value && upcomingIds.value.length > 0 && upcomingIds.value.every((id) => selectedIds.value.includes(id));
+      b = await putBookingOccurrences(editToken!, {
+        occurrence_ids: fullOptOut ? [] : selectedIds.value,
+        all_upcoming: fullOptOut,
+      });
+      selectedIds.value = bookedFutureIds(b);
+      allUpcoming.value = false;
+    }
+    booking.value = b;
+    captureBaseline();
+    flashSaved();
+  } catch {
+    errorMsg.value = t.value.submitFail;
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function withdrawAll() {
   if (!editing) return;
   if (!window.confirm(t.value.withdrawConfirm)) return;
   submitting.value = true;
   try {
-    await withdrawSignup(editToken!);
-    clearDraft();
+    await withdrawBooking(editToken!);
     withdrawn.value = true;
   } catch {
     errorMsg.value = t.value.submitFail;
@@ -351,11 +437,10 @@ async function withdraw() {
 }
 
 onMounted(() => {
-  // ``document.documentElement.lang`` is owned by PublicShell now.
-  document.title = event.value?.name ? `${event.value.name} — opkomst.nu` : "opkomst.nu";
+  document.title = event.value?.name ? `${event.value.name} · opkomst.nu` : "opkomst.nu";
 });
 watch(event, (e) => {
-  if (e?.name) document.title = `${e.name} — opkomst.nu`;
+  if (e?.name) document.title = `${e.name} · opkomst.nu`;
 });
 </script>
 
@@ -377,18 +462,19 @@ watch(event, (e) => {
         :credit-label="t.imageCredit"
         :description-html="event?.topic ?? null"
       >
-        <template v-if="event" #meta>
+        <template v-if="event && current" #meta>
           <PublicMetaRow>
             <template #icon>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </template>
-            {{ formatDate(event.starts_at, locale) }}
+            {{ formatDate(current.starts_at, locale) }}
+            <span v-if="!isOneOff" class="session-tag">{{ sessionBadge(current.index) }}</span>
           </PublicMetaRow>
           <PublicMetaRow>
             <template #icon>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </template>
-            {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
+            {{ formatTimeRange(current.starts_at, current.ends_at, locale) }}
           </PublicMetaRow>
           <PublicMetaRow
             :href="mapLink({ location: event.location, latitude: event.latitude, longitude: event.longitude })"
@@ -416,47 +502,40 @@ watch(event, (e) => {
         </template>
       </PublicTopCard>
 
-      <div v-if="event && !submitted" class="card privacy-card">
+      <!-- Privacy + open-source disclosure (create mode). -->
+      <div v-if="event && !editing && !submitted" class="card privacy-card">
         <details>
           <summary>{{ t.explainerTitle }}</summary>
-          <template v-if="emailFieldShown">
-            <p class="privacy-body">
-              {{ t.explainerIntro }} {{ t.explainerEmailIntro }}
-            </p>
-            <ul class="privacy-bullets">
-              <li v-for="b in emailUseBullets" :key="b.previewUrl">
-                <a :href="b.previewUrl" target="_blank" rel="noopener" class="meta-link">
-                  {{ b.text }}
-                  <svg class="external" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                </a>
-              </li>
-            </ul>
-            <p class="privacy-body">
-              {{ t.explainerEmailOutro }} {{ t.explainerSource }}
-              <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t.explainerLink }}</a>.
-            </p>
-          </template>
-          <p v-else class="privacy-body">
-            {{ t.explainerIntro }} {{ t.explainerNoEmail }} {{ t.explainerSource }}
+          <p class="privacy-body">
+            {{ t.explainerIntro }} {{ t.explainerEmailIntro }}
+          </p>
+          <ul class="privacy-bullets">
+            <li v-for="b in emailUseBullets" :key="b.previewUrl">
+              <a :href="b.previewUrl" target="_blank" rel="noopener" class="meta-link">
+                {{ b.text }}
+                <svg class="external" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </li>
+          </ul>
+          <p class="privacy-body">
+            {{ t.explainerEmailOutro }} {{ t.explainerSource }}
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t.explainerLink }}</a>.
           </p>
         </details>
       </div>
 
+      <!-- Thanks screen (create-mode submit). -->
       <template v-if="submitted">
         <div class="card stack">
           <h2>{{ t.thanks }}</h2>
-          <p class="muted">
-            {{ event?.feedback_enabled ? t.thanksBody : t.thanksBodyNoEmail }}
-          </p>
+          <p class="muted">{{ emailWasEntered ? t.thanksBody : t.thanksBodyNoEmail }}</p>
         </div>
         <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
       </template>
 
-      <RecoveredNotice v-if="editing" :recovered-at="recoveredAt" :locale="locale" />
-
+      <!-- ================= CREATE MODE ================= -->
       <form
-        v-if="!submitted"
+        v-if="event && !editing && !submitted"
         class="card stack signup-form"
         novalidate
         @submit.prevent="submit"
@@ -473,13 +552,7 @@ watch(event, (e) => {
             autocomplete="name"
           />
           <div class="number-field">
-            <button
-              type="button"
-              class="num-step"
-              aria-label="−"
-              :disabled="partySize <= 1"
-              @click="partySize = Math.max(1, (partySize || 1) - 1)"
-            >−</button>
+            <button type="button" class="num-step" aria-label="−" :disabled="partySize <= 1" @click="partySize = Math.max(1, (partySize || 1) - 1)">−</button>
             <input
               :value="partySize"
               type="number"
@@ -493,17 +566,34 @@ watch(event, (e) => {
               @input="onPartyInput($event)"
               @blur="normalisePartySize($event as FocusEvent)"
             />
-            <button
-              type="button"
-              class="num-step"
-              aria-label="+"
-              :disabled="partySize >= 50"
-              @click="partySize = Math.min(50, (partySize || 0) + 1)"
-            >+</button>
+            <button type="button" class="num-step" aria-label="+" :disabled="partySize >= 50" @click="partySize = Math.min(50, (partySize || 0) + 1)">+</button>
           </div>
         </section>
 
-        <section v-if="event && event.help_options.length > 0" class="form-section help-section">
+        <!-- Multi-occurrence calendar picker (hidden for a one-off). Pick
+             the sessions you want, or flip the toggle to take every
+             upcoming one at once. -->
+        <section v-if="!isOneOff" class="form-section session-section">
+          <span class="session-heading">{{ t.sessionsTitle }}</span>
+          <p class="muted picker-explainer">{{ t.pickerExplainer }}</p>
+          <label class="all-upcoming-row">
+            <input v-model="allUpcoming" type="checkbox" role="switch" class="switch" />
+            <span class="all-upcoming-label">{{ t.allUpcoming }}</span>
+          </label>
+          <p class="muted picker-reminder">{{ reminder }}</p>
+          <MonthGrid
+            v-model:month="shownMonth"
+            :locale="locale"
+            :weekdays="weekdayLabels"
+            :day-class="dayClass"
+            :clickable="dayClickable"
+            :prev-label="t.prevMonth"
+            :next-label="t.nextMonth"
+            @day-click="onDayClick"
+          />
+        </section>
+
+        <section v-if="event.help_options.length > 0" class="form-section help-section">
           <div class="help-choices" role="group" :aria-label="t.helpHeading">
             <span class="help-label">{{ t.helpHeading }}</span>
             <label v-for="opt in event.help_options" :key="opt" class="help-row">
@@ -520,35 +610,23 @@ watch(event, (e) => {
         <section class="form-section">
           <BrandedSelect
             v-model="sourceChoice"
-            :options="event?.source_options ?? []"
-            :placeholder="event ? t.sourcePlaceholder : ''"
-            :disabled="!event"
+            :options="event.source_options"
+            :placeholder="t.sourcePlaceholder"
             :aria-label="t.sourcePlaceholder"
           />
           <input
-            v-if="!editing && (!event || emailFieldShown)"
             v-model="email"
             type="email"
             class="input"
-            :placeholder="event ? emailPlaceholder : ''"
-            :disabled="!event"
+            :placeholder="t.emailPlaceholder"
             autocomplete="email"
           />
         </section>
 
         <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
 
-        <div v-if="!editing" class="submit-row">
-          <button
-            type="submit"
-            class="btn-primary"
-            :disabled="!event || submitting"
-            :aria-busy="submitting"
-          >
-            <!-- Submit label and spinner share the cell so the
-                 button never resizes between idle and submitting
-                 states; only one is visible at a time. The label
-                 stays in the DOM (just hidden) to preserve width. -->
+        <div class="submit-row">
+          <button type="submit" class="btn-primary" :disabled="submitting" :aria-busy="submitting">
             <span class="btn-label" :class="{ hidden: submitting }">{{ t.submit }}</span>
             <span v-if="submitting" class="btn-spinner" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -560,25 +638,81 @@ watch(event, (e) => {
         </div>
       </form>
 
-      <PublicEditBar
-        v-if="editing && !submitted"
-        :dirty="dirty"
-        :saving="submitting"
-        :just-saved="justSaved"
-        :locale="locale"
-        @save="submit"
-        @revert="revert"
-        @withdraw="withdraw"
-      />
+      <!-- ================= EDIT MODE (booking) ================= -->
+      <template v-if="editing && !submitted">
+        <RecoveredNotice :recovered-at="recoveredAt" :locale="locale" />
+
+        <form
+          v-if="booking"
+          class="card stack signup-form"
+          novalidate
+          @submit.prevent="saveBooking"
+          @keydown="onFormKeydown"
+        >
+          <h2>{{ t.essentialsTitle }}</h2>
+          <section class="form-section">
+            <input v-model="displayName" type="text" class="input" :placeholder="t.displayName" autocomplete="name" />
+            <div class="number-field">
+              <button type="button" class="num-step" aria-label="−" :disabled="partySize <= 1" @click="partySize = Math.max(1, (partySize || 1) - 1)">−</button>
+              <input
+                :value="partySize"
+                type="number"
+                class="input num-input"
+                min="1"
+                max="50"
+                step="1"
+                inputmode="numeric"
+                :placeholder="t.partySize"
+                @beforeinput="onPartyBeforeInput($event as InputEvent)"
+                @input="onPartyInput($event)"
+                @blur="normalisePartySize($event as FocusEvent)"
+              />
+              <button type="button" class="num-step" aria-label="+" :disabled="partySize >= 50" @click="partySize = Math.min(50, (partySize || 0) + 1)">+</button>
+            </div>
+          </section>
+
+          <!-- Manage sessions: the same calendar + toggle as sign-up,
+               pre-filled with the booking. Past sessions show locked
+               (attended); future ones are added/deselected freely. -->
+          <section v-if="event && !isOneOff" class="form-section session-section">
+            <span class="session-heading">{{ t.bookingSessions }}</span>
+            <p class="muted picker-explainer">{{ t.pickerExplainer }}</p>
+            <label class="all-upcoming-row">
+              <input v-model="allUpcoming" type="checkbox" role="switch" class="switch" />
+              <span class="all-upcoming-label">{{ t.allUpcoming }}</span>
+            </label>
+            <p class="muted picker-reminder">{{ reminder }}</p>
+            <MonthGrid
+              v-model:month="shownMonth"
+              :locale="locale"
+              :weekdays="weekdayLabels"
+              :day-class="dayClass"
+              :clickable="dayClickable"
+              :prev-label="t.prevMonth"
+              :next-label="t.nextMonth"
+              @day-click="onDayClick"
+            />
+          </section>
+
+          <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
+        </form>
+
+        <PublicEditBar
+          v-if="booking"
+          :dirty="dirty"
+          :saving="submitting"
+          :just-saved="justSaved"
+          :locale="locale"
+          @save="saveBooking"
+          @revert="revert"
+          @withdraw="withdrawAll"
+        />
+      </template>
     </template>
   </PublicShell>
 </template>
 
 <style scoped>
-/* Header + language switcher now live in the shared PublicShell. */
-
-/* Form layout — copied verbatim from the original
- * PublicEventPage.vue. */
 .form-section {
   display: flex;
   flex-direction: column;
@@ -602,6 +736,171 @@ watch(event, (e) => {
   margin-bottom: 1.5rem;
 }
 
+/* Session badge next to a date. */
+.session-tag {
+  font-size: 0.75rem;
+  padding: 0.05rem 0.4rem;
+  margin-left: 0.375rem;
+  border-radius: 0.75rem;
+  background: var(--brand-bg);
+  color: var(--brand-text-muted);
+  white-space: nowrap;
+}
+
+/* --- Occurrence picker --- */
+.session-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+/* Explainer under the header (above the toggle). */
+.picker-explainer {
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+/* Select-all toggle: a real switch (not a checkbox), label unbolded. */
+.all-upcoming-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+.all-upcoming-label { font-weight: 400; }
+/* Reminder tucked directly under the toggle it belongs to. */
+.picker-reminder {
+  font-size: 0.8rem;
+  margin: 0 0 0.5rem;
+  padding-left: calc(40px + 0.625rem); /* line up under the switch label */
+}
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--brand-border);
+  position: relative;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 120ms ease;
+}
+.switch:checked { background: var(--brand-red); }
+.switch:checked::after { transform: translateX(18px); }
+.switch:focus-visible { outline: 2px solid var(--brand-red); outline-offset: 2px; }
+/* Calendar date picker: highlight sign-up-able days, fill the selected
+ * ones, mute beyond-horizon projected dates. Cells live inside MonthGrid,
+ * so reach them with :deep. */
+:deep(.mg-cell.has-occurrence) {
+  background: var(--brand-bg);
+  font-weight: 600;
+}
+:deep(.mg-cell.projected) {
+  color: var(--brand-text-muted);
+  border-style: dashed;
+}
+:deep(.mg-cell.selected) {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+}
+:deep(.mg-cell.selected .mg-num) { color: #fff; }
+/* Past sessions this booking attended (manage mode): locked history —
+ * filled but muted, with a subtle strike so they read as done, not
+ * selectable. */
+:deep(.mg-cell.attended) {
+  background: var(--brand-bg);
+  border-style: dashed;
+  color: var(--brand-text-muted);
+  cursor: default;
+}
+:deep(.mg-cell.attended .mg-num) {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.session-row.locked { cursor: default; }
+.session-row.projected {
+  cursor: default;
+  opacity: 0.55;
+}
+.session-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1px dashed var(--brand-border);
+  border-radius: 4px;
+}
+.session-main { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; }
+.not-open {
+  font-size: 0.75rem;
+  color: var(--brand-text-muted);
+  font-style: italic;
+  margin-left: 0.25rem;
+}
+.session-row input[type="checkbox"],
+.help-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  background: var(--brand-bg);
+  border: 1px solid var(--brand-border);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms, border-color 120ms;
+}
+.session-row input[type="checkbox"]:hover:not(:disabled),
+.help-row input[type="checkbox"]:hover {
+  border-color: var(--brand-red);
+}
+.session-row input[type="checkbox"]:focus-visible,
+.help-row input[type="checkbox"]:focus-visible {
+  outline: none;
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
+}
+.session-row input[type="checkbox"]:checked,
+.help-row input[type="checkbox"]:checked {
+  background: var(--brand-red);
+  border-color: var(--brand-red);
+}
+.session-row input[type="checkbox"]:disabled {
+  opacity: 0.6;
+}
+.session-row input[type="checkbox"]:checked::after,
+.help-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* Privacy explainer card */
 .privacy-card summary {
   cursor: pointer;
@@ -623,8 +922,6 @@ watch(event, (e) => {
   line-height: 1.5;
 }
 
-/* Alignment comes from the shared ``.submit-row`` in forms.css; only the
- * top spacing is event-specific (long form → extra separation). */
 .submit-row {
   margin-top: 2rem;
 }
@@ -644,54 +941,8 @@ watch(event, (e) => {
   cursor: pointer;
   font-size: 0.95rem;
 }
-/* Checkboxes styled to match PrimeVue's Checkbox (which the
- * old PublicEventPage used): 20×20 square with brand-border, fills
- * brand-red and shows a white checkmark when checked. ``appearance:
- * none`` strips the OS default so the look stays consistent across
- * browsers. */
-.help-row input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin: 0;
-  padding: 0;
-  background: var(--brand-bg);
-  border: 1px solid var(--brand-border);
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  transition: background 120ms, border-color 120ms;
-}
-.help-row input[type="checkbox"]:hover {
-  border-color: var(--brand-red);
-}
-.help-row input[type="checkbox"]:focus-visible {
-  outline: none;
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
-}
-.help-row input[type="checkbox"]:checked {
-  background: var(--brand-red);
-  border-color: var(--brand-red);
-}
-.help-row input[type="checkbox"]:checked::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  top: 1px;
-  width: 6px;
-  height: 11px;
-  border: solid #fff;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
 
-/* The "add to calendar" popup, pinned to the corner of the shared
- * ``PublicTopCard`` (which is ``position: relative``). Header layout,
- * title, meta rows, and the details body all live in that shared
- * component now. */
+/* The "add to calendar" popup, pinned to the corner of PublicTopCard. */
 .event-actions {
   position: absolute;
   right: 0.75rem;
@@ -705,11 +956,6 @@ watch(event, (e) => {
     justify-content: flex-end;
   }
 }
-
-/* "Add to calendar" — visually matches the previous PrimeVue
- * Button(severity="secondary" size="small"): cream surface, brand
- * border, light shadow. ``<details>``/``<summary>`` is the popup
- * mechanism — accessible, no JS state machine. */
 .cal {
   position: relative;
   display: inline-block;
@@ -758,25 +1004,7 @@ watch(event, (e) => {
 }
 .cal-menu li a:hover { background: var(--brand-bg); }
 
-/* Native form inputs styled to look at home alongside the rest of
- * the brand. ``font-size: 16px`` is the magic number that stops
- * iOS Safari zooming on focus. */
-/* ``.input`` (+ :focus/:disabled) and ``.btn-primary`` now live in
- * ``src/public_shared/forms.css`` (imported in main.ts). Only the
- * event-specific number stepper + submit-spinner rules stay here. */
-
-/* The "how did you hear" dropdown is rendered by ``BrandedSelect``
- * — a fully-themed listbox component instead of a native
- * ``<select>``, because native dropdown panels are OS-styled and
- * couldn't be made to match the cream/red brand of the rest of
- * the form. ``BrandedSelect`` owns its own scoped styles. */
-
-/* Number field with explicit ``−``/``+`` step buttons — same
- * affordance as the previous PrimeVue InputNumber(show-buttons).
- * The buttons hug the input on both sides, sharing borders so
- * the whole control reads as a single field. Native spinner
- * arrows are hidden so we don't get a duplicate set on the
- * right edge of the input. */
+/* Number field with explicit ``−``/``+`` step buttons. */
 .number-field {
   display: flex;
   align-items: stretch;
@@ -809,20 +1037,14 @@ watch(event, (e) => {
   position: relative;
   z-index: 1;
 }
-/* Disabled stepper: dimmed but keep the default cursor — the
- * stop-cursor felt aggressive over what's a soft min/max bound,
- * not a forbidden action. */
 .num-step:disabled { opacity: 0.45; cursor: default; }
 .num-input {
   border-radius: 0;
   text-align: center;
-  /* The wrapping ``.number-field`` controls width; the input
-   * itself stays flex-1 so it fills the gap between the buttons. */
   flex: 1 1 auto;
   width: auto;
   min-width: 0;
 }
-/* Hide browser-native spinner buttons — we render our own. */
 .num-input::-webkit-outer-spin-button,
 .num-input::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -830,9 +1052,6 @@ watch(event, (e) => {
 }
 .num-input { -moz-appearance: textfield; }
 
-/* When ``submitting`` the label is hidden but kept in DOM so the
- * button's width stays put. ``visibility: hidden`` (not display:
- * none) preserves layout. */
 .btn-label.hidden { visibility: hidden; }
 .btn-spinner {
   position: absolute;
@@ -853,31 +1072,5 @@ watch(event, (e) => {
   color: var(--brand-red);
   margin: 0.5rem 0 0;
   font-size: 0.95rem;
-}
-.archived-note { margin-top: 0.5rem; }
-
-/* Skeleton shimmer while the by-slug fetch is in flight. The form
- * below is interactive immediately; these only stand in for header
- * text that genuinely depends on server data. */
-.skeleton-line {
-  display: inline-block;
-  background: linear-gradient(
-    90deg,
-    var(--brand-bg) 0%,
-    color-mix(in srgb, var(--brand-text) 8%, transparent) 50%,
-    var(--brand-bg) 100%
-  );
-  background-size: 200% 100%;
-  border-radius: 4px;
-  animation: opkomst-skeleton 1.4s ease-in-out infinite;
-}
-.skeleton-title { width: 60%; height: 1.5rem; vertical-align: middle; }
-.skeleton-meta  { width: 12rem; max-width: 70%; height: 0.95rem; }
-@keyframes opkomst-skeleton {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-line { animation: none; }
 }
 </style>

@@ -9,6 +9,8 @@ export interface Strings {
   emptyUpcoming: string;
   notFound: string;
   attendees: (n: number) => string;
+  sessionOf: (i: number, n: number) => string;
+  sessionOpen: (i: number) => string;
 }
 
 const nl: Strings = {
@@ -17,6 +19,8 @@ const nl: Strings = {
   emptyUpcoming: "Er staan nog geen evenementen gepland.",
   notFound: "Deze afdeling bestaat niet (meer).",
   attendees: (n) => `${n} kwamen`,
+  sessionOf: (i, n) => `sessie ${i} van ${n}`,
+  sessionOpen: (i) => `sessie ${i}`,
 };
 
 const en: Strings = {
@@ -25,6 +29,8 @@ const en: Strings = {
   emptyUpcoming: "Nothing planned right now.",
   notFound: "This chapter doesn't exist (anymore).",
   attendees: (n) => `${n} came`,
+  sessionOf: (i, n) => `session ${i} of ${n}`,
+  sessionOpen: (i) => `session ${i}`,
 };
 
 export function pickLocale(): Locale {

@@ -47,7 +47,7 @@ def _run_redactor(source: str) -> str:
 # breaking the test fixture. Compose it programmatically.
 _DISPATCHES_HEADER = (
     "COPY public.email_dispatches "
-    "(event_id, channel, status, encrypted_email, "
+    "(occurrence_id, channel, status, encrypted_email, "
     "message_id, sent_at, id, created_at, updated_at) FROM stdin;"
 )
 _DUMP = (

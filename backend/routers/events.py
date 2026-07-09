@@ -23,10 +23,20 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import EmailChannel, Event, User
-from ..schemas.events import EventCreate, EventOut, EventStatsOut, SignupSummaryOut
-from ..services import access, crud, event_stats, mail_lifecycle
+from ..models import EmailChannel, Event, Occurrence, User
+from ..schemas.events import (
+    EventCreate,
+    EventOut,
+    EventStatsOut,
+    EventUpdate,
+    OccurrenceListOut,
+    OccurrenceOut,
+    ProjectedOccurrenceOut,
+    SignupSummaryOut,
+)
+from ..services import access, crud, event_recurrence, event_stats, mail_lifecycle
 from ..services import image as image_svc
+from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
 from ..services.slug import new_slug
 
@@ -43,8 +53,6 @@ def create_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    if data.ends_at <= data.starts_at:
-        raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
     # Caller-supplied chapter must be one the user actually
     # belongs to. The frontend's chapter dropdown is already
     # scoped to the user's live chapters; this is the
@@ -57,8 +65,13 @@ def create_event(
         location=data.location,
         latitude=data.latitude,
         longitude=data.longitude,
-        starts_at=data.starts_at,
-        ends_at=data.ends_at,
+        starts_on=data.starts_on,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        period_weeks=data.period_weeks,
+        cycle_slots=data.cycle_slots,
+        span_weeks=data.span_weeks,
+        horizon_days=data.horizon_days,
         source_options=data.source_options,
         help_options=data.help_options,
         feedback_enabled=data.feedback_enabled,
@@ -70,6 +83,11 @@ def create_event(
         image_artist_instagram=data.image_artist_instagram,
     )
     db.add(event)
+    db.flush()
+    # Materialise the in-horizon occurrences at once so the event's public
+    # pages work immediately; a one-off gets its single occurrence here and
+    # needs no tick.
+    event_recurrence.materialise(db, event, now_wallclock())
     db.commit()
     db.refresh(event)
     logger.info(
@@ -90,7 +108,7 @@ def list_events(
     rows = (
         db.query(Event)
         .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_(None))
-        .order_by(Event.starts_at.desc())
+        .order_by(Event.starts_on.desc())
         .all()
     )
     return event_stats.enrich(db, rows)
@@ -197,12 +215,10 @@ def send_emails_now(
 def update_event(
     request: Request,
     event_id: str,
-    data: EventCreate,
+    data: EventUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    if data.ends_at <= data.starts_at:
-        raise HTTPException(status_code=400, detail="ends_at must be after starts_at")
     event = access.get_event_for_user(db, event_id, user)
     was_feedback = event.feedback_enabled
     was_reminder = event.reminder_enabled
@@ -219,8 +235,13 @@ def update_event(
     event.location = data.location
     event.latitude = data.latitude
     event.longitude = data.longitude
-    event.starts_at = data.starts_at
-    event.ends_at = data.ends_at
+    event.starts_on = data.starts_on
+    event.start_time = data.start_time
+    event.end_time = data.end_time
+    event.period_weeks = data.period_weeks
+    event.cycle_slots = data.cycle_slots
+    event.span_weeks = data.span_weeks
+    event.horizon_days = data.horizon_days
     event.source_options = data.source_options
     event.help_options = data.help_options
     event.feedback_enabled = data.feedback_enabled
@@ -229,9 +250,15 @@ def update_event(
     event.locale = data.locale
     event.image_artist_instagram = data.image_artist_instagram
 
-    # Toggle-off cleanup: when an organiser disables a channel,
-    # delete pending dispatches for it and wipe ciphertext for
-    # signups that no longer have any pending dispatch.
+    # A rule change re-points / prunes future occurrences (keeping any that
+    # already have sign-ups) and materialises newly in-horizon dates. Past
+    # occurrences are frozen. Content changes need no propagation — every
+    # occurrence reads content through the event.
+    db.flush()
+    event_recurrence.reconcile(db, event, now_wallclock())
+
+    # Toggle-off cleanup: when an organiser disables a channel, delete
+    # pending dispatches for it across the event's occurrences.
     retired: set[EmailChannel] = set()
     if was_feedback and not data.feedback_enabled:
         retired.add(EmailChannel.FEEDBACK)
@@ -339,14 +366,69 @@ def event_stats_endpoint(
     return event_stats.per_event_stats(db, event)
 
 
-@router.get("/{event_id}/signups", response_model=list[SignupSummaryOut])
-def event_signups(
+@router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)
+def event_occurrences(
     event_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
+) -> OccurrenceListOut:
+    """The occurrence panel on the organiser detail page: the materialised
+    occurrences with per-session headcount + line-item counts, plus the
+    projected future dates that aren't rows yet. Strictly read-only per
+    occurrence — the only actions are on the event itself."""
+    event = access.get_event_for_user(db, event_id, user)
+    occs = db.query(Occurrence).filter(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc()).all()
+    occ_ids = [o.id for o in occs]
+    totals = event_stats.occurrence_totals(db, occ_ids)
+    counts = event_stats.occurrence_signup_counts(db, occ_ids)
+    projected = event_recurrence.projected_future_specs(event, now_wallclock())
+    return OccurrenceListOut(
+        total_sessions=event_recurrence.total_sessions(event),
+        occurrences=[
+            OccurrenceOut(
+                id=o.id,
+                slug=o.slug,
+                index=event_recurrence.session_index(event, o.starts_at.date()),
+                starts_at=o.starts_at,
+                ends_at=o.ends_at,
+                attendee_count=int(totals.get(o.id, 0)),
+                signup_count=int(counts.get(o.id, 0)),
+            )
+            for o in occs
+        ],
+        projected=[ProjectedOccurrenceOut(index=s.index, starts_at=s.starts_at, ends_at=s.ends_at) for s in projected],
+    )
+
+
+@router.get("/{event_id}/occurrences/{occurrence_id}/signups", response_model=list[SignupSummaryOut])
+def occurrence_signups(
+    event_id: str,
+    occurrence_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
 ) -> list[SignupSummaryOut]:
-    """Per-signup list for the organiser details page. Returns
-    display_name + party_size + help_choices — never email,
+    """Per-line-item list for one occurrence of the organiser's event.
+    Returns display_name + party_size + help_choices — never email,
     source, or feedback-email status."""
     event = access.get_event_for_user(db, event_id, user)
-    return event_stats.signups_summary(db, event)
+    occurrence = db.query(Occurrence).filter(Occurrence.id == occurrence_id, Occurrence.event_id == event.id).first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Occurrence not found")
+    return event_stats.occurrence_signups_summary(db, occurrence)
+
+
+@router.get("/{event_id}/occurrences/{occurrence_id}/stats", response_model=EventStatsOut)
+def occurrence_stats(
+    event_id: str,
+    occurrence_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventStatsOut:
+    """Aggregated source/help breakdown for one occurrence — the "stats of
+    that day" behind the detail page's calendar day switcher. Aggregate
+    only, never linked to a person."""
+    event = access.get_event_for_user(db, event_id, user)
+    occurrence = db.query(Occurrence).filter(Occurrence.id == occurrence_id, Occurrence.event_id == event.id).first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Occurrence not found")
+    return event_stats.per_occurrence_stats(db, occurrence, event.help_options)

@@ -11,7 +11,7 @@ Pin three things:
   correctly across the spring-forward / fall-back jump.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import freezegun
@@ -25,6 +25,8 @@ from backend.models import (
     EmailStatus,
     Event,
     FeedbackToken,
+    Occurrence,
+    Registration,
     Signup,
 )
 
@@ -42,8 +44,10 @@ def _seed_minimal_event_and_signup() -> str:
             slug="slug-tok",
             name="Demo",
             location="Test",
-            starts_at=datetime(2026, 4, 28, 18, 0, tzinfo=UTC),
-            ends_at=datetime(2026, 4, 28, 20, 0, tzinfo=UTC),
+            starts_on=datetime(2026, 4, 28).date(),
+            start_time=time(18, 0),
+            end_time=time(20, 0),
+            cycle_slots=[],
             source_options=["x"],
             help_options=[],
             feedback_enabled=True,
@@ -54,10 +58,21 @@ def _seed_minimal_event_and_signup() -> str:
         )
         db.add(e)
         db.flush()
-        s = Signup(
+        occ = Occurrence(
+            id="occ-tok",
             event_id="evt-tok",
-            display_name="A",
-            party_size=1,
+            slug="occslug-tok",
+            starts_at=datetime(2026, 4, 28, 18, 0),
+            ends_at=datetime(2026, 4, 28, 20, 0),
+        )
+        db.add(occ)
+        db.flush()
+        registration = Registration(event_id="evt-tok", display_name="A", party_size=1)
+        db.add(registration)
+        db.flush()
+        s = Signup(
+            registration_id=registration.id,
+            occurrence_id="occ-tok",
             source_choice="x",
             help_choices=[],
         )
@@ -65,10 +80,10 @@ def _seed_minimal_event_and_signup() -> str:
         # A finalised dispatch row to mirror the real path; not
         # actually consulted by these tests but kept so the seed
         # matches production. Decoupled from the signup — pointed
-        # at the event directly.
+        # at the occurrence directly.
         db.add(
             EmailDispatch(
-                event_id="evt-tok",
+                occurrence_id="occ-tok",
                 channel=EmailChannel.FEEDBACK,
                 status=EmailStatus.SENT,
             )
@@ -91,7 +106,7 @@ def _mint_token(_signup_id: str, *, expires_at: datetime) -> str:
         db.add(
             FeedbackToken(
                 token=raw,
-                event_id="evt-tok",
+                occurrence_id="occ-tok",
                 expires_at=expires_at,
             )
         )

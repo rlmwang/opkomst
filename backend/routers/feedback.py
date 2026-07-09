@@ -23,9 +23,9 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..database import get_db
 from ..models import (
-    Event,
     FeedbackResponse,
     FeedbackToken,
+    Occurrence,
     User,
 )
 from ..schemas.feedback import (
@@ -92,12 +92,13 @@ def list_questions(
 @router.get("/feedback/{token}", response_model=FeedbackFormOut)
 def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackFormOut:
     row = _resolve_token(db, token)
-    event = db.query(Event).filter(Event.id == row.event_id).first()
-    if not event:
+    occurrence = db.query(Occurrence).filter(Occurrence.id == row.occurrence_id).first()
+    if not occurrence:
         raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
+    event = occurrence.event
     return FeedbackFormOut(
         event_name=event.name,
-        event_slug=event.slug,
+        event_slug=occurrence.slug,
         event_locale=event.locale,
         questions=_question_dtos(),
     )
@@ -141,7 +142,7 @@ def submit_feedback(
         q = BY_KEY[key]
         db.add(
             FeedbackResponse(
-                event_id=row.event_id,
+                occurrence_id=row.occurrence_id,
                 question_key=key,
                 submission_id=submission_id,
                 answer_int=value if q.kind == "rating" else None,  # type: ignore[arg-type]
@@ -152,9 +153,10 @@ def submit_feedback(
     # One-shot: the token is gone the moment we accept a response. The
     # privacy invariant is that no row in the system can map this
     # submission back to the attendee from this point on.
+    occurrence_id = row.occurrence_id
     db.delete(row)
     db.commit()
-    logger.info("feedback_submitted", event_id=row.event_id, submission_id=submission_id)
+    logger.info("feedback_submitted", occurrence_id=occurrence_id, submission_id=submission_id)
     return {"status": "ok"}
 
 
@@ -197,9 +199,10 @@ def feedback_submissions(
     the contract documented in the public privacy notice."""
     access.get_event_for_user(db, event_id, user)
 
+    occ_ids = db.query(Occurrence.id).filter(Occurrence.event_id == event_id)
     rows = (
         db.query(FeedbackResponse)
-        .filter(FeedbackResponse.event_id == event_id)
+        .filter(FeedbackResponse.occurrence_id.in_(occ_ids))
         .order_by(FeedbackResponse.submission_id, FeedbackResponse.created_at)
         .all()
     )

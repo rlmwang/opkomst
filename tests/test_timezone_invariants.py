@@ -26,6 +26,8 @@ from backend.models import (
     EmailDispatch,
     EmailStatus,
     Event,
+    Occurrence,
+    Registration,
     Signup,
 )
 from backend.services import encryption, mail_lifecycle
@@ -61,13 +63,16 @@ def _seed_event_and_signup(
     try:
         _ensure_test_chapter(db, "chapter-x")
         _ensure_test_user(db, "user-x")
+        ends = ends_at or (starts_at + timedelta(hours=2))
         e = Event(
             id="evt-1",
             slug="slug1",
             name="Demo",
             location="Test",
-            starts_at=starts_at,
-            ends_at=ends_at or (starts_at + timedelta(hours=2)),
+            starts_on=starts_at.date(),
+            start_time=starts_at.time(),
+            end_time=ends.time(),
+            cycle_slots=[],
             source_options=["x"],
             help_options=[],
             feedback_enabled=True,
@@ -78,10 +83,21 @@ def _seed_event_and_signup(
         )
         db.add(e)
         db.flush()
-        s = Signup(
+        occ = Occurrence(
+            id="occ-1",
             event_id="evt-1",
-            display_name="A",
-            party_size=1,
+            slug="occslug1",
+            starts_at=starts_at,
+            ends_at=ends,
+        )
+        db.add(occ)
+        db.flush()
+        registration = Registration(event_id="evt-1", display_name="A", party_size=1)
+        db.add(registration)
+        db.flush()
+        s = Signup(
+            registration_id=registration.id,
+            occurrence_id="occ-1",
             source_choice="x",
             help_choices=[],
         )
@@ -90,7 +106,7 @@ def _seed_event_and_signup(
             db.add(
                 EmailDispatch(
                     id=str(uuid7()),
-                    event_id="evt-1",
+                    occurrence_id="occ-1",
                     channel=ch,
                     status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt("alice@example.test"),

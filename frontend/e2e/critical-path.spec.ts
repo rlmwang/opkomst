@@ -44,11 +44,12 @@ test("public visitor signs up for an event and sees the thanks state", async ({
       name: "E2E Smoke Event",
       chapter_id: chapterId,
       location: "Amsterdam",
-      starts_at: startsAt.toISOString().slice(0, 19),
-      ends_at: endsAt.toISOString().slice(0, 19),
+      starts_on: startsAt.toISOString().slice(0, 10),
+      start_time: "19:00:00",
+      end_time: "21:00:00",
       source_options: ["Mond-tot-mond"],
       help_options: [],
-      questionnaire_enabled: false,
+      feedback_enabled: false,
       reminder_enabled: false,
       locale: "nl",
     },
@@ -56,6 +57,13 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   expect(eventRes.ok()).toBeTruthy();
   const event = await eventRes.json();
   expect(event.slug).toBeTruthy();
+
+  // The public page is per OCCURRENCE now; fetch the event's first
+  // materialised occurrence and use its slug for /e/{slug}.
+  const occRes = await request.get(`/api/v1/events/${event.id}/occurrences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const occSlug = (await occRes.json()).occurrences[0].slug as string;
 
   // --- act: visitor opens the public link, fills + submits the form ---
   // The page now lives in its own Vue mini-app
@@ -65,7 +73,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   // popup). Selectors below match that shape.
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(`/e/${event.slug}`);
+  await v.goto(`/e/${occSlug}`);
 
   // Display name input is the first field on the form. The form
   // is form-first-rendered: this input is interactive even before

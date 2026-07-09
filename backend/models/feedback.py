@@ -24,7 +24,11 @@ class FeedbackToken(UUIDMixin, TimestampMixin, Base):
     # URL-safe token (secrets.token_urlsafe(32), ~43 chars). Looked up
     # directly from the link in the email.
     token: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Feedback is per occurrence (one questionnaire after each date), so the
+    # token and its responses hang off the occurrence, not the event.
+    occurrence_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("occurrences.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -43,7 +47,9 @@ class FeedbackResponse(UUIDMixin, TimestampMixin, Base):
 
     __tablename__ = "feedback_responses"
 
-    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    occurrence_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("occurrences.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     question_key: Mapped[str] = mapped_column(Text, nullable=False)
     # Random per-submission id (not linked to anything else). Lets us
     # count distinct submissions ("12 people responded") without

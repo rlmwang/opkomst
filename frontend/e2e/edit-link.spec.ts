@@ -27,8 +27,9 @@ test("visitor edits a signup via the magic link on the confirmation page", async
       name: "E2E Edit-link Event",
       chapter_id: chapterId,
       location: "Amsterdam",
-      starts_at: startsAt.toISOString().slice(0, 19),
-      ends_at: endsAt.toISOString().slice(0, 19),
+      starts_on: startsAt.toISOString().slice(0, 10),
+      start_time: "19:00:00",
+      end_time: "21:00:00",
       source_options: ["Mond-tot-mond"],
       help_options: [],
       feedback_enabled: false,
@@ -39,9 +40,15 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   expect(eventRes.ok()).toBeTruthy();
   const event = await eventRes.json();
 
+  // Public page is per occurrence; use the first occurrence's slug.
+  const occRes = await request.get(`/api/v1/events/${event.id}/occurrences`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const occSlug = (await occRes.json()).occurrences[0].slug as string;
+
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(`/e/${event.slug}`);
+  await v.goto(`/e/${occSlug}`);
 
   await v.locator("input").first().fill("Anna Anoniem");
   const sourceTrigger = v.locator("button[aria-haspopup='listbox']");
@@ -56,7 +63,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
 
   // The edit link is the anchor inside the EditLink card.
   const editUrl = (await v.locator(".edit-link .link").getAttribute("href")) ?? "";
-  expect(editUrl).toContain(`/e/${event.slug}?s=`);
+  expect(editUrl).toContain(`/e/${occSlug}?s=`);
 
   // --- reopen the link: prior answer pre-filled, editable ---
   const e = await visitor.newPage();

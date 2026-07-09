@@ -22,6 +22,8 @@ from backend.models import (
     EmailStatus,
     FeedbackResponse,
     FeedbackToken,
+    Occurrence,
+    Registration,
     Signup,
 )
 
@@ -37,8 +39,9 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
         "name": "Demo",
         "topic": None,
         "location": "Adam",
-        "starts_at": "2026-05-01T18:00:00",
-        "ends_at": "2026-05-01T20:00:00",
+        "starts_on": "2026-05-01",
+        "start_time": "18:00:00",
+        "end_time": "20:00:00",
         "source_options": ["Flyer"],
         "feedback_enabled": True,
         "locale": "nl",
@@ -49,19 +52,28 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
     return r.json()
 
 
+def _first_occurrence_id(db: Any, event_id: str) -> str:
+    occ = db.query(Occurrence).filter(Occurrence.event_id == event_id).order_by(Occurrence.starts_at).first()
+    assert occ is not None
+    return occ.id
+
+
 def _seed_signup_with_token(event_id: str, *, email: str = "alice@x.test") -> tuple[str, str]:
-    """Insert a Signup + FeedbackToken pair directly. Returns
-    ``(token, signup_id)``. The signup row is independent from
-    the token (privacy: a feedback response can't be linked to
-    a signup); ``email`` is unused under R5 because the address
-    no longer lives on the signup."""
+    """Insert a booking (registration + line item) + FeedbackToken pair
+    directly. Returns ``(token, signup_id)``. The signup row is independent
+    from the token (privacy: a feedback response can't be linked to a
+    signup); the token and response rows key on the occurrence. ``email``
+    is unused under R5 because the address no longer lives on the signup."""
     del email  # legacy argument; address lives on dispatch rows now
     db = SessionLocal()
     try:
+        occ_id = _first_occurrence_id(db, event_id)
+        registration = Registration(event_id=event_id, display_name="Alice", party_size=1)
+        db.add(registration)
+        db.flush()
         signup = Signup(
-            event_id=event_id,
-            display_name="Alice",
-            party_size=1,
+            registration_id=registration.id,
+            occurrence_id=occ_id,
             source_choice="Flyer",
             help_choices=[],
         )
@@ -71,7 +83,7 @@ def _seed_signup_with_token(event_id: str, *, email: str = "alice@x.test") -> tu
         db.add(
             FeedbackToken(
                 token=raw,
-                event_id=event_id,
+                occurrence_id=occ_id,
                 expires_at=datetime.now(UTC) + timedelta(days=30),
             )
         )
@@ -110,7 +122,10 @@ def test_feedback_form_happy_path(client, organiser_headers):
     assert r.status_code == 200
     body = r.json()
     assert body["event_name"] == event["name"]
-    assert body["event_slug"] == event["slug"]
+    # The feedback form is per occurrence, so ``event_slug`` is the
+    # occurrence's public slug, not the event's internal slug.
+    occ = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    assert body["event_slug"] == occ["slug"]
     assert body["event_locale"] == "nl"
     assert len(body["questions"]) == 5
 
@@ -161,7 +176,8 @@ def test_submit_feedback_happy_path(client, organiser_headers):
     # Responses landed.
     db = SessionLocal()
     try:
-        rows = db.query(FeedbackResponse).filter(FeedbackResponse.event_id == event["id"]).all()
+        occ_id = _first_occurrence_id(db, event["id"])
+        rows = db.query(FeedbackResponse).filter(FeedbackResponse.occurrence_id == occ_id).all()
         assert len(rows) == 5
         # All rows share one submission_id (random per submission).
         sub_ids = {r.submission_id for r in rows}
@@ -254,24 +270,28 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
     event = _new_event(client, organiser_headers, reminder_enabled=True)
     db = SessionLocal()
     try:
-        signup = Signup(
-            event_id=event["id"],
-            display_name="A",
-            party_size=1,
-            source_choice="Flyer",
-            help_choices=[],
+        occ_id = _first_occurrence_id(db, event["id"])
+        registration = Registration(event_id=event["id"], display_name="A", party_size=1)
+        db.add(registration)
+        db.flush()
+        db.add(
+            Signup(
+                registration_id=registration.id,
+                occurrence_id=occ_id,
+                source_choice="Flyer",
+                help_choices=[],
+            )
         )
-        db.add(signup)
         db.add(
             EmailDispatch(
-                event_id=event["id"],
+                occurrence_id=occ_id,
                 channel=EmailChannel.FEEDBACK,
                 status=EmailStatus.SENT,
             )
         )
         db.add(
             EmailDispatch(
-                event_id=event["id"],
+                occurrence_id=occ_id,
                 channel=EmailChannel.REMINDER,
                 status=EmailStatus.PENDING,
                 encrypted_email=b"some-ciphertext",

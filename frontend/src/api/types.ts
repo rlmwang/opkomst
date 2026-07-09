@@ -42,6 +42,19 @@ export type SignupSummary = S["SignupSummaryOut"];
 export type SignupCreate = S["SignupCreate"];
 export type SignupAck = S["SignupAck"];
 
+// --- Recurring occurrences ---
+export type Occurrence = S["OccurrenceOut"];
+export type OccurrenceList = S["OccurrenceListOut"];
+export type ProjectedOccurrence = S["ProjectedOccurrenceOut"];
+export type OccurrenceCard = S["OccurrenceCardOut"];
+
+// --- Public sign-up + booking (also hand-rolled in src/public/api.ts
+// for the standalone mini-app bundle; kept here for the admin side). ---
+export type PublicEventOut = S["PublicEventOut"];
+export type PublicOccurrence = S["PublicOccurrenceOut"];
+export type BookingOut = S["BookingOut"];
+export type BookingOccurrence = S["BookingOccurrenceOut"];
+
 // --- Forms (standalone questionnaires) ---
 export type FormOut = S["FormOut"];
 export type FormListOut = S["FormListOut"];

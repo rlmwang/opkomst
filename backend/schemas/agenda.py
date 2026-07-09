@@ -5,12 +5,14 @@ from pydantic import BaseModel
 from .chapters import ChapterPublicOut
 
 
-class EventCardOut(BaseModel):
-    """One event as it appears on a chapter agenda card. Deliberately
-    narrower than ``EventOut``: no coordinates, option lists, or lifecycle
-    flags, so the public grid leaks less than the sign-up page."""
+class OccurrenceCardOut(BaseModel):
+    """One occurrence as it appears on a chapter agenda card. Deliberately
+    narrower than the sign-up DTO: no coordinates, option lists, or
+    lifecycle flags, so the public grid leaks less than the sign-up page.
+    ``index`` + ``total_sessions`` drive the "sessie i van N" badge
+    (``total_sessions`` null = open-ended series)."""
 
-    slug: str
+    slug: str  # the occurrence's public slug (/e/{slug})
     name: str
     topic: str | None
     starts_at: datetime
@@ -19,13 +21,15 @@ class EventCardOut(BaseModel):
     image_url: str | None
     image_artist_instagram: str | None
     attendee_count: int
+    index: int
+    total_sessions: int | None
 
 
 class ChapterAgendaOut(BaseModel):
-    """A chapter's public agenda: its identity, the upcoming events, and
-    a recent-past section (back to the start of the last full calendar
-    month)."""
+    """A chapter's public agenda: its identity, the upcoming occurrences
+    (within a rolling one-month display window), and a recent-past section
+    (back to the start of the last full calendar month)."""
 
     chapter: ChapterPublicOut
-    upcoming: list[EventCardOut]
-    past: list[EventCardOut]
+    upcoming: list[OccurrenceCardOut]
+    past: list[OccurrenceCardOut]

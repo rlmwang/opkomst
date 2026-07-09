@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from _helpers import commit
-from _helpers.events import make_event
+from _helpers.events import first_occurrence, make_event
 from _helpers.signups import make_signup
 
 from backend.database import SessionLocal
@@ -19,7 +19,7 @@ from backend.services import mail_lifecycle
 from backend.services.events import now_wallclock
 
 
-def test_event_starts_at_persists_as_naive_wall_clock(db: Any) -> None:
+def test_occurrence_starts_at_persists_as_naive_wall_clock(db: Any) -> None:
     e = make_event(db, starts_in=timedelta(hours=24))
     commit(db)
 
@@ -27,13 +27,15 @@ def test_event_starts_at_persists_as_naive_wall_clock(db: Any) -> None:
     try:
         row = fresh.query(Event).filter_by(id=e.id).first()
         assert row is not None
-        assert row.starts_at.tzinfo is None
-        assert row.ends_at.tzinfo is None
+        assert row.start_time.tzinfo is None
+        occ = first_occurrence(row)
+        assert occ.starts_at.tzinfo is None
+        assert occ.ends_at.tzinfo is None
     finally:
         fresh.close()
 
 
-def test_event_create_via_http_rejects_tz_aware_isostring(client, organiser_headers) -> None:
+def test_event_create_via_http_rejects_tz_aware_time(client, organiser_headers) -> None:
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     payload = {
         "name": "Demo",
@@ -42,8 +44,9 @@ def test_event_create_via_http_rejects_tz_aware_isostring(client, organiser_head
         "location": "Adam",
         "latitude": None,
         "longitude": None,
-        "starts_at": "2026-06-08T18:00:00Z",  # bug-shaped: tz suffix
-        "ends_at": "2026-06-08T20:00:00Z",
+        "starts_on": "2026-06-08",
+        "start_time": "18:00:00Z",  # bug-shaped: tz suffix
+        "end_time": "20:00:00Z",
         "source_options": ["F"],
         "help_options": [],
         "feedback_enabled": True,
@@ -62,10 +65,11 @@ def test_reminder_email_shows_the_organiser_typed_time(db: Any, fake_email: Any)
     display the HH:MM in the email is literally the input."""
     starts_at = (now_wallclock() + timedelta(hours=24)).replace(minute=0, second=0, microsecond=0)
     e = make_event(db, starts_in=starts_at - now_wallclock())
-    # Force a specific wall-clock so the assertion is unambiguous
-    # regardless of test-run hour.
-    e.starts_at = datetime(2026, 6, 8, 18, 0)
-    e.ends_at = datetime(2026, 6, 8, 20, 0)
+    # Force a specific wall-clock on the occurrence (what the reminder
+    # reads) so the assertion is unambiguous regardless of test-run hour.
+    occ = first_occurrence(e)
+    occ.starts_at = datetime(2026, 6, 8, 18, 0)
+    occ.ends_at = datetime(2026, 6, 8, 20, 0)
     make_signup(db, e, email="alice@example.org")
     commit(db)
 

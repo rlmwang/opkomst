@@ -123,6 +123,179 @@
         "title": "Body_upload_roster_image_api_v1_chores__roster_id__image_post",
         "type": "object"
       },
+      "BookingEditIn": {
+        "description": "Edit the booking-level fields (name + headcount). Per-occurrence\nmembership is changed by withdrawing individual occurrences, not\nhere. Email + dispatch rows are unreachable from a booking\n(principle #2).",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "party_size": {
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Party Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "party_size"
+        ],
+        "title": "BookingEditIn",
+        "type": "object"
+      },
+      "BookingOccurrenceOut": {
+        "description": "One occurrence a booking is on, as shown on the manage page.\n``is_past`` marks a session that has already started: it is frozen\nhistory (attended), rendered locked and never editable.",
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "is_past": {
+            "title": "Is Past",
+            "type": "boolean"
+          },
+          "occurrence_id": {
+            "title": "Occurrence Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "source_choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Choice"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurrence_id",
+          "slug",
+          "index",
+          "starts_at",
+          "ends_at",
+          "is_past",
+          "source_choice",
+          "help_choices"
+        ],
+        "title": "BookingOccurrenceOut",
+        "type": "object"
+      },
+      "BookingOccurrencesIn": {
+        "description": "Replace a booking's **future** session set (the manage-page calendar).\nPast sessions are frozen and never referenced here. Same target shape as\na sign-up: explicit ids, or ``all_upcoming`` for server resolution.",
+        "properties": {
+          "all_upcoming": {
+            "default": false,
+            "title": "All Upcoming",
+            "type": "boolean"
+          },
+          "occurrence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Occurrence Ids",
+            "type": "array"
+          }
+        },
+        "title": "BookingOccurrencesIn",
+        "type": "object"
+      },
+      "BookingOut": {
+        "description": "The whole booking behind an edit-link token: the person's details,\nthe occurrences they're on, and the event content needed to render.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "event_name": {
+            "title": "Event Name",
+            "type": "string"
+          },
+          "event_slug": {
+            "title": "Event Slug",
+            "type": "string"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/BookingOccurrenceOut"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "party_size": {
+            "title": "Party Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "display_name",
+          "party_size",
+          "event_name",
+          "event_slug",
+          "locale",
+          "occurrences"
+        ],
+        "title": "BookingOut",
+        "type": "object"
+      },
       "CalendarAssigneeOut": {
         "description": "One assignment on a calendar day. ``name`` is the pseudonym (``None``\n= anonymous); ``open`` marks an unassigned slot; ``status`` is the shift\nstatus (``scheduled`` for a projected/tentative day).",
         "properties": {
@@ -199,21 +372,21 @@
         "type": "object"
       },
       "ChapterAgendaOut": {
-        "description": "A chapter's public agenda: its identity, the upcoming events, and\na recent-past section (back to the start of the last full calendar\nmonth).",
+        "description": "A chapter's public agenda: its identity, the upcoming occurrences\n(within a rolling one-month display window), and a recent-past section\n(back to the start of the last full calendar month).",
         "properties": {
           "chapter": {
             "$ref": "#/components/schemas/ChapterPublicOut"
           },
           "past": {
             "items": {
-              "$ref": "#/components/schemas/EventCardOut"
+              "$ref": "#/components/schemas/OccurrenceCardOut"
             },
             "title": "Past",
             "type": "array"
           },
           "upcoming": {
             "items": {
-              "$ref": "#/components/schemas/EventCardOut"
+              "$ref": "#/components/schemas/OccurrenceCardOut"
             },
             "title": "Upcoming",
             "type": "array"
@@ -1800,92 +1973,24 @@
         "title": "EnrollIn",
         "type": "object"
       },
-      "EventCardOut": {
-        "description": "One event as it appears on a chapter agenda card. Deliberately\nnarrower than ``EventOut``: no coordinates, option lists, or lifecycle\nflags, so the public grid leaks less than the sign-up page.",
-        "properties": {
-          "attendee_count": {
-            "title": "Attendee Count",
-            "type": "integer"
-          },
-          "ends_at": {
-            "format": "date-time",
-            "title": "Ends At",
-            "type": "string"
-          },
-          "image_artist_instagram": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Artist Instagram"
-          },
-          "image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Url"
-          },
-          "location": {
-            "title": "Location",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
-          "starts_at": {
-            "format": "date-time",
-            "title": "Starts At",
-            "type": "string"
-          },
-          "topic": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Topic"
-          }
-        },
-        "required": [
-          "slug",
-          "name",
-          "topic",
-          "starts_at",
-          "ends_at",
-          "location",
-          "image_url",
-          "image_artist_instagram",
-          "attendee_count"
-        ],
-        "title": "EventCardOut",
-        "type": "object"
-      },
       "EventCreate": {
+        "description": "Create/edit payload for an event definition. Carries the shared\ncontent and the recurrence rule (the roster's k-week cycle) \u2014 never a\nsingle concrete date. A one-off is ``cycle_slots = []``; a recurring\nevent picks weekday slots on a ``period_weeks`` cycle, running for\n``span_weeks`` weeks (``None`` = open-ended). Concrete dates are\n``Occurrence`` rows the tick materialises.",
         "properties": {
           "chapter_id": {
             "title": "Chapter Id",
             "type": "string"
           },
-          "ends_at": {
-            "format": "date-time",
-            "title": "Ends At",
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 64,
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "end_time": {
+            "format": "time",
+            "title": "End Time",
             "type": "string"
           },
           "feedback_enabled": {
@@ -1899,6 +2004,13 @@
             },
             "title": "Help Options",
             "type": "array"
+          },
+          "horizon_days": {
+            "default": 90,
+            "maximum": 730.0,
+            "minimum": 1.0,
+            "title": "Horizon Days",
+            "type": "integer"
           },
           "image_artist_instagram": {
             "anyOf": [
@@ -1964,6 +2076,13 @@
             "title": "Name",
             "type": "string"
           },
+          "period_weeks": {
+            "default": 1,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Period Weeks",
+            "type": "integer"
+          },
           "reminder_enabled": {
             "default": true,
             "title": "Reminder Enabled",
@@ -1977,9 +2096,27 @@
             "title": "Source Options",
             "type": "array"
           },
-          "starts_at": {
-            "format": "date-time",
-            "title": "Starts At",
+          "span_weeks": {
+            "anyOf": [
+              {
+                "maximum": 520.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Weeks"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
             "type": "string"
           },
           "topic": {
@@ -1999,14 +2136,16 @@
           "name",
           "chapter_id",
           "location",
-          "starts_at",
-          "ends_at",
+          "starts_on",
+          "start_time",
+          "end_time",
           "source_options"
         ],
         "title": "EventCreate",
         "type": "object"
       },
       "EventOut": {
+        "description": "Organiser-side event DTO: the definition + its recurrence rule + a\ncouple of derived read-model fields (next occurrence, headcount).",
         "properties": {
           "archived": {
             "title": "Archived",
@@ -2038,9 +2177,16 @@
             ],
             "title": "Chapter Name"
           },
-          "ends_at": {
-            "format": "date-time",
-            "title": "Ends At",
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "end_time": {
+            "format": "time",
+            "title": "End Time",
             "type": "string"
           },
           "feedback_enabled": {
@@ -2053,6 +2199,10 @@
             },
             "title": "Help Options",
             "type": "array"
+          },
+          "horizon_days": {
+            "title": "Horizon Days",
+            "type": "integer"
           },
           "id": {
             "title": "Id",
@@ -2122,6 +2272,33 @@
             "title": "Name",
             "type": "string"
           },
+          "next_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Slug"
+          },
+          "next_starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Starts At"
+          },
+          "period_weeks": {
+            "title": "Period Weeks",
+            "type": "integer"
+          },
           "reminder_enabled": {
             "title": "Reminder Enabled",
             "type": "boolean"
@@ -2137,9 +2314,25 @@
             "title": "Source Options",
             "type": "array"
           },
-          "starts_at": {
-            "format": "date-time",
-            "title": "Starts At",
+          "span_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Weeks"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
             "type": "string"
           },
           "topic": {
@@ -2162,8 +2355,13 @@
           "location",
           "latitude",
           "longitude",
-          "starts_at",
-          "ends_at",
+          "starts_on",
+          "start_time",
+          "end_time",
+          "period_weeks",
+          "cycle_slots",
+          "span_weeks",
+          "horizon_days",
           "source_options",
           "help_options",
           "feedback_enabled",
@@ -2174,6 +2372,8 @@
           "chapter_name",
           "image_url",
           "image_artist_instagram",
+          "next_starts_at",
+          "next_slug",
           "attendee_count",
           "archived"
         ],
@@ -2181,7 +2381,7 @@
         "type": "object"
       },
       "EventStatsOut": {
-        "description": "Organiser-only aggregate. Never includes individual signups.",
+        "description": "Organiser-only aggregate over the event's sign-up line items\n(attendance is per occurrence, so these are per-line-item counts).\nNever includes individual signups.",
         "properties": {
           "by_help": {
             "additionalProperties": {
@@ -2213,6 +2413,177 @@
           "by_help"
         ],
         "title": "EventStatsOut",
+        "type": "object"
+      },
+      "EventUpdate": {
+        "description": "Edit payload. Same shape as create, but a lowered ``period_weeks``\nclamps now-out-of-range ``cycle_slots`` away instead of 422-ing.",
+        "properties": {
+          "chapter_id": {
+            "title": "Chapter Id",
+            "type": "string"
+          },
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 64,
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "end_time": {
+            "format": "time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "feedback_enabled": {
+            "default": true,
+            "title": "Feedback Enabled",
+            "type": "boolean"
+          },
+          "help_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Options",
+            "type": "array"
+          },
+          "horizon_days": {
+            "default": 90,
+            "maximum": 730.0,
+            "minimum": 1.0,
+            "title": "Horizon Days",
+            "type": "integer"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "listed": {
+            "default": true,
+            "title": "Listed",
+            "type": "boolean"
+          },
+          "locale": {
+            "default": "nl",
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Location",
+            "type": "string"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "period_weeks": {
+            "default": 1,
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "reminder_enabled": {
+            "default": true,
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
+          "source_options": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Source Options",
+            "type": "array"
+          },
+          "span_weeks": {
+            "anyOf": [
+              {
+                "maximum": 520.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Weeks"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "name",
+          "chapter_id",
+          "location",
+          "starts_on",
+          "start_time",
+          "end_time",
+          "source_options"
+        ],
+        "title": "EventUpdate",
         "type": "object"
       },
       "FeedbackAnswerIn": {
@@ -3318,6 +3689,183 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "OccurrenceCardOut": {
+        "description": "One occurrence as it appears on a chapter agenda card. Deliberately\nnarrower than the sign-up DTO: no coordinates, option lists, or\nlifecycle flags, so the public grid leaks less than the sign-up page.\n``index`` + ``total_sessions`` drive the \"sessie i van N\" badge\n(``total_sessions`` null = open-ended series).",
+        "properties": {
+          "attendee_count": {
+            "title": "Attendee Count",
+            "type": "integer"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "total_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Sessions"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "topic",
+          "starts_at",
+          "ends_at",
+          "location",
+          "image_url",
+          "image_artist_instagram",
+          "attendee_count",
+          "index",
+          "total_sessions"
+        ],
+        "title": "OccurrenceCardOut",
+        "type": "object"
+      },
+      "OccurrenceListOut": {
+        "description": "The occurrence list behind the organiser detail page's calendar day\nswitcher: materialised occurrences with counts, plus the projected\nfuture dates. ``total_sessions`` is the \"van N\" (null = open-ended).",
+        "properties": {
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/OccurrenceOut"
+            },
+            "title": "Occurrences",
+            "type": "array"
+          },
+          "projected": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectedOccurrenceOut"
+            },
+            "title": "Projected",
+            "type": "array"
+          },
+          "total_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Sessions"
+          }
+        },
+        "required": [
+          "total_sessions",
+          "occurrences",
+          "projected"
+        ],
+        "title": "OccurrenceListOut",
+        "type": "object"
+      },
+      "OccurrenceOut": {
+        "description": "One materialised occurrence in the organiser's read-only list.",
+        "properties": {
+          "attendee_count": {
+            "title": "Attendee Count",
+            "type": "integer"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "signup_count": {
+            "title": "Signup Count",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "index",
+          "starts_at",
+          "ends_at",
+          "attendee_count",
+          "signup_count"
+        ],
+        "title": "OccurrenceOut",
+        "type": "object"
+      },
       "OutlookShiftOut": {
         "description": "A projected (not yet pinned) shift beyond the commit horizon.\nTentative: no row id, may still change as the roster/pool evolves.",
         "properties": {
@@ -3520,6 +4068,32 @@
         "title": "PersonalShiftOut",
         "type": "object"
       },
+      "ProjectedOccurrenceOut": {
+        "description": "A beyond-horizon future date shown for context only: it has no row\nand no page yet, so it is not sign-up-able.",
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "ProjectedOccurrenceOut",
+        "type": "object"
+      },
       "PublicDatepollOut": {
         "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
@@ -3622,6 +4196,157 @@
         "title": "PublicDatepollOut",
         "type": "object"
       },
+      "PublicEventOut": {
+        "description": "The JSON the public per-occurrence sign-up page reads: the event\ncontent (read through the parent), the landing occurrence, the\nupcoming occurrences the visitor can also book, and the projected\nfuture dates shown as not-yet-open.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "current": {
+            "$ref": "#/components/schemas/PublicOccurrenceOut"
+          },
+          "event_slug": {
+            "title": "Event Slug",
+            "type": "string"
+          },
+          "help_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Options",
+            "type": "array"
+          },
+          "image_artist_instagram": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Artist Instagram"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "is_recurring": {
+            "title": "Is Recurring",
+            "type": "boolean"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "projected": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectedOccurrenceOut"
+            },
+            "title": "Projected",
+            "type": "array"
+          },
+          "source_options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Options",
+            "type": "array"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "total_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Sessions"
+          },
+          "upcoming": {
+            "items": {
+              "$ref": "#/components/schemas/PublicOccurrenceOut"
+            },
+            "title": "Upcoming",
+            "type": "array"
+          }
+        },
+        "required": [
+          "event_slug",
+          "name",
+          "topic",
+          "location",
+          "latitude",
+          "longitude",
+          "source_options",
+          "help_options",
+          "image_url",
+          "image_artist_instagram",
+          "locale",
+          "archived",
+          "is_recurring",
+          "total_sessions",
+          "current",
+          "upcoming",
+          "projected"
+        ],
+        "title": "PublicEventOut",
+        "type": "object"
+      },
       "PublicFormOut": {
         "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + image + locale + questions in display order.",
         "properties": {
@@ -3689,6 +4414,47 @@
           "questions"
         ],
         "title": "PublicFormOut",
+        "type": "object"
+      },
+      "PublicOccurrenceOut": {
+        "description": "A materialised, sign-up-able occurrence on the public form's\nchecklist. ``is_current`` marks the one whose page the visitor\nlanded on (pre-selected).",
+        "properties": {
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "index",
+          "starts_at",
+          "ends_at",
+          "is_current"
+        ],
+        "title": "PublicOccurrenceOut",
         "type": "object"
       },
       "PublicRosterOut": {
@@ -4620,7 +5386,7 @@
         "type": "object"
       },
       "SignupAck": {
-        "description": "Public response after a successful signup. Returns nothing\nidentifying \u2014 just confirms the booking landed, plus the secret\nedit-link token (shown once so the page can render the magic\nedit link; never stored raw, never recoverable).",
+        "description": "Public response after a successful booking. Returns nothing\nidentifying \u2014 just the secret edit-link token (shown once so the page\ncan render the magic edit link; never stored raw, never recoverable).",
         "properties": {
           "edit_token": {
             "title": "Edit Token",
@@ -4639,7 +5405,13 @@
         "type": "object"
       },
       "SignupCreate": {
+        "description": "One public booking: a person and the occurrences they picked.\nCreates one registration with one line item per occurrence.",
         "properties": {
+          "all_upcoming": {
+            "default": false,
+            "title": "All Upcoming",
+            "type": "boolean"
+          },
           "display_name": {
             "anyOf": [
               {
@@ -4671,6 +5443,13 @@
             "title": "Help Choices",
             "type": "array"
           },
+          "occurrence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Occurrence Ids",
+            "type": "array"
+          },
           "party_size": {
             "maximum": 50.0,
             "minimum": 1.0,
@@ -4695,112 +5474,8 @@
         "title": "SignupCreate",
         "type": "object"
       },
-      "SignupEditIn": {
-        "description": "Edit payload for an existing signup, reached via the edit-link\ntoken. The non-email fields only \u2014 ``EmailDispatch`` carries no\n``signup_id`` (principle #2), so the email can't be reached from a\nsignup and isn't editable here.",
-        "properties": {
-          "display_name": {
-            "anyOf": [
-              {
-                "maxLength": 100,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          },
-          "help_choices": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Help Choices",
-            "type": "array"
-          },
-          "party_size": {
-            "maximum": 50.0,
-            "minimum": 1.0,
-            "title": "Party Size",
-            "type": "integer"
-          },
-          "source_choice": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Choice"
-          }
-        },
-        "required": [
-          "party_size"
-        ],
-        "title": "SignupEditIn",
-        "type": "object"
-      },
-      "SignupEditOut": {
-        "description": "Current values of a signup, for pre-filling the edit form. No\nemail (never readable from a signup).",
-        "properties": {
-          "display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          },
-          "help_choices": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Help Choices",
-            "type": "array"
-          },
-          "link_recovered_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Link Recovered At"
-          },
-          "party_size": {
-            "title": "Party Size",
-            "type": "integer"
-          },
-          "source_choice": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Choice"
-          }
-        },
-        "required": [
-          "display_name",
-          "party_size",
-          "source_choice",
-          "help_choices"
-        ],
-        "title": "SignupEditOut",
-        "type": "object"
-      },
       "SignupSummaryOut": {
-        "description": "A single signup as seen on the organiser's details page.\nDeliberately minimal \u2014 name, headcount, help-choices. Never\nemail, source, or feedback-email status; those exist on the\nmodel but are private to the worker. ``id`` is exposed so the\norganiser can target an individual row for deletion (e.g.\ncleaning up an accidental sign-up they made themselves).",
+        "description": "A single line item as seen on the organiser's per-occurrence\ndetails page. Name + headcount come from the parent booking\n(registration); help-choices from the line item. Never email, source,\nor feedback-email status \u2014 the day's source breakdown is an aggregate\n(see the occurrence stats endpoint), never linked to a person. ``id`` is\nthe line-item id (delete target); ``registration_id`` is the booking\n(edit-link recovery target).",
         "properties": {
           "display_name": {
             "anyOf": [
@@ -4839,10 +5514,15 @@
           "party_size": {
             "title": "Party Size",
             "type": "integer"
+          },
+          "registration_id": {
+            "title": "Registration Id",
+            "type": "string"
           }
         },
         "required": [
           "id",
+          "registration_id",
           "display_name",
           "party_size",
           "help_choices"
@@ -9331,7 +10011,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EventOut"
+                  "$ref": "#/components/schemas/PublicEventOut"
                 }
               }
             },
@@ -9582,8 +10262,8 @@
     },
     "/api/v1/events/by-token/{token}": {
       "get": {
-        "description": "Current values of a signup, for pre-filling the edit form.\nEmail is never returned (it isn't reachable from a signup).",
-        "operationId": "get_signup_api_v1_events_by_token__token__get",
+        "description": "The whole booking behind an edit-link token, for the edit page.\nEmail is never returned (it isn't reachable from a booking).",
+        "operationId": "get_booking_api_v1_events_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -9600,7 +10280,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignupEditOut"
+                  "$ref": "#/components/schemas/BookingOut"
                 }
               }
             },
@@ -9617,14 +10297,14 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Get Signup",
+        "summary": "Get Booking",
         "tags": [
           "signups"
         ]
       },
       "put": {
-        "description": "Update a signup's non-email fields via its edit-link token.\nEmail + dispatch rows are untouched \u2014 there is no path from a\nsignup to its encrypted address (principle #2).",
-        "operationId": "update_signup_api_v1_events_by_token__token__put",
+        "description": "Update a booking's name + party size via its edit-link token.\nEmail + dispatch rows are untouched \u2014 there is no path from a booking\nto its encrypted address (principle #2).",
+        "operationId": "update_booking_api_v1_events_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -9640,7 +10320,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SignupEditIn"
+                "$ref": "#/components/schemas/BookingEditIn"
               }
             }
           },
@@ -9651,7 +10331,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SignupEditOut"
+                  "$ref": "#/components/schemas/BookingOut"
                 }
               }
             },
@@ -9668,7 +10348,105 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Signup",
+        "summary": "Update Booking",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/by-token/{token}/occurrences": {
+      "put": {
+        "description": "Replace a booking's **future** session set from the manage-page\ncalendar. Diffs the chosen future occurrences against the booking's\ncurrent future line items: adds a line item for each newly-selected\noccurrence, deletes it for each deselected one, and never touches a line\nitem whose session has already started (frozen attendance).\n\n``all_upcoming`` resolves server-side to every future occurrence, so a\nstale page can't miss a just-materialised session. Newly-added sessions\nget a line item only, not an email dispatch: the recipient address isn't\nreachable from a booking (principle #2), so reminder/feedback mail only\never covers sessions signed up for with an email at sign-up time.",
+        "operationId": "set_booking_occurrences_api_v1_events_by_token__token__occurrences_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingOccurrencesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Booking Occurrences",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
+    "/api/v1/events/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
+      "post": {
+        "description": "Withdraw the booking from one occurrence \u2014 per-occurrence withdrawal\nis how absence is reported. Deletes only that ``Signup`` line item (no\nemail lives on it). If it was the booking's last line item, the empty\n``Registration`` is deleted too. Any pending ``EmailDispatch`` for the\noccurrence is untouched by design (no signup link), so an already-\nscheduled email may still arrive.",
+        "operationId": "withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Occurrence",
         "tags": [
           "signups"
         ]
@@ -9676,8 +10454,8 @@
     },
     "/api/v1/events/by-token/{token}/withdraw": {
       "post": {
-        "description": "Withdraw a signup via its edit-link token \u2014 the attendee removing\ntheir own headcount. Deletes only the ``Signup`` row (no email lives\non it). Any pending ``EmailDispatch`` for this event is untouched by\ndesign (no signup_id link), so an already-scheduled reminder/feedback\nemail may still arrive; the public page warns about this before\ncalling. Mirrors the organiser delete, minus the RBAC.",
-        "operationId": "withdraw_signup_api_v1_events_by_token__token__withdraw_post",
+        "description": "Withdraw the whole booking \u2014 the attendee removing themselves from\nevery occurrence at once. Deletes the ``Registration`` (its line items\ncascade). Pending dispatches are untouched by design.",
+        "operationId": "withdraw_booking_api_v1_events_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -9704,7 +10482,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Withdraw Signup",
+        "summary": "Withdraw Booking",
         "tags": [
           "signups"
         ]
@@ -9794,7 +10572,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EventCreate"
+                "$ref": "#/components/schemas/EventUpdate"
               }
             }
           },
@@ -10133,6 +10911,273 @@
         ]
       }
     },
+    "/api/v1/events/{event_id}/occurrences": {
+      "get": {
+        "description": "The occurrence panel on the organiser detail page: the materialised\noccurrences with per-session headcount + line-item counts, plus the\nprojected future dates that aren't rows yet. Strictly read-only per\noccurrence \u2014 the only actions are on the event itself.",
+        "operationId": "event_occurrences_api_v1_events__event_id__occurrences_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OccurrenceListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event Occurrences",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/signups": {
+      "get": {
+        "description": "Per-line-item list for one occurrence of the organiser's event.\nReturns display_name + party_size + help_choices \u2014 never email,\nsource, or feedback-email status.",
+        "operationId": "occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SignupSummaryOut"
+                  },
+                  "title": "Response Occurrence Signups Api V1 Events  Event Id  Occurrences  Occurrence Id  Signups Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Occurrence Signups",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/stats": {
+      "get": {
+        "description": "Aggregated source/help breakdown for one occurrence \u2014 the \"stats of\nthat day\" behind the detail page's calendar day switcher. Aggregate\nonly, never linked to a person.",
+        "operationId": "occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "occurrence_id",
+            "required": true,
+            "schema": {
+              "title": "Occurrence Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventStatsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Occurrence Stats",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/registrations/{registration_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a participant's lost magic link. Only the\ntoken's hash is stored, so this *rotates* rather than reveals: the old\nlink stops working, the fresh raw token is returned exactly once, and\n``link_recovered_at`` is stamped permanently.",
+        "operationId": "recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "registration_id",
+            "required": true,
+            "schema": {
+              "title": "Registration Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Booking Edit Link",
+        "tags": [
+          "signups"
+        ]
+      }
+    },
     "/api/v1/events/{event_id}/restore": {
       "post": {
         "operationId": "restore_event_api_v1_events__event_id__restore_post",
@@ -10263,72 +11308,9 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/signups": {
-      "get": {
-        "description": "Per-signup list for the organiser details page. Returns\ndisplay_name + party_size + help_choices \u2014 never email,\nsource, or feedback-email status.",
-        "operationId": "event_signups_api_v1_events__event_id__signups_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SignupSummaryOut"
-                  },
-                  "title": "Response Event Signups Api V1 Events  Event Id  Signups Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Event Signups",
-        "tags": [
-          "events"
-        ]
-      }
-    },
     "/api/v1/events/{event_id}/signups/{signup_id}": {
       "delete": {
-        "description": "Organiser-only hard-delete of a single signup row. Targets\nthe case where someone (often the organiser themselves) wants\na stray sign-up gone \u2014 accidental submission, duplicate row,\ntest data left in a real event.\n\nPrivacy invariant unaffected: ``Signup`` carries no email, so\ndeleting the row removes only headcount + display-name. Any\npending ``EmailDispatch`` rows for this event live on by\ndesign (no signup_id link); the worker may still send a\nreminder/feedback email to the address the deleted signup\nsubmitted. That decoupling is the whole point \u2014 see\n``models/email_dispatch.py``.",
+        "description": "Organiser-only hard-delete of a single sign-up line item \u2014 a stray\nor duplicate booking on one occurrence. Privacy invariant unaffected:\n``Signup`` carries no email. Any pending ``EmailDispatch`` for the\noccurrence lives on by design (no signup link).",
         "operationId": "delete_signup_api_v1_events__event_id__signups__signup_id__delete",
         "parameters": [
           {
@@ -10382,74 +11364,6 @@
           }
         },
         "summary": "Delete Signup",
-        "tags": [
-          "signups"
-        ]
-      }
-    },
-    "/api/v1/events/{event_id}/signups/{signup_id}/edit-link": {
-      "post": {
-        "description": "Organiser recovery of a participant's lost magic link. Only the\ntoken's hash is stored, so this *rotates* rather than reveals: the\nold link stops working, the fresh raw token is returned exactly\nonce, and ``link_recovered_at`` is stamped permanently \u2014 the public\nedit page discloses that an organiser has held the link.",
-        "operationId": "recover_signup_edit_link_api_v1_events__event_id__signups__signup_id__edit_link_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "signup_id",
-            "required": true,
-            "schema": {
-              "title": "Signup Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EditLinkRecoverOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Recover Signup Edit Link",
         "tags": [
           "signups"
         ]

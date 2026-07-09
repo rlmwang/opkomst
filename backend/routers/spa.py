@@ -36,12 +36,11 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Chapter, Datepoll, Event, Form, Roster
+from ..models import Chapter, Datepoll, Form, Occurrence, Roster
 from ..services import agenda as agenda_svc
 from ..services import chapters as chapters_svc
 from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
-from ..services import event_stats
 from ..services import events as events_svc
 from ..services import forms as forms_svc
 from ..services.sanitize import html_to_text
@@ -109,13 +108,14 @@ def _og_head(*, name: str, description: str, canonical_url: str, og_image: str, 
     )
 
 
-def _build_head_meta(event: Event | None, slug: str) -> str:
-    """Per-event link-preview ``<head>``. For unknown slugs (event
-    is None) only the bare site title is emitted; sharing a 404
-    link is rare enough that elaborate fallback metadata isn't
-    worth the bytes."""
-    if event is None:
+def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
+    """Per-occurrence link-preview ``<head>`` (the public page is per
+    occurrence). For unknown slugs (occurrence is None) only the bare site
+    title is emitted; sharing a 404 link is rare enough that elaborate
+    fallback metadata isn't worth the bytes."""
+    if occurrence is None:
         return "<title>opkomst.nu</title>"
+    event = occurrence.event
 
     # Description: topic if the organiser set one (it's the
     # editorial summary they'd want shared); otherwise fall back
@@ -129,7 +129,7 @@ def _build_head_meta(event: Event | None, slug: str) -> str:
     if topic_text:
         description = topic_text
     else:
-        description = f"{event.location} · {event.starts_at.strftime('%-d %b %Y')}"
+        description = f"{event.location} · {occurrence.starts_at.strftime('%-d %b %Y')}"
     if len(description) > 200:
         description = description[:197] + "…"
 
@@ -259,14 +259,16 @@ def _serve_public_app(
 def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
-    event = events_svc.get_event_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
-    payload = json.loads(event_stats.to_out(db, event).model_dump_json()) if event is not None else None
+    occurrence = events_svc.get_occurrence_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    payload = (
+        json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
+    )
     return _serve_public_app(
         html_name="public-event.html",
         window_var="__OPKOMST_EVENT__",
         payload_marker=_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_head_meta(event, slug),
+        head_meta=_build_head_meta(occurrence, slug),
     )
 
 

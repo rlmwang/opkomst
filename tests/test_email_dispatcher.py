@@ -16,7 +16,7 @@ from typing import Any
 
 import pytest
 from _helpers import commit
-from _helpers.events import make_event
+from _helpers.events import first_occurrence, make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
 
 from backend.database import SessionLocal
@@ -182,7 +182,7 @@ def test_feedback_send_mints_token(db: Any, fake_email: Any) -> None:
 
     fresh = SessionLocal()
     try:
-        tokens = fresh.query(FeedbackToken).filter(FeedbackToken.event_id == e.id).all()
+        tokens = fresh.query(FeedbackToken).filter(FeedbackToken.occurrence_id == first_occurrence(e).id).all()
         assert len(tokens) == 1
     finally:
         fresh.close()
@@ -198,7 +198,7 @@ def test_feedback_failed_send_drops_token(db: Any, fake_email: Any) -> None:
 
     fresh = SessionLocal()
     try:
-        tokens = fresh.query(FeedbackToken).filter(FeedbackToken.event_id == e.id).all()
+        tokens = fresh.query(FeedbackToken).filter(FeedbackToken.occurrence_id == first_occurrence(e).id).all()
         # No point keeping a redeemable link for an email that
         # never went out.
         assert tokens == []
@@ -329,9 +329,13 @@ def test_conditional_update_does_not_stomp_existing_status(channel: EmailChannel
     session_a = SessionLocal()
     session_b = SessionLocal()
     try:
-        d_a = get_dispatch(session_a, e.id, channel)
+        occ = first_occurrence(e)
+        from backend.models import Occurrence
+
+        d_a = get_dispatch(session_a, occ, channel)
         event_a = session_a.query(type(e)).filter_by(id=e.id).first()
-        assert d_a is not None and event_a is not None
+        occurrence_a = session_a.query(Occurrence).filter_by(id=occ.id).first()
+        assert d_a is not None and event_a is not None and occurrence_a is not None
         # Capture the primitives before session B's delete +
         # session A's commit might invalidate the ORM row — we're
         # exercising exactly the race ``_process_one`` is hardened
@@ -340,7 +344,7 @@ def test_conditional_update_does_not_stomp_existing_status(channel: EmailChannel
         ciphertext = d_a.encrypted_email or b""
 
         # Race: session B deletes the dispatch.
-        d_b = get_dispatch(session_b, e.id, channel)
+        d_b = get_dispatch(session_b, occ, channel)
         assert d_b is not None
         session_b.delete(d_b)
         session_b.commit()
@@ -353,6 +357,7 @@ def test_conditional_update_does_not_stomp_existing_status(channel: EmailChannel
         mail_lifecycle._process_one(
             session_a,
             channel,
+            occurrence_a,
             event_a,
             dispatch_id,
             ciphertext,

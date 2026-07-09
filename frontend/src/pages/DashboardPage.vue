@@ -11,16 +11,17 @@ import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useSetUserChapters } from "@/composables/useAdmin";
 import { type Chapter, chapterList, useChapters } from "@/composables/useChapters";
-import { useEventClipboard } from "@/composables/useEventClipboard";
 import {
   type EventOut,
   eventList,
   useArchiveEvent,
   useEventList,
 } from "@/composables/useEvents";
+import { useEventClipboard } from "@/composables/useEventClipboard";
 import { useConfirms } from "@/lib/confirms";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { formatDateTime } from "@/lib/format";
+import { recurrenceHint } from "@/lib/recurrence";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
@@ -31,6 +32,12 @@ const confirms = useConfirms();
 const router = useRouter();
 const route = useRoute();
 const { copyLink, copyQr } = useEventClipboard();
+
+// Per-row recurrence hint ("Wekelijks · 6 sessies"); a thin wrapper so
+// the template can call it with the row's rule.
+function hint(e: EventOut): string {
+  return recurrenceHint(t, e);
+}
 
 // Chapter filter — backed by the ``?chapter=`` URL param so a
 // reload or shared link reproduces the view. ``null`` is the
@@ -130,8 +137,17 @@ watch(eventsQuery.isError, (isError) => {
 
 const loaded = computed(() => !auth.isApproved || !eventsQuery.isPending.value);
 
+// Upcoming first, soonest next session at the top; events whose every
+// occurrence is past sink below, most-recent first.
 const sortedEvents = computed(() =>
-  [...events.value].sort((a, b) => b.starts_at.localeCompare(a.starts_at)),
+  [...events.value].sort((a, b) => {
+    const an = a.next_starts_at;
+    const bn = b.next_starts_at;
+    if (an && bn) return an.localeCompare(bn);
+    if (an) return -1;
+    if (bn) return 1;
+    return b.starts_on.localeCompare(a.starts_on);
+  }),
 );
 
 function askArchive(e: EventOut) {
@@ -245,17 +261,23 @@ function askArchive(e: EventOut) {
               <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
             </h3>
             <p class="muted">
-              {{ e.location }} · {{ formatDateTime(e.starts_at, locale) }}
+              {{ e.location }} ·
+              <template v-if="e.next_starts_at">{{ formatDateTime(e.next_starts_at, locale) }}</template>
+              <template v-else>{{ t("dashboard.noUpcoming") }}</template>
             </p>
-            <div class="link-row">
-              <a :href="publicEventUrl(e.slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.slug) }}</a>
+            <p class="muted recurrence-hint">{{ hint(e) }}</p>
+            <!-- Link to the first upcoming occurrence (falls back to the
+                 most recent past one), matching the other entity cards. -->
+            <div v-if="e.next_slug" class="link-row">
+              <a :href="publicEventUrl(e.next_slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.next_slug) }}</a>
               <Button
                 icon="pi pi-copy"
                 size="small"
                 severity="secondary"
                 text
+                v-tooltip.top="t('event.share.copyLink')"
                 :aria-label="t('event.share.copyLink')"
-                @click="copyLink(e.slug)"
+                @click="copyLink(e.next_slug)"
               />
             </div>
           </div>
@@ -278,13 +300,14 @@ function askArchive(e: EventOut) {
         <div class="event-side">
           <div class="muted attendee-count">{{ t("dashboard.attendeeCount", { n: e.attendee_count }) }}</div>
           <button
+            v-if="e.next_slug"
             type="button"
             class="qr-button"
             v-tooltip.top="t('event.share.copyQr')"
             :aria-label="t('event.share.copyQr')"
-            @click="copyQr(e.slug)"
+            @click="copyQr(e.next_slug)"
           >
-            <img :src="eventQrUrl(e.slug)" alt="" class="qr" />
+            <img :src="eventQrUrl(e.next_slug)" alt="" class="qr" />
           </button>
         </div>
       </AppCard>
@@ -318,7 +341,7 @@ function askArchive(e: EventOut) {
 }
 .event-summary h3 { margin: 0 0 0.25rem; }
 .event-summary > .muted { margin: 0; }
-.event-summary .link-row { margin-top: 0.25rem; }
+.event-summary .recurrence-hint { margin-top: 0.125rem; font-size: 0.875rem; }
 
 .event-side {
   display: flex;

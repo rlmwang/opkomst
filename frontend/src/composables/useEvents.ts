@@ -12,14 +12,20 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
-import { type MaybeRef, unref } from "vue";
+import { computed, type MaybeRef, unref } from "vue";
 
 import { del, post, postFile, put } from "@/api/client";
 import { listOf, useApiQuery } from "@/api/queries";
 import { createEntityCrud } from "@/composables/createEntityCrud";
-import type { EventCreate, EventOut, EventStats, SignupSummary } from "@/api/types";
+import type {
+  EventCreate,
+  EventOut,
+  EventStats,
+  OccurrenceList,
+  SignupSummary,
+} from "@/api/types";
 
-export type { EventCreate, EventOut, EventStats, SignupSummary };
+export type { EventCreate, EventOut, EventStats, OccurrenceList, SignupSummary };
 
 // Events take the shared list/archived/create/restore from the factory
 // but keep their own *optimistic* update/archive/delete below (the
@@ -46,10 +52,43 @@ export function useEventStats(eventId: MaybeRef<string>) {
   );
 }
 
-export function useEventSignups(eventId: MaybeRef<string>) {
+/** The organiser occurrence panel: materialised occurrences with
+ * per-session headcount + line-item counts, plus the projected future
+ * dates. Replaces the old event-level signups list. */
+export function useEventOccurrences(eventId: MaybeRef<string>) {
+  return useApiQuery<OccurrenceList>(
+    () => ["events", unref(eventId), "occurrences"],
+    () => `/api/v1/events/${unref(eventId)}/occurrences`,
+  );
+}
+
+/** One occurrence's sign-up line items. Enabled only when an
+ * ``occurrenceId`` is present so the details page can lazily fetch a
+ * panel the organiser expands. */
+export function useOccurrenceSignups(
+  eventId: MaybeRef<string>,
+  occurrenceId: MaybeRef<string | null>,
+) {
   return useApiQuery<SignupSummary[]>(
-    () => ["events", unref(eventId), "signups"],
-    () => `/api/v1/events/${unref(eventId)}/signups`,
+    () => ["events", unref(eventId), "occurrences", unref(occurrenceId), "signups"],
+    () =>
+      `/api/v1/events/${unref(eventId)}/occurrences/${unref(occurrenceId)}/signups`,
+    { enabled: computed(() => Boolean(unref(occurrenceId))) },
+  );
+}
+
+/** Aggregated source/help breakdown for one occurrence — the "stats of
+ * that day" behind the detail page's calendar day switcher. Aggregate
+ * only, never linked to a person. Enabled once a day is selected. */
+export function useOccurrenceStats(
+  eventId: MaybeRef<string>,
+  occurrenceId: MaybeRef<string | null>,
+) {
+  return useApiQuery<EventStats>(
+    () => ["events", unref(eventId), "occurrences", unref(occurrenceId), "stats"],
+    () =>
+      `/api/v1/events/${unref(eventId)}/occurrences/${unref(occurrenceId)}/stats`,
+    { enabled: computed(() => Boolean(unref(occurrenceId))) },
   );
 }
 
@@ -183,18 +222,19 @@ export function useSendEmailsNow() {
 // keeping the duplicate type/mutation here would just be dead
 // weight in the admin bundle.
 
-/** Organiser-side hard-delete of one signup row. Optimistically
- * drops the row from the cached signup list; rolls back on error.
- * Stats (total_attendees, by_source, by_help) are derived from
- * signups but live on a separate cache key, so we invalidate that
- * key on settle to keep the headcount honest. */
+/** Organiser-side hard-delete of one sign-up line item. The delete
+ * target is the line-item ``id``; ``occurrenceId`` keys the cached
+ * per-occurrence list we patch optimistically and roll back on error.
+ * Stats (total_attendees, by_source, by_help) and the occurrence
+ * panel's per-session counts are derived on separate cache keys, so
+ * we invalidate both on settle to keep the headcounts honest. */
 export function useDeleteSignup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { eventId: string; signupId: string }) =>
+    mutationFn: (vars: { eventId: string; occurrenceId: string; signupId: string }) =>
       del<void>(`/api/v1/events/${vars.eventId}/signups/${vars.signupId}`),
-    onMutate: async ({ eventId, signupId }) => {
-      const key = ["events", eventId, "signups"];
+    onMutate: async ({ eventId, occurrenceId, signupId }) => {
+      const key = ["events", eventId, "occurrences", occurrenceId, "signups"];
       await qc.cancelQueries({ queryKey: key });
       const snap = qc.getQueryData<SignupSummary[]>(key);
       qc.setQueryData<SignupSummary[]>(key, (old) =>
@@ -206,7 +246,10 @@ export function useDeleteSignup() {
       if (ctx) qc.setQueryData(ctx.key, ctx.snap);
     },
     onSettled: (_data, _err, vars) => {
-      qc.invalidateQueries({ queryKey: ["events", vars.eventId, "signups"] });
+      qc.invalidateQueries({
+        queryKey: ["events", vars.eventId, "occurrences", vars.occurrenceId, "signups"],
+      });
+      qc.invalidateQueries({ queryKey: ["events", vars.eventId, "occurrences"] });
       qc.invalidateQueries({ queryKey: ["events", vars.eventId, "stats"] });
     },
   });

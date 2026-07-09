@@ -10,13 +10,13 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from backend.models import Signup
+from backend.models import Registration, Signup
 from backend.schemas.chapters import ChapterPatch
 from backend.services import chapters as chapters_svc
 from backend.services.agenda import _last_full_month_start
 from backend.services.events import now_wallclock
 from backend.services.slug import chapter_slug, is_event_slug, new_slug
-from tests._helpers.events import make_event
+from tests._helpers.events import first_occurrence, make_event
 
 
 def _chapter(db, name="Testafdeling"):
@@ -31,6 +31,7 @@ def _agenda(client, slug):
 
 
 # --- window split ---------------------------------------------------------
+
 
 def test_upcoming_and_recent_past_split(db, client):
     ch = _chapter(db)
@@ -54,7 +55,11 @@ def test_upcoming_and_recent_past_split(db, client):
 def test_event_ending_one_minute_ago_is_past(db, client):
     ch = _chapter(db)
     e = make_event(db, name="JustEnded", starts_in=timedelta(hours=-3), chapter_id=ch.id)
-    e.ends_at = now_wallclock() - timedelta(minutes=1)
+    # Boundary is on the occurrence, not the event: an occurrence that ended
+    # one minute ago must fall in the past section, not upcoming.
+    occ = first_occurrence(e)
+    occ.ends_at = now_wallclock() - timedelta(minutes=1)
+    occ.starts_at = occ.ends_at - timedelta(hours=2)
     db.commit()
     _, j = _agenda(client, ch.slug)
     assert "JustEnded" in [x["name"] for x in j["past"]]
@@ -69,6 +74,7 @@ def test_cutoff_is_first_of_last_month():
 
 # --- exclusions -----------------------------------------------------------
 
+
 def test_unlisted_excluded_but_signup_still_resolves(db, client):
     ch = _chapter(db)
     e = make_event(db, name="Hidden", starts_in=timedelta(days=2), chapter_id=ch.id)
@@ -76,8 +82,8 @@ def test_unlisted_excluded_but_signup_still_resolves(db, client):
     db.commit()
     _, j = _agenda(client, ch.slug)
     assert "Hidden" not in [x["name"] for x in j["upcoming"]]
-    # The direct sign-up API still resolves the event.
-    assert client.get(f"/api/v1/events/by-slug/{e.slug}").status_code == 200
+    # The direct sign-up API still resolves the event (per-occurrence slug).
+    assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}").status_code == 200
 
 
 def test_archived_excluded(db, client):
@@ -99,6 +105,7 @@ def test_chapterless_event_on_no_agenda(db, client):
 
 # --- DTO + attendee count -------------------------------------------------
 
+
 def test_card_dto_is_slim(db, client):
     ch = _chapter(db)
     make_event(db, name="E", starts_in=timedelta(days=2), chapter_id=ch.id)
@@ -106,8 +113,17 @@ def test_card_dto_is_slim(db, client):
     _, j = _agenda(client, ch.slug)
     card = j["upcoming"][0]
     assert set(card) == {
-        "slug", "name", "topic", "starts_at", "ends_at", "location",
-        "image_url", "image_artist_instagram", "attendee_count",
+        "slug",
+        "name",
+        "topic",
+        "starts_at",
+        "ends_at",
+        "location",
+        "image_url",
+        "image_artist_instagram",
+        "attendee_count",
+        "index",
+        "total_sessions",
     }
     for leaked in ("source_options", "help_options", "latitude", "longitude", "listed"):
         assert leaked not in card
@@ -116,14 +132,20 @@ def test_card_dto_is_slim(db, client):
 def test_attendee_count_sums_party_size(db, client):
     ch = _chapter(db)
     e = make_event(db, name="E", starts_in=timedelta(days=2), chapter_id=ch.id)
-    db.add(Signup(event_id=e.id, party_size=3))
-    db.add(Signup(event_id=e.id, party_size=2))
+    occ = first_occurrence(e)
+    # Attendee count sums party_size over the occurrence's bookings.
+    for size in (3, 2):
+        reg = Registration(event_id=e.id, party_size=size)
+        db.add(reg)
+        db.flush()
+        db.add(Signup(registration_id=reg.id, occurrence_id=occ.id))
     db.commit()
     _, j = _agenda(client, ch.slug)
     assert j["upcoming"][0]["attendee_count"] == 5
 
 
 # --- 404s -----------------------------------------------------------------
+
 
 def test_unknown_chapter_404(client):
     assert client.get("/api/v1/chapters/by-slug/nope-nope/agenda").status_code == 404
@@ -137,6 +159,7 @@ def test_soft_deleted_chapter_404(db, client):
 
 
 # --- slug helpers / dispatch ----------------------------------------------
+
 
 @pytest.mark.parametrize("name", ["amsterda", "xxxxxxxx", "Almere", "Den Haag", "x"])
 def test_chapter_slug_never_event_shaped(name):
