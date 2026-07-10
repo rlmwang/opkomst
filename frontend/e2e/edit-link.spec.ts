@@ -61,9 +61,13 @@ test("visitor edits a signup via the magic link on the confirmation page", async
     timeout: 5_000,
   });
 
-  // The edit link is the anchor inside the EditLink card.
-  const editUrl = (await v.locator(".edit-link .link").getAttribute("href")) ?? "";
-  expect(editUrl).toContain(`/e/${occSlug}?s=`);
+  // The edit link is the anchor inside the standardized confirmation
+  // card's EditLink row. Assert on the href with a web-first matcher so
+  // we wait out the render (the row mounts a beat after the "Bedankt!"
+  // heading); a bare getAttribute reads once and loses that race.
+  const editLink = v.locator(".link-row .link");
+  await expect(editLink).toHaveAttribute("href", new RegExp(`/e/${occSlug}\\?s=`));
+  const editUrl = (await editLink.getAttribute("href")) ?? "";
 
   // --- reopen the link: prior answer pre-filled, editable ---
   const e = await visitor.newPage();
