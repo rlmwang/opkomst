@@ -30,6 +30,8 @@ export interface ChromeStrings {
   submit: string;
   submitting: string;
   submitFail: string;
+  /** The confirmation-card heading, identical across all four entity
+   *  types. */
   thanks: string;
   // Edit-mode action bar (shared by every public edit page).
   save: string;
@@ -70,9 +72,9 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerBody: "We slaan geen e-mailadres of tracking op. De code is open source:",
     explainerLink: "bekijk de broncode",
     imageCredit: "Ontwerp:",
-    editPrompt: "Wil je dit later aanpassen? Bewaar dan deze link:",
+    editPrompt: "Bewaar deze link om dit later aan te passen:",
     editWarning:
-      "Sla 'm op voordat je deze pagina sluit. Kwijt? Een organisator kan een nieuwe maken; dat wordt hier dan gemeld.",
+      "Sla 'm op voordat je deze pagina sluit. Kwijt? Een organisator kan een nieuwe maken.",
     linkRecovered:
       "Een organisator heeft op {date} de geheime link van deze inzending gekopieerd (de vorige link verviel daarmee). Niet op jouw verzoek? Meld je dan af en meld je opnieuw aan voor een verse link.",
     copy: "Kopiëren",
@@ -97,8 +99,8 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerBody: "We store no email address and no tracking. The code is open source:",
     explainerLink: "view the source",
     imageCredit: "Design:",
-    editPrompt: "Want to change this later? Keep this link:",
-    editWarning: "Save it before you close this page. Lost it? An organiser can mint a new one; that gets noted here.",
+    editPrompt: "Save this link to change this later:",
+    editWarning: "Save it before you close this page. Lost it? An organiser can mint a new one.",
     linkRecovered:
       "An organiser copied this entry's secret link on {date} (the previous link stopped working). Not at your request? Withdraw and sign up again for a fresh link.",
     copy: "Copy",

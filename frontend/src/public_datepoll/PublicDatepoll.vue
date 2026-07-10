@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
-import EditLink from "@/public_shared/EditLink.vue";
+import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
@@ -241,38 +241,32 @@ async function withdraw(): Promise<void> {
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
     <PublicNotice v-else-if="status === 'withdrawn'" :message="d.withdrawn" />
 
-    <!-- ``ready`` and ``submitted`` both keep the title/info card; on
-         submit the body is replaced by a thanks card below it, same
-         shape as the events confirmation. -->
+    <!-- On submit the whole page collapses to a single confirmation card
+         (the top card is dropped) so nothing competes with saving the
+         secret link. -->
     <template v-else-if="poll">
-      <PublicTopCard
-        :title="poll.name"
-        :image-url="poll.image_url"
-        :artist="poll.image_artist_instagram"
-        :credit-label="c.imageCredit"
-        :description-html="poll.description"
-      >
-        <template v-if="poll.location" #meta>
-          <PublicMetaRow
-            :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
-          >
-            <template #icon>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-            </template>
-            {{ poll.location }}
-          </PublicMetaRow>
-        </template>
-      </PublicTopCard>
-
-      <template v-if="status === 'submitted'">
-        <div class="card stack thanks-card">
-          <h2>{{ c.thanks }}</h2>
-          <p class="muted">{{ d.thanksBody }}</p>
-        </div>
-        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
-      </template>
+      <PublicConfirmation v-if="status === 'submitted'" :url="editUrl" :locale="locale" />
 
       <template v-else>
+        <PublicTopCard
+          :title="poll.name"
+          :image-url="poll.image_url"
+          :artist="poll.image_artist_instagram"
+          :credit-label="c.imageCredit"
+          :description-html="poll.description"
+        >
+          <template v-if="poll.location" #meta>
+            <PublicMetaRow
+              :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
+            >
+              <template #icon>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+              </template>
+              {{ poll.location }}
+            </PublicMetaRow>
+          </template>
+        </PublicTopCard>
+
         <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
         <Disclosure :locale="locale" />
 
@@ -351,8 +345,6 @@ async function withdraw(): Promise<void> {
 </template>
 
 <style scoped>
-.muted { color: var(--brand-text-muted); }
-.thanks-card h2 { margin: 0; }
 .intro-text { color: var(--brand-text-muted); margin-right: auto; }
 /* Text boxes use the shared ``.input`` (forms.css). */
 .name-card { display: flex; flex-direction: column; gap: 0.625rem; }

@@ -8,7 +8,6 @@
 import type { Locale } from "@/public_shared/strings";
 
 export interface FormStrings {
-  thanksBody: string;
   required: string;
   missingRequiredPrefix: string;
   withdrawConfirm: string;
@@ -17,14 +16,12 @@ export interface FormStrings {
 
 const dict: Record<Locale, FormStrings> = {
   nl: {
-    thanksBody: "Je inzending is binnen.",
     required: "verplicht",
     missingRequiredPrefix: "Vul deze verplichte vraag in:",
     withdrawConfirm: "Je reactie intrekken? Je antwoorden worden verwijderd.",
     withdrawn: "Je reactie is ingetrokken.",
   },
   en: {
-    thanksBody: "Your response is in.",
     required: "required",
     missingRequiredPrefix: "Please answer this required question:",
     withdrawConfirm: "Withdraw your response? Your answers will be deleted.",

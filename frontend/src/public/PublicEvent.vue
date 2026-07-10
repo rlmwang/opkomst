@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
-import EditLink from "@/public_shared/EditLink.vue";
+import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
@@ -373,7 +373,6 @@ async function submit() {
       all_upcoming: fullOptOut,
     });
     confirmSaved(ack.edit_token);
-    emailWasEntered.value = Boolean(trimmedEmail);
     submitted.value = true;
     clearDraft();
   } catch {
@@ -382,10 +381,6 @@ async function submit() {
     submitting.value = false;
   }
 }
-
-// Whether the thanks screen promises a feedback mail (only if an email
-// was actually left).
-const emailWasEntered = ref(false);
 
 async function saveBooking() {
   errorMsg.value = null;
@@ -456,6 +451,7 @@ watch(event, (e) => {
 
     <template v-else>
       <PublicTopCard
+        v-if="!submitted"
         :title="event?.name ?? null"
         :image-url="event?.image_url ?? null"
         :artist="event?.image_artist_instagram ?? null"
@@ -524,14 +520,9 @@ watch(event, (e) => {
         </details>
       </div>
 
-      <!-- Thanks screen (create-mode submit). -->
-      <template v-if="submitted">
-        <div class="card stack">
-          <h2>{{ t.thanks }}</h2>
-          <p class="muted">{{ emailWasEntered ? t.thanksBody : t.thanksBodyNoEmail }}</p>
-        </div>
-        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
-      </template>
+      <!-- Thanks screen (create-mode submit): a single confirmation card,
+           nothing else, so saving the secret link stands alone. -->
+      <PublicConfirmation v-if="submitted" :url="editUrl" :locale="locale" />
 
       <!-- ================= CREATE MODE ================= -->
       <form

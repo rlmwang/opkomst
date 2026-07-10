@@ -813,7 +813,6 @@
     "withdrawn": "You've withdrawn.",
     "thanks": "Thanks, we got your sign-up.",
     "thanksBody": "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
-    "thanksBodyNoEmail": "See you then!",
     "explainerTitle": "Privacy & open source",
     "explainerIntro": "We only ask for what we need. Your name can be a pseudonym, it just helps us with the head count.",
     "explainerEmailIntro": "Your email is optional. If you leave it, we store it encrypted and use it for:",

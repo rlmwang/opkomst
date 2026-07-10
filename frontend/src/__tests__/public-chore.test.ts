@@ -74,8 +74,9 @@ describe("PublicChore enrol mode", () => {
       email_reminders: false,
       chore_ids: ["c1"],
     });
-    // Confirmation screen with the edit link is shown.
-    expect(w.text()).toContain("You're signed up!");
+    // The standardized confirmation card (shared across all four entity
+    // types) is shown, with the edit link.
+    expect(w.text()).toContain("Thank you!");
   });
 
   it("giving an email turns reminders on (no separate opt-in)", async () => {

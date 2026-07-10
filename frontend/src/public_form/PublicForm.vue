@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
-import EditLink from "@/public_shared/EditLink.vue";
+import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
@@ -204,27 +204,20 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
     <PublicNotice v-else-if="status === 'withdrawn'" :message="f.withdrawn" />
 
-    <!-- ``ready`` and ``submitted`` both keep the title/info card; on
-         submit the form is replaced by a thanks card below it, same
-         shape as the events confirmation. -->
+    <!-- On submit the whole page collapses to a single confirmation card
+         (the top card is dropped) so nothing competes with saving the
+         secret link. -->
     <template v-else-if="form">
-      <PublicTopCard
-        :title="form.name"
-        :image-url="form.image_url"
-        :artist="form.image_artist_instagram"
-        :credit-label="c.imageCredit"
-        :description-html="form.description"
-      />
-
-      <template v-if="status === 'submitted'">
-        <div class="card stack thanks-card">
-          <h2>{{ c.thanks }}</h2>
-          <p class="muted">{{ f.thanksBody }}</p>
-        </div>
-        <EditLink v-if="editUrl" :url="editUrl" :locale="locale" />
-      </template>
+      <PublicConfirmation v-if="status === 'submitted'" :url="editUrl" :locale="locale" />
 
       <template v-else>
+        <PublicTopCard
+          :title="form.name"
+          :image-url="form.image_url"
+          :artist="form.image_artist_instagram"
+          :credit-label="c.imageCredit"
+          :description-html="form.description"
+        />
         <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
         <Disclosure :locale="locale" />
 
@@ -330,8 +323,6 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 </template>
 
 <style scoped>
-.muted { color: var(--brand-text-muted); margin: 0.5rem 0 0; }
-.thanks-card h2 { margin: 0; }
 .form-card { display: flex; flex-direction: column; gap: 1.25rem; }
 .q-block { display: flex; flex-direction: column; gap: 0.5rem; }
 .prompt { font-weight: 600; font-size: 1.0625rem; line-height: 1.4; }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import EditLink from "@/public_shared/EditLink.vue";
+import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
@@ -345,8 +345,7 @@ async function leave(): Promise<void> {
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
     <PublicNotice v-else-if="status === 'left'" :message="ch.left" />
 
-    <PublicNotice v-else-if="status === 'enrolled'" :title="ch.enrolled" :message="c.editPrompt" />
-    <EditLink v-if="status === 'enrolled'" :url="editUrl" :locale="locale" />
+    <PublicConfirmation v-else-if="status === 'enrolled'" :url="editUrl" :locale="locale" />
 
     <template v-else-if="roster && (status === 'enrol' || status === 'personal')">
       <PublicTopCard

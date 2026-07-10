@@ -2,12 +2,14 @@
 /** The respondent's magic edit link, shown once on the confirmation
  *  screen. The token lives only in this URL — there's no server-side
  *  way to recover it — so the copy is explicit that it can't be
- *  re-sent. One component for all three mini-apps.
+ *  re-sent. One component for all mini-apps.
  *
- *  Link + copy button mirror the organiser detail cards (a truncated
- *  link followed by a subtle icon-only copy button) so the styling is
- *  consistent across the app. The public bundles don't ship PrimeVue
- *  /primeicons, so the icons are inline SVGs. */
+ *  It renders as a fragment (no wrapper element), not a card: its three
+ *  lines drop straight into the single ``PublicConfirmation`` card as
+ *  direct children, so they share that card's one column ``gap`` and the
+ *  vertical rhythm stays even. The copy button uses the same PrimeIcons
+ *  glyphs as the organiser cards (inlined — public bundles ship no icon
+ *  font) so the copy affordance is identical across the app. */
 import { computed, ref } from "vue";
 import { type Locale, chromeStrings } from "./strings";
 
@@ -30,41 +32,57 @@ async function copy(): Promise<void> {
 </script>
 
 <template>
-  <div class="card stack edit-link">
-    <p class="prompt">{{ c.editPrompt }}</p>
-    <div class="link-row">
-      <a class="link" :href="url" target="_blank" rel="noopener">{{ url }}</a>
-      <button
-        type="button"
-        class="copy-btn"
-        :class="{ copied }"
-        :aria-label="copied ? c.copied : c.copy"
-        :title="copied ? c.copied : c.copy"
-        @click="copy"
-      >
-        <svg v-if="copied" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
-        <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-      </button>
-    </div>
-    <p class="warning">{{ c.editWarning }}</p>
+  <p class="prompt">{{ c.editPrompt }}</p>
+  <div class="link-row">
+    <a class="link" :href="url" target="_blank" rel="noopener">{{ url }}</a>
+    <button
+      type="button"
+      class="copy-btn"
+      :class="{ copied }"
+      :aria-label="copied ? c.copied : c.copy"
+      :title="copied ? c.copied : c.copy"
+      @click="copy"
+    >
+      <svg v-if="copied" viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M9,18.25A.74.74,0,0,1,8.47,18l-5-5A.75.75,0,1,1,4.53,12L9,16.44,19.47,6A.75.75,0,0,1,20.53,7l-11,11A.74.74,0,0,1,9,18.25Z" /></svg>
+      <svg v-else viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M19.53,8,14,2.47a.75.75,0,0,0-.53-.22H11A2.75,2.75,0,0,0,8.25,5V6.25H7A2.75,2.75,0,0,0,4.25,9V19A2.75,2.75,0,0,0,7,21.75h7A2.75,2.75,0,0,0,16.75,19V17.75H17A2.75,2.75,0,0,0,19.75,15V8.5A.75.75,0,0,0,19.53,8ZM14.25,4.81l2.94,2.94H14.25Zm1,14.19A1.25,1.25,0,0,1,14,20.25H7A1.25,1.25,0,0,1,5.75,19V9A1.25,1.25,0,0,1,7,7.75H8.25V15A2.75,2.75,0,0,0,11,17.75h4.25ZM17,16.25H11A1.25,1.25,0,0,1,9.75,15V5A1.25,1.25,0,0,1,11,3.75h1.75V8.5a.76.76,0,0,0,.75.75h4.75V15A1.25,1.25,0,0,1,17,16.25Z" /></svg>
+    </button>
   </div>
+  <p class="warning">{{ c.editWarning }}</p>
 </template>
 
 <style scoped>
-.edit-link { gap: 0.625rem; }
-.prompt { margin: 0; font-weight: 600; }
-/* Mirrors the organiser detail card: truncated link + subtle icon
- * copy button. */
-.link-row { display: flex; align-items: center; gap: 0.375rem; min-width: 0; }
+/* All three lines match the confirmation body: one size, regular weight,
+ * muted. The link's own colour (brand red) and its bordered field are the
+ * only emphasis — no competing bold text. */
+.prompt,
+.warning {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--brand-text-muted);
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.25rem 0.25rem 0.25rem 0.625rem;
+  background: var(--brand-bg);
+  border: 1px solid var(--brand-border);
+  border-radius: 8px;
+}
 .link {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 0.9375rem;
   color: var(--brand-red);
   text-decoration: none;
 }
-.link:hover { text-decoration: underline; }
+.link:hover {
+  text-decoration: underline;
+}
 .copy-btn {
   flex: none;
   display: inline-flex;
@@ -79,7 +97,11 @@ async function copy(): Promise<void> {
   cursor: pointer;
   transition: background 120ms, color 120ms;
 }
-.copy-btn:hover { background: var(--brand-bg); color: var(--brand-red); }
-.copy-btn.copied { color: var(--brand-green); }
-.warning { margin: 0; font-size: 0.8125rem; color: var(--brand-text-muted); }
+.copy-btn:hover {
+  background: var(--brand-surface);
+  color: var(--brand-red);
+}
+.copy-btn.copied {
+  color: var(--brand-green);
+}
 </style>

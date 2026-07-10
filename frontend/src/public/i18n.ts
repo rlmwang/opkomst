@@ -46,9 +46,6 @@ interface Strings {
   withdrawSessionConfirm: string;
   withdrawConfirm: string;
   withdrawn: string;
-  thanks: string;
-  thanksBody: string;
-  thanksBodyNoEmail: string;
   explainerTitle: string;
   explainerIntro: string;
   explainerEmailIntro: string;
@@ -99,10 +96,6 @@ const dict: Record<Locale, Strings> = {
     withdrawConfirm:
       "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
     withdrawn: "Je bent afgemeld.",
-    thanks: "Bedankt, je aanmelding is binnen.",
-    thanksBody:
-      "Tot dan! Heb je een mailadres achtergelaten? Dan krijg je de dag erna een korte feedbackmail; daarna gooien we je adres weg.",
-    thanksBodyNoEmail: "Tot dan!",
     explainerTitle: "Privacy & open source",
     explainerIntro:
       "We vragen alleen wat we echt nodig hebben. Een schuilnaam mag, we tellen alleen koppen.",
@@ -153,10 +146,6 @@ const dict: Record<Locale, Strings> = {
     withdrawConfirm:
       "Withdraw from every session? Your whole sign-up will be removed. A reminder or feedback email that's already scheduled may still arrive.",
     withdrawn: "You've withdrawn.",
-    thanks: "Thanks, we got your sign-up.",
-    thanksBody:
-      "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
-    thanksBodyNoEmail: "See you then!",
     explainerTitle: "Privacy & open source",
     explainerIntro:
       "We only ask for what we need. Your name can be a pseudonym, it just helps us with the head count.",
