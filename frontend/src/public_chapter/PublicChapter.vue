@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import logoUrl from "@/assets/rsp-logo.png";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
@@ -34,15 +35,31 @@ if (initial === undefined) {
 
 <template>
   <PublicShell v-model:locale="locale" wide>
+    <template #brand>
+      <div class="chapter-brand">
+        <a
+          class="chapter-brand__logo"
+          href="https://rsp.nu"
+          target="_blank"
+          rel="noopener"
+          aria-label="Revolutionair Socialistische Partij — rsp.nu"
+        ><img :src="logoUrl" alt="" /></a>
+        <div class="chapter-identity">
+          <span class="chapter-identity__eyebrow">RSP</span>
+          <template v-if="agenda">
+            <h1>{{ agenda.chapter.name }}</h1>
+            <p v-if="agenda.chapter.city" class="muted chapter-identity__city">
+              {{ agenda.chapter.city }}
+            </p>
+          </template>
+        </div>
+      </div>
+    </template>
+
     <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
     <PublicNotice v-else-if="notFound" :message="t.notFound" />
 
     <template v-else-if="agenda">
-      <header class="agenda-head">
-        <h1>{{ agenda.chapter.name }}</h1>
-        <p v-if="agenda.chapter.city" class="muted">{{ agenda.chapter.city }}</p>
-      </header>
-
       <section class="agenda-section">
         <p v-if="!agenda.upcoming.length" class="muted">{{ t.emptyUpcoming }}</p>
         <div v-else class="agenda-grid">
@@ -72,13 +89,46 @@ if (initial === undefined) {
 </template>
 
 <style scoped>
-.agenda-head h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  line-height: 1.2;
+/* Chapter identity, hoisted into the shared header beside the party
+ * logo: a small "RSP" eyebrow over the chapter name (the page's real
+ * H1) and its city. Replaces the old orphaned second-row title, which
+ * read as a stray heading on mobile. */
+.chapter-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
 }
-.agenda-head .muted {
-  margin: 0.25rem 0 0;
+.chapter-brand__logo {
+  display: block;
+  flex: none;
+}
+.chapter-brand__logo img {
+  height: 60px;
+  width: 60px;
+  object-fit: contain;
+  display: block;
+}
+.chapter-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.chapter-identity__eyebrow {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  color: var(--brand-red);
+}
+.chapter-identity h1 {
+  margin: 0.0625rem 0 0;
+  font-size: 1.5rem;
+  line-height: 1.15;
+}
+.chapter-identity__city {
+  margin: 0.125rem 0 0;
+  font-size: 0.9375rem;
 }
 .agenda-section {
   margin-top: 1.5rem;

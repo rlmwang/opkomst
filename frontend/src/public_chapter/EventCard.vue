@@ -2,45 +2,52 @@
 import { computed } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
-import PublicHero from "@/public_shared/PublicHero.vue";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
 import type { EventCard } from "./api";
 import { strings } from "./i18n";
 
-// One event in the agenda grid. Its poster (or the muted-RSP-logo
-// default), the date/time, location, title, topic, and the sign-up CTA.
-// The whole card isn't a single anchor because ``PublicHero`` renders its
-// own credit link; the title and CTA are the links instead.
+// One event in the agenda grid: a full-bleed poster (or the muted-RSP-logo
+// default) topping the card, then the date/time, location, title, topic,
+// and the sign-up CTA. The whole card isn't a single anchor because the
+// poster carries its own credit link; the title and CTA are the links.
 const props = defineProps<{ event: EventCard; locale: Locale; past?: boolean }>();
 
 const t = computed(() => strings(props.locale));
 const c = computed(() => chromeStrings(props.locale));
 const href = computed(() => `/e/${props.event.slug}`);
-const sessionBadge = computed(() =>
-  props.event.total_sessions === null
+// A one-off event is "sessie 1 van 1" — pure noise, so no badge. Only a
+// real series (finite ``> 1``, or open-ended ``null``) earns one.
+const sessionBadge = computed(() => {
+  if (props.event.total_sessions === 1) return null;
+  return props.event.total_sessions === null
     ? t.value.sessionOpen(props.event.index + 1)
-    : t.value.sessionOf(props.event.index + 1, props.event.total_sessions),
-);
+    : t.value.sessionOf(props.event.index + 1, props.event.total_sessions);
+});
 
 </script>
 
 <template>
   <article class="event-card card" :class="{ past }">
-    <PublicHero
-      v-if="event.image_url"
-      :image-url="event.image_url"
-      :artist="event.image_artist_instagram"
-      :credit-label="c.imageCredit"
-    />
-    <div v-else class="card-logo" aria-hidden="true">
-      <img src="/rsp-logo.png" alt="" />
+    <div class="card-media">
+      <img v-if="event.image_url" :src="event.image_url" alt="" class="card-media__img" />
+      <div v-else class="card-media__placeholder" aria-hidden="true">
+        <img src="/rsp-logo.png" alt="" />
+      </div>
+      <span v-if="sessionBadge" class="session-badge">{{ sessionBadge }}</span>
+      <figcaption v-if="event.image_url && event.image_artist_instagram" class="card-credit">
+        {{ c.imageCredit }}
+        <a
+          :href="`https://instagram.com/${event.image_artist_instagram}`"
+          target="_blank"
+          rel="noopener"
+        >@{{ event.image_artist_instagram }}</a>
+      </figcaption>
     </div>
 
     <div class="card-body">
       <p class="card-when">
         {{ formatDate(event.starts_at, locale) }} ·
         {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
-        <span class="session-badge">{{ sessionBadge }}</span>
       </p>
       <p class="card-where">
         <a
@@ -66,54 +73,86 @@ const sessionBadge = computed(() =>
 </template>
 
 <style scoped>
+/* No card padding: the poster is full-bleed to the top and sides, so we
+ * pad the body instead and clip everything to the card's radius. */
 .event-card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  padding: 0;
+  overflow: hidden;
   height: 100%;
 }
 .event-card.past {
   opacity: 0.72;
 }
-/* Muted RSP-logo default in the same 4:5 frame as PublicHero, so the
- * grid stays even for events without a poster. */
-.card-logo {
+/* Full-width 4:5 poster; the positioning context for the session pill
+ * and the artist credit that sit over it. */
+.card-media {
+  position: relative;
   width: 100%;
-  max-width: 320px;
   aspect-ratio: 4 / 5;
-  margin: 0 auto;
-  border-radius: 12px;
-  border: 1px solid var(--brand-border);
-  background: var(--brand-bg);
+}
+.card-media__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+/* Muted RSP-logo default, filling the same frame so the grid stays even
+ * for events without a poster. */
+.card-media__placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--brand-bg);
 }
-.card-logo img {
-  width: 55%;
+.card-media__placeholder img {
+  width: 45%;
   max-width: 160px;
   opacity: 0.22;
   filter: grayscale(1);
+}
+/* Session pill, top-left over the poster — a red tag that never wraps or
+ * spills the way the old inline "sessie i van n" chip did. */
+.session-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--brand-red);
+  color: #fff;
+  white-space: nowrap;
+}
+/* Artist credit, bottom-right over the poster on a dark scrim chip. */
+.card-credit {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+.card-credit a {
+  color: #fff;
 }
 .card-body {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
   flex: 1;
+  padding: 0.875rem 1.25rem 1.25rem;
 }
 .card-when {
   margin: 0;
   font-size: 0.9375rem;
   color: var(--brand-text-muted);
-}
-.session-badge {
-  font-size: 0.75rem;
-  padding: 0.05rem 0.4rem;
-  margin-left: 0.25rem;
-  border-radius: 0.75rem;
-  background: var(--brand-bg);
-  border: 1px solid var(--brand-border);
-  white-space: nowrap;
 }
 .card-where {
   margin: 0;

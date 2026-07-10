@@ -25,7 +25,7 @@ watch(locale, (l) => {
   <div class="stack" :class="wide ? 'container-wide' : 'container'">
     <PublicToast />
     <header class="public-header">
-      <BrandMark />
+      <slot name="brand"><BrandMark /></slot>
       <div class="lang-switcher" role="group" aria-label="Language">
         <button
           type="button"
@@ -55,7 +55,7 @@ watch(locale, (l) => {
  * every mini-app imports in its ``main.ts``. */
 .public-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
