@@ -57,6 +57,6 @@ defineProps<{ segments: StatSegment[] }>();
   background: var(--brand-red);
 }
 .fill.is-neutral {
-  background: var(--brand-text-muted);
+  background: var(--brand-neutral);
 }
 </style>

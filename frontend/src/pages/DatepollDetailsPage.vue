@@ -85,6 +85,10 @@ function nameOf(s: DatepollSubmission): string {
   return s.display_name ?? t("datepolls.details.anonymous");
 }
 
+// Respondents who left a note — the comments section pairs each note with
+// the (pseudo)name that wrote it.
+const notedSubs = computed(() => subs.value.filter((s) => s.note?.trim()));
+
 const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" };
 
 // Bar length is deliberately NOT normalised: each slot's bar is sized
@@ -267,11 +271,15 @@ async function exportCsv() {
             </li>
           </ul>
 
-          <!-- Submission notes (one optional note per respondent). -->
-          <div v-if="summary.notes?.length" class="notes-section">
+          <!-- Submission notes (one optional note per respondent), each led
+               by the (pseudo)name that wrote it. -->
+          <div v-if="notedSubs.length" class="notes-section">
             <h3>{{ t("datepolls.details.notesTitle") }}</h3>
             <ul class="comments">
-              <li v-for="(n, i) in summary.notes" :key="i">{{ n }}</li>
+              <li v-for="sub in notedSubs" :key="sub.submission_id">
+                <span class="comment-name">{{ nameOf(sub) }}</span>
+                {{ sub.note }}
+              </li>
             </ul>
           </div>
 
@@ -285,7 +293,6 @@ async function exportCsv() {
                     <div>{{ shortDate(s.on_date) }}</div>
                     <div v-if="slotTime(s)" class="th-time">{{ slotTime(s) }}</div>
                   </th>
-                  <th class="note-col">{{ t("datepolls.details.note") }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -299,7 +306,6 @@ async function exportCsv() {
                   >
                     {{ sub.answers[s.id] ? AVAIL_GLYPH[sub.answers[s.id]] : "" }}
                   </td>
-                  <td class="note-col">{{ sub.note }}</td>
                 </tr>
               </tbody>
             </table>
@@ -355,21 +361,23 @@ async function exportCsv() {
 .rank.r1 { background: var(--brand-green); }
 .rank.r2 { background: #8a8f98; }
 .rank.r3 { background: #b8763a; }
-.comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.375rem; }
 .comments li { line-height: 1.4; }
+.comment-name { font-weight: 600; margin-right: 0.375rem; }
 .notes-section { margin-top: 1.25rem; }
 .notes-section h3 { margin: 0 0 0.25rem; font-size: 0.9375rem; }
 
 .grid-wrap { margin-top: 1.5rem; overflow-x: auto; }
-.grid { border-collapse: collapse; font-size: 0.8125rem; }
+/* The table's own border draws the outer frame; without it the collapsed
+ * right/bottom edge can be clipped by the scroll container. */
+.grid { border-collapse: collapse; border: 1px solid var(--brand-border); font-size: 0.8125rem; }
 .grid th, .grid td { border: 1px solid var(--brand-border); padding: 0.25rem 0.5rem; text-align: center; white-space: nowrap; }
 .grid th.who, .grid td.who { text-align: left; position: sticky; left: 0; background: var(--brand-surface); }
-.grid th.note-col, .grid td.note-col { text-align: left; white-space: pre-line; min-width: 8rem; max-width: 16rem; }
-/* Slot columns (everything between respondent and note) share one
- * fixed width so they line up evenly. */
-.grid th.slot-th, .grid tbody td:not(.who):not(.note-col) { width: 4rem; }
+/* Slot columns (everything after the respondent) share one fixed width so
+ * they line up evenly. */
+.grid th.slot-th, .grid tbody td:not(.who) { width: 4rem; }
 .grid th.slot-th .th-time { font-weight: 400; font-size: 0.75rem; color: var(--brand-text-muted); }
 .cell.yes { background: var(--brand-green); color: #fff; }
 .cell.maybe { background: var(--brand-amber); color: #fff; }
-.cell.no { background: #6b6b6b; color: #fff; }
+.cell.no { background: var(--brand-neutral); color: var(--brand-text); }
 </style>

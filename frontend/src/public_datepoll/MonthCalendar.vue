@@ -106,8 +106,8 @@ function dayClass(iso: string) {
   border-color: var(--brand-amber);
 }
 .vote.no {
-  background: #6b6b6b;
-  color: #fff;
-  border-color: #6b6b6b;
+  background: var(--brand-neutral);
+  color: var(--brand-text);
+  border-color: var(--brand-neutral);
 }
 </style>

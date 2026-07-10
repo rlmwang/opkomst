@@ -184,13 +184,11 @@ class DatepollSummaryOut(BaseModel):
     """Organiser summary. ``submission_count`` is the number of
     fill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most
     maybe, then most "not filled"; ``no`` is ignored), or ``None`` when
-    there are no responses. ``notes`` are the non-empty submission
-    notes, newest first."""
+    there are no responses."""
 
     submission_count: int
     slots: list[DatepollSlotSummary]
     best_slot_id: str | None = None
-    notes: list[str] = Field(default_factory=list)
 
 
 class DatepollSubmissionOut(BaseModel):

@@ -16,6 +16,11 @@
      * reads the same everywhere (was ~3 hard-coded greens + ambers). */
     --brand-green: #1f7a3c;
     --brand-amber: #c98a00;
+    /* The "no" / neutral fill for tally bars, legends and grids. A light
+     * grey (not the dark muted-text brown) so a "no" reads as de-emphasised
+     * rather than heavy; paired with dark text since it's too light for
+     * white. One source of truth so bar and grid "no" match exactly. */
+    --brand-neutral: #d3d0c8;
     /* Blue accent for a distinct-but-still-positive tally segment
      * ("picked up / overgenomen" on the chore accountability bar). Blue,
      * not a second green/teal, so it stays separable from the green

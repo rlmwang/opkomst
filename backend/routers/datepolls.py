@@ -249,12 +249,11 @@ def datepoll_summary(
     user: User = Depends(require_approved),
 ) -> DatepollSummaryOut:
     access.get_datepoll_for_user(db, datepoll_id, user)
-    slots, best_slot_id, notes = datepolls_svc.slot_aggregates(db, datepoll_id)
+    slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id)
     return DatepollSummaryOut(
         submission_count=datepolls_svc.submission_count(db, datepoll_id),
         slots=slots,
         best_slot_id=best_slot_id,
-        notes=notes,
     )
 
 

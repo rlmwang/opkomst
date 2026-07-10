@@ -3064,14 +3064,11 @@ export interface components {
          * @description Organiser summary. ``submission_count`` is the number of
          *     fill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most
          *     maybe, then most "not filled"; ``no`` is ignored), or ``None`` when
-         *     there are no responses. ``notes`` are the non-empty submission
-         *     notes, newest first.
+         *     there are no responses.
          */
         DatepollSummaryOut: {
             /** Best Slot Id */
             best_slot_id?: string | null;
-            /** Notes */
-            notes?: string[];
             /** Slots */
             slots: components["schemas"]["DatepollSlotSummary"][];
             /** Submission Count */

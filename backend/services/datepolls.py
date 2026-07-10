@@ -210,15 +210,13 @@ def submission_count(db: Session, datepoll_id: str) -> int:
     )
 
 
-def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSummary], str | None, list[str]]:
-    """Per-slot yes/maybe/no tallies, the winning slot id (most yes,
-    tie-break fewest no, ``None`` when there are no responses at all),
-    and the submission notes (newest first). Comments are no longer
-    per-slot — a respondent leaves one note on the whole submission."""
+def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSummary], str | None]:
+    """Per-slot yes/maybe/no tallies and the winning slot id (most yes,
+    tie-break fewest no, ``None`` when there are no responses at all)."""
     slots = _slots(db, datepoll_id)
     slot_ids = [s.id for s in slots]
     if not slot_ids:
-        return [], None, []
+        return [], None
 
     tally: dict[str, dict[str, int]] = {sid: {"yes": 0, "no": 0, "maybe": 0} for sid in slot_ids}
     count_rows = (
@@ -257,14 +255,7 @@ def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSum
         best = max(summaries, key=lambda s: (s.yes, s.maybe, total_subs - s.yes - s.maybe - s.no))
         best_slot_id = best.id
 
-    note_rows = (
-        db.query(DatepollSubmission.note)
-        .filter(DatepollSubmission.datepoll_id == datepoll_id, DatepollSubmission.note.is_not(None))
-        .order_by(DatepollSubmission.created_at.desc())
-        .all()
-    )
-    notes = [n for (n,) in note_rows]
-    return summaries, best_slot_id, notes
+    return summaries, best_slot_id
 
 
 def submissions(db: Session, datepoll_id: str) -> list[DatepollSubmissionOut]:

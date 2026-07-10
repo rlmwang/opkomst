@@ -85,6 +85,7 @@ function denominator(): number {
   background: var(--brand-red);
 }
 .seg.is-neutral {
-  background: var(--brand-text-muted);
+  background: var(--brand-neutral);
+  color: var(--brand-text);
 }
 </style>

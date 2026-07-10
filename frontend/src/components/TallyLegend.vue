@@ -54,6 +54,6 @@ defineProps<{ items: LegendItem[] }>();
   background: var(--brand-red);
 }
 .dot.is-neutral {
-  background: var(--brand-text-muted);
+  background: var(--brand-neutral);
 }
 </style>

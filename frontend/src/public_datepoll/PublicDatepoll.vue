@@ -362,7 +362,7 @@ async function withdraw(): Promise<void> {
 .swatch { padding: 0.125rem 0.5rem; border-radius: 999px; color: #fff; }
 .swatch.yes { background: var(--brand-green); }
 .swatch.maybe { background: var(--brand-amber); }
-.swatch.no { background: #6b6b6b; }
+.swatch.no { background: var(--brand-neutral); color: var(--brand-text); }
 /* The card stays flush with its siblings; the calendars scroll inside their
  * own container when a full week is wider than the card, so the page never
  * scrolls sideways and the surface always frames the days. ``position:
