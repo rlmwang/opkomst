@@ -43,18 +43,18 @@ const { t } = useI18n();
       </figcaption>
     </figure>
     <div class="overview-body">
-      <button
-        type="button"
-        class="qr-button"
-        v-tooltip.top="t('common.copyQr')"
-        :aria-label="t('common.copyQr')"
-        @click="emit('copyQr')"
-      >
-        <img :src="qrSrc" alt="" class="qr" />
-      </button>
       <div class="overview-text">
         <slot name="meta" />
         <div v-if="descriptionHtml" class="richtext" v-html="descriptionHtml"></div>
+        <button
+          type="button"
+          class="qr-button"
+          v-tooltip.top="t('common.copyQr')"
+          :aria-label="t('common.copyQr')"
+          @click="emit('copyQr')"
+        >
+          <img :src="qrSrc" alt="" class="qr" />
+        </button>
         <div class="link-row">
           <a :href="publicUrl" target="_blank" rel="noopener">{{ publicUrl }}</a>
           <Button

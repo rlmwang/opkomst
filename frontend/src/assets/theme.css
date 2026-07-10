@@ -139,10 +139,11 @@
     min-width: 0;
   }
   .qr-button {
-    /* Floated to the bottom-right of the overview card so the title +
-     * meta + link + actions wrap around it instead of a rigid grid
-     * column that leaves inconsistent gaps. ``shape-outside`` lets the
-     * text hug the square. See ``.overview-body`` for the float context. */
+    /* Floated ``right`` but placed late in source order (after the meta +
+     * description, just before the link + edit rows) so it settles into
+     * the bottom-right corner of the card, at its natural padding, while
+     * those trailing rows wrap to its left. See ``.overview-body`` for the
+     * float containment context. */
     float: right;
     margin: 0 0 0.25rem 1.25rem;
     line-height: 0;
