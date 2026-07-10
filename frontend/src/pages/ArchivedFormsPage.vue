@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { useArchivedList } from "@/composables/useArchivedList";
@@ -12,6 +13,7 @@ import {
 } from "@/composables/useForms";
 
 const { t } = useI18n();
+const lt = useLocalizedText();
 
 const {
   chapterFilter,
@@ -38,7 +40,7 @@ const {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('forms.archived.searchPlaceholder')"
-    :search-keys="(f: FormListOut) => [f.name]"
+    :search-keys="(f: FormListOut) => [lt(f.name_nl, f.name_en) ?? '']"
     :empty-copy="t('forms.archived.empty')"
     :no-matches-copy="t('forms.archived.noMatches')"
     :skeleton-rows="2"
@@ -48,7 +50,7 @@ const {
       <AppCard :stack="false" class="row">
         <div>
           <h3>
-            {{ f.name }}
+            {{ lt(f.name_nl, f.name_en) }}
             <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
           </h3>
         </div>

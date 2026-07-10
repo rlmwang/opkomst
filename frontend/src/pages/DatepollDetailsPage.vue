@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
@@ -27,6 +28,7 @@ import { useToasts } from "@/lib/toasts";
 const props = defineProps<{ datepollId: string }>();
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 const toasts = useToasts();
 const { copyLink, copyQr } = useDatepollClipboard();
 
@@ -167,7 +169,7 @@ async function exportCsv() {
       ...slots.map((sl) => s.answers[sl.id] ?? ""),
       s.note ?? "",
     ]);
-    downloadCsv(`${filenameSlug(poll.value.name)}-${poll.value.id}.csv`, [header, ...body]);
+    downloadCsv(`${filenameSlug(lt(poll.value.name_nl, poll.value.name_en) ?? "")}-${poll.value.id}.csv`, [header, ...body]);
   } catch {
     toasts.error(t("datepolls.details.csvFail"));
   }
@@ -188,11 +190,11 @@ async function exportCsv() {
 
     <template v-else-if="poll">
       <DetailHeaderCard
-        :title="poll.name"
+        :title="lt(poll.name_nl, poll.name_en) ?? ''"
         :chapter-name="poll.chapter_name"
         :image-url="poll.image_url"
         :image-artist="poll.image_artist_instagram"
-        :description-html="poll.description"
+        :description-html="lt(poll.description_nl, poll.description_en)"
         :qr-src="datepollQrUrl(poll.slug)"
         :public-url="publicDatepollUrl(poll.slug)"
         :edit-to="`/datepolls/${poll.id}/edit`"

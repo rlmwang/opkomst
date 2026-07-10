@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
@@ -23,6 +24,7 @@ import { useToasts } from "@/lib/toasts";
 const props = defineProps<{ rosterId: string }>();
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 const { copyLink, copyQr } = useChoresClipboard();
 const toasts = useToasts();
 const queryClient = useQueryClient();
@@ -147,11 +149,11 @@ function dateWindow(): string {
   <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
     <template v-if="roster">
       <DetailHeaderCard
-        :title="roster.name"
+        :title="lt(roster.name_nl, roster.name_en) ?? ''"
         :chapter-name="roster.chapter_name"
         :image-url="roster.image_url"
         :image-artist="roster.image_artist_instagram"
-        :description-html="roster.description"
+        :description-html="lt(roster.description_nl, roster.description_en)"
         :qr-src="choreQrUrl(roster.slug)"
         :public-url="publicChoreUrl(roster.slug)"
         :edit-to="`/chores/${roster.id}/edit`"

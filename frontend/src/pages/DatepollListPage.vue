@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ListPageView from "@/components/ListPageView.vue";
@@ -22,6 +23,7 @@ import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
@@ -77,7 +79,7 @@ function prefetchDetails(datepollId: string) {
 function askArchive(p: DatepollListOut) {
   confirms.ask({
     header: t("datepolls.list.archiveConfirmTitle"),
-    message: t("datepolls.list.archiveConfirmBody", { name: p.name }),
+    message: t("datepolls.list.archiveConfirmBody", { name: lt(p.name_nl, p.name_en) ?? "" }),
     icon: "pi pi-exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("datepolls.list.archive"),
@@ -127,7 +129,7 @@ function askArchive(p: DatepollListOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('datepolls.list.searchPlaceholder')"
-    :search-keys="(p: DatepollListOut) => [p.name]"
+    :search-keys="(p: DatepollListOut) => [lt(p.name_nl, p.name_en) ?? '']"
     :empty-copy="t('datepolls.list.empty')"
     :no-matches-copy="t('datepolls.list.noMatches')"
     :skeleton-rows="2"
@@ -154,7 +156,7 @@ function askArchive(p: DatepollListOut) {
         <div class="poll-main">
           <div class="poll-summary">
             <h3>
-              {{ p.name }}
+              {{ lt(p.name_nl, p.name_en) }}
               <span v-if="p.chapter_name" class="chapter-chip">{{ p.chapter_name }}</span>
             </h3>
             <p class="muted dates-line">{{ dateRange(p) }}</p>

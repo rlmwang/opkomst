@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
@@ -23,6 +24,7 @@ import { useToasts } from "@/lib/toasts";
 const props = defineProps<{ formId: string }>();
 
 const { t } = useI18n();
+const lt = useLocalizedText();
 const toasts = useToasts();
 const { copyLink, copyQr } = useFormClipboard();
 
@@ -80,7 +82,7 @@ async function exportCsv() {
         return Array.isArray(v) ? v.join("; ") : (v ?? "");
       }),
     ]);
-    downloadCsv(`${filenameSlug(form.value.name)}-${form.value.id}.csv`, [header, ...rows]);
+    downloadCsv(`${filenameSlug(lt(form.value.name_nl, form.value.name_en) ?? "")}-${form.value.id}.csv`, [header, ...rows]);
   } catch {
     toasts.error(t("forms.details.csvFail"));
   }
@@ -105,11 +107,11 @@ async function exportCsv() {
            edit) and the QR thumbnail on the right (clickable to
            copy the QR PNG to the clipboard). -->
       <DetailHeaderCard
-        :title="form.name"
+        :title="lt(form.name_nl, form.name_en) ?? ''"
         :chapter-name="form.chapter_name"
         :image-url="form.image_url"
         :image-artist="form.image_artist_instagram"
-        :description-html="form.description"
+        :description-html="lt(form.description_nl, form.description_en)"
         :qr-src="formQrUrl(form.slug)"
         :public-url="publicFormUrl(form.slug)"
         :edit-to="`/forms/${form.id}/edit`"

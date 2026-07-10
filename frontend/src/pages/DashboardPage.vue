@@ -4,6 +4,7 @@ import Button from "primevue/button";
 import MultiSelect from "primevue/multiselect";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -26,6 +27,7 @@ import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
@@ -153,7 +155,7 @@ const sortedEvents = computed(() =>
 function askArchive(e: EventOut) {
   confirms.ask({
     header: t("dashboard.archiveConfirmTitle"),
-    message: t("dashboard.archiveConfirmBody", { name: e.name }),
+    message: t("dashboard.archiveConfirmBody", { name: lt(e.name_nl, e.name_en) ?? "" }),
     icon: "pi pi-exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("dashboard.archive"),
@@ -230,7 +232,7 @@ function askArchive(e: EventOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('dashboard.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [e.name, e.location]"
+    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location]"
     :empty-copy="t('dashboard.empty')"
     :no-matches-copy="t('dashboard.noMatches')"
     :skeleton-rows="3"
@@ -257,7 +259,7 @@ function askArchive(e: EventOut) {
         <div class="event-main">
           <div class="event-summary">
             <h3>
-              {{ e.name }}
+              {{ lt(e.name_nl, e.name_en) }}
               <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
             </h3>
             <p class="muted">

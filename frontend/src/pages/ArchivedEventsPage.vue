@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from "primevue/button";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { useArchivedList } from "@/composables/useArchivedList";
@@ -14,6 +15,7 @@ import { formatDateTime } from "@/lib/format";
 import { recurrenceHint } from "@/lib/recurrence";
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 
 function hint(e: EventOut): string {
   return recurrenceHint(t, e);
@@ -44,7 +46,7 @@ const {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('archived.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [e.name, e.location]"
+    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location]"
     :empty-copy="t('archived.empty')"
     :no-matches-copy="t('archived.noMatches')"
     :skeleton-rows="2"
@@ -54,7 +56,7 @@ const {
       <AppCard :stack="false" class="row">
         <div>
           <h3>
-            {{ e.name }}
+            {{ lt(e.name_nl, e.name_en) }}
             <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
           </h3>
           <p class="muted">

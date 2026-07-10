@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ListPageView from "@/components/ListPageView.vue";
@@ -21,6 +22,7 @@ import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
+const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
@@ -72,7 +74,7 @@ function prefetchDetails(rosterId: string) {
 function askArchive(r: RosterListOut) {
   confirms.ask({
     header: t("chores.list.archiveConfirmTitle"),
-    message: t("chores.list.archiveConfirmBody", { name: r.name }),
+    message: t("chores.list.archiveConfirmBody", { name: lt(r.name_nl, r.name_en) ?? "" }),
     icon: "pi pi-exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("chores.list.archive"),
@@ -122,7 +124,7 @@ function askArchive(r: RosterListOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('chores.list.searchPlaceholder')"
-    :search-keys="(r: RosterListOut) => [r.name]"
+    :search-keys="(r: RosterListOut) => [lt(r.name_nl, r.name_en) ?? '']"
     :empty-copy="t('chores.list.empty')"
     :no-matches-copy="t('chores.list.noMatches')"
     :skeleton-rows="2"
@@ -149,7 +151,7 @@ function askArchive(r: RosterListOut) {
         <div class="roster-main">
           <div class="roster-summary">
             <h3>
-              {{ r.name }}
+              {{ lt(r.name_nl, r.name_en) }}
               <span v-if="r.chapter_name" class="chapter-chip">{{ r.chapter_name }}</span>
             </h3>
             <p class="muted summary-line">{{ summary(r) }}</p>

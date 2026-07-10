@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
@@ -37,6 +38,7 @@ import {
 const props = defineProps<{ eventId: string }>();
 
 const { t, locale } = useI18n();
+const lt = useLocalizedText();
 const toasts = useToasts();
 const { copyLink, copyQr } = useEventClipboard();
 
@@ -221,7 +223,7 @@ async function exportCsv() {
     // the file sorts chronologically next to other event exports;
     // entity id last as the canonical disambiguator.
     const date = event.value.starts_on;
-    const slug = filenameSlug(event.value.name);
+    const slug = filenameSlug(lt(event.value.name_nl, event.value.name_en) ?? "");
     downloadCsv(`${date}-${slug}-${event.value.id}.csv`, [header, ...rows]);
   } catch {
     toasts.error(t("feedback.summary.csvFail"));
@@ -275,12 +277,12 @@ function askTriggerNow(channel: EmailChannel) {
   <DetailsPageShell :loaded="!!event" :skeleton-rows="4">
     <template v-if="event">
 <DetailHeaderCard
-        :title="event.name"
+        :title="lt(event.name_nl, event.name_en) ?? ''"
         :chapter-name="event.chapter_name"
         :image-url="event.image_url"
         :image-artist="event.image_artist_instagram"
         :image-href="event.image_url"
-        :description-html="event.topic"
+        :description-html="lt(event.topic_nl, event.topic_en)"
         :qr-src="eventQrUrl(primaryOccurrence?.slug ?? '')"
         :public-url="primaryOccurrence ? publicEventUrl(primaryOccurrence.slug) : ''"
         :edit-to="`/events/${event.id}/edit`"

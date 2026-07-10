@@ -19,7 +19,13 @@ import { useI18n } from "vue-i18n";
 
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
 import { useGuardedMutation } from "@/composables/useGuardedMutation";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import { useToasts } from "@/lib/toasts";
+
+interface BilingualName {
+  name_nl: string | null;
+  name_en: string | null;
+}
 
 interface ListQuery<T> {
   data: Ref<T[] | undefined>;
@@ -33,7 +39,7 @@ interface ListQuery<T> {
 // discriminated-union variance. ``T`` and all four mutation type args
 // are inferred from the arguments (no explicit type args at the call
 // site).
-export function useArchivedList<T extends { id: string; name: string }, RD, RE, DD, DE>(opts: {
+export function useArchivedList<T extends { id: string } & BilingualName, RD, RE, DD, DE>(opts: {
   /** Built with the chapter filter this composable owns, so the query
    * key tracks the dropdown. */
   query: (chapterFilter: ComputedRef<string | null>) => ListQuery<T>;
@@ -52,6 +58,7 @@ export function useArchivedList<T extends { id: string; name: string }, RD, RE, 
 } {
   const { t } = useI18n();
   const toasts = useToasts();
+  const lt = useLocalizedText();
   const { chapterFilter, setChapterFilter, chapterOptions } = useChapterUrlFilter();
 
   const query = opts.query(chapterFilter);
@@ -65,7 +72,7 @@ export function useArchivedList<T extends { id: string; name: string }, RD, RE, 
   async function restoreItem(item: T): Promise<void> {
     try {
       await opts.restore.mutateAsync(item.id);
-      toasts.success(t(`${opts.prefix}.restored`, { name: item.name }));
+      toasts.success(t(`${opts.prefix}.restored`, { name: lt(item.name_nl, item.name_en) ?? "" }));
     } catch {
       toasts.error(t(`${opts.prefix}.restoreFail`));
     }
@@ -73,11 +80,11 @@ export function useArchivedList<T extends { id: string; name: string }, RD, RE, 
 
   const askDelete = useGuardedMutation(opts.remove, (item: T) => ({
     vars: item.id,
-    ok: t(`${opts.prefix}.deleteOk`, { name: item.name }),
+    ok: t(`${opts.prefix}.deleteOk`, { name: lt(item.name_nl, item.name_en) ?? "" }),
     fail: t(`${opts.prefix}.deleteFail`),
     confirm: {
       header: t(`${opts.prefix}.deleteConfirmTitle`),
-      message: t(`${opts.prefix}.deleteConfirmBody`, { name: item.name }),
+      message: t(`${opts.prefix}.deleteConfirmBody`, { name: lt(item.name_nl, item.name_en) ?? "" }),
       icon: "pi pi-exclamation-triangle",
       rejectLabel: t("common.cancel"),
       acceptLabel: t(`${opts.prefix}.delete`),

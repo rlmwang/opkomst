@@ -11,7 +11,7 @@ import Strike from "@tiptap/extension-strike";
 import Text from "@tiptap/extension-text";
 import Underline from "@tiptap/extension-underline";
 import { Editor, EditorContent } from "@tiptap/vue-3";
-import { onBeforeUnmount, onMounted, shallowRef, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 // A minimal rich-text editor for the "details" body. Its schema is
@@ -19,11 +19,20 @@ import { useI18n } from "vue-i18n";
 // allows (bold / italic / underline / strikethrough / link, plus
 // paragraphs and hard breaks), so what an organiser sees is exactly
 // what gets stored — nothing the editor can produce is later stripped.
-const props = defineProps<{ modelValue: string; placeholder?: string }>();
+// ``fallbackHtml`` is the other language's formatted body: when this
+// editor is empty it renders greyed behind the caret, so the organiser
+// sees the real translation they're overwriting (the bilingual-edit
+// fallback). It's a preview only, never emitted.
+const props = defineProps<{
+  modelValue: string;
+  placeholder?: string;
+  fallbackHtml?: string | null;
+}>();
 const emit = defineEmits<{ "update:modelValue": [string] }>();
 
 const { t } = useI18n();
 const editor = shallowRef<Editor>();
+const empty = ref(true);
 
 onMounted(() => {
   editor.value = new Editor({
@@ -44,14 +53,20 @@ onMounted(() => {
         protocols: ["http", "https", "mailto"],
         HTMLAttributes: { rel: "nofollow noopener noreferrer" },
       }),
-      Placeholder.configure({ placeholder: () => props.placeholder ?? "" }),
+      // Suppress the plain-text placeholder when a formatted fallback is
+      // shown instead, so the two don't overlap.
+      Placeholder.configure({
+        placeholder: () => (props.fallbackHtml ? "" : (props.placeholder ?? "")),
+      }),
     ],
     onUpdate: ({ editor: e }) => {
       // Emit "" for an effectively-empty doc so the parent's
       // ``|| null`` collapses it, rather than storing "<p></p>".
+      empty.value = e.isEmpty;
       emit("update:modelValue", e.isEmpty ? "" : e.getHTML());
     },
   });
+  empty.value = editor.value.isEmpty;
 });
 
 onBeforeUnmount(() => editor.value?.destroy());
@@ -66,6 +81,7 @@ watch(
     if (!e || e.isFocused) return;
     const current = e.isEmpty ? "" : e.getHTML();
     if (val !== current) e.commands.setContent(val || "");
+    empty.value = e.isEmpty;
   },
 );
 
@@ -152,7 +168,18 @@ function setLink(): void {
         </svg>
       </button>
     </div>
-    <EditorContent :editor="editor" class="rt-content" />
+    <div class="rt-body">
+      <EditorContent :editor="editor" class="rt-content" />
+      <!-- Greyed fallback: the other language's body, shown only while
+           this editor is empty. Non-interactive so clicks focus the
+           editor beneath. -->
+      <div
+        v-if="fallbackHtml && empty"
+        class="rt-fallback richtext"
+        aria-hidden="true"
+        v-html="fallbackHtml"
+      ></div>
+    </div>
   </div>
 </template>
 
@@ -190,6 +217,25 @@ function setLink(): void {
 .rt-btn.active {
   background: var(--brand-red);
   color: #fff;
+}
+.rt-body {
+  position: relative;
+}
+/* The other-language body, faded, overlaid on the empty editor. Same
+ * padding as the ProseMirror content so the text lines up; pointer-events
+ * off so it never steals focus from the editor beneath. */
+.rt-fallback {
+  position: absolute;
+  inset: 0;
+  padding: 0.625rem 0.75rem;
+  color: var(--brand-text-muted);
+  opacity: 0.55;
+  line-height: 1.5;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rt-fallback :deep(p) {
+  margin: 0 0 0.5rem;
 }
 .rt-content :deep(.ProseMirror) {
   min-height: 5.5rem;

@@ -13,6 +13,7 @@ import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.
 import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useBilingualField } from "@/composables/useBilingualField";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useOrderedList } from "@/composables/useOrderedList";
 import {
@@ -50,8 +51,12 @@ const userChapterOptions = computed(() => {
   return chapters.value.filter((c) => memberIds.has(c.id));
 });
 
-const name = ref("");
-const description = ref("");
+const nameNl = ref("");
+const nameEn = ref("");
+const descNl = ref("");
+const descEn = ref("");
+const { active: title, fallback: titleFallback } = useBilingualField(nameNl, nameEn);
+const { active: body, fallback: bodyFallback } = useBilingualField(descNl, descEn);
 const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
@@ -103,8 +108,10 @@ watch(
   () => formQuery?.data.value,
   (existing) => {
     if (!existing) return;
-    name.value = existing.name;
-    description.value = existing.description ?? "";
+    nameNl.value = existing.name_nl ?? "";
+    nameEn.value = existing.name_en ?? "";
+    descNl.value = existing.description_nl ?? "";
+    descEn.value = existing.description_en ?? "";
     imageUrl.value = existing.image_url ?? null;
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     formLocale.value = existing.locale;
@@ -132,8 +139,10 @@ watch(
 const draftKey = computed(() => `form-edit-draft:${props.formId ?? "new"}`);
 
 interface FormEditDraft {
-  name: string;
-  description: string;
+  nameNl: string;
+  nameEn: string;
+  descNl: string;
+  descEn: string;
   imageArtistInstagram: string;
   chapterId: string | null;
   formLocale: "nl" | "en";
@@ -142,8 +151,10 @@ interface FormEditDraft {
 
 function snapshot(): FormEditDraft {
   return {
-    name: name.value,
-    description: description.value,
+    nameNl: nameNl.value,
+    nameEn: nameEn.value,
+    descNl: descNl.value,
+    descEn: descEn.value,
     imageArtistInstagram: imageArtistInstagram.value,
     chapterId: chapterId.value,
     formLocale: formLocale.value,
@@ -152,8 +163,10 @@ function snapshot(): FormEditDraft {
 }
 
 function applyDraft(d: FormEditDraft): void {
-  name.value = d.name;
-  description.value = d.description ?? "";
+  nameNl.value = d.nameNl ?? "";
+  nameEn.value = d.nameEn ?? "";
+  descNl.value = d.descNl ?? "";
+  descEn.value = d.descEn ?? "";
   imageArtistInstagram.value = d.imageArtistInstagram ?? "";
   chapterId.value = d.chapterId ?? null;
   formLocale.value = d.formLocale ?? "nl";
@@ -164,7 +177,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormEditDraft>({
   key: draftKey,
   snapshot,
   apply: applyDraft,
-  sources: [name, description, imageArtistInstagram, chapterId, formLocale, questions],
+  sources: [nameNl, nameEn, descNl, descEn, imageArtistInstagram, chapterId, formLocale, questions],
 });
 
 // Restore at most once — the edit-mode hydration watch can fire more
@@ -221,8 +234,9 @@ function cancel(): void {
 }
 
 async function submit() {
-  const trimmedName = name.value.trim();
-  if (!trimmedName) {
+  // Backend requires the title in the primary language (``formLocale``).
+  const primaryName = (formLocale.value === "en" ? nameEn.value : nameNl.value).trim();
+  if (!primaryName) {
     toasts.warn(t("forms.edit.fillName"));
     return;
   }
@@ -237,8 +251,10 @@ async function submit() {
   try {
     const wirePayload: FormCreate | FormUpdate = {
       chapter_id: chapterId.value,
-      name: trimmedName,
-      description: description.value.trim() || null,
+      name_nl: nameNl.value.trim() || null,
+      name_en: nameEn.value.trim() || null,
+      description_nl: descNl.value.trim() || null,
+      description_en: descEn.value.trim() || null,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: formLocale.value,
       questions: questions.value.map(
@@ -304,10 +320,15 @@ async function submit() {
     @cancel="cancel"
   >
     <section class="form-section">
-      <InputText v-model="name" :placeholder="t('forms.edit.namePlaceholder')" fluid />
+      <InputText
+        v-model="title"
+        :placeholder="titleFallback || t('forms.edit.namePlaceholder')"
+        fluid
+      />
       <RichTextField
-        v-model="description"
+        v-model="body"
         :placeholder="t('forms.edit.descriptionPlaceholder')"
+        :fallback-html="bodyFallback || null"
       />
       <Select
         v-model="chapterId"

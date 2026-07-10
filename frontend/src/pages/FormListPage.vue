@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/vue-query";
 import Button from "primevue/button";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ListPageView from "@/components/ListPageView.vue";
@@ -16,6 +17,7 @@ import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
+const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
 const confirms = useConfirms();
@@ -71,7 +73,7 @@ function prefetchDetails(formId: string) {
 function askArchive(f: FormListOut) {
   confirms.ask({
     header: t("forms.list.archiveConfirmTitle"),
-    message: t("forms.list.archiveConfirmBody", { name: f.name }),
+    message: t("forms.list.archiveConfirmBody", { name: lt(f.name_nl, f.name_en) ?? "" }),
     icon: "pi pi-exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("forms.list.archive"),
@@ -123,7 +125,7 @@ function askArchive(f: FormListOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('forms.list.searchPlaceholder')"
-    :search-keys="(f: FormListOut) => [f.name]"
+    :search-keys="(f: FormListOut) => [lt(f.name_nl, f.name_en) ?? '']"
     :empty-copy="t('forms.list.empty')"
     :no-matches-copy="t('forms.list.noMatches')"
     :skeleton-rows="2"
@@ -150,7 +152,7 @@ function askArchive(f: FormListOut) {
         <div class="form-main">
           <div class="form-summary">
             <h3>
-              {{ f.name }}
+              {{ lt(f.name_nl, f.name_en) }}
               <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
             </h3>
             <div class="link-row">

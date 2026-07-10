@@ -15,6 +15,7 @@ import LocationPicker from "@/components/LocationPicker.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
 import RichTextField from "@/components/RichTextField.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useBilingualField } from "@/composables/useBilingualField";
 import { useLocationField } from "@/composables/useLocationField";
 import {
   eventList,
@@ -73,8 +74,12 @@ const { location, latitude, longitude, chapterBias, setCoords } = useLocationFie
   () => chapters.value,
 );
 
-const name = ref("");
-const topic = ref("");
+const nameNl = ref("");
+const nameEn = ref("");
+const topicNl = ref("");
+const topicEn = ref("");
+const { active: title, fallback: titleFallback } = useBilingualField(nameNl, nameEn);
+const { active: body, fallback: bodyFallback } = useBilingualField(topicNl, topicEn);
 const eventDate = ref<Date | null>(null);
 // Most events run in the evening — pre-fill 20:00 / 22:00 so the
 // organiser only has to pick the date and tweak if needed. The date
@@ -168,9 +173,11 @@ const submitting = ref(false);
 const draftKey = computed(() => `event-form-draft:${props.eventId ?? "new"}`);
 
 interface FormDraft {
-  name: string;
+  nameNl: string;
+  nameEn: string;
   chapterId: string | null;
-  topic: string;
+  topicNl: string;
+  topicEn: string;
   location: string;
   latitude: number | null;
   longitude: number | null;
@@ -195,9 +202,11 @@ interface FormDraft {
 
 function snapshot(): FormDraft {
   return {
-    name: name.value,
+    nameNl: nameNl.value,
+    nameEn: nameEn.value,
     chapterId: chapterId.value,
-    topic: topic.value,
+    topicNl: topicNl.value,
+    topicEn: topicEn.value,
     location: location.value,
     latitude: latitude.value,
     longitude: longitude.value,
@@ -222,9 +231,11 @@ function snapshot(): FormDraft {
 }
 
 function applyDraft(d: FormDraft) {
-  name.value = d.name;
+  nameNl.value = d.nameNl ?? "";
+  nameEn.value = d.nameEn ?? "";
   chapterId.value = d.chapterId ?? null;
-  topic.value = d.topic;
+  topicNl.value = d.topicNl ?? "";
+  topicEn.value = d.topicEn ?? "";
   location.value = d.location;
   latitude.value = d.latitude;
   longitude.value = d.longitude;
@@ -252,7 +263,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   snapshot,
   apply: applyDraft,
   sources: [
-    name, chapterId, topic, location, latitude, longitude, eventDate, startTime, endTime,
+    nameNl, nameEn, chapterId, topicNl, topicEn, location, latitude, longitude, eventDate, startTime, endTime,
     repeats, periodWeeks, cycleSlots, spanWeeks, openEnded,
     sources, newSource, helpOptions, newHelp,
     feedbackEnabled, reminderEnabled, listed, eventLocale, imageArtistInstagram,
@@ -363,9 +374,11 @@ onMounted(async () => {
       toasts.error(t("event.notFound"));
       return;
     }
-    name.value = existing.name;
+    nameNl.value = existing.name_nl ?? "";
+    nameEn.value = existing.name_en ?? "";
     chapterId.value = existing.chapter_id ?? null;
-    topic.value = existing.topic ?? "";
+    topicNl.value = existing.topic_nl ?? "";
+    topicEn.value = existing.topic_en ?? "";
     location.value = existing.location;
     latitude.value = existing.latitude;
     longitude.value = existing.longitude;
@@ -409,9 +422,10 @@ onMounted(async () => {
 });
 
 async function submit() {
-  const trimmedName = name.value.trim();
+  // Backend requires the title in the primary language (``eventLocale``).
+  const primaryName = (eventLocale.value === "en" ? nameEn.value : nameNl.value).trim();
   const trimmedLocation = location.value.trim();
-  if (!trimmedName) {
+  if (!primaryName) {
     toasts.warn(t("event.fillName"));
     return;
   }
@@ -452,9 +466,11 @@ async function submit() {
   submitting.value = true;
   try {
     const payload = {
-      name: trimmedName,
+      name_nl: nameNl.value.trim() || null,
+      name_en: nameEn.value.trim() || null,
       chapter_id: chapterId.value,
-      topic: topic.value.trim() || null,
+      topic_nl: topicNl.value.trim() || null,
+      topic_en: topicEn.value.trim() || null,
       location: trimmedLocation,
       latitude: latitude.value,
       longitude: longitude.value,
@@ -511,8 +527,16 @@ async function submit() {
     @cancel="cancel"
   >
       <section class="form-section">
-        <InputText v-model="name" :placeholder="t('event.name')" fluid />
-        <RichTextField v-model="topic" :placeholder="t('event.topic')" />
+        <InputText
+          v-model="title"
+          :placeholder="titleFallback || t('event.name')"
+          fluid
+        />
+        <RichTextField
+          v-model="body"
+          :placeholder="t('event.topic')"
+          :fallback-html="bodyFallback || null"
+        />
         <Select
           v-model="chapterId"
           :options="userChapterOptions"

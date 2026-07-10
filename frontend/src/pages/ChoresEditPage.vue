@@ -18,6 +18,7 @@ import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import type { ChoreIn, RosterCreate, RosterUpdate } from "@/api/types";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useBilingualField } from "@/composables/useBilingualField";
 import { useCreateRoster, useRoster, useUpdateRoster } from "@/composables/useChores";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useOrderedList } from "@/composables/useOrderedList";
@@ -44,8 +45,12 @@ const userChapterOptions = computed(() => {
   return chapters.value.filter((c) => memberIds.has(c.id));
 });
 
-const name = ref("");
-const description = ref("");
+const nameNl = ref("");
+const nameEn = ref("");
+const descNl = ref("");
+const descEn = ref("");
+const { active: title, fallback: titleFallback } = useBilingualField(nameNl, nameEn);
+const { active: body, fallback: bodyFallback } = useBilingualField(descNl, descEn);
 const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
@@ -139,8 +144,10 @@ watch(
   () => rosterQuery?.data.value,
   (existing) => {
     if (!existing) return;
-    name.value = existing.name;
-    description.value = existing.description ?? "";
+    nameNl.value = existing.name_nl ?? "";
+    nameEn.value = existing.name_en ?? "";
+    descNl.value = existing.description_nl ?? "";
+    descEn.value = existing.description_en ?? "";
     imageUrl.value = existing.image_url ?? null;
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     rosterLocale.value = existing.locale;
@@ -168,8 +175,10 @@ watch(
 const draftKey = computed(() => `chore-edit-draft:${props.rosterId ?? "new"}`);
 
 interface RosterEditDraft {
-  name: string;
-  description: string;
+  nameNl: string;
+  nameEn: string;
+  descNl: string;
+  descEn: string;
   imageArtistInstagram: string;
   chapterId: string | null;
   rosterLocale: "nl" | "en";
@@ -184,8 +193,10 @@ interface RosterEditDraft {
 
 function snapshot(): RosterEditDraft {
   return {
-    name: name.value,
-    description: description.value,
+    nameNl: nameNl.value,
+    nameEn: nameEn.value,
+    descNl: descNl.value,
+    descEn: descEn.value,
     imageArtistInstagram: imageArtistInstagram.value,
     chapterId: chapterId.value,
     rosterLocale: rosterLocale.value,
@@ -200,8 +211,10 @@ function snapshot(): RosterEditDraft {
 }
 
 function applyDraft(d: RosterEditDraft): void {
-  name.value = d.name;
-  description.value = d.description ?? "";
+  nameNl.value = d.nameNl ?? "";
+  nameEn.value = d.nameEn ?? "";
+  descNl.value = d.descNl ?? "";
+  descEn.value = d.descEn ?? "";
   imageArtistInstagram.value = d.imageArtistInstagram ?? "";
   chapterId.value = d.chapterId ?? null;
   rosterLocale.value = d.rosterLocale ?? "nl";
@@ -223,8 +236,10 @@ const { loadDraft, clearDraft } = useFormDraft<RosterEditDraft>({
   snapshot,
   apply: applyDraft,
   sources: [
-    name,
-    description,
+    nameNl,
+    nameEn,
+    descNl,
+    descEn,
     imageArtistInstagram,
     chapterId,
     rosterLocale,
@@ -294,8 +309,10 @@ function cancel(): void {
 }
 
 async function submit() {
-  const trimmedName = name.value.trim();
-  if (!trimmedName) {
+  // The backend requires the title in the primary language (``rosterLocale``);
+  // the other language is an optional translation.
+  const primaryName = (rosterLocale.value === "en" ? nameEn.value : nameNl.value).trim();
+  if (!primaryName) {
     toasts.warn(t("chores.edit.fillName"));
     return;
   }
@@ -315,8 +332,10 @@ async function submit() {
   try {
     const wirePayload: RosterCreate | RosterUpdate = {
       chapter_id: chapterId.value,
-      name: trimmedName,
-      description: description.value.trim() || null,
+      name_nl: nameNl.value.trim() || null,
+      name_en: nameEn.value.trim() || null,
+      description_nl: descNl.value.trim() || null,
+      description_en: descEn.value.trim() || null,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: rosterLocale.value,
       location: null,
@@ -385,10 +404,15 @@ async function submit() {
   >
     <!-- Basics -->
     <section class="form-section">
-      <InputText v-model="name" :placeholder="t('chores.edit.namePlaceholder')" fluid />
+      <InputText
+        v-model="title"
+        :placeholder="titleFallback || t('chores.edit.namePlaceholder')"
+        fluid
+      />
       <RichTextField
-        v-model="description"
+        v-model="body"
         :placeholder="t('chores.edit.descriptionPlaceholder')"
+        :fallback-html="bodyFallback || null"
       />
       <Select
         v-model="chapterId"
