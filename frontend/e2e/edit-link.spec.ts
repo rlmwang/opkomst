@@ -24,7 +24,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   const eventRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      name: "E2E Edit-link Event",
+      name_nl: "E2E Edit-link Event",
       chapter_id: chapterId,
       location: "Amsterdam",
       starts_on: startsAt.toISOString().slice(0, 10),

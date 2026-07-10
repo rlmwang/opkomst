@@ -31,7 +31,7 @@ test("public visitor fills a form and sees the thanks state", async ({
     headers: { Authorization: `Bearer ${token}` },
     data: {
       chapter_id: chapterId,
-      name: "E2E Smoke Form",
+      name_nl: "E2E Smoke Form",
       locale: "nl",
       questions: [
         {

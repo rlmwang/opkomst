@@ -20,7 +20,7 @@ test("editing a datepoll from its details page (warm cache) renders", async ({ r
   const pollRes = await request.post("/api/v1/datepolls", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      name: "E2E Warm-cache Poll",
+      name_nl: "E2E Warm-cache Poll",
       chapter_id: chapterId,
       locale: "nl",
       slots: [{ on_date: "2027-09-01" }, { on_date: "2027-09-02" }],

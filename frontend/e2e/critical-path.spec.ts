@@ -41,7 +41,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   const eventRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
-      name: "E2E Smoke Event",
+      name_nl: "E2E Smoke Event",
       chapter_id: chapterId,
       location: "Amsterdam",
       starts_on: startsAt.toISOString().slice(0, 10),

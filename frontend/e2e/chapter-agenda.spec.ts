@@ -49,7 +49,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
 
   const listedRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
-    data: { ...base, name: listedName, listed: true },
+    data: { ...base, name_nl: listedName, listed: true },
   });
   expect(listedRes.ok()).toBeTruthy();
   const listed = await listedRes.json();
@@ -61,7 +61,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
 
   const hiddenRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
-    data: { ...base, name: hiddenName, listed: false },
+    data: { ...base, name_nl: hiddenName, listed: false },
   });
   expect(hiddenRes.ok()).toBeTruthy();
 
