@@ -361,6 +361,7 @@ def test_conditional_update_does_not_stomp_existing_status(channel: EmailChannel
             event_a,
             dispatch_id,
             ciphertext,
+            event_a.locale,
         )
         session_a.commit()
     finally:

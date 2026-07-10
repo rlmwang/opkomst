@@ -35,7 +35,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
         "/api/v1/events",
         headers=organiser_headers,
         json={
-            "name": "T",
+            "name_nl": "T",
             "chapter_id": me["chapters"][0]["id"],
             "topic": None,
             "location": "Adam",

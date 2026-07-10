@@ -67,7 +67,7 @@ def _seed_event_and_signup(
         e = Event(
             id="evt-1",
             slug="slug1",
-            name="Demo",
+            name_nl="Demo",
             location="Test",
             starts_on=starts_at.date(),
             start_time=starts_at.time(),

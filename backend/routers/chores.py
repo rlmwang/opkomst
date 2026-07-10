@@ -59,8 +59,10 @@ def create_roster(
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
     roster = Roster(
         slug=new_slug(),
-        name=data.name,
-        description=data.description,
+        name_nl=data.name_nl,
+        name_en=data.name_en,
+        description_nl=data.description_nl,
+        description_en=data.description_en,
         location=data.location,
         latitude=data.latitude,
         longitude=data.longitude,
@@ -323,8 +325,10 @@ def update_roster(
     if data.chapter_id != roster.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
-    roster.name = data.name
-    roster.description = data.description
+    roster.name_nl = data.name_nl
+    roster.name_en = data.name_en
+    roster.description_nl = data.description_nl
+    roster.description_en = data.description_en
     roster.location = data.location
     roster.latitude = data.latitude
     roster.longitude = data.longitude

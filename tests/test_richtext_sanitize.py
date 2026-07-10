@@ -100,9 +100,9 @@ def test_html_to_text_strips_tags() -> None:
 
 def _event(topic: str) -> EventCreate:
     return EventCreate(
-        name="x",
+        name_nl="x",
         chapter_id="c",
-        topic=topic,
+        topic_nl=topic,
         location="loc",
         starts_on=date(2026, 7, 1),
         start_time=time(10, 0),
@@ -113,40 +113,40 @@ def _event(topic: str) -> EventCreate:
 
 
 def test_event_topic_is_sanitized() -> None:
-    assert "<script" not in (_event("<script>x</script>hi").topic or "")
+    assert "<script" not in (_event("<script>x</script>hi").topic_nl or "")
 
 
 def test_form_description_is_sanitized() -> None:
     f = FormCreate(
-        name="f",
+        name_nl="f",
         chapter_id="c",
-        description="<script>x</script>ok",
+        description_nl="<script>x</script>ok",
         image_artist_instagram=None,
     )
-    assert f.description == "ok"
+    assert f.description_nl == "ok"
 
 
 def test_datepoll_description_is_sanitized() -> None:
     d = DatepollCreate(
-        name="d",
+        name_nl="d",
         chapter_id="c",
-        description="<img src=x onerror=y>ok",
+        description_nl="<img src=x onerror=y>ok",
         image_artist_instagram=None,
     )
-    assert (d.description or "") == "ok"
+    assert (d.description_nl or "") == "ok"
 
 
 def test_roster_description_is_sanitized() -> None:
     r = RosterCreate(
         chapter_id="c",
-        name="r",
-        description="<b onclick=x>ok</b>",
+        name_nl="r",
+        description_nl="<b onclick=x>ok</b>",
         image_artist_instagram=None,
         period_weeks=1,
         starts_on=date(2026, 7, 1),
     )
     # <b> is not allowlisted, so the tag drops but the text stays.
-    assert (r.description or "") == "ok"
+    assert (r.description_nl or "") == "ok"
 
 
 def test_per_chore_description_stays_plain() -> None:
@@ -167,4 +167,4 @@ def test_visible_length_over_cap_rejected() -> None:
 def test_markup_does_not_count_against_visible_cap() -> None:
     # Lots of markup, few visible chars: must pass.
     body = "".join(f"<strong>{c}</strong>" for c in "a" * 100)
-    assert _event(body).topic is not None
+    assert _event(body).topic_nl is not None

@@ -22,7 +22,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     body: dict[str, Any] = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "Test form",
+        "name_nl": "Test form",
         "locale": "nl",
     }
     if questions is not None:
@@ -35,7 +35,7 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = 
 def _put(client: Any, headers: Any, form: dict[str, Any], questions: list[dict[str, Any]]) -> dict[str, Any]:
     body = {
         "chapter_id": form["chapter_id"],
-        "name": form["name"],
+        "name_nl": form["name_nl"],
         "locale": form["locale"],
         "questions": questions,
     }
@@ -176,7 +176,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
-            "name": "F",
+            "name_nl": "F",
             "locale": "nl",
             "questions": [
                 {
@@ -198,7 +198,7 @@ def test_choice_with_duplicate_options_400s(client, organiser_headers):
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
-            "name": "F",
+            "name_nl": "F",
             "locale": "nl",
             "questions": [
                 {

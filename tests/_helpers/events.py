@@ -61,6 +61,9 @@ def make_event(
     db: Session,
     *,
     name: str = "Demo",
+    name_en: str | None = None,
+    topic: str | None = None,
+    topic_en: str | None = None,
     starts_in: timedelta = timedelta(days=4),
     duration: timedelta = timedelta(hours=2),
     feedback_enabled: bool = True,
@@ -95,7 +98,10 @@ def make_event(
     _ensure_test_user(db, created_by)
     event = Event(
         slug=_unique_slug(),
-        name=name,
+        name_nl=name,
+        name_en=name_en,
+        topic_nl=topic,
+        topic_en=topic_en,
         location="Test location",
         starts_on=_starts_on,
         start_time=_start_time,

@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from ..models import Event, Occurrence
+from ..schemas.common import pick_localized
 from .sanitize import html_to_text
 
 # Event datetimes are naive Europe/Amsterdam wall clock (see
@@ -97,7 +98,7 @@ def build_occurrence_ics(occurrence: Occurrence, event: Event, *, public_base_ur
     description_parts: list[str] = []
     # ``topic`` is sanitized rich-text HTML; flatten to plain text before
     # the RFC-5545 escape so tags don't appear raw in the calendar entry.
-    topic_text = html_to_text(event.topic)
+    topic_text = html_to_text(pick_localized(event.topic_nl, event.topic_en, event.locale))
     if topic_text:
         description_parts.append(_escape(topic_text))
     description_parts.append(_escape(public_url))
@@ -115,7 +116,7 @@ def build_occurrence_ics(occurrence: Occurrence, event: Event, *, public_base_ur
         f"DTSTAMP:{_fmt_utc(now)}",
         f"DTSTART:{_fmt_utc(occurrence.starts_at)}",
         f"DTEND:{_fmt_utc(occurrence.ends_at)}",
-        f"SUMMARY:{_escape(event.name)}",
+        f"SUMMARY:{_escape(pick_localized(event.name_nl, event.name_en, event.locale) or '')}",
         f"LOCATION:{_escape(event.location)}",
         f"URL:{public_url}",
         f"DESCRIPTION:{description}",

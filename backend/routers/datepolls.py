@@ -53,8 +53,10 @@ def create_datepoll(
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
     poll = Datepoll(
         slug=new_slug(),
-        name=data.name,
-        description=data.description,
+        name_nl=data.name_nl,
+        name_en=data.name_en,
+        description_nl=data.description_nl,
+        description_en=data.description_en,
         location=data.location,
         latitude=data.latitude,
         longitude=data.longitude,
@@ -130,8 +132,10 @@ def update_datepoll(
     if data.chapter_id != poll.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
-    poll.name = data.name
-    poll.description = data.description
+    poll.name_nl = data.name_nl
+    poll.name_en = data.name_en
+    poll.description_nl = data.description_nl
+    poll.description_en = data.description_en
     poll.location = data.location
     poll.latitude = data.latitude
     poll.longitude = data.longitude

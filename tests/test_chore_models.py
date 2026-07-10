@@ -19,7 +19,7 @@ def _seed(db):
     db.commit()
     roster = Roster(
         slug="rost1234",
-        name="Weekly bins",
+        name_nl="Weekly bins",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=date(2026, 1, 5),

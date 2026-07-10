@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..database import get_db
 from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Occurrence, Registration, Signup, User
-from ..schemas.common import EditLinkRecoverOut
+from ..schemas.common import EditLinkRecoverOut, pick_localized
 from ..schemas.events import (
     BookingEditIn,
     BookingOccurrenceOut,
@@ -118,6 +118,9 @@ def create_signup(
                     channel=ch,
                     status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt(data.email),
+                    # Mail this attendee in the language they signed up in;
+                    # fall back to the event's primary locale.
+                    locale=data.locale or event.locale,
                 )
             )
             total_dispatches += 1
@@ -161,7 +164,7 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
         display_name=registration.display_name,
         party_size=registration.party_size,
         link_recovered_at=registration.link_recovered_at,
-        event_name=event.name,
+        event_name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
         event_slug=event.slug,
         locale=event.locale,
         occurrences=[

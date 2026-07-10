@@ -160,7 +160,7 @@ def test_chapter_usage_counts_users_and_events(client, admin_headers, chapter_id
         "/api/v1/events",
         headers=organiser_headers,
         json={
-            "name": "Demo",
+            "name_nl": "Demo",
             "chapter_id": chapter_id,
             "topic": None,
             "location": "Adam",

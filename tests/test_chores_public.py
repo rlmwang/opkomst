@@ -17,7 +17,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create_roster(client: Any, headers: Any, chores: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     body = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "Bins roster",
+        "name_nl": "Bins roster",
         "starts_on": "2026-01-05",
         "chores": chores if chores is not None else [{"name": "Bins", "cycle_slots": [2]}],
     }
@@ -51,7 +51,7 @@ def test_enroll_without_email(client, organiser_headers):
 def test_public_by_slug_shape(client, organiser_headers):
     roster = _create_roster(client, organiser_headers)
     pub = client.get(f"/api/v1/chores/by-slug/{roster['slug']}").json()
-    assert pub["name"] == "Bins roster"
+    assert pub["name_nl"] == "Bins roster"
     assert pub["period_weeks"] == 1
     assert len(pub["chores"]) == 1
     # No organiser-only fields leak to the public shape.
@@ -258,9 +258,7 @@ def test_availability_releases_locked_in_shifts(client, organiser_headers, db):
     assert r.status_code == 200, r.text
     assert shift_id not in [s["id"] for s in r.json()["my_shifts"]]
     assert shift_id in [s["id"] for s in r.json()["open_shifts"]]
-    assert (
-        db.query(ShiftEvent).filter(ShiftEvent.shift_id == shift_id, ShiftEvent.kind == "deferred").count() == 1
-    )
+    assert db.query(ShiftEvent).filter(ShiftEvent.shift_id == shift_id, ShiftEvent.kind == "deferred").count() == 1
     # A shift on a date outside the away range keeps its assignee.
     kept = [s for s in my if s["on_date"] != on_date]
     if kept:

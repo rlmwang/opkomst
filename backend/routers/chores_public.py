@@ -117,6 +117,9 @@ def enroll(
         email_reminders=retain,
         encrypted_email=encryption.encrypt(email) if (retain and email is not None) else None,
         edit_token_hash=token_hash,
+        # Remind this volunteer in the language they joined in; fall back
+        # to the roster's primary locale.
+        locale=data.locale or roster.locale,
     )
     db.add(volunteer)
     db.flush()  # need volunteer.id for the enrolment rows
@@ -130,7 +133,7 @@ def enroll(
             to=email,
             template_name="chore_welcome.html",
             context={"personal_url": mail.build_url(f"c/{slug}", s=raw)},
-            locale=roster.locale,
+            locale=data.locale or roster.locale,
         )
     logger.info("volunteer_enrolled", roster_id=roster.id)
     return EnrollAck(edit_token=raw)

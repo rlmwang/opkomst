@@ -31,7 +31,7 @@ def _seed(
     db.commit()
     roster = Roster(
         slug=f"rost{hashsuffix}",
-        name="Bins roster",
+        name_nl="Bins roster",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=today - timedelta(days=30),

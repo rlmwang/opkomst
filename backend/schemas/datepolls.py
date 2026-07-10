@@ -20,7 +20,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import DisplayName, InstagramHandle, Locale, RichText
+from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, RichText
 
 Availability = Literal["yes", "no", "maybe"]
 
@@ -54,25 +54,18 @@ class DatepollSlotOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DatepollCreate(BaseModel):
+class DatepollCreate(BilingualTitleMixin):
     """Organiser create payload."""
 
     chapter_id: str
-    name: str = Field(min_length=1, max_length=200)
-    description: RichText
+    description_nl: RichText
+    description_en: RichText
     location: str | None = Field(default=None, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     slots: list[DatepollSlotIn] = Field(default_factory=list, max_length=200)
-
-    @model_validator(mode="after")
-    def _clean(self) -> "DatepollCreate":
-        self.name = self.name.strip()
-        if not self.name:
-            raise ValueError("Name is required")
-        return self
 
 
 class DatepollUpdate(DatepollCreate):
@@ -89,7 +82,8 @@ class DatepollListOut(BaseModel):
 
     id: str
     slug: str
-    name: str
+    name_nl: str | None
+    name_en: str | None
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
@@ -105,7 +99,8 @@ class DatepollOut(DatepollListOut):
     """Single-poll DTO — the list fields plus the description and the
     full candidate-slot list (sorted by date then start time)."""
 
-    description: str | None = None
+    description_nl: str | None = None
+    description_en: str | None = None
     location: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -118,8 +113,10 @@ class PublicDatepollOut(BaseModel):
     """What the public fill-out page (``/d/{slug}``) reads."""
 
     id: str
-    name: str
-    description: str | None = None
+    name_nl: str | None
+    name_en: str | None
+    description_nl: str | None = None
+    description_en: str | None = None
     location: str | None = None
     latitude: float | None = None
     longitude: float | None = None

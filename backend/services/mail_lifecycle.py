@@ -61,6 +61,7 @@ from ..models import (
     Shift,
     Volunteer,
 )
+from ..schemas.common import pick_localized
 from . import encryption
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
@@ -170,17 +171,18 @@ def _osm_url(event: Event) -> str:
     return f"https://www.openstreetmap.org/search?query={quote(event.location)}"
 
 
-def build_reminder_context(occurrence: Occurrence, event: Event) -> dict[str, Any]:
+def build_reminder_context(occurrence: Occurrence, event: Event, locale: str) -> dict[str, Any]:
     """Reminder template context for one occurrence: its date/time and its
-    own public page, the content read through the event. Public so the
-    per-occurrence email preview can render without a real send path."""
+    own public page, the content read through the event in the recipient's
+    ``locale`` (falling back to the other language). Public so the per-
+    occurrence email preview can render without a real send path."""
     return {
-        "event_name": event.name,
+        "event_name": pick_localized(event.name_nl, event.name_en, locale),
         "event_url": build_url(f"e/{occurrence.slug}"),
-        "topic": html_to_text(event.topic),
+        "topic": html_to_text(pick_localized(event.topic_nl, event.topic_en, locale)),
         "starts_at": occurrence.starts_at,
         "ends_at": occurrence.ends_at,
-        "event_date": _format_date(occurrence.starts_at, event.locale),
+        "event_date": _format_date(occurrence.starts_at, locale),
         "event_time": _format_time_range(occurrence.starts_at, occurrence.ends_at),
         "location": event.location,
         "map_url": _osm_url(event),
@@ -189,12 +191,13 @@ def build_reminder_context(occurrence: Occurrence, event: Event) -> dict[str, An
     }
 
 
-def build_feedback_context(occurrence: Occurrence, event: Event) -> dict[str, Any]:
-    """Feedback template context for one occurrence. For the live worker
-    the ``feedback_url`` is appended in ``_process_one`` once the per-
-    occurrence token is minted; the preview path passes a synthetic token."""
+def build_feedback_context(occurrence: Occurrence, event: Event, locale: str) -> dict[str, Any]:
+    """Feedback template context for one occurrence, in the recipient's
+    ``locale``. For the live worker the ``feedback_url`` is appended in
+    ``_process_one`` once the per-occurrence token is minted; the preview
+    path passes a synthetic token."""
     return {
-        "event_name": event.name,
+        "event_name": pick_localized(event.name_nl, event.name_en, locale),
         "image_url": event.image_url,
         "image_artist_instagram": event.image_artist_instagram,
     }
@@ -213,7 +216,7 @@ class _ChannelDef:
     template: str
     toggle: Any  # SQLAlchemy column on Event
     window: Callable[[datetime], Any]  # SQL predicate factory on Occurrence
-    context: Callable[[Occurrence, Event], dict[str, Any]]
+    context: Callable[[Occurrence, Event, str], dict[str, Any]]
 
 
 CHANNELS: dict[EmailChannel, _ChannelDef] = {
@@ -259,6 +262,7 @@ def _process_one(
     event: Event,
     dispatch_id: str,
     ciphertext: bytes,
+    dispatch_locale: str,
 ) -> None:
     """One dispatch through its lifecycle: atomic-claim,
     decrypt-or-fail, send, finalise.
@@ -318,7 +322,7 @@ def _process_one(
     # without dict-with-private-key threading. The token never
     # references a signup — privacy contract.
     feedback_token: str | None = None
-    template_context = dict(CHANNELS[channel].context(occurrence, event))
+    template_context = dict(CHANNELS[channel].context(occurrence, event, dispatch_locale))
     if channel == EmailChannel.FEEDBACK:
         feedback_token = secrets.token_urlsafe(32)
         db.add(
@@ -335,7 +339,7 @@ def _process_one(
         to=plaintext,
         template_name=CHANNELS[channel].template,
         context=template_context,
-        locale=event.locale,
+        locale=dispatch_locale,
         message_id=message_id,
         log_event=f"{channel.value}_send_failed",
     )
@@ -419,7 +423,13 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
     db = SessionLocal()
     try:
         rows = (
-            db.query(EmailDispatch.id, EmailDispatch.encrypted_email, Occurrence, Event)
+            db.query(
+                EmailDispatch.id,
+                EmailDispatch.encrypted_email,
+                EmailDispatch.locale,
+                Occurrence,
+                Event,
+            )
             .join(Occurrence, Occurrence.id == EmailDispatch.occurrence_id)
             .join(Event, Event.id == Occurrence.event_id)
             .filter(
@@ -432,8 +442,8 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .limit(email_batch_size())
             .all()
         )
-        for dispatch_id, ciphertext, occurrence, event in rows:
-            _process_one(db, channel, occurrence, event, dispatch_id, ciphertext)
+        for dispatch_id, ciphertext, dispatch_locale, occurrence, event in rows:
+            _process_one(db, channel, occurrence, event, dispatch_id, ciphertext, dispatch_locale)
         db.commit()
         return len(rows)
     finally:
@@ -575,11 +585,13 @@ def run_chore_reminders() -> int:
                 to=plaintext,
                 template_name="chore_reminder.html",
                 context={
+                    # ``chore.name`` is single-language; the roster title is
+                    # bilingual, resolved in the volunteer's own locale.
                     "chore_name": chore.name,
-                    "roster_name": roster.name,
+                    "roster_name": pick_localized(roster.name_nl, roster.name_en, volunteer.locale),
                     "when": shift.on_date.strftime("%d-%m-%Y"),
                 },
-                locale=roster.locale,
+                locale=volunteer.locale,
                 message_id=new_message_id(),
                 log_event="chore_reminder_send_failed",
             )

@@ -19,7 +19,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, **overrides: Any) -> Any:
     body: dict[str, Any] = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "Bins roster",
+        "name_nl": "Bins roster",
         "starts_on": "2026-01-05",
     }
     body.update(overrides)
@@ -114,7 +114,7 @@ def test_update_reconciles_chores(client, organiser_headers):
 
     body = {
         "chapter_id": created["chapter_id"],
-        "name": created["name"],
+        "name_nl": created["name_nl"],
         "starts_on": created["starts_on"],
         "chores": [
             {"id": a_id, "name": "A2", "cycle_slots": [2]},  # rename existing
@@ -141,7 +141,7 @@ def test_shrink_k_clamps_out_of_range_slots_on_update(client, organiser_headers)
 
     body = {
         "chapter_id": created["chapter_id"],
-        "name": created["name"],
+        "name_nl": created["name_nl"],
         "starts_on": created["starts_on"],
         "period_weeks": 1,  # shrink k → offset 9 is now out of range
         "chores": [{"id": x_id, "name": "X", "cycle_slots": [2, 9]}],
@@ -189,7 +189,7 @@ def test_roster_in_other_chapter_is_404_for_organiser(client, admin_headers, org
     roster = client.post(
         "/api/v1/chores",
         headers=admin_headers,
-        json={"chapter_id": other["id"], "name": "Admin roster", "starts_on": "2026-01-05"},
+        json={"chapter_id": other["id"], "name_nl": "Admin roster", "starts_on": "2026-01-05"},
     ).json()
     # Organiser is not a member of "Other chapter" → 404 (not 403).
     assert client.get(f"/api/v1/chores/{roster['id']}", headers=organiser_headers).status_code == 404
@@ -214,9 +214,7 @@ def test_accountability_breaks_down_per_chore(client, organiser_headers):
         json={"display_name": "Ada", "chore_ids": [bar["id"]]},
     )
 
-    sections = client.get(
-        f"/api/v1/chores/{roster['id']}/accountability", headers=organiser_headers
-    ).json()
+    sections = client.get(f"/api/v1/chores/{roster['id']}/accountability", headers=organiser_headers).json()
     assert [s["chore_name"] for s in sections] == ["Bar", "Keuken"]
     by_name = {s["chore_name"]: s for s in sections}
     assert [v["display_name"] for v in by_name["Bar"]["volunteers"]] == ["Ada"]
@@ -227,9 +225,7 @@ def test_accountability_breaks_down_per_chore(client, organiser_headers):
 def test_calendar_endpoint_returns_per_chore_days(client, organiser_headers):
     """One entry per chore; a running roster's current month carries
     occurrence days, each with at least one assignee slot."""
-    roster = _create(
-        client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]
-    ).json()
+    roster = _create(client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]).json()
     client.post(f"/api/v1/chores/{roster['id']}/activate", headers=organiser_headers)
     cal = client.get(f"/api/v1/chores/{roster['id']}/calendar", headers=organiser_headers).json()
     assert [c["chore_name"] for c in cal] == ["Bar"]
@@ -240,9 +236,7 @@ def test_calendar_endpoint_returns_per_chore_days(client, organiser_headers):
 def test_rebalance_preview_returns_calendar_with_changes(client, organiser_headers):
     """The preview flags the days a rebalance would change (a late enrollee
     filling open shifts) and does not persist them."""
-    roster = _create(
-        client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]
-    ).json()
+    roster = _create(client, organiser_headers, chores=[{"name": "Bar", "cycle_slots": [0, 1, 2, 3, 4, 5, 6]}]).json()
     client.post(f"/api/v1/chores/{roster['id']}/activate", headers=organiser_headers)  # window pins open
     client.post(
         f"/api/v1/chores/by-slug/{roster['slug']}/enroll",

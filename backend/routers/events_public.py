@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import EmailChannel, Occurrence
+from ..schemas.common import pick_localized
 from ..schemas.events import PublicEventOut
 from ..schemas.feedback import FeedbackFormOut, FeedbackQuestionOut
 from ..services import events as events_svc
@@ -121,7 +122,7 @@ def feedback_form_preview(slug: str, db: Session = Depends(get_db)) -> FeedbackF
         raise HTTPException(status_code=404, detail="Channel disabled")
 
     return FeedbackFormOut(
-        event_name=event.name,
+        event_name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
         event_slug=occurrence.slug,
         event_locale=event.locale,
         questions=[
@@ -141,7 +142,7 @@ def email_preview(slug: str, channel: str, db: Session = Depends(get_db)) -> Res
     if not mail_lifecycle.channel_enabled_for(ch, event):
         raise HTTPException(status_code=404, detail="Channel disabled")
     cdef = mail_lifecycle.CHANNELS[ch]
-    context = dict(cdef.context(occurrence, event))
+    context = dict(cdef.context(occurrence, event, event.locale))
     if ch == EmailChannel.FEEDBACK:
         context["feedback_url"] = build_url(f"e/{occurrence.slug}/feedback", t="preview")
 

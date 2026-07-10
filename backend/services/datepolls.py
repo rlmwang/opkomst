@@ -129,7 +129,8 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
         DatepollListOut(
             id=p.id,
             slug=p.slug,
-            name=p.name,
+            name_nl=p.name_nl,
+            name_en=p.name_en,
             locale=p.locale,
             chapter_id=p.chapter_id,
             chapter_name=names.get(p.chapter_id) if p.chapter_id else None,
@@ -164,7 +165,8 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
     return DatepollOut(
         id=poll.id,
         slug=poll.slug,
-        name=poll.name,
+        name_nl=poll.name_nl,
+        name_en=poll.name_en,
         locale=poll.locale,
         chapter_id=poll.chapter_id,
         chapter_name=chapter_name,
@@ -174,7 +176,8 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         first_date=days[0] if days else None,
         last_date=days[-1] if days else None,
         submission_count=submission_count(db, poll.id),
-        description=poll.description,
+        description_nl=poll.description_nl,
+        description_en=poll.description_en,
         location=poll.location,
         latitude=poll.latitude,
         longitude=poll.longitude,
@@ -189,8 +192,10 @@ def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
     slots in display order, nothing internal."""
     return PublicDatepollOut(
         id=poll.id,
-        name=poll.name,
-        description=poll.description,
+        name_nl=poll.name_nl,
+        name_en=poll.name_en,
+        description_nl=poll.description_nl,
+        description_en=poll.description_en,
         location=poll.location,
         latitude=poll.latitude,
         longitude=poll.longitude,

@@ -52,6 +52,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -66,9 +67,11 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
 
     __tablename__ = "rosters"
 
-    # Spine (slug, name, image_url, image_artist_instagram, locale,
-    # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Spine (slug, name_nl/name_en, image_url, image_artist_instagram,
+    # locale, created_by, chapter_id, archived_at) comes from
+    # OrgEntityMixin. ``description`` is the bilingual richtext details body.
+    description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Optional location (free text) + resolved coordinates, same optional
     # shape as Datepoll — chores often have a fixed venue but needn't.
@@ -96,7 +99,10 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     # = running (the tick pins the commit horizon). One-way.
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    __table_args__ = (Index("ix_rosters_archived_chapter", "archived_at", "chapter_id"),)
+    __table_args__ = (
+        Index("ix_rosters_archived_chapter", "archived_at", "chapter_id"),
+        CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_rosters_name_present"),
+    )
 
 
 class Chore(UUIDMixin, TimestampMixin, Base):
@@ -134,6 +140,10 @@ class Volunteer(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     encrypted_email: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     email_reminders: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # The volunteer's own language (the flag active at join; falls back to
+    # the roster's primary locale). Drives the reminder email's language and
+    # which side of the bilingual roster content it renders.
+    locale: Mapped[str] = mapped_column(Text, nullable=False, default="nl", server_default=text("'nl'"))
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 

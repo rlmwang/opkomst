@@ -21,9 +21,9 @@ five supported kinds.
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from .common import DisplayName, InstagramHandle, Locale, RichText
+from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, RichText
 
 QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice"]
 
@@ -64,12 +64,12 @@ class FormQuestionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class FormCreate(BaseModel):
+class FormCreate(BilingualTitleMixin):
     """Organiser create payload."""
 
     chapter_id: str
-    name: str = Field(min_length=1, max_length=200)
-    description: RichText
+    description_nl: RichText
+    description_en: RichText
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     # Optional on create — an organiser can save a draft form with
@@ -77,14 +77,6 @@ class FormCreate(BaseModel):
     # update the same field is "the exact question set after the
     # save" (matched by id; null ids insert).
     questions: list[FormQuestionIn] = Field(default_factory=list)
-
-    @field_validator("name")
-    @classmethod
-    def _clean_name(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Name is required")
-        return v
 
 
 class FormUpdate(FormCreate):
@@ -104,7 +96,8 @@ class FormListOut(BaseModel):
 
     id: str
     slug: str
-    name: str
+    name_nl: str | None
+    name_en: str | None
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
@@ -119,7 +112,8 @@ class FormOut(FormListOut):
     the full question list, so the details / edit pages pre-populate
     without an extra round-trip."""
 
-    description: str | None = None
+    description_nl: str | None = None
+    description_en: str | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
     questions: list[FormQuestionOut] = Field(default_factory=list)
@@ -131,8 +125,10 @@ class PublicFormOut(BaseModel):
     description + image + locale + questions in display order."""
 
     id: str
-    name: str
-    description: str | None = None
+    name_nl: str | None
+    name_en: str | None
+    description_nl: str | None = None
+    description_en: str | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
     locale: Locale

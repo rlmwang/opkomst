@@ -23,20 +23,20 @@ def _event(image_url):
     # The event builder reads the event through its occurrence; a set
     # ``topic`` keeps it off the "{location} · {date}" description branch
     # so ``starts_at`` is never read.
-    event = Event(name="Bokslessen", topic="<p>kom langs</p>", location="Zaal", image_url=image_url)
+    event = Event(name_nl="Bokslessen", topic_nl="<p>kom langs</p>", location="Zaal", image_url=image_url)
     return spa._build_head_meta(Occurrence(event=event), "slug1")
 
 
 def _datepoll(image_url):
-    return spa._build_datepoll_head_meta(Datepoll(name="Prik", description=None, image_url=image_url), "slug2")
+    return spa._build_datepoll_head_meta(Datepoll(name_nl="Prik", description_nl=None, image_url=image_url), "slug2")
 
 
 def _form(image_url):
-    return spa._build_form_head_meta(Form(name="Aanmelden", image_url=image_url), "slug3")
+    return spa._build_form_head_meta(Form(name_nl="Aanmelden", image_url=image_url), "slug3")
 
 
 def _roster(image_url):
-    return spa._build_roster_head_meta(Roster(name="Corvee", description=None, image_url=image_url), "slug4")
+    return spa._build_roster_head_meta(Roster(name_nl="Corvee", description_nl=None, image_url=image_url), "slug4")
 
 
 _BUILDERS = [_event, _datepoll, _form, _roster]

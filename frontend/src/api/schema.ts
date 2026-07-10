@@ -2821,8 +2821,10 @@ export interface components {
         DatepollCreate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
             /** Latitude */
@@ -2837,8 +2839,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotIn"][];
         };
@@ -2893,8 +2897,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Slug */
             slug: string;
             /** Submission Count */
@@ -2919,8 +2925,10 @@ export interface components {
             created_at: string;
             /** Date Count */
             date_count: number;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** First Date */
             first_date?: string | null;
             /** Id */
@@ -2942,8 +2950,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotOut"][];
             /** Slug */
@@ -3082,8 +3092,10 @@ export interface components {
         DatepollUpdate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
             /** Latitude */
@@ -3098,8 +3110,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotIn"][];
         };
@@ -3174,6 +3188,8 @@ export interface components {
              * @default false
              */
             email_reminders: boolean;
+            /** Locale */
+            locale?: ("nl" | "en") | null;
         };
         /**
          * EventCreate
@@ -3225,8 +3241,10 @@ export interface components {
             location: string;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /**
              * Period Weeks
              * @default 1
@@ -3251,8 +3269,10 @@ export interface components {
              * Format: date
              */
             starts_on: string;
-            /** Topic */
-            topic?: string | null;
+            /** Topic En */
+            topic_en?: string | null;
+            /** Topic Nl */
+            topic_nl?: string | null;
         };
         /**
          * EventOut
@@ -3300,8 +3320,10 @@ export interface components {
             location: string;
             /** Longitude */
             longitude: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Next Slug */
             next_slug: string | null;
             /** Next Starts At */
@@ -3326,8 +3348,10 @@ export interface components {
              * Format: date
              */
             starts_on: string;
-            /** Topic */
-            topic: string | null;
+            /** Topic En */
+            topic_en: string | null;
+            /** Topic Nl */
+            topic_nl: string | null;
         };
         /**
          * EventStatsOut
@@ -3395,8 +3419,10 @@ export interface components {
             location: string;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /**
              * Period Weeks
              * @default 1
@@ -3421,8 +3447,10 @@ export interface components {
              * Format: date
              */
             starts_on: string;
-            /** Topic */
-            topic?: string | null;
+            /** Topic En */
+            topic_en?: string | null;
+            /** Topic Nl */
+            topic_nl?: string | null;
         };
         /** FeedbackAnswerIn */
         FeedbackAnswerIn: {
@@ -3554,8 +3582,10 @@ export interface components {
         FormCreate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
             /**
@@ -3564,8 +3594,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
         };
@@ -3614,8 +3646,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Slug */
             slug: string;
             /** Submission Count */
@@ -3639,8 +3673,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Id */
             id: string;
             /** Image Artist Instagram */
@@ -3652,8 +3688,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionOut"][];
             /** Slug */
@@ -3820,8 +3858,10 @@ export interface components {
         FormUpdate: {
             /** Chapter Id */
             chapter_id: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Image Artist Instagram */
             image_artist_instagram?: string | null;
             /**
@@ -3830,8 +3870,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
         };
@@ -3911,8 +3953,10 @@ export interface components {
             index: number;
             /** Location */
             location: string;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Slug */
             slug: string;
             /**
@@ -3920,8 +3964,10 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
-            /** Topic */
-            topic: string | null;
+            /** Topic En */
+            topic_en: string | null;
+            /** Topic Nl */
+            topic_nl: string | null;
             /** Total Sessions */
             total_sessions: number | null;
         };
@@ -4091,8 +4137,10 @@ export interface components {
          * @description What the public fill-out page (``/d/{slug}``) reads.
          */
         PublicDatepollOut: {
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Id */
             id: string;
             /** Image Artist Instagram */
@@ -4110,8 +4158,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Slots */
             slots: components["schemas"]["DatepollSlotOut"][];
         };
@@ -4147,14 +4197,18 @@ export interface components {
             location: string;
             /** Longitude */
             longitude: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Projected */
             projected: components["schemas"]["ProjectedOccurrenceOut"][];
             /** Source Options */
             source_options: string[];
-            /** Topic */
-            topic: string | null;
+            /** Topic En */
+            topic_en: string | null;
+            /** Topic Nl */
+            topic_nl: string | null;
             /** Total Sessions */
             total_sessions: number | null;
             /** Upcoming */
@@ -4167,8 +4221,10 @@ export interface components {
          *     description + image + locale + questions in display order.
          */
         PublicFormOut: {
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Id */
             id: string;
             /** Image Artist Instagram */
@@ -4180,8 +4236,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Questions */
             questions: components["schemas"]["FormQuestionOut"][];
         };
@@ -4218,8 +4276,10 @@ export interface components {
         PublicRosterOut: {
             /** Chores */
             chores?: components["schemas"]["ChoreOut"][];
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Ends On */
             ends_on?: string | null;
             /** Id */
@@ -4239,8 +4299,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Period Weeks */
             period_weeks: number;
             /**
@@ -4285,8 +4347,10 @@ export interface components {
              * @default 21
              */
             commit_horizon_days: number;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Ends On */
             ends_on?: string | null;
             /** Image Artist Instagram */
@@ -4303,8 +4367,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /**
              * Period Weeks
              * @default 1
@@ -4352,8 +4418,10 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Period Weeks */
             period_weeks: number;
             /** Slug */
@@ -4386,8 +4454,10 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Ends On */
             ends_on?: string | null;
             /** Id */
@@ -4407,8 +4477,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
             /** Period Weeks */
             period_weeks: number;
             /** Reminder Days Before */
@@ -4440,8 +4512,10 @@ export interface components {
              * @default 21
              */
             commit_horizon_days: number;
-            /** Description */
-            description?: string | null;
+            /** Description En */
+            description_en?: string | null;
+            /** Description Nl */
+            description_nl?: string | null;
             /** Ends On */
             ends_on?: string | null;
             /** Image Artist Instagram */
@@ -4458,8 +4532,10 @@ export interface components {
             location?: string | null;
             /** Longitude */
             longitude?: number | null;
-            /** Name */
-            name: string;
+            /** Name En */
+            name_en?: string | null;
+            /** Name Nl */
+            name_nl?: string | null;
             /**
              * Period Weeks
              * @default 1
@@ -4600,6 +4676,8 @@ export interface components {
             email?: string | null;
             /** Help Choices */
             help_choices?: string[];
+            /** Locale */
+            locale?: ("nl" | "en") | null;
             /** Occurrence Ids */
             occurrence_ids?: string[];
             /** Party Size */

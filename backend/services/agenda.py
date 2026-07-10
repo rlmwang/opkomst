@@ -38,8 +38,10 @@ def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
     event = occ.event
     return OccurrenceCardOut(
         slug=occ.slug,
-        name=event.name,
-        topic=event.topic,
+        name_nl=event.name_nl,
+        name_en=event.name_en,
+        topic_nl=event.topic_nl,
+        topic_en=event.topic_en,
         starts_at=occ.starts_at,
         ends_at=occ.ends_at,
         location=event.location,

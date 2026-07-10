@@ -37,6 +37,7 @@ from starlette.types import Scope
 from ..config import settings
 from ..database import get_db
 from ..models import Chapter, Datepoll, Form, Occurrence, Roster
+from ..schemas.common import pick_localized
 from ..services import agenda as agenda_svc
 from ..services import chapters as chapters_svc
 from ..services import chores as chores_svc
@@ -133,7 +134,7 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
     # ``topic`` is sanitized rich-text HTML; flatten it to plain text
     # before it lands in a ``<meta>`` attribute (tags would otherwise
     # show up literally in link previews).
-    topic_text = html_to_text(event.topic)
+    topic_text = html_to_text(pick_localized(event.topic_nl, event.topic_en, event.locale))
     if topic_text:
         description = topic_text
     else:
@@ -142,7 +143,7 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
         description = description[:197] + "…"
 
     return _og_head(
-        name=event.name,
+        name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
         description=description,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
         image_url=event.image_url,
@@ -155,9 +156,10 @@ def _build_form_head_meta(form: Form | None, slug: str) -> str:
     card uses the organiser's uploaded image when set."""
     if form is None:
         return "<title>opkomst.nu</title>"
+    form_name = pick_localized(form.name_nl, form.name_en, form.locale) or ""
     return _og_head(
-        name=form.name,
-        description=form.name,
+        name=form_name,
+        description=form_name,
         canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
         image_url=form.image_url,
     )
@@ -168,9 +170,10 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
     blurb if set, else its name; card uses the uploaded image when set."""
     if poll is None:
         return "<title>opkomst.nu</title>"
+    poll_name = pick_localized(poll.name_nl, poll.name_en, poll.locale) or ""
     return _og_head(
-        name=poll.name,
-        description=html_to_text(poll.description) or poll.name,
+        name=poll_name,
+        description=html_to_text(pick_localized(poll.description_nl, poll.description_en, poll.locale)) or poll_name,
         canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
         image_url=poll.image_url,
     )
@@ -181,9 +184,11 @@ def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
     blurb if set, else its name; card uses the uploaded image when set."""
     if roster is None:
         return "<title>opkomst.nu</title>"
+    roster_name = pick_localized(roster.name_nl, roster.name_en, roster.locale) or ""
+    blurb = html_to_text(pick_localized(roster.description_nl, roster.description_en, roster.locale))
     return _og_head(
-        name=roster.name,
-        description=html_to_text(roster.description) or roster.name,
+        name=roster_name,
+        description=blurb or roster_name,
         canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
         image_url=roster.image_url,
     )

@@ -62,7 +62,8 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
 
     # Spine (slug, name, image_url, image_artist_instagram, locale,
     # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Optional location (free text) + resolved coordinates, same shape
     # as Event — but optional here, since a poll often settles the time
     # before the place. Coords drive the public map link.
@@ -71,7 +72,10 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Mirrors the events/forms list index.
-    __table_args__ = (Index("ix_datepolls_archived_chapter", "archived_at", "chapter_id"),)
+    __table_args__ = (
+        Index("ix_datepolls_archived_chapter", "archived_at", "chapter_id"),
+        CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_datepolls_name_present"),
+    )
 
 
 class DatepollSlot(UUIDMixin, TimestampMixin, Base):

@@ -42,7 +42,7 @@ def _seed_minimal_event_and_signup() -> str:
         e = Event(
             id="evt-tok",
             slug="slug-tok",
-            name="Demo",
+            name_nl="Demo",
             location="Test",
             starts_on=datetime(2026, 4, 28).date(),
             start_time=time(18, 0),

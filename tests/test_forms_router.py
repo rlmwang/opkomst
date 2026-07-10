@@ -32,7 +32,7 @@ def _create_form(
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "chapter_id": chapter_id or _chapter_id(client, headers),
-        "name": name,
+        "name_nl": name,
         "locale": locale,
     }
     if questions is not None:
@@ -47,7 +47,7 @@ def _create_form(
 
 def test_create_form_minimal(client, organiser_headers):
     form = _create_form(client, organiser_headers)
-    assert form["name"] == "Demo form"
+    assert form["name_nl"] == "Demo form"
     assert form["locale"] == "nl"
     assert form["archived"] is False
     assert form["questions"] == []
@@ -80,7 +80,7 @@ def test_create_form_rejects_chapter_outside_user_membership(client, admin_heade
     r = client.post(
         "/api/v1/forms",
         headers=organiser_headers,
-        json={"chapter_id": other_chapter, "name": "Trespass", "locale": "nl"},
+        json={"chapter_id": other_chapter, "name_nl": "Trespass", "locale": "nl"},
     )
     assert r.status_code == 403
 
@@ -88,7 +88,7 @@ def test_create_form_rejects_chapter_outside_user_membership(client, admin_heade
 def test_create_form_requires_authentication(client):
     r = client.post(
         "/api/v1/forms",
-        json={"chapter_id": "x", "name": "Anonymous", "locale": "nl"},
+        json={"chapter_id": "x", "name_nl": "Anonymous", "locale": "nl"},
     )
     assert r.status_code == 401
 
@@ -158,12 +158,12 @@ def test_get_form_other_chapter_404s(client, admin_headers, organiser_headers):
 
 def test_update_form_renames(client, organiser_headers):
     form = _create_form(client, organiser_headers)
-    body = {**form, "name": "Renamed"}
+    body = {**form, "name_nl": "Renamed"}
     # ``FormUpdate`` only reads chapter_id/name/locale/questions —
     # extra fields ride along harmlessly.
     r = client.put(f"/api/v1/forms/{form['id']}", headers=organiser_headers, json=body)
     assert r.status_code == 200
-    assert r.json()["name"] == "Renamed"
+    assert r.json()["name_nl"] == "Renamed"
 
 
 def test_update_form_chapter_change_must_be_in_membership(client, admin_headers, organiser_headers):

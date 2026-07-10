@@ -16,7 +16,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, dates: list[str]) -> dict[str, Any]:
     body = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "Public poll",
+        "name_nl": "Public poll",
         "locale": "nl",
         "slots": [{"on_date": d} for d in dates],
     }
@@ -30,7 +30,7 @@ def test_public_get_returns_slots(client, organiser_headers):
     r = client.get(f"/api/v1/datepolls/by-slug/{poll['slug']}")
     assert r.status_code == 200
     body = r.json()
-    assert body["name"] == "Public poll"
+    assert body["name_nl"] == "Public poll"
     assert [s["on_date"] for s in body["slots"]] == ["2026-08-01", "2026-08-02"]
 
 

@@ -21,7 +21,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create_form(client: Any, headers: Any) -> dict[str, Any]:
     body = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "EL form",
+        "name_nl": "EL form",
         "locale": "nl",
         "questions": [{"kind": "rating", "prompt": "Score", "required": True}],
     }
@@ -79,7 +79,7 @@ def test_form_submissions_dto_has_no_token(client, organiser_headers):
 def _create_poll(client: Any, headers: Any) -> dict[str, Any]:
     body = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "EL poll",
+        "name_nl": "EL poll",
         "locale": "nl",
         "slots": [
             {"on_date": "2027-09-01"},
@@ -133,9 +133,9 @@ def test_datepoll_bad_token_404(client):
 
 def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
     payload = {
-        "name": "EL event",
+        "name_nl": "EL event",
         "chapter_id": _chapter_id(client, headers),
-        "topic": None,
+        "topic_nl": None,
         "location": "Adam",
         "starts_on": "2027-05-01",
         "start_time": "18:00:00",
@@ -484,7 +484,7 @@ def test_datepoll_recovery_rotates_and_stamps(client, organiser_headers):
 def test_chore_recovery_rotates_and_stamps(client, organiser_headers):
     body = {
         "chapter_id": _chapter_id(client, organiser_headers),
-        "name": "EL roster",
+        "name_nl": "EL roster",
         "starts_on": "2027-01-04",
         "chores": [{"name": "Bins", "cycle_slots": [2]}],
     }

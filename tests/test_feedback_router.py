@@ -36,8 +36,8 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
         me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
         overrides["chapter_id"] = me["chapters"][0]["id"]
     payload = {
-        "name": "Demo",
-        "topic": None,
+        "name_nl": "Demo",
+        "topic_nl": None,
         "location": "Adam",
         "starts_on": "2026-05-01",
         "start_time": "18:00:00",
@@ -121,7 +121,7 @@ def test_feedback_form_happy_path(client, organiser_headers):
     r = client.get(f"/api/v1/feedback/{raw}")
     assert r.status_code == 200
     body = r.json()
-    assert body["event_name"] == event["name"]
+    assert body["event_name"] == event["name_nl"]
     # The feedback form is per occurrence, so ``event_slug`` is the
     # occurrence's public slug, not the event's internal slug.
     occ = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]

@@ -125,8 +125,10 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
         EventOut(
             id=e.id,
             slug=e.slug,
-            name=e.name,
-            topic=e.topic,
+            name_nl=e.name_nl,
+            name_en=e.name_en,
+            topic_nl=e.topic_nl,
+            topic_en=e.topic_en,
             location=e.location,
             latitude=e.latitude,
             longitude=e.longitude,

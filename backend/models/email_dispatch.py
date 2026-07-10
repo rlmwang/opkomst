@@ -20,7 +20,7 @@ address; the privacy contract is structural, not policed.
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, Text
+from sqlalchemy import DateTime, ForeignKey, Index, LargeBinary, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -100,6 +100,12 @@ class EmailDispatch(UUIDMixin, TimestampMixin, Base):
     # stay correlatable end-to-end.
     message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The recipient's own language, captured from the flag they had active
+    # at sign-up (falls back to the event's primary locale). Drives both
+    # the template language and which side of the bilingual event content
+    # this email renders — so each attendee is mailed in the language they
+    # engaged in, not the event's primary one.
+    locale: Mapped[str] = mapped_column(Text, nullable=False, default="nl", server_default=text("'nl'"))
 
     __table_args__ = (
         # Worker sweep filter — covers the

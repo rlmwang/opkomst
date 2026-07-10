@@ -46,8 +46,8 @@ def test_upcoming_and_recent_past_split(db, client):
 
     status, j = _agenda(client, ch.slug)
     assert status == 200
-    assert [e["name"] for e in j["upcoming"]] == ["Upcoming"]
-    past_names = [e["name"] for e in j["past"]]
+    assert [e["name_nl"] for e in j["upcoming"]] == ["Upcoming"]
+    past_names = [e["name_nl"] for e in j["past"]]
     assert "RecentPast" in past_names
     assert "Old" not in past_names
 
@@ -62,8 +62,8 @@ def test_event_ending_one_minute_ago_is_past(db, client):
     occ.starts_at = occ.ends_at - timedelta(hours=2)
     db.commit()
     _, j = _agenda(client, ch.slug)
-    assert "JustEnded" in [x["name"] for x in j["past"]]
-    assert "JustEnded" not in [x["name"] for x in j["upcoming"]]
+    assert "JustEnded" in [x["name_nl"] for x in j["past"]]
+    assert "JustEnded" not in [x["name_nl"] for x in j["upcoming"]]
 
 
 def test_cutoff_is_first_of_last_month():
@@ -81,7 +81,7 @@ def test_unlisted_excluded_but_signup_still_resolves(db, client):
     e.listed = False
     db.commit()
     _, j = _agenda(client, ch.slug)
-    assert "Hidden" not in [x["name"] for x in j["upcoming"]]
+    assert "Hidden" not in [x["name_nl"] for x in j["upcoming"]]
     # The direct sign-up API still resolves the event (per-occurrence slug).
     assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}").status_code == 200
 
@@ -92,7 +92,7 @@ def test_archived_excluded(db, client):
     e.archived_at = datetime(2026, 1, 1)
     db.commit()
     _, j = _agenda(client, ch.slug)
-    assert "Arch" not in [x["name"] for x in j["upcoming"]]
+    assert "Arch" not in [x["name_nl"] for x in j["upcoming"]]
 
 
 def test_chapterless_event_on_no_agenda(db, client):
@@ -114,8 +114,10 @@ def test_card_dto_is_slim(db, client):
     card = j["upcoming"][0]
     assert set(card) == {
         "slug",
-        "name",
-        "topic",
+        "name_nl",
+        "name_en",
+        "topic_nl",
+        "topic_en",
         "starts_at",
         "ends_at",
         "location",

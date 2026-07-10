@@ -71,7 +71,7 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         e = Event(
             id="evt-1",
             slug="slug1",
-            name="Demo",
+            name_nl="Demo",
             location="Test",
             starts_on=starts_at.date(),
             start_time=starts_at.replace(tzinfo=None).time(),

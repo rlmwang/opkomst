@@ -17,7 +17,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 
 def _create(client: Any, headers: Any, slots: list[dict[str, Any]]) -> dict[str, Any]:
-    body = {"chapter_id": _chapter_id(client, headers), "name": "P", "locale": "nl", "slots": slots}
+    body = {"chapter_id": _chapter_id(client, headers), "name_nl": "P", "locale": "nl", "slots": slots}
     r = client.post("/api/v1/datepolls", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
@@ -26,7 +26,7 @@ def _create(client: Any, headers: Any, slots: list[dict[str, Any]]) -> dict[str,
 def _put(client: Any, headers: Any, poll: dict[str, Any], slots: list[dict[str, Any]]) -> dict[str, Any]:
     body = {
         "chapter_id": poll["chapter_id"],
-        "name": poll["name"],
+        "name_nl": poll["name_nl"],
         "locale": poll["locale"],
         "slots": slots,
     }
@@ -81,7 +81,7 @@ def test_timed_slots_roundtrip_and_order(client, organiser_headers):
 def test_rejects_inverted_time_range(client, organiser_headers):
     body = {
         "chapter_id": _chapter_id(client, organiser_headers),
-        "name": "P",
+        "name_nl": "P",
         "locale": "nl",
         "slots": [{"on_date": "2026-07-01", "start_time": "21:00", "end_time": "19:00"}],
     }
@@ -91,7 +91,7 @@ def test_rejects_inverted_time_range(client, organiser_headers):
 def test_rejects_half_open_range(client, organiser_headers):
     body = {
         "chapter_id": _chapter_id(client, organiser_headers),
-        "name": "P",
+        "name_nl": "P",
         "locale": "nl",
         "slots": [{"on_date": "2026-07-01", "start_time": "19:00"}],  # end missing
     }
@@ -112,7 +112,7 @@ def test_unique_slot_per_poll(db):
     ch = Chapter(name="C-uniq", slug="c-uniq")
     db.add_all([user, ch])
     db.flush()
-    poll = Datepoll(slug="uniqslug", name="P", locale="nl", chapter_id=ch.id, created_by=user.id)
+    poll = Datepoll(slug="uniqslug", name_nl="P", locale="nl", chapter_id=ch.id, created_by=user.id)
     db.add(poll)
     db.flush()
     db.add_all(
@@ -158,7 +158,7 @@ def test_db_check_rejects_bad_availability(db):
     ch = Chapter(name="C-check", slug="c-check")
     db.add_all([user, ch])
     db.flush()
-    poll = Datepoll(slug="checkslug", name="P", locale="nl", chapter_id=ch.id, created_by=user.id)
+    poll = Datepoll(slug="checkslug", name_nl="P", locale="nl", chapter_id=ch.id, created_by=user.id)
     db.add(poll)
     db.flush()
     s = DatepollSlot(datepoll_id=poll.id, on_date=date(2026, 7, 1))

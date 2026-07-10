@@ -22,7 +22,15 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from .common import Description, DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
+from .common import (
+    BilingualTitleMixin,
+    Description,
+    DisplayName,
+    InstagramHandle,
+    Locale,
+    LowercaseEmail,
+    RichText,
+)
 
 
 class ChoreIn(BaseModel):
@@ -50,14 +58,14 @@ class ChoreOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class RosterCreate(BaseModel):
+class RosterCreate(BilingualTitleMixin):
     """Organiser create payload. Out-of-range ``cycle_slots`` raise 422."""
 
     _clamp_out_of_range_slots: ClassVar[bool] = False
 
     chapter_id: str
-    name: str = Field(min_length=1, max_length=200)
-    description: RichText
+    description_nl: RichText
+    description_en: RichText
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
     location: str | None = Field(default=None, max_length=200)
@@ -78,9 +86,6 @@ class RosterCreate(BaseModel):
 
     @model_validator(mode="after")
     def _validate(self) -> "RosterCreate":
-        self.name = self.name.strip()
-        if not self.name:
-            raise ValueError("Name is required")
         if self.ends_on is not None and self.ends_on < self.starts_on:
             raise ValueError("ends_on must not be before starts_on")
         if self.commit_horizon_days < self.reminder_days_before:
@@ -115,7 +120,8 @@ class RosterListOut(BaseModel):
 
     id: str
     slug: str
-    name: str
+    name_nl: str | None
+    name_en: str | None
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
@@ -130,7 +136,8 @@ class RosterOut(RosterListOut):
     """Single-roster DTO — list fields plus the recurrence config, the
     optional location/image, and the full chore list (by ordinal)."""
 
-    description: str | None = None
+    description_nl: str | None = None
+    description_en: str | None = None
     location: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -150,8 +157,10 @@ class PublicRosterOut(BaseModel):
     """What the public enrol page (``/c/{slug}``) reads."""
 
     id: str
-    name: str
-    description: str | None = None
+    name_nl: str | None
+    name_en: str | None
+    description_nl: str | None = None
+    description_en: str | None = None
     location: str | None = None
     latitude: float | None = None
     longitude: float | None = None
@@ -189,6 +198,10 @@ class EnrollIn(BaseModel):
     display_name: DisplayName
     email: LowercaseEmail | None = None
     email_reminders: bool = False
+    # The flag the volunteer had active at join. Stored on the Volunteer
+    # so the reminder mail goes out in their own language; null falls back
+    # to the roster's primary locale in the router.
+    locale: Locale | None = None
     chore_ids: list[str] = Field(default_factory=list, max_length=100)
 
 

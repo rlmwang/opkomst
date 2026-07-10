@@ -82,6 +82,8 @@ def _ensure_event(
     help_options: list[str],
     chapter_id: str | None,
     topic: str = "Demo",
+    name_en: str | None = None,
+    topic_en: str | None = None,
     weekly_weeks: int | None = None,
 ) -> Event:
     """Create a demo event and materialise its in-horizon occurrences. The
@@ -89,15 +91,17 @@ def _ensure_event(
     anchor + time of day. Defaults to a one-off; pass ``weekly_weeks`` for a
     weekly demo course running that many weeks (on the anchor's weekday).
     Idempotent on ``(name, created_by)``."""
-    existing = db.query(Event).filter(Event.name == name, Event.created_by == created_by).first()
+    existing = db.query(Event).filter(Event.name_nl == name, Event.created_by == created_by).first()
     if existing:
         return existing
     starts_on = first_starts_at.date()
     cycle_slots = [starts_on.weekday()] if weekly_weeks else []
     event = Event(
         slug=new_slug(),
-        name=name,
-        topic=topic,
+        name_nl=name,
+        name_en=name_en,
+        topic_nl=topic,
+        topic_en=topic_en,
         location=location,
         starts_on=starts_on,
         start_time=first_starts_at.time(),
@@ -214,6 +218,7 @@ def run_local_demo() -> None:
         _ensure_event(
             db,
             name="Ledenvergadering",
+            name_en="Members' meeting",
             location="Volkshuis, Amsterdam-Oost",
             first_starts_at=now + timedelta(days=10),
             first_ends_at=now + timedelta(days=10, hours=2),
@@ -222,6 +227,7 @@ def run_local_demo() -> None:
             help_options=help_options,
             chapter_id=amsterdam_id,
             topic="Bespreek de plannen voor het najaar en kies de nieuwe werkgroepcoördinatoren.",
+            topic_en="Discuss the autumn plans and elect the new working-group coordinators.",
         )
         _ensure_event(
             db,
@@ -499,9 +505,9 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
         return monday + timedelta(weeks=week_offset, days=weekday)
 
     def _roster(name: str, **kw: object) -> Roster | None:
-        if db.query(Roster).filter(Roster.name == name, Roster.created_by == created_by).first():
+        if db.query(Roster).filter(Roster.name_nl == name, Roster.created_by == created_by).first():
             return None  # already seeded
-        roster = Roster(slug=new_slug(), name=name, created_by=created_by, chapter_id=chapter_id, locale="nl", **kw)
+        roster = Roster(slug=new_slug(), name_nl=name, created_by=created_by, chapter_id=chapter_id, locale="nl", **kw)
         db.add(roster)
         db.flush()
         logger.info("seed_roster_created", roster_id=roster.id, name=name)
@@ -556,7 +562,7 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
     # --- A. forming (draft, not yet started) -------------------------
     forming = _roster(
         "Weekmarkt-kraam",
-        description="Elke zaterdag een kraam op de markt. We zoeken nog mensen!",
+        description_nl="Elke zaterdag een kraam op de markt. We zoeken nog mensen!",
         starts_on=wd(5, 1),  # next Saturday
         period_weeks=1,
         commit_horizon_days=21,
@@ -573,7 +579,7 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
     # --- B. running (active weekly café, mid-flight) -----------------
     running = _roster(
         "Sociaal café",
-        description="Wekelijks buurtcafé op vrijdag; schoonmaak op zaterdag.",
+        description_nl="Wekelijks buurtcafé op vrijdag; schoonmaak op zaterdag.",
         location="Buurthuis Oost",
         starts_on=wd(4, -12),  # Friday, twelve weeks ago
         period_weeks=1,
@@ -668,7 +674,7 @@ def _seed_rosters(db: Session, *, created_by: str, chapter_id: str | None, now: 
     # --- C. archived (finished campaign) -----------------------------
     archived = _roster(
         "Kerstpakkettenactie",
-        description="Pakketten inpakken en rondbrengen — actie afgerond.",
+        description_nl="Pakketten inpakken en rondbrengen — actie afgerond.",
         starts_on=today - timedelta(days=42),
         ends_on=today - timedelta(days=7),
         period_weeks=1,
@@ -702,12 +708,12 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
     ``(name, created_by)``)."""
 
     def _form(name: str, description: str, *, archived_at: datetime | None = None) -> Form | None:
-        if db.query(Form).filter(Form.name == name, Form.created_by == created_by).first():
+        if db.query(Form).filter(Form.name_nl == name, Form.created_by == created_by).first():
             return None
         f = Form(
             slug=new_slug(),
-            name=name,
-            description=description,
+            name_nl=name,
+            description_nl=description,
             created_by=created_by,
             chapter_id=chapter_id,
             locale="nl",
@@ -819,12 +825,12 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
         location: str | None = None,
         archived_at: datetime | None = None,
     ) -> Datepoll | None:
-        if db.query(Datepoll).filter(Datepoll.name == name, Datepoll.created_by == created_by).first():
+        if db.query(Datepoll).filter(Datepoll.name_nl == name, Datepoll.created_by == created_by).first():
             return None
         p = Datepoll(
             slug=new_slug(),
-            name=name,
-            description=description,
+            name_nl=name,
+            description_nl=description,
             location=location,
             created_by=created_by,
             chapter_id=chapter_id,

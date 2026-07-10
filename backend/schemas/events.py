@@ -3,10 +3,10 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .common import DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
+from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
 
 
-class EventCreate(BaseModel):
+class EventCreate(BilingualTitleMixin):
     """Create/edit payload for an event definition. Carries the shared
     content and the recurrence rule (the roster's k-week cycle) — never a
     single concrete date. A one-off is ``cycle_slots = []``; a recurring
@@ -14,12 +14,12 @@ class EventCreate(BaseModel):
     ``span_weeks`` weeks (``None`` = open-ended). Concrete dates are
     ``Occurrence`` rows the tick materialises."""
 
-    name: str = Field(min_length=1, max_length=200)
     # Chapter that owns the event. Validated in the router against the
     # caller's membership set; the UI dropdown is already scoped to the
     # user's live chapters so this is a defence-in-depth check.
     chapter_id: str
-    topic: RichText
+    topic_nl: RichText
+    topic_en: RichText
     location: str = Field(min_length=1, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
@@ -112,8 +112,10 @@ class EventOut(BaseModel):
 
     id: str
     slug: str
-    name: str
-    topic: str | None
+    name_nl: str | None
+    name_en: str | None
+    topic_nl: str | None
+    topic_en: str | None
     location: str
     latitude: float | None
     longitude: float | None
@@ -235,8 +237,10 @@ class PublicEventOut(BaseModel):
     future dates shown as not-yet-open."""
 
     event_slug: str
-    name: str
-    topic: str | None
+    name_nl: str | None
+    name_en: str | None
+    topic_nl: str | None
+    topic_en: str | None
     location: str
     latitude: float | None
     longitude: float | None
@@ -271,6 +275,10 @@ class SignupCreate(BaseModel):
     # Optional — encrypted at rest, used once per occurrence for reminder
     # + feedback mail. The form surfaces the notice before this is shown.
     email: LowercaseEmail | None = None
+    # The flag the visitor had active. Stored on the email-dispatch row so
+    # reminder / feedback mail goes out in the recipient's own language;
+    # null falls back to the event's primary locale in the router.
+    locale: Locale | None = None
     # The occurrences to book. Ignored when ``all_upcoming`` is set (the
     # server resolves that to every future occurrence so a stale page
     # can't book a session already past). At least one is required

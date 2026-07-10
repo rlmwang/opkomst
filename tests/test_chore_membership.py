@@ -21,7 +21,7 @@ def _roster(db):
     db.commit()
     roster = Roster(
         slug="rm1",
-        name="R",
+        name_nl="R",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=TODAY,
@@ -46,11 +46,7 @@ def _volunteer(db, roster, chore, name):
 
 
 def _future_scheduled(db, chore_id):
-    return (
-        db.query(Shift)
-        .filter(Shift.chore_id == chore_id, Shift.on_date >= TODAY, Shift.status == "scheduled")
-        .all()
-    )
+    return db.query(Shift).filter(Shift.chore_id == chore_id, Shift.on_date >= TODAY, Shift.status == "scheduled").all()
 
 
 def test_newcomer_is_pending_until_folded_in(db):
@@ -133,7 +129,7 @@ def test_leave_endpoint_recovers_shifts(client, organiser_headers, db):
         headers=organiser_headers,
         json={
             "chapter_id": cid_header,
-            "name": "R",
+            "name_nl": "R",
             "starts_on": "2026-01-05",
             "chores": [{"name": "Bins", "cycle_slots": [2]}],
         },

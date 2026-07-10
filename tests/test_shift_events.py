@@ -75,7 +75,7 @@ def _orm_roster(db):
     db.commit()
     roster = Roster(
         slug="rost1",
-        name="R",
+        name_nl="R",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=TODAY,
@@ -156,7 +156,7 @@ def _api_roster(client: Any, headers: Any) -> dict[str, Any]:
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
-            "name": "R",
+            "name_nl": "R",
             "starts_on": "2026-01-05",
             "chores": [{"name": "Bins", "cycle_slots": [2]}],
         },

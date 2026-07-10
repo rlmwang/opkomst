@@ -60,8 +60,10 @@ def create_event(
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
     event = Event(
         slug=new_slug(),
-        name=data.name,
-        topic=data.topic,
+        name_nl=data.name_nl,
+        name_en=data.name_en,
+        topic_nl=data.topic_nl,
+        topic_en=data.topic_en,
         location=data.location,
         latitude=data.latitude,
         longitude=data.longitude,
@@ -229,9 +231,11 @@ def update_event(
     if data.chapter_id != event.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
-    event.name = data.name
+    event.name_nl = data.name_nl
+    event.name_en = data.name_en
     event.chapter_id = data.chapter_id
-    event.topic = data.topic
+    event.topic_nl = data.topic_nl
+    event.topic_en = data.topic_en
     event.location = data.location
     event.latitude = data.latitude
     event.longitude = data.longitude

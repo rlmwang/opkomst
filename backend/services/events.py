@@ -67,8 +67,10 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
     projected = event_recurrence.projected_future_specs(event, now)
     return PublicEventOut(
         event_slug=event.slug,
-        name=event.name,
-        topic=event.topic,
+        name_nl=event.name_nl,
+        name_en=event.name_en,
+        topic_nl=event.topic_nl,
+        topic_en=event.topic_en,
         location=event.location,
         latitude=event.latitude,
         longitude=event.longitude,

@@ -1,16 +1,45 @@
 import re
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field, model_validator
 
 from ..services.sanitize import VISIBLE_MAX_LENGTH, html_to_text, sanitize_richtext
 from ..services.slug import is_event_slug
 
-# Two-letter ISO language tag. Drives the public-page UI language and,
-# where applicable, the locale of the email sent afterwards. Two values
-# today (nl / en); widen the literal if we ever localise per region.
-# Shared by every organiser-authored entity schema.
+# Two-letter ISO language tag. Names the primary language of an
+# organiser-authored entity: the public page's default view + fallback
+# anchor. Two values today (nl / en); widen the literal if we ever
+# localise per region. Shared by every organiser-authored entity schema.
 Locale = Literal["nl", "en"]
+
+
+def pick_localized(nl: str | None, en: str | None, locale: str) -> str | None:
+    """Resolve a bilingual field to one string for a given locale: the
+    requested language if it has content, else the other language, else
+    None. The single fallback rule shared by rendering and email."""
+    chosen = en if locale == "en" else nl
+    other = nl if locale == "en" else en
+    return chosen or other
+
+
+class BilingualTitleMixin(BaseModel):
+    """The bilingual ``name_nl`` / ``name_en`` title shared by every
+    organiser-authored ``*Create`` payload. Blank strings collapse to
+    None, and the primary-language title (per the payload's own
+    ``locale``) is required — the translation stays optional."""
+
+    name_nl: str | None = Field(default=None, max_length=200)
+    name_en: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _require_primary_name(self) -> "BilingualTitleMixin":
+        self.name_nl = (self.name_nl or "").strip() or None
+        self.name_en = (self.name_en or "").strip() or None
+        locale = getattr(self, "locale", "nl")
+        chosen = self.name_en if locale == "en" else self.name_nl
+        if not chosen:
+            raise ValueError("A title in the primary language is required.")
+        return self
 
 
 def _to_lower(v: str) -> str:

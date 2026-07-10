@@ -123,8 +123,10 @@ def warmup() -> None:
         EventOut(
             id="00000000-0000-0000-0000-000000000000",
             slug="__warmup__",
-            name="warmup",
-            topic=None,
+            name_nl="warmup",
+            name_en=None,
+            topic_nl=None,
+            topic_en=None,
             location="warmup",
             latitude=None,
             longitude=None,

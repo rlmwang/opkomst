@@ -24,9 +24,9 @@ def _first_chapter_id(client: Any, headers: Any) -> str:
 
 def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
     payload = {
-        "name": "Demo",
+        "name_nl": "Demo",
         "chapter_id": _first_chapter_id(client, headers),
-        "topic": None,
+        "topic_nl": None,
         "location": "Adam",
         "starts_on": "2026-09-01",
         "start_time": "18:00:00",
@@ -62,8 +62,8 @@ def test_create_event_missing_chapter_id_returns_422(client, organiser_headers):
         "/api/v1/events",
         headers=organiser_headers,
         json={
-            "name": "X",
-            "topic": None,
+            "name_nl": "X",
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
@@ -88,9 +88,9 @@ def test_create_event_with_chapter_outside_users_set_returns_403(client, admin_h
         "/api/v1/events",
         headers=organiser_headers,
         json={
-            "name": "X",
+            "name_nl": "X",
             "chapter_id": other,
-            "topic": None,
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
@@ -115,9 +115,9 @@ def test_create_event_with_admin_globally_works(client, admin_headers):
         "/api/v1/events",
         headers=admin_headers,
         json={
-            "name": "Adminmade",
+            "name_nl": "Adminmade",
             "chapter_id": chapter_id,
-            "topic": None,
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
@@ -271,9 +271,9 @@ def test_update_event_to_chapter_outside_users_set_returns_403(client, admin_hea
     other = r.json()["id"]
 
     payload = {
-        "name": event["name"],
+        "name_nl": event["name_nl"],
         "chapter_id": other,
-        "topic": None,
+        "topic_nl": None,
         "location": event["location"],
         "starts_on": event["starts_on"],
         "start_time": event["start_time"],
@@ -293,9 +293,9 @@ def test_create_event_with_invalid_time_window_returns_400(client, organiser_hea
         "/api/v1/events",
         headers=organiser_headers,
         json={
-            "name": "X",
+            "name_nl": "X",
             "chapter_id": me["chapters"][0]["id"],
-            "topic": None,
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
@@ -317,9 +317,10 @@ def test_update_event_happy_path(client, organiser_headers):
         f"/api/v1/events/{event['id']}",
         headers=organiser_headers,
         json={
-            "name": "Renamed",
+            "name_nl": "Renamed",
+            "name_en": "Renamed",
             "chapter_id": event["chapter_id"],
-            "topic": "Updated topic",
+            "topic_nl": "Updated topic",
             "location": "Utrecht",
             "starts_on": "2026-05-02",
             "start_time": "18:00:00",
@@ -334,8 +335,8 @@ def test_update_event_happy_path(client, organiser_headers):
     body = r.json()
     assert body["id"] == event["id"]  # entity_id stable across edits
     assert body["slug"] == event["slug"]
-    assert body["name"] == "Renamed"
-    assert body["topic"] == "Updated topic"
+    assert body["name_nl"] == "Renamed"
+    assert body["topic_nl"] == "Updated topic"
     assert body["locale"] == "en"
     assert body["feedback_enabled"] is False
     assert body["reminder_enabled"] is True
@@ -347,9 +348,9 @@ def test_update_event_invalid_time_window_returns_400(client, organiser_headers)
         f"/api/v1/events/{event['id']}",
         headers=organiser_headers,
         json={
-            "name": "Demo",
+            "name_nl": "Demo",
             "chapter_id": event["chapter_id"],
-            "topic": None,
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
@@ -368,9 +369,9 @@ def test_update_unknown_event_returns_404(client, organiser_headers):
         "/api/v1/events/no-such",
         headers=organiser_headers,
         json={
-            "name": "X",
+            "name_nl": "X",
             "chapter_id": me["chapters"][0]["id"],
-            "topic": None,
+            "topic_nl": None,
             "location": "Adam",
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
@@ -435,7 +436,7 @@ def test_email_preview_feedback_when_enabled_returns_html(client, organiser_head
     # HTML response — Content-Type is text/html.
     assert r.headers["content-type"].startswith("text/html")
     body = r.text
-    assert event["name"] in body
+    assert event["name_nl"] in body
 
 
 def test_email_preview_unknown_channel_returns_404(client, organiser_headers):
@@ -531,7 +532,7 @@ def test_event_ics_carries_uid_and_dates(client, organiser_headers):
     assert f"UID:{occ['id']}" in body
     assert "BEGIN:VEVENT" in body
     assert "END:VEVENT" in body
-    assert event["name"] in body
+    assert event["name_nl"] in body
     # Caller is meant to import + re-import; cache headers help that
     # flow without serving stale data.
     assert r.headers.get("cache-control", "").startswith("public")

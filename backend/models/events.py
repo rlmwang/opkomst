@@ -3,6 +3,7 @@ from datetime import date, datetime, time
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -38,10 +39,12 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
 
     __tablename__ = "events"
 
-    # Spine (slug, name, image_url, image_artist_instagram, locale,
-    # created_by, chapter_id, archived_at) comes from OrgEntityMixin. The
-    # slug here is organiser-internal — the public slug lives on Occurrence.
-    topic: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Spine (slug, name_nl/name_en, image_url, image_artist_instagram,
+    # locale, created_by, chapter_id, archived_at) comes from
+    # OrgEntityMixin. The slug here is organiser-internal — the public slug
+    # lives on Occurrence. ``topic`` is the bilingual richtext details body.
+    topic_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
+    topic_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -70,7 +73,10 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     span_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
     horizon_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90, server_default=text("90"))
 
-    __table_args__ = (Index("ix_events_archived_chapter", "archived_at", "chapter_id"),)
+    __table_args__ = (
+        Index("ix_events_archived_chapter", "archived_at", "chapter_id"),
+        CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_events_name_present"),
+    )
 
     occurrences: Mapped[list["Occurrence"]] = relationship(
         back_populates="event",

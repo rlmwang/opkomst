@@ -54,11 +54,15 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
     # Optional blurb shown on the public page under the name — same
     # role as the event topic / datepoll description.
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.
-    __table_args__ = (Index("ix_forms_archived_chapter", "archived_at", "chapter_id"),)
+    __table_args__ = (
+        Index("ix_forms_archived_chapter", "archived_at", "chapter_id"),
+        CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_forms_name_present"),
+    )
 
 
 class FormQuestion(UUIDMixin, TimestampMixin, Base):

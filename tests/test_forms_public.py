@@ -22,7 +22,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, questions: list[dict[str, Any]]) -> dict[str, Any]:
     body: dict[str, Any] = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "Public form",
+        "name_nl": "Public form",
         "locale": "nl",
         "questions": questions,
     }
@@ -45,7 +45,7 @@ def test_public_get_returns_questions(client, organiser_headers):
     r = client.get(f"/api/v1/forms/by-slug/{form['slug']}")
     assert r.status_code == 200
     body = r.json()
-    assert body["name"] == "Public form"
+    assert body["name_nl"] == "Public form"
     assert body["locale"] == "nl"
     assert len(body["questions"]) == 1
 

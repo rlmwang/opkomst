@@ -1000,7 +1000,7 @@
             "title": "Chapter Id",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -1010,7 +1010,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "image_artist_instagram": {
             "anyOf": [
@@ -1071,11 +1083,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slots": {
             "items": {
@@ -1087,8 +1117,7 @@
           }
         },
         "required": [
-          "chapter_id",
-          "name"
+          "chapter_id"
         ],
         "title": "DatepollCreate",
         "type": "object"
@@ -1224,9 +1253,27 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slug": {
             "title": "Slug",
@@ -1240,7 +1287,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -1290,7 +1338,7 @@
             "title": "Date Count",
             "type": "integer"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -1299,7 +1347,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "first_date": {
             "anyOf": [
@@ -1392,9 +1451,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slots": {
             "items": {
@@ -1415,7 +1492,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -1728,7 +1806,7 @@
             "title": "Chapter Id",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -1738,7 +1816,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "image_artist_instagram": {
             "anyOf": [
@@ -1799,11 +1889,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slots": {
             "items": {
@@ -1815,8 +1923,7 @@
           }
         },
         "required": [
-          "chapter_id",
-          "name"
+          "chapter_id"
         ],
         "title": "DatepollUpdate",
         "type": "object"
@@ -1961,6 +2068,21 @@
             "default": false,
             "title": "Email Reminders",
             "type": "boolean"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "nl",
+                  "en"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
           }
         },
         "title": "EnrollIn",
@@ -2063,11 +2185,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "default": 1,
@@ -2112,7 +2252,7 @@
             "title": "Starts On",
             "type": "string"
           },
-          "topic": {
+          "topic_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -2122,11 +2262,22 @@
                 "type": "null"
               }
             ],
-            "title": "Topic"
+            "title": "Topic En"
+          },
+          "topic_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Nl"
           }
         },
         "required": [
-          "name",
           "chapter_id",
           "location",
           "starts_on",
@@ -2261,9 +2412,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "next_slug": {
             "anyOf": [
@@ -2328,7 +2497,7 @@
             "title": "Starts On",
             "type": "string"
           },
-          "topic": {
+          "topic_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -2337,14 +2506,27 @@
                 "type": "null"
               }
             ],
-            "title": "Topic"
+            "title": "Topic En"
+          },
+          "topic_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Nl"
           }
         },
         "required": [
           "id",
           "slug",
-          "name",
-          "topic",
+          "name_nl",
+          "name_en",
+          "topic_nl",
+          "topic_en",
           "location",
           "latitude",
           "longitude",
@@ -2505,11 +2687,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "default": 1,
@@ -2554,7 +2754,7 @@
             "title": "Starts On",
             "type": "string"
           },
-          "topic": {
+          "topic_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -2564,11 +2764,22 @@
                 "type": "null"
               }
             ],
-            "title": "Topic"
+            "title": "Topic En"
+          },
+          "topic_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Nl"
           }
         },
         "required": [
-          "name",
           "chapter_id",
           "location",
           "starts_on",
@@ -2891,7 +3102,7 @@
             "title": "Chapter Id",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -2901,7 +3112,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "image_artist_instagram": {
             "anyOf": [
@@ -2924,11 +3147,29 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "questions": {
             "items": {
@@ -2939,8 +3180,7 @@
           }
         },
         "required": [
-          "chapter_id",
-          "name"
+          "chapter_id"
         ],
         "title": "FormCreate",
         "type": "object"
@@ -3045,9 +3285,27 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slug": {
             "title": "Slug",
@@ -3061,7 +3319,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -3106,7 +3365,7 @@
             "title": "Created At",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -3115,7 +3374,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "id": {
             "title": "Id",
@@ -3151,9 +3421,27 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "questions": {
             "items": {
@@ -3174,7 +3462,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -3553,7 +3842,7 @@
             "title": "Chapter Id",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -3563,7 +3852,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "image_artist_instagram": {
             "anyOf": [
@@ -3586,11 +3887,29 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "questions": {
             "items": {
@@ -3601,8 +3920,7 @@
           }
         },
         "required": [
-          "chapter_id",
-          "name"
+          "chapter_id"
         ],
         "title": "FormUpdate",
         "type": "object"
@@ -3724,9 +4042,27 @@
             "title": "Location",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slug": {
             "title": "Slug",
@@ -3737,7 +4073,7 @@
             "title": "Starts At",
             "type": "string"
           },
-          "topic": {
+          "topic_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -3746,7 +4082,18 @@
                 "type": "null"
               }
             ],
-            "title": "Topic"
+            "title": "Topic En"
+          },
+          "topic_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Nl"
           },
           "total_sessions": {
             "anyOf": [
@@ -3762,8 +4109,10 @@
         },
         "required": [
           "slug",
-          "name",
-          "topic",
+          "name_nl",
+          "name_en",
+          "topic_nl",
+          "topic_en",
           "starts_at",
           "ends_at",
           "location",
@@ -4090,7 +4439,7 @@
       "PublicDatepollOut": {
         "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -4099,7 +4448,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "id": {
             "title": "Id",
@@ -4168,9 +4528,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "slots": {
             "items": {
@@ -4182,7 +4560,8 @@
         },
         "required": [
           "id",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "slots"
         ],
@@ -4270,9 +4649,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "projected": {
             "items": {
@@ -4288,7 +4685,7 @@
             "title": "Source Options",
             "type": "array"
           },
-          "topic": {
+          "topic_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -4297,7 +4694,18 @@
                 "type": "null"
               }
             ],
-            "title": "Topic"
+            "title": "Topic En"
+          },
+          "topic_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Nl"
           },
           "total_sessions": {
             "anyOf": [
@@ -4320,8 +4728,10 @@
         },
         "required": [
           "event_slug",
-          "name",
-          "topic",
+          "name_nl",
+          "name_en",
+          "topic_nl",
+          "topic_en",
           "location",
           "latitude",
           "longitude",
@@ -4343,7 +4753,7 @@
       "PublicFormOut": {
         "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + image + locale + questions in display order.",
         "properties": {
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -4352,7 +4762,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "id": {
             "title": "Id",
@@ -4388,9 +4809,27 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "questions": {
             "items": {
@@ -4402,7 +4841,8 @@
         },
         "required": [
           "id",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "questions"
         ],
@@ -4460,7 +4900,7 @@
             "title": "Chores",
             "type": "array"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -4469,7 +4909,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "ends_on": {
             "anyOf": [
@@ -4550,9 +5001,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "title": "Period Weeks",
@@ -4566,7 +5035,8 @@
         },
         "required": [
           "id",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "period_weeks",
           "starts_on"
@@ -4640,7 +5110,7 @@
             "title": "Commit Horizon Days",
             "type": "integer"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -4650,7 +5120,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "ends_on": {
             "anyOf": [
@@ -4723,11 +5205,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "default": 1,
@@ -4756,7 +5256,6 @@
         },
         "required": [
           "chapter_id",
-          "name",
           "starts_on"
         ],
         "title": "RosterCreate",
@@ -4812,9 +5311,27 @@
             "title": "Locale",
             "type": "string"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "title": "Period Weeks",
@@ -4832,7 +5349,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -4906,7 +5424,7 @@
             "title": "Created At",
             "type": "string"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "type": "string"
@@ -4915,7 +5433,18 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "ends_on": {
             "anyOf": [
@@ -4996,9 +5525,27 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "title": "Period Weeks",
@@ -5029,7 +5576,8 @@
         "required": [
           "id",
           "slug",
-          "name",
+          "name_nl",
+          "name_en",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -5068,7 +5616,7 @@
             "title": "Commit Horizon Days",
             "type": "integer"
           },
-          "description": {
+          "description_en": {
             "anyOf": [
               {
                 "maxLength": 8000,
@@ -5078,7 +5626,19 @@
                 "type": "null"
               }
             ],
-            "title": "Description"
+            "title": "Description En"
+          },
+          "description_nl": {
+            "anyOf": [
+              {
+                "maxLength": 8000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Nl"
           },
           "ends_on": {
             "anyOf": [
@@ -5151,11 +5711,29 @@
             ],
             "title": "Longitude"
           },
-          "name": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Name",
-            "type": "string"
+          "name_en": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
           },
           "period_weeks": {
             "default": 1,
@@ -5184,7 +5762,6 @@
         },
         "required": [
           "chapter_id",
-          "name",
           "starts_on"
         ],
         "title": "RosterUpdate",
@@ -5435,6 +6012,21 @@
             },
             "title": "Help Choices",
             "type": "array"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "enum": [
+                  "nl",
+                  "en"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
           },
           "occurrence_ids": {
             "items": {

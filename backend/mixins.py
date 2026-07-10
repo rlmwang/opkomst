@@ -55,10 +55,17 @@ class OrgEntityMixin:
     """Shared spine for the organiser-owned, chapter-scoped, archivable
     top-level entities (Event, Form, Datepoll, Roster).
 
-    Each such entity carries a public ``slug``, a ``name``, an optional
-    4:5 hero image + artist credit, a ``locale`` driving the public-page
-    UI (and, where applicable, email) language, the creating organiser,
-    the owning chapter, and an ``archived_at`` soft-archive flag.
+    Each such entity carries a public ``slug``, a bilingual title
+    (``name_nl`` / ``name_en``), an optional 4:5 hero image + artist
+    credit, a ``locale`` naming the primary language (the public page's
+    default view and fallback anchor), the creating organiser, the owning
+    chapter, and an ``archived_at`` soft-archive flag.
+
+    Title and description are authored in both Dutch and English; either
+    language falls back to the other when empty. Both ``name_*`` columns
+    are nullable, with a per-table CHECK (``ck_{table}_name_present``)
+    guaranteeing at least one is set — the primary-language one is
+    required at the schema boundary.
 
     Entity-specific columns (event times, datepoll slots, form
     questions, chore recurrence, ...) and the per-table
@@ -72,9 +79,15 @@ class OrgEntityMixin:
     def slug(cls) -> Mapped[str]:
         return mapped_column(Text, nullable=False, unique=True, index=True)
 
+    # Bilingual title. Both nullable; the per-table CHECK requires at
+    # least one, and the schema requires the primary-language one.
     @declared_attr
-    def name(cls) -> Mapped[str]:
-        return mapped_column(Text, nullable=False)
+    def name_nl(cls) -> Mapped[str | None]:
+        return mapped_column(Text, nullable=True)
+
+    @declared_attr
+    def name_en(cls) -> Mapped[str | None]:
+        return mapped_column(Text, nullable=True)
 
     # Public URL of the entity's 4:5 hero image (GitHub-hosted raw URL;
     # uploads go through ``services/image.py``). Null = pages render
@@ -89,8 +102,10 @@ class OrgEntityMixin:
     def image_artist_instagram(cls) -> Mapped[str | None]:
         return mapped_column(Text, nullable=True)
 
-    # ISO language tag — drives the public-page UI language. Two-letter
-    # codes only ('nl' / 'en') today; widen the Literal to add a region.
+    # Primary language: the public page's default view + fallback anchor,
+    # and the email language for organiser-driven sends without a per-
+    # recipient locale. Two-letter codes only ('nl' / 'en') today; widen
+    # the Literal to add a region.
     @declared_attr
     def locale(cls) -> Mapped[Literal["nl", "en"]]:
         return mapped_column(Text, nullable=False, default="nl")

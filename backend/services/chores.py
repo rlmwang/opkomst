@@ -138,7 +138,8 @@ def enrich(db: Session, rosters: list[Roster]) -> list[RosterListOut]:
         RosterListOut(
             id=r.id,
             slug=r.slug,
-            name=r.name,
+            name_nl=r.name_nl,
+            name_en=r.name_en,
             locale=r.locale,
             chapter_id=r.chapter_id,
             chapter_name=names.get(r.chapter_id) if r.chapter_id else None,
@@ -166,7 +167,8 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
     return RosterOut(
         id=roster.id,
         slug=roster.slug,
-        name=roster.name,
+        name_nl=roster.name_nl,
+        name_en=roster.name_en,
         locale=roster.locale,
         chapter_id=roster.chapter_id,
         chapter_name=chapter_name,
@@ -175,7 +177,8 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
         period_weeks=roster.period_weeks,
         chore_count=len(chores),
         volunteer_count=volunteer_count,
-        description=roster.description,
+        description_nl=roster.description_nl,
+        description_en=roster.description_en,
         location=roster.location,
         latitude=roster.latitude,
         longitude=roster.longitude,
@@ -650,8 +653,10 @@ def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:
     """Public by-slug DTO: name + recurrence + chores, nothing internal."""
     return PublicRosterOut(
         id=roster.id,
-        name=roster.name,
-        description=roster.description,
+        name_nl=roster.name_nl,
+        name_en=roster.name_en,
+        description_nl=roster.description_nl,
+        description_en=roster.description_en,
         location=roster.location,
         latitude=roster.latitude,
         longitude=roster.longitude,

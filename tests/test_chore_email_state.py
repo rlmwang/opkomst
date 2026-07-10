@@ -26,7 +26,7 @@ def _roster(client: Any, headers: Any) -> dict[str, Any]:
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
-            "name": "R",
+            "name_nl": "R",
             "starts_on": "2026-01-05",
             "chores": [{"name": "Bins", "cycle_slots": [2]}],
         },

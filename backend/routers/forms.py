@@ -59,8 +59,10 @@ def create_form(
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
     form = Form(
         slug=new_slug(),
-        name=data.name,
-        description=data.description,
+        name_nl=data.name_nl,
+        name_en=data.name_en,
+        description_nl=data.description_nl,
+        description_en=data.description_en,
         image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
         chapter_id=data.chapter_id,
@@ -133,8 +135,10 @@ def update_form(
     if data.chapter_id != form.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
-    form.name = data.name
-    form.description = data.description
+    form.name_nl = data.name_nl
+    form.name_en = data.name_en
+    form.description_nl = data.description_nl
+    form.description_en = data.description_en
     form.image_artist_instagram = data.image_artist_instagram
     form.chapter_id = data.chapter_id
     form.locale = data.locale

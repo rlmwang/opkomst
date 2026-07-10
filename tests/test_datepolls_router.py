@@ -16,7 +16,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 
 def _create(client: Any, headers: Any, dates: list[str] | None = None, name: str = "Test poll") -> dict[str, Any]:
-    body: dict[str, Any] = {"chapter_id": _chapter_id(client, headers), "name": name, "locale": "nl"}
+    body: dict[str, Any] = {"chapter_id": _chapter_id(client, headers), "name_nl": name, "locale": "nl"}
     if dates is not None:
         body["slots"] = [{"on_date": d} for d in dates]
     r = client.post("/api/v1/datepolls", headers=headers, json=body)
@@ -64,7 +64,7 @@ def test_cross_chapter_is_404(client, organiser_headers, admin_headers, db):
     other = Chapter(name="Other chapter", slug="other-chapter")
     db.add(other)
     db.commit()
-    body = {"chapter_id": other.id, "name": "Hidden", "locale": "nl", "slots": []}
+    body = {"chapter_id": other.id, "name_nl": "Hidden", "locale": "nl", "slots": []}
     poll = client.post("/api/v1/datepolls", headers=admin_headers, json=body).json()
     # Organiser (not a member of ``other``) gets 404, not 403.
     assert client.get(f"/api/v1/datepolls/{poll['id']}", headers=organiser_headers).status_code == 404

@@ -22,7 +22,7 @@ def _roster(db, *, period_weeks=1, ends_on=None, cycle_slots=(2,), people=1, act
     db.commit()
     roster = Roster(
         slug=f"r{period_weeks}",
-        name="R",
+        name_nl="R",
         created_by=user.id,
         chapter_id=chapter.id,
         starts_on=TODAY,

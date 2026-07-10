@@ -199,7 +199,7 @@ def test_edits_overwrite_in_place(db: Any) -> None:
     fresh = SessionLocal()
     try:
         ev = fresh.query(type(e)).filter_by(id=e.id).one()
-        ev.name = "Renamed"
+        ev.name_nl = "Renamed"
         fresh.commit()
     finally:
         fresh.close()
@@ -208,6 +208,6 @@ def test_edits_overwrite_in_place(db: Any) -> None:
     fresh = SessionLocal()
     try:
         ev = access.get_event_for_user(fresh, e.id, user)
-        assert ev.name == "Renamed"
+        assert ev.name_nl == "Renamed"
     finally:
         fresh.close()

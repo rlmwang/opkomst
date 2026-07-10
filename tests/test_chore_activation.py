@@ -12,7 +12,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 def _create(client: Any, headers: Any, **extra: Any) -> dict[str, Any]:
     body = {
         "chapter_id": _chapter_id(client, headers),
-        "name": "R",
+        "name_nl": "R",
         "starts_on": "2026-01-05",
         "chores": [{"name": "Bins", "cycle_slots": [2]}],
         **extra,
@@ -68,7 +68,7 @@ def test_commit_horizon_must_be_ge_reminder_days(client, organiser_headers):
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
-            "name": "R",
+            "name_nl": "R",
             "starts_on": "2026-01-05",
             "reminder_days_before": 10,
             "commit_horizon_days": 5,

@@ -13,8 +13,10 @@ class OccurrenceCardOut(BaseModel):
     (``total_sessions`` null = open-ended series)."""
 
     slug: str  # the occurrence's public slug (/e/{slug})
-    name: str
-    topic: str | None
+    name_nl: str | None
+    name_en: str | None
+    topic_nl: str | None
+    topic_en: str | None
     starts_at: datetime
     ends_at: datetime
     location: str
