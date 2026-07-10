@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
+import { resolveText } from "@/public_shared/bilingual";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
 import type { EventCard } from "./api";
 import { strings } from "./i18n";
@@ -15,6 +16,12 @@ const props = defineProps<{ event: EventCard; locale: Locale; past?: boolean }>(
 const t = computed(() => strings(props.locale));
 const c = computed(() => chromeStrings(props.locale));
 const href = computed(() => `/e/${props.event.slug}`);
+const title = computed(() =>
+  resolveText(props.event.name_nl, props.event.name_en, props.locale),
+);
+const topic = computed(() =>
+  resolveText(props.event.topic_nl, props.event.topic_en, props.locale),
+);
 // A one-off event is "sessie 1 van 1" — pure noise, so no badge. Only a
 // real series (finite ``> 1``, or open-ended ``null``) earns one.
 const sessionBadge = computed(() => {
@@ -58,9 +65,9 @@ const sessionBadge = computed(() => {
         >{{ event.location }}</a>
       </p>
       <h2 class="card-title">
-        <a :href="href">{{ event.name }}</a>
+        <a :href="href">{{ title }}</a>
       </h2>
-      <div v-if="event.topic" class="richtext card-topic" v-html="event.topic"></div>
+      <div v-if="topic" class="richtext card-topic" v-html="topic"></div>
 
       <div class="card-foot">
         <span v-if="past" class="muted card-came">

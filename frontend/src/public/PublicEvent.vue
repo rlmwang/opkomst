@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
@@ -12,6 +12,7 @@ import PublicShell from "@/public_shared/PublicShell.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import MonthGrid from "@/components/MonthGrid.vue";
 import { chromeStrings } from "@/public_shared/strings";
+import { resolveText } from "@/public_shared/bilingual";
 import { stripHtml } from "@/public_shared/stripHtml";
 import { showToast } from "@/public_shared/publicToast";
 import { useEditForm } from "@/public_shared/useEditForm";
@@ -61,6 +62,14 @@ if (initial === undefined) {
 }
 
 const locale = ref<Locale>(pickLocale(event.value?.locale));
+// Title + topic resolved to the active language with fallback; both
+// depend on ``locale`` so flipping the flag re-renders them live.
+const eventTitle = computed(() =>
+  event.value ? resolveText(event.value.name_nl, event.value.name_en, locale.value) : null,
+);
+const eventTopic = computed(() =>
+  event.value ? resolveText(event.value.topic_nl, event.value.topic_en, locale.value) : null,
+);
 watch(event, (e) => {
   if (e) locale.value = pickLocale(e.locale);
   // Dev-mode async load: pre-check the landing occurrence when the form
@@ -299,11 +308,11 @@ const calLinks = computed(() => {
   const utc = (iso: string) =>
     new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const publicUrl = `${window.location.origin}/e/${e.current.slug}`;
-  const desc = [stripHtml(e.topic), publicUrl].filter(Boolean).join("\n\n");
+  const desc = [stripHtml(eventTopic.value ?? ""), publicUrl].filter(Boolean).join("\n\n");
   const ics = `/api/v1/events/by-slug/${e.current.slug}/event.ics`;
   const google =
     `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-    `&text=${enc(e.name)}` +
+    `&text=${enc(eventTitle.value ?? "")}` +
     `&dates=${utc(e.current.starts_at)}/${utc(e.current.ends_at)}` +
     `&details=${enc(desc)}` +
     `&location=${enc(e.location)}`;
@@ -431,11 +440,8 @@ async function withdrawAll() {
   }
 }
 
-onMounted(() => {
-  document.title = event.value?.name ? `${event.value.name} · opkomst.nu` : "opkomst.nu";
-});
-watch(event, (e) => {
-  if (e?.name) document.title = `${e.name} · opkomst.nu`;
+watchEffect(() => {
+  document.title = eventTitle.value ? `${eventTitle.value} · opkomst.nu` : "opkomst.nu";
 });
 </script>
 
@@ -447,16 +453,16 @@ watch(event, (e) => {
 
     <PublicNotice v-else-if="withdrawn" :message="t.withdrawn" />
 
-    <PublicNotice v-else-if="event?.archived" :title="event.name" :message="c.unavailable" />
+    <PublicNotice v-else-if="event?.archived" :title="eventTitle ?? undefined" :message="c.unavailable" />
 
     <template v-else>
       <PublicTopCard
         v-if="!submitted"
-        :title="event?.name ?? null"
+        :title="eventTitle"
         :image-url="event?.image_url ?? null"
         :artist="event?.image_artist_instagram ?? null"
         :credit-label="t.imageCredit"
-        :description-html="event?.topic ?? null"
+        :description-html="eventTopic"
       >
         <template v-if="event && current" #meta>
           <PublicMetaRow>

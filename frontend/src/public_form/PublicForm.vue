@@ -8,6 +8,7 @@ import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { showToast } from "@/public_shared/publicToast";
+import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -31,6 +32,12 @@ const slug = window.location.pathname.replace(/^\/f\//, "").split("/")[0];
 const { editToken, editUrl, confirmSaved } = useEditLink("f", () => slug);
 
 const form = ref<PublicForm | null>(null);
+const formTitle = computed(() =>
+  form.value ? resolveText(form.value.name_nl, form.value.name_en, locale.value) : null,
+);
+const formDescription = computed(() =>
+  form.value ? resolveText(form.value.description_nl, form.value.description_en, locale.value) : null,
+);
 const status = ref<"loading" | "ready" | "unavailable" | "load-failed" | "submitted" | "withdrawn">("loading");
 const submitting = ref(false);
 
@@ -212,11 +219,11 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
       <template v-else>
         <PublicTopCard
-          :title="form.name"
+          :title="formTitle"
           :image-url="form.image_url"
           :artist="form.image_artist_instagram"
           :credit-label="c.imageCredit"
-          :description-html="form.description"
+          :description-html="formDescription"
         />
         <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
         <Disclosure :locale="locale" />

@@ -10,6 +10,7 @@ import PublicShell from "@/public_shared/PublicShell.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import { isValidEmail } from "@/lib/validate";
 import { showToast } from "@/public_shared/publicToast";
+import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, GITHUB_URL, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -37,6 +38,14 @@ type Status = "loading" | "enrol" | "personal" | "enrolled" | "unavailable" | "l
 
 const status = ref<Status>("loading");
 const roster = ref<PublicRoster | null>(null);
+const rosterTitle = computed(() =>
+  roster.value ? resolveText(roster.value.name_nl, roster.value.name_en, locale.value) : null,
+);
+const rosterDescription = computed(() =>
+  roster.value
+    ? resolveText(roster.value.description_nl, roster.value.description_en, locale.value)
+    : null,
+);
 const locale = ref<Locale>("nl");
 const c = computed(() => chromeStrings(locale.value));
 const ch = computed(() => choreStrings(locale.value));
@@ -349,11 +358,11 @@ async function leave(): Promise<void> {
 
     <template v-else-if="roster && (status === 'enrol' || status === 'personal')">
       <PublicTopCard
-        :title="roster.name"
+        :title="rosterTitle"
         :image-url="roster.image_url"
         :artist="roster.image_artist_instagram"
         :credit-label="c.imageCredit"
-        :description-html="roster.description"
+        :description-html="rosterDescription"
       />
 
       <!-- Personal mode: my turns + up-for-grabs -->

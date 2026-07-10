@@ -9,6 +9,7 @@ import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { showToast } from "@/public_shared/publicToast";
+import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
@@ -31,6 +32,12 @@ type Status = "loading" | "ready" | "unavailable" | "load-failed" | "submitted" 
 const status = ref<Status>("loading");
 const poll = ref<PublicDatepoll | null>(null);
 const locale = ref<Locale>("nl");
+const pollTitle = computed(() =>
+  poll.value ? resolveText(poll.value.name_nl, poll.value.name_en, locale.value) : null,
+);
+const pollDescription = computed(() =>
+  poll.value ? resolveText(poll.value.description_nl, poll.value.description_en, locale.value) : null,
+);
 const c = computed(() => chromeStrings(locale.value));
 const d = computed(() => datepollStrings(locale.value));
 
@@ -249,11 +256,11 @@ async function withdraw(): Promise<void> {
 
       <template v-else>
         <PublicTopCard
-          :title="poll.name"
+          :title="pollTitle"
           :image-url="poll.image_url"
           :artist="poll.image_artist_instagram"
           :credit-label="c.imageCredit"
-          :description-html="poll.description"
+          :description-html="pollDescription"
         >
           <template v-if="poll.location" #meta>
             <PublicMetaRow

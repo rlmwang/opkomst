@@ -8,8 +8,10 @@
 // the "sessie i van N" badge (``total_sessions`` null = open-ended).
 export interface EventCard {
   slug: string;
-  name: string;
-  topic: string | null;
+  name_nl: string | null;
+  name_en: string | null;
+  topic_nl: string | null;
+  topic_en: string | null;
   starts_at: string;
   ends_at: string;
   location: string;

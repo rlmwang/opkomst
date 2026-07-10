@@ -29,8 +29,10 @@ export interface ProjectedOccurrence {
 
 export interface PublicEvent {
   event_slug: string;
-  name: string;
-  topic: string | null;
+  name_nl: string | null;
+  name_en: string | null;
+  topic_nl: string | null;
+  topic_en: string | null;
   location: string;
   latitude: number | null;
   longitude: number | null;

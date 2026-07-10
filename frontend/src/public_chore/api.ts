@@ -18,8 +18,10 @@ export interface PublicChore {
 
 export interface PublicRoster {
   id: string;
-  name: string;
-  description: string | null;
+  name_nl: string | null;
+  name_en: string | null;
+  description_nl: string | null;
+  description_en: string | null;
   location: string | null;
   latitude: number | null;
   longitude: number | null;

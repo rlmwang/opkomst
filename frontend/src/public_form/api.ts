@@ -18,8 +18,10 @@ export interface PublicFormQuestion {
 
 export interface PublicForm {
   id: string;
-  name: string;
-  description: string | null;
+  name_nl: string | null;
+  name_en: string | null;
+  description_nl: string | null;
+  description_en: string | null;
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: "nl" | "en";

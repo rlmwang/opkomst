@@ -23,8 +23,10 @@ vi.mock("@/public_chore/api", () => ({
 
 const ROSTER = {
   id: "r1",
-  name: "Bins roster",
-  description: null,
+  name_nl: "Bins roster",
+  name_en: "Bins roster",
+  description_nl: null,
+  description_en: null,
   location: null,
   latitude: null,
   longitude: null,
