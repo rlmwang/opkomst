@@ -79,14 +79,22 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 _OG_IMAGE_URL = f"{_PUBLIC_BASE}/favicon.png"
 
 
-def _og_head(*, name: str, description: str, canonical_url: str, og_image: str, twitter_card: str) -> str:
+def _og_head(*, name: str, description: str, canonical_url: str, image_url: str | None) -> str:
     """Shared ``<head>`` markup: page title + Open Graph + Twitter
     Card tags. Drives the link-preview cards rendered by WhatsApp,
     Facebook, iMessage, Slack, Twitter, LinkedIn — all of which
     scrape ``og:title`` / ``og:description`` / ``og:image`` from
     the served HTML. ``html.escape(..., quote=True)`` covers the
     HTML-attribute injection surface (names with quotes, ampersands,
-    angle brackets)."""
+    angle brackets).
+
+    ``image_url`` is the entity's uploaded hero image (every
+    ``OrgEntity`` — event / datepoll / roster / form — carries one on
+    its spine), or ``None`` for surfaces without an image. A real
+    upload gets the large-image card; the ``None`` fallback shows the
+    square favicon under the tiny ``summary`` thumbnail."""
+    og_image = image_url or _OG_IMAGE_URL
+    twitter_card = "summary_large_image" if image_url else "summary"
     et = html.escape(f"{name} — opkomst.nu", quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
@@ -133,74 +141,64 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
     if len(description) > 200:
         description = description[:197] + "…"
 
-    # OG image: when the organiser uploaded a hero image use that
-    # (gives every share a real event-specific card); otherwise fall
-    # back to the favicon so parsers still get *something*. Hero
-    # uploads are 4:5 portrait — hint the large-image card; the
-    # square favicon gets the tiny ``summary`` thumbnail.
     return _og_head(
         name=event.name,
         description=description,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
-        og_image=event.image_url or _OG_IMAGE_URL,
-        twitter_card="summary_large_image" if event.image_url else "summary",
+        image_url=event.image_url,
     )
 
 
 def _build_form_head_meta(form: Form | None, slug: str) -> str:
     """Per-form link-preview ``<head>``. Forms have no topic /
-    location / date, so the description is just the form name and
-    the card always falls back to the favicon."""
+    location / date, so the description is just the form name; the
+    card uses the organiser's uploaded image when set."""
     if form is None:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=form.name,
         description=form.name,
         canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
-        og_image=_OG_IMAGE_URL,
-        twitter_card="summary",
+        image_url=form.image_url,
     )
 
 
 def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
     """Per-datepoll link-preview ``<head>``. Description is the poll's
-    blurb if set, else its name; favicon card."""
+    blurb if set, else its name; card uses the uploaded image when set."""
     if poll is None:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=poll.name,
         description=html_to_text(poll.description) or poll.name,
         canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
-        og_image=_OG_IMAGE_URL,
-        twitter_card="summary",
+        image_url=poll.image_url,
     )
 
 
 def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
     """Per-roster link-preview ``<head>``. Description is the roster's
-    blurb if set, else its name; favicon card."""
+    blurb if set, else its name; card uses the uploaded image when set."""
     if roster is None:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=roster.name,
         description=html_to_text(roster.description) or roster.name,
         canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
-        og_image=_OG_IMAGE_URL,
-        twitter_card="summary",
+        image_url=roster.image_url,
     )
 
 
 def _build_chapter_head_meta(chapter: Chapter | None, slug: str) -> str:
     """Per-chapter agenda link-preview ``<head>``. Title is
-    ``Agenda · {name}``; favicon card."""
+    ``Agenda · {name}``; a chapter has no image, so the favicon card."""
     if chapter is None:
         return "<title>opkomst.nu</title>"
     return _og_head(
         name=f"Agenda · {chapter.name}",
         description=chapter.name,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
-        og_image=_OG_IMAGE_URL,
-        twitter_card="summary",
+        image_url=None,
     )
 
 

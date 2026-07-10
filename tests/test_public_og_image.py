@@ -1,0 +1,64 @@
+"""Link-preview ``og:image`` is per-entity for every ``OrgEntity`` surface.
+
+Every ``OrgEntity`` (event / datepoll / roster / form) carries an
+``image_url`` on its spine, and the organiser expects the image they
+uploaded to show in WhatsApp / Slack / iMessage previews. The bug this
+guards: three of the four builders hardcoded the favicon and ignored the
+entity's own ``image_url``, so only events ever got a real card.
+
+The builders are pure functions over the loaded row, so we exercise them
+directly on unpersisted model instances rather than rendering the full
+SPA HTML shell (which needs the built ``dist/`` files).
+"""
+
+import pytest
+
+from backend.models import Chapter, Datepoll, Event, Form, Occurrence, Roster
+from backend.routers import spa
+
+_HERO = "https://raw.githubusercontent.com/x/y/hero.jpg"
+
+
+def _event(image_url):
+    # The event builder reads the event through its occurrence; a set
+    # ``topic`` keeps it off the "{location} · {date}" description branch
+    # so ``starts_at`` is never read.
+    event = Event(name="Bokslessen", topic="<p>kom langs</p>", location="Zaal", image_url=image_url)
+    return spa._build_head_meta(Occurrence(event=event), "slug1")
+
+
+def _datepoll(image_url):
+    return spa._build_datepoll_head_meta(Datepoll(name="Prik", description=None, image_url=image_url), "slug2")
+
+
+def _form(image_url):
+    return spa._build_form_head_meta(Form(name="Aanmelden", image_url=image_url), "slug3")
+
+
+def _roster(image_url):
+    return spa._build_roster_head_meta(Roster(name="Corvee", description=None, image_url=image_url), "slug4")
+
+
+_BUILDERS = [_event, _datepoll, _form, _roster]
+
+
+@pytest.mark.parametrize("build", _BUILDERS)
+def test_uploaded_image_becomes_the_og_image(build):
+    head = build(_HERO)
+    assert f'<meta property="og:image" content="{_HERO}">' in head
+    assert f'<meta name="twitter:image" content="{_HERO}">' in head
+    assert '<meta name="twitter:card" content="summary_large_image">' in head
+
+
+@pytest.mark.parametrize("build", _BUILDERS)
+def test_no_image_falls_back_to_favicon(build):
+    head = build(None)
+    assert f'<meta property="og:image" content="{spa._OG_IMAGE_URL}">' in head
+    assert '<meta name="twitter:card" content="summary">' in head
+
+
+def test_chapter_agenda_has_no_image_and_uses_favicon():
+    # A chapter has no image_url, so its agenda card is always the favicon.
+    head = spa._build_chapter_head_meta(Chapter(name="Utrecht"), "utrecht")
+    assert f'<meta property="og:image" content="{spa._OG_IMAGE_URL}">' in head
+    assert '<meta name="twitter:card" content="summary">' in head
