@@ -123,4 +123,29 @@ const filtered = computed(() => {
 .chapter-filter {
   min-width: 12rem;
 }
+
+/* Below the container width there isn't room to sit the 12rem
+ * chapter filter beside the search box: the filter kept its
+ * fixed width and the search collapsed to whatever was left,
+ * which on a phone was roughly a third of the row. Rather than
+ * split the row into two cramped halves, every control takes the
+ * full width and stacks — the search field is the one that
+ * actually needs the space, and full-width rows give all three
+ * a comfortable tap target. */
+@media (max-width: 720px) {
+  .actions-row > * {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .actions-row .search {
+    max-width: none;
+    margin-left: 0;
+  }
+  /* The slotted "+ New …" link wraps its button, so the width
+   * has to be pushed through to the button itself. */
+  .actions-row :deep(.p-button) {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>

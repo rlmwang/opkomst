@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Button from "primevue/button";
 import Popover from "primevue/popover";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -25,24 +24,22 @@ const showPendingBadge = computed(
   () => auth.isAdmin && pendingCount.value > 0,
 );
 
-// Top-level tabs. Each tab knows how to recognise its own
-// subtree (so e.g. ``/events/new`` lights up the Evenementen
-// tab, not none of them). The Admin tab is a "parent" that
-// links to its first subtab.
-interface TopTab {
+// Every top-level destination lives in one dropdown. Each item
+// knows how to recognise its own subtree (so e.g. ``/events/new``
+// still reads as Evenementen), which is what lets the trigger
+// double as a "you are here" label.
+interface MenuItem {
   key: string;
   to: string;
   label: string;
   isActive: (path: string) => boolean;
+  badge?: number;
 }
 
-// The three content workspaces collapse into a single
-// "Werkruimte" dropdown. Events is the only one an unapproved
-// organiser can reach, so the dropdown only materialises once
-// there's more than one entry — otherwise it renders as a plain
-// tab (see ``sectionAsTab`` below).
-const sectionTabs = computed<TopTab[]>(() => {
-  const tabs: TopTab[] = [
+// Group one: the content workspaces. Events is the only one an
+// unapproved organiser can reach.
+const workspaceItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [
     {
       key: "events",
       to: "/events",
@@ -51,70 +48,76 @@ const sectionTabs = computed<TopTab[]>(() => {
     },
   ];
   if (auth.isApproved) {
-    tabs.push({
+    items.push({
       key: "forms",
       to: "/forms",
       label: t("header.forms"),
       isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
     });
-    tabs.push({
+    items.push({
       key: "datepolls",
       to: "/datepolls",
       label: t("header.datepolls"),
       isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
     });
-    tabs.push({
+    items.push({
       key: "chores",
       to: "/chores",
       label: t("header.chores"),
       isActive: (p) => p === "/chores" || p.startsWith("/chores/"),
     });
   }
-  return tabs;
+  return items;
 });
-// Single-entry case (unapproved organiser): inline tab instead
-// of a one-item dropdown.
-const sectionAsTab = computed(() =>
-  sectionTabs.value.length === 1 ? sectionTabs.value[0] : null,
-);
-// Whichever workspace the current route belongs to — drives the
-// dropdown trigger label and its active styling.
-const activeSection = computed(() =>
-  sectionTabs.value.find((s) => s.isActive(route.path)) ?? null,
-);
 
-// The remaining top-level tabs that sit to the right of the
-// workspace dropdown.
-const topTabs = computed<TopTab[]>(() => {
-  const tabs: TopTab[] = [];
-  // WhatsApp sits left of Admin, so push it first.
+// Group two: the organisation-management destinations. Separated
+// from the workspaces by a rule in the menu — they act on the
+// tool itself rather than on a chapter's programme.
+const adminItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = [];
+  if (auth.isApproved) {
+    items.push({
+      key: "admin",
+      to: "/users",
+      label: t("header.admin"),
+      isActive: (p) => p === "/users" || p === "/chapters",
+      badge: showPendingBadge.value ? pendingCount.value : undefined,
+    });
+  }
   if (auth.isAdmin && auth.whatsappAvailable) {
-    tabs.push({
+    items.push({
       key: "whatsapp",
       to: "/admin/whatsapp",
       label: t("header.whatsapp"),
       isActive: (p) => p === "/admin/whatsapp",
     });
   }
-  if (auth.isApproved) {
-    tabs.push({
-      key: "admin",
-      to: "/users",
-      label: t("header.admin"),
-      isActive: (p) => p === "/users" || p === "/chapters",
-    });
-  }
-  return tabs;
+  return items;
 });
 
-const sectionMenu = ref<InstanceType<typeof Popover> | null>(null);
-const sectionMenuOpen = ref(false);
-function toggleSectionMenu(event: Event) {
-  sectionMenu.value?.toggle(event);
+// Whichever destination the current route belongs to. Drives the
+// trigger label, so the collapsed nav still answers "where am I".
+const activeItem = computed(
+  () =>
+    [...workspaceItems.value, ...adminItems.value].find((i) =>
+      i.isActive(route.path),
+    ) ?? null,
+);
+const triggerLabel = computed(() => activeItem.value?.label ?? t("header.menu"));
+
+const navMenu = ref<InstanceType<typeof Popover> | null>(null);
+const navMenuOpen = ref(false);
+function toggleNavMenu(event: Event) {
+  navMenu.value?.toggle(event);
 }
-function navigateSection(to: string) {
-  sectionMenu.value?.hide();
+function navigate(to: string) {
+  navMenu.value?.hide();
   void router.push(to);
+}
+async function logout() {
+  navMenu.value?.hide();
+  await auth.logout();
+  void router.push("/login");
 }
 
 // Subtabs derived from the current route. Empty array on routes
@@ -165,170 +168,226 @@ const subtabs = computed<Subtab[]>(() => {
   }
   return [];
 });
-
-async function logout() {
-  await auth.logout();
-  void router.push("/login");
-}
+const hasSubtabs = computed(() => subtabs.value.length > 0);
 </script>
 
 <template>
-  <header class="app-header">
-    <BrandMark to="/" />
-    <div class="header-right">
-      <nav v-if="auth.isAuthenticated">
-        <!-- Subtabs render to the LEFT of the top tabs with a
-             vertical divider. Empty on routes that don't belong
-             to either parent's subtree. -->
-        <div v-if="subtabs.length" class="nav-group nav-subtabs">
-          <router-link
-            v-for="s in subtabs"
-            :key="s.to"
-            :to="s.to"
-            class="subtab"
-          >
-            {{ s.label }}
-            <span
-              v-if="s.badge"
-              class="pending-badge"
-              :aria-label="t('header.pendingBadgeLabel', { n: s.badge })"
-            >{{ s.badge }}</span>
-          </router-link>
-          <span class="group-divider" aria-hidden="true" />
-        </div>
-        <div class="nav-group nav-tabs">
-          <!-- The three content workspaces, collapsed into one
-               dropdown. Falls back to a plain tab when only one
-               workspace is reachable (unapproved organiser). -->
-          <router-link
-            v-if="sectionAsTab"
-            :to="sectionAsTab.to"
-            :class="['top-tab', { active: sectionAsTab.isActive(route.path) }]"
-          >{{ sectionAsTab.label }}</router-link>
-          <template v-else>
-            <button
-              type="button"
-              class="top-tab section-trigger"
-              :class="{ active: activeSection }"
-              aria-haspopup="true"
-              :aria-expanded="sectionMenuOpen"
-              @click="toggleSectionMenu"
-            >
-              {{ activeSection ? activeSection.label : t("header.workspace") }}
-              <i class="pi pi-chevron-down section-chevron" aria-hidden="true"></i>
-            </button>
-            <Popover ref="sectionMenu" @show="sectionMenuOpen = true" @hide="sectionMenuOpen = false">
-              <div class="section-menu">
-                <button
-                  v-for="s in sectionTabs"
-                  :key="s.key"
-                  type="button"
-                  class="section-item"
-                  :class="{ active: s.isActive(route.path) }"
-                  @click="navigateSection(s.to)"
-                >{{ s.label }}</button>
-              </div>
-            </Popover>
-          </template>
-          <router-link
-            v-for="tab in topTabs"
-            :key="tab.key"
-            :to="tab.to"
-            :class="['top-tab', { active: tab.isActive(route.path) }]"
-          >{{ tab.label }}</router-link>
-        </div>
-        <span class="logout-divider" aria-hidden="true" />
-        <Button :label="t('header.logout')" size="small" severity="secondary" text @click="logout" />
-      </nav>
+  <header class="app-header" :class="{ 'has-subtabs': hasSubtabs }">
+    <BrandMark to="/" class="brand" />
+
+    <!-- Second-level, route-contextual navigation. Its own grid
+         area, so on phones it drops to a full-width row of its
+         own instead of competing with the brand and the menu. -->
+    <nav
+      v-if="hasSubtabs"
+      class="subtabs"
+      :aria-label="t('header.subnavLabel')"
+    >
+      <router-link v-for="s in subtabs" :key="s.to" :to="s.to" class="subtab">
+        {{ s.label }}
+        <span
+          v-if="s.badge"
+          class="pending-badge"
+          :aria-label="t('header.pendingBadgeLabel', { n: s.badge })"
+        >{{ s.badge }}</span>
+      </router-link>
+      <span class="group-divider" aria-hidden="true" />
+    </nav>
+
+    <!-- Exactly two controls, at every width: language, then the
+         nav menu. Fixed and compact enough that this cluster
+         never wraps. -->
+    <div class="actions">
       <LanguageSwitcher />
+      <template v-if="auth.isAuthenticated">
+        <button
+          type="button"
+          class="menu-trigger"
+          :class="{ open: navMenuOpen }"
+          aria-haspopup="true"
+          :aria-expanded="navMenuOpen"
+          :aria-label="t('header.menuAria', { section: triggerLabel })"
+          @click="toggleNavMenu"
+        >
+          <i class="pi pi-bars trigger-icon" aria-hidden="true"></i>
+          <span class="trigger-label">{{ triggerLabel }}</span>
+          <i class="pi pi-chevron-down trigger-chevron" aria-hidden="true"></i>
+          <span
+            v-if="showPendingBadge"
+            class="trigger-dot"
+            :aria-label="t('header.pendingBadgeLabel', { n: pendingCount })"
+          />
+        </button>
+        <Popover
+          ref="navMenu"
+          @show="navMenuOpen = true"
+          @hide="navMenuOpen = false"
+        >
+          <div class="nav-menu">
+            <button
+              v-for="item in workspaceItems"
+              :key="item.key"
+              type="button"
+              class="menu-item"
+              :class="{ active: item.isActive(route.path) }"
+              @click="navigate(item.to)"
+            >{{ item.label }}</button>
+            <span v-if="adminItems.length" class="menu-rule" aria-hidden="true" />
+            <button
+              v-for="item in adminItems"
+              :key="item.key"
+              type="button"
+              class="menu-item"
+              :class="{ active: item.isActive(route.path) }"
+              @click="navigate(item.to)"
+            >
+              {{ item.label }}
+              <span
+                v-if="item.badge"
+                class="pending-badge"
+                :aria-label="t('header.pendingBadgeLabel', { n: item.badge })"
+              >{{ item.badge }}</span>
+            </button>
+            <span class="menu-rule" aria-hidden="true" />
+            <button type="button" class="menu-item menu-item-logout" @click="logout">
+              <i class="pi pi-sign-out" aria-hidden="true"></i>
+              {{ t("header.logout") }}
+            </button>
+          </div>
+        </Popover>
+      </template>
     </div>
   </header>
 </template>
 
 <style scoped>
+/* Grid, not ``flex-wrap``. Wrapping used to be the no-overflow
+ * guarantee, but it let the browser pick the break point: on a
+ * phone the subtabs, the section tabs and the logout button
+ * landed on whichever row they happened to fit. Three named
+ * areas make the break an explicit decision instead —
+ *
+ *   ≥721px   brand · · · · · subtabs | [lang] [menu]
+ *   ≤720px   brand · · · · · · · · · · [lang] [menu]
+ *            subtabs
+ *
+ * The brand column is ``auto`` and the middle is ``1fr``, so the
+ * actions cluster is pinned to the right edge whether or not
+ * subtabs exist. */
 .app-header {
-  display: flex;
+  display: grid;
+  grid-template-areas: "brand subtabs actions";
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  /* ``flex-wrap: wrap`` is the no-overflow guarantee on narrow
-   * viewports — without it, the right-side group (nav links +
-   * logout + lang switcher) sticks past the viewport edge and
-   * the page picks up horizontal scroll. With wrap the right
-   * group drops onto a second row below the brand on phones,
-   * unchanged on desktop. */
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  column-gap: 1rem;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--brand-border);
   background: var(--brand-surface);
 }
-.header-right {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+.brand {
+  grid-area: brand;
+  min-width: 0;
 }
-nav {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-}
-.nav-group {
+.subtabs {
+  grid-area: subtabs;
+  justify-self: end;
   display: flex;
   align-items: center;
   gap: 1rem;
 }
-@media (max-width: 480px) {
-  .app-header {
-    padding: 0.625rem 0.75rem;
-  }
-  /* The destructive-action divider eats horizontal space
-   * disproportionately on phones; ``gap`` already provides the
-   * visual buffer there. */
-  .logout-divider {
-    display: none;
-  }
+.actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
-nav a {
+
+.subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   color: var(--brand-text);
   text-decoration: none;
+  white-space: nowrap;
 }
-/* Top tabs use a manual ``active`` class so the Admin tab can
- * light up for /users and /chapters alike — router-link's own
- * active class only matches the tab's own ``to``. */
-.top-tab.active {
+/* Subtabs use router-link's built-in active class — each has
+ * exactly one matching path. */
+.subtab.router-link-active {
   color: var(--brand-red);
   font-weight: 600;
 }
-/* The workspace dropdown trigger is a <button> styled to sit
- * flush with the router-link tabs around it. */
-.section-trigger {
+/* Vertical separator between the contextual subtabs and the
+ * actions cluster. Only meaningful while the two share a row. */
+.group-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--brand-border);
+}
+
+/* The single nav control. Deliberately styled as a pill matching
+ * the language switcher next to it, so the actions cluster reads
+ * as one pair of controls rather than a run of loose links. The
+ * label is the section the user is currently in, which is what
+ * pays for collapsing the tabs. */
+.menu-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+  background: var(--brand-surface);
   color: var(--brand-text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
 }
-.section-chevron {
-  font-size: 0.8rem;
+.menu-trigger:hover,
+.menu-trigger.open {
+  border-color: var(--brand-red);
+  background: var(--brand-bg);
+}
+/* The hamburger only appears once the label is dropped (≤480px). */
+.trigger-icon {
+  display: none;
+}
+.trigger-chevron {
+  font-size: 0.75rem;
   color: var(--brand-text-muted);
   transition: transform 150ms ease;
 }
-/* Flip the chevron while the dropdown is open. */
-.section-trigger[aria-expanded="true"] .section-chevron {
+.menu-trigger[aria-expanded="true"] .trigger-chevron {
   transform: rotate(180deg);
 }
-.section-menu {
+/* Pending approvals are two clicks away now that Admin lives in
+ * the menu, so the trigger carries a dot to surface them from
+ * any page. The exact count is on the Admin menu item. */
+.trigger-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-red);
+  box-shadow: 0 0 0 2px var(--brand-surface);
+}
+
+.nav-menu {
   display: flex;
   flex-direction: column;
-  min-width: 11rem;
+  min-width: 12rem;
 }
-.section-item {
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   text-align: left;
   background: none;
   border: none;
@@ -338,43 +397,25 @@ nav a {
   cursor: pointer;
   color: var(--brand-text);
 }
-.section-item:hover {
+.menu-item:hover {
   background: var(--brand-bg);
 }
-.section-item.active {
+.menu-item.active {
   color: var(--brand-red);
   font-weight: 600;
 }
-/* Subtabs use router-link's built-in active class — each has
- * exactly one matching path. Slightly less prominent than the
- * top-tab active state so the hierarchy reads from left (where
- * the user is right now) to right (the larger menu). */
-.subtab.router-link-active {
-  color: var(--brand-red);
-  font-weight: 500;
+.menu-item-logout {
+  color: var(--brand-text-muted);
 }
-.subtab {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-/* Vertical separator between subtab and top-tab groups, same
- * visual as the logout divider so the bar reads as evenly-
- * partitioned sections. */
-.group-divider {
-  width: 1px;
-  height: 1.5rem;
+/* Horizontal rule between the menu's three groups — workspaces,
+ * organisation admin, session. Grouping is what keeps a
+ * six-entry dropdown scannable. */
+.menu-rule {
+  height: 1px;
+  margin: 0.375rem 0.25rem;
   background: var(--brand-border);
 }
-/* Visual + spacing buffer between page navigation and the
- * destructive logout button — easy misclicks were happening when
- * logout sat one nav-gap (1rem) away from the last page link. */
-.logout-divider {
-  width: 1px;
-  height: 1.5rem;
-  margin: 0 1rem;
-  background: var(--brand-border);
-}
+
 /* Brand-red pill carrying the pending-approval count. Sized to
  * fit a 1- or 2-digit number; for ≥10 the pill expands rather
  * than the digits getting clipped. ``min-width`` matches the
@@ -392,5 +433,76 @@ nav a {
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1;
+}
+.menu-item .pending-badge {
+  margin-left: auto;
+}
+
+/* ≤720px — the row can no longer hold brand + subtabs + actions.
+ * The subtabs get their own full-width row under the bar, which
+ * also fixes a hierarchy inversion: the contextual tabs used to
+ * sit to the LEFT of the parent nav they belong to. The header
+ * only grows a second row on routes that actually have subtabs,
+ * hence ``.has-subtabs`` rather than an always-present empty
+ * grid track (an empty track still pays the row gap). */
+@media (max-width: 720px) {
+  .app-header {
+    grid-template-areas: "brand actions";
+    grid-template-columns: 1fr auto;
+    row-gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+  }
+  .app-header.has-subtabs {
+    grid-template-areas:
+      "brand actions"
+      "subtabs subtabs";
+  }
+  .subtabs {
+    justify-self: start;
+    /* Two entries never need to scroll; the rule is here so a
+     * future third one degrades to a swipe instead of a wrap. */
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: none;
+  }
+  .subtabs::-webkit-scrollbar {
+    display: none;
+  }
+  /* Shares its row with the actions cluster now, not the
+   * subtabs. */
+  .group-divider {
+    display: none;
+  }
+  /* 60px of logo is desktop sizing; on a phone that width is
+   * needed by the nav. Three selectors deep to outrank
+   * BrandMark's own scoped rule regardless of bundle order. */
+  .app-header .brand :deep(.party-logo) {
+    height: 40px;
+    width: 40px;
+  }
+  .app-header .brand :deep(.wordmark) {
+    font-size: 1rem;
+  }
+}
+
+/* ≤480px — the section label no longer fits beside the brand and
+ * the language switcher, so the trigger collapses to a hamburger.
+ * The "where am I" cue isn't lost: the page's own <h1> sits
+ * directly below and names the section. */
+@media (max-width: 480px) {
+  .trigger-icon {
+    display: inline;
+    font-size: 1.05rem;
+  }
+  .trigger-label,
+  .trigger-chevron {
+    display: none;
+  }
+  .menu-trigger {
+    gap: 0;
+    padding: 0;
+    width: 2.25rem;
+    justify-content: center;
+  }
 }
 </style>
