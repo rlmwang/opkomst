@@ -60,12 +60,14 @@ ENV PYTHONUNBUFFERED=1 \
 # ``postgresql-client`` for the daily ``scripts/backup.sh`` cron
 # (needs ``pg_dump`` — without it the cron fails AFTER the
 # redactor pipeline starts and writes silently mangled backups),
-# ``curl`` for the Dockerfile HEALTHCHECK.
+# ``curl`` for the Dockerfile HEALTHCHECK, ``tini`` for PID 1
+# (see the ENTRYPOINT note below).
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         postgresql-client \
         curl \
+        tini \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -104,10 +106,23 @@ EXPOSE 8000
 # ``start-period=60s`` skips healthcheck failures during normal
 # startup (first real check fires at +60s instead of +15s, which
 # was failing the first 2 of 3 attempts and adding ~30 s to
-# every deploy). After ``start_period`` regular ``interval=10s``
-# kicks in for fast detection of actual unhealthy state.
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+# every deploy).
+#
+# ``timeout=10s``, not 5s: under memory pressure the box swaps and
+# ``GET /health`` stretches to ~7 s of pure scheduling delay while
+# still returning 200 with ``db_ms=0``. A 5 s timeout turned that
+# into an ``unhealthy`` verdict, Traefik dropped the only server
+# from the pool, and the site 503'd while the app was fine. The
+# check exists to catch a wedged app, not a busy host.
+#
+# ``--max-time 8`` is deliberately below the 10 s HEALTHCHECK
+# timeout so ``curl`` always exits on its own. When Docker enforces
+# the timeout instead, it SIGKILLs the ``sh`` wrapper and the
+# in-flight ``curl`` is orphaned onto PID 1, which is the exact
+# path that produced the zombie pile. Bounding curl means the
+# orphan is never created; tini below is the backstop.
+HEALTHCHECK --interval=15s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -fsS --max-time 8 http://localhost:8000/health || exit 1
 
 # One worker. Earlier we ran two for GIL relief (Server-Timing
 # telemetry showed handler-side Pydantic serialisation taking
@@ -129,8 +144,18 @@ ENV WEB_CONCURRENCY=1
 # from inside ``backend.main``'s import path raced with
 # ``WEB_CONCURRENCY > 1`` (every worker re-imported and N parallel
 # ``CREATE TABLE alembic_version`` calls collided on
-# ``pg_type_typname_nsp_index``). ``exec`` hands PID 1 to uvicorn
-# so signals propagate cleanly.
+# ``pg_type_typname_nsp_index``). ``exec`` replaces the shell with
+# uvicorn so signals propagate cleanly.
+#
+# ``tini`` is PID 1 because nothing else in this container reaps.
+# Docker runs the HEALTHCHECK as a child of PID 1, and kills the
+# ``curl`` when it exceeds ``--timeout``. Under ``uv run`` as PID 1
+# (which waits only on its own direct child) every killed curl
+# stayed a zombie: 1692 of them accumulated over 18 days, one per
+# timed-out check, until the process table itself became a source
+# of load. ``tini`` reaps orphans automatically, so the leak
+# cannot recur regardless of how often the healthcheck times out.
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 CMD uv run --no-dev python -m backend.cli migrate && \
     exec uv run --no-dev uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY}
