@@ -92,6 +92,38 @@
 
   .stack > * + * { margin-top: 0.75rem; }
 
+  /* Archive-list card: the entity's name (+ meta, on Events) on the
+   * left, restore and delete on the right. Shared by the four archive
+   * pages, which each carried their own identical copy. The active
+   * lists use ``EntityCard``; this is the lighter shape for a list you
+   * scan rather than work in, so the actions keep their row instead of
+   * dropping to a footer. */
+  .archive-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .archive-row p {
+    margin: 0.25rem 0 0;
+  }
+  .archive-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  /* Side by side on a phone, the title is left with a ~110px column
+   * and wraps to four ragged lines against vertically-centred
+   * buttons. Stacked, it gets the full width and the actions read as
+   * belonging to the row above them. */
+  @media (max-width: 540px) {
+    .archive-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+  }
+
   /* Canonical row inside a card-list. Both EditableList rows and the
    * AdminPage user-list rows mount this so the two lists stay visually
    * identical — no per-page padding/gap drift. */

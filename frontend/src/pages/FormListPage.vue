@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import EntityCard from "@/components/EntityCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
@@ -143,108 +144,51 @@ function askArchive(f: FormListOut) {
     </template>
 
     <template #row="{ item: f }">
-      <AppCard
-        :stack="false"
-        class="form-card"
+      <EntityCard
+        :qr-src="formQrUrl(f.slug)"
+        :qr-label="t('forms.share.copyQr')"
         @mouseenter="prefetchDetails(f.id)"
         @focusin="prefetchDetails(f.id)"
+        @copy-qr="copyQr(f.slug)"
       >
-        <div class="form-main">
-          <div class="form-summary">
-            <h3>
-              {{ lt(f.name_nl, f.name_en) }}
-              <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
-            </h3>
-            <div class="link-row">
-              <a :href="publicFormUrl(f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(f.slug) }}</a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('forms.share.copyLink')"
-                :aria-label="t('forms.share.copyLink')"
-                @click="copyLink(f.slug)"
-              />
-            </div>
-          </div>
+        <template #title>
+          <h3>
+            {{ lt(f.name_nl, f.name_en) }}
+            <span v-if="f.chapter_name" class="chapter-chip">{{ f.chapter_name }}</span>
+          </h3>
+        </template>
 
-          <div class="actions">
-            <router-link :to="`/forms/${f.id}/details`">
-              <Button :label="t('forms.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-            </router-link>
+        <template #link>
+          <div class="link-row">
+            <a :href="publicFormUrl(f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(f.slug) }}</a>
             <Button
-              :label="t('forms.list.archive')"
-              icon="pi pi-archive"
+              icon="pi pi-copy"
               size="small"
               severity="secondary"
               text
-              @click="askArchive(f)"
+              v-tooltip.top="t('forms.share.copyLink')"
+              :aria-label="t('forms.share.copyLink')"
+              @click="copyLink(f.slug)"
             />
           </div>
-        </div>
+        </template>
 
-        <div class="form-side">
-          <div class="muted list-count">{{ t("forms.list.submissionCount", { n: f.submission_count }) }}</div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('forms.share.copyQr')"
-            :aria-label="t('forms.share.copyQr')"
-            @click="copyQr(f.slug)"
-          >
-            <img :src="formQrUrl(f.slug)" alt="" class="qr" />
-          </button>
-        </div>
-      </AppCard>
+        <template #actions>
+          <router-link :to="`/forms/${f.id}/details`">
+            <Button :label="t('forms.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          </router-link>
+          <Button
+            :label="t('forms.list.archive')"
+            icon="pi pi-archive"
+            size="small"
+            severity="secondary"
+            text
+            @click="askArchive(f)"
+          />
+        </template>
+
+        <template #count>{{ t("forms.list.submissionCount", { n: f.submission_count }) }}</template>
+      </EntityCard>
     </template>
   </ListPageView>
 </template>
-
-<style scoped>
-/* Mirrors ``DashboardPage``'s ``.event-card`` shape one-to-one: a
- * two-column grid with main content on the left and, on the right, the
- * submission count above the QR thumbnail. */
-.form-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.25rem;
-  align-items: stretch;
-}
-.form-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  min-width: 0;
-}
-.form-summary h3 { margin: 0 0 0.25rem; }
-.form-summary .link-row { margin-top: 0.25rem; }
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
-}
-
-.form-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.list-count {
-  white-space: nowrap;
-}
-
-@media (max-width: 540px) {
-  .form-card {
-    grid-template-columns: 1fr;
-  }
-  .form-side {
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-  }
-}
-</style>

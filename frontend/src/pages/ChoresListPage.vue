@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import EntityCard from "@/components/EntityCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
@@ -142,112 +143,55 @@ function askArchive(r: RosterListOut) {
     </template>
 
     <template #row="{ item: r }">
-      <AppCard
-        :stack="false"
-        class="roster-card"
+      <EntityCard
+        :qr-src="choreQrUrl(r.slug)"
+        :qr-label="t('chores.share.copyQr')"
         @mouseenter="prefetchDetails(r.id)"
         @focusin="prefetchDetails(r.id)"
+        @copy-qr="copyQr(r.slug)"
       >
-        <div class="roster-main">
-          <div class="roster-summary">
-            <h3>
-              {{ lt(r.name_nl, r.name_en) }}
-              <span v-if="r.chapter_name" class="chapter-chip">{{ r.chapter_name }}</span>
-            </h3>
-            <p class="muted summary-line">{{ summary(r) }}</p>
-            <div class="link-row">
-              <a :href="publicChoreUrl(r.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(r.slug) }}</a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('chores.share.copyLink')"
-                :aria-label="t('chores.share.copyLink')"
-                @click="copyLink(r.slug)"
-              />
-            </div>
-          </div>
+        <template #title>
+          <h3>
+            {{ lt(r.name_nl, r.name_en) }}
+            <span v-if="r.chapter_name" class="chapter-chip">{{ r.chapter_name }}</span>
+          </h3>
+        </template>
 
-          <div class="actions">
-            <router-link :to="`/chores/${r.id}/details`">
-              <Button :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-            </router-link>
+        <template #meta>
+          <p class="muted">{{ summary(r) }}</p>
+        </template>
+
+        <template #link>
+          <div class="link-row">
+            <a :href="publicChoreUrl(r.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(r.slug) }}</a>
             <Button
-              :label="t('chores.list.archive')"
-              icon="pi pi-archive"
+              icon="pi pi-copy"
               size="small"
               severity="secondary"
               text
-              @click="askArchive(r)"
+              v-tooltip.top="t('chores.share.copyLink')"
+              :aria-label="t('chores.share.copyLink')"
+              @click="copyLink(r.slug)"
             />
           </div>
-        </div>
+        </template>
 
-        <div class="roster-side">
-          <div class="muted list-count">{{ t("chores.list.volunteerCount", { n: r.volunteer_count }) }}</div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('chores.share.copyQr')"
-            :aria-label="t('chores.share.copyQr')"
-            @click="copyQr(r.slug)"
-          >
-            <img :src="choreQrUrl(r.slug)" alt="" class="qr" />
-          </button>
-        </div>
-      </AppCard>
+        <template #actions>
+          <router-link :to="`/chores/${r.id}/details`">
+            <Button :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          </router-link>
+          <Button
+            :label="t('chores.list.archive')"
+            icon="pi pi-archive"
+            size="small"
+            severity="secondary"
+            text
+            @click="askArchive(r)"
+          />
+        </template>
+
+        <template #count>{{ t("chores.list.volunteerCount", { n: r.volunteer_count }) }}</template>
+      </EntityCard>
     </template>
   </ListPageView>
 </template>
-
-<style scoped>
-.roster-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.25rem;
-  align-items: stretch;
-}
-.roster-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  min-width: 0;
-}
-.roster-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.roster-summary h3 { margin: 0 0 0.25rem; }
-.summary-line { margin: 0 0 0.25rem; font-size: 0.875rem; }
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: auto;
-}
-/* Count above the QR, mirroring DashboardPage's ``.event-side``. */
-.roster-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.list-count {
-  white-space: nowrap;
-}
-@media (max-width: 540px) {
-  .roster-card {
-    grid-template-columns: 1fr;
-  }
-  .roster-side {
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-  }
-}
-</style>

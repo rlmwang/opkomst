@@ -8,6 +8,7 @@ import { useLocalizedText } from "@/composables/useLocalizedText";
 import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import EntityCard from "@/components/EntityCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useSetUserChapters } from "@/composables/useAdmin";
@@ -250,69 +251,62 @@ function askArchive(e: EventOut) {
     </template>
 
     <template #row="{ item: e }">
-      <AppCard
-        :stack="false"
-        class="event-card"
+      <EntityCard
+        :qr-src="e.next_slug ? eventQrUrl(e.next_slug) : undefined"
+        :qr-label="t('event.share.copyQr')"
         @mouseenter="prefetchDetails(e.id)"
         @focusin="prefetchDetails(e.id)"
+        @copy-qr="e.next_slug && copyQr(e.next_slug)"
       >
-        <div class="event-main">
-          <div class="event-summary">
-            <h3>
-              {{ lt(e.name_nl, e.name_en) }}
-              <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
-            </h3>
-            <p class="muted">
-              {{ e.location }} ·
-              <template v-if="e.next_starts_at">{{ formatDateTime(e.next_starts_at, locale) }}</template>
-              <template v-else>{{ t("dashboard.noUpcoming") }}</template>
-            </p>
-            <p class="muted recurrence-hint">{{ hint(e) }}</p>
-            <!-- Link to the first upcoming occurrence (falls back to the
-                 most recent past one), matching the other entity cards. -->
-            <div v-if="e.next_slug" class="link-row">
-              <a :href="publicEventUrl(e.next_slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.next_slug) }}</a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('event.share.copyLink')"
-                :aria-label="t('event.share.copyLink')"
-                @click="copyLink(e.next_slug)"
-              />
-            </div>
-          </div>
+        <template #title>
+          <h3>
+            {{ lt(e.name_nl, e.name_en) }}
+            <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
+          </h3>
+        </template>
 
-          <div class="actions">
-            <router-link :to="`/events/${e.id}/details`">
-              <Button :label="t('dashboard.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-            </router-link>
+        <template #meta>
+          <p class="muted">
+            {{ e.location }} ·
+            <template v-if="e.next_starts_at">{{ formatDateTime(e.next_starts_at, locale) }}</template>
+            <template v-else>{{ t("dashboard.noUpcoming") }}</template>
+          </p>
+          <p class="muted">{{ hint(e) }}</p>
+        </template>
+
+        <!-- Link to the first upcoming occurrence (falls back to the
+             most recent past one), matching the other entity cards. -->
+        <template v-if="e.next_slug" #link>
+          <div class="link-row">
+            <a :href="publicEventUrl(e.next_slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.next_slug) }}</a>
             <Button
-              :label="t('dashboard.archive')"
-              icon="pi pi-archive"
+              icon="pi pi-copy"
               size="small"
               severity="secondary"
               text
-              @click="askArchive(e)"
+              v-tooltip.top="t('event.share.copyLink')"
+              :aria-label="t('event.share.copyLink')"
+              @click="copyLink(e.next_slug)"
             />
           </div>
-        </div>
+        </template>
 
-        <div class="event-side">
-          <div class="muted attendee-count">{{ t("dashboard.attendeeCount", { n: e.attendee_count }) }}</div>
-          <button
-            v-if="e.next_slug"
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('event.share.copyQr')"
-            :aria-label="t('event.share.copyQr')"
-            @click="copyQr(e.next_slug)"
-          >
-            <img :src="eventQrUrl(e.next_slug)" alt="" class="qr" />
-          </button>
-        </div>
-      </AppCard>
+        <template #actions>
+          <router-link :to="`/events/${e.id}/details`">
+            <Button :label="t('dashboard.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          </router-link>
+          <Button
+            :label="t('dashboard.archive')"
+            icon="pi pi-archive"
+            size="small"
+            severity="secondary"
+            text
+            @click="askArchive(e)"
+          />
+        </template>
+
+        <template #count>{{ t("dashboard.attendeeCount", { n: e.attendee_count }) }}</template>
+      </EntityCard>
     </template>
   </ListPageView>
 </template>
@@ -328,55 +322,5 @@ function askArchive(e: EventOut) {
 .onboarding-picker :deep(.p-multiselect) {
   flex: 1;
   min-width: 0;
-}
-.event-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.25rem;
-  align-items: stretch;
-}
-.event-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  min-width: 0;
-}
-.event-summary h3 { margin: 0 0 0.25rem; }
-.event-summary > .muted { margin: 0; }
-.event-summary .recurrence-hint { margin-top: 0.125rem; font-size: 0.875rem; }
-
-.event-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.attendee-count { white-space: nowrap; }
-
-
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
-}
-
-
-@media (max-width: 540px) {
-  .event-card {
-    grid-template-columns: 1fr;
-  }
-  /* Mobile event-side: cluster the count next to the QR at the
-   * right edge instead of pushing them to opposite edges with
-   * ``space-between`` (which left a big awkward gap and read as
-   * "these two things accidentally landed here"). Right-aligned
-   * cluster reads as "the per-event sidebar moved to the bottom",
-   * which is the actual intent. */
-  .event-side {
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-  }
 }
 </style>

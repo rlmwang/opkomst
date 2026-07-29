@@ -53,7 +53,7 @@ const {
     @update:chapter-filter="setChapterFilter"
   >
     <template #row="{ item: e }">
-      <AppCard :stack="false" class="row">
+      <AppCard :stack="false" class="archive-row">
         <div>
           <h3>
             {{ lt(e.name_nl, e.name_en) }}
@@ -65,7 +65,7 @@ const {
             {{ hint(e) }}
           </p>
         </div>
-        <div class="row-actions">
+        <div class="archive-row-actions">
           <Button :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(e)" />
           <Button
             icon="pi pi-trash"
@@ -81,18 +81,3 @@ const {
     </template>
   </ListPageView>
 </template>
-
-<style scoped>
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-.row h3 { margin: 0 0 0.25rem; }
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-</style>

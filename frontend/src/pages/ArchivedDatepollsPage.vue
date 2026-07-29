@@ -47,14 +47,14 @@ const {
     @update:chapter-filter="setChapterFilter"
   >
     <template #row="{ item: p }">
-      <AppCard :stack="false" class="row">
+      <AppCard :stack="false" class="archive-row">
         <div>
           <h3>
             {{ lt(p.name_nl, p.name_en) }}
             <span v-if="p.chapter_name" class="chapter-chip">{{ p.chapter_name }}</span>
           </h3>
         </div>
-        <div class="row-actions">
+        <div class="archive-row-actions">
           <Button :label="t('datepolls.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(p)" />
           <Button
             icon="pi pi-trash"
@@ -70,18 +70,3 @@ const {
     </template>
   </ListPageView>
 </template>
-
-<style scoped>
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-.row h3 { margin: 0; }
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-</style>

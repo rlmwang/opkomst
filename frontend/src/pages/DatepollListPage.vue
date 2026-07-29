@@ -6,6 +6,7 @@ import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import EntityCard from "@/components/EntityCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
@@ -147,105 +148,55 @@ function askArchive(p: DatepollListOut) {
     </template>
 
     <template #row="{ item: p }">
-      <AppCard
-        :stack="false"
-        class="poll-card"
+      <EntityCard
+        :qr-src="datepollQrUrl(p.slug)"
+        :qr-label="t('datepolls.share.copyQr')"
         @mouseenter="prefetchDetails(p.id)"
         @focusin="prefetchDetails(p.id)"
+        @copy-qr="copyQr(p.slug)"
       >
-        <div class="poll-main">
-          <div class="poll-summary">
-            <h3>
-              {{ lt(p.name_nl, p.name_en) }}
-              <span v-if="p.chapter_name" class="chapter-chip">{{ p.chapter_name }}</span>
-            </h3>
-            <p class="muted dates-line">{{ dateRange(p) }}</p>
-            <div class="link-row">
-              <a :href="publicDatepollUrl(p.slug)" target="_blank" rel="noopener">{{ publicDatepollUrl(p.slug) }}</a>
-              <Button
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                v-tooltip.top="t('datepolls.share.copyLink')"
-                :aria-label="t('datepolls.share.copyLink')"
-                @click="copyLink(p.slug)"
-              />
-            </div>
-          </div>
+        <template #title>
+          <h3>
+            {{ lt(p.name_nl, p.name_en) }}
+            <span v-if="p.chapter_name" class="chapter-chip">{{ p.chapter_name }}</span>
+          </h3>
+        </template>
 
-          <div class="actions">
-            <router-link :to="`/datepolls/${p.id}/details`">
-              <Button :label="t('datepolls.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
-            </router-link>
+        <template #meta>
+          <p class="muted">{{ dateRange(p) }}</p>
+        </template>
+
+        <template #link>
+          <div class="link-row">
+            <a :href="publicDatepollUrl(p.slug)" target="_blank" rel="noopener">{{ publicDatepollUrl(p.slug) }}</a>
             <Button
-              :label="t('datepolls.list.archive')"
-              icon="pi pi-archive"
+              icon="pi pi-copy"
               size="small"
               severity="secondary"
               text
-              @click="askArchive(p)"
+              v-tooltip.top="t('datepolls.share.copyLink')"
+              :aria-label="t('datepolls.share.copyLink')"
+              @click="copyLink(p.slug)"
             />
           </div>
-        </div>
+        </template>
 
-        <div class="poll-side">
-          <div class="muted list-count">{{ t("datepolls.list.responseCount", { n: p.submission_count }) }}</div>
-          <button
-            type="button"
-            class="qr-button"
-            v-tooltip.top="t('datepolls.share.copyQr')"
-            :aria-label="t('datepolls.share.copyQr')"
-            @click="copyQr(p.slug)"
-          >
-            <img :src="datepollQrUrl(p.slug)" alt="" class="qr" />
-          </button>
-        </div>
-      </AppCard>
+        <template #actions>
+          <router-link :to="`/datepolls/${p.id}/details`">
+            <Button :label="t('datepolls.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          </router-link>
+          <Button
+            :label="t('datepolls.list.archive')"
+            icon="pi pi-archive"
+            size="small"
+            severity="secondary"
+            text
+            @click="askArchive(p)"
+          />
+        </template>
+
+        <template #count>{{ t("datepolls.list.responseCount", { n: p.submission_count }) }}</template>
+      </EntityCard>
     </template>
   </ListPageView>
 </template>
-
-<style scoped>
-.poll-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1.25rem;
-  align-items: stretch;
-}
-.poll-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.875rem;
-  min-width: 0;
-}
-.poll-summary h3 { margin: 0 0 0.25rem; }
-.dates-line { margin: 0 0 0.25rem; font-size: 0.875rem; }
-.actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
-}
-/* Response count above the QR, mirroring DashboardPage's ``.event-side``. */
-.poll-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-.list-count {
-  white-space: nowrap;
-}
-@media (max-width: 540px) {
-  .poll-card {
-    grid-template-columns: 1fr;
-  }
-  .poll-side {
-    flex-direction: row;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.75rem;
-  }
-}
-</style>
