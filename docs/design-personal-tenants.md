@@ -59,12 +59,12 @@ brand. The 404 case disappears, and with it the awkward "the bare root
 doesn't exist" answer.
 
 That makes the app's own top-level paths and the organisation slugs one
-namespace, so slugs must not shadow routes. `services/slug.py` grows a
-reserved set — `events`, `forms`, `datepolls`, `chores`, `users`,
-`chapters`, `login`, `register`, `auth`, `admin`, `api`, `health`,
-`brand`, `assets`, `e`, `f`, `d`, `c`, `me` — refused by
-`tenant-create` and asserted by a test that walks the router table, so
-adding a route later can't silently break an existing organisation.
+namespace, so slugs must not shadow routes. `services/slug.py` already
+holds the reserved set for chapter slugs (the agenda lives at
+`/{tenant}/{chapter}`); it grows the rest of the root's vocabulary —
+`api`, `health`, `brand`, `assets`, `e`, `f`, `d`, `c`, `me` — and the
+`TENANTS` reconcile refuses a reserved slug, so a name in the env can't
+shadow a page.
 
 **The session key** follows the app, not the brand: `token:{slug}` for
 an organisation, `token:personal` at the root. Signing in to your own
@@ -254,22 +254,50 @@ none of it ever knew about organisations.
 5. The frontend: the landing page's two halves, the forms' email field,
    the nav's missing entries.
 
-## Open questions
+## Decisions
 
-1. **The unproven address.** A start submission writes into an existing
-   account on an address nobody verified. Accepted above, with the mail
-   as the disclosure. If that reads as too loose, the alternative is
-   holding the row invisible until the link is clicked, which costs a
-   pending state on four entities and a reaper, and hands the visitor a
-   public link that doesn't work yet.
-2. **Upgrading.** A personal account that grows into an organisation —
-   same rows, new kind and slug, first user becomes admin. Worth doing
-   now, or when someone asks?
-3. **Two accounts, one address.** Signing in at `/rsp/login` and at the
-   root with the same address gives two separate accounts, by design.
-   Should the root's sign-in email mention it ("this is your personal
-   account, not RSP's"), or is that noise?
-4. **Limits.** A personal tenant is free to create unlimited events and
-   send unlimited reminder mail, and the start form mints an account per
-   unknown address. Does either need a cap before the root page is
-   public?
+1. **The unproven address stands.** A start submission writes
+   immediately, into an existing account if the address has one, and the
+   mail is the disclosure. Holding rows behind a click would cost a
+   pending state on four entity types, a reaper, and a public link that
+   doesn't work yet.
+2. **Nobody makes an organisation from inside the app.** A personal
+   account never grows into one and there is no upgrade path in the
+   product: organisations exist because `TENANTS` names them and a brand
+   folder is committed, which is an operator decision. A personal
+   account that needs to become one is handled by hand, outside the app.
+3. **Every email says which account it belongs to** — see below. No
+   mail ever mentions an organisation the reader's account isn't in.
+4. **Three limits before the root page is public:**
+   - the start endpoints carry the existing `@limiter` treatment, so one
+     caller can't mint accounts or entities in bulk;
+   - a personal tenant has a ceiling on **active** entities per kind
+     (archived ones don't count — archiving is how you make room);
+   - a personal tenant has a daily ceiling on outgoing mail, since every
+     event with an address on it costs sends.
+
+   Both ceilings refuse with a message that names the limit and how to
+   free room, never with a silent failure.
+
+## Emails say whose they are
+
+The mail templates predate tenants and read as if one organisation
+existed. That gets redone rather than patched:
+
+- **Every mail wears its own tenant's brand** — logo, palette, wordmark
+  and From name from `brands/{tenant}/`. A personal account's mail wears
+  the house brand, which has no logo, so it renders its wordmark.
+- **Every mail names the account it is about**, in the reader's own
+  terms: the organisation's name for an organisation's mail, the address
+  itself for a personal one. A reader who holds two accounts can tell
+  which one a link opens before clicking it.
+- **No mail references another tenant.** "This is your personal account,
+  not RSP's" is exactly the shape to avoid: an organisation the reader's
+  account has nothing to do with has no business in the message.
+- **Plain, unambiguous copy.** What happened, what this link does, what
+  to ignore. One subject line per purpose, no clever phrasing that reads
+  differently depending on which account you thought you were using.
+
+This applies to all of them — sign-in, registration, approval, the
+pending digest, reminders, feedback, chore reminders, and the new
+"here's what you just made" mail from the start form.
