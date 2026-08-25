@@ -268,15 +268,20 @@ none of it ever knew about organisations.
    account that needs to become one is handled by hand, outside the app.
 3. **Every email says which account it belongs to** — see below. No
    mail ever mentions an organisation the reader's account isn't in.
-4. **Three limits before the root page is public:**
+4. **Four limits before the root page is public:**
    - the start endpoints carry the existing `@limiter` treatment, so one
      caller can't mint accounts or entities in bulk;
    - a personal tenant has a ceiling on **active** entities per kind
      (archived ones don't count — archiving is how you make room);
    - a personal tenant has a daily ceiling on outgoing mail, since every
-     event with an address on it costs sends.
+     event with an address on it costs sends;
+   - **each instance takes at most 50 participants** — sign-ups on an
+     event, fills on a form, submissions on a datepoll, volunteers on a
+     roster. The 51st is refused on the public page with a plain "this
+     is full", the same answer for every kind, and the organiser sees
+     the count against the cap on the detail page.
 
-   Both ceilings refuse with a message that names the limit and how to
+   Every ceiling refuses with a message that names the limit and how to
    free room, never with a silent failure.
 
 ## Emails say whose they are
