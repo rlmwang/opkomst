@@ -538,7 +538,13 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
     """A booking for three that ticked "Opbouwen" is three helpers and
     three people who came via the flyer — the breakdowns add up to
     ``total_attendees``, not to the number of bookings."""
-    event = _new_event(client, organiser_headers, source_options=["Flyer"], help_options=["Opbouwen", "Afbreken"])
+    event = _new_event(
+        client,
+        organiser_headers,
+        source_options=["Flyer"],
+        help_options=["Opbouwen", "Afbreken"],
+        help_enabled=True,
+    )
     occ = _first_occurrence(client, organiser_headers, event["id"])
 
     for name, size, help_choices in (("Trio", 3, ["Opbouwen"]), ("Solo", 1, ["Opbouwen", "Afbreken"])):

@@ -43,6 +43,13 @@
     font-size: 0.8125rem;
   }
 
+  /* The same row, but the label is the section's own heading: the
+   * switch turns the whole block on and off, so it belongs in front of
+   * the title rather than on a line of its own underneath it. */
+  .section-toggle {
+    gap: 0.75rem;
+  }
+
   /* A single labelled control: a small muted label stacked above its
    * (usually fluid) input. For sections with several distinct fields
    * that a placeholder alone can't name (e.g. the recurrence controls). */

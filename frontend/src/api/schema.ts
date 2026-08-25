@@ -3314,6 +3314,11 @@ export interface components {
              * @default true
              */
             feedback_enabled: boolean;
+            /**
+             * Help Enabled
+             * @default false
+             */
+            help_enabled: boolean;
             /** Help Options */
             help_options?: string[];
             /**
@@ -3354,8 +3359,13 @@ export interface components {
              * @default true
              */
             reminder_enabled: boolean;
+            /**
+             * Source Enabled
+             * @default true
+             */
+            source_enabled: boolean;
             /** Source Options */
-            source_options: string[];
+            source_options?: string[];
             /** Span Weeks */
             span_weeks?: number | null;
             /**
@@ -3396,6 +3406,8 @@ export interface components {
             end_time: string;
             /** Feedback Enabled */
             feedback_enabled: boolean;
+            /** Help Enabled */
+            help_enabled: boolean;
             /** Help Options */
             help_options: string[];
             /** Horizon Days */
@@ -3433,6 +3445,8 @@ export interface components {
             reminder_enabled: boolean;
             /** Slug */
             slug: string;
+            /** Source Enabled */
+            source_enabled: boolean;
             /** Source Options */
             source_options: string[];
             /** Span Weeks */
@@ -3492,6 +3506,11 @@ export interface components {
              * @default true
              */
             feedback_enabled: boolean;
+            /**
+             * Help Enabled
+             * @default false
+             */
+            help_enabled: boolean;
             /** Help Options */
             help_options?: string[];
             /**
@@ -3532,8 +3551,13 @@ export interface components {
              * @default true
              */
             reminder_enabled: boolean;
+            /**
+             * Source Enabled
+             * @default true
+             */
+            source_enabled: boolean;
             /** Source Options */
-            source_options: string[];
+            source_options?: string[];
             /** Span Weeks */
             span_weeks?: number | null;
             /**

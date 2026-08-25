@@ -210,7 +210,9 @@ def update_event(
     event.span_weeks = data.span_weeks
     event.horizon_days = data.horizon_days
     event.source_options = data.source_options
+    event.source_enabled = data.source_enabled
     event.help_options = data.help_options
+    event.help_enabled = data.help_enabled
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled
     event.listed = data.listed

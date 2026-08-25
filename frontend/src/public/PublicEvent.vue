@@ -375,8 +375,11 @@ async function submit() {
     const ack = await postSignup(event.value.current.slug, {
       display_name: trimmedName || null,
       party_size: partySize.value,
-      source_choice: sourceChoice.value,
-      help_choices: helpChoices.value,
+      // Only answers to questions this page is actually asking. A
+      // saved draft can outlive the organiser switching one off, and
+      // the API refuses an answer to a question that isn't asked.
+      source_choice: event.value.source_options.length > 0 ? sourceChoice.value : null,
+      help_choices: event.value.help_options.length > 0 ? helpChoices.value : [],
       email: trimmedEmail || null,
       occurrence_ids: fullOptOut ? [] : ids,
       all_upcoming: fullOptOut,
@@ -607,7 +610,12 @@ watchEffect(() => {
         <h2>{{ t.feedbackTitle }}</h2>
 
         <section class="form-section">
+          <!-- No options means the organiser switched this question
+               off, the same rule the help block above follows. The
+               email field below is not part of that question and
+               stays either way. -->
           <BrandedSelect
+            v-if="event.source_options.length > 0"
             v-model="sourceChoice"
             :options="event.source_options"
             :placeholder="t.sourcePlaceholder"

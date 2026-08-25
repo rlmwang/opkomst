@@ -44,9 +44,20 @@ class EventCreate(BilingualTitleMixin):
     # How far ahead the tick materialises concrete occurrences + pages.
     horizon_days: int = Field(default=90, ge=1, le=730)
 
-    source_options: list[str] = Field(min_length=1)
+    # Each of the two sign-up questions has a switch. Off means the
+    # question isn't asked, and then it needs no options; on, it needs
+    # at least one, because a question with nothing to pick is a dead
+    # control on the public page.
+    #
+    # The defaults say what an event without these fields always meant:
+    # every event asked where people heard about it, and the help
+    # question appeared only where the organiser had written options
+    # for it.
+    source_options: list[str] = Field(default_factory=list)
+    source_enabled: bool = True
     image_artist_instagram: InstagramHandle
     help_options: list[str] = Field(default_factory=list)
+    help_enabled: bool = False
     feedback_enabled: bool = True
     reminder_enabled: bool = True
     listed: bool = True
@@ -89,11 +100,21 @@ class EventCreate(BilingualTitleMixin):
     @classmethod
     def _validate_source_options(cls, v: list[str]) -> list[str]:
         cleaned = [opt.strip() for opt in v if opt.strip()]
-        if not cleaned:
-            raise ValueError("At least one source option is required")
         if len(set(cleaned)) != len(cleaned):
             raise ValueError("Source options must be unique")
         return cleaned
+
+    @model_validator(mode="after")
+    def _an_asked_question_needs_answers(self) -> "EventCreate":
+        """A switched-on question with no options would render as an
+        empty dropdown or an empty checklist on the public page. A
+        switched-off one keeps whatever it has, so turning it back on
+        restores the organiser's own list."""
+        if self.source_enabled and not self.source_options:
+            raise ValueError("At least one source option is required")
+        if self.help_enabled and not self.help_options:
+            raise ValueError("At least one help option is required")
+        return self
 
     @field_validator("help_options")
     @classmethod
@@ -132,7 +153,9 @@ class EventOut(BaseModel):
     span_weeks: int | None
     horizon_days: int
     source_options: list[str]
+    source_enabled: bool
     help_options: list[str]
+    help_enabled: bool
     feedback_enabled: bool
     reminder_enabled: bool
     listed: bool
@@ -249,6 +272,9 @@ class PublicEventOut(BaseModel):
     location: str
     latitude: float | None
     longitude: float | None
+    # Empty when the organiser switched that question off. The page has
+    # no business knowing about a question it isn't asking, so the
+    # options simply aren't sent rather than being sent with a flag.
     source_options: list[str]
     help_options: list[str]
     image_url: str | None

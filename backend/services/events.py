@@ -82,8 +82,10 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         location=event.location,
         latitude=event.latitude,
         longitude=event.longitude,
-        source_options=event.source_options,
-        help_options=event.help_options,
+        # A switched-off question isn't asked, so its options never
+        # reach the page.
+        source_options=event.source_options if event.source_enabled else [],
+        help_options=event.help_options if event.help_enabled else [],
         image_url=image_svc.public_url(event.image_path),
         image_artist_instagram=event.image_artist_instagram,
         locale=event.locale,

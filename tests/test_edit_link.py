@@ -142,6 +142,7 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
         "end_time": "20:00:00",
         "source_options": ["Flyer"],
         "help_options": ["opbouwen"],
+        "help_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
         "locale": "nl",

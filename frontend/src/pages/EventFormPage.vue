@@ -166,12 +166,16 @@ function defaultHelp(loc: "nl" | "en"): string[] {
 function arraysEqual(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
+// The two optional questions on the public sign-up form, each with its
+// own switch. Off means the question isn't asked at all; the options
+// stay where they are, so switching one back on brings the organiser's
+// own list back rather than an empty one.
 const sources = ref<string[]>(defaultSources(((locale.value as "nl" | "en") ?? "nl")));
 const newSource = ref("");
-// Default "I can help with" tasks. Optional — leave empty to hide
-// the question on the public form.
+const sourceEnabled = ref(true);
 const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
+const helpEnabled = ref(true);
 // Instagram handle of the artist credited on the hero image.
 // Stored without ``@``; the backend's schema validator strips
 // one if present, so paste-friendliness on the form side is
@@ -210,8 +214,10 @@ interface FormDraft {
   openEnded: boolean;
   sources: string[];
   newSource: string;
+  sourceEnabled: boolean;
   helpOptions: string[];
   newHelp: string;
+  helpEnabled: boolean;
   feedbackEnabled: boolean;
   reminderEnabled: boolean;
   listed: boolean;
@@ -239,8 +245,10 @@ function snapshot(): FormDraft {
     openEnded: openEnded.value,
     sources: [...sources.value],
     newSource: newSource.value,
+    sourceEnabled: sourceEnabled.value,
     helpOptions: [...helpOptions.value],
     newHelp: newHelp.value,
+    helpEnabled: helpEnabled.value,
     feedbackEnabled: feedbackEnabled.value,
     reminderEnabled: reminderEnabled.value,
     listed: listed.value,
@@ -268,8 +276,10 @@ function applyDraft(d: FormDraft) {
   openEnded.value = d.openEnded ?? false;
   sources.value = [...d.sources];
   newSource.value = d.newSource;
+  sourceEnabled.value = d.sourceEnabled ?? true;
   helpOptions.value = [...(d.helpOptions ?? [])];
   newHelp.value = d.newHelp ?? "";
+  helpEnabled.value = d.helpEnabled ?? true;
   feedbackEnabled.value = d.feedbackEnabled;
   reminderEnabled.value = d.reminderEnabled ?? true;
   listed.value = d.listed ?? true;
@@ -284,7 +294,7 @@ const { loadDraft, clearDraft } = useFormDraft<FormDraft>({
   sources: [
     nameNl, nameEn, chapterId, topicNl, topicEn, location, latitude, longitude, eventDate, startTime, endTime,
     repeats, periodWeeks, cycleSlots, spanWeeks, openEnded,
-    sources, newSource, helpOptions, newHelp,
+    sources, newSource, sourceEnabled, helpOptions, newHelp, helpEnabled,
     feedbackEnabled, reminderEnabled, listed, eventLocale, imageArtistInstagram,
   ],
 });
@@ -414,7 +424,9 @@ onMounted(async () => {
     openEnded.value = existing.span_weeks === null;
     spanWeeks.value = existing.span_weeks ?? 6;
     sources.value = [...existing.source_options];
+    sourceEnabled.value = existing.source_enabled;
     helpOptions.value = [...existing.help_options];
+    helpEnabled.value = existing.help_enabled;
     feedbackEnabled.value = existing.feedback_enabled;
     reminderEnabled.value = existing.reminder_enabled;
     listed.value = existing.listed;
@@ -465,8 +477,14 @@ async function submit() {
     toasts.warn(t("event.fillEndTime"));
     return;
   }
-  if (sources.value.length === 0) {
+  // A question that is being asked needs something to pick; one that
+  // is switched off needs nothing.
+  if (sourceEnabled.value && sources.value.length === 0) {
     toasts.warn(t("event.fillSources"));
+    return;
+  }
+  if (helpEnabled.value && helpOptions.value.length === 0) {
+    toasts.warn(t("event.fillHelp"));
     return;
   }
   if (hasChapters.value && !chapterId.value) {
@@ -503,7 +521,9 @@ async function submit() {
       span_weeks: wireSpanWeeks.value,
       horizon_days: 90,
       source_options: sources.value,
+      source_enabled: sourceEnabled.value,
       help_options: helpOptions.value,
+      help_enabled: helpEnabled.value,
       feedback_enabled: feedbackEnabled.value,
       reminder_enabled: reminderEnabled.value,
       listed: listed.value,
@@ -610,12 +630,13 @@ async function submit() {
       </section>
 
       <section class="form-section">
-        <h2 class="section-heading">{{ t("event.repeatHeading") }}</h2>
-        <p class="muted section-explainer">{{ t("event.repeatExplainer") }}</p>
-        <label class="toggle-row">
-          <ToggleSwitch v-model="repeats" />
-          <span>{{ t("event.repeat.toggle") }}</span>
+        <!-- The switch turns the whole block on, so it sits in front of
+             the heading rather than on a line of its own under it. -->
+        <label class="toggle-row section-toggle" for="repeatToggle">
+          <ToggleSwitch v-model="repeats" inputId="repeatToggle" />
+          <h2 class="section-heading">{{ t("event.repeatHeading") }}</h2>
         </label>
+        <p class="muted section-explainer">{{ t("event.repeatExplainer") }}</p>
 
         <template v-if="repeats">
           <div class="repeat-row">
@@ -653,38 +674,16 @@ async function submit() {
         v-model:artist="imageArtistInstagram"
       />
 
+      <!-- What people can offer comes before where they heard about it:
+           one is about the event itself, the other is about us. -->
       <section class="form-section">
-        <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
-        <p class="muted section-explainer">{{ t("event.sourcesExplainer") }}</p>
-        <EditableList
-          :items="sources"
-          :item-label="(s: string) => s"
-          :item-key="(s: string) => s"
-          @remove="(s: string) => removeSource(sources.indexOf(s))"
-        >
-          <template #add>
-            <InputText
-              v-model="newSource"
-              :placeholder="t('event.newSource')"
-              fluid
-              @keydown.enter.prevent="addSource"
-            />
-            <Button
-              type="button"
-              icon="pi pi-plus"
-              size="small"
-              severity="secondary"
-              :aria-label="t('event.newSource')"
-              @click="addSource"
-            />
-          </template>
-        </EditableList>
-      </section>
-
-      <section class="form-section">
-        <h2 class="section-heading">{{ t("event.helpHeading") }}</h2>
+        <label class="toggle-row section-toggle" for="helpToggle">
+          <ToggleSwitch v-model="helpEnabled" inputId="helpToggle" />
+          <h2 class="section-heading">{{ t("event.helpHeading") }}</h2>
+        </label>
         <p class="muted section-explainer">{{ t("event.helpExplainer") }}</p>
         <EditableList
+          v-if="helpEnabled"
           :items="helpOptions"
           :item-label="(s: string) => s"
           :item-key="(s: string) => s"
@@ -704,6 +703,38 @@ async function submit() {
               severity="secondary"
               :aria-label="t('event.newHelp')"
               @click="addHelp"
+            />
+          </template>
+        </EditableList>
+      </section>
+
+      <section class="form-section">
+        <label class="toggle-row section-toggle" for="sourcesToggle">
+          <ToggleSwitch v-model="sourceEnabled" inputId="sourcesToggle" />
+          <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("event.sourcesExplainer") }}</p>
+        <EditableList
+          v-if="sourceEnabled"
+          :items="sources"
+          :item-label="(s: string) => s"
+          :item-key="(s: string) => s"
+          @remove="(s: string) => removeSource(sources.indexOf(s))"
+        >
+          <template #add>
+            <InputText
+              v-model="newSource"
+              :placeholder="t('event.newSource')"
+              fluid
+              @keydown.enter.prevent="addSource"
+            />
+            <Button
+              type="button"
+              icon="pi pi-plus"
+              size="small"
+              severity="secondary"
+              :aria-label="t('event.newSource')"
+              @click="addSource"
             />
           </template>
         </EditableList>

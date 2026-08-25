@@ -65,9 +65,13 @@ def create_signup(
     if not occurrence:
         raise HTTPException(status_code=404, detail="Event not found")
     event = occurrence.event
-    if data.source_choice is not None and data.source_choice not in event.source_options:
+    # A switched-off question isn't asked, so an answer to it is a stale
+    # page or a hand-made request, not something to record.
+    allowed_sources = event.source_options if event.source_enabled else []
+    allowed_help = event.help_options if event.help_enabled else []
+    if data.source_choice is not None and data.source_choice not in allowed_sources:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
-    invalid_help = [c for c in data.help_choices if c not in event.help_options]
+    invalid_help = [c for c in data.help_choices if c not in allowed_help]
     if invalid_help:
         raise HTTPException(
             status_code=400,

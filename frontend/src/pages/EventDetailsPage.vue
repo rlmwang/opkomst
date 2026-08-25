@@ -244,6 +244,11 @@ function channelEnabled(channel: EmailChannel): boolean {
     : event.value.feedback_enabled;
 }
 
+// Only the channels this event actually uses get a card. A switched-off
+// channel sends nothing and can send nothing, so its delivery counts
+// and its "send now" button are four zeroes and a dead button.
+const activeChannels = computed(() => CHANNELS.filter(channelEnabled));
+
 function channelHealth(channel: EmailChannel) {
   return summary.value?.email_health[channel];
 }
@@ -487,7 +492,7 @@ function askTriggerNow(channel: EmailChannel) {
            below lets the organiser fire that channel manually
            for any signups still ``pending``. -->
       <template v-if="summary">
-        <AppCard v-for="channel in CHANNELS" :key="channel">
+        <AppCard v-for="channel in activeChannels" :key="channel">
           <h2>{{ t(`event.sendNow.${channel}.title`) }}</h2>
           <p class="muted">{{ t(`event.sendNow.${channel}.explainer`) }}</p>
           <div class="email-health">

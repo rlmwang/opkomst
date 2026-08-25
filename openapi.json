@@ -2128,6 +2128,11 @@
             "title": "Feedback Enabled",
             "type": "boolean"
           },
+          "help_enabled": {
+            "default": false,
+            "title": "Help Enabled",
+            "type": "boolean"
+          },
           "help_options": {
             "items": {
               "type": "string"
@@ -2236,11 +2241,15 @@
             "title": "Reminder Enabled",
             "type": "boolean"
           },
+          "source_enabled": {
+            "default": true,
+            "title": "Source Enabled",
+            "type": "boolean"
+          },
           "source_options": {
             "items": {
               "type": "string"
             },
-            "minItems": 1,
             "title": "Source Options",
             "type": "array"
           },
@@ -2296,8 +2305,7 @@
           "location",
           "starts_on",
           "start_time",
-          "end_time",
-          "source_options"
+          "end_time"
         ],
         "title": "EventCreate",
         "type": "object"
@@ -2349,6 +2357,10 @@
           },
           "feedback_enabled": {
             "title": "Feedback Enabled",
+            "type": "boolean"
+          },
+          "help_enabled": {
+            "title": "Help Enabled",
             "type": "boolean"
           },
           "help_options": {
@@ -2483,6 +2495,10 @@
             "title": "Slug",
             "type": "string"
           },
+          "source_enabled": {
+            "title": "Source Enabled",
+            "type": "boolean"
+          },
           "source_options": {
             "items": {
               "type": "string"
@@ -2552,7 +2568,9 @@
           "span_weeks",
           "horizon_days",
           "source_options",
+          "source_enabled",
           "help_options",
+          "help_enabled",
           "feedback_enabled",
           "reminder_enabled",
           "listed",
@@ -2634,6 +2652,11 @@
           "feedback_enabled": {
             "default": true,
             "title": "Feedback Enabled",
+            "type": "boolean"
+          },
+          "help_enabled": {
+            "default": false,
+            "title": "Help Enabled",
             "type": "boolean"
           },
           "help_options": {
@@ -2744,11 +2767,15 @@
             "title": "Reminder Enabled",
             "type": "boolean"
           },
+          "source_enabled": {
+            "default": true,
+            "title": "Source Enabled",
+            "type": "boolean"
+          },
           "source_options": {
             "items": {
               "type": "string"
             },
-            "minItems": 1,
             "title": "Source Options",
             "type": "array"
           },
@@ -2804,8 +2831,7 @@
           "location",
           "starts_on",
           "start_time",
-          "end_time",
-          "source_options"
+          "end_time"
         ],
         "title": "EventUpdate",
         "type": "object"

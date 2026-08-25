@@ -48,8 +48,16 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     location: Mapped[str] = mapped_column(Text, nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # The two optional questions on the public sign-up form, each with
+    # its own switch. Off means the question isn't asked at all: the
+    # public page never sees the options, and a submission carrying an
+    # answer to it is refused. The options survive being switched off,
+    # so turning a question back on brings the organiser's own list
+    # back rather than an empty one.
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    source_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
     help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    help_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
     feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
