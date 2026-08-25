@@ -7,6 +7,7 @@ the user-visible behaviours the SCD2 collapse must preserve."""
 
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import Any
 
 from backend.database import SessionLocal
@@ -20,6 +21,14 @@ def _first_chapter_id(client: Any, headers: Any) -> str:
     me = client.get("/api/v1/auth/me", headers=headers).json()
     assert me["chapters"], "test fixture user has no chapters"
     return me["chapters"][0]["id"]
+
+
+def _next_weekday(weekday: int) -> str:
+    """The next date with this weekday, strictly after today. Recurrence
+    tests need a start in the future so every session materialises — a
+    hardcoded date would silently stop testing that once it went past."""
+    today = date.today()
+    return (today + timedelta(days=((weekday - today.weekday()) % 7) or 7)).isoformat()
 
 
 def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
@@ -139,12 +148,12 @@ def test_recurring_signup_creates_one_registration_with_many_line_items(client, 
     ``Registration`` with one ``Signup`` line item per occurrence, plus one
     per-occurrence feedback dispatch — the multi-occurrence sign-up the
     design makes native to the model."""
-    # 2026-08-01 is a Saturday (weekday 5); weekly for 3 weeks.
+    # Starts on the coming Saturday (weekday 5); weekly for 3 weeks.
     event = _new_event(
         client,
         organiser_headers,
         name="Boksles",
-        starts_on="2026-08-01",
+        starts_on=_next_weekday(5),
         start_time="18:00:00",
         end_time="20:00:00",
         period_weeks=1,
@@ -194,13 +203,13 @@ def test_finite_event_materialises_all_sessions_past_horizon(client, organiser_h
     """A finite course materialises every session up front, even ones beyond
     the 90-day horizon, so "20 sessies" resolves to 20 findable occurrences
     (not a horizon-clipped subset) with nothing left as a projection."""
-    # 2026-08-03 is a Monday (weekday 0); weekly for 20 weeks runs ~4.5
-    # months out, well past the default 90-day materialisation horizon.
+    # Starts on the coming Monday (weekday 0); weekly for 20 weeks runs
+    # ~4.5 months out, well past the default 90-day materialisation horizon.
     event = _new_event(
         client,
         organiser_headers,
         name="Cursus",
-        starts_on="2026-08-03",
+        starts_on=_next_weekday(0),
         start_time="18:00:00",
         end_time="20:00:00",
         period_weeks=1,

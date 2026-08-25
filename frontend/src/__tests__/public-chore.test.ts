@@ -101,16 +101,40 @@ describe("PublicChore enrol mode", () => {
 });
 
 describe("PublicChore personal mode", () => {
+  // Both calendars open on the current month, so the fixture shifts have to
+  // sit in it — a hardcoded month drifts out of view and the day cells the
+  // tests click stop existing. Days 8 and 10 exist in every month.
+  function dayOfThisMonth(day: number): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  const MY_DAY = 8;
+  const OPEN_DAY = 10;
+
   const PAGE = {
     display_name: "Sam",
     enrolled_chore_ids: ["c1"],
     email_reminders: false,
     has_email: false,
     my_shifts: [
-      { id: "s1", chore_id: "c1", chore_name: "Bins", on_date: "2026-07-08", status: "scheduled", inherited: false },
+      {
+        id: "s1",
+        chore_id: "c1",
+        chore_name: "Bins",
+        on_date: dayOfThisMonth(MY_DAY),
+        status: "scheduled",
+        inherited: false,
+      },
     ],
     open_shifts: [
-      { id: "s2", chore_id: "c2", chore_name: "Sweep", on_date: "2026-07-10", status: "open", inherited: false },
+      {
+        id: "s2",
+        chore_id: "c2",
+        chore_name: "Sweep",
+        on_date: dayOfThisMonth(OPEN_DAY),
+        status: "open",
+        inherited: false,
+      },
     ],
   };
 
@@ -133,8 +157,8 @@ describe("PublicChore personal mode", () => {
     const w = mount(PublicChore);
     await flushPromises();
 
-    // Click the 8 July cell (my Bins shift) to open its popover, then Done.
-    await w.find('[aria-label="8"]').trigger("click");
+    // Click the cell of my Bins shift to open its popover, then Done.
+    await w.find(`[aria-label="${MY_DAY}"]`).trigger("click");
     await w.findAll("button").find((b) => b.text() === "Done")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s1", "done");
@@ -144,7 +168,7 @@ describe("PublicChore personal mode", () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     // The "Bijspringen" card is the whole-roster calendar: the open Sweep slot
-    // (shift s2) shows on 10 July; its shift id matches an open_shift, so it's
+    // (shift s2) shows on its day; its shift id matches an open_shift, so it's
     // claimable.
     vi.mocked(api.fetchTokenCalendar).mockResolvedValue([
       {
@@ -152,7 +176,11 @@ describe("PublicChore personal mode", () => {
         chore_name: "Sweep",
         emoji: null,
         days: [
-          { on_date: "2026-07-10", tentative: false, assignees: [{ name: null, open: true, status: "scheduled", shift_id: "s2" }] },
+          {
+            on_date: dayOfThisMonth(OPEN_DAY),
+            tentative: false,
+            assignees: [{ name: null, open: true, status: "scheduled", shift_id: "s2" }],
+          },
         ],
       },
     ]);
@@ -160,8 +188,8 @@ describe("PublicChore personal mode", () => {
     const w = mount(PublicChore);
     await flushPromises();
 
-    // Click the 10 July cell (open Sweep shift), then Take it on.
-    await w.find('[aria-label="10"]').trigger("click");
+    // Click the open Sweep shift's cell, then Take it on.
+    await w.find(`[aria-label="${OPEN_DAY}"]`).trigger("click");
     await w.findAll("button").find((b) => b.text() === "Take it on")!.trigger("click");
     await flushPromises();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");
