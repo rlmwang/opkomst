@@ -191,10 +191,10 @@ class EventStatsOut(BaseModel):
     (attendance is per occurrence, so these are per-line-item counts).
     Never includes individual signups."""
 
-    total_signups: int
+    total_signups: int  # number of line items
     total_attendees: int  # sum of party_size across line items
-    by_source: dict[str, int]
-    by_help: dict[str, int]
+    by_source: dict[str, int]  # people per source answer
+    by_help: dict[str, int]  # people per help option
 
 
 class SignupSummaryOut(BaseModel):

@@ -165,8 +165,10 @@ def to_out(db: Session, event: Event) -> EventOut:
 
 def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventStatsOut:
     """Source/help breakdowns over the line items matching ``signup_filter``
-    (an event's occurrences, or a single occurrence). Aggregated only: the
-    ``by_source`` counts never link a source answer to a person."""
+    (an event's occurrences, or a single occurrence). Both breakdowns count
+    people, not line items: a booking of three that ticked "Opbouwen" is
+    three helpers, so the columns add up to ``total_attendees``. Aggregated
+    only: the ``by_source`` counts never link a source answer to a person."""
     rows = (
         db.query(Signup.source_choice, func.count(Signup.id), func.coalesce(func.sum(Registration.party_size), 0))
         .join(Occurrence, Occurrence.id == Signup.occurrence_id)
@@ -177,17 +179,20 @@ def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventS
     )
     total_signups = sum(int(c) for _, c, _ in rows)
     total_attendees = sum(int(s or 0) for _, _, s in rows)
-    by_source = {src: int(c) for src, c, _ in rows if src is not None}
+    by_source = {src: int(s or 0) for src, _, s in rows if src is not None}
 
     by_help: dict[str, int] = {opt: 0 for opt in help_options}
     if help_options:
         choice_lists = (
-            db.query(Signup.help_choices).join(Occurrence, Occurrence.id == Signup.occurrence_id).filter(signup_filter)
+            db.query(Signup.help_choices, Registration.party_size)
+            .join(Occurrence, Occurrence.id == Signup.occurrence_id)
+            .join(Registration, Registration.id == Signup.registration_id)
+            .filter(signup_filter)
         ).all()
-        for (choices,) in choice_lists:
+        for choices, party_size in choice_lists:
             for choice in choices or []:
                 if choice in by_help:
-                    by_help[choice] += 1
+                    by_help[choice] += int(party_size or 0)
 
     return EventStatsOut(
         total_signups=total_signups,

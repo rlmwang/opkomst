@@ -522,6 +522,41 @@ def test_delete_signup_requires_auth(client, organiser_headers):
     assert r.status_code in (401, 403)
 
 
+# --- stats count people --------------------------------------------
+
+
+def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
+    """A booking for three that ticked "Opbouwen" is three helpers and
+    three people who came via the flyer — the breakdowns add up to
+    ``total_attendees``, not to the number of bookings."""
+    event = _new_event(client, organiser_headers, source_options=["Flyer"], help_options=["Opbouwen", "Afbreken"])
+    occ = _first_occurrence(client, organiser_headers, event["id"])
+
+    for name, size, help_choices in (("Trio", 3, ["Opbouwen"]), ("Solo", 1, ["Opbouwen", "Afbreken"])):
+        r = client.post(
+            f"/api/v1/events/by-slug/{occ['slug']}/signups",
+            json={
+                "display_name": name,
+                "party_size": size,
+                "source_choice": "Flyer",
+                "help_choices": help_choices,
+                "email": None,
+                "all_upcoming": True,
+            },
+        )
+        assert r.status_code == 201, r.text
+
+    for url in (
+        f"/api/v1/events/{event['id']}/stats",
+        f"/api/v1/events/{event['id']}/occurrences/{occ['id']}/stats",
+    ):
+        stats = client.get(url, headers=organiser_headers).json()
+        assert stats["total_signups"] == 2
+        assert stats["total_attendees"] == 4
+        assert stats["by_help"] == {"Opbouwen": 4, "Afbreken": 1}
+        assert stats["by_source"] == {"Flyer": 4}
+
+
 def test_event_ics_carries_uid_and_dates(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event["id"])
