@@ -1,42 +1,11 @@
 @layer primevue, app;
 
-@layer app {
-  :root {
-    /* Warm cream palette — evokes pamphlet / newsprint stock and sits
-     * comfortably next to the deep brand red without the sterile feel
-     * of pure white. */
-    --brand-red: #9f000b;
-    --brand-red-hover: #7f0009;
-    --brand-bg: #f6f1e7;
-    --brand-surface: #fbf7ee;
-    --brand-text: #1a1a1a;
-    --brand-text-muted: #5e5a52;
-    --brand-border: #e6dec9;
-    /* Semantic status colours — one shade each so "positive / warning"
-     * reads the same everywhere (was ~3 hard-coded greens + ambers). */
-    --brand-green: #1f7a3c;
-    --brand-amber: #c98a00;
-    /* The "no" / neutral fill for tally bars, legends and grids. A light
-     * grey (not the dark muted-text brown) so a "no" reads as de-emphasised
-     * rather than heavy; paired with dark text since it's too light for
-     * white. One source of truth so bar and grid "no" match exactly. */
-    --brand-neutral: #d3d0c8;
-    /* Blue accent for a distinct-but-still-positive tally segment
-     * ("picked up / overgenomen" on the chore accountability bar). Blue,
-     * not a second green/teal, so it stays separable from the green
-     * "own turns" segment for red-green colour-blind viewers. */
-    --brand-blue: #2a6f97;
-    /* Soft-pink "secondary" button palette (add-row / low-emphasis
-     * actions). Single source of truth for both the PrimeVue secondary
-     * override below and the public ``.btn-secondary`` — so an add button
-     * looks the same on an admin page and a public mini-app. */
-    --brand-red-soft: #fbdadc;
-    --brand-red-soft-border: #f5b0b4;
-    --brand-red-soft-hover: #f5b0b4;
-    --brand-red-soft-active: #ec7e85;
-    --brand-red-strong: #5e0007;
-  }
+/* Structure only. Every ``--brand-*`` this file reads is defined by the
+ * tenant's ``brands/{tenant}/tokens.css``, linked into the page head
+ * before any bundle loads; no colour is named here, and
+ * ``scripts/check_brand_tokens.py`` keeps it that way. */
 
+@layer app {
   html, body, #app {
     margin: 0;
     padding: 0;
@@ -380,7 +349,7 @@
     color: var(--brand-red);
   }
   .p-dialog-mask {
-    background: rgba(26, 26, 26, 0.4);
+    background: color-mix(in srgb, var(--brand-text), transparent 60%);
   }
   /* Mobile cap on every PrimeVue dialog: callers pass widths like
    * 420 px or 480 px in their ``:style``; on a 375 px phone those
@@ -409,7 +378,7 @@
   }
   .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
     background: var(--brand-red-soft-active);
-    color: #440005;
+    color: var(--brand-primary-900);
     border-color: var(--brand-red);
   }
 
@@ -447,19 +416,19 @@
     color: var(--brand-red);
   }
   .p-button.p-button-secondary.p-button-text:hover {
-    background: #fbdadc;
-    color: #5e0007;
+    background: var(--brand-red-soft);
+    color: var(--brand-red-strong);
   }
   .p-button.p-button-secondary.p-button-text:active {
-    background: #f5b0b4;
-    color: #440005;
+    background: var(--brand-red-soft-hover);
+    color: var(--brand-primary-900);
   }
 
   .privacy-notice {
     font-size: 0.875rem;
     color: var(--brand-text-muted);
-    background: #fff5e2;
-    border: 1px solid #ead9b3;
+    background: var(--brand-notice-bg);
+    border: 1px solid var(--brand-notice-border);
     border-radius: 8px;
   }
 

@@ -695,11 +695,11 @@ function askTriggerNow(channel: EmailChannel) {
 .health-pill .label { font-size: 0.75rem; color: var(--brand-text-muted); }
 .health-sent { background: var(--brand-surface); border-color: var(--brand-border); }
 .health-sent .count { color: var(--brand-red); }
-.health-pending { background: #fdf3d8; border-color: #ead9b3; }
-.health-pending .count { color: #8a6915; }
+.health-pending { background: var(--brand-amber-wash); border-color: var(--brand-notice-border); }
+.health-pending .count { color: var(--brand-amber-text); }
 .health-failed {
-  background: #fbdadc;
-  border-color: #f5b0b4;
+  background: var(--brand-red-soft);
+  border-color: var(--brand-red-soft-border);
 }
 .health-failed .count {
   color: var(--brand-red);

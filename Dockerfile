@@ -90,6 +90,12 @@ COPY scripts/ ./scripts/
 # SPA bundle into the location FastAPI's StaticFiles mount expects.
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
+# Tenant brands — palette, logo, icons and manifest, served at
+# ``/brand/{tenant}/…`` and read by the head injection + email render.
+# Not part of the Vite bundle by design: adding an organisation is a
+# folder here, not a rebuild.
+COPY brands/ ./brands/
+
 # Non-root user for the runtime.
 RUN useradd --create-home --uid 1000 opkomst \
     && mkdir -p /app/data \

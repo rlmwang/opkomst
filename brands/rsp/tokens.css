@@ -1,0 +1,107 @@
+/* RSP palette. The only file in the repo allowed to name a colour for
+ * this tenant: every rule in ``theme.css``, ``forms.css``, the component
+ * styles and ``primevue-preset.ts`` reads these variables and never a
+ * literal. ``scripts/check_brand_tokens.py`` enforces that.
+ *
+ * Served at ``/brand/rsp/tokens.css`` and linked from the page ``<head>``
+ * before any bundle loads, so the palette is present on first paint. */
+
+:root {
+  /* Warm cream palette — evokes pamphlet / newsprint stock and sits
+   * comfortably next to the deep brand red without the sterile feel
+   * of pure white. */
+  --brand-red: #9f000b;
+  --brand-red-hover: #7f0009;
+  --brand-bg: #f6f1e7;
+  --brand-surface: #fbf7ee;
+  --brand-text: #1a1a1a;
+  --brand-text-muted: #5e5a52;
+  --brand-border: #e6dec9;
+  /* Semantic status colours — one shade each so "positive / warning"
+   * reads the same everywhere. */
+  --brand-green: #1f7a3c;
+  --brand-amber: #c98a00;
+  /* The "no" / neutral fill for tally bars, legends and grids. A light
+   * grey (not the dark muted-text brown) so a "no" reads as de-emphasised
+   * rather than heavy; paired with dark text since it's too light for
+   * white. One source of truth so bar and grid "no" match exactly. */
+  --brand-neutral: #d3d0c8;
+  /* Blue accent for a distinct-but-still-positive tally segment
+   * ("picked up / overgenomen" on the chore accountability bar). Blue,
+   * not a second green/teal, so it stays separable from the green
+   * "own turns" segment for red-green colour-blind viewers. */
+  --brand-blue: #2a6f97;
+  /* Soft-pink "secondary" button palette (add-row / low-emphasis
+   * actions). Single source of truth for both the PrimeVue secondary
+   * override and the public ``.btn-secondary`` — so an add button
+   * looks the same on an admin page and a public mini-app. */
+  --brand-red-soft: #fbdadc;
+  --brand-red-soft-border: #f5b0b4;
+  --brand-red-soft-hover: #f5b0b4;
+  --brand-red-soft-active: #ec7e85;
+  --brand-red-strong: #5e0007;
+  /* The privacy notice on every public form: a warm parchment panel that
+   * separates from the card behind it without reading as a warning. */
+  --brand-notice-bg: #fff5e2;
+  --brand-notice-border: #ead9b3;
+
+  /* --- Panel washes ---------------------------------------------
+   * Soft backgrounds for the status panels (connected / failed /
+   * pending / recovered). Each is a wash of one of the semantic
+   * colours above, light enough to carry body text. */
+  --brand-green-soft: #e3f7e8;
+  --brand-green-soft-border: #cfe8d4;
+  --brand-red-wash: #fdecea;
+  --brand-amber-soft: #fff7e6;
+  --brand-amber-soft-border: #f5d8a0;
+  --brand-amber-strong: #7a4a00;
+  --brand-amber-wash: #fdf3d8;
+  --brand-amber-text: #8a6915;
+  /* The "an organiser has held this link" banner on a public edit page:
+   * a warmer parchment than the privacy notice, with its own gold rule,
+   * so the two never read as the same kind of message. */
+  --brand-recovered-bg: #fdf6e3;
+  --brand-recovered-border: #e6c76a;
+  --brand-recovered-text: #6b5310;
+  /* Second and third place on the datepoll ranking — silver and bronze,
+   * the only two colours in the app that aren't from the brand family,
+   * because a podium reads as a podium. */
+  --brand-rank-silver: #8a8f98;
+  --brand-rank-bronze: #b8763a;
+  /* The WhatsApp preview bubble mimics WhatsApp's own outgoing-message
+   * green so the organiser sees what the recipient will see. */
+  --brand-chat-bubble: #d9fdd3;
+  --brand-chat-text: #111111;
+
+  /* --- PrimeVue ramps -------------------------------------------
+   * ``primevue-preset.ts`` maps each PrimeVue design token onto one of
+   * these, so the widget set is tinted by the tenant rather than by a
+   * hex ramp compiled into the bundle. Primary is anchored at 500
+   * (= --brand-red); surface is the warm-cream scale that makes cards,
+   * dialogs, dropdowns and inputs the same cream as the rest of the
+   * app. */
+  --brand-primary-50: #fdf2f2;
+  --brand-primary-100: #fbdadc;
+  --brand-primary-200: #f5b0b4;
+  --brand-primary-300: #ec7e85;
+  --brand-primary-400: #dc4954;
+  --brand-primary-500: #9f000b;
+  --brand-primary-600: #8b000a;
+  --brand-primary-700: #760008;
+  --brand-primary-800: #5e0007;
+  --brand-primary-900: #440005;
+  --brand-primary-950: #2b0003;
+
+  --brand-surface-0: #fbf7ee;
+  --brand-surface-50: #f6f1e7;
+  --brand-surface-100: #ece4d0;
+  --brand-surface-200: #dcd2b9;
+  --brand-surface-300: #c4b89b;
+  --brand-surface-400: #a59882;
+  --brand-surface-500: #7e7466;
+  --brand-surface-600: #5e5a52;
+  --brand-surface-700: #403d39;
+  --brand-surface-800: #28261f;
+  --brand-surface-900: #1a1a1a;
+  --brand-surface-950: #0d0d0a;
+}

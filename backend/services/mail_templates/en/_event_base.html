@@ -3,18 +3,18 @@
    drift between channels. Channel-specific templates extend this
    and only fill ``content``.
 
-   Attendees see RSP branding (logo + link to rsp.nu), not the
-   opkomst.nu tooling brand — they signed up for an RSP event,
-   not for the dashboard. The logo image is served by the SPA at
-   ``/rsp-logo.png`` so it's reachable wherever the deployment
-   lives without hardcoding a host. #}
+   Attendees see the organisation's branding (its logo, linking to its
+   own site), not the tooling brand — they signed up for one of its
+   events, not for the dashboard. Both come from the tenant's
+   ``brand.json``; ``brand.logo_absolute_url`` is absolute because mail
+   clients can't resolve a root-relative image. #}
 {% extends "base.html" %}
 {% block logo %}
-<a href="https://rsp.nu">
-  <img src="{{ public_base_url }}/rsp-logo.png" alt="RSP" width="80" height="80" style="display:block; margin:0 auto; border:0;">
+<a href="{{ brand.org_url }}">
+  <img src="{{ brand.logo_absolute_url }}" alt="{{ brand.wordmark }}" width="80" height="80" style="display:block; margin:0 auto; border:0;">
 </a>
 {% endblock %}
 {% block disclaimer %}
 <p class="muted">You're getting this email because you left your address when you signed up. We store it encrypted and delete it once every email about this event has been sent. The source code of this app is <a href="https://github.com/rlmwang/opkomst">openly available</a>.</p>
 {% endblock %}
-{% block footer %}<a href="https://rsp.nu">rsp.nu</a>{% endblock %}
+{% block footer %}<a href="{{ brand.org_url }}">{{ brand.org_url | replace("https://", "") }}</a>{% endblock %}

@@ -136,7 +136,7 @@ function onEnter() {
 .tag {
   font-size: 0.75rem;
   color: var(--brand-red);
-  background: #fbdadc;
+  background: var(--brand-red-soft);
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
 }

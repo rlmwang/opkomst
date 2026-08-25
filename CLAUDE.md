@@ -93,9 +93,15 @@ frontend/src/
   pages/                      one page per route
   locales/                    i18n strings (nl + en)
 
+brands/rsp/                   one folder per organisation: brand.json,
+                              tokens.css (the palette), logo + icons.
+                              Served at /brand/{tenant}/, injected into
+                              every page head, never bundled.
+
 tests/                        see docs/runbook.md for what each file proves
 
 scripts/
+  check_brand_tokens.py       no colour or logo outside brands/
   generate_openapi.py         dumps openapi.json from FastAPI app
   verify_env.py               pre-deploy env-var validator
   restore_drill.sh            quarterly restore-from-backup smoke

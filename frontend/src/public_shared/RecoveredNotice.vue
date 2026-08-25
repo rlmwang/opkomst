@@ -37,10 +37,10 @@ const text = computed(() => {
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #e6c76a;
+  border: 1px solid var(--brand-recovered-border);
   border-radius: 8px;
-  background: #fdf6e3;
-  color: #6b5310;
+  background: var(--brand-recovered-bg);
+  color: var(--brand-recovered-text);
   font-size: 0.875rem;
   line-height: 1.45;
 }

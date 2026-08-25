@@ -119,6 +119,46 @@ All under `/api/v1/`.
 | FormDetailsPage | `/forms/:id/details` | approved (overview + per-question response aggregates + CSV export; reuses ``DetailsPageShell``) |
 | PublicFormPage | `/f/:slug` | public (separate mini-app; same inlined-payload + OG-meta shape as ``/e/:slug``) |
 
+## Branding
+
+Everything visual about an organisation is data on disk, not code:
+
+```
+brands/rsp/
+  brand.json      app + org name, wordmark, org URL, mail From name,
+                  the six literal palette values, and the image filenames
+  tokens.css      the palette as custom properties (--brand-*), including
+                  the PrimeVue primary + surface ramps
+  logo.png  favicon.png  apple-touch-icon.png
+```
+
+The folder is served at `/brand/{tenant}/…` (`spa.py`, an hour's cache —
+these filenames are stable, unlike the content-hashed Vite assets), and
+never enters the bundle. Every HTML shell carries an
+`<!-- OPKOMST_BRAND_INJECTION -->` marker that
+`services/brand.py::head` fills with the boot colours, the stylesheet
+link, the two icons and `window.__OPKOMST_BRAND__`; the Vite dev server
+substitutes the identical markup, so dev and prod heads agree.
+
+Consequences worth knowing:
+
+- `theme.css` and the component styles name no colour — they read
+  `var(--brand-*)`, which the tenant's `tokens.css` defines.
+- `primevue-preset.ts` maps PrimeVue's design tokens onto those same
+  variables, so one preset tints every widget for whichever brand the
+  page is wearing.
+- Email is the one place the palette appears as literal values
+  (`{{ brand.palette.* }}` in `base.html`) — mail clients don't support
+  `var()` — and the logo is absolute for the same reason.
+- `scripts/check_brand_tokens.py` (pre-commit + CI) fails the build on a
+  hex literal, an `rgb()`/`hsl()` that isn't a black/white scrim, or a
+  brand image referenced by filename, anywhere outside `brands/`.
+
+Adding an organisation is therefore a folder plus a row — no rebuild.
+The tenant that owns a page is still hardcoded to `rsp`
+(`brand.DEFAULT_BRAND`); resolving it per request is
+`docs/design-tenants-and-branding.md`.
+
 ## Email pipeline
 
 The lifecycle worker handles every channel: one

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch } from "vue";
-import BrandMark from "@/public/BrandMark.vue";
+import BrandMark from "./BrandMark.vue";
 import PublicToast from "./PublicToast.vue";
 import type { Locale } from "./strings";
 
@@ -25,7 +25,7 @@ watch(locale, (l) => {
   <div class="stack" :class="wide ? 'container-wide' : 'container'">
     <PublicToast />
     <header class="public-header">
-      <slot name="brand"><BrandMark /></slot>
+      <slot name="brand"><BrandMark public-link /></slot>
       <div class="lang-switcher" role="group" aria-label="Language">
         <button
           type="button"

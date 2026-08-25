@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { brand } from "@/lib/branding";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { resolveText } from "@/public_shared/bilingual";
@@ -7,12 +8,14 @@ import { chromeStrings, type Locale } from "@/public_shared/strings";
 import type { EventCard } from "./api";
 import { strings } from "./i18n";
 
-// One event in the agenda grid: a full-bleed poster (or the muted-RSP-logo
-// default) topping the card, then the date/time, location, title, topic,
+// One event in the agenda grid: a full-bleed poster (or the muted
+// organisation logo as the default) topping the card, then the date/time,
+// location, title, topic,
 // and the sign-up CTA. The whole card isn't a single anchor because the
 // poster carries its own credit link; the title and CTA are the links.
 const props = defineProps<{ event: EventCard; locale: Locale; past?: boolean }>();
 
+const b = brand();
 const t = computed(() => strings(props.locale));
 const c = computed(() => chromeStrings(props.locale));
 const href = computed(() => `/e/${props.event.slug}`);
@@ -38,7 +41,7 @@ const sessionBadge = computed(() => {
     <div class="card-media">
       <img v-if="event.image_url" :src="event.image_url" alt="" class="card-media__img" />
       <div v-else class="card-media__placeholder" aria-hidden="true">
-        <img src="/rsp-logo.png" alt="" />
+        <img :src="b.logo_url" alt="" />
       </div>
       <span v-if="sessionBadge" class="session-badge">{{ sessionBadge }}</span>
       <figcaption v-if="event.image_url && event.image_artist_instagram" class="card-credit">

@@ -57,6 +57,8 @@ jobs:
         run: uv run ruff check backend tests
       - name: Type-check (pyright)
         run: uv run pyright backend
+      - name: Colours and logos live in brands/
+        run: uv run python scripts/check_brand_tokens.py
       - name: Tests + coverage gate
         run: uv run pytest
       - name: Migrations are idempotent

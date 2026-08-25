@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
@@ -114,14 +115,73 @@ function publicChoreDevRoute(): Plugin {
   };
 }
 
+/**
+ * Substitute ``<!-- OPKOMST_BRAND_INJECTION -->`` in every HTML shell,
+ * exactly as ``backend/services/brand.py::head`` does in production:
+ * the first-paint colours, the palette stylesheet, the icons and
+ * ``window.__OPKOMST_BRAND__``.
+ *
+ * Without this the dev server would serve a shell with no palette and
+ * no brand, and every component reading ``brand()`` would throw — dev
+ * and prod have to agree on what a page head contains.
+ *
+ * The files themselves come from the backend over the ``/brand`` proxy
+ * below, so the URLs here are the same ones prod emits.
+ */
+function brandDevInjection(): Plugin {
+  const slug = "rsp";
+  return {
+    name: "opkomst-brand-dev-injection",
+    apply: "serve",
+    transformIndexHtml(html) {
+      const dir = fileURLToPath(new URL(`../brands/${slug}`, import.meta.url));
+      const m = JSON.parse(readFileSync(`${dir}/brand.json`, "utf-8"));
+      const url = (file: string) => `/brand/${slug}/${file}`;
+      const p = m.palette;
+      const brand = {
+        slug,
+        palette: p,
+        app_name: m.app_name,
+        wordmark: m.wordmark,
+        org_name: m.org_name,
+        org_url: m.org_url,
+        logo_url: url(m.logo),
+        favicon_url: url(m.favicon),
+      };
+      return html.replace(
+        "<!-- OPKOMST_BRAND_INJECTION -->",
+        [
+          `<style>:root{--boot-bg:${p.bg};--boot-surface:${p.surface};--boot-fg:${p.fg};`
+          + `--boot-fg-muted:${p.fg_muted};--boot-accent:${p.accent};--boot-border:${p.border};}</style>`,
+          `<link rel="stylesheet" href="${url("tokens.css")}">`,
+          `<link rel="icon" type="image/png" sizes="192x192" href="${url(m.favicon)}">`,
+          `<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`,
+          `<script>window.__OPKOMST_BRAND__ = ${JSON.stringify(brand)};</script>`,
+        ].join("\n    "),
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [vue(), publicEventDevRoute(), publicFormDevRoute(), publicDatepollDevRoute(), publicChoreDevRoute()],
+  plugins: [
+    vue(),
+    brandDevInjection(),
+    publicEventDevRoute(),
+    publicFormDevRoute(),
+    publicDatepollDevRoute(),
+    publicChoreDevRoute(),
+  ],
   test: {
     // happy-dom for component / Vue-Query composables (need a DOM
     // for ``app.mount(document.createElement(...))``); pure-utility
     // tests that don't touch the DOM are unaffected.
     environment: "happy-dom",
     include: ["src/__tests__/**/*.test.ts"],
+    // The server injects ``window.__OPKOMST_BRAND__`` into every HTML
+    // shell; under vitest there is no server, so the setup file plays
+    // that role. Without it any component reading the brand throws.
+    setupFiles: ["src/__tests__/setup-brand.ts"],
   },
   resolve: {
     alias: {
@@ -135,6 +195,10 @@ export default defineConfig({
       // E2E_API_PORT override lets ``playwright test`` boot the backend
       // on a non-default port when 8000 is already in use.
       "/api": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
+      // The brand files (palette, logo, icons) are served by the
+      // backend off ``brands/`` in dev and prod alike, so the page head
+      // the dev server injects points at the same URLs prod emits.
+      "/brand": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
     },
   },
   build: {

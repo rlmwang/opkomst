@@ -361,8 +361,8 @@ async function exportCsv() {
   color: #fff;
 }
 .rank.r1 { background: var(--brand-green); }
-.rank.r2 { background: #8a8f98; }
-.rank.r3 { background: #b8763a; }
+.rank.r2 { background: var(--brand-rank-silver); }
+.rank.r3 { background: var(--brand-rank-bronze); }
 .comments { margin: 0.5rem 0 0; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.375rem; }
 .comments li { line-height: 1.4; }
 .comment-name { font-weight: 600; margin-right: 0.375rem; }

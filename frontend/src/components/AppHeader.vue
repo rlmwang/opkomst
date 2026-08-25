@@ -3,7 +3,8 @@ import Popover from "primevue/popover";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import BrandMark from "@/components/BrandMark.vue";
+import BrandMark from "@/public_shared/BrandMark.vue";
+import { APP_NAME } from "@/lib/branding";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import { usePendingCount } from "@/composables/useAdmin";
 import { useAuthStore } from "@/stores/auth";
@@ -173,7 +174,11 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
 
 <template>
   <header class="app-header" :class="{ 'has-subtabs': hasSubtabs }">
-    <BrandMark to="/" class="brand" />
+    <BrandMark class="brand">
+      <template #wordmark>
+        <router-link to="/" class="wordmark">{{ APP_NAME }}</router-link>
+      </template>
+    </BrandMark>
 
     <!-- Second-level, route-contextual navigation. Its own grid
          area, so on phones it drops to a full-width row of its

@@ -33,12 +33,12 @@ const state = usePublicToasts();
  * primevue-preset.ts): pale primary-50 card, primary-200 border,
  * primary-600 text — one toast look across the whole product. */
 .toast {
-  background: color-mix(in srgb, #fdf2f2, transparent 5%);
-  border: 1px solid #f5b0b4;
-  color: #8b000a;
+  background: color-mix(in srgb, var(--brand-primary-50), transparent 5%);
+  border: 1px solid var(--brand-primary-200);
+  color: var(--brand-primary-600);
   padding: 0.625rem 1rem;
   border-radius: 8px;
-  box-shadow: 0 4px 8px color-mix(in srgb, #9f000b, transparent 96%);
+  box-shadow: 0 4px 8px color-mix(in srgb, var(--brand-primary-500), transparent 96%);
   font-size: 0.9375rem;
   line-height: 1.35;
   text-align: center;

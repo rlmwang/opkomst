@@ -28,7 +28,7 @@ import json
 import pathlib
 import re
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -39,6 +39,7 @@ from ..database import get_db
 from ..models import Chapter, Datepoll, Form, Occurrence, Roster
 from ..schemas.common import pick_localized
 from ..services import agenda as agenda_svc
+from ..services import brand as brand_svc
 from ..services import chapters as chapters_svc
 from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
@@ -50,6 +51,7 @@ from ..services.slug import is_event_slug
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
 _IMMUTABLE = "public, max-age=31536000, immutable"
+_BRAND_CACHE = "public, max-age=3600"
 
 # Slug shape — 8 nanoid chars (see ``backend/services/slug.py``).
 # The strict shape doubles as an injection guard: only requests
@@ -71,13 +73,16 @@ _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
 _DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
 _CHORE_INJECTION_MARKER = "<!-- OPKOMST_CHORE_INJECTION -->"
 _CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
+# The brand marker every shell carries, admin SPA included: palette
+# stylesheet, icons, first-paint colours, ``window.__OPKOMST_BRAND__``.
+_BRAND_INJECTION_MARKER = "<!-- OPKOMST_BRAND_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
-# Static OG image — same favicon the browser tab uses, lives at
-# the SPA root. WhatsApp/Telegram require an absolute URL with a
-# valid extension; ``favicon.png`` is 192×192 which is above the
-# 200×200 minimum most parsers want.
-_OG_IMAGE_URL = f"{_PUBLIC_BASE}/favicon.png"
+# Static OG image — the brand's own favicon. WhatsApp/Telegram require
+# an absolute URL with a valid extension; ``favicon.png`` is 192×192
+# which is above the 200×200 minimum most parsers want.
+_OG_IMAGE_URL = brand_svc.payload(brand_svc.DEFAULT_BRAND)["favicon_absolute_url"]
+_APP_NAME = brand_svc.payload(brand_svc.DEFAULT_BRAND)["app_name"]
 
 
 def _og_head(*, name: str, description: str, canonical_url: str, image_url: str | None) -> str:
@@ -96,7 +101,7 @@ def _og_head(*, name: str, description: str, canonical_url: str, image_url: str 
     square favicon under the tiny ``summary`` thumbnail."""
     og_image = image_url or _OG_IMAGE_URL
     twitter_card = "summary_large_image" if image_url else "summary"
-    et = html.escape(f"{name} — opkomst.nu", quote=True)
+    et = html.escape(f"{name} — {_APP_NAME}", quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
     ei = html.escape(og_image, quote=True)
@@ -108,7 +113,7 @@ def _og_head(*, name: str, description: str, canonical_url: str, image_url: str 
         f'    <meta property="og:description" content="{ed}">\n'
         f'    <meta property="og:type" content="website">\n'
         f'    <meta property="og:url" content="{eu}">\n'
-        f'    <meta property="og:site_name" content="opkomst.nu">\n'
+        f'    <meta property="og:site_name" content="{html.escape(_APP_NAME, quote=True)}">\n'
         f'    <meta property="og:image" content="{ei}">\n'
         f'    <meta name="twitter:card" content="{twitter_card}">\n'
         f'    <meta name="twitter:title" content="{en}">\n'
@@ -123,7 +128,7 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
     title is emitted; sharing a 404 link is rare enough that elaborate
     fallback metadata isn't worth the bytes."""
     if occurrence is None:
-        return "<title>opkomst.nu</title>"
+        return f"<title>{_APP_NAME}</title>"
     event = occurrence.event
 
     # Description: topic if the organiser set one (it's the
@@ -155,7 +160,7 @@ def _build_form_head_meta(form: Form | None, slug: str) -> str:
     location / date, so the description is just the form name; the
     card uses the organiser's uploaded image when set."""
     if form is None:
-        return "<title>opkomst.nu</title>"
+        return f"<title>{_APP_NAME}</title>"
     form_name = pick_localized(form.name_nl, form.name_en, form.locale) or ""
     return _og_head(
         name=form_name,
@@ -169,7 +174,7 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
     """Per-datepoll link-preview ``<head>``. Description is the poll's
     blurb if set, else its name; card uses the uploaded image when set."""
     if poll is None:
-        return "<title>opkomst.nu</title>"
+        return f"<title>{_APP_NAME}</title>"
     poll_name = pick_localized(poll.name_nl, poll.name_en, poll.locale) or ""
     return _og_head(
         name=poll_name,
@@ -183,7 +188,7 @@ def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
     """Per-roster link-preview ``<head>``. Description is the roster's
     blurb if set, else its name; card uses the uploaded image when set."""
     if roster is None:
-        return "<title>opkomst.nu</title>"
+        return f"<title>{_APP_NAME}</title>"
     roster_name = pick_localized(roster.name_nl, roster.name_en, roster.locale) or ""
     blurb = html_to_text(pick_localized(roster.description_nl, roster.description_en, roster.locale))
     return _og_head(
@@ -198,7 +203,7 @@ def _build_chapter_head_meta(chapter: Chapter | None, slug: str) -> str:
     """Per-chapter agenda link-preview ``<head>``. Title is
     ``Agenda · {name}``; a chapter has no image, so the favicon card."""
     if chapter is None:
-        return "<title>opkomst.nu</title>"
+        return f"<title>{_APP_NAME}</title>"
     return _og_head(
         name=f"Agenda · {chapter.name}",
         description=chapter.name,
@@ -213,6 +218,34 @@ class _ImmutableStatic(StaticFiles):
         if response.status_code == 200:
             response.headers["Cache-Control"] = _IMMUTABLE
         return response
+
+
+class _BrandStatic(StaticFiles):
+    """``brands/`` served at ``/brand/{tenant}/…``. Unlike the Vite
+    assets these keep their filenames across edits, so they get an
+    hour's caching rather than a year's immutability — a palette tweak
+    reaches visitors the same day it deploys."""
+
+    async def get_response(self, path: str, scope: Scope):  # type: ignore[no-untyped-def]
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = _BRAND_CACHE
+        return response
+
+
+def _serve_admin_shell() -> HTMLResponse:
+    """The admin SPA shell with the brand injected. Served for every
+    path the explicit handlers don't claim, so the client-side router
+    can take over (including its own 404 page).
+
+    ``index.html`` MUST NOT be browser-cached — see the note in
+    ``_spa_fallback``."""
+    rendered = (
+        (_DIST / "index.html")
+        .read_text(encoding="utf-8")
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_svc.DEFAULT_BRAND), 1)
+    )
+    return HTMLResponse(rendered, headers={"Cache-Control": "no-store"})
 
 
 def _serve_public_app(
@@ -243,13 +276,11 @@ def _serve_public_app(
     SPA shell, uncached."""
     public_html_path = _DIST / html_name
     if not public_html_path.is_file():
-        return HTMLResponse(
-            (_DIST / "index.html").read_text(encoding="utf-8"),
-            headers={"Cache-Control": "no-store"},
-        )
+        return _serve_admin_shell()
     inlined = f"<script>window.{window_var} = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_svc.DEFAULT_BRAND), 1)
         .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
         .replace(payload_marker, inlined, 1)
     )
@@ -330,6 +361,11 @@ def _serve_public_chapter(slug: str, db: Session) -> HTMLResponse:
 
 
 def mount(app: FastAPI) -> None:
+    # The brand files are served whether or not a frontend build exists:
+    # in dev the Vite server proxies ``/brand`` here, and the mini-apps
+    # need the logo from the same place prod serves it.
+    app.mount("/brand", _BrandStatic(directory=brand_svc.BRANDS_DIR), name="brand")
+
     if not _DIST.is_dir():
         return
 
@@ -357,7 +393,7 @@ def mount(app: FastAPI) -> None:
         return _serve_public_roster(slug, db)
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    def _spa_fallback(full_path: str) -> FileResponse:
+    def _spa_fallback(full_path: str) -> Response:
         # ``StaticFiles`` already won the route for ``/assets/*``
         # and the explicit ``/e/{slug}`` handler above wins for
         # the public mini-app; this handler covers everything
@@ -384,7 +420,7 @@ def mount(app: FastAPI) -> None:
         try:
             candidate.relative_to(dist_resolved)
         except ValueError:
-            return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})
+            return _serve_admin_shell()
         if candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(_DIST / "index.html", headers={"Cache-Control": "no-store"})
+        return _serve_admin_shell()

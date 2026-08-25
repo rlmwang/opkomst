@@ -1,8 +1,37 @@
 /**
- * App-wide brand constants. One source of truth so a rename
- * doesn't require sweeping every component + locale string by
- * hand. ``i18n.ts`` injects ``APP_NAME`` into both locales as
- * ``appName`` so messages can use ``@:appName`` to interpolate
- * without each ``t()`` call having to pass it explicitly.
+ * The brand the page is wearing, as handed to the bundle by the server.
+ *
+ * ``backend/services/brand.py`` injects ``window.__OPKOMST_BRAND__``
+ * into every HTML shell (the Vite dev server does the same), so the
+ * bundle never contains a logo, a wordmark or an app name — only the
+ * code that reads them. That is what lets a new organisation be a
+ * folder in ``brands/`` plus a row, with no rebuild.
  */
-export const APP_NAME = "opkomst.nu";
+
+export interface Brand {
+  slug: string;
+  app_name: string;
+  wordmark: string;
+  org_name: string;
+  org_url: string;
+  logo_url: string;
+  favicon_url: string;
+}
+
+declare global {
+  interface Window {
+    __OPKOMST_BRAND__?: Brand;
+  }
+}
+
+/** The injected brand. Throws when the marker wasn't substituted —
+ * a page without a brand is a broken deploy, not a case to default. */
+export function brand(): Brand {
+  const injected = window.__OPKOMST_BRAND__;
+  if (!injected) {
+    throw new Error("No brand injected — the page shell is missing its OPKOMST_BRAND_INJECTION marker");
+  }
+  return injected;
+}
+
+export const APP_NAME = brand().app_name;

@@ -144,19 +144,19 @@ def _get_env() -> Environment:
 def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LOCALE) -> tuple[str, str]:
     """Render a localised email template. Returns ``(subject, html_body)``.
 
-    ``app_name`` is injected automatically — see
-    ``services.branding`` for the single source of truth, so a
-    rename touches one constant, not every template."""
-    from .branding import APP_NAME
+    ``brand`` and ``app_name`` are injected automatically — see
+    ``services.brand``, which reads the tenant's ``brand.json``, so the
+    logo, the wordmark and the org link live in one folder rather than
+    in every template."""
+    from .brand import DEFAULT_BRAND, payload
 
     resolved_locale = locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
-    # ``public_base_url`` is needed by templates that load the RSP
-    # logo from the SPA root (``/rsp-logo.png``); inject it here so
-    # individual call sites don't have to remember.
+    brand = payload(DEFAULT_BRAND)
     context = {
         **context,
         "locale": resolved_locale,
-        "app_name": APP_NAME,
+        "brand": brand,
+        "app_name": brand["app_name"],
         "public_base_url": str(settings.public_base_url).rstrip("/"),
     }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BrandMark from "@/components/BrandMark.vue";
+import BrandMark from "@/public_shared/BrandMark.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 </script>
 

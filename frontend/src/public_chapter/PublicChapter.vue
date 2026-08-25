@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import logoUrl from "@/assets/rsp-logo.png";
+import { brand } from "@/lib/branding";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
@@ -15,6 +15,8 @@ const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
 const locale = ref<Locale>(pickLocale());
 const t = computed(() => strings(locale.value));
 const c = computed(() => chromeStrings(locale.value));
+
+const b = brand();
 
 const initial = window.__OPKOMST_CHAPTER__;
 const agenda = ref<ChapterAgenda | null>(initial ?? null);
@@ -39,13 +41,13 @@ if (initial === undefined) {
       <div class="chapter-brand">
         <a
           class="chapter-brand__logo"
-          href="https://rsp.nu"
+          :href="b.org_url"
           target="_blank"
           rel="noopener"
-          aria-label="Revolutionair Socialistische Partij — rsp.nu"
-        ><img :src="logoUrl" alt="" /></a>
+          :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
+        ><img :src="b.logo_url" alt="" /></a>
         <div class="chapter-identity">
-          <span class="chapter-identity__eyebrow">RSP</span>
+          <span class="chapter-identity__eyebrow">{{ b.wordmark }}</span>
           <template v-if="agenda">
             <h1>{{ agenda.chapter.name }}</h1>
             <p v-if="agenda.chapter.city" class="muted chapter-identity__city">

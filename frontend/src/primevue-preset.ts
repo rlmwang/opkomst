@@ -1,9 +1,10 @@
 import { definePreset } from "@primeuix/themes";
 import Aura from "@primeuix/themes/aura";
 
-// Brand palette anchored at primary.500 (#9f000b) and a warm-cream
-// surface scale that matches the app's hand-rolled --brand-bg /
-// --brand-surface / --brand-border tokens. Because every PrimeVue
+// Brand palette anchored at primary.500 and a surface scale that
+// matches the app's hand-rolled --brand-bg / --brand-surface /
+// --brand-border tokens — both read from the tenant's tokens.css at
+// runtime, so this preset names no colour. Because every PrimeVue
 // component (Dialog, Select, AutoComplete, Card, DatePicker, etc.) reads
 // from these same surface shades, the components end up exactly the same
 // cream as the rest of the app — no separate CSS overrides needed.
@@ -92,18 +93,23 @@ export const OpkomstPreset = definePreset(Aura, {
     // active". Drop to 0.4 so the distinction is unambiguous on
     // the row's pencil/trash glyphs in particular.
     disabledOpacity: "0.4",
+    // The ramps are the tenant's, read at runtime from the
+    // ``brands/{tenant}/tokens.css`` the page linked before this bundle
+    // loaded. PrimeVue emits these into its own ``--p-*`` variables, so
+    // every widget is tinted by whichever brand the page is wearing —
+    // one preset, no per-tenant build.
     primary: {
-      50: "#fdf2f2",
-      100: "#fbdadc",
-      200: "#f5b0b4",
-      300: "#ec7e85",
-      400: "#dc4954",
-      500: "#9f000b",
-      600: "#8b000a",
-      700: "#760008",
-      800: "#5e0007",
-      900: "#440005",
-      950: "#2b0003",
+      50: "var(--brand-primary-50)",
+      100: "var(--brand-primary-100)",
+      200: "var(--brand-primary-200)",
+      300: "var(--brand-primary-300)",
+      400: "var(--brand-primary-400)",
+      500: "var(--brand-primary-500)",
+      600: "var(--brand-primary-600)",
+      700: "var(--brand-primary-700)",
+      800: "var(--brand-primary-800)",
+      900: "var(--brand-primary-900)",
+      950: "var(--brand-primary-950)",
     },
     colorScheme: {
       light: {
@@ -113,18 +119,18 @@ export const OpkomstPreset = definePreset(Aura, {
         // text, 900 is the body text. Kept warm-but-restrained so the
         // brand red stays the only saturated colour on screen.
         surface: {
-          0: "#fbf7ee",
-          50: "#f6f1e7",
-          100: "#ece4d0",
-          200: "#dcd2b9",
-          300: "#c4b89b",
-          400: "#a59882",
-          500: "#7e7466",
-          600: "#5e5a52",
-          700: "#403d39",
-          800: "#28261f",
-          900: "#1a1a1a",
-          950: "#0d0d0a",
+          0: "var(--brand-surface-0)",
+          50: "var(--brand-surface-50)",
+          100: "var(--brand-surface-100)",
+          200: "var(--brand-surface-200)",
+          300: "var(--brand-surface-300)",
+          400: "var(--brand-surface-400)",
+          500: "var(--brand-surface-500)",
+          600: "var(--brand-surface-600)",
+          700: "var(--brand-surface-700)",
+          800: "var(--brand-surface-800)",
+          900: "var(--brand-surface-900)",
+          950: "var(--brand-surface-950)",
         },
         formField: {
           // Form fields render on the card surface; bumping their

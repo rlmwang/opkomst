@@ -794,9 +794,9 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.4rem;
   padding: 0.25rem 0.6rem;
-  background: #e3f7e8;
+  background: var(--brand-green-soft);
   color: var(--brand-green);
-  border: 1px solid #cfe8d4;
+  border: 1px solid var(--brand-green-soft-border);
   border-radius: 999px;
   font-size: 0.875rem;
   font-weight: 600;
@@ -941,7 +941,7 @@ onBeforeUnmount(() => {
   z-index: 1;
 }
 .preview-table tr.invalid {
-  background: #fdecea;
+  background: var(--brand-red-wash);
 }
 .preview-table .ok {
   color: var(--brand-green);
@@ -995,8 +995,8 @@ onBeforeUnmount(() => {
  * sees. The lime green is part of the fidelity, not a brand
  * choice. */
 .preview-bubble {
-  background: #d9fdd3;
-  color: #111;
+  background: var(--brand-chat-bubble);
+  color: var(--brand-chat-text);
   padding: 0.75rem 1rem;
   border-radius: 0.75rem 0.75rem 0.75rem 0.25rem;
   min-height: 4rem;
@@ -1044,9 +1044,9 @@ onBeforeUnmount(() => {
   flex-basis: 100%;
 }
 .closing-warning {
-  background: #fff7e6;
-  border: 1px solid #f5d8a0;
-  color: #7a4a00;
+  background: var(--brand-amber-soft);
+  border: 1px solid var(--brand-amber-soft-border);
+  color: var(--brand-amber-strong);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   margin: 0;

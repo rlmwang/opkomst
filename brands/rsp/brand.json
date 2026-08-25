@@ -1,0 +1,18 @@
+{
+  "app_name": "opkomst.nu",
+  "wordmark": "RSP",
+  "org_name": "Revolutionair Socialistische Partij",
+  "org_url": "https://rsp.nu",
+  "logo": "logo.png",
+  "favicon": "favicon.png",
+  "apple_touch_icon": "apple-touch-icon.png",
+  "mail_from_name": "RSP",
+  "palette": {
+    "bg": "#f6f1e7",
+    "surface": "#fbf7ee",
+    "fg": "#1a1a1a",
+    "fg_muted": "#5e5a52",
+    "accent": "#9f000b",
+    "border": "#e6dec9"
+  }
+}
