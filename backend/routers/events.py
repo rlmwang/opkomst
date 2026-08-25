@@ -248,14 +248,13 @@ async def upload_event_image(
     user: User = Depends(require_approved),
 ) -> EventOut:
     """Upload (or replace) the event's hero image. The bytes go
-    through ``services/image.py`` — validated, EXIF-rotated,
-    cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
-    PUT to the configured GitHub repo. ``event.image_url`` is set
-    to the resulting ``raw.githubusercontent.com`` URL.
+    through ``services/image.py``: validated, EXIF-rotated, cropped to
+    4:5, resized to 1200x1500, JPEG-re-encoded, then stored.
+    ``event.image_path`` is set to where it landed, and what anyone
+    sees is this app's own ``/i/{path}``.
 
-    Replacing an image overwrites ``image_url`` with the new
-    path; the previous file stays in the repo's history by
-    design (see ``services/image.py``).
+    Replacing an image deletes the file it replaces, once the row
+    points at the new one.
 
     Returns the updated ``EventOut`` so the caller's Vue Query
     cache patches in-place without an extra refetch."""
@@ -277,8 +276,9 @@ async def upload_event_image(
         )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
+    previous = event.image_path
     try:
-        url = image_svc.upload_to_github(
+        path = image_svc.store(
             folder="events",
             entity_id=event.id,
             timestamp_ms=timestamp_ms,
@@ -292,9 +292,13 @@ async def upload_event_image(
             reason=str(exc),
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
-    event.image_url = url
+    event.image_path = path
     db.commit()
     db.refresh(event)
+    # After the row points at the new file, so a failed upload leaves
+    # the event with the picture it had.
+    if previous and previous != path:
+        image_svc.delete(previous)
     logger.info("event_image_uploaded", event_id=event.id, actor_id=user.id)
     return event_stats.to_out(db, event)
 
@@ -307,17 +311,18 @@ def delete_event_image(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    """Clear the image reference. The file in the repo is left
-    alone; the lifecycle answer is "leave it" so we never need a
-    GitHub round-trip to remove."""
+    """Clear the reference and delete the file. Nothing else points at
+    it, so leaving it behind would be storage nobody can ever reach."""
     event = access.get_event_for_user(db, event_id, user)
-    if event.image_url is None:
+    if event.image_path is None:
         # 404 over 204 so the frontend can distinguish "no-op" from
         # "succeeded"; the user clicked Delete on a row that
         # already had nothing.
         raise HTTPException(status_code=404, detail="No image to delete")
-    event.image_url = None
+    dropped = event.image_path
+    event.image_path = None
     db.commit()
+    image_svc.delete(dropped)
     db.refresh(event)
     logger.info("event_image_deleted", event_id=event.id, actor_id=user.id)
     return event_stats.to_out(db, event)

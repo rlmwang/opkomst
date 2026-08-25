@@ -63,6 +63,7 @@ from ..models import (
 )
 from ..schemas.common import pick_localized
 from . import encryption, limits, tenancy
+from . import image as image_svc
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 from .sanitize import html_to_text
@@ -186,7 +187,10 @@ def build_reminder_context(occurrence: Occurrence, event: Event, locale: str) ->
         "event_time": _format_time_range(occurrence.starts_at, occurrence.ends_at),
         "location": event.location,
         "map_url": _osm_url(event),
-        "image_url": event.image_url,
+        # Absolute and pointing at this app: a mail client can't resolve
+        # a relative URL, and nothing in a message says where the file
+        # is actually kept.
+        "image_url": image_svc.public_url(event.image_path),
         "image_artist_instagram": event.image_artist_instagram,
     }
 
@@ -198,7 +202,10 @@ def build_feedback_context(occurrence: Occurrence, event: Event, locale: str) ->
     path passes a synthetic token."""
     return {
         "event_name": pick_localized(event.name_nl, event.name_en, locale),
-        "image_url": event.image_url,
+        # Absolute and pointing at this app: a mail client can't resolve
+        # a relative URL, and nothing in a message says where the file
+        # is actually kept.
+        "image_url": image_svc.public_url(event.image_path),
         "image_artist_instagram": event.image_artist_instagram,
     }
 

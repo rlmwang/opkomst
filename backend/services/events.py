@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..models import Occurrence
 from ..schemas.events import ProjectedOccurrenceOut, PublicEventOut, PublicOccurrenceOut
 from . import event_recurrence, tenancy
+from . import image as image_svc
 
 # Single source of truth: occurrence / event datetimes are naive
 # Europe/Amsterdam wall clock (see the model docstrings). Comparisons
@@ -83,7 +84,7 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         longitude=event.longitude,
         source_options=event.source_options,
         help_options=event.help_options,
-        image_url=event.image_url,
+        image_url=image_svc.public_url(event.image_path),
         image_artist_instagram=event.image_artist_instagram,
         locale=event.locale,
         archived=event.archived_at is not None,

@@ -826,7 +826,8 @@ export interface paths {
         post: operations["upload_roster_image_api_v1_chores__roster_id__image_post"];
         /**
          * Delete Roster Image
-         * @description Clear the image reference. The file in the repo is left alone.
+         * @description Clear the reference and delete the file: nothing else points at
+         *     it.
          */
         delete: operations["delete_roster_image_api_v1_chores__roster_id__image_delete"];
         options?: never;
@@ -1197,7 +1198,8 @@ export interface paths {
         post: operations["upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"];
         /**
          * Delete Datepoll Image
-         * @description Clear the image reference. The file in the repo is left alone.
+         * @description Clear the reference and delete the file: nothing else points at
+         *     it.
          */
         delete: operations["delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete"];
         options?: never;
@@ -1654,14 +1656,13 @@ export interface paths {
         /**
          * Upload Event Image
          * @description Upload (or replace) the event's hero image. The bytes go
-         *     through ``services/image.py`` — validated, EXIF-rotated,
-         *     cropped to 4:5, resized to 1200x1500, JPEG-re-encoded — and
-         *     PUT to the configured GitHub repo. ``event.image_url`` is set
-         *     to the resulting ``raw.githubusercontent.com`` URL.
+         *     through ``services/image.py``: validated, EXIF-rotated, cropped to
+         *     4:5, resized to 1200x1500, JPEG-re-encoded, then stored.
+         *     ``event.image_path`` is set to where it landed, and what anyone
+         *     sees is this app's own ``/i/{path}``.
          *
-         *     Replacing an image overwrites ``image_url`` with the new
-         *     path; the previous file stays in the repo's history by
-         *     design (see ``services/image.py``).
+         *     Replacing an image deletes the file it replaces, once the row
+         *     points at the new one.
          *
          *     Returns the updated ``EventOut`` so the caller's Vue Query
          *     cache patches in-place without an extra refetch.
@@ -1669,9 +1670,8 @@ export interface paths {
         post: operations["upload_event_image_api_v1_events__event_id__image_post"];
         /**
          * Delete Event Image
-         * @description Clear the image reference. The file in the repo is left
-         *     alone; the lifecycle answer is "leave it" so we never need a
-         *     GitHub round-trip to remove.
+         * @description Clear the reference and delete the file. Nothing else points at
+         *     it, so leaving it behind would be storage nobody can ever reach.
          */
         delete: operations["delete_event_image_api_v1_events__event_id__image_delete"];
         options?: never;
@@ -2119,7 +2119,8 @@ export interface paths {
         post: operations["upload_form_image_api_v1_forms__form_id__image_post"];
         /**
          * Delete Form Image
-         * @description Clear the image reference. The file in the repo is left alone.
+         * @description Clear the reference and delete the file: nothing else points at
+         *     it.
          */
         delete: operations["delete_form_image_api_v1_forms__form_id__image_delete"];
         options?: never;

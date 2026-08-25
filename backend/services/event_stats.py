@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event, Occurrence, Registration, Signup
 from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
+from . import image as image_svc
 from .events import now_wallclock
 
 
@@ -147,7 +148,7 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             locale=e.locale,
             chapter_id=e.chapter_id,
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,
-            image_url=e.image_url,
+            image_url=image_svc.public_url(e.image_path),
             image_artist_instagram=e.image_artist_instagram,
             next_starts_at=next_occ.get(e.id, (None, None))[0],
             next_slug=next_occ.get(e.id, (None, None))[1],

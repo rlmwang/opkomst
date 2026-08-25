@@ -26,6 +26,7 @@ from ..schemas.datepolls import (
     DatepollSubmissionOut,
     PublicDatepollOut,
 )
+from . import image as image_svc
 from . import tenancy
 
 if TYPE_CHECKING:
@@ -183,7 +184,7 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         location=poll.location,
         latitude=poll.latitude,
         longitude=poll.longitude,
-        image_url=poll.image_url,
+        image_url=image_svc.public_url(poll.image_path),
         image_artist_instagram=poll.image_artist_instagram,
         slots=[DatepollSlotOut.model_validate(s) for s in slots],
     )
@@ -201,7 +202,7 @@ def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
         location=poll.location,
         latitude=poll.latitude,
         longitude=poll.longitude,
-        image_url=poll.image_url,
+        image_url=image_svc.public_url(poll.image_path),
         image_artist_instagram=poll.image_artist_instagram,
         locale=poll.locale,
         slots=[DatepollSlotOut.model_validate(s) for s in _slots(db, poll.id)],

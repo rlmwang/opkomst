@@ -17,6 +17,7 @@ from ..models import Chapter, Event, Occurrence
 from ..schemas.agenda import ChapterAgendaOut, OccurrenceCardOut
 from ..schemas.chapters import ChapterPublicOut
 from . import event_recurrence, event_stats
+from . import image as image_svc
 from .events import now_wallclock
 
 # How far ahead the agenda shows occurrences. Separate from (and shorter
@@ -45,7 +46,7 @@ def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
         starts_at=occ.starts_at,
         ends_at=occ.ends_at,
         location=event.location,
-        image_url=event.image_url,
+        image_url=image_svc.public_url(event.image_path),
         image_artist_instagram=event.image_artist_instagram,
         attendee_count=totals.get(occ.id, 0),
         index=event_recurrence.session_index(event, occ.starts_at.date()),

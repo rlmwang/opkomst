@@ -9,6 +9,7 @@ external scheduler) invokes them on the documented cadence:
     python -m backend.cli reap-partial             # hourly (offset)
     python -m backend.cli reap-expired             # daily
     python -m backend.cli reap-auth-tokens         # daily
+    python -m backend.cli reap-images              # daily
 
 The ``migrate`` subcommand runs alembic to HEAD as a one-shot
 before uvicorn forks its workers (Dockerfile CMD chains the two).
@@ -41,7 +42,7 @@ from .config import settings
 from .database import SessionLocal
 from .migrate import run_migrations
 from .models import EmailChannel
-from .services import admin_digest, mail_lifecycle
+from .services import admin_digest, image_reaper, mail_lifecycle
 
 logger = structlog.get_logger()
 
@@ -99,6 +100,14 @@ _CRON_MONITORS: dict[str, Any] = {
         "max_runtime": 5,
         "timezone": "UTC",
     },
+    "opkomst-cli-reap-images": {
+        # After the token sweep, and well clear of the ticks: it talks
+        # to the image host, so it is the one sweep that can be slow.
+        "schedule": {"type": "crontab", "value": "15 4 * * *"},
+        "checkin_margin": 30,
+        "max_runtime": 30,
+        "timezone": "UTC",
+    },
     "opkomst-cli-pending-digest": {
         "schedule": {"type": "crontab", "value": "0 9 * * 1"},
         "checkin_margin": 60,
@@ -133,6 +142,7 @@ def _monitor_slug(args: argparse.Namespace) -> str | None:
         "reap-partial",
         "reap-expired",
         "reap-auth-tokens",
+        "reap-images",
         "pending-digest",
         "roster-tick",
         "event-tick",
@@ -257,6 +267,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Delete expired login + registration magic-link tokens.",
     )
     sub.add_parser(
+        "reap-images",
+        help="Delete the images of entities archived longer than the grace period.",
+    )
+    sub.add_parser(
         "pending-digest",
         help="Email every admin a weekly digest of accounts awaiting approval.",
     )
@@ -313,6 +327,8 @@ def main(argv: list[str] | None = None) -> int:
             _reap_expired()
         elif args.cmd == "reap-auth-tokens":
             _reap_auth_tokens()
+        elif args.cmd == "reap-images":
+            image_reaper.reap_images()
         elif args.cmd == "pending-digest":
             _pending_digest()
         elif args.cmd == "roster-tick":

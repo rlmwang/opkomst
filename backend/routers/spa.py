@@ -49,6 +49,7 @@ from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
 from ..services import events as events_svc
 from ..services import forms as forms_svc
+from ..services import image as image_svc
 from ..services import tenancy
 from ..services import tenants as tenants_svc
 from ..services.sanitize import html_to_text
@@ -160,7 +161,7 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) 
         name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
         description=description,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
-        image_url=event.image_url,
+        image_url=image_svc.public_url(event.image_path),
         brand_slug=brand_slug,
     )
 
@@ -176,7 +177,7 @@ def _build_form_head_meta(form: Form | None, slug: str, brand_slug: str) -> str:
         name=form_name,
         description=form_name,
         canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
-        image_url=form.image_url,
+        image_url=image_svc.public_url(form.image_path),
         brand_slug=brand_slug,
     )
 
@@ -191,7 +192,7 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str, brand_slug: str)
         name=poll_name,
         description=html_to_text(pick_localized(poll.description_nl, poll.description_en, poll.locale)) or poll_name,
         canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
-        image_url=poll.image_url,
+        image_url=image_svc.public_url(poll.image_path),
         brand_slug=brand_slug,
     )
 
@@ -207,7 +208,7 @@ def _build_roster_head_meta(roster: Roster | None, slug: str, brand_slug: str) -
         name=roster_name,
         description=blurb or roster_name,
         canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
-        image_url=roster.image_url,
+        image_url=image_svc.public_url(roster.image_path),
         brand_slug=brand_slug,
     )
 

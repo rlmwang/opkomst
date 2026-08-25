@@ -91,11 +91,15 @@ class Settings(BaseSettings):
     evolution_api_key: _OptionalSecret = None
     evolution_instance: _OptionalStr = None
 
-    # ---- Event-image storage (GitHub Contents API) -------------
+    # ---- Hero-image storage (GitHub Contents API) --------------
     # Optional: when unset, the upload route returns 503 and the
-    # frontend hides the picker. All four must be set together —
-    # the validator below enforces it. The repo must be public so
-    # ``raw.githubusercontent.com`` serves the file without auth.
+    # frontend hides the picker. All four must be set together and the
+    # validator below enforces it.
+    #
+    # Nobody sees these values: images are served by ``/i/{path}`` from
+    # this app's own domain (``routers/images.py``). The repo is public,
+    # which is what lets the read path use ``raw.githubusercontent.com``
+    # without auth; the token is for writing and deleting.
 
     github_images_repo_owner: _OptionalStr = None
     github_images_repo_name: _OptionalStr = None

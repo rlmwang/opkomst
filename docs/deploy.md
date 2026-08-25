@@ -264,14 +264,15 @@ EVOLUTION_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=opkomst-blast
 
-# Event-image storage. Optional. When OWNER + NAME + TOKEN are
-# all set, organisers can upload a 4:3 hero image per event;
-# images PUT to the GitHub Contents API and serve from
-# ``raw.githubusercontent.com``. Repo must be public. The PAT
-# only needs ``contents: write`` on this one repo so a leak's
-# blast radius is bounded to that repo's history. Leave unset to
-# hide the picker and have the upload route return 503. BRANCH
-# defaults to ``main``.
+# Hero-image storage. Optional. When OWNER + NAME + TOKEN are
+# all set, organisers can upload a 4:5 hero image per entity.
+# Images PUT to the GitHub Contents API; nobody ever sees that,
+# because they are served from this app at ``/i/{path}``. Repo
+# must be public, which is what lets the read path skip auth.
+# The PAT only needs ``contents: write`` on this one repo so a
+# leak's blast radius is bounded to that repo's history. Leave
+# unset to hide the picker and have the upload route return 503.
+# BRANCH defaults to ``main``.
 GITHUB_IMAGES_REPO_OWNER=
 GITHUB_IMAGES_REPO_NAME=
 GITHUB_IMAGES_BRANCH=main
@@ -308,6 +309,7 @@ once.
 | `0 2  * * *`   | `uv run --no-dev python -m backend.cli event-tick`               | Daily: materialise concrete event occurrences on the rolling horizon |
 | `0 3  * * *`   | `uv run --no-dev python -m backend.cli reap-expired`              | Daily: finalise expired dispatches + 7-day ciphertext backstop |
 | `45 3 * * *`   | `uv run --no-dev python -m backend.cli reap-auth-tokens`          | Daily: prune expired login + registration magic-link rows |
+| `15 4 * * *`   | `uv run --no-dev python -m backend.cli reap-images`               | Daily: delete the images of entities archived longer than 21 days |
 | `0 9 * * 1`    | `uv run --no-dev python -m backend.cli pending-digest`            | Weekly Monday 09:00 UTC: email every admin a list of accounts awaiting approval |
 | `0 4  * * *`   | `bash scripts/backup.sh`                                          | Daily: redacted DB dump (see step 7)               |
 
@@ -393,6 +395,7 @@ Free tier is more than enough for opkomst's scale.
    | `opkomst-cli-event-tick`              | `0 2 * * *`    | 30 min |
    | `opkomst-cli-reap-expired`            | `0 3 * * *`    | 30 min |
    | `opkomst-cli-reap-auth-tokens`        | `45 3 * * *`   | 30 min |
+   | `opkomst-cli-reap-images`             | `15 4 * * *`   | 30 min |
    | `opkomst-cli-pending-digest`          | `0 9 * * 1`    | 60 min |
 
    After the first successful run of each cron the monitor

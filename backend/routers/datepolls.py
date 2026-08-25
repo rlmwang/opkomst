@@ -196,8 +196,12 @@ async def upload_datepoll_image(
     raw = await file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
-        poll.image_url = image_svc.replace_entity_image(
-            folder="datepolls", entity_id=poll.id, raw=raw, timestamp_ms=timestamp_ms
+        poll.image_path = image_svc.replace_entity_image(
+            folder="datepolls",
+            entity_id=poll.id,
+            raw=raw,
+            timestamp_ms=timestamp_ms,
+            previous=poll.image_path,
         )
     except image_svc.ImageProcessingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -217,12 +221,15 @@ def delete_datepoll_image(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    """Clear the image reference. The file in the repo is left alone."""
+    """Clear the reference and delete the file: nothing else points at
+    it."""
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    if poll.image_url is None:
+    if poll.image_path is None:
         raise HTTPException(status_code=404, detail="No image to delete")
-    poll.image_url = None
+    dropped = poll.image_path
+    poll.image_path = None
     db.commit()
+    image_svc.delete(dropped)
     db.refresh(poll)
     logger.info("datepoll_image_deleted", datepoll_id=poll.id, actor_id=user.id)
     return datepolls_svc.to_out(db, poll)

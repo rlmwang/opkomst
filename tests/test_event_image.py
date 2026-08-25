@@ -108,7 +108,7 @@ def github_enabled():
             object.__setattr__(cfg, k, v)
 
 
-def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
+def test_store_puts_to_contents_api_and_returns_a_path(github_enabled) -> None:
     captured: dict[str, Any] = {}
 
     def fake_put(url: str, json: dict, headers: dict, timeout: float) -> httpx.Response:
@@ -118,14 +118,16 @@ def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
         return httpx.Response(201, json={"content": {"sha": "abc"}})
 
     with patch.object(httpx, "put", side_effect=fake_put):
-        url = event_image.upload_to_github(
+        path = event_image.store(
             folder="events",
             entity_id="ev1",
             timestamp_ms=1700000000000,
             jpeg_bytes=b"\xff\xd8\xff",
         )
 
-    assert url == ("https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/ev1/1700000000000.jpg")
+    # A path, not a URL: nothing stored on the row says where the file
+    # is kept.
+    assert path == "events/ev1/1700000000000.jpg"
     assert captured["url"] == (
         "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/events/ev1/1700000000000.jpg"
     )
@@ -134,27 +136,68 @@ def test_upload_to_github_puts_to_contents_api(github_enabled) -> None:
     assert base64.b64decode(captured["json"]["content"]) == b"\xff\xd8\xff"
 
 
-def test_upload_to_github_raises_when_disabled() -> None:
+def test_public_url_is_this_app_and_never_the_storage_host() -> None:
+    url = event_image.public_url("events/ev1/1700000000000.jpg")
+    assert url is not None
+    assert url.endswith("/i/events/ev1/1700000000000.jpg")
+    assert "github" not in url
+    assert event_image.public_url(None) is None
+
+
+def test_store_raises_when_disabled() -> None:
     with pytest.raises(event_image.GithubUploadError, match="not configured"):
-        event_image.upload_to_github(folder="events", entity_id="x", timestamp_ms=0, jpeg_bytes=b"j")
+        event_image.store(folder="events", entity_id="x", timestamp_ms=0, jpeg_bytes=b"j")
 
 
-def test_upload_to_github_raises_on_non_2xx(github_enabled) -> None:
+def test_store_raises_on_non_2xx(github_enabled) -> None:
     def fake_put(url: str, json: dict, headers: dict, timeout: float) -> httpx.Response:
         return httpx.Response(422, text="bad payload")
 
     with patch.object(httpx, "put", side_effect=fake_put):
         with pytest.raises(event_image.GithubUploadError, match="422"):
-            event_image.upload_to_github(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
+            event_image.store(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
 
 
-def test_upload_to_github_raises_on_network_error(github_enabled) -> None:
+def test_store_raises_on_network_error(github_enabled) -> None:
     def fake_put(*a: Any, **kw: Any) -> httpx.Response:
         raise httpx.ConnectError("nope")
 
     with patch.object(httpx, "put", side_effect=fake_put):
         with pytest.raises(event_image.GithubUploadError, match="failed"):
-            event_image.upload_to_github(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
+            event_image.store(folder="events", entity_id="ev1", timestamp_ms=1, jpeg_bytes=b"j")
+
+
+def test_delete_reads_the_sha_then_removes(github_enabled) -> None:
+    """Removing through the Contents API needs the blob's sha, so a
+    delete is a read then a delete."""
+    calls: list[tuple[str, str]] = []
+
+    def fake_get(url: str, params: dict, headers: dict, timeout: float) -> httpx.Response:
+        calls.append(("get", url))
+        return httpx.Response(200, json={"sha": "deadbeef"})
+
+    def fake_request(method: str, url: str, json: dict, headers: dict, timeout: float) -> httpx.Response:
+        calls.append((method.lower(), url))
+        assert json["sha"] == "deadbeef"
+        return httpx.Response(200, json={})
+
+    with patch.object(httpx, "get", side_effect=fake_get), patch.object(httpx, "request", side_effect=fake_request):
+        assert event_image.delete("events/ev1/1.jpg") is True
+    assert [c[0] for c in calls] == ["get", "delete"]
+
+
+def test_delete_of_a_missing_file_is_a_success(github_enabled) -> None:
+    """The caller is cleaning up after something that already happened.
+    A file that is already gone is the state it wanted."""
+    with patch.object(httpx, "get", return_value=httpx.Response(404, json={})):
+        assert event_image.delete("events/ev1/1.jpg") is True
+
+
+def test_delete_never_raises(github_enabled) -> None:
+    """A file that outlives its row costs storage, not correctness, so
+    the sweep and the routers are never interrupted by one."""
+    with patch.object(httpx, "get", side_effect=httpx.ConnectError("nope")):
+        assert event_image.delete("events/ev1/1.jpg") is False
 
 
 # --- HTTP routes -----------------------------------------------------
@@ -205,22 +248,39 @@ def test_upload_route_returns_503_when_storage_disabled(client, organiser_header
     assert r.status_code == 503
 
 
-def test_upload_route_persists_url_and_returns_event(client, organiser_headers, github_enabled) -> None:
+def test_upload_route_persists_the_path_and_returns_our_own_url(client, organiser_headers, github_enabled) -> None:
     e = _new_event(client, organiser_headers)
-    fake_url = "https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/x/1.jpg"
-    with patch.object(event_image, "upload_to_github", return_value=fake_url):
+    path = "events/x/1.jpg"
+    with patch.object(event_image, "store", return_value=path):
         r = _upload(client, organiser_headers, e["id"], _png_bytes(1500, 1200))
 
     assert r.status_code == 200, r.text
-    assert r.json()["image_url"] == fake_url
+    # The row keeps the path; the DTO hands out this app's URL.
+    assert r.json()["image_url"] == event_image.public_url(path)
+    assert "github" not in r.json()["image_url"]
 
     fresh = SessionLocal()
     try:
         row = fresh.query(Event).filter_by(id=e["id"]).first()
         assert row is not None
-        assert row.image_url == fake_url
+        assert row.image_path == path
     finally:
         fresh.close()
+
+
+def test_replacing_an_image_deletes_the_one_it_replaces(client, organiser_headers, github_enabled) -> None:
+    e = _new_event(client, organiser_headers)
+    with patch.object(event_image, "store", return_value="events/x/1.jpg"):
+        _upload(client, organiser_headers, e["id"], _png_bytes(1500, 1200))
+
+    with (
+        patch.object(event_image, "store", return_value="events/x/2.jpg"),
+        patch.object(event_image, "delete", return_value=True) as deleted,
+    ):
+        r = _upload(client, organiser_headers, e["id"], _png_bytes(1500, 1200))
+
+    assert r.status_code == 200
+    deleted.assert_called_once_with("events/x/1.jpg")
 
 
 def test_upload_route_400s_on_bad_image(client, organiser_headers, github_enabled) -> None:
@@ -233,23 +293,25 @@ def test_upload_route_502s_on_github_failure(client, organiser_headers, github_e
     e = _new_event(client, organiser_headers)
     with patch.object(
         event_image,
-        "upload_to_github",
+        "store",
         side_effect=event_image.GithubUploadError("simulated"),
     ):
         r = _upload(client, organiser_headers, e["id"], _png_bytes(1500, 1200))
     assert r.status_code == 502
 
 
-def test_delete_route_clears_url(client, organiser_headers, db, github_enabled) -> None:
+def test_delete_route_clears_the_row_and_deletes_the_file(client, organiser_headers, db, github_enabled) -> None:
     e = _new_event(client, organiser_headers)
     row = db.query(Event).filter_by(id=e["id"]).first()
     assert row is not None
-    row.image_url = "https://example.test/x.jpg"
+    row.image_path = "events/ev/1.jpg"
     commit(db)
 
-    r = client.delete(f"/api/v1/events/{e['id']}/image", headers=organiser_headers)
+    with patch.object(event_image, "delete", return_value=True) as deleted:
+        r = client.delete(f"/api/v1/events/{e['id']}/image", headers=organiser_headers)
     assert r.status_code == 200
     assert r.json()["image_url"] is None
+    deleted.assert_called_once_with("events/ev/1.jpg")
 
 
 def test_delete_route_404s_when_no_image(client, organiser_headers) -> None:
@@ -261,10 +323,10 @@ def test_delete_route_404s_when_no_image(client, organiser_headers) -> None:
 # --- Email-render integration ---------------------------------------
 
 
-def test_reminder_email_renders_img_tag_when_event_has_image_url(db, fake_email) -> None:
-    """When ``event.image_url`` is set, the reminder body carries an
-    ``<img>`` pointing at that URL. When it's null, no ``<img>``
-    appears at all."""
+def test_reminder_email_renders_img_tag_when_event_has_an_image(db, fake_email) -> None:
+    """When the event has an image, the reminder body carries an
+    ``<img>`` pointing at this app's URL for it. When it's null, no
+    ``<img>`` appears at all."""
     from datetime import timedelta
 
     from _helpers.events import make_event
@@ -276,19 +338,23 @@ def test_reminder_email_renders_img_tag_when_event_has_image_url(db, fake_email)
 
     starts_in = (now_wallclock() + timedelta(hours=24)) - now_wallclock()
     e = make_event(db, starts_in=starts_in)
-    e.image_url = "https://raw.githubusercontent.com/rlmwang/opkomst-event-images/main/events/ev/1.jpg"
+    e.image_path = "events/ev/1.jpg"
     make_signup(db, e, email="alice@example.org")
     commit(db)
 
     n = mail_lifecycle.run_once(EmailChannel.REMINDER)
     assert n == 1
     body = fake_email.sent[0].html_body
-    assert e.image_url in body
+    # This app's URL, in a message that never says where the file is
+    # actually kept. The body does link github.com, in the note about
+    # the source being public, which is a different thing entirely.
+    assert event_image.public_url(e.image_path) in body
+    assert "raw.githubusercontent" not in body
     assert "<img" in body
 
 
 def test_reminder_email_renders_artist_credit_when_handle_present(db, fake_email) -> None:
-    """When both ``image_url`` and ``image_artist_instagram`` are
+    """When both an image and ``image_artist_instagram`` are
     set, the email body includes a credit line linking to the
     artist's Instagram. Without the handle, no credit line shows."""
     from datetime import timedelta
@@ -302,7 +368,7 @@ def test_reminder_email_renders_artist_credit_when_handle_present(db, fake_email
 
     starts_in = (now_wallclock() + timedelta(hours=24)) - now_wallclock()
     e = make_event(db, starts_in=starts_in)
-    e.image_url = "https://example.test/x.jpg"
+    e.image_path = "events/ev/1.jpg"
     e.image_artist_instagram = "rsp_amsterdam"
     make_signup(db, e, email="alice@example.org")
     commit(db)

@@ -25,6 +25,7 @@ from .routers import feedback as feedback_router
 from .routers import forms as forms_router
 from .routers import forms_public as forms_public_router
 from .routers import health as health_router
+from .routers import images as images_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
@@ -137,6 +138,9 @@ app.include_router(chores_router.router)
 app.include_router(start_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
+# ``/i/{path}`` — the hero images, under this app's own domain. Before
+# the SPA fallback, like every other route.
+app.include_router(images_router.router)
 
 # Local-mode-only routes (dev-issue-token et al). Mounted iff
 # ``settings.local_mode`` is True so prod simply 404s on these

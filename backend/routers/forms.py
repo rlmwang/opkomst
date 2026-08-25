@@ -200,8 +200,12 @@ async def upload_form_image(
     raw = await file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
-        form.image_url = image_svc.replace_entity_image(
-            folder="forms", entity_id=form.id, raw=raw, timestamp_ms=timestamp_ms
+        form.image_path = image_svc.replace_entity_image(
+            folder="forms",
+            entity_id=form.id,
+            raw=raw,
+            timestamp_ms=timestamp_ms,
+            previous=form.image_path,
         )
     except image_svc.ImageProcessingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -221,12 +225,15 @@ def delete_form_image(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FormOut:
-    """Clear the image reference. The file in the repo is left alone."""
+    """Clear the reference and delete the file: nothing else points at
+    it."""
     form = access.get_form_for_user(db, form_id, user)
-    if form.image_url is None:
+    if form.image_path is None:
         raise HTTPException(status_code=404, detail="No image to delete")
-    form.image_url = None
+    dropped = form.image_path
+    form.image_path = None
     db.commit()
+    image_svc.delete(dropped)
     db.refresh(form)
     logger.info("form_image_deleted", form_id=form.id, actor_id=user.id)
     return forms_svc.to_out(db, form)

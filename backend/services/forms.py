@@ -35,6 +35,7 @@ from ..schemas.forms import (
     PublicFormOut,
     QuestionKind,
 )
+from . import image as image_svc
 from . import tenancy
 from .ratings import rating_distribution
 
@@ -217,7 +218,7 @@ def to_out(db: Session, form: Form) -> FormOut:
         submission_count=submission_count(db, form.id),
         description_nl=form.description_nl,
         description_en=form.description_en,
-        image_url=form.image_url,
+        image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
@@ -233,7 +234,7 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
         name_en=form.name_en,
         description_nl=form.description_nl,
         description_en=form.description_en,
-        image_url=form.image_url,
+        image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
         locale=form.locale,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],

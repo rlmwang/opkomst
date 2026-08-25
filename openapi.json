@@ -8849,7 +8849,7 @@
     },
     "/api/v1/chores/{roster_id}/image": {
       "delete": {
-        "description": "Clear the image reference. The file in the repo is left alone.",
+        "description": "Clear the reference and delete the file: nothing else points at\nit.",
         "operationId": "delete_roster_image_api_v1_chores__roster_id__image_delete",
         "parameters": [
           {
@@ -10127,7 +10127,7 @@
     },
     "/api/v1/datepolls/{datepoll_id}/image": {
       "delete": {
-        "description": "Clear the image reference. The file in the repo is left alone.",
+        "description": "Clear the reference and delete the file: nothing else points at\nit.",
         "operationId": "delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete",
         "parameters": [
           {
@@ -11489,7 +11489,7 @@
     },
     "/api/v1/events/{event_id}/image": {
       "delete": {
-        "description": "Clear the image reference. The file in the repo is left\nalone; the lifecycle answer is \"leave it\" so we never need a\nGitHub round-trip to remove.",
+        "description": "Clear the reference and delete the file. Nothing else points at\nit, so leaving it behind would be storage nobody can ever reach.",
         "operationId": "delete_event_image_api_v1_events__event_id__image_delete",
         "parameters": [
           {
@@ -11546,7 +11546,7 @@
         ]
       },
       "post": {
-        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py`` \u2014 validated, EXIF-rotated,\ncropped to 4:5, resized to 1200x1500, JPEG-re-encoded \u2014 and\nPUT to the configured GitHub repo. ``event.image_url`` is set\nto the resulting ``raw.githubusercontent.com`` URL.\n\nReplacing an image overwrites ``image_url`` with the new\npath; the previous file stays in the repo's history by\ndesign (see ``services/image.py``).\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py``: validated, EXIF-rotated, cropped to\n4:5, resized to 1200x1500, JPEG-re-encoded, then stored.\n``event.image_path`` is set to where it landed, and what anyone\nsees is this app's own ``/i/{path}``.\n\nReplacing an image deletes the file it replaces, once the row\npoints at the new one.\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
         "operationId": "upload_event_image_api_v1_events__event_id__image_post",
         "parameters": [
           {
@@ -12978,7 +12978,7 @@
     },
     "/api/v1/forms/{form_id}/image": {
       "delete": {
-        "description": "Clear the image reference. The file in the repo is left alone.",
+        "description": "Clear the reference and delete the file: nothing else points at\nit.",
         "operationId": "delete_form_image_api_v1_forms__form_id__image_delete",
         "parameters": [
           {

@@ -38,6 +38,7 @@ from ..schemas.chores import (
     VolunteerSummaryOut,
 )
 from . import chore_tick, tenancy
+from . import image as image_svc
 from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
 
@@ -183,7 +184,7 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
         location=roster.location,
         latitude=roster.latitude,
         longitude=roster.longitude,
-        image_url=roster.image_url,
+        image_url=image_svc.public_url(roster.image_path),
         image_artist_instagram=roster.image_artist_instagram,
         starts_on=roster.starts_on,
         ends_on=roster.ends_on,
@@ -661,7 +662,7 @@ def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:
         location=roster.location,
         latitude=roster.latitude,
         longitude=roster.longitude,
-        image_url=roster.image_url,
+        image_url=image_svc.public_url(roster.image_path),
         image_artist_instagram=roster.image_artist_instagram,
         locale=roster.locale,
         period_weeks=roster.period_weeks,

@@ -1,13 +1,19 @@
-"""Shared image-upload pipeline (events, forms, datepolls).
+"""Shared image pipeline: process, store, serve, delete.
 
-Two-stage flow: the organiser POSTs a file, ``process_upload`` turns
-whatever they sent into a single canonical 4:5 JPEG (the Instagram-
-portrait ratio organisers' flyers are usually designed to), and
-``upload_to_github`` PUTs it to the configured GitHub repo via the
-Contents API under a per-resource folder. The returned
-``raw.githubusercontent.com`` URL is what gets stored on the row's
-``image_url`` — never the GitHub ``contents`` API URL, which would
-404 anonymously and rate-limit on heavy load.
+The organiser POSTs a file, ``process_upload`` turns whatever they sent
+into a single canonical 4:5 JPEG (the Instagram-portrait ratio
+organisers' flyers are usually designed to), and ``store`` PUTs it to
+the configured GitHub repo via the Contents API under a per-resource
+folder. What the row keeps is the **path** it was stored at, never a
+URL to it.
+
+**Nothing the app renders says where the bytes live.** ``public_url``
+builds ``{public base}/i/{path}``, and ``routers/images.py`` reads the
+file back through ``fetch``. So a page, a link preview and an email all
+point at this app, and the hosting account is not in any of them. The
+repository itself is public, so this hides the hosting from everyone
+reading what the app hands out, not from someone who finds the repo
+another way.
 
 Why GitHub: the deployment server is RAM-constrained and we don't
 want to operate object storage. Public GitHub repos are CDN-fronted
@@ -25,9 +31,11 @@ The image is rewritten end-to-end before upload:
 * JPEG q=85, ``optimize=True``. Strips alpha (flattens onto white)
   and any colour profile that isn't sRGB.
 
-Old files stay in the repo forever — the lifecycle answer is "leave
-it". Replacing a row's image overwrites ``image_url``; the prior
-commit is the audit log.
+Files are deleted when nothing points at them any more: when an image
+is replaced, when it is removed, and when the entity holding it has
+been archived long enough (``services/image_reaper.py``). A delete
+removes the file from the repository's current tree; the blob stays in
+its history, which is the accepted cost of storing images in git.
 """
 
 import base64
@@ -96,65 +104,148 @@ def process_upload(data: bytes) -> bytes:
     return out.getvalue()
 
 
-def _raw_url(owner: str, repo: str, branch: str, path: str) -> str:
-    return f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+def public_url(path: str | None) -> str | None:
+    """The URL to hand to a page, a link preview or an email.
+
+    Absolute, because mail clients and Open Graph scrapers can't resolve
+    a relative one, and always this app's own host. ``None`` in, ``None``
+    out, so a DTO can pass a nullable column straight through."""
+    if not path:
+        return None
+    return f"{str(settings.public_base_url).rstrip('/')}/i/{path.lstrip('/')}"
 
 
-def upload_to_github(
-    *,
-    folder: str,
-    entity_id: str,
-    timestamp_ms: int,
-    jpeg_bytes: bytes,
-) -> str:
-    """PUT the JPEG to the configured repo via the Contents API and
-    return the public ``raw.githubusercontent.com`` URL. ``folder`` is
-    the per-resource directory (``events`` / ``forms`` / ``datepolls``);
-    ``timestamp_ms`` is the unique-ifier inside the per-entity
-    directory, minted by the caller so the workflow stays
-    deterministic in tests.
-
-    Raises ``GithubUploadError`` on any non-2xx response."""
+def _config() -> tuple[str, str, str, str]:
+    """``(owner, repo, branch, token)``, or raise if the storage isn't
+    configured. One place asserts it so the callers below read as
+    straight-line code."""
     if not settings.event_images_enabled:
         raise GithubUploadError("Image storage is not configured")
-
     owner = settings.github_images_repo_owner
     repo = settings.github_images_repo_name
-    branch = settings.github_images_branch
     token = settings.github_images_token
-
     # ``event_images_enabled`` already proved these aren't None.
     assert owner is not None and repo is not None and token is not None
+    return owner, repo, settings.github_images_branch, token.get_secret_value()
 
+
+def _headers(token: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
+def store(*, folder: str, entity_id: str, timestamp_ms: int, jpeg_bytes: bytes) -> str:
+    """PUT the JPEG to the configured repo and return the path it was
+    stored at. ``folder`` is the per-resource directory (``events`` /
+    ``forms`` / ``datepolls`` / ``chores``); ``timestamp_ms`` is the
+    unique-ifier inside the per-entity directory, minted by the caller
+    so the workflow stays deterministic in tests.
+
+    Raises ``GithubUploadError`` on any non-2xx response."""
+    owner, repo, branch, token = _config()
     path = f"{folder}/{entity_id}/{timestamp_ms}.jpg"
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
     body = {
         "message": f"{folder} {entity_id}: image upload",
         "content": base64.b64encode(jpeg_bytes).decode("ascii"),
         "branch": branch,
     }
-    headers = {
-        "Authorization": f"Bearer {token.get_secret_value()}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
 
     try:
-        resp = httpx.put(api_url, json=body, headers=headers, timeout=30.0)
+        resp = httpx.put(
+            f"https://api.github.com/repos/{owner}/{repo}/contents/{path}",
+            json=body,
+            headers=_headers(token),
+            timeout=30.0,
+        )
     except httpx.HTTPError as exc:
         logger.warning("image_upload_network_error", error=str(exc))
-        raise GithubUploadError("Upload to GitHub failed") from exc
+        raise GithubUploadError("Upload failed") from exc
 
     if resp.status_code not in (200, 201):
         logger.warning("image_upload_failed", status=resp.status_code, body=resp.text[:500])
-        raise GithubUploadError(f"GitHub Contents API returned {resp.status_code}")
+        raise GithubUploadError(f"Image storage returned {resp.status_code}")
 
-    return _raw_url(owner, repo, branch, path)
+    return path
 
 
-def replace_entity_image(*, folder: str, entity_id: str, raw: bytes, timestamp_ms: int) -> str:
-    """Process raw upload bytes and push to GitHub, returning the
-    public URL. The two error types propagate so the router can map
-    them to 400 (bad upload) vs 502 (upstream)."""
+def fetch(path: str) -> bytes | None:
+    """The stored file, or ``None`` when there is no such path.
+
+    Read from the raw host rather than the Contents API: it is the
+    CDN-fronted one, it returns the bytes directly instead of base64 in
+    JSON, and this runs on the request path. Raises
+    ``GithubUploadError`` when the host itself is unreachable, which the
+    route turns into a 502; a missing file is not an error here, it is a
+    404."""
+    owner, repo, branch, _token = _config()
+    url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
+    try:
+        resp = httpx.get(url, timeout=15.0, follow_redirects=True)
+    except httpx.HTTPError as exc:
+        logger.warning("image_fetch_network_error", error=str(exc))
+        raise GithubUploadError("Image storage is unreachable") from exc
+    if resp.status_code == 404:
+        return None
+    if resp.status_code != 200:
+        logger.warning("image_fetch_failed", status=resp.status_code)
+        raise GithubUploadError(f"Image storage returned {resp.status_code}")
+    return resp.content
+
+
+def delete(path: str) -> bool:
+    """Remove a stored file. True when it is gone (including when it was
+    already gone), False when the host refused.
+
+    Deleting through the Contents API needs the blob's sha, so this is a
+    read then a delete. Never raises: every caller is cleaning up after
+    something that has already happened, and a file that outlives its
+    row costs storage, not correctness. The next sweep tries again."""
+    owner, repo, branch, token = _config()
+    api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path}"
+    headers = _headers(token)
+
+    try:
+        head = httpx.get(api_url, params={"ref": branch}, headers=headers, timeout=15.0)
+        if head.status_code == 404:
+            return True
+        if head.status_code != 200:
+            logger.warning("image_delete_lookup_failed", status=head.status_code, path=path)
+            return False
+        sha = head.json().get("sha")
+        if not isinstance(sha, str):
+            logger.warning("image_delete_no_sha", path=path)
+            return False
+        resp = httpx.request(
+            "DELETE",
+            api_url,
+            json={"message": f"remove {path}", "sha": sha, "branch": branch},
+            headers=headers,
+            timeout=30.0,
+        )
+    except httpx.HTTPError as exc:
+        logger.warning("image_delete_network_error", error=str(exc), path=path)
+        return False
+
+    if resp.status_code != 200:
+        logger.warning("image_delete_failed", status=resp.status_code, path=path)
+        return False
+    logger.info("image_deleted", path=path)
+    return True
+
+
+def replace_entity_image(*, folder: str, entity_id: str, raw: bytes, timestamp_ms: int, previous: str | None) -> str:
+    """Process the upload, store it, drop the file it replaces, and
+    return the new path.
+
+    The old file is deleted after the new one is stored, so a failed
+    upload leaves the entity with the picture it had. The two error
+    types propagate so the router can map them to 400 (bad upload) vs
+    502 (upstream)."""
     jpeg = process_upload(raw)
-    return upload_to_github(folder=folder, entity_id=entity_id, timestamp_ms=timestamp_ms, jpeg_bytes=jpeg)
+    path = store(folder=folder, entity_id=entity_id, timestamp_ms=timestamp_ms, jpeg_bytes=jpeg)
+    if previous and previous != path:
+        delete(previous)
+    return path

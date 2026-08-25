@@ -137,11 +137,14 @@ class OrgEntityMixin:
     def name_en(cls) -> Mapped[str | None]:
         return mapped_column(Text, nullable=True)
 
-    # Public URL of the entity's 4:5 hero image (GitHub-hosted raw URL;
-    # uploads go through ``services/image.py``). Null = pages render
-    # without a hero and the OG card falls back to the favicon.
+    # Where the entity's 4:5 hero image is stored, as a path inside the
+    # image host: ``events/{id}/{timestamp}.jpg``. Not a URL. The URL
+    # anyone sees is this app's own (``/i/{path}``, built by
+    # ``services/image.public_url``), so nothing rendered anywhere says
+    # where the bytes actually live. Null = pages render without a hero
+    # and the OG card falls back to the favicon.
     @declared_attr
-    def image_url(cls) -> Mapped[str | None]:
+    def image_path(cls) -> Mapped[str | None]:
         return mapped_column(Text, nullable=True)
 
     # Instagram handle of the hero-image artist (the credit line),

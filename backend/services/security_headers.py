@@ -37,11 +37,11 @@ from starlette.responses import Response
 # documented in CLAUDE.md.
 CSP_TEMPLATE = (
     "default-src 'self'; "
-    # ``raw.githubusercontent.com`` is the event-image CDN; URLs
-    # written to ``event.image_url`` always point at that host.
+    # Hero images are same-origin now: they are served by ``/i/{path}``
+    # from wherever they are stored, so no image host appears here or
+    # anywhere else a visitor can see.
     "img-src 'self' data: blob: "
-    "https://*.tile.openstreetmap.org "
-    "https://raw.githubusercontent.com; "
+    "https://*.tile.openstreetmap.org; "
     "style-src 'self' 'unsafe-inline'; "
     # The HTML shells carry two inline scripts the pages can't work
     # without: the brand (palette, logo, wordmark) and the entity

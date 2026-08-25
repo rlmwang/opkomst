@@ -389,8 +389,12 @@ async def upload_roster_image(
     raw = await file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
-        roster.image_url = image_svc.replace_entity_image(
-            folder="chores", entity_id=roster.id, raw=raw, timestamp_ms=timestamp_ms
+        roster.image_path = image_svc.replace_entity_image(
+            folder="chores",
+            entity_id=roster.id,
+            raw=raw,
+            timestamp_ms=timestamp_ms,
+            previous=roster.image_path,
         )
     except image_svc.ImageProcessingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -410,12 +414,15 @@ def delete_roster_image(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> RosterOut:
-    """Clear the image reference. The file in the repo is left alone."""
+    """Clear the reference and delete the file: nothing else points at
+    it."""
     roster = access.get_roster_for_user(db, roster_id, user)
-    if roster.image_url is None:
+    if roster.image_path is None:
         raise HTTPException(status_code=404, detail="No image to delete")
-    roster.image_url = None
+    dropped = roster.image_path
+    roster.image_path = None
     db.commit()
+    image_svc.delete(dropped)
     db.refresh(roster)
     logger.info("roster_image_deleted", roster_id=roster.id, actor_id=user.id)
     return chores_svc.to_out(db, roster)
