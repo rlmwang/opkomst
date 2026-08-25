@@ -29,7 +29,7 @@ const b = brand();
     class="brand-mark public-link"
     :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
   >
-    <img :src="b.logo_url" alt="" class="party-logo" />
+    <img v-if="b.logo_url" :src="b.logo_url" alt="" class="party-logo" />
     <span class="wordmark">{{ b.wordmark }}</span>
   </a>
   <div v-else class="brand-mark">
@@ -40,7 +40,10 @@ const b = brand();
       class="party-logo-link"
       :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
     >
-      <img :src="b.logo_url" alt="" class="party-logo" />
+      <!-- A brand without a logo file (the house brand, worn by pages
+           no organisation owns) renders its wordmark alone rather than
+           a broken image. -->
+      <img v-if="b.logo_url" :src="b.logo_url" alt="" class="party-logo" />
     </a>
     <!-- The admin header passes a router-link here so the wordmark
          navigates home; routing stays in the admin bundle, which is the

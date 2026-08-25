@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings
+from .services import tenancy as _tenancy
 
 engine = create_engine(
     settings.database_url,
@@ -49,6 +50,13 @@ engine = create_engine(
     },
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Authorisation is enforced in the routers and in ``services/access.py``;
+# this is the layer under them. Every flush is checked against the
+# tenant bound to the request, so a row of another organisation that
+# somehow got loaded still cannot be written back. See
+# ``services/tenancy.py``.
+_tenancy.install_write_guard(Session)
 
 
 class Base(DeclarativeBase):

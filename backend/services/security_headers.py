@@ -7,7 +7,10 @@ Sets the standard hardening headers on every response:
   styles only — they're injected as ``<style>`` tags by the
   component library, blocking them renders every PrimeVue
   component as unstyled HTML), the OSM tile server, and PDOK
-  Locatieserver for the address autocomplete.
+  Locatieserver for the address autocomplete. Scripts get a
+  per-response nonce, which the HTML shells stamp on the two blocks
+  they inline (the brand and the first-paint payload) — see
+  ``routers/spa.py``.
 - ``Strict-Transport-Security`` — only set when the request was
   served over HTTPS, so local dev over HTTP isn't accidentally
   upgraded.
@@ -21,6 +24,8 @@ The CSP is intentionally tight; loosening it requires editing this
 file rather than getting silently overridden by a deeper layer.
 """
 
+import secrets
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -30,7 +35,7 @@ from starlette.responses import Response
 # JavaScript and injects it as ``<style>`` tags. Without this every
 # PrimeVue component renders unstyled. The same trade-off is
 # documented in CLAUDE.md.
-CSP = (
+CSP_TEMPLATE = (
     "default-src 'self'; "
     # ``raw.githubusercontent.com`` is the event-image CDN; URLs
     # written to ``event.image_url`` always point at that host.
@@ -38,7 +43,12 @@ CSP = (
     "https://*.tile.openstreetmap.org "
     "https://raw.githubusercontent.com; "
     "style-src 'self' 'unsafe-inline'; "
-    "script-src 'self'; "
+    # The HTML shells carry two inline scripts the pages can't work
+    # without: the brand (palette, logo, wordmark) and the entity
+    # payload that makes a public page interactive on first paint. Both
+    # are server-rendered, so they get a per-response nonce rather than
+    # ``'unsafe-inline'`` — no attacker-supplied script can guess it.
+    "script-src 'self' 'nonce-{nonce}'; "
     # Sentry's regional ingest endpoint for browser-side error
     # reporting. Matches ``VITE_SENTRY_DSN`` (de.sentry.io org).
     "connect-src 'self' "
@@ -59,8 +69,12 @@ PERMISSIONS_POLICY = (
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
+        # Minted before the route runs so the HTML renderer can stamp
+        # the same value on the scripts it inlines.
+        nonce = secrets.token_urlsafe(16)
+        request.state.csp_nonce = nonce
         response: Response = await call_next(request)
-        response.headers["Content-Security-Policy"] = CSP
+        response.headers["Content-Security-Policy"] = CSP_TEMPLATE.format(nonce=nonce)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

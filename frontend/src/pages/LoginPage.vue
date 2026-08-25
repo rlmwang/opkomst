@@ -20,7 +20,7 @@ const submitting = ref(false);
 const sent = ref(false);
 
 onMounted(() => {
-  if (auth.isAuthenticated) void router.replace("/events");
+  if (auth.isAuthenticated) void router.replace("/");
 });
 
 async function submit() {

@@ -1,13 +1,25 @@
-let _token: string | null = localStorage.getItem("token");
+import { brand } from "@/lib/branding";
+
+// The session is per organisation, not per browser. localStorage is
+// shared by everything on the origin, so a single ``token`` key meant
+// that signing in to one tenant carried straight over to another
+// tenant's URLs: the page wore their brand and showed ours. The API
+// scopes every read by the token's own tenant, so nothing leaked
+// across — but the page and the session disagreed, which is its own
+// bug. Keying by tenant makes them agree, and lets someone hold two
+// sessions in two tabs.
+const TOKEN_KEY = `token:${brand().slug}`;
+
+let _token: string | null = localStorage.getItem(TOKEN_KEY);
 
 export function setToken(token: string): void {
   _token = token;
-  localStorage.setItem("token", token);
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
 export function clearToken(): void {
   _token = null;
-  localStorage.removeItem("token");
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function getToken(): string | null {

@@ -62,22 +62,43 @@ def test_the_house_brand_exists_and_carries_no_organisations_mark() -> None:
     house = brand_svc.payload(brand_svc.HOUSE_BRAND)
     assert house["logo_url"] is None
     assert house["favicon_url"] is None
-    head = brand_svc.head(brand_svc.HOUSE_BRAND)
+    head = brand_svc.head(brand_svc.HOUSE_BRAND, "nonce")
     assert f'href="/brand/{brand_svc.HOUSE_BRAND}/tokens.css"' in head
     assert 'rel="icon"' not in head
+
+
+def test_the_inline_brand_script_carries_the_csp_nonce() -> None:
+    """``script-src 'self'`` blocks inline scripts, so the one block the
+    page cannot start without wears the per-response nonce. Without it
+    the browser refuses to run it and the app never mounts — which is
+    exactly what happened the first time a second tenant was served."""
+    head = brand_svc.head("rsp", "n0nc3-value")
+    assert '<script nonce="n0nc3-value">window.__OPKOMST_BRAND__' in head
 
 
 def test_head_carries_palette_icons_and_window_payload() -> None:
     """What the shells get: the boot colours inline (the spinner paints
     before a linked stylesheet is guaranteed to have arrived), the
     palette stylesheet, both icons, and the brand on ``window``."""
-    head = brand_svc.head("rsp")
+    head = brand_svc.head("rsp", "nonce")
     assert "--boot-accent:" in head
     assert '<link rel="stylesheet" href="/brand/rsp/tokens.css">' in head
     assert 'rel="icon"' in head and "/brand/rsp/favicon.png" in head
     assert 'rel="apple-touch-icon"' in head and "/brand/rsp/apple-touch-icon.png" in head
     assert "window.__OPKOMST_BRAND__" in head
     assert '"logo_url": "/brand/rsp/logo.png"' in head
+
+
+def test_a_served_page_can_actually_run_its_inline_scripts(client) -> None:
+    """End to end: the nonce in the response's CSP is the nonce on the
+    page's inline scripts, so the browser runs them. This is the guard
+    for the class of bug where a page renders its shell and then sits on
+    the spinner forever."""
+    response = client.get("/e/nosuchslug")
+    if response.status_code == 404:  # no frontend build in this checkout
+        return
+    nonce = response.headers["content-security-policy"].split("'nonce-", 1)[1].split("'", 1)[0]
+    assert f'<script nonce="{nonce}">window.__OPKOMST_BRAND__' in response.text
 
 
 def test_email_renders_the_brand_with_an_absolute_logo() -> None:

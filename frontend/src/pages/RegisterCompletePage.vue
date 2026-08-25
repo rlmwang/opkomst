@@ -39,7 +39,7 @@ async function submit() {
   submitting.value = true;
   try {
     await auth.completeRegistration(token.value, trimmed);
-    void router.replace("/events");
+    void router.replace("/");
   } catch (e) {
     // 410 means the token was already used or expired between
     // page-load and submit — surface the same "link expired" card

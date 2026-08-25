@@ -1,5 +1,5 @@
 /// <reference types="vitest" />
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
@@ -116,24 +116,38 @@ function publicChoreDevRoute(): Plugin {
 }
 
 /**
- * Dev-only middleware: serve the organiser SPA for ``/{tenant}/…``.
+ * Dev-only middleware: serve the organiser SPA for ``/{tenant}/…``, and
+ * 404 everything that isn't a page.
  *
  * In production ``backend/routers/spa.py`` looks the first segment up as
- * a live tenant and serves ``index.html`` (404 otherwise, the bare root
- * included). The dev server has no database, so it treats the one local
- * tenant — the same ``rsp`` the brand plugin below injects — as the only
- * organiser prefix, and everything else falls through to Vite's own
- * handling.
+ * a live tenant and serves ``index.html``; the bare root and unknown
+ * slugs are 404, because a shell that can't know whose data it would
+ * show is worse than nothing. The dev server has no database, so it
+ * treats the local tenants — the same ``rsp`` the brand plugin injects,
+ * plus any other brand folder — as the organiser prefixes.
+ *
+ * A path no tenant owns still serves the shell — in the house brand,
+ * whose router is based at ``/`` and therefore renders the app's own
+ * not-found page. Without that rewrite Vite's SPA fallback serves the
+ * page under whichever brand it last used, the router (based at
+ * ``/rsp/``) bounces the visitor to ``/rsp/events``, and dev quietly
+ * disagrees with prod about whether the root exists.
  */
 function organiserAppDevRoute(): Plugin {
-  const prefix = /^\/rsp(?:\/|$)/;
+  // Paths the dev server owns: Vite internals, the source tree, and the
+  // public mini-apps rewritten by the plugins below.
+  const notAPage = /^\/(@|src\/|node_modules\/|api\/|brand\/|assets\/|e\/|f\/|d\/|c\/|__)/;
   return {
     name: "opkomst-organiser-app-dev-route",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const path = (req.url ?? "").split("?")[0];
-        if (prefix.test(path)) req.url = "/index.html";
+        const wantsHtml = (req.headers.accept ?? "").includes("text/html");
+        // Both branches serve the same shell; which brand it wears (and
+        // so whether it renders the app or the 404) is decided by the
+        // brand plugin from the same first path segment.
+        if (wantsHtml && !notAPage.test(path)) req.url = "/index.html";
         next();
       });
     },
@@ -154,17 +168,36 @@ function organiserAppDevRoute(): Plugin {
  * below, so the URLs here are the same ones prod emits.
  */
 function brandDevInjection(): Plugin {
-  const slug = "rsp";
   return {
     name: "opkomst-brand-dev-injection",
     apply: "serve",
-    transformIndexHtml(html) {
-      const dir = fileURLToPath(new URL(`../brands/${slug}`, import.meta.url));
+    transformIndexHtml(html, ctx) {
+      // Which organisation's brand this page wears. In prod the tenant
+      // comes from the URL (organiser app) or the entity behind the
+      // slug (public pages). Dev has no database, so: a first segment
+      // that names a brand folder is that organisation; a public
+      // mini-app path is the default local tenant, since the entity it
+      // would resolve to can't be looked up here; anything else belongs
+      // to no organisation and gets the house brand, which renders the
+      // not-found page — the same thing prod serves with a 404.
+      const path = (ctx.originalUrl ?? "").split("?")[0];
+      const first = path.split("/")[1] ?? "";
+      const brandsDir = fileURLToPath(new URL("../brands", import.meta.url));
+      const isPublicPage = /^\/[efdc]\//.test(path);
+      const slug = existsSync(`${brandsDir}/${first}/brand.json`)
+        ? first
+        : isPublicPage
+          ? "rsp"
+          : "opkomst";
+      const dir = `${brandsDir}/${slug}`;
       const m = JSON.parse(readFileSync(`${dir}/brand.json`, "utf-8"));
-      const url = (file: string) => `/brand/${slug}/${file}`;
+      // Image fields are null for a brand without files (the house
+      // brand): no icon links, and the mark renders as a wordmark.
+      const url = (file: string | null) => (file ? `/brand/${slug}/${file}` : null);
       const p = m.palette;
       const brand = {
         slug,
+        app_base: slug === "opkomst" ? "/" : `/${slug}/`,
         palette: p,
         app_name: m.app_name,
         wordmark: m.wordmark,
@@ -173,17 +206,17 @@ function brandDevInjection(): Plugin {
         logo_url: url(m.logo),
         favicon_url: url(m.favicon),
       };
-      return html.replace(
-        "<!-- OPKOMST_BRAND_INJECTION -->",
-        [
-          `<style>:root{--boot-bg:${p.bg};--boot-surface:${p.surface};--boot-fg:${p.fg};`
-          + `--boot-fg-muted:${p.fg_muted};--boot-accent:${p.accent};--boot-border:${p.border};}</style>`,
-          `<link rel="stylesheet" href="${url("tokens.css")}">`,
-          `<link rel="icon" type="image/png" sizes="192x192" href="${url(m.favicon)}">`,
-          `<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`,
-          `<script>window.__OPKOMST_BRAND__ = ${JSON.stringify(brand)};</script>`,
-        ].join("\n    "),
-      );
+      const tags = [
+        `<style>:root{--boot-bg:${p.bg};--boot-surface:${p.surface};--boot-fg:${p.fg};`
+        + `--boot-fg-muted:${p.fg_muted};--boot-accent:${p.accent};--boot-border:${p.border};}</style>`,
+        `<link rel="stylesheet" href="${url("tokens.css")}">`,
+      ];
+      if (m.favicon) tags.push(`<link rel="icon" type="image/png" sizes="192x192" href="${url(m.favicon)}">`);
+      if (m.apple_touch_icon) {
+        tags.push(`<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`);
+      }
+      tags.push(`<script>window.__OPKOMST_BRAND__ = ${JSON.stringify(brand)};</script>`);
+      return html.replace("<!-- OPKOMST_BRAND_INJECTION -->", tags.join("\n    "));
     },
   };
 }

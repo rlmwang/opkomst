@@ -77,6 +77,45 @@ def _require() -> Bound:
     return bound
 
 
+class CrossTenantWrite(RuntimeError):
+    """Raised when a flush would write a row belonging to a different
+    organisation than the one bound to this request."""
+
+
+def _guard_flush(session, _flush_context, _instances) -> None:  # type: ignore[no-untyped-def]
+    """The last line of defence, checked on every flush.
+
+    Scoping lives in the routers and in ``services/access.py``, and that
+    is where a request is *supposed* to be stopped. This exists for the
+    case where it wasn't: a query that forgot its filter, a helper that
+    fetched by id alone, a future endpoint that skips ``get_scoped``.
+    Reading another organisation's row is then still a bug, but it can't
+    become an edit — the write fails at the session boundary, before it
+    reaches the database.
+
+    Rows without a ``tenant_id`` (the ``tenants`` table itself) are not
+    the guard's business."""
+    bound = _current.get()
+    for obj in (*session.new, *session.dirty):
+        tenant_id = getattr(obj, "tenant_id", None)
+        if tenant_id is None:
+            continue
+        if bound is None:
+            raise NoTenantBound(f"{type(obj).__name__} written with no tenant bound")
+        if tenant_id != bound.id:
+            raise CrossTenantWrite(
+                f"{type(obj).__name__} belongs to tenant {tenant_id}, but this request is bound to {bound.id}"
+            )
+
+
+def install_write_guard(session_class: type) -> None:
+    """Wire ``_guard_flush`` onto every session made by this factory.
+    Called once, from ``backend.database``."""
+    from sqlalchemy import event
+
+    event.listen(session_class, "before_flush", _guard_flush)
+
+
 @contextmanager
 def use(tenant_id: str, slug: str) -> Generator[None]:
     """Bind a tenant for the duration of a block and restore the previous

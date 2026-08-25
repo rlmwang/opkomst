@@ -1,0 +1,80 @@
+/* ROOD palette, taken from roodjongeren.nl: the red of the logo and the
+ * site's buttons (#c2000b), its near-black body text (#111111), the
+ * grey scale it builds cards and rules from, and the yellow it uses for
+ * highlights. Where RSP is warm cream and newsprint, ROOD is white and
+ * high-contrast — the two organisations should not look like each
+ * other's pages with a different logo.
+ *
+ * Served at ``/brand/rood/tokens.css`` and linked from the page head
+ * before any bundle loads, so the palette is present on first paint. */
+
+:root {
+  --brand-red: #c2000b;
+  --brand-red-hover: #a80009;
+  --brand-bg: #f9fafb;
+  --brand-surface: #ffffff;
+  --brand-text: #111111;
+  --brand-text-muted: #565656;
+  --brand-border: #e5e7eb;
+
+  /* Semantic status colours. The amber is ROOD's own highlight yellow,
+   * darkened enough to carry text on a light ground. */
+  --brand-green: #1f7a3c;
+  --brand-amber: #a88a00;
+  --brand-neutral: #d1d5db;
+  --brand-blue: #2a6f97;
+
+  /* Low-emphasis "secondary" buttons: a wash of the brand red. */
+  --brand-red-soft: #fbdcde;
+  --brand-red-soft-border: #f5aeb2;
+  --brand-red-soft-hover: #f5aeb2;
+  --brand-red-soft-active: #ee7c82;
+  --brand-red-strong: #700006;
+
+  /* The privacy notice on every public form. */
+  --brand-notice-bg: #fffaeb;
+  --brand-notice-border: #f2e2b0;
+
+  /* Panel washes for the status surfaces. */
+  --brand-green-soft: #e9f6ee;
+  --brand-green-soft-border: #cfe7d8;
+  --brand-red-wash: #fdeeef;
+  --brand-amber-soft: #fff8e1;
+  --brand-amber-soft-border: #f4e3ab;
+  --brand-amber-strong: #7a5c00;
+  --brand-amber-wash: #fff4d1;
+  --brand-amber-text: #7a5c00;
+  --brand-recovered-bg: #fffaeb;
+  --brand-recovered-border: #ffd400;
+  --brand-recovered-text: #6b5310;
+  --brand-rank-silver: #9ca3af;
+  --brand-rank-bronze: #b8763a;
+  --brand-chat-bubble: #d9fdd3;
+  --brand-chat-text: #111111;
+
+  /* --- PrimeVue ramps ------------------------------------------- */
+  --brand-primary-50: #fdf2f3;
+  --brand-primary-100: #fbdcde;
+  --brand-primary-200: #f5aeb2;
+  --brand-primary-300: #ee7c82;
+  --brand-primary-400: #dd4652;
+  --brand-primary-500: #c2000b;
+  --brand-primary-600: #a80009;
+  --brand-primary-700: #8d0008;
+  --brand-primary-800: #700006;
+  --brand-primary-900: #520004;
+  --brand-primary-950: #340003;
+
+  --brand-surface-0: #ffffff;
+  --brand-surface-50: #f9fafb;
+  --brand-surface-100: #f3f4f6;
+  --brand-surface-200: #e5e7eb;
+  --brand-surface-300: #d1d5db;
+  --brand-surface-400: #9ca3af;
+  --brand-surface-500: #737373;
+  --brand-surface-600: #565656;
+  --brand-surface-700: #3f3f3f;
+  --brand-surface-800: #262626;
+  --brand-surface-900: #111111;
+  --brand-surface-950: #0a0a0a;
+}

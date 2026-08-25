@@ -30,7 +30,7 @@ import json
 import pathlib
 import re
 
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -245,21 +245,31 @@ class _BrandStatic(StaticFiles):
         return response
 
 
-def _serve_admin_shell(tenant_slug: str) -> HTMLResponse:
+def _nonce(request: Request) -> str:
+    """The per-response CSP nonce ``SecurityHeadersMiddleware`` minted
+    for this request. Every inline script a shell carries has to wear
+    it or the browser refuses to run it."""
+    return request.state.csp_nonce
+
+
+def _serve_admin_shell(tenant_slug: str, nonce: str, *, status_code: int = 200) -> HTMLResponse:
     """The organiser SPA shell, wearing the brand of the organisation
     whose slug opened the URL. Served for every path under a live
-    tenant so the client-side router can take over (including its own
-    404 page); the injected brand carries the slug, which is what the
-    router uses as its history base.
+    tenant so the client-side router can take over; the injected brand
+    carries the base the router mounts at.
+
+    Also serves the not-found page: a path no organisation owns gets
+    the same shell in the house brand with ``status_code=404``, so the
+    visitor sees the app's own 404 rather than a bare error string.
 
     ``index.html`` MUST NOT be browser-cached — see the note in
     ``_spa_fallback``."""
     rendered = (
         (_DIST / "index.html")
         .read_text(encoding="utf-8")
-        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug), 1)
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug, nonce), 1)
     )
-    return HTMLResponse(rendered, headers={"Cache-Control": "no-store"})
+    return HTMLResponse(rendered, status_code=status_code, headers={"Cache-Control": "no-store"})
 
 
 def _serve_public_app(
@@ -270,6 +280,7 @@ def _serve_public_app(
     payload: object | None,
     head_meta: str,
     brand_slug: str,
+    nonce: str,
 ) -> HTMLResponse:
     """Render one public mini-app shell with its payload inlined.
 
@@ -294,11 +305,11 @@ def _serve_public_app(
     organiser shell, uncached."""
     public_html_path = _DIST / html_name
     if not public_html_path.is_file():
-        return _serve_admin_shell(brand_slug)
-    inlined = f"<script>window.{window_var} = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
+        return _serve_admin_shell(brand_slug, nonce)
+    inlined = f'<script nonce="{nonce}">window.{window_var} = ' + json.dumps(payload, ensure_ascii=False) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
-        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_slug), 1)
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_slug, nonce), 1)
         .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
         .replace(payload_marker, inlined, 1)
     )
@@ -319,7 +330,7 @@ def _brand_slug_for(db: Session, entity: object | None) -> str:
     return tenant.slug if tenant is not None else brand_svc.HOUSE_BRAND
 
 
-def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
+def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
     occurrence = events_svc.get_occurrence_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
@@ -334,10 +345,11 @@ def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
         payload=payload,
         head_meta=_build_head_meta(occurrence, slug, brand_slug),
         brand_slug=brand_slug,
+        nonce=nonce,
     )
 
 
-def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
+def _serve_public_form(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown forms inline null; the mini-app shows the same
     # "no longer available" state it would on a 410.
     form = forms_svc.get_form_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
@@ -350,10 +362,11 @@ def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
         payload=payload,
         head_meta=_build_form_head_meta(form, slug, brand_slug),
         brand_slug=brand_slug,
+        nonce=nonce,
     )
 
 
-def _serve_public_datepoll(slug: str, db: Session) -> HTMLResponse:
+def _serve_public_datepoll(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown polls inline null, same as forms.
     poll = datepolls_svc.get_datepoll_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
@@ -365,10 +378,11 @@ def _serve_public_datepoll(slug: str, db: Session) -> HTMLResponse:
         payload=payload,
         head_meta=_build_datepoll_head_meta(poll, slug, brand_slug),
         brand_slug=brand_slug,
+        nonce=nonce,
     )
 
 
-def _serve_public_roster(slug: str, db: Session) -> HTMLResponse:
+def _serve_public_roster(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = chores_svc.get_roster_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
@@ -380,10 +394,11 @@ def _serve_public_roster(slug: str, db: Session) -> HTMLResponse:
         payload=payload,
         head_meta=_build_roster_head_meta(roster, slug, brand_slug),
         brand_slug=brand_slug,
+        nonce=nonce,
     )
 
 
-def _serve_public_chapter(slug: str, db: Session) -> HTMLResponse:
+def _serve_public_chapter(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Unknown/soft-deleted chapter slug inlines null; the mini-app shows a
     # "chapter not found" state, same tri-state as the other pages.
     chapter = chapters_svc.find_live_by_slug(db, slug)
@@ -396,6 +411,7 @@ def _serve_public_chapter(slug: str, db: Session) -> HTMLResponse:
         payload=payload,
         head_meta=_build_chapter_head_meta(chapter, slug, brand_slug),
         brand_slug=brand_slug,
+        nonce=nonce,
     )
 
 
@@ -411,27 +427,27 @@ def mount(app: FastAPI) -> None:
     app.mount("/assets", _ImmutableStatic(directory=_DIST / "assets"), name="assets")
 
     @app.get("/e/{ident}", include_in_schema=False)
-    def _public_event(ident: str, db: Session = Depends(get_db)) -> HTMLResponse:
+    def _public_event(ident: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         # The ``/e/`` namespace is shared: an 8-char event slug serves the
         # sign-up page; anything else is a chapter slug → the agenda.
         if is_event_slug(ident):
-            return _serve_public_event(ident, db)
-        return _serve_public_chapter(ident, db)
+            return _serve_public_event(ident, db, _nonce(request))
+        return _serve_public_chapter(ident, db, _nonce(request))
 
     @app.get("/f/{slug}", include_in_schema=False)
-    def _public_form(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_form(slug, db)
+    def _public_form(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_form(slug, db, _nonce(request))
 
     @app.get("/d/{slug}", include_in_schema=False)
-    def _public_datepoll(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_datepoll(slug, db)
+    def _public_datepoll(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_datepoll(slug, db, _nonce(request))
 
     @app.get("/c/{slug}", include_in_schema=False)
-    def _public_roster(slug: str, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_roster(slug, db)
+    def _public_roster(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_roster(slug, db, _nonce(request))
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    def _spa_fallback(full_path: str, db: Session = Depends(get_db)) -> Response:
+    def _spa_fallback(full_path: str, request: Request, db: Session = Depends(get_db)) -> Response:
         # ``StaticFiles`` already won the route for ``/assets/*`` and
         # ``/brand/*``, and the explicit public handlers above won for
         # the mini-apps. What's left is the organiser app, which lives
@@ -455,5 +471,10 @@ def mount(app: FastAPI) -> None:
         tenant_slug = full_path.split("/", 1)[0]
         tenant = tenants_svc.find_live_by_slug(db, tenant_slug) if tenant_slug else None
         if tenant is None:
-            raise HTTPException(status_code=404, detail="Not found")
-        return _serve_admin_shell(tenant.slug)
+            # No organisation owns this path, so the page belongs to
+            # none: the same shell in the house brand, whose router is
+            # based at ``/`` and therefore lands on the not-found page,
+            # served with a 404 so crawlers and monitors agree with what
+            # the visitor sees.
+            return _serve_admin_shell(brand_svc.HOUSE_BRAND, _nonce(request), status_code=404)
+        return _serve_admin_shell(tenant.slug, _nonce(request))

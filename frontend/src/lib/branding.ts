@@ -10,6 +10,10 @@
 
 export interface Brand {
   slug: string;
+  /** Where the organiser app is mounted — the router's history base.
+   * ``/{tenant}/`` for an organisation, ``/`` for the house brand,
+   * which only ever renders the not-found page. */
+  app_base: string;
   app_name: string;
   wordmark: string;
   org_name: string;

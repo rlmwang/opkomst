@@ -26,6 +26,7 @@ from sqlalchemy import text
 from backend.database import Base, engine
 from backend.models import Chapter, Event, Tenant, User
 from backend.services import tenancy
+from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
 
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
@@ -175,6 +176,57 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
     assert client.get(f"/api/v1/events/{their_event_id}/stats", headers=organiser_headers).status_code == 404
     listed = client.get("/api/v1/events", headers=organiser_headers).json()
     assert {e["id"] for e in listed} == {our_event_id}
+
+
+def test_user_management_is_per_organisation(client, admin_headers, db) -> None:
+    """People belong to one organisation. An admin sees their own
+    tenant's users and nobody else's, and cannot act on an outsider:
+    approving, promoting or deleting them is a 404, the same answer as
+    for a user that never existed."""
+    other = _second_tenant(db)
+    with tenancy.use(other.id, other.slug):
+        outsider = User(email="outsider@other.dev", name="Outsider", role="organiser", is_approved=False)
+        db.add(outsider)
+        db.commit()
+        db.refresh(outsider)
+        outsider_id = outsider.id
+
+    listed = client.get("/api/v1/admin/users", headers=admin_headers).json()
+    assert outsider_id not in {u["id"] for u in listed}
+    assert "outsider@other.dev" not in {u["email"] for u in listed}
+
+    # The pending count is the same projection, and must agree.
+    assert client.get("/api/v1/admin/users/pending-count", headers=admin_headers).json()["count"] == 0
+
+    for path in (
+        f"/api/v1/admin/users/{outsider_id}/approve",
+        f"/api/v1/admin/users/{outsider_id}/promote",
+    ):
+        response = client.post(path, headers=admin_headers, json={"chapter_ids": []})
+        assert response.status_code == 404, f"POST {path} returned {response.status_code}"
+    deleted = client.delete(f"/api/v1/admin/users/{outsider_id}", headers=admin_headers)
+    assert deleted.status_code == 404
+
+
+def test_another_tenants_row_cannot_be_written_even_when_it_is_loaded(client, organiser_headers, db) -> None:
+    """Defence in depth. The routers stop a cross-tenant request at the
+    query (the test above), but that is one layer. If a helper ever
+    fetches a row by id alone and hands it to an editor, the session
+    guard refuses the flush — seeing another organisation's row must
+    never become editing it."""
+    other = _second_tenant(db)
+    with tenancy.use(other.id, other.slug):
+        their_chapter = Chapter(name="Theirs", slug="theirs")
+        db.add(their_chapter)
+        db.commit()
+        db.refresh(their_chapter)
+
+    # Back in our own organisation, with their row in hand.
+    tenancy.bind(_TEST_TENANT_ID, "rsp")
+    their_chapter.name = "Ours now"
+    with pytest.raises(tenancy.CrossTenantWrite):
+        db.commit()
+    db.rollback()
 
 
 def test_a_write_without_a_tenant_raises_rather_than_guessing() -> None:

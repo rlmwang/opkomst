@@ -22,7 +22,7 @@ onMounted(async () => {
   }
   try {
     await auth.redeem(token);
-    void router.replace("/events");
+    void router.replace("/");
   } catch (e) {
     error.value =
       e instanceof ApiError && e.status === 410

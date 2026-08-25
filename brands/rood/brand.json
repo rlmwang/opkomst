@@ -1,0 +1,18 @@
+{
+  "app_name": "opkomst.nu",
+  "wordmark": "ROOD",
+  "org_name": "ROOD — Socialistische Jongeren",
+  "org_url": "https://roodjongeren.nl",
+  "logo": "logo.png",
+  "favicon": "favicon.png",
+  "apple_touch_icon": "apple-touch-icon.png",
+  "mail_from_name": "ROOD",
+  "palette": {
+    "bg": "#f9fafb",
+    "surface": "#ffffff",
+    "fg": "#111111",
+    "fg_muted": "#565656",
+    "accent": "#c2000b",
+    "border": "#e5e7eb"
+  }
+}

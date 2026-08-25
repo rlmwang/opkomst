@@ -31,7 +31,8 @@ test("editing a datepoll from its details page (warm cache) renders", async ({ r
 
   // Log the browser in (the app reads the JWT from localStorage).
   const ctx = await browser.newContext();
-  await ctx.addInitScript((t) => window.localStorage.setItem("token", t), token as string);
+  // The session key is per organisation — see ``api/client.ts``.
+  await ctx.addInitScript((t) => window.localStorage.setItem("token:rsp", t), token as string);
   const page = await ctx.newPage();
 
   // Load the details page first — this warms the useDatepoll cache.

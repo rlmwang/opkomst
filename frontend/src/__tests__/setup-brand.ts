@@ -15,6 +15,7 @@ import brandManifest from "../../../brands/rsp/brand.json";
 
 window.__OPKOMST_BRAND__ = {
   slug: "rsp",
+  app_base: "/rsp/",
   app_name: brandManifest.app_name,
   wordmark: brandManifest.wordmark,
   org_name: brandManifest.org_name,

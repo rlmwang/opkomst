@@ -46,6 +46,14 @@
     "removeFailed": "Verwijderen mislukt",
     "credit": "Ontwerp:"
   },
+  "home": {
+    "lede": "Waar wil je aan werken?",
+    "eventsHint": "Bijeenkomsten met aanmeldingen",
+    "formsHint": "Vragenlijsten en peilingen",
+    "datepollsHint": "Prik een datum met de groep",
+    "choresHint": "Terugkerende taken verdelen",
+    "adminHint": "Gebruikers en afdelingen"
+  },
   "header": {
     "events": "Evenementen",
     "forms": "Vragenlijsten",

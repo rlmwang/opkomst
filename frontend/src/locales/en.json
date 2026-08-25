@@ -46,6 +46,14 @@
     "removeFailed": "Remove failed",
     "credit": "Design:"
   },
+  "home": {
+    "lede": "What are you working on?",
+    "eventsHint": "Gatherings with sign-ups",
+    "formsHint": "Questionnaires and polls",
+    "datepollsHint": "Pick a date with the group",
+    "choresHint": "Share out recurring tasks",
+    "adminHint": "Users and chapters"
+  },
   "header": {
     "events": "Events",
     "forms": "Forms",

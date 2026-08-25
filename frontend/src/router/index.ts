@@ -3,7 +3,9 @@ import { brand } from "@/lib/branding";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
-  { path: "/", redirect: "/events" },
+  // The organisation's landing page: one tile per workspace, plus the
+  // organisation-management pages. The wordmark points here.
+  { path: "/", component: () => import("@/pages/HomePage.vue"), meta: { requiresAuth: true } },
   { path: "/login", component: () => import("@/pages/LoginPage.vue") },
   { path: "/register/complete", component: () => import("@/pages/RegisterCompletePage.vue") },
   { path: "/auth/redeem", component: () => import("@/pages/RedeemPage.vue") },
@@ -62,11 +64,13 @@ const routes = [
 
 // The organiser app is served under its organisation's slug
 // (``opkomst.nu/rsp/events``), so every route above is relative to that
-// base. The slug comes from the brand the server injected into the page
-// head — the app never parses it out of the URL, so a mismatch between
-// what the page is wearing and what it routes to is impossible.
+// base. It comes from the brand the server injected into the page head —
+// the app never parses it out of the URL, so a mismatch between what the
+// page is wearing and what it routes to is impossible. A page served in
+// the house brand belongs to no organisation and is based at ``/``, so
+// whatever path the visitor typed falls through to the not-found route.
 const router = createRouter({
-  history: createWebHistory(`/${brand().slug}/`),
+  history: createWebHistory(brand().app_base),
   routes,
 });
 

@@ -64,6 +64,11 @@ def payload(slug: str) -> dict[str, Any]:
     favicon = asset_url(slug, m["favicon"]) if m["favicon"] else None
     return {
         "slug": slug,
+        # Where the organiser app is mounted, and therefore the router's
+        # history base. A tenant's app lives under its slug; the house
+        # brand belongs to no tenant, so its only page is the 404 at
+        # whatever path the visitor typed.
+        "app_base": "/" if slug == HOUSE_BRAND else f"/{slug}/",
         # The six colours in literal form. ``tokens.css`` is the palette
         # for anything that can read a custom property; these are for the
         # two places that can't — the first-paint spinner, which renders
@@ -82,7 +87,7 @@ def payload(slug: str) -> dict[str, Any]:
     }
 
 
-def head(slug: str) -> str:
+def head(slug: str, nonce: str) -> str:
     """Everything a shell's ``<head>`` needs to wear the brand, in the
     order it is needed: the first-paint colours inline, the palette
     stylesheet and icons as links, and the manifest on ``window`` for
@@ -94,7 +99,12 @@ def head(slug: str) -> str:
 
     Substituted into ``<!-- OPKOMST_BRAND_INJECTION -->``; the Vite dev
     server does the same substitution (see ``vite.config.ts``) so dev and
-    prod render the same head."""
+    prod render the same head.
+
+    ``nonce`` is the per-response CSP nonce minted by
+    ``SecurityHeadersMiddleware``: the policy is ``script-src 'self'``,
+    so without it the browser refuses to run the one inline block the
+    page cannot start without."""
     m = manifest(slug)
     boot = m["palette"]
     inline_boot = (
@@ -115,5 +125,5 @@ def head(slug: str) -> str:
         lines.append(f'<link rel="icon" type="image/png" sizes="192x192" href="{asset_url(slug, m["favicon"])}">')
     if m["apple_touch_icon"]:
         lines.append(f'<link rel="apple-touch-icon" sizes="180x180" href="{asset_url(slug, m["apple_touch_icon"])}">')
-    lines.append(f"<script>window.__OPKOMST_BRAND__ = {brand_json};</script>")
+    lines.append(f'<script nonce="{nonce}">window.__OPKOMST_BRAND__ = {brand_json};</script>')
     return "\n    ".join(lines)
