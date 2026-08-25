@@ -1,0 +1,23 @@
+{# What the root's start form sends: the thing that was just made, the
+   account it belongs to, and the way back into it.
+
+   The account line is the disclosure that matters. Anyone can type an
+   address into the start form, so this mail is how the owner of the
+   address finds out something landed in their account. It names what
+   was made and where; it never names another account.
+
+   The words for each kind live here rather than in the router: which
+   noun to use is a translation, and this file is the Dutch one. #}
+{% extends "base.html" %}
+{% set nouns = {"event": "evenement", "form": "vragenlijst", "datepoll": "datumprikker", "roster": "takenrooster"} %}
+{% set noun = nouns[kind] %}
+{% set subject = noun | capitalize + " aangemaakt: " + name %}
+{% block content %}
+<p>Hoi,</p>
+<p>Er is zojuist een {{ noun }} <strong>{{ name }}</strong> aangemaakt op het account <strong>{{ account }}</strong>.</p>
+<p>De openbare pagina staat hier. Deel deze link met wie mee moet doen:</p>
+<p><a href="{{ public_url }}">{{ public_url }}</a></p>
+<a href="{{ login_url }}" class="cta">Naar je account</a>
+<p class="muted">Deze inloglink werkt één keer en verloopt na 30 minuten. Daarna vraag je op {{ public_base_url }} gewoon een nieuwe aan met dit adres. Heb je dit niet zelf gedaan? Dan heeft iemand jouw adres ingevuld; je hoeft niets te doen, en met de knop hierboven zie je wat er in je account staat.</p>
+{% endblock %}
+{% block footer %}{{ account }} · {{ app_name }}{% endblock %}

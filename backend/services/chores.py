@@ -56,7 +56,7 @@ def get_roster_by_slug_any(db: Session, slug: str) -> Roster | None:
     roster = db.query(Roster).filter(Roster.slug == slug).first()
     if roster is None or roster.archived_at is not None:
         return None
-    tenancy.bind(roster.tenant_id, roster.tenant.slug)
+    tenancy.bind(roster.tenant_id, roster.tenant.brand_slug)
     return roster
 
 

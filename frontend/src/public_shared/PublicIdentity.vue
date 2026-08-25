@@ -34,7 +34,7 @@ const b = brand();
       :href="b.org_url"
       target="_blank"
       rel="noopener"
-      :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
+      :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     ><img :src="b.logo_url" alt="" /></a>
     <div class="identity__text">
       <span v-if="eyebrow" class="identity__eyebrow">{{ eyebrow }}</span>

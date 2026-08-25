@@ -369,7 +369,7 @@ def run_tick(db: Session, today: date) -> tuple[int, int]:
     for roster in rosters:
         # The sweep crosses every organisation, so each roster's own
         # tenant is bound for the shifts and events it creates.
-        with tenancy.use(roster.tenant_id, roster.tenant.slug):
+        with tenancy.use(roster.tenant_id, roster.tenant.brand_slug):
             created += _tick_roster(db, roster, today)
     db.commit()
     return len(rosters), created

@@ -56,9 +56,11 @@ import secrets
 import smtplib
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import dataclass, field
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlencode
@@ -75,7 +77,22 @@ logger = structlog.get_logger()
 
 
 def get_from_address() -> str:
+    """The envelope address every mail is sent from. One mailbox for the
+    whole app; whose mail it is shows in the display name, not here."""
     return os.environ.get("SMTP_FROM", "noreply@opkomst.nu")
+
+
+def from_header() -> str:
+    """``From:`` for the account this send belongs to: its brand's
+    ``mail_from_name`` in front of the one envelope address, so a reader
+    holding two accounts can tell in the inbox list which one wrote.
+    Falls back to the house brand when nothing is bound."""
+    from .brand import HOUSE_BRAND, payload
+    from .tenancy import current_or_none
+
+    bound = current_or_none()
+    name = payload(bound.brand if bound is not None else HOUSE_BRAND)["mail_from_name"]
+    return formataddr((name, get_from_address()))
 
 
 def email_batch_size() -> int:
@@ -152,11 +169,11 @@ def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LO
     from .tenancy import current_or_none
 
     resolved_locale = locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
-    # The mail wears the brand of the organisation the send belongs to —
-    # the tenant bound by the request or the sweep. Nothing bound means
-    # nothing organisation-specific to wear.
+    # The mail wears the brand of the account the send belongs to: the
+    # tenant bound by the request or the sweep. Nothing bound means
+    # nothing account-specific to wear.
     bound = current_or_none()
-    brand = payload(bound.slug if bound is not None else HOUSE_BRAND)
+    brand = payload(bound.brand if bound is not None else HOUSE_BRAND)
     context = {
         **context,
         "locale": resolved_locale,
@@ -412,14 +429,20 @@ def uninstall_fake_backend() -> None:
 def send_email(to: str, template_name: str, context: dict[str, Any], locale: str = "nl") -> None:
     """Fire-and-forget on the bounded executor. Never raises,
     never blocks. Used by request handlers (magic-link emails,
-    etc.) where we don't need to know whether SMTP succeeded."""
-    get_executor().submit(_send_swallow, to, template_name, context, locale)
+    etc.) where we don't need to know whether SMTP succeeded.
+
+    The caller's context is copied onto the worker. Without that the
+    thread starts with an empty one, the bound tenant is invisible to
+    ``render``, and every one of these mails would go out wearing the
+    house brand instead of the account's."""
+    ctx = copy_context()
+    get_executor().submit(ctx.run, _send_swallow, to, template_name, context, locale)
 
 
 def _send_swallow(to: str, template_name: str, context: dict[str, Any], locale: str) -> None:
     try:
         subject, html_body = render(template_name, context, locale=locale)
-        get_backend().send(to, subject, html_body, get_from_address())
+        get_backend().send(to, subject, html_body, from_header())
         logger.info("email_sent", to=to, subject=subject, template=template_name, locale=locale)
     except Exception:
         logger.exception("email_send_failed", to=to, template=template_name, locale=locale)
@@ -437,7 +460,7 @@ def send_email_sync(
     send succeeded so it can decide whether to drop the feedback
     token."""
     subject, html_body = render(template_name, context, locale=locale)
-    get_backend().send(to, subject, html_body, get_from_address(), message_id=message_id)
+    get_backend().send(to, subject, html_body, from_header(), message_id=message_id)
     logger.info(
         "email_sent",
         to=to,

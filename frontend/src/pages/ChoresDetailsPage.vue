@@ -20,8 +20,12 @@ import { useChoresClipboard } from "@/composables/useChoresClipboard";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { formatDate } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ rosterId: string }>();
+// A personal account holds a bounded number of volunteers per roster;
+// an organisation has no ceiling, so the pill shows the bare count.
+const auth = useAuthStore();
 
 const { t, locale } = useI18n();
 const lt = useLocalizedText();
@@ -199,6 +203,7 @@ function dateWindow(): string {
           <RecoverLinksPill
             v-if="volunteerCount && roster"
             :count="volunteerCount"
+            :cap="auth.user?.participant_cap ?? null"
             :label="t('chores.details.volunteersLabel')"
             :load-rows="recoverRows"
             :recover-path="(id: string) => `/api/v1/chores/${props.rosterId}/volunteers/${id}/edit-link`"

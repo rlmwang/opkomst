@@ -28,11 +28,10 @@ from ..schemas.datepolls import (
     DatepollSummaryOut,
     DatepollUpdate,
 )
-from ..services import access, crud, edit_token
+from ..services import access, crud, edit_token, entities, limits
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
-from ..services.slug import new_slug
 
 logger = structlog.get_logger()
 
@@ -51,27 +50,10 @@ def create_datepoll(
     poll can be saved and slots added on the edit page. The
     caller-supplied ``chapter_id`` must be in the user's set."""
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
-    poll = Datepoll(
-        slug=new_slug(),
-        name_nl=data.name_nl,
-        name_en=data.name_en,
-        description_nl=data.description_nl,
-        description_en=data.description_en,
-        location=data.location,
-        latitude=data.latitude,
-        longitude=data.longitude,
-        image_artist_instagram=data.image_artist_instagram,
-        locale=data.locale,
-        chapter_id=data.chapter_id,
-        created_by=user.id,
-    )
-    db.add(poll)
-    db.flush()  # Need poll.id for the slot rows below.
-    if data.slots:
-        datepolls_svc.apply_slots(db, poll.id, data.slots)
+    limits.assert_can_add_entity(db, user.tenant, "datepoll")
+    poll = entities.create_datepoll(db, data, user)
     db.commit()
     db.refresh(poll)
-    logger.info("datepoll_created", datepoll_id=poll.id, actor_id=user.id, chapter_id=data.chapter_id)
     return datepolls_svc.to_out(db, poll)
 
 
@@ -83,7 +65,7 @@ def list_datepolls(
 ) -> list[DatepollListOut]:
     rows = (
         db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll.chapter_id, chapter_id), Datepoll.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_(None))
         .order_by(Datepoll.created_at.desc())
         .all()
     )
@@ -98,7 +80,7 @@ def list_archived_datepolls(
 ) -> list[DatepollListOut]:
     rows = (
         db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll.chapter_id, chapter_id), Datepoll.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_not(None))
         .order_by(Datepoll.archived_at.desc())
         .all()
     )

@@ -19,6 +19,8 @@ function user(over: Partial<User> = {}): User {
     is_approved: true,
     chapters: [],
     created_at: "2026-01-01T00:00:00Z",
+    tenant_kind: "organisation",
+    participant_cap: null,
     ...over,
   };
 }
@@ -92,6 +94,15 @@ describe("permissions.can", () => {
 
   it("self-service requires a target — throws on null", () => {
     expect(() => can(ORGANISER, "rename_user", null)).toThrowError(/target/);
+  });
+
+  it("a personal account can do none of it", () => {
+    const personal = user({ id: "solo", role: "admin", tenant_kind: "personal" });
+    expect(can(personal, "list_users")).toBe(false);
+    expect(can(personal, "approve_user", OTHER)).toBe(false);
+    expect(can(personal, "create_chapter")).toBe(false);
+    // Ahead of the self-service branch, so no missing-target throw.
+    expect(can(personal, "rename_user", null)).toBe(false);
   });
 
   it("self check is by id, not object identity", () => {

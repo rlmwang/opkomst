@@ -29,6 +29,7 @@ import { barWidth, formatDate, formatDateTime, formatTimeRange } from "@/lib/for
 import { mapLink } from "@/lib/map-link";
 import { recurrenceHint } from "@/lib/recurrence";
 import { useToasts } from "@/lib/toasts";
+import { useAuthStore } from "@/stores/auth";
 import {
   type EmailChannel,
   fetchFeedbackSubmissions,
@@ -42,6 +43,9 @@ const lt = useLocalizedText();
 const toasts = useToasts();
 const { copyLink, copyQr } = useEventClipboard();
 
+// A personal account's event holds a bounded number of people; an
+// organisation's has no ceiling, so there is no number to show.
+const auth = useAuthStore();
 const eventsQuery = useEventList();
 const events = eventList(eventsQuery);
 const event = computed(() => events.value.find((e) => e.id === props.eventId) ?? null);
@@ -312,14 +316,22 @@ function askTriggerNow(channel: EmailChannel) {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("event.signupsHeading") }}</h2>
-          <RecoverLinksPill
-            v-if="selectedOccurrence"
-            :count="selectedOccurrence.attendee_count"
-            :label="t('event.totalAttendees')"
-            :load-rows="recoverRows"
-            :recover-path="(id: string) => `/api/v1/events/${props.eventId}/registrations/${id}/edit-link`"
-            :public-url="(tok: string) => `${publicEventUrl(selectedOccurrence!.slug)}?s=${tok}`"
-          />
+          <div class="header-actions">
+            <!-- The pill counts the selected session; the ceiling is on
+                 the event as a whole, so it is stated separately rather
+                 than folded into a number it doesn't bound. -->
+            <span v-if="auth.user?.participant_cap != null && event" class="muted">
+              {{ t("event.capUsage", { n: event.attendee_count, cap: auth.user.participant_cap }) }}
+            </span>
+            <RecoverLinksPill
+              v-if="selectedOccurrence"
+              :count="selectedOccurrence.attendee_count"
+              :label="t('event.totalAttendees')"
+              :load-rows="recoverRows"
+              :recover-path="(id: string) => `/api/v1/events/${props.eventId}/registrations/${id}/edit-link`"
+              :public-url="(tok: string) => `${publicEventUrl(selectedOccurrence!.slug)}?s=${tok}`"
+            />
+          </div>
         </div>
 
         <AppSkeleton v-if="!occurrenceList" :rows="3" />

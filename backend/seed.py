@@ -149,9 +149,9 @@ def run_local_demo() -> None:
         # into ROOD. The CLI reconciles the table before any subcommand
         # runs, so the row is already there.
         first_slug = tenants_list()[0][0]
-        tenant = tenants_svc.find_live_by_slug(db, first_slug)
+        tenant = tenants_svc.find_live_organisation_by_slug(db, first_slug)
         assert tenant is not None, f"TENANTS names {first_slug!r} but the reconcile didn't create it"
-        tenancy.bind(tenant.id, tenant.slug)
+        tenancy.bind(tenant.id, tenant.brand_slug)
 
         admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", role="admin")
         organiser = _ensure_user(

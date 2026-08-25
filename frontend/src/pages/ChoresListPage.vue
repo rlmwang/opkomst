@@ -39,9 +39,6 @@ const rostersQuery = useRosterList({
 const rosters = rosterList(rostersQuery);
 const archiveMutation = useArchiveRoster();
 
-const noChapters = computed(
-  () => auth.isApproved && (auth.user?.chapters?.length ?? 0) === 0,
-);
 
 watch(rostersQuery.isError, (isError) => {
   if (isError) toasts.error(t("chores.list.loadFailed"));
@@ -92,19 +89,7 @@ function askArchive(r: RosterListOut) {
 </script>
 
 <template>
-  <template v-if="!auth.isApproved">
-    <AppHeader />
-    <div class="container stack">
-      <h1>{{ t("chores.list.title") }}</h1>
-      <p class="muted">{{ t("chores.list.intro") }}</p>
-      <AppCard>
-        <h2>{{ t("dashboard.pendingTitle") }}</h2>
-        <p>{{ t("dashboard.pendingBody") }}</p>
-      </AppCard>
-    </div>
-  </template>
-
-  <template v-else-if="noChapters">
+  <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container stack">
       <h1>{{ t("chores.list.title") }}</h1>

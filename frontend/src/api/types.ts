@@ -27,6 +27,13 @@ export type ApproveUserRequest = S["ApproveUserRequest"];
 export type SetUserChaptersRequest = S["SetUserChaptersRequest"];
 export type ChapterRef = S["ChapterRef"];
 
+// --- Starting something without an account ---
+export type StartEvent = S["StartEvent"];
+export type StartForm = S["StartForm"];
+export type StartDatepoll = S["StartDatepoll"];
+export type StartRoster = S["StartRoster"];
+export type Started = S["StartedOut"];
+
 // --- Chapters ---
 export type Chapter = S["ChapterOut"];
 export type ChapterCreate = S["ChapterCreate"];

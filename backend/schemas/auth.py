@@ -12,12 +12,17 @@ class LoginLinkRequest(BaseModel):
     same response shape either way so the API can't be probed for
     account existence.
 
-    ``tenant`` is the organisation's slug — the first segment of the
-    URL the sign-in page is served from. The door is per tenant: the
-    same address can organise for two of them, as two accounts."""
+    ``tenant`` is the organisation's slug — the first segment of the URL
+    the sign-in page is served from. The door is per tenant: the same
+    address can organise for two of them, as two accounts.
+
+    ``None`` is the root's door, where an address *is* the account: no
+    organisation, no approval, and no registration step — an address the
+    app hasn't seen gets a personal account and a sign-in link in the
+    same response as one it has."""
 
     email: LowercaseEmail
-    tenant: str
+    tenant: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -53,6 +58,15 @@ class UserOut(BaseModel):
     name: str
     role: str
     is_approved: bool
+    # ``organisation`` or ``personal`` — what the account *is*, which is
+    # what decides whether the app shows admin pages, chapters and the
+    # WhatsApp tool at all.
+    tenant_kind: str
+    # People one event / form / datepoll / roster of this account may
+    # hold, or ``null`` when there is no ceiling. The organiser sees
+    # their count against it on the detail pages; an organisation has
+    # none, so the number simply isn't there to show.
+    participant_cap: int | None
     # Live chapters the user belongs to, sorted by name. Soft-deleted
     # chapters are filtered out at the DTO layer so a user re-acquires
     # them automatically when an admin restores the chapter.

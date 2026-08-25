@@ -280,8 +280,10 @@ async function enrol(): Promise<void> {
     // refresh reopens the edit page (guaranteed by useEditLink).
     confirmSaved(ack.edit_token);
     status.value = "enrolled";
-  } catch {
-    errorMsg.value = ch.value.actionFailed;
+  } catch (e) {
+    // 409 is the roster having no places left, which the visitor can
+    // understand; everything else is a failure to act.
+    errorMsg.value = e instanceof ApiError && e.status === 409 ? c.value.full : ch.value.actionFailed;
   } finally {
     busy.value = false;
   }

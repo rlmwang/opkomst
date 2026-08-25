@@ -33,6 +33,8 @@ const adminUser = {
   is_approved: true,
   chapters: [],
   created_at: "2026-01-01T00:00:00Z",
+  tenant_kind: "organisation",
+  participant_cap: null,
 };
 
 beforeEach(() => {

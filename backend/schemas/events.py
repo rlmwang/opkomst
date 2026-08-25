@@ -17,7 +17,12 @@ class EventCreate(BilingualTitleMixin):
     # Chapter that owns the event. Validated in the router against the
     # caller's membership set; the UI dropdown is already scoped to the
     # user's live chapters so this is a defence-in-depth check.
-    chapter_id: str
+    #
+    # ``None`` for a personal account, which has no chapters. Which of
+    # the two is required is the actor's tenant's business, decided in
+    # ``access.assert_user_can_assign_chapter`` — the schema can't know
+    # who is posting.
+    chapter_id: str | None = None
     topic_nl: RichText
     topic_en: RichText
     location: str = Field(min_length=1, max_length=200)

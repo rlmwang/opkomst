@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
 import { getToken } from "@/api/client";
-import { brand } from "@/lib/branding";
+import { brand, isPersonalApp } from "@/lib/branding";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
@@ -12,36 +12,49 @@ const routes = [
   { path: "/login", component: () => import("@/pages/LoginPage.vue") },
   { path: "/register/complete", component: () => import("@/pages/RegisterCompletePage.vue") },
   { path: "/auth/redeem", component: () => import("@/pages/RedeemPage.vue") },
-  { path: "/events", component: () => import("@/pages/DashboardPage.vue"), meta: { requiresAuth: true } },
-  { path: "/users", component: () => import("@/pages/UsersPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/chapters", component: () => import("@/pages/ChaptersPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/events/new", component: () => import("@/pages/EventFormPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  // Every workspace requires an approved account. An account still
+  // waiting on an admin has nothing to do in any of them, and being
+  // shown four doors that all open onto "you are not approved yet" is
+  // worse than being told once, on the landing page.
+  { path: "/events", component: () => import("@/pages/DashboardPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  // ``requiresOrganisation``: these act on an organisation's people and
+  // its chapters, and a personal account has neither. The API 404s them
+  // for such an account; the guard keeps a typed URL from getting there
+  // and finding a page full of errors.
+  { path: "/users", component: () => import("@/pages/UsersPage.vue"), meta: { requiresAuth: true, requiresApproved: true, requiresOrganisation: true } },
+  { path: "/chapters", component: () => import("@/pages/ChaptersPage.vue"), meta: { requiresAuth: true, requiresApproved: true, requiresOrganisation: true } },
+  // ``startable``: at the root these four are also the signed-out
+  // front door — a tile on the landing page opens the create form
+  // itself, and the address is a field in it rather than a wall in
+  // front of it. Under an organisation's slug the flag does nothing,
+  // because there the visitor is somebody's organiser or nobody.
+  { path: "/events/new", component: () => import("@/pages/EventFormPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
   { path: "/events/:eventId/edit", component: () => import("@/pages/EventFormPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/events/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true } },
+  { path: "/events/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/events/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   // Forms — standalone questionnaires (no relation to Events).
   // Same chapter-scoped four-page experience: active list /
   // archived list / details / edit. The public fill-out lives
   // at /f/:slug and is unauthenticated.
-  { path: "/forms", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/forms", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/forms/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
   { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // Datepolls — dates-only availability polls (no relation to
   // Events/Forms). Same chapter-scoped four-page experience; the
   // public fill-out lives at /d/:slug and is unauthenticated
   // (served by the backend mini-app, not this router).
-  { path: "/datepolls", component: () => import("@/pages/DatepollListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/datepolls", component: () => import("@/pages/DatepollListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/archived", component: () => import("@/pages/ArchivedDatepollsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
   { path: "/datepolls/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/datepolls/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // Chores (Dutch: takenroosters) — recurring-chore rosters. ``/c/:slug`` public
   // enrol page is a separate backend mini-app (task 07), not here.
-  { path: "/chores", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true } },
+  { path: "/chores", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/chores/archived", component: () => import("@/pages/ArchivedChoresPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/chores/new", component: () => import("@/pages/ChoresEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chores/new", component: () => import("@/pages/ChoresEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
   { path: "/chores/:rosterId/edit", component: () => import("@/pages/ChoresEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/chores/:rosterId/details", component: () => import("@/pages/ChoresDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // ``/f/:slug`` is NOT in the admin SPA router — it's served by
@@ -61,7 +74,7 @@ const routes = [
   // ``requiresWhatsApp`` redirects to /events when the EVOLUTION_*
   // env vars aren't all set on the server, so direct URL pokes
   // don't surface a non-functional page.
-  { path: "/admin/whatsapp", component: () => import("@/pages/AdminWhatsAppPage.vue"), meta: { requiresAuth: true, requiresAdmin: true, requiresWhatsApp: true } },
+  { path: "/admin/whatsapp", component: () => import("@/pages/AdminWhatsAppPage.vue"), meta: { requiresAuth: true, requiresAdmin: true, requiresWhatsApp: true, requiresOrganisation: true } },
   { path: "/:pathMatch(.*)*", component: () => import("@/pages/NotFoundPage.vue") },
 ];
 
@@ -92,9 +105,18 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   // round-trip — visitors still pay nothing.
   if ((needsAuth || getToken()) && !auth.loaded) await auth.fetchMe();
 
+  // The root's front door: no session, and the route is one of the
+  // four create forms. The page posts to ``/api/v1/start/…`` instead
+  // of the organiser endpoint and asks for an address on the way out,
+  // so there is nothing here to send the visitor to /login for.
+  if (isPersonalApp() && to.meta.startable && !auth.isAuthenticated) return true;
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/login", query: { next: to.fullPath } };
+  if (to.meta.requiresOrganisation && auth.isPersonal) return { path: "/events" };
   if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/events" };
-  if (to.meta.requiresApproved && !auth.isApproved) return { path: "/events" };
+  // Not to /events: that is itself approval-gated now, and the landing
+  // page is where an account waiting on an admin is told so.
+  if (to.meta.requiresApproved && !auth.isApproved) return { path: "/" };
   if (to.meta.requiresWhatsApp && !auth.whatsappAvailable) return { path: "/events" };
   return true;
 });

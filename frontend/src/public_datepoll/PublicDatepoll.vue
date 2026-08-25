@@ -219,7 +219,9 @@ async function submit(): Promise<void> {
     if (e instanceof ApiError && e.status === 410) {
       status.value = "unavailable";
     } else {
-      errorMsg.value = c.value.submitFail;
+      // 409 is the poll having no places left, which the visitor can
+      // understand; everything else is a failure to submit.
+      errorMsg.value = e instanceof ApiError && e.status === 409 ? c.value.full : c.value.submitFail;
     }
   } finally {
     submitting.value = false;

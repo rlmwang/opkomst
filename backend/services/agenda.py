@@ -62,6 +62,12 @@ def build_agenda(db: Session, chapter: Chapter) -> ChapterAgendaOut:
         .options(joinedload(Occurrence.event))
         .join(Event, Event.id == Occurrence.event_id)
         .filter(
+            # The tenant, not only the chapter. ``chapter_id`` is a bare
+            # FK: a row in another tenant that carries this chapter's id
+            # would otherwise be published on this organisation's public
+            # agenda. The write paths refuse to create one; the read
+            # refuses to show one.
+            Event.tenant_id == chapter.tenant_id,
             Event.chapter_id == chapter.id,
             Event.archived_at.is_(None),
             Event.listed.is_(True),

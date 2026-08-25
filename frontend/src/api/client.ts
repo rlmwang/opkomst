@@ -1,4 +1,4 @@
-import { brand } from "@/lib/branding";
+import { brand, isPersonalApp } from "@/lib/branding";
 
 // The session is per organisation, not per browser. localStorage is
 // shared by everything on the origin, so a single ``token`` key meant
@@ -8,7 +8,11 @@ import { brand } from "@/lib/branding";
 // across — but the page and the session disagreed, which is its own
 // bug. Keying by tenant makes them agree, and lets someone hold two
 // sessions in two tabs.
-const TOKEN_KEY = `token:${brand().slug}`;
+// The root's key is ``token:personal``, not the house brand's slug: the
+// key names the app you are signed in to, and every personal account
+// shares one app. An organisation session and a personal one can then
+// sit in two tabs without either standing in for the other.
+const TOKEN_KEY = isPersonalApp() ? "token:personal" : `token:${brand().slug}`;
 
 let _token: string | null = localStorage.getItem(TOKEN_KEY);
 

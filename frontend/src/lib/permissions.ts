@@ -43,6 +43,11 @@ const ANY_APPROVED = new Set<Action>(["list_users"]);
 export function can(actor: User | null, action: Action, target?: User | null): boolean {
   if (!actor || !actor.is_approved) return false;
 
+  // Every action here is about other people or about chapters, and a
+  // personal account has one person and no chapters. The backend says
+  // the same thing one step earlier: those routes 404 for it.
+  if (actor.tenant_kind === "personal") return false;
+
   const isAdmin = actor.role === "admin";
   const isSelf = target != null && target.id === actor.id;
 

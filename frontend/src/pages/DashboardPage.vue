@@ -73,10 +73,13 @@ const chapterOptions = computed(() => auth.user?.chapters ?? []);
 // chapter memberships. We let them pick chapters inline and
 // commit via /set-chapters; on success the auth store refetches
 // so the banner disappears and the events list lights up.
-const noChapters = computed(
-  () => auth.isApproved && (auth.user?.chapters?.length ?? 0) === 0,
-);
-const allChaptersQuery = useChapters({ includeArchived: false });
+// Only the onboarding banner reads this, so it is fetched only when
+// the banner is up. A personal account never has chapters and the
+// endpoint 404s for it.
+const allChaptersQuery = useChapters({
+  includeArchived: false,
+  enabled: computed(() => auth.needsChapters),
+});
 const allChapters = chapterList(allChaptersQuery);
 const onboardingPicks = ref<Chapter[]>([]);
 const setChaptersMutation = useSetUserChapters();
@@ -178,19 +181,7 @@ function askArchive(e: EventOut) {
        because the shell unconditionally renders the
        actions-row + list, which neither state has any business
        showing. -->
-  <template v-if="!auth.isApproved">
-    <AppHeader />
-    <div class="container stack">
-      <h1>{{ t("dashboard.title") }}</h1>
-      <p class="muted">{{ t("dashboard.intro") }}</p>
-      <AppCard>
-        <h2>{{ t("dashboard.pendingTitle") }}</h2>
-        <p>{{ t("dashboard.pendingBody") }}</p>
-      </AppCard>
-    </div>
-  </template>
-
-  <template v-else-if="noChapters">
+  <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container stack">
       <h1>{{ t("dashboard.title") }}</h1>

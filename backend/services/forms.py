@@ -58,7 +58,7 @@ def get_form_by_slug_any(db: Session, slug: str) -> Form | None:
     form = db.query(Form).filter(Form.slug == slug).first()
     if form is None or form.archived_at is not None:
         return None
-    tenancy.bind(form.tenant_id, form.tenant.slug)
+    tenancy.bind(form.tenant_id, form.tenant.brand_slug)
     return form
 
 

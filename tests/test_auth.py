@@ -559,7 +559,10 @@ def test_jwt_round_trip_uses_pyjwt(client, organiser_headers, tenant_id):
     # The tenant travels in the token: it is what binds the request to
     # one organisation, before any route or query runs.
     assert decoded["tenant"] == tenant_id
-    assert decoded["tenant_slug"] == "rsp"
+    # The brand folder, not the slug: they are the same for an
+    # organisation and differ for a personal account, and the binding is
+    # only ever read for the brand.
+    assert decoded["tenant_brand"] == "rsp"
     assert "iat" in decoded
     assert "exp" in decoded
     header = pyjwt.get_unverified_header(token)

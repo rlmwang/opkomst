@@ -36,11 +36,9 @@ const formsQuery = useFormList({
 const forms = formList(formsQuery);
 const archiveMutation = useArchiveForm();
 
-// Pending approval + no-chapters short-circuits — mirror Dashboard
-// exactly: neither state has any business showing the list shell.
-const noChapters = computed(
-  () => auth.isApproved && (auth.user?.chapters?.length ?? 0) === 0,
-);
+// Pending approval and no-chapters short-circuits: neither state has
+// any business showing the list shell. ``auth.needsChapters`` is the
+// one definition of the second, shared with every other list page.
 
 watch(formsQuery.isError, (isError) => {
   if (isError) toasts.error(t("forms.list.loadFailed"));
@@ -93,19 +91,7 @@ function askArchive(f: FormListOut) {
 <template>
   <!-- Same pre-list short-circuits as Dashboard: render the
        banner state inline rather than around the shell. -->
-  <template v-if="!auth.isApproved">
-    <AppHeader />
-    <div class="container stack">
-      <h1>{{ t("forms.list.title") }}</h1>
-      <p class="muted">{{ t("forms.list.intro") }}</p>
-      <AppCard>
-        <h2>{{ t("dashboard.pendingTitle") }}</h2>
-        <p>{{ t("dashboard.pendingBody") }}</p>
-      </AppCard>
-    </div>
-  </template>
-
-  <template v-else-if="noChapters">
+  <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container stack">
       <h1>{{ t("forms.list.title") }}</h1>

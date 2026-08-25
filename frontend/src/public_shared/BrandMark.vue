@@ -27,7 +27,7 @@ const b = brand();
     target="_blank"
     rel="noopener"
     class="brand-mark public-link"
-    :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
+    :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
   >
     <img v-if="b.logo_url" :src="b.logo_url" alt="" class="party-logo" />
     <span class="wordmark">{{ b.wordmark }}</span>
@@ -38,7 +38,7 @@ const b = brand();
       target="_blank"
       rel="noopener"
       class="party-logo-link"
-      :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
+      :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     >
       <!-- A brand without a logo file (the house brand, worn by pages
            no organisation owns) renders its wordmark alone rather than

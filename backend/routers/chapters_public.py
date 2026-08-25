@@ -29,12 +29,16 @@ _CACHE = "public, s-maxage=60, stale-while-revalidate=300"
 
 def _bind_tenant(db: Session, tenant_slug: str) -> None:
     """Resolve the organisation in the URL and scope the request to it.
-    An unknown slug is a 404 — the same answer as a chapter that doesn't
-    exist, so the surface doesn't enumerate organisations."""
-    tenant = tenants_svc.find_live_by_slug(db, tenant_slug)
+    An unknown slug is a 404, the same answer as a chapter that doesn't
+    exist, so the surface doesn't enumerate organisations.
+
+    Organisations only. A personal tenant's slug never appears in a URL,
+    and the HTML route at the same path says the same thing; answering
+    here would make this API an oracle for which generated slugs exist."""
+    tenant = tenants_svc.find_live_organisation_by_slug(db, tenant_slug)
     if tenant is None:
         raise HTTPException(status_code=404, detail="Not found")
-    tenancy.bind(tenant.id, tenant.slug)
+    tenancy.bind(tenant.id, tenant.brand_slug)
 
 
 @router.get("/{tenant_slug}/chapters", response_model=list[ChapterPublicOut])

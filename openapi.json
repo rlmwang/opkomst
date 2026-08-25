@@ -997,8 +997,15 @@
         "description": "Organiser create payload.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "description_en": {
             "anyOf": [
@@ -1116,9 +1123,6 @@
             "type": "array"
           }
         },
-        "required": [
-          "chapter_id"
-        ],
         "title": "DatepollCreate",
         "type": "object"
       },
@@ -1803,8 +1807,15 @@
         "description": "Same shape as create. Distinct class so OpenAPI distinguishes\nthe two endpoints even though the body is identical.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "description_en": {
             "anyOf": [
@@ -1922,9 +1933,6 @@
             "type": "array"
           }
         },
-        "required": [
-          "chapter_id"
-        ],
         "title": "DatepollUpdate",
         "type": "object"
       },
@@ -2092,8 +2100,15 @@
         "description": "Create/edit payload for an event definition. Carries the shared\ncontent and the recurrence rule (the roster's k-week cycle) \u2014 never a\nsingle concrete date. A one-off is ``cycle_slots = []``; a recurring\nevent picks weekday slots on a ``period_weeks`` cycle, running for\n``span_weeks`` weeks (``None`` = open-ended). Concrete dates are\n``Occurrence`` rows the tick materialises.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "cycle_slots": {
             "items": {
@@ -2278,7 +2293,6 @@
           }
         },
         "required": [
-          "chapter_id",
           "location",
           "starts_on",
           "start_time",
@@ -2594,8 +2608,15 @@
         "description": "Edit payload. Same shape as create, but a lowered ``period_weeks``\nclamps now-out-of-range ``cycle_slots`` away instead of 422-ing.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "cycle_slots": {
             "items": {
@@ -2780,7 +2801,6 @@
           }
         },
         "required": [
-          "chapter_id",
           "location",
           "starts_on",
           "start_time",
@@ -3099,8 +3119,15 @@
         "description": "Organiser create payload.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "description_en": {
             "anyOf": [
@@ -3179,9 +3206,6 @@
             "type": "array"
           }
         },
-        "required": [
-          "chapter_id"
-        ],
         "title": "FormCreate",
         "type": "object"
       },
@@ -3839,8 +3863,15 @@
         "description": "Same shape as create. Kept as a distinct class so the\nOpenAPI schema distinguishes the two endpoints even though\nthe body is identical.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "description_en": {
             "anyOf": [
@@ -3919,9 +3950,6 @@
             "type": "array"
           }
         },
-        "required": [
-          "chapter_id"
-        ],
         "title": "FormUpdate",
         "type": "object"
       },
@@ -3972,7 +4000,7 @@
         "type": "object"
       },
       "LoginLinkRequest": {
-        "description": "Single entry point for both populations: a registered email\nreceives a sign-in link, an unknown email receives a\n\"finish creating your account\" link. The endpoint returns the\nsame response shape either way so the API can't be probed for\naccount existence.\n\n``tenant`` is the organisation's slug \u2014 the first segment of the\nURL the sign-in page is served from. The door is per tenant: the\nsame address can organise for two of them, as two accounts.",
+        "description": "Single entry point for both populations: a registered email\nreceives a sign-in link, an unknown email receives a\n\"finish creating your account\" link. The endpoint returns the\nsame response shape either way so the API can't be probed for\naccount existence.\n\n``tenant`` is the organisation's slug \u2014 the first segment of the URL\nthe sign-in page is served from. The door is per tenant: the same\naddress can organise for two of them, as two accounts.\n\n``None`` is the root's door, where an address *is* the account: no\norganisation, no approval, and no registration step \u2014 an address the\napp hasn't seen gets a personal account and a sign-in link in the\nsame response as one it has.",
         "properties": {
           "email": {
             "format": "email",
@@ -3980,13 +4008,19 @@
             "type": "string"
           },
           "tenant": {
-            "title": "Tenant",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant"
           }
         },
         "required": [
-          "email",
-          "tenant"
+          "email"
         ],
         "title": "LoginLinkRequest",
         "type": "object"
@@ -5097,8 +5131,15 @@
         "description": "Organiser create payload. Out-of-range ``cycle_slots`` raise 422.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "chores": {
             "items": {
@@ -5260,7 +5301,6 @@
           }
         },
         "required": [
-          "chapter_id",
           "starts_on"
         ],
         "title": "RosterCreate",
@@ -5603,8 +5643,15 @@
         "description": "Same body as create, but shrinking ``period_weeks`` drops (clamps)\nnow-out-of-range ``cycle_slots`` instead of rejecting the save.",
         "properties": {
           "chapter_id": {
-            "title": "Chapter Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
           },
           "chores": {
             "items": {
@@ -5766,7 +5813,6 @@
           }
         },
         "required": [
-          "chapter_id",
           "starts_on"
         ],
         "title": "RosterUpdate",
@@ -6120,6 +6166,97 @@
         "title": "SignupSummaryOut",
         "type": "object"
       },
+      "StartDatepoll": {
+        "properties": {
+          "datepoll": {
+            "$ref": "#/components/schemas/DatepollCreate"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "datepoll"
+        ],
+        "title": "StartDatepoll",
+        "type": "object"
+      },
+      "StartEvent": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventCreate"
+          }
+        },
+        "required": [
+          "email",
+          "event"
+        ],
+        "title": "StartEvent",
+        "type": "object"
+      },
+      "StartForm": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "form": {
+            "$ref": "#/components/schemas/FormCreate"
+          }
+        },
+        "required": [
+          "email",
+          "form"
+        ],
+        "title": "StartForm",
+        "type": "object"
+      },
+      "StartRoster": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "roster": {
+            "$ref": "#/components/schemas/RosterCreate"
+          }
+        },
+        "required": [
+          "email",
+          "roster"
+        ],
+        "title": "StartRoster",
+        "type": "object"
+      },
+      "StartedOut": {
+        "description": "What the visitor gets back: the public URL of the thing they just\nmade, so they can share it before the mail has arrived, and the\nslug behind it. Deliberately says nothing about whether the account\nalready existed.",
+        "properties": {
+          "public_url": {
+            "title": "Public Url",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "public_url",
+          "slug"
+        ],
+        "title": "StartedOut",
+        "type": "object"
+      },
       "StatusResponse": {
         "description": "Connection state of the linked WhatsApp session.",
         "properties": {
@@ -6190,8 +6327,23 @@
             "title": "Name",
             "type": "string"
           },
+          "participant_cap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participant Cap"
+          },
           "role": {
             "title": "Role",
+            "type": "string"
+          },
+          "tenant_kind": {
+            "title": "Tenant Kind",
             "type": "string"
           }
         },
@@ -6201,6 +6353,8 @@
           "name",
           "role",
           "is_approved",
+          "tenant_kind",
+          "participant_cap",
           "chapters",
           "created_at"
         ],
@@ -6912,7 +7066,7 @@
     },
     "/api/v1/auth/login-link": {
       "post": {
-        "description": "Send a magic link.\n\nBranches on whether the email matches a live user *of this\ntenant*. Both branches return the same ``LinkSent`` so the API\ncan't be probed for account existence \u2014 including by an unknown\ntenant slug, which returns the same shape rather than confirming\nwhich organisations exist.",
+        "description": "Send a magic link.\n\nTwo doors. With a ``tenant`` it is an organisation's: the address\neither belongs to a live user of it (sign-in link) or doesn't\n(registration link, which asks for a name and waits for an admin).\n\nWithout one it is the root's, where an address *is* the account.\nThere is nobody to tell apart and nobody to approve you, so an\naddress the app hasn't seen gets a personal tenant, its one user,\nand a sign-in link \u2014 the same response, and the same mail, as one it\nhas seen.\n\nBoth doors return the same ``LinkSent`` either way, so neither can\nbe probed for which addresses or which organisations exist.",
         "operationId": "login_link_api_v1_auth_login_link_post",
         "requestBody": {
           "content": {
@@ -13192,6 +13346,170 @@
         "summary": "Form Summary",
         "tags": [
           "forms"
+        ]
+      }
+    },
+    "/api/v1/start/chores": {
+      "post": {
+        "operationId": "start_roster_api_v1_start_chores_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRoster"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Roster",
+        "tags": [
+          "start"
+        ]
+      }
+    },
+    "/api/v1/start/datepolls": {
+      "post": {
+        "operationId": "start_datepoll_api_v1_start_datepolls_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartDatepoll"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Datepoll",
+        "tags": [
+          "start"
+        ]
+      }
+    },
+    "/api/v1/start/events": {
+      "post": {
+        "operationId": "start_event_api_v1_start_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Event",
+        "tags": [
+          "start"
+        ]
+      }
+    },
+    "/api/v1/start/forms": {
+      "post": {
+        "operationId": "start_form_api_v1_start_forms_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartForm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Form",
+        "tags": [
+          "start"
         ]
       }
     },

@@ -24,8 +24,12 @@ import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
 import { localeTag } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ datepollId: string }>();
+// A personal account holds a bounded number of people per poll; an
+// organisation has no ceiling, so the pill shows the bare count.
+const auth = useAuthStore();
 
 const { t, locale } = useI18n();
 const lt = useLocalizedText();
@@ -245,6 +249,7 @@ async function exportCsv() {
             <RecoverLinksPill
               v-if="summary && poll"
               :count="summary.submission_count"
+              :cap="auth.user?.participant_cap ?? null"
               :label="t('datepolls.details.responses')"
               :load-rows="recoverRows"
               :recover-path="(id: string) => `/api/v1/datepolls/${props.datepollId}/submissions/${id}/edit-link`"

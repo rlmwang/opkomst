@@ -45,7 +45,7 @@ def get_occurrence_by_slug_any(db: Session, slug: str) -> Occurrence | None:
     request is in (branding included)."""
     occ = db.query(Occurrence).options(joinedload(Occurrence.event)).filter(Occurrence.slug == slug).first()
     if occ is not None:
-        tenancy.bind(occ.tenant_id, occ.tenant.slug)
+        tenancy.bind(occ.tenant_id, occ.tenant.brand_slug)
     return occ
 
 

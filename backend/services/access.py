@@ -23,16 +23,31 @@ public by-slug routes).
 from typing import TypeVar
 
 from fastapi import HTTPException
-from sqlalchemy import false
-from sqlalchemy.orm import Mapped, Session
+from sqlalchemy import and_, false
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
 
-from ..models import Chapter, Datepoll, Event, Form, Roster, User, UserChapter
+from ..models import Chapter, Datepoll, Event, Form, Roster, Tenant, User, UserChapter
 
 # ``Event`` / ``Form`` / ``Datepoll`` / ``Roster`` each carry an ``id``
 # and a chapter-scoping ``chapter_id`` — the only two columns the scope
 # rule touches.
 _Scoped = TypeVar("_Scoped", Event, Form, Datepoll, Roster)
+
+
+def is_personal(db: Session, user: User) -> bool:
+    """Whether the user's account holds a single person and no chapters.
+
+    The rule itself is ``Tenant.is_personal``; this only resolves the
+    row to ask. Through ``db`` from ``user.tenant_id`` rather than the
+    ``user.tenant`` relationship, because every function in this module
+    already takes the session it should read on and the user handed to
+    it is not always attached to that session. The row is in the
+    identity map for the rest of the request after the first call."""
+    tenant = db.get(Tenant, user.tenant_id)
+    if tenant is None:  # pragma: no cover - FK makes this unreachable
+        raise HTTPException(status_code=404, detail="Unknown tenant")
+    return tenant.is_personal
 
 
 def chapter_ids_for_user(db: Session, user: User) -> set[str]:
@@ -58,34 +73,41 @@ def chapter_ids_for_user(db: Session, user: User) -> set[str]:
     return {row[0] for row in rows}
 
 
-def scope_filter(db: Session, user: User, column: "Mapped[str | None]") -> ColumnElement[bool]:
-    """SQL predicate scoping a list query to the user's chapter set.
-    A user with zero live memberships sees an empty list (the
-    predicate evaluates to ``FALSE``); admins match every row of their
-    own organisation because every one of its chapter ids is in their
-    effective set. The chapter set is already tenant-scoped, so a row
-    of another tenant can't match — the entity's own ``tenant_id``
-    predicate in ``get_scoped`` is the belt to this braces."""
+def scope_filter(db: Session, user: User, model: type[_Scoped]) -> ColumnElement[bool]:
+    """SQL predicate scoping a query to what this user may see.
+
+    **The tenant is always in it.** For an organisation the chapter set
+    narrows it further: a user with zero live memberships sees an empty
+    list, and an admin matches every row of their own organisation
+    because every one of its chapter ids is in their effective set.
+
+    A personal tenant has no chapters at all and everything in it has
+    ``chapter_id IS NULL``, so there the tenant predicate is the whole
+    scope — which is why the tenant predicate lives *here*, in the
+    filter itself, rather than being left to each caller to remember."""
+    same_tenant = model.tenant_id == user.tenant_id
+    if is_personal(db, user):
+        return same_tenant
     ids = chapter_ids_for_user(db, user)
     if not ids:
         return false()
-    return column.in_(ids)
+    return and_(same_tenant, model.chapter_id.in_(ids))
 
 
 def list_filter(
     db: Session,
     user: User,
-    column: "Mapped[str | None]",
+    model: type[_Scoped],
     chapter_id: str | None,
 ) -> ColumnElement[bool]:
     """WHERE clause for an organiser list query. ``chapter_id`` is
-    the optional UI filter; without it we return every row in the
-    user's full chapter set. With it, the chosen chapter still has
-    to be one the caller belongs to."""
+    the optional UI filter; without it we return every row the user may
+    see. With it, the chosen chapter still has to be one the caller
+    belongs to — which a personal tenant never is, since it has none."""
     if chapter_id is None:
-        return scope_filter(db, user, column)
+        return scope_filter(db, user, model)
     assert_user_can_assign_chapter(db, user, chapter_id)
-    return column == chapter_id
+    return and_(model.tenant_id == user.tenant_id, model.chapter_id == chapter_id)
 
 
 def get_scoped(
@@ -96,31 +118,39 @@ def get_scoped(
     *,
     not_found: str,
 ) -> _Scoped:
-    """Fetch a chapter-scoped entity by id, scoped to the user's tenant
-    and chapter set. 404 if missing, in another organisation, in a
-    chapter the user can't see, or the user has no live memberships."""
-    ids = chapter_ids_for_user(db, user)
-    if not ids:
-        raise HTTPException(status_code=404, detail=not_found)
-    row = (
-        db.query(model)
-        .filter(
-            model.id == entity_id,
-            model.tenant_id == user.tenant_id,
-            model.chapter_id.in_(ids),
-        )
-        .first()
-    )
+    """Fetch an entity by id, scoped to the user's tenant and — for an
+    organisation — their chapter set. 404 if missing, in another tenant,
+    in a chapter the user can't see, or the user has no live
+    memberships. A personal tenant has no chapters, so there the tenant
+    predicate is the whole scope."""
+    row = db.query(model).filter(model.id == entity_id, scope_filter(db, user, model)).first()
     if row is None:
         raise HTTPException(status_code=404, detail=not_found)
     return row
 
 
-def assert_user_can_assign_chapter(db: Session, user: User, chapter_id: str) -> None:
+def assert_user_can_assign_chapter(db: Session, user: User, chapter_id: str | None) -> None:
     """Used by create/update to gate the user-supplied ``chapter_id``
     against the caller's own membership set. 403 rather than 404
     because the caller deliberately picked this chapter — they know
-    it exists, so we can be honest about why we're rejecting it."""
+    it exists, so we can be honest about why we're rejecting it.
+
+    A personal tenant has no chapters, so ``None`` is the only allowed
+    value there and anything else is a malformed request (422) rather
+    than a permission problem — there is no chapter it could have
+    meant."""
+    if is_personal(db, user):
+        if chapter_id is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="This account has no chapters, so nothing can be assigned to one.",
+            )
+        return
+    if chapter_id is None:
+        # An organisation's entities always belong to one of its
+        # chapters — the schema can't require it (a personal tenant
+        # posts the same body without one), so the rule lives here.
+        raise HTTPException(status_code=422, detail="Pick a chapter for this.")
     if chapter_id not in chapter_ids_for_user(db, user):
         raise HTTPException(
             status_code=403,
@@ -134,7 +164,7 @@ def assert_user_can_assign_chapter(db: Session, user: User, chapter_id: str) -> 
 
 
 def event_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
-    return scope_filter(db, user, Event.chapter_id)
+    return scope_filter(db, user, Event)
 
 
 def get_event_for_user(db: Session, event_id: str, user: User) -> Event:
@@ -142,7 +172,7 @@ def get_event_for_user(db: Session, event_id: str, user: User) -> Event:
 
 
 def form_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
-    return scope_filter(db, user, Form.chapter_id)
+    return scope_filter(db, user, Form)
 
 
 def get_form_for_user(db: Session, form_id: str, user: User) -> Form:
@@ -150,7 +180,7 @@ def get_form_for_user(db: Session, form_id: str, user: User) -> Form:
 
 
 def datepoll_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
-    return scope_filter(db, user, Datepoll.chapter_id)
+    return scope_filter(db, user, Datepoll)
 
 
 def get_datepoll_for_user(db: Session, datepoll_id: str, user: User) -> Datepoll:
@@ -158,7 +188,7 @@ def get_datepoll_for_user(db: Session, datepoll_id: str, user: User) -> Datepoll
 
 
 def roster_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
-    return scope_filter(db, user, Roster.chapter_id)
+    return scope_filter(db, user, Roster)
 
 
 def get_roster_for_user(db: Session, roster_id: str, user: User) -> Roster:

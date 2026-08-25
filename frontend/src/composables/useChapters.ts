@@ -8,7 +8,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/vue-query";
-import { computed, type ComputedRef } from "vue";
+import { computed, type ComputedRef, type MaybeRef } from "vue";
 
 import { del, get, patch, post } from "@/api/client";
 import { useApiQuery } from "@/api/queries";
@@ -19,11 +19,17 @@ export type { Chapter, ChapterPatchPayload };
 const sortByName = (list: Chapter[]): Chapter[] =>
   [...list].sort((a, b) => a.name.localeCompare(b.name));
 
-export function useChapters(opts: { includeArchived?: boolean } = {}) {
+export function useChapters(
+  opts: { includeArchived?: boolean; enabled?: MaybeRef<boolean> } = {},
+) {
   const includeArchived = !!opts.includeArchived;
+  // ``enabled`` is how a page that has no chapters says so: the whole
+  // endpoint belongs to organisations, and a personal account — or a
+  // visitor with no account at all — would only ever get a 404 from it.
   const q = useApiQuery<Chapter[]>(
     ["chapters", { includeArchived }],
     `/api/v1/chapters${includeArchived ? "?include_archived=true" : ""}`,
+    { enabled: opts.enabled },
   );
   return q;
 }

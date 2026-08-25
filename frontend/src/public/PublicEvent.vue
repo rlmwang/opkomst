@@ -384,8 +384,10 @@ async function submit() {
     confirmSaved(ack.edit_token);
     submitted.value = true;
     clearDraft();
-  } catch {
-    errorMsg.value = t.value.submitFail;
+  } catch (e) {
+    // 409 is the one refusal a visitor can understand and act on: the
+    // event has no places left. Everything else is a failure to submit.
+    errorMsg.value = e instanceof ApiError && e.status === 409 ? c.value.full : t.value.submitFail;
   } finally {
     submitting.value = false;
   }

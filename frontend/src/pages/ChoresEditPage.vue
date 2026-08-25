@@ -17,7 +17,10 @@ import NumberStepper from "@/components/NumberStepper.vue";
 import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import type { ChoreIn, RosterCreate, RosterUpdate } from "@/api/types";
+import StartAccountField from "@/components/StartAccountField.vue";
+import StartedPanel from "@/components/StartedPanel.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useCreateRoster, useRoster, useUpdateRoster } from "@/composables/useChores";
 import { useFormDraft } from "@/composables/useFormDraft";
@@ -31,7 +34,18 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
-const chaptersQuery = useChapters();
+// The root's front door: see ``useStartMode``.
+const {
+  active: startActive,
+  hasChapters,
+  email: startEmail,
+  started,
+  validate: validateStartEmail,
+  submit: submitStart,
+  chapterFor,
+  cancel: cancelStart,
+} = useStartMode("roster");
+const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
 const auth = useAuthStore();
 const createMutation = useCreateRoster();
@@ -301,6 +315,7 @@ function setChore(index: number, next: ChoreDraft): void {
 // --- Cancel / submit -----------------------------------------------
 function cancel(): void {
   clearDraft();
+  if (cancelStart()) return;
   if (isEdit.value && props.rosterId) {
     void router.push(`/chores/${props.rosterId}/details`);
   } else {
@@ -316,10 +331,11 @@ async function submit() {
     toasts.warn(t("chores.edit.fillName"));
     return;
   }
-  if (!chapterId.value) {
+  if (hasChapters.value && !chapterId.value) {
     toasts.warn(t("chores.edit.fillChapter"));
     return;
   }
+  if (startActive.value && !validateStartEmail()) return;
   if (!startsOn.value) {
     toasts.warn(t("chores.edit.fillStartsOn"));
     return;
@@ -331,7 +347,7 @@ async function submit() {
   submitting.value = true;
   try {
     const wirePayload: RosterCreate | RosterUpdate = {
-      chapter_id: chapterId.value,
+      chapter_id: chapterFor(chapterId.value),
       name_nl: nameNl.value.trim() || null,
       name_en: nameEn.value.trim() || null,
       description_nl: descNl.value.trim() || null,
@@ -358,6 +374,13 @@ async function submit() {
         }),
       ),
     };
+    if (startActive.value) {
+      // No session: the public link the response carries is the whole
+      // result, and there is no details page to land on. A refusal has
+      // already been explained; the draft stays so it can be retried.
+      if (await submitStart(wirePayload)) clearDraft();
+      return;
+    }
     const result =
       isEdit.value && props.rosterId
         ? await updateMutation.mutateAsync({ id: props.rosterId, payload: wirePayload })
@@ -394,6 +417,8 @@ async function submit() {
     </div>
   </template>
 
+  <StartedPanel v-else-if="started" :started="started" :email="startEmail" />
+
   <FormPageShell
     v-else
     :title="isEdit ? t('chores.edit.editTitle') : t('chores.edit.newTitle')"
@@ -404,6 +429,7 @@ async function submit() {
   >
     <!-- Basics -->
     <section class="form-section">
+      <StartAccountField v-if="startActive" v-model="startEmail" />
       <InputText
         v-model="title"
         :placeholder="titleFallback || t('chores.edit.namePlaceholder')"
@@ -415,6 +441,7 @@ async function submit() {
         :fallback-html="bodyFallback || null"
       />
       <Select
+        v-if="hasChapters"
         v-model="chapterId"
         :options="userChapterOptions"
         option-label="name"
@@ -425,7 +452,10 @@ async function submit() {
       />
     </section>
 
+    <!-- Uploading writes to the row it belongs to, which takes a
+         session the visitor does not have yet. -->
     <ImageField
+      v-if="!startActive"
       ref="imageField"
       resource="chores"
       :entity-id="props.rosterId ?? null"

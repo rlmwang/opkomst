@@ -311,7 +311,7 @@ def run_tick(db: Session, now: datetime) -> tuple[int, int]:
     for event in events:
         # The sweep crosses every organisation, so each event's own
         # tenant is bound for the rows it is about to create.
-        with tenancy.use(event.tenant_id, event.tenant.slug):
+        with tenancy.use(event.tenant_id, event.tenant.brand_slug):
             created += len(materialise(db, event, now))
     db.commit()
     return len(events), created

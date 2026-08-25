@@ -28,6 +28,11 @@ export interface RecoverableRow {
 
 const props = defineProps<{
   count: number | string;
+  /** The ceiling this count runs into, when the account has one. A
+   * personal account holds a bounded number of people per thing it
+   * makes; an organisation has no ceiling, so it passes null and the
+   * pill shows the bare count. */
+  cap?: number | null;
   label: string;
   loadRows: () => Promise<RecoverableRow[]>;
   recoverPath: (id: string) => string;
@@ -83,7 +88,7 @@ async function confirmCopy() {
 
 <template>
   <button type="button" class="count-pill rlp-pill" :aria-label="t('recoverLink.open')" @click="toggle">
-    <span class="count">{{ count }}</span>
+    <span class="count">{{ cap == null ? count : `${count} / ${cap}` }}</span>
     <span class="label">{{ label }}</span>
   </button>
 

@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import PersonalIndexPage from "@/pages/PersonalIndexPage.vue";
 import TenantIndexPage from "@/pages/TenantIndexPage.vue";
+import { isPersonalApp } from "@/lib/branding";
 import { useAuthStore } from "@/stores/auth";
 
 /**
- * ``/{tenant}`` has two faces, decided by whether the visitor has a
- * session for this organisation:
+ * The app's landing page has two faces, decided by whether the visitor
+ * has a session here:
  *
  * * signed in — the organiser's landing page: one tile per kind of
  *   thing the tool makes, with the organisation-management pages on a
  *   full-width tile below. "Which of the four workspaces did I want?"
  *   is the first question every session starts with, and answering it
  *   from a dropdown on the events list made events the accidental home.
- * * signed out — the organisation's public page (``TenantIndexPage``):
- *   its chapters, each linking to that chapter's agenda.
+ * * signed out — whose front page this is: an organisation's chapters
+ *   (``TenantIndexPage``) under its slug, and the four create forms
+ *   (``PersonalIndexPage``) at the root, where there is no
+ *   organisation and the visitor came to make one thing.
  *
  * The split is client-side because the session lives in localStorage;
  * the server has no way to know which face to render.
@@ -23,6 +27,7 @@ import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n();
 const auth = useAuthStore();
+const personalApp = isPersonalApp();
 
 interface Tile {
   key: string;
@@ -32,21 +37,30 @@ interface Tile {
 }
 
 // Events is the one workspace an unapproved organiser can open; the
-// rest wait for an admin to approve the account, so they aren't shown
-// as doors that lead to a redirect.
-const tiles = computed<Tile[]>(() => {
-  const all: Tile[] = [
-    { key: "events", to: "/events", label: t("header.events"), hint: t("home.eventsHint") },
-    { key: "forms", to: "/forms", label: t("header.forms"), hint: t("home.formsHint") },
-    { key: "datepolls", to: "/datepolls", label: t("header.datepolls"), hint: t("home.datepollsHint") },
-    { key: "chores", to: "/chores", label: t("header.chores"), hint: t("home.choresHint") },
-  ];
-  return auth.isApproved ? all : all.slice(0, 1);
-});
+// An account still waiting on an admin gets no tiles at all: every one
+// of them is approval-gated, so each would open onto the same "not
+// approved yet" answer. It is told once, here, instead.
+const tiles: Tile[] = [
+  { key: "events", to: "/events", label: t("header.events"), hint: t("home.eventsHint") },
+  { key: "forms", to: "/forms", label: t("header.forms"), hint: t("home.formsHint") },
+  { key: "datepolls", to: "/datepolls", label: t("header.datepolls"), hint: t("home.datepollsHint") },
+  { key: "chores", to: "/chores", label: t("header.chores"), hint: t("home.choresHint") },
+];
 </script>
 
 <template>
-  <TenantIndexPage v-if="!auth.isAuthenticated" />
+  <PersonalIndexPage v-if="!auth.isAuthenticated && personalApp" />
+  <TenantIndexPage v-else-if="!auth.isAuthenticated" />
+  <template v-else-if="!auth.isApproved">
+    <AppHeader />
+    <main class="container stack">
+      <AppCard>
+        <h2>{{ t("dashboard.pendingTitle") }}</h2>
+        <p>{{ t("dashboard.pendingBody") }}</p>
+      </AppCard>
+    </main>
+  </template>
+
   <template v-else>
     <AppHeader />
     <main class="container stack">
@@ -58,7 +72,9 @@ const tiles = computed<Tile[]>(() => {
           <span class="tile-hint muted">{{ tile.hint }}</span>
         </router-link>
 
-        <router-link v-if="auth.isApproved" to="/users" class="tile tile-wide">
+        <!-- Nobody to manage and no chapters to sort them into: a
+             personal account is one person. -->
+        <router-link v-if="!auth.isPersonal" to="/users" class="tile tile-wide">
           <span class="tile-label">{{ t("header.admin") }}</span>
           <span class="tile-hint muted">{{ t("home.adminHint") }}</span>
         </router-link>

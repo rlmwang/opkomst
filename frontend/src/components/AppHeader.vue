@@ -19,7 +19,7 @@ const auth = useAuthStore();
 // network round-trip). The query auto-refetches on the
 // staleTime cadence so a new sign-up shows up within ~30s on
 // any open admin tab.
-const pendingQuery = usePendingCount(computed(() => auth.isAdmin));
+const pendingQuery = usePendingCount(computed(() => auth.isAdmin && !auth.isPersonal));
 const pendingCount = computed(() => pendingQuery.data.value?.count ?? 0);
 const showPendingBadge = computed(
   () => auth.isAdmin && pendingCount.value > 0,
@@ -37,45 +37,48 @@ interface MenuItem {
   badge?: number;
 }
 
-// Group one: the content workspaces. Events is the only one an
-// unapproved organiser can reach.
+// Group one: the content workspaces. All four are approval-gated, so an
+// account still waiting on an admin is offered none of them; its menu is
+// the sign-out and nothing else.
 const workspaceItems = computed<MenuItem[]>(() => {
-  const items: MenuItem[] = [
+  if (!auth.isApproved) return [];
+  return [
     {
       key: "events",
       to: "/events",
       label: t("header.events"),
       isActive: (p) => p === "/events" || p.startsWith("/events/"),
     },
-  ];
-  if (auth.isApproved) {
-    items.push({
+    {
       key: "forms",
       to: "/forms",
       label: t("header.forms"),
       isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
-    });
-    items.push({
+    },
+    {
       key: "datepolls",
       to: "/datepolls",
       label: t("header.datepolls"),
       isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
-    });
-    items.push({
+    },
+    {
       key: "chores",
       to: "/chores",
       label: t("header.chores"),
       isActive: (p) => p === "/chores" || p.startsWith("/chores/"),
-    });
-  }
-  return items;
+    },
+  ];
 });
 
 // Group two: the organisation-management destinations. Separated
 // from the workspaces by a rule in the menu — they act on the
 // tool itself rather than on a chapter's programme.
+// A personal account has no second group: nobody to approve, no
+// chapters to sort them into, and no WhatsApp blast. The menu then
+// holds the four workspaces and the sign-out, which is all of it.
 const adminItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
+  if (auth.isPersonal) return items;
   if (auth.isApproved) {
     items.push({
       key: "admin",

@@ -14,7 +14,10 @@ import ImageField from "@/components/ImageField.vue";
 import LocationPicker from "@/components/LocationPicker.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
 import RichTextField from "@/components/RichTextField.vue";
+import StartAccountField from "@/components/StartAccountField.vue";
+import StartedPanel from "@/components/StartedPanel.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useLocationField } from "@/composables/useLocationField";
 import {
@@ -34,9 +37,27 @@ const { t, te, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
-const chaptersQuery = useChapters();
+// Opened from the root's landing tiles by somebody with no account:
+// an address field on top, no chapter picker, and the start endpoint
+// as the target. ``hasChapters`` is false for a personal account too,
+// signed in or not — it has none to pick from.
+const {
+  active: startActive,
+  hasChapters,
+  email: startEmail,
+  started,
+  validate: validateStartEmail,
+  submit: submitStart,
+  chapterFor,
+  cancel: cancelStart,
+} = useStartMode("event");
+const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
-const eventsQuery = useEventList();
+const isEdit = computed(() => Boolean(props.eventId));
+// The list is read for one thing only: pulling the row being edited
+// out of the cache. Create mode never needs it, and at the root there
+// is no session to read it with.
+const eventsQuery = useEventList({ enabled: isEdit });
 const events = eventList(eventsQuery);
 const createMutation = useCreateEvent();
 const updateMutation = useUpdateEvent();
@@ -47,8 +68,6 @@ const auth = useAuthStore();
 // flow and writes back here so the preview updates instantly.
 const imageUrl = ref<string | null>(null);
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
-
-const isEdit = computed(() => Boolean(props.eventId));
 
 // Chapter the event is being assigned to. The dropdown options
 // are scoped to ``auth.user.chapters`` — admins are not exempt;
@@ -339,6 +358,7 @@ watch(eventLocale, (next, prev) => {
 
 function cancel() {
   clearDraft();
+  if (cancelStart()) return;
   // Edit-mode bails back to the details view; create-mode bails to
   // the dashboard. Keeps the back-stack predictable instead of
   // relying on browser history.
@@ -449,10 +469,11 @@ async function submit() {
     toasts.warn(t("event.fillSources"));
     return;
   }
-  if (!chapterId.value) {
+  if (hasChapters.value && !chapterId.value) {
     toasts.warn(t("event.fillChapter"));
     return;
   }
+  if (startActive.value && !validateStartEmail()) return;
   const startsAt = combine(eventDate.value, startTime.value);
   const endsAt = combine(eventDate.value, endTime.value);
   if (endsAt <= startsAt) {
@@ -468,7 +489,7 @@ async function submit() {
     const payload = {
       name_nl: nameNl.value.trim() || null,
       name_en: nameEn.value.trim() || null,
-      chapter_id: chapterId.value,
+      chapter_id: chapterFor(chapterId.value),
       topic_nl: topicNl.value.trim() || null,
       topic_en: topicEn.value.trim() || null,
       location: trimmedLocation,
@@ -489,6 +510,15 @@ async function submit() {
       locale: eventLocale.value,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
     };
+    if (startActive.value) {
+      // No session, so no details page to land on and no image to
+      // flush onto the new row: the public link the response carries
+      // is the whole result, and ``StartedPanel`` shows it. A refusal
+      // has already been explained by ``submitStart``, and the draft
+      // stays so the visitor can act on it and try again.
+      if (await submitStart(payload)) clearDraft();
+      return;
+    }
     const result =
       isEdit.value && props.eventId
         ? await updateMutation.mutateAsync({ eventId: props.eventId, payload })
@@ -519,7 +549,9 @@ async function submit() {
 </script>
 
 <template>
+  <StartedPanel v-if="started" :started="started" :email="startEmail" />
   <FormPageShell
+    v-else
     :title="isEdit ? t('event.editTitle') : t('event.newTitle')"
     :submit-label="isEdit ? t('event.save') : t('event.create')"
     :submitting="submitting"
@@ -527,6 +559,7 @@ async function submit() {
     @cancel="cancel"
   >
       <section class="form-section">
+        <StartAccountField v-if="startActive" v-model="startEmail" />
         <InputText
           v-model="title"
           :placeholder="titleFallback || t('event.name')"
@@ -538,6 +571,7 @@ async function submit() {
           :fallback-html="bodyFallback || null"
         />
         <Select
+          v-if="hasChapters"
           v-model="chapterId"
           :options="userChapterOptions"
           option-label="name"
@@ -606,7 +640,12 @@ async function submit() {
         </template>
       </section>
 
+      <!-- Uploading a picture writes to the row it belongs to, which
+           takes a session; a visitor starting from the root doesn't
+           have one yet. They add it after signing in through the link
+           they were mailed. -->
       <ImageField
+        v-if="!startActive"
         ref="imageField"
         resource="events"
         :entity-id="props.eventId ?? null"
@@ -683,11 +722,16 @@ async function submit() {
         </label>
         <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
 
-        <label class="toggle-row" for="listedToggle">
-          <ToggleSwitch v-model="listed" inputId="listedToggle" />
-          <strong>{{ t("event.listedToggle") }}</strong>
-        </label>
-        <p class="muted toggle-help">{{ t("event.listedHelp") }}</p>
+        <!-- The agenda this lists on is a chapter's. An account with no
+             chapters has no agenda to be on, so there is no choice to
+             offer. -->
+        <template v-if="hasChapters">
+          <label class="toggle-row" for="listedToggle">
+            <ToggleSwitch v-model="listed" inputId="listedToggle" />
+            <strong>{{ t("event.listedToggle") }}</strong>
+          </label>
+          <p class="muted toggle-help">{{ t("event.listedHelp") }}</p>
+        </template>
       </section>
 
       <section class="form-section">

@@ -40,9 +40,6 @@ const pollsQuery = useDatepollList({
 const polls = datepollList(pollsQuery);
 const archiveMutation = useArchiveDatepoll();
 
-const noChapters = computed(
-  () => auth.isApproved && (auth.user?.chapters?.length ?? 0) === 0,
-);
 
 watch(pollsQuery.isError, (isError) => {
   if (isError) toasts.error(t("datepolls.list.loadFailed"));
@@ -97,19 +94,7 @@ function askArchive(p: DatepollListOut) {
 </script>
 
 <template>
-  <template v-if="!auth.isApproved">
-    <AppHeader />
-    <div class="container stack">
-      <h1>{{ t("datepolls.list.title") }}</h1>
-      <p class="muted">{{ t("datepolls.list.intro") }}</p>
-      <AppCard>
-        <h2>{{ t("dashboard.pendingTitle") }}</h2>
-        <p>{{ t("dashboard.pendingBody") }}</p>
-      </AppCard>
-    </div>
-  </template>
-
-  <template v-else-if="noChapters">
+  <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container stack">
       <h1>{{ t("datepolls.list.title") }}</h1>

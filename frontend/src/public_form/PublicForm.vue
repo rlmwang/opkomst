@@ -145,6 +145,15 @@ function isAnswered(q: PublicFormQuestion): boolean {
 
 const submitError = ref<string | null>(null);
 
+/** Why a submit was refused, in words the visitor can act on: the form
+ * is gone (410), or it has no places left (409). Anything else is a
+ * failure to submit. */
+function describeSubmitError(e: unknown): string {
+  if (e instanceof ApiError && e.status === 410) return c.value.unavailable;
+  if (e instanceof ApiError && e.status === 409) return c.value.full;
+  return c.value.submitFail;
+}
+
 async function submit() {
   if (!form.value) return;
   if (!displayName.value.trim()) {
@@ -181,7 +190,7 @@ async function submit() {
       status.value = "submitted";
     }
   } catch (e) {
-    submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
+    submitError.value = describeSubmitError(e);
   } finally {
     submitting.value = false;
   }
@@ -195,7 +204,7 @@ async function withdraw() {
     await withdrawSubmission(editToken);
     status.value = "withdrawn";
   } catch (e) {
-    submitError.value = e instanceof ApiError && e.status === 410 ? c.value.unavailable : c.value.submitFail;
+    submitError.value = describeSubmitError(e);
   } finally {
     submitting.value = false;
   }

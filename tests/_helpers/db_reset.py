@@ -41,8 +41,8 @@ def truncate_all() -> None:
         conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
         conn.execute(
             text(
-                "INSERT INTO tenants (id, slug, name, created_at, updated_at) "
-                "VALUES (:id, 'rsp', 'RSP', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                "INSERT INTO tenants (id, slug, name, kind, created_at, updated_at) "
+                "VALUES (:id, 'rsp', 'RSP', 'organisation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
             ).bindparams(id=TEST_TENANT_ID)
         )
     tenancy.bind(TEST_TENANT_ID, "rsp")

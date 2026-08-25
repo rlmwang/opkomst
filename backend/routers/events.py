@@ -34,11 +34,10 @@ from ..schemas.events import (
     ProjectedOccurrenceOut,
     SignupSummaryOut,
 )
-from ..services import access, crud, event_recurrence, event_stats, mail_lifecycle
+from ..services import access, crud, entities, event_recurrence, event_stats, limits, mail_lifecycle
 from ..services import image as image_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
-from ..services.slug import new_slug
 
 logger = structlog.get_logger()
 
@@ -58,46 +57,10 @@ def create_event(
     # scoped to the user's live chapters; this is the
     # defence-in-depth check.
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
-    event = Event(
-        slug=new_slug(),
-        name_nl=data.name_nl,
-        name_en=data.name_en,
-        topic_nl=data.topic_nl,
-        topic_en=data.topic_en,
-        location=data.location,
-        latitude=data.latitude,
-        longitude=data.longitude,
-        starts_on=data.starts_on,
-        start_time=data.start_time,
-        end_time=data.end_time,
-        period_weeks=data.period_weeks,
-        cycle_slots=data.cycle_slots,
-        span_weeks=data.span_weeks,
-        horizon_days=data.horizon_days,
-        source_options=data.source_options,
-        help_options=data.help_options,
-        feedback_enabled=data.feedback_enabled,
-        reminder_enabled=data.reminder_enabled,
-        listed=data.listed,
-        locale=data.locale,
-        chapter_id=data.chapter_id,
-        created_by=user.id,
-        image_artist_instagram=data.image_artist_instagram,
-    )
-    db.add(event)
-    db.flush()
-    # Materialise the in-horizon occurrences at once so the event's public
-    # pages work immediately; a one-off gets its single occurrence here and
-    # needs no tick.
-    event_recurrence.materialise(db, event, now_wallclock())
+    limits.assert_can_add_entity(db, user.tenant, "event")
+    event = entities.create_event(db, data, user)
     db.commit()
     db.refresh(event)
-    logger.info(
-        "event_created",
-        event_id=event.id,
-        actor_id=user.id,
-        chapter_id=data.chapter_id,
-    )
     return event_stats.to_out(db, event)
 
 
@@ -109,7 +72,7 @@ def list_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
         .order_by(Event.starts_on.desc())
         .all()
     )
@@ -124,7 +87,7 @@ def list_archived_events(
 ) -> list[EventOut]:
     rows = (
         db.query(Event)
-        .filter(access.list_filter(db, user, Event.chapter_id, chapter_id), Event.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_not(None))
         .order_by(Event.created_at.desc())
         .all()
     )

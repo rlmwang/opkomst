@@ -257,11 +257,18 @@ export interface paths {
          * Login Link
          * @description Send a magic link.
          *
-         *     Branches on whether the email matches a live user *of this
-         *     tenant*. Both branches return the same ``LinkSent`` so the API
-         *     can't be probed for account existence — including by an unknown
-         *     tenant slug, which returns the same shape rather than confirming
-         *     which organisations exist.
+         *     Two doors. With a ``tenant`` it is an organisation's: the address
+         *     either belongs to a live user of it (sign-in link) or doesn't
+         *     (registration link, which asks for a name and waits for an admin).
+         *
+         *     Without one it is the root's, where an address *is* the account.
+         *     There is nobody to tell apart and nobody to approve you, so an
+         *     address the app hasn't seen gets a personal tenant, its one user,
+         *     and a sign-in link — the same response, and the same mail, as one it
+         *     has seen.
+         *
+         *     Both doors return the same ``LinkSent`` either way, so neither can
+         *     be probed for which addresses or which organisations exist.
          */
         post: operations["login_link_api_v1_auth_login_link_post"];
         delete?: never;
@@ -2202,6 +2209,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/start/chores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Roster */
+        post: operations["start_roster_api_v1_start_chores_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/start/datepolls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Datepoll */
+        post: operations["start_datepoll_api_v1_start_datepolls_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/start/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Event */
+        post: operations["start_event_api_v1_start_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/start/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Form */
+        post: operations["start_form_api_v1_start_forms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tenants/{tenant_slug}/agenda/{slug}": {
         parameters: {
             query?: never;
@@ -2843,7 +2918,7 @@ export interface components {
          */
         DatepollCreate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -3114,7 +3189,7 @@ export interface components {
          */
         DatepollUpdate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -3225,7 +3300,7 @@ export interface components {
          */
         EventCreate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Cycle Slots */
             cycle_slots?: number[];
             /**
@@ -3403,7 +3478,7 @@ export interface components {
          */
         EventUpdate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Cycle Slots */
             cycle_slots?: number[];
             /**
@@ -3604,7 +3679,7 @@ export interface components {
          */
         FormCreate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -3880,7 +3955,7 @@ export interface components {
          */
         FormUpdate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -3936,9 +4011,14 @@ export interface components {
          *     same response shape either way so the API can't be probed for
          *     account existence.
          *
-         *     ``tenant`` is the organisation's slug — the first segment of the
-         *     URL the sign-in page is served from. The door is per tenant: the
-         *     same address can organise for two of them, as two accounts.
+         *     ``tenant`` is the organisation's slug — the first segment of the URL
+         *     the sign-in page is served from. The door is per tenant: the same
+         *     address can organise for two of them, as two accounts.
+         *
+         *     ``None`` is the root's door, where an address *is* the account: no
+         *     organisation, no approval, and no registration step — an address the
+         *     app hasn't seen gets a personal account and a sign-in link in the
+         *     same response as one it has.
          */
         LoginLinkRequest: {
             /**
@@ -3947,7 +4027,7 @@ export interface components {
              */
             email: string;
             /** Tenant */
-            tenant: string;
+            tenant?: string | null;
         };
         /**
          * LoginRequest
@@ -4368,7 +4448,7 @@ export interface components {
          */
         RosterCreate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Chores */
             chores?: components["schemas"]["ChoreIn"][];
             /**
@@ -4533,7 +4613,7 @@ export interface components {
          */
         RosterUpdate: {
             /** Chapter Id */
-            chapter_id: string;
+            chapter_id?: string | null;
             /** Chores */
             chores?: components["schemas"]["ChoreIn"][];
             /**
@@ -4738,6 +4818,55 @@ export interface components {
             /** Registration Id */
             registration_id: string;
         };
+        /** StartDatepoll */
+        StartDatepoll: {
+            datepoll: components["schemas"]["DatepollCreate"];
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /** StartEvent */
+        StartEvent: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            event: components["schemas"]["EventCreate"];
+        };
+        /** StartForm */
+        StartForm: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            form: components["schemas"]["FormCreate"];
+        };
+        /** StartRoster */
+        StartRoster: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            roster: components["schemas"]["RosterCreate"];
+        };
+        /**
+         * StartedOut
+         * @description What the visitor gets back: the public URL of the thing they just
+         *     made, so they can share it before the mail has arrived, and the
+         *     slug behind it. Deliberately says nothing about whether the account
+         *     already existed.
+         */
+        StartedOut: {
+            /** Public Url */
+            public_url: string;
+            /** Slug */
+            slug: string;
+        };
         /**
          * StatusResponse
          * @description Connection state of the linked WhatsApp session.
@@ -4777,8 +4906,12 @@ export interface components {
             is_approved: boolean;
             /** Name */
             name: string;
+            /** Participant Cap */
+            participant_cap: number | null;
             /** Role */
             role: string;
+            /** Tenant Kind */
+            tenant_kind: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -8847,6 +8980,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_roster_api_v1_start_chores_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartRoster"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_datepoll_api_v1_start_datepolls_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartDatepoll"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_event_api_v1_start_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartEvent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_form_api_v1_start_forms_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartForm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
                 };
             };
             /** @description Validation Error */

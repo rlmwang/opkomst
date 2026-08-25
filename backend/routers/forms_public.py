@@ -36,7 +36,7 @@ from ..schemas.forms import (
     FormSubmitIn,
     PublicFormOut,
 )
-from ..services import edit_token, public_access
+from ..services import edit_token, limits, public_access
 from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
@@ -180,6 +180,7 @@ def submit_form(
     revisit and edit. Nothing in the response links the submission
     back to a person beyond the self-chosen pseudonym."""
     form = _resolve_form(db, slug)
+    limits.assert_has_room_for_participant(db, form.tenant, "form", form.id)
     submitted = _build_submitted(_form_questions(db, form.id), data.answers)
 
     raw_token, token_hash = edit_token.new_edit_token()

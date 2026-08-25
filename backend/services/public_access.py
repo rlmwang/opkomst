@@ -37,7 +37,7 @@ def resolve_by_slug(db: Session, model: Any, slug: str, *, gone_detail: str) -> 
     row = db.query(model).filter(model.slug == slug).first()
     if row is None or row.archived_at is not None:
         raise HTTPException(status_code=410, detail=gone_detail)
-    tenancy.bind(row.tenant_id, row.tenant.slug)
+    tenancy.bind(row.tenant_id, row.tenant.brand_slug)
     return row
 
 
@@ -66,5 +66,5 @@ def resolve_by_token(
     parent = db.query(parent_model).filter(parent_model.id == getattr(sub, parent_fk.key)).first()
     if parent is None or parent.archived_at is not None or (extra_guard is not None and extra_guard(parent)):
         raise HTTPException(status_code=410, detail=gone_detail)
-    tenancy.bind(parent.tenant_id, parent.tenant.slug)
+    tenancy.bind(parent.tenant_id, parent.tenant.brand_slug)
     return sub

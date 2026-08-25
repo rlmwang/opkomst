@@ -15,7 +15,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from ..auth import require_admin, require_approved
+from ..auth import require_admin, require_approved, require_organisation
 from ..database import get_db
 from ..models import Chapter, Event, User, UserChapter
 from ..schemas.chapters import (
@@ -31,7 +31,13 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/chapters", tags=["chapters"])
+# Organisation-only surface: a personal tenant has no chapters, and
+# nothing in it carries a ``chapter_id``.
+router = APIRouter(
+    prefix="/api/v1/chapters",
+    tags=["chapters"],
+    dependencies=[Depends(require_organisation)],
+)
 
 
 @contextmanager
@@ -128,7 +134,7 @@ def patch_chapter(
 def chapter_usage(
     chapter_id: str,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> ChapterUsageOut:
     """How many live users + events are currently linked to this
     chapter. The frontend calls this before opening the delete
@@ -141,10 +147,17 @@ def chapter_usage(
     users = (
         db.query(UserChapter)
         .join(User, User.id == UserChapter.user_id)
-        .filter(UserChapter.chapter_id == chapter_id, User.deleted_at.is_(None))
+        .filter(
+            UserChapter.chapter_id == chapter_id,
+            User.tenant_id == admin.tenant_id,
+            User.deleted_at.is_(None),
+        )
         .count()
     )
-    events = db.query(Event).filter(Event.chapter_id == chapter_id).count()
+    # Scoped to the organisation as well as the chapter: ``chapter_id``
+    # is a bare FK, and a count that reached across tenants would report
+    # somebody else's rows as this chapter's.
+    events = db.query(Event).filter(Event.tenant_id == admin.tenant_id, Event.chapter_id == chapter_id).count()
     return ChapterUsageOut(users=users, events=events)
 
 

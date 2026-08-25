@@ -40,7 +40,7 @@ from ..schemas.auth import (
     LoginRequest,
     UserOut,
 )
-from ..services import tenancy
+from ..services import limits, tenancy
 from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
 from ..services.rate_limit import Limits, limiter
@@ -68,6 +68,8 @@ def _user_out(db: Session, user: User) -> UserOut:
         name=user.name,
         role=user.role,
         is_approved=user.is_approved,
+        tenant_kind=user.tenant.kind,
+        participant_cap=limits.participant_cap(user.tenant),
         chapters=[ChapterRef(id=c.id, name=c.name) for c in live_chapters],
         created_at=user.created_at,
     )
@@ -128,22 +130,33 @@ def _mint_registration_token(db: Session, email: str, tenant_id: str) -> str:
     return raw
 
 
-def _send_login_email(user: User, tenant_slug: str, raw_token: str) -> None:
-    url = build_url(f"{tenant_slug}/auth/redeem", token=raw_token)
+def _send_login_email(user: User, tenant_slug: str | None, raw_token: str, account: str) -> None:
+    """``tenant_slug`` is ``None`` for a personal account, whose app is
+    the root — so is its redeem link.
+
+    ``account`` is what the mail calls the account this link opens: the
+    organisation's name, or the address itself for a personal account.
+    A reader who holds two of them can tell which one they're opening
+    before they click, without the mail naming the other."""
+    path = f"{tenant_slug}/auth/redeem" if tenant_slug else "auth/redeem"
+    url = build_url(path, token=raw_token)
     send_email(
         to=user.email,
         template_name="login.html",
-        context={"name": user.name, "login_url": url},
+        context={"name": user.name, "login_url": url, "account": account},
         locale="nl",
     )
 
 
-def _send_register_complete_email(email: str, tenant_slug: str, raw_token: str) -> None:
+def _send_register_complete_email(email: str, tenant_slug: str, raw_token: str, account: str) -> None:
+    """Only an organisation has a registration step — the root's door
+    creates the account outright. ``account`` is the organisation's
+    name, so the reader knows what they are joining."""
     url = build_url(f"{tenant_slug}/register/complete", token=raw_token)
     send_email(
         to=email,
         template_name="register_complete.html",
-        context={"complete_url": url},
+        context={"complete_url": url, "account": account},
         locale="nl",
     )
 
@@ -153,28 +166,52 @@ def _send_register_complete_email(email: str, tenant_slug: str, raw_token: str) 
 def login_link(request: Request, data: LoginLinkRequest, db: Session = Depends(get_db)) -> LinkSent:
     """Send a magic link.
 
-    Branches on whether the email matches a live user *of this
-    tenant*. Both branches return the same ``LinkSent`` so the API
-    can't be probed for account existence — including by an unknown
-    tenant slug, which returns the same shape rather than confirming
-    which organisations exist."""
-    tenant = tenants_svc.find_live_by_slug(db, data.tenant)
+    Two doors. With a ``tenant`` it is an organisation's: the address
+    either belongs to a live user of it (sign-in link) or doesn't
+    (registration link, which asks for a name and waits for an admin).
+
+    Without one it is the root's, where an address *is* the account.
+    There is nobody to tell apart and nobody to approve you, so an
+    address the app hasn't seen gets a personal tenant, its one user,
+    and a sign-in link — the same response, and the same mail, as one it
+    has seen.
+
+    Both doors return the same ``LinkSent`` either way, so neither can
+    be probed for which addresses or which organisations exist."""
+    if data.tenant is None:
+        return _personal_login_link(db, data.email)
+
+    tenant = tenants_svc.find_live_organisation_by_slug(db, data.tenant)
     if tenant is None:
         logger.info("login_link_for_unknown_tenant")
         return LinkSent()
     # Binds the tenant for the token row this request is about to
     # write; nothing else in the flow has a signed-in user to bind it.
-    tenancy.bind(tenant.id, tenant.slug)
+    tenancy.bind(tenant.id, tenant.brand_slug)
 
     user = _live_user_by_email(db, data.email, tenant.id)
     if user is not None:
         raw = _mint_login_token(db, user)
-        _send_login_email(user, tenant.slug, raw)
+        _send_login_email(user, tenant.slug, raw, tenant.name)
         logger.info("login_link_sent", user_id=user.id)
     else:
         raw = _mint_registration_token(db, data.email, tenant.id)
-        _send_register_complete_email(data.email, tenant.slug, raw)
+        _send_register_complete_email(data.email, tenant.slug, raw, tenant.name)
         logger.info("register_link_sent_for_unknown_email")
+    return LinkSent()
+
+
+def _personal_login_link(db: Session, email: str) -> LinkSent:
+    """The root's door: resolve the address to its personal account,
+    creating it if this is the first time, and always mail a sign-in
+    link. No registration token, no name prompt, no approval — the
+    account is the address."""
+    user = tenants_svc.resolve_personal(db, email)
+    db.commit()
+    tenancy.bind(user.tenant_id, user.tenant.brand_slug)
+    raw = _mint_login_token(db, user)
+    _send_login_email(user, None, raw, user.email)
+    logger.info("personal_login_link_sent")
     return LinkSent()
 
 
@@ -257,7 +294,7 @@ def complete_registration(
     # The tenant travelled on the token row, minted by the sign-in page
     # of one organisation — the completing user never picks it.
     tenant_id = row.tenant_id
-    tenancy.bind(tenant_id, row.tenant.slug)
+    tenancy.bind(tenant_id, row.tenant.brand_slug)
 
     # Three convergent branches, same observable outcome (a usable
     # JWT for a row keyed to ``email``):

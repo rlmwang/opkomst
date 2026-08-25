@@ -20,8 +20,12 @@ import { filenameSlug } from "@/lib/filename-slug";
 import { barWidth } from "@/lib/format";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
+import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ formId: string }>();
+// A personal account holds a bounded number of people per form; an
+// organisation has no ceiling, so the pill shows the bare count.
+const auth = useAuthStore();
 
 const { t } = useI18n();
 const lt = useLocalizedText();
@@ -155,6 +159,7 @@ async function exportCsv() {
             <RecoverLinksPill
               v-if="summary && form"
               :count="summary.submission_count"
+              :cap="auth.user?.participant_cap ?? null"
               :label="t('forms.details.responses')"
               :load-rows="recoverRows"
               :recover-path="(id: string) => `/api/v1/forms/${props.formId}/submissions/${id}/edit-link`"

@@ -33,11 +33,10 @@ from ..schemas.forms import (
     FormSummaryOut,
     FormUpdate,
 )
-from ..services import access, crud, edit_token
+from ..services import access, crud, edit_token, entities, limits
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
-from ..services.slug import new_slug
 
 logger = structlog.get_logger()
 
@@ -57,24 +56,10 @@ def create_form(
     page afterwards. Caller-supplied ``chapter_id`` must be in
     the user's live membership set."""
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
-    form = Form(
-        slug=new_slug(),
-        name_nl=data.name_nl,
-        name_en=data.name_en,
-        description_nl=data.description_nl,
-        description_en=data.description_en,
-        image_artist_instagram=data.image_artist_instagram,
-        locale=data.locale,
-        chapter_id=data.chapter_id,
-        created_by=user.id,
-    )
-    db.add(form)
-    db.flush()  # Need form.id for the question rows below.
-    if data.questions:
-        forms_svc.apply_questions(db, form.id, data.questions)
+    limits.assert_can_add_entity(db, user.tenant, "form")
+    form = entities.create_form(db, data, user)
     db.commit()
     db.refresh(form)
-    logger.info("form_created", form_id=form.id, actor_id=user.id, chapter_id=data.chapter_id)
     return forms_svc.to_out(db, form)
 
 
@@ -86,7 +71,7 @@ def list_forms(
 ) -> list[FormListOut]:
     rows = (
         db.query(Form)
-        .filter(access.list_filter(db, user, Form.chapter_id, chapter_id), Form.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_(None))
         .order_by(Form.created_at.desc())
         .all()
     )
@@ -101,7 +86,7 @@ def list_archived_forms(
 ) -> list[FormListOut]:
     rows = (
         db.query(Form)
-        .filter(access.list_filter(db, user, Form.chapter_id, chapter_id), Form.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_not(None))
         .order_by(Form.archived_at.desc())
         .all()
     )

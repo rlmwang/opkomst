@@ -63,7 +63,9 @@ class RosterCreate(BilingualTitleMixin):
 
     _clamp_out_of_range_slots: ClassVar[bool] = False
 
-    chapter_id: str
+    # See ``EventCreate.chapter_id``: required for an organisation,
+    # ``None`` for a personal account, decided by the actor's tenant.
+    chapter_id: str | None = None
     description_nl: RichText
     description_en: RichText
     image_artist_instagram: InstagramHandle

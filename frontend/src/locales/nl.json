@@ -29,7 +29,7 @@
     "confirmTitle": "Geheime link kopiëren?",
     "confirmBody": "Er wordt een nieuwe geheime link gemaakt voor “{name}”; de oude link werkt daarna niet meer. Op de bewerkpagina van de deelnemer komt permanent te staan dat een organisator de link heeft gekopieerd.",
     "confirm": "Maak en kopieer link",
-    "copied": "Link gekopieerd. Deel deze met de deelnemer — alleen met deze link is de inzending te bewerken.",
+    "copied": "Link gekopieerd. Deel deze met de deelnemer. Alleen met deze link is de inzending te bewerken.",
     "failed": "Kopiëren is niet gelukt."
   },
   "imageField": {
@@ -51,6 +51,18 @@
     "none": "Deze organisatie heeft nog geen afdelingen.",
     "failed": "De afdelingen konden niet worden geladen.",
     "signIn": "of log in"
+  },
+  "start": {
+    "emailPlaceholder": "Jouw e-mailadres",
+    "fillEmail": "Vul je e-mailadres in",
+    "doneTitle": "Klaar, je link werkt al",
+    "doneBody": "Deel deze link. We hebben een inlog-link gestuurd naar {email}; daarmee kom je terug bij wat je gemaakt hebt.",
+    "openIt": "Bekijk de pagina",
+    "copyLink": "Kopieer de link",
+    "linkCopied": "Link gekopieerd",
+    "tooMany": "Te veel pogingen achter elkaar. Probeer het over een uur nog eens.",
+    "accountFull": "Dit e-mailadres heeft al het maximum aantal actieve items. Archiveer er een om ruimte te maken.",
+    "failed": "Aanmaken mislukt. Probeer het nog eens."
   },
   "home": {
     "lede": "Waar wil je aan werken?",
@@ -291,7 +303,7 @@
       "localeEn": "Engels",
       "questionsHeading": "Vragen",
       "questionsExplainer": "Voeg de vragen toe die je wilt stellen op de openbare vragenlijst.",
-      "noQuestionsYet": "Nog geen vragen — voeg er hieronder één toe.",
+      "noQuestionsYet": "Nog geen vragen. Voeg er hieronder één toe.",
       "addQuestion": "Vraag toevoegen",
       "notFoundTitle": "Vragenlijst niet gevonden",
       "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
@@ -386,7 +398,7 @@
       "localeEn": "Engels",
       "datesHeading": "Mogelijke datums",
       "datesExplainer": "Kies de datums waaruit mensen kunnen kiezen. Voeg per dag eventueel tijdslots toe; zonder tijdslot geldt de hele dag.",
-      "noDatesYet": "Nog geen datums — kies ze in de kalender hierboven.",
+      "noDatesYet": "Nog geen datums. Kies ze in de kalender hierboven.",
       "removeDate": "Datum verwijderen",
       "addSlot": "+ tijdslot",
       "removeSlot": "Tijdslot verwijderen",
@@ -589,7 +601,7 @@
     "approveFail": "Goedkeuren mislukt",
     "approveDialogTitle": "Account goedkeuren",
     "approveDialogBody": "Controleer de naam en kies een afdeling. {name} kan daarna evenementen organiseren voor die afdeling.",
-    "userEditDialogTitle": "Gebruiker bewerken — {name}",
+    "userEditDialogTitle": "Gebruiker bewerken: {name}",
     "userEditDialogBody": "Wijzig de naam of afdeling van deze gebruiker.",
     "userEditOk": "Gebruiker bijgewerkt",
     "userEditFail": "Bijwerken mislukt",
@@ -727,7 +739,7 @@
     "deleteSignup": {
       "title": "Aanmelding verwijderen",
       "confirmTitle": "Deze aanmelding verwijderen?",
-      "confirmBody": "Verwijdert de aanmelding van \"{name}\". Het aantal deelnemers en de statistieken worden direct bijgewerkt. Een eventuele herinnering of feedback-mail die al klaarstaat voor dit adres wordt wel nog verstuurd — aanmeldingen en uitgaande mails zijn bewust ontkoppeld.",
+      "confirmBody": "Verwijdert de aanmelding van \"{name}\". Het aantal deelnemers en de statistieken worden direct bijgewerkt. Een eventuele herinnering of feedback-mail die al klaarstaat voor dit adres wordt wel nog verstuurd. Aanmeldingen en uitgaande mails zijn bewust ontkoppeld.",
       "confirm": "Aanmelding verwijderen",
       "ok": "Aanmelding verwijderd",
       "fail": "Aanmelding kon niet worden verwijderd"
@@ -781,6 +793,7 @@
       "weeks": "{n} weken"
     },
     "signupsHeading": "Aanmeldingen",
+    "capUsage": "{n} van de {cap} plekken",
     "signupList": "Aanmeldingen bekijken",
     "occurrences": {
       "counts": "{signups} aanmeldingen · {attendees} deelnemers",

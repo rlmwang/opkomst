@@ -46,7 +46,7 @@ from ..schemas.chores import (
     PublicRosterOut,
     SwapIn,
 )
-from ..services import chore_tick, edit_token, encryption, mail, public_access
+from ..services import chore_tick, edit_token, encryption, limits, mail, public_access
 from ..services import chores as chores_svc
 from ..services.events import now_wallclock
 from ..services.qr import render_qr
@@ -104,6 +104,7 @@ def enroll(
     db: Session = Depends(get_db),
 ) -> EnrollAck:
     roster = public_access.resolve_by_slug(db, Roster, slug, gone_detail=_GONE)
+    limits.assert_has_room_for_participant(db, roster.tenant, "roster", roster.id)
     _validate_chore_ids(db, roster.id, data.chore_ids)
 
     raw, token_hash = edit_token.new_edit_token()

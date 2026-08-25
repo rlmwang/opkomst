@@ -17,7 +17,7 @@ on the way out, and the privacy audit greps for offenders.
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from ..auth import require_admin
+from ..auth import require_admin, require_organisation
 from ..models import User
 from ..schemas.whatsapp import (
     HeartbeatResponse,
@@ -31,7 +31,13 @@ from ..services.rate_limit import limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/whatsapp", tags=["whatsapp"])
+# Organisation-only surface: a personal account has no members to blast
+# and no admin to do it, so every route here 404s for one.
+router = APIRouter(
+    prefix="/api/v1/whatsapp",
+    tags=["whatsapp"],
+    dependencies=[Depends(require_organisation)],
+)
 
 
 async def _watchdog() -> None:

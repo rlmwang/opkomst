@@ -12,7 +12,10 @@ import ImageField from "@/components/ImageField.vue";
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
 import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
+import StartAccountField from "@/components/StartAccountField.vue";
+import StartedPanel from "@/components/StartedPanel.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
+import { useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useOrderedList } from "@/composables/useOrderedList";
@@ -33,7 +36,18 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
-const chaptersQuery = useChapters();
+// The root's front door: see ``useStartMode``.
+const {
+  active: startActive,
+  hasChapters,
+  email: startEmail,
+  started,
+  validate: validateStartEmail,
+  submit: submitStart,
+  chapterFor,
+  cancel: cancelStart,
+} = useStartMode("form");
+const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
 const auth = useAuthStore();
 const createMutation = useCreateForm();
@@ -226,6 +240,7 @@ function setQuestion(index: number, next: QuestionDraft): void {
 
 function cancel(): void {
   clearDraft();
+  if (cancelStart()) return;
   if (isEdit.value && props.formId) {
     void router.push(`/forms/${props.formId}/details`);
   } else {
@@ -240,17 +255,18 @@ async function submit() {
     toasts.warn(t("forms.edit.fillName"));
     return;
   }
-  if (!chapterId.value) {
+  if (hasChapters.value && !chapterId.value) {
     toasts.warn(t("forms.edit.fillChapter"));
     return;
   }
+  if (startActive.value && !validateStartEmail()) return;
   // Backend validates choice-options length etc.; surface a
   // localised generic on submit failure rather than raw 400
   // detail.
   submitting.value = true;
   try {
     const wirePayload: FormCreate | FormUpdate = {
-      chapter_id: chapterId.value,
+      chapter_id: chapterFor(chapterId.value),
       name_nl: nameNl.value.trim() || null,
       name_en: nameEn.value.trim() || null,
       description_nl: descNl.value.trim() || null,
@@ -269,6 +285,13 @@ async function submit() {
         }),
       ),
     };
+    if (startActive.value) {
+      // No session: no details page to land on, and the public link
+      // the response carries is the whole result. A refusal has already
+      // been explained; the draft stays so it can be retried.
+      if (await submitStart(wirePayload)) clearDraft();
+      return;
+    }
     const result =
       isEdit.value && props.formId
         ? await updateMutation.mutateAsync({ id: props.formId, payload: wirePayload })
@@ -311,6 +334,8 @@ async function submit() {
     </div>
   </template>
 
+  <StartedPanel v-else-if="started" :started="started" :email="startEmail" />
+
   <FormPageShell
     v-else
     :title="isEdit ? t('forms.edit.editTitle') : t('forms.edit.newTitle')"
@@ -320,6 +345,7 @@ async function submit() {
     @cancel="cancel"
   >
     <section class="form-section">
+      <StartAccountField v-if="startActive" v-model="startEmail" />
       <InputText
         v-model="title"
         :placeholder="titleFallback || t('forms.edit.namePlaceholder')"
@@ -331,6 +357,7 @@ async function submit() {
         :fallback-html="bodyFallback || null"
       />
       <Select
+        v-if="hasChapters"
         v-model="chapterId"
         :options="userChapterOptions"
         option-label="name"
@@ -341,7 +368,10 @@ async function submit() {
       />
     </section>
 
+    <!-- Uploading writes to the row it belongs to, which takes a
+         session the visitor does not have yet. -->
     <ImageField
+      v-if="!startActive"
       ref="imageField"
       resource="forms"
       :entity-id="props.formId ?? null"

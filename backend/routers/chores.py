@@ -33,12 +33,11 @@ from ..schemas.chores import (
     VolunteerSummaryOut,
 )
 from ..schemas.common import EditLinkRecoverOut
-from ..services import access, chore_tick, crud, edit_token
+from ..services import access, chore_tick, crud, edit_token, entities, limits
 from ..services import chores as chores_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
-from ..services.slug import new_slug
 
 logger = structlog.get_logger()
 
@@ -57,33 +56,10 @@ def create_roster(
     can be saved and chores added on the edit page. The caller-supplied
     ``chapter_id`` must be in the user's set."""
     access.assert_user_can_assign_chapter(db, user, data.chapter_id)
-    roster = Roster(
-        slug=new_slug(),
-        name_nl=data.name_nl,
-        name_en=data.name_en,
-        description_nl=data.description_nl,
-        description_en=data.description_en,
-        location=data.location,
-        latitude=data.latitude,
-        longitude=data.longitude,
-        image_artist_instagram=data.image_artist_instagram,
-        locale=data.locale,
-        period_weeks=data.period_weeks,
-        starts_on=data.starts_on,
-        ends_on=data.ends_on,
-        reminder_enabled=data.reminder_enabled,
-        reminder_days_before=data.reminder_days_before,
-        commit_horizon_days=data.commit_horizon_days,
-        chapter_id=data.chapter_id,
-        created_by=user.id,
-    )
-    db.add(roster)
-    db.flush()  # Need roster.id for the chore rows below.
-    if data.chores:
-        chores_svc.apply_chores(db, roster.id, data.chores)
+    limits.assert_can_add_entity(db, user.tenant, "roster")
+    roster = entities.create_roster(db, data, user)
     db.commit()
     db.refresh(roster)
-    logger.info("roster_created", roster_id=roster.id, actor_id=user.id, chapter_id=data.chapter_id)
     return chores_svc.to_out(db, roster)
 
 
@@ -95,7 +71,7 @@ def list_rosters(
 ) -> list[RosterListOut]:
     rows = (
         db.query(Roster)
-        .filter(access.list_filter(db, user, Roster.chapter_id, chapter_id), Roster.archived_at.is_(None))
+        .filter(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_(None))
         .order_by(Roster.created_at.desc())
         .all()
     )
@@ -110,7 +86,7 @@ def list_archived_rosters(
 ) -> list[RosterListOut]:
     rows = (
         db.query(Roster)
-        .filter(access.list_filter(db, user, Roster.chapter_id, chapter_id), Roster.archived_at.is_not(None))
+        .filter(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_not(None))
         .order_by(Roster.archived_at.desc())
         .all()
     )

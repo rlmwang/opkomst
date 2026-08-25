@@ -26,7 +26,7 @@ from ..schemas.events import (
     SignupAck,
     SignupCreate,
 )
-from ..services import access, edit_token, encryption, event_recurrence, public_access
+from ..services import access, edit_token, encryption, event_recurrence, limits, public_access
 from ..services import events as events_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
@@ -76,6 +76,11 @@ def create_signup(
 
     now = now_wallclock()
     targets = _resolve_targets(db, event, data, now)
+    # A personal account's event holds a bounded number of people; an
+    # organisation's has no ceiling. A party counts for everyone it
+    # brings. The visitor is told only that it is full, never how full
+    # and never whose account it is.
+    limits.assert_has_room_for_participant(db, event.tenant, "event", event.id, data.party_size)
 
     # One booking (order header) holding the single edit link, pseudonym
     # and party size.
@@ -202,6 +207,17 @@ def update_booking(
     Email + dispatch rows are untouched — there is no path from a booking
     to its encrypted address (principle #2)."""
     registration = _registration_by_token(db, token)
+    # Growing a party takes places just like a new booking does, so the
+    # ceiling is checked on the difference. Shrinking passes trivially:
+    # a negative delta always leaves room.
+    booked_event = db.query(Event).filter(Event.id == registration.event_id).one()
+    limits.assert_has_room_for_participant(
+        db,
+        booked_event.tenant,
+        "event",
+        booked_event.id,
+        data.party_size - registration.party_size,
+    )
     registration.display_name = data.display_name
     registration.party_size = data.party_size
     db.commit()

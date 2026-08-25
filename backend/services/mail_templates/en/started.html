@@ -1,0 +1,17 @@
+{# See the Dutch copy: what was made, the account it belongs to, and
+   the way in. The account line is the disclosure, because anyone can
+   type an address into the start form. The words for each kind live
+   here because which noun to use is a translation. #}
+{% extends "base.html" %}
+{% set nouns = {"event": "event", "form": "form", "datepoll": "date poll", "roster": "chore roster"} %}
+{% set noun = nouns[kind] %}
+{% set subject = noun | capitalize + " created: " + name %}
+{% block content %}
+<p>Hi,</p>
+<p>The {{ noun }} <strong>{{ name }}</strong> was just created on the account <strong>{{ account }}</strong>.</p>
+<p>Its public page is here. Share this link with whoever should take part:</p>
+<p><a href="{{ public_url }}">{{ public_url }}</a></p>
+<a href="{{ login_url }}" class="cta">Open your account</a>
+<p class="muted">This sign-in link works once and expires in 30 minutes. After that, ask for a new one at {{ public_base_url }} with this address. Didn't do this yourself? Then someone entered your address; you don't need to do anything, and the button above shows you what's in your account.</p>
+{% endblock %}
+{% block footer %}{{ account }} · {{ app_name }}{% endblock %}

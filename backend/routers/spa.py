@@ -14,9 +14,11 @@ Entry points:
   on first paint, plus the per-page ``<head>`` metadata for link
   previews. These URLs carry no tenant: the entity behind the slug is
   what decides whose brand the page wears.
-* ``/{tenant}/…`` — the organiser SPA (``index.html``), for every live
-  tenant slug. The bare root and unknown slugs are 404: a shell that
-  can't know whose data it would show is worse than nothing.
+* ``/{tenant}/…`` — an organisation's organiser SPA (``index.html``),
+  for every live organisation slug.
+* everything else — the same SPA in the house brand, based at ``/``:
+  the personal app, where an address is the account. Its own router
+  renders the not-found page for paths it doesn't know.
 * ``/brand/{tenant}/…`` — the brand files (palette, logo, icons),
   served from ``brands/`` whether or not a frontend build exists.
 
@@ -106,7 +108,7 @@ def _og_head(*, name: str, description: str, canonical_url: str, image_url: str 
     app_name = brand["app_name"]
     og_image = image_url or brand["favicon_absolute_url"]
     twitter_card = "summary_large_image" if image_url else "summary"
-    et = html.escape(f"{name} — {app_name}", quote=True)
+    et = html.escape(f"{name} · {app_name}", quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
     en = html.escape(name, quote=True)
@@ -322,12 +324,13 @@ def _serve_public_app(
 def _brand_slug_for(db: Session, entity: object | None) -> str:
     """Which brand a public page wears: the one belonging to the tenant
     that owns the entity behind the slug. An unknown or archived slug
-    resolved to nothing, so there is no owner to ask — those pages, and
-    only those, wear the house brand."""
+    resolved to nothing, so there is no owner to ask, and those pages
+    wear the house brand. So does a personal account's page: its slug
+    names no brand folder, which is what ``brand_slug`` decides."""
     if entity is None:
         return brand_svc.HOUSE_BRAND
     tenant = tenants_svc.get_live(db, entity.tenant_id)  # type: ignore[attr-defined]
-    return tenant.slug if tenant is not None else brand_svc.HOUSE_BRAND
+    return tenant.brand_slug if tenant is not None else brand_svc.HOUSE_BRAND
 
 
 def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
@@ -454,9 +457,8 @@ def mount(app: FastAPI) -> None:
         #
         # A chapter and a workspace share this namespace, which is why
         # ``services.slug.RESERVED_SLUGS`` keeps a chapter from being
-        # called "events". The first segment must be a live tenant —
-        # anything else, the bare root included, is a 404 rather than a
-        # shell that can't know whose data it would show.
+        # called "events". A first segment that isn't a live
+        # organisation belongs to the personal app at the root.
         #
         # ``index.html`` MUST NOT be browser-cached. Vite emits
         # content-hashed asset names (``main-AbCd1234.js``) which
@@ -471,17 +473,17 @@ def mount(app: FastAPI) -> None:
         if full_path.startswith("api/") or full_path == "health":
             raise HTTPException(status_code=404, detail="Not found")
         tenant_slug = full_path.split("/", 1)[0]
-        tenant = tenants_svc.find_live_by_slug(db, tenant_slug) if tenant_slug else None
+        tenant = tenants_svc.find_live_organisation_by_slug(db, tenant_slug) if tenant_slug else None
         if tenant is None:
-            # No organisation owns this path, so the page belongs to
-            # none: the same shell in the house brand, whose router is
-            # based at ``/`` and therefore lands on the not-found page,
-            # served with a 404 so crawlers and monitors agree with what
-            # the visitor sees.
-            return _serve_admin_shell(brand_svc.HOUSE_BRAND, _nonce(request), status_code=404)
+            # No organisation owns this path, so it belongs to the app
+            # itself: the personal side, in the house brand, based at
+            # ``/``. Its router resolves ``/events``, ``/login`` and the
+            # rest, and renders its own not-found page for anything it
+            # doesn't know — which is why this is a 200 and not a 404.
+            return _serve_admin_shell(brand_svc.HOUSE_BRAND, _nonce(request))
 
         # Inside the organisation now, so chapter reads are scoped to it.
-        tenancy.bind(tenant.id, tenant.slug)
+        tenancy.bind(tenant.id, tenant.brand_slug)
         _, _, rest = full_path.partition("/")
         second = rest.split("/", 1)[0]
         chapter = chapters_svc.find_live_by_slug(db, second) if second else None

@@ -10,9 +10,9 @@
 
 export interface Brand {
   slug: string;
-  /** Where the organiser app is mounted — the router's history base.
-   * ``/{tenant}/`` for an organisation, ``/`` for the house brand,
-   * which only ever renders the not-found page. */
+  /** Where the app is mounted: the router's history base. ``/{tenant}/``
+   * for an organisation, ``/`` for the house brand, which is the
+   * personal app. */
   app_base: string;
   app_name: string;
   wordmark: string;
@@ -39,3 +39,14 @@ export function brand(): Brand {
 }
 
 export const APP_NAME = brand().app_name;
+
+/** Whether this page is the tenant-less app at the root.
+ *
+ * The house brand is mounted at ``/`` and no organisation is; the
+ * server decides which of the two a URL gets (``routers/spa.py``), so
+ * the base it injected is the answer and the app never parses the URL
+ * to second-guess it. Drives the things a personal account doesn't
+ * have: no chapters, no admin pages, no organisation to sign in to. */
+export function isPersonalApp(): boolean {
+  return brand().app_base === "/";
+}

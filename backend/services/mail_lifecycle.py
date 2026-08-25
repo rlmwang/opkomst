@@ -62,7 +62,7 @@ from ..models import (
     Volunteer,
 )
 from ..schemas.common import pick_localized
-from . import encryption, tenancy
+from . import encryption, limits, tenancy
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 from .sanitize import html_to_text
@@ -443,10 +443,17 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .all()
         )
         for dispatch_id, ciphertext, dispatch_locale, occurrence, event in rows:
+            # A personal account has a daily send budget. Over it, the
+            # row is left pending and picked up on a later sweep once
+            # the rolling day has moved on: skipping is the whole
+            # enforcement, since nothing here has a caller to refuse.
+            if not limits.has_mail_budget(db, event.tenant):
+                logger.info("mail_budget_reached", tenant_id=event.tenant_id, channel=channel.value)
+                continue
             # One sweep spans every organisation; the event being mailed
             # about decides the tenant of the feedback token this may
             # mint, and the brand the email wears.
-            with tenancy.use(event.tenant_id, event.tenant.slug):
+            with tenancy.use(event.tenant_id, event.tenant.brand_slug):
                 _process_one(db, channel, occurrence, event, dispatch_id, ciphertext, dispatch_locale)
         db.commit()
         return len(rows)
@@ -580,29 +587,45 @@ def run_chore_reminders() -> int:
             due = shift.on_date - timedelta(days=roster.reminder_days_before)
             if now < datetime.combine(due, time(hour=CHORE_REMINDER_SEND_HOUR)):
                 continue  # reminder day/hour not reached yet
+            # Same daily budget as the event channels, and the same
+            # answer when it is spent: leave the stamp null and let a
+            # later sweep send it, bounded by the shift date.
+            if not limits.has_mail_budget(db, roster.tenant):
+                logger.info("mail_budget_reached", tenant_id=roster.tenant_id, channel="chore_reminder")
+                continue
             try:
                 plaintext = encryption.decrypt(volunteer.encrypted_email)
             except Exception:
                 logger.warning("chore_reminder_decrypt_failed", shift_id=shift.id)
                 continue
-            ok = send_with_retry(
-                to=plaintext,
-                template_name="chore_reminder.html",
-                context={
-                    # ``chore.name`` is single-language; the roster title is
-                    # bilingual, resolved in the volunteer's own locale.
-                    "chore_name": chore.name,
-                    "roster_name": pick_localized(roster.name_nl, roster.name_en, volunteer.locale),
-                    "when": shift.on_date.strftime("%d-%m-%Y"),
-                },
-                locale=volunteer.locale,
-                message_id=new_message_id(),
-                log_event="chore_reminder_send_failed",
-            )
-            if ok:
-                shift.reminder_sent_at = datetime.now(UTC)
-                sent += 1
-        db.commit()
+            # One sweep spans every account, so each send binds the one
+            # it belongs to: the mail wears that account's brand, and
+            # stamping the shift is a write the flush guard checks.
+            with tenancy.use(roster.tenant_id, roster.tenant.brand_slug):
+                ok = send_with_retry(
+                    to=plaintext,
+                    template_name="chore_reminder.html",
+                    context={
+                        # ``chore.name`` is single-language; the roster title is
+                        # bilingual, resolved in the volunteer's own locale.
+                        "chore_name": chore.name,
+                        "roster_name": pick_localized(roster.name_nl, roster.name_en, volunteer.locale),
+                        "when": shift.on_date.strftime("%d-%m-%Y"),
+                        # Deliberately no ``account``: this mail goes to
+                        # a volunteer, not to the account holder, and a
+                        # personal account is named by its owner's
+                        # address. The roster names the thing; the brand
+                        # names whose it is where there is an
+                        # organisation to name.
+                    },
+                    locale=volunteer.locale,
+                    message_id=new_message_id(),
+                    log_event="chore_reminder_send_failed",
+                )
+                if ok:
+                    shift.reminder_sent_at = datetime.now(UTC)
+                    db.commit()
+                    sent += 1
         logger.info("chore_reminders_done", processed=sent)
         return sent
     finally:

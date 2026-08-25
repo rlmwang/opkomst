@@ -27,13 +27,19 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Bound:
-    """The tenant in scope: its id for the data, its slug for the brand.
-    Both travel together because a write needs the first and a rendered
+    """The tenant in scope: its id for the data, its brand for anything
+    rendered. Both travel together because a write needs the first and a
     page or email needs the second, and looking one up from the other at
-    every use would be a query per surface."""
+    every use would be a query per surface.
+
+    ``brand`` is the folder under ``brands/``, which is an organisation's
+    slug but the house brand for a personal tenant — see
+    ``Tenant.brand_slug``, the one place that rule lives. Callers pass it
+    rather than the slug, so nothing downstream has to know which kind
+    of account it is rendering for."""
 
     id: str
-    slug: str
+    brand: str
 
 
 _current: ContextVar[Bound | None] = ContextVar("current_tenant", default=None)
@@ -43,10 +49,12 @@ class NoTenantBound(RuntimeError):
     """Raised when something needs the tenant and nothing bound one."""
 
 
-def bind(tenant_id: str, slug: str) -> None:
+def bind(tenant_id: str, brand: str) -> None:
     """Bind the tenant for the rest of this context (request, task, CLI
-    invocation). Later binds in the same context replace earlier ones."""
-    _current.set(Bound(id=tenant_id, slug=slug))
+    invocation). Later binds in the same context replace earlier ones.
+
+    ``brand`` is ``Tenant.brand_slug``, never the raw slug."""
+    _current.set(Bound(id=tenant_id, brand=brand))
 
 
 def current() -> str:
@@ -55,10 +63,9 @@ def current() -> str:
     return _require().id
 
 
-def current_slug() -> str:
-    """The bound tenant's slug — the brand folder a page or an email
-    should wear."""
-    return _require().slug
+def current_brand() -> str:
+    """The brand folder a page or an email in this context should wear."""
+    return _require().brand
 
 
 def current_or_none() -> Bound | None:
@@ -117,11 +124,11 @@ def install_write_guard(session_class: type) -> None:
 
 
 @contextmanager
-def use(tenant_id: str, slug: str) -> Generator[None]:
+def use(tenant_id: str, brand: str) -> Generator[None]:
     """Bind a tenant for the duration of a block and restore the previous
-    one after — the shape the CLI, the seeds and the mail lifecycle need
+    one after: the shape the CLI, the seeds and the mail lifecycle need
     when they loop over several tenants' work in one process."""
-    token = _current.set(Bound(id=tenant_id, slug=slug))
+    token = _current.set(Bound(id=tenant_id, brand=brand))
     try:
         yield
     finally:

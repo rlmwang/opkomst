@@ -14,6 +14,9 @@ _ALPHABET = "23456789abcdefghijkmnpqrstuvwxyz"
 # added later can't quietly shadow a chapter that already exists.
 RESERVED_SLUGS: frozenset[str] = frozenset(
     {
+        # The organiser app's own pages. A chapter agenda lives at
+        # ``/{tenant}/{chapter}`` and the personal app lives at the
+        # root, so both namespaces share these names.
         "admin",
         "auth",
         "chapters",
@@ -25,6 +28,17 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "logout",
         "register",
         "users",
+        # The rest of the root's vocabulary: an organisation slug that
+        # matched one of these would shadow a public page or a mount.
+        "api",
+        "assets",
+        "brand",
+        "c",
+        "d",
+        "e",
+        "f",
+        "health",
+        "me",
     }
 )
 
@@ -32,6 +46,14 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
 def new_slug(length: int = 8) -> str:
     """Generate a short, public, URL-friendly event slug."""
     return generate(_ALPHABET, length)
+
+
+def personal_slug() -> str:
+    """A personal tenant's slug. It names the row and never appears in a
+    URL — the personal app lives at the root — so it is a nanoid rather
+    than anything derived from the person: no organisation name someone
+    might want later can collide with it, and it discloses nothing."""
+    return new_slug()
 
 
 def chapter_slug(name: str) -> str:

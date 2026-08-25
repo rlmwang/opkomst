@@ -30,7 +30,7 @@ from ..schemas.datepolls import (
     PublicDatepollOut,
 )
 from ..services import datepolls as datepolls_svc
-from ..services import edit_token, public_access
+from ..services import edit_token, limits, public_access
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
@@ -122,6 +122,7 @@ def submit_datepoll(
     (raw returned once; only its hash stored) so the respondent can
     revisit and edit."""
     poll = _resolve_datepoll(db, slug)
+    limits.assert_has_room_for_participant(db, poll.tenant, "datepoll", poll.id)
     by_slot = _build_by_slot(db, poll.id, data)
 
     raw_token, token_hash = edit_token.new_edit_token()

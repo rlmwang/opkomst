@@ -30,6 +30,11 @@ export interface ChromeStrings {
   submit: string;
   submitting: string;
   submitFail: string;
+  /** Refused because the thing has no places left. Personal accounts
+   *  hold a bounded number of people per event, form, poll or roster;
+   *  an organisation's has no ceiling, so this never shows there. Said
+   *  plainly, and without saying whose account it is or how full. */
+  full: string;
   /** The confirmation-card heading, identical across all four entity
    *  types. */
   thanks: string;
@@ -63,6 +68,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     submit: "Versturen",
     submitting: "Versturen…",
     submitFail: "Versturen mislukt",
+    full: "Dit zit vol. Er zijn geen plekken meer.",
     thanks: "Bedankt!",
     save: "Opslaan",
     saved: "Opgeslagen",
@@ -90,6 +96,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     submit: "Submit",
     submitting: "Submitting…",
     submitFail: "Submitting failed",
+    full: "This is full. No more places are available.",
     thanks: "Thank you!",
     save: "Save",
     saved: "Saved",

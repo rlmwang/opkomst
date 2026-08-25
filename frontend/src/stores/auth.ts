@@ -2,7 +2,8 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { AuthResponse, User } from "@/api/types";
 import { clearToken, get, getToken, post, setToken } from "@/api/client";
-import { brand } from "@/lib/branding";
+import { brand, isPersonalApp } from "@/lib/branding";
+import { clearAllDrafts } from "@/composables/useFormDraft";
 
 export type { User };
 
@@ -16,6 +17,19 @@ export const useAuthStore = defineStore("auth", () => {
   const whatsappAvailable = ref(false);
 
   const isAuthenticated = computed(() => user.value !== null);
+  // A personal account is one person and no chapters, so the pages
+  // that manage people and chapters aren't offered. Read off the user
+  // rather than off the brand, because it is a fact about the account:
+  // the server refuses those routes for it either way.
+  const isPersonal = computed(() => user.value?.tenant_kind === "personal");
+  // An approved member of an organisation who is in none of its
+  // chapters sees nothing until they pick one, so every list page
+  // shows them the picker instead of an empty list. A personal account
+  // is never in this state: it has no chapters by construction, and
+  // its rows are scoped by tenant alone.
+  const needsChapters = computed(
+    () => isApproved.value && !isPersonal.value && (user.value?.chapters?.length ?? 0) === 0,
+  );
   const isApproved = computed(() => user.value?.is_approved === true);
   // Admin must also be approved, keep this in lock-step with the
   // backend's require_admin so a nav link can't 403 when clicked.
@@ -51,8 +65,11 @@ export const useAuthStore = defineStore("auth", () => {
   async function requestLoginLink(email: string): Promise<void> {
     // The door is per organisation: the same address can organise for
     // two of them as two accounts, so the sign-in page names the
-    // tenant it is served under.
-    await post("/api/v1/auth/login-link", { email, tenant: brand().slug });
+    // tenant it is served under. At the root there is no organisation
+    // to name — ``tenant: null`` is the personal door, where the
+    // address resolves to its own account, or becomes one.
+    const tenant = isPersonalApp() ? null : brand().slug;
+    await post("/api/v1/auth/login-link", { email, tenant });
   }
 
   async function redeem(token: string): Promise<void> {
@@ -94,6 +111,9 @@ export const useAuthStore = defineStore("auth", () => {
     } catch {
       // ignore
     }
+    // Same rule for the half-typed create forms. At the root the next
+    // visitor is not necessarily the same person.
+    clearAllDrafts();
   }
 
   return {
@@ -102,6 +122,8 @@ export const useAuthStore = defineStore("auth", () => {
     isAuthenticated,
     isApproved,
     isAdmin,
+    isPersonal,
+    needsChapters,
     whatsappAvailable,
     fetchMe,
     requestLoginLink,

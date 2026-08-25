@@ -27,6 +27,7 @@ from .routers import forms_public as forms_public_router
 from .routers import health as health_router
 from .routers import signups as signups_router
 from .routers import spa
+from .routers import start as start_router
 from .routers import whatsapp as whatsapp_router
 from .services.observability import TimingMiddleware
 from .services.observability import install as install_timing
@@ -133,6 +134,7 @@ app.include_router(datepolls_router.router)
 # as forms/datepolls) so /by-slug/{slug} wins over /{roster_id}.
 app.include_router(chores_public_router.router)
 app.include_router(chores_router.router)
+app.include_router(start_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
 

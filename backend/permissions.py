@@ -79,7 +79,7 @@ _ANY_APPROVED: frozenset[Action] = frozenset({Action.LIST_USERS})
 _SELF_OR_ADMIN: frozenset[Action] = frozenset({Action.RENAME_USER, Action.SET_USER_CHAPTERS})
 
 
-def can(actor: User, action: Action, target: User | None = None) -> bool:
+def can(actor: User, action: Action, target: User | None = None, *, tenant_kind: str) -> bool:
     """Return True iff ``actor`` is allowed to perform ``action``.
 
     For user-targeting actions, ``target`` is the affected user
@@ -91,8 +91,19 @@ def can(actor: User, action: Action, target: User | None = None) -> bool:
     additionally require ``actor.role == "admin"``. Demote
     carries an extra anti-foot-shoot rule: an admin cannot
     demote themselves (would let one click strip the org of
-    its only admin)."""
+    its only admin).
+
+    Every action in this matrix is about *other people* — approving
+    them, renaming them, sorting them into chapters — or about the
+    chapters themselves. A personal tenant holds one person and no
+    chapters, so none of it applies: one rule ahead of the role checks,
+    rather than a branch inside each of them. ``tenant_kind`` is a
+    parameter rather than a read off ``actor.tenant`` so this module
+    keeps taking only typed inputs and stays testable without a DB."""
     if not actor.is_approved:
+        return False
+
+    if tenant_kind == "personal":
         return False
 
     is_admin = actor.role == "admin"

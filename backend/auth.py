@@ -31,10 +31,12 @@ def create_token(user: User) -> str:
     payload = {
         "sub": user.id,
         "tenant": user.tenant_id,
-        # The slug rides along so the tenant can be bound — data *and*
-        # brand — from the token alone, with no query, before the
-        # request reaches a route.
-        "tenant_slug": user.tenant.slug,
+        # The brand rides along so the tenant can be bound, data and
+        # brand both, from the token alone, with no query, before the
+        # request reaches a route. It is the brand folder rather than
+        # the slug because that is the only thing the binding is read
+        # for, and for a personal account the two differ.
+        "tenant_brand": user.tenant.brand_slug,
         "iat": now,
         "exp": now + timedelta(hours=JWT_TTL_HOURS),
     }
@@ -42,17 +44,17 @@ def create_token(user: User) -> str:
 
 
 def _claims(token: str) -> tuple[str, str, str]:
-    """``(user_id, tenant_id, tenant_slug)`` from a valid token."""
+    """``(user_id, tenant_id, tenant_brand)`` from a valid token."""
     try:
         payload = jwt.decode(token, _JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.PyJWTError as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired token") from exc
     sub = payload.get("sub")
     tenant = payload.get("tenant")
-    tenant_slug = payload.get("tenant_slug")
-    if not isinstance(sub, str) or not isinstance(tenant, str) or not isinstance(tenant_slug, str):
+    tenant_brand = payload.get("tenant_brand")
+    if not isinstance(sub, str) or not isinstance(tenant, str) or not isinstance(tenant_brand, str):
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    return sub, tenant, tenant_slug
+    return sub, tenant, tenant_brand
 
 
 class TenantBindingMiddleware(BaseHTTPMiddleware):
@@ -74,11 +76,11 @@ class TenantBindingMiddleware(BaseHTTPMiddleware):
         header = request.headers.get("authorization")
         if header and header.lower().startswith("bearer "):
             try:
-                _sub, tenant_id, tenant_slug = _claims(header.split(" ", 1)[1])
+                _sub, tenant_id, tenant_brand = _claims(header.split(" ", 1)[1])
             except HTTPException:
                 pass
             else:
-                tenancy.bind(tenant_id, tenant_slug)
+                tenancy.bind(tenant_id, tenant_brand)
         return await call_next(request)
 
 
@@ -89,13 +91,13 @@ def get_current_user(
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
-    user_id, tenant_id, _slug = _claims(token)
+    user_id, tenant_id, _brand = _claims(token)
     user = db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id, User.deleted_at.is_(None)).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User no longer exists")
     # Everything this request creates lands in the signed-in user's
     # tenant, without a single write site having to remember to say so.
-    tenancy.bind(user.tenant_id, user.tenant.slug)
+    tenancy.bind(user.tenant_id, user.tenant.brand_slug)
     return user
 
 
@@ -106,6 +108,19 @@ def require_approved(user: User = Depends(get_current_user)) -> User:
     their address."""
     if not user.is_approved:
         raise HTTPException(status_code=403, detail="Account is awaiting admin approval")
+    return user
+
+
+def require_organisation(user: User = Depends(get_current_user)) -> User:
+    """Gate for the surfaces only an organisation has: users, chapters,
+    the WhatsApp tool. A personal tenant is one person with no chapters
+    and nobody to administer, so these routes don't exist for it.
+
+    404 rather than 403: the surface doesn't advertise what other kinds
+    of account have. Mounted as a router-level dependency so a new
+    endpoint under those prefixes is covered without remembering."""
+    if user.tenant.is_personal:
+        raise HTTPException(status_code=404, detail="Not found")
     return user
 
 

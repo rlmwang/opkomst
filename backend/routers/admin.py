@@ -25,7 +25,7 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from ..auth import require_approved
+from ..auth import require_approved, require_organisation
 from ..database import get_db
 from ..models import User
 from ..permissions import Action, can
@@ -45,7 +45,13 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
+# Organisation-only surface: a personal tenant holds one person, so
+# there is nobody here to list, approve, promote or remove.
+router = APIRouter(
+    prefix="/api/v1/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_organisation)],
+)
 
 
 def _get_live_user_or_404(db: Session, user_id: str) -> User:
@@ -63,7 +69,7 @@ def _require(actor: User, action: Action, target: User | None = None) -> None:
     """403 unless ``permissions.can`` says yes. The matrix is the
     single source of truth; this is the one-line bridge between
     the pure decision and the HTTP error contract."""
-    if not can(actor, action, target):
+    if not can(actor, action, target, tenant_kind=actor.tenant.kind):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 
@@ -193,8 +199,14 @@ def approve_user(
         template_name="approved.html",
         context={
             "name": out.name,
+            # Which account was approved. One address can hold several,
+            # and this mail is about exactly one of them.
+            "account": actor.tenant.name,
             "chapter_names": [c.name for c in chapters],
-            "dashboard_url": build_url("dashboard"),
+            # The organisation's own landing page. Not a bare
+            # ``/dashboard``: an app lives under its organisation's
+            # slug, and a link without one lands in the personal app.
+            "dashboard_url": build_url(f"{actor.tenant.slug}/"),
         },
         locale="nl",
     )
