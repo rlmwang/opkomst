@@ -18,6 +18,7 @@ Importing this module is cheap; it does no I/O. The whole settings
 object is a frozen model so consumers can't mutate it accidentally.
 """
 
+import re
 from typing import Annotated, Any, Literal
 
 from pydantic import BeforeValidator, EmailStr, HttpUrl, SecretStr, model_validator
@@ -53,6 +54,15 @@ class Settings(BaseSettings):
     cors_origins: str  # comma-separated list of origins
     public_base_url: HttpUrl
     message_id_domain: str
+    # The organisations this deployment serves, as ``slug:Name`` pairs:
+    # ``rsp:RSP,rood:ROOD``. Which tenants exist is deployment
+    # configuration, not something an operator types into a container
+    # shell — adding one is an env edit and a redeploy. The database
+    # rows are reconciled from this on every boot
+    # (``services/tenants.sync_from_env``); a slug that disappears from
+    # the list is soft-deleted, which stops serving its URLs without
+    # touching its data.
+    tenants: str
 
     # ---- Conditionally required --------------------------------
 
@@ -159,3 +169,32 @@ def cors_origins_list() -> list[str]:
     """Helper for FastAPI's ``CORSMiddleware``, which wants a list
     of strings rather than the comma-separated env shape."""
     return [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
+
+
+_SLUG_SHAPE = re.compile(r"^[a-z0-9-]{1,32}$")
+
+
+def tenants_list() -> list[tuple[str, str]]:
+    """``TENANTS`` parsed into ``(slug, name)`` pairs, in the order
+    given. Raises ``ValueError`` on anything malformed — a typo here
+    would otherwise create an empty organisation and strand the real
+    one's data behind a dead URL, so it stops the boot instead."""
+    pairs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for entry in settings.tenants.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        slug, sep, name = entry.partition(":")
+        slug, name = slug.strip(), name.strip()
+        if not sep or not slug or not name:
+            raise ValueError(f"TENANTS entry {entry!r} is not 'slug:Name'")
+        if not _SLUG_SHAPE.match(slug):
+            raise ValueError(f"TENANTS slug {slug!r} must be lowercase letters, digits or hyphens")
+        if slug in seen:
+            raise ValueError(f"TENANTS lists {slug!r} twice")
+        seen.add(slug)
+        pairs.append((slug, name))
+    if not pairs:
+        raise ValueError("TENANTS is empty — a deployment serves at least one organisation")
+    return pairs

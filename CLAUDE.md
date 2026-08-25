@@ -61,7 +61,7 @@ Daily `python -m backend.cli reap-auth-tokens` deletes expired rows from both to
 - **Cron is one-shot.** `python -m backend.cli <subcommand>` invoked by Coolify scheduled tasks. Five subcommands: `dispatch reminder`, `dispatch feedback`, `reap-partial`, `reap-expired` (covers both expired-window cleanup and the 7-day post-event ciphertext backstop), `reap-auth-tokens` (login + registration tokens). No long-running scheduler container.
 - **`LowercaseEmail`** at the schema boundary normalises identifying input (`backend/schemas/common.py`).
 - **Slug generation**: 8-char nanoid via `backend/services/slug.py`. URL form: `/e/{slug}`.
-- **Organisations are created from the CLI**: `python -m backend.cli tenant-create --slug rsp --name RSP`, and only after `brands/rsp/` exists. No UI, no platform-admin role.
+- **Organisations come from the environment**: `TENANTS=rsp:RSP,rood:ROOD`, reconciled into the `tenants` table by the CLI preamble on every boot (`services/tenants.sync_from_env`). Each slug needs a committed `brands/{slug}/`; dropping a slug soft-deletes that tenant. No UI, no platform-admin role.
 
 ## Frontend
 

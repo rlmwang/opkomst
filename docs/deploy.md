@@ -51,18 +51,29 @@ deliberately run a **single API replica** anyway — see "Rate
 limiting" under Operations for why.
 
 **Organisations.** The app is multi-tenant: the organiser app lives at
-``/{tenant}`` and every row carries its tenant. Adding one is two steps,
-in this order:
+``/{tenant}`` and every row carries its tenant. Which organisations
+exist is configuration, not data — the ``TENANTS`` env var
+(``rsp:RSP,rood:ROOD``) is the source of truth, and the database is
+reconciled to it in the same one-shot that runs the migrations, before
+uvicorn starts. Adding one is:
 
 1. commit ``brands/{slug}/`` — ``brand.json``, ``tokens.css``, logo and
-   the two icons — and deploy, so the image carries the brand;
-2. ``python -m backend.cli tenant-create --slug {slug} --name "{Name}"``
-   on the API container (Coolify → Terminal). It refuses a slug whose
-   brand folder is missing, so step 1 can't be skipped.
+   the two icons;
+2. add ``{slug}:{Name}`` to ``TENANTS`` in Coolify;
+3. deploy.
+
+The boot creates it. A slug with no brand folder stops the boot rather
+than serving pages with no palette, so step 1 can't be skipped. Removing
+a slug from ``TENANTS`` soft-deletes that organisation: its URLs stop
+serving, every row keeps its ``tenant_id``, and putting the slug back
+brings the same rows online again. A slug is an identity — editing one
+in place retires an organisation and creates another, so only the
+display name is safe to change.
 
 The first person to sign in at ``/{slug}/login`` with
-``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin. The bare
-root and any unknown first segment return 404.
+``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin — per
+organisation, so the same address bootstraps each one. The bare root and
+any unknown first segment return 404.
 
 ## 1. Generate secrets
 

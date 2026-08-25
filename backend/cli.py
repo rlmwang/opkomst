@@ -189,20 +189,16 @@ def _reap_auth_tokens() -> int:
         db.close()
 
 
-def _tenant_create(slug: str, name: str) -> None:
-    """Create an organisation. The only way one comes into existence:
-    nobody signs in to "the platform", only to a tenant, so there is no
-    admin UI for this and no platform-level role."""
+def _sync_tenants() -> None:
+    """Reconcile the organisations to ``TENANTS``. Runs in the same
+    preamble as the migrations, so every deploy and every cron
+    invocation leaves the table matching the environment — the env var
+    is the source of truth, and nobody has to remember a command."""
     from .services import tenants as tenants_svc
 
     db = SessionLocal()
     try:
-        tenant = tenants_svc.create(db, slug=slug, name=name)
-        logger.info("tenant_created", tenant_id=tenant.id, slug=tenant.slug)
-        print(f"Created tenant {tenant.name} at /{tenant.slug} (id {tenant.id})")
-    except ValueError as exc:
-        print(f"Not created: {exc}")
-        raise SystemExit(1) from exc
+        tenants_svc.sync_from_env(db)
     finally:
         db.close()
 
@@ -281,17 +277,15 @@ def main(argv: list[str] | None = None) -> int:
         "seed-demo",
         help="Local-mode only: insert two demo accounts + an upcoming and a past event.",
     )
-    p_tenant = sub.add_parser(
-        "tenant-create",
-        help="Create an organisation. Its brands/{slug}/ folder must exist first.",
-    )
-    p_tenant.add_argument("--slug", required=True, help="URL segment + brand folder name, e.g. rsp")
-    p_tenant.add_argument("--name", required=True, help="Display name, e.g. RSP")
 
     args = parser.parse_args(argv)
 
     _init_sentry()
     run_migrations()
+    # Schema first, then the organisations the environment says exist.
+    # Every invocation reconciles, so a deploy that adds a tenant to
+    # ``TENANTS`` has it live the moment the container starts.
+    _sync_tenants()
 
     # Sentry Cron Monitors: send a check-in at start + end so a
     # missed run pages someone before the email queue backs up.
@@ -336,8 +330,6 @@ def main(argv: list[str] | None = None) -> int:
             from .seed import run_local_demo
 
             run_local_demo()
-        elif args.cmd == "tenant-create":
-            _tenant_create(args.slug, args.name)
         else:
             parser.error(f"unknown command: {args.cmd}")
     except Exception:

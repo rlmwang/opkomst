@@ -143,11 +143,10 @@ def run_local_demo() -> None:
 
     db = SessionLocal()
     try:
-        # Everything below belongs to one organisation. The migration
-        # created it; a checkout that dropped its database gets it here.
-        tenant = tenants_svc.find_live_by_slug(db, "rsp")
-        if tenant is None:
-            tenant = tenants_svc.create(db, slug="rsp", name="RSP")
+        # Everything below belongs to one organisation — the first one
+        # ``TENANTS`` lists. The CLI reconciles the table before any
+        # subcommand runs, so it is already there.
+        tenant = tenants_svc.list_live(db)[0]
         tenancy.bind(tenant.id, tenant.slug)
 
         admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", role="admin")

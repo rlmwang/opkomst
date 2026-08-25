@@ -101,6 +101,10 @@ os.environ.setdefault("PUBLIC_BASE_URL", "http://localhost:5173")
 # as set for setdefault, so the test's expected admin email
 # would never reach the auth router otherwise.
 os.environ["BOOTSTRAP_ADMIN_EMAIL"] = "admin@local.dev"
+# The organisations this test deployment serves. ``truncate_all``
+# re-creates the ``rsp`` row between tests; the sync tests drive
+# ``TENANTS`` themselves with a fresh ``Settings``.
+os.environ.setdefault("TENANTS", "rsp:RSP")
 # Override (not setdefault): a developer running tests after
 # ``source .env`` would otherwise inherit ``LOCAL_MODE=1`` from
 # their dev shell, which enables the ``/auth/dev-verify`` magic-

@@ -188,10 +188,14 @@ URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
   tenant among live rows. `chapters.slug` stays globally unique — the
   agenda at `/e/{slug}` carries no tenant, so two organisations cannot
   both own `amsterdam`; the existing suffixer hands out `amsterdam-2`.
-- **Creating one** is `python -m backend.cli tenant-create --slug rsp
-  --name RSP`, and it refuses a slug with no brand folder. There is no
-  UI and no platform-level role: nobody signs in to the platform, only
-  to a tenant.
+- **Which tenants exist is configuration.** `TENANTS=rsp:RSP,rood:ROOD`
+  is the source of truth; `services/tenants.sync_from_env` reconciles
+  the table to it in the CLI preamble, which the Dockerfile chains
+  before uvicorn. Missing slugs are created, names are updated in
+  place, dropped slugs are soft-deleted (URLs stop, rows stay), and a
+  slug with no `brands/` folder stops the boot. There is no UI and no
+  platform-level role: nobody signs in to the platform, only to a
+  tenant.
 - **URLs.** Organiser: `/{tenant}/…`, with the router's history base
   read from the injected brand. Public: unchanged and tenant-free
   (`/e/`, `/f/`, `/d/`, `/c/`). The bare root 404s.
