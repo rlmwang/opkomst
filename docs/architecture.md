@@ -154,10 +154,47 @@ Consequences worth knowing:
   hex literal, an `rgb()`/`hsl()` that isn't a black/white scrim, or a
   brand image referenced by filename, anywhere outside `brands/`.
 
-Adding an organisation is therefore a folder plus a row — no rebuild.
-The tenant that owns a page is still hardcoded to `rsp`
-(`brand.DEFAULT_BRAND`); resolving it per request is
-`docs/design-tenants-and-branding.md`.
+Which brand a page wears is decided per request: the organiser app by
+the tenant in its URL, a public page by the tenant that owns the entity
+behind the slug, and email by the tenant bound to the send. A page whose
+slug resolves to nothing wears `brands/opkomst/` — the house brand,
+which deliberately carries no images, so a dead link never shows
+somebody's logo.
+
+## Tenants
+
+One organisation per tenant; `tenants.slug` is both the organiser app's
+URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
+
+- **Every table carries `tenant_id`** (NOT NULL, indexed, RESTRICT to
+  `tenants`) via `TenantMixin`. On child rows it is denormalized from
+  the parent so every filter and uniqueness rule is a single-column
+  predicate. `tests/test_tenancy.py` guards both halves: the column
+  exists everywhere, and no child disagrees with its parent.
+- **Writes never name it.** The column defaults to the tenant bound to
+  the current context (`services/tenancy.py`); a write with nothing
+  bound raises rather than guessing.
+- **Who binds it.** `TenantBindingMiddleware` binds from the JWT's
+  `tenant` / `tenant_slug` claims — middleware, not a dependency,
+  because a sync dependency runs in a worker thread whose context the
+  endpoint never sees. Public routes bind from the entity the slug
+  resolved to (`services/public_access.py` and the by-slug getters).
+  The CLI, the seeds and the two ticks bind per item with
+  `tenancy.use(...)`.
+- **Reads.** `access.get_scoped` adds `tenant_id == user.tenant_id` on
+  top of the chapter scope; chapter queries start from a tenant-scoped
+  base. `role=admin` means global *within one organisation*.
+- **Uniqueness.** `users.email` and `chapters.name` are unique per
+  tenant among live rows. `chapters.slug` stays globally unique — the
+  agenda at `/e/{slug}` carries no tenant, so two organisations cannot
+  both own `amsterdam`; the existing suffixer hands out `amsterdam-2`.
+- **Creating one** is `python -m backend.cli tenant-create --slug rsp
+  --name RSP`, and it refuses a slug with no brand folder. There is no
+  UI and no platform-level role: nobody signs in to the platform, only
+  to a tenant.
+- **URLs.** Organiser: `/{tenant}/…`, with the router's history base
+  read from the injected brand. Public: unchanged and tenant-free
+  (`/e/`, `/f/`, `/d/`, `/c/`). The bare root 404s.
 
 ## Email pipeline
 

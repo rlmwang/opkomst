@@ -4,10 +4,10 @@ from sqlalchemy import DateTime, ForeignKey, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 
 
-class FeedbackToken(UUIDMixin, TimestampMixin, Base):
+class FeedbackToken(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One-time link between an email recipient and the
     questionnaire.
 
@@ -32,7 +32,7 @@ class FeedbackToken(UUIDMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class FeedbackResponse(UUIDMixin, TimestampMixin, Base):
+class FeedbackResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """A single answer. Multiple rows per submission, one per
     answered question. Tied to the event only — never to the
     signup or the token that authorised it.

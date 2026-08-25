@@ -1,14 +1,16 @@
 """Magic-link auth.
 
-One door for every user: ``POST /auth/login-link`` accepts an
-email and emails them a single-use link.
+One door per organisation: ``POST /auth/login-link`` accepts an email
+plus the tenant slug the sign-in page is served from, and emails a
+single-use link into that organisation. The same address in two
+organisations is two accounts.
 
-* Email already belongs to a live user → ``LoginToken`` minted, the
-  link goes to ``/auth/redeem`` and ``POST /auth/login`` exchanges
-  it for a JWT.
-* Email is unknown (or only matches a soft-deleted row) →
-  ``RegistrationToken`` minted, the link goes to
-  ``/register/complete`` and ``POST /auth/complete-registration``
+* Email already belongs to a live user of that tenant → ``LoginToken``
+  minted, the link goes to ``/{tenant}/auth/redeem`` and
+  ``POST /auth/login`` exchanges it for a JWT carrying the tenant.
+* Email is unknown there (or only matches a soft-deleted row) →
+  ``RegistrationToken`` minted (carrying the tenant), the link goes to
+  ``/{tenant}/register/complete`` and ``POST /auth/complete-registration``
   takes the user's name, creates (or restores) the row, and
   returns a JWT — completing the sign-up logs the user in in the
   same step.
@@ -38,6 +40,8 @@ from ..schemas.auth import (
     LoginRequest,
     UserOut,
 )
+from ..services import tenancy
+from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
 from ..services.rate_limit import Limits, limiter
 
@@ -69,19 +73,21 @@ def _user_out(db: Session, user: User) -> UserOut:
     )
 
 
-def _live_user_by_email(db: Session, email: str) -> User | None:
-    """Live (not soft-deleted) user with this email, or None."""
-    return db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
+def _live_user_by_email(db: Session, email: str, tenant_id: str) -> User | None:
+    """Live (not soft-deleted) user with this email in this tenant, or
+    None. Scoped: the same address is a separate account per
+    organisation."""
+    return db.query(User).filter(User.email == email, User.tenant_id == tenant_id, User.deleted_at.is_(None)).first()
 
 
-def _deleted_user_by_email(db: Session, email: str) -> User | None:
-    """Soft-deleted user row with this email, if any. Used by
-    complete-registration so re-registering a previously-deleted
+def _deleted_user_by_email(db: Session, email: str, tenant_id: str) -> User | None:
+    """Soft-deleted user row with this email in this tenant, if any.
+    Used by complete-registration so re-registering a previously-deleted
     email restores the row in place rather than creating a new
     one."""
     return (
         db.query(User)
-        .filter(User.email == email, User.deleted_at.is_not(None))
+        .filter(User.email == email, User.tenant_id == tenant_id, User.deleted_at.is_not(None))
         .order_by(User.deleted_at.desc())
         .first()
     )
@@ -102,13 +108,15 @@ def _mint_login_token(db: Session, user: User) -> str:
     return raw
 
 
-def _mint_registration_token(db: Session, email: str) -> str:
-    """Insert a fresh single-use registration token for an unknown
-    email, return its raw value. Existing tokens for the same
-    email are deleted first so only the most recent link in the
-    inbox works — keeps the user-visible behaviour intuitive when
-    they hit "send link" twice."""
-    db.query(RegistrationToken).filter(RegistrationToken.email == email).delete()
+def _mint_registration_token(db: Session, email: str, tenant_id: str) -> str:
+    """Insert a fresh single-use registration token for an email
+    unknown *to this tenant*, return its raw value. Existing tokens for
+    the same email in the same tenant are deleted first so only the
+    most recent link in the inbox works — keeps the user-visible
+    behaviour intuitive when they hit "send link" twice."""
+    db.query(RegistrationToken).filter(
+        RegistrationToken.email == email, RegistrationToken.tenant_id == tenant_id
+    ).delete()
     raw = secrets.token_urlsafe(32)
     row = RegistrationToken(
         token=raw,
@@ -120,8 +128,8 @@ def _mint_registration_token(db: Session, email: str) -> str:
     return raw
 
 
-def _send_login_email(user: User, raw_token: str) -> None:
-    url = build_url("auth/redeem", token=raw_token)
+def _send_login_email(user: User, tenant_slug: str, raw_token: str) -> None:
+    url = build_url(f"{tenant_slug}/auth/redeem", token=raw_token)
     send_email(
         to=user.email,
         template_name="login.html",
@@ -130,8 +138,8 @@ def _send_login_email(user: User, raw_token: str) -> None:
     )
 
 
-def _send_register_complete_email(email: str, raw_token: str) -> None:
-    url = build_url("register/complete", token=raw_token)
+def _send_register_complete_email(email: str, tenant_slug: str, raw_token: str) -> None:
+    url = build_url(f"{tenant_slug}/register/complete", token=raw_token)
     send_email(
         to=email,
         template_name="register_complete.html",
@@ -145,17 +153,27 @@ def _send_register_complete_email(email: str, raw_token: str) -> None:
 def login_link(request: Request, data: LoginLinkRequest, db: Session = Depends(get_db)) -> LinkSent:
     """Send a magic link.
 
-    Branches on whether the email matches a live user. Both
-    branches return the same ``LinkSent`` so the API can't be
-    probed for account existence."""
-    user = _live_user_by_email(db, data.email)
+    Branches on whether the email matches a live user *of this
+    tenant*. Both branches return the same ``LinkSent`` so the API
+    can't be probed for account existence — including by an unknown
+    tenant slug, which returns the same shape rather than confirming
+    which organisations exist."""
+    tenant = tenants_svc.find_live_by_slug(db, data.tenant)
+    if tenant is None:
+        logger.info("login_link_for_unknown_tenant")
+        return LinkSent()
+    # Binds the tenant for the token row this request is about to
+    # write; nothing else in the flow has a signed-in user to bind it.
+    tenancy.bind(tenant.id, tenant.slug)
+
+    user = _live_user_by_email(db, data.email, tenant.id)
     if user is not None:
         raw = _mint_login_token(db, user)
-        _send_login_email(user, raw)
+        _send_login_email(user, tenant.slug, raw)
         logger.info("login_link_sent", user_id=user.id)
     else:
-        raw = _mint_registration_token(db, data.email)
-        _send_register_complete_email(data.email, raw)
+        raw = _mint_registration_token(db, data.email, tenant.id)
+        _send_register_complete_email(data.email, tenant.slug, raw)
         logger.info("register_link_sent_for_unknown_email")
     return LinkSent()
 
@@ -173,7 +191,7 @@ def _restore_deleted(db: Session, deleted: User, name: str) -> User:
     return deleted
 
 
-def _create_fresh_with_race_recovery(db: Session, email: str, name: str) -> User | None:
+def _create_fresh_with_race_recovery(db: Session, email: str, name: str, tenant_id: str) -> User | None:
     """Insert a new user row. Returns the new row, or ``None`` if a
     concurrent completion lost the race on the partial-unique
     ``uq_users_email_live`` index — caller treats that as a
@@ -189,7 +207,7 @@ def _create_fresh_with_race_recovery(db: Session, email: str, name: str) -> User
     is_bootstrap = bool(
         BOOTSTRAP_ADMIN_EMAIL
         and email == BOOTSTRAP_ADMIN_EMAIL
-        and db.query(User).filter(User.deleted_at.is_(None)).count() == 0
+        and db.query(User).filter(User.tenant_id == tenant_id, User.deleted_at.is_(None)).count() == 0
     )
     try:
         with db.begin_nested():
@@ -236,6 +254,10 @@ def complete_registration(
         raise HTTPException(status_code=410, detail="Registration link has expired")
 
     email = row.email
+    # The tenant travelled on the token row, minted by the sign-in page
+    # of one organisation — the completing user never picks it.
+    tenant_id = row.tenant_id
+    tenancy.bind(tenant_id, row.tenant.slug)
 
     # Three convergent branches, same observable outcome (a usable
     # JWT for a row keyed to ``email``):
@@ -248,18 +270,18 @@ def complete_registration(
     #      ``user.id`` so any historical references keep working.
     #   3. Otherwise insert fresh, with bootstrap carve-out and
     #      race-recovery on the partial-unique email index.
-    existing = _live_user_by_email(db, email)
+    existing = _live_user_by_email(db, email, tenant_id)
     if existing is not None:
         db.delete(row)
         db.commit()
         raise HTTPException(status_code=410, detail="An account with this email already exists")
 
-    deleted = _deleted_user_by_email(db, email)
+    deleted = _deleted_user_by_email(db, email, tenant_id)
     if deleted is not None:
         user = _restore_deleted(db, deleted, name)
         log_event = "user_restored_via_complete_registration"
     else:
-        user = _create_fresh_with_race_recovery(db, email, name)
+        user = _create_fresh_with_race_recovery(db, email, name, tenant_id)
         if user is None:
             # Lost the partial-unique race against a concurrent
             # completion. The race winner now owns the row.
@@ -274,7 +296,7 @@ def complete_registration(
     db.delete(row)
     db.commit()
     logger.info(log_event, user_id=user.id)
-    return AuthResponse(token=create_token(user.id), user=_user_out(db, user))
+    return AuthResponse(token=create_token(user), user=_user_out(db, user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -300,7 +322,7 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)) -
     db.delete(row)
     db.commit()
     logger.info("login_link_redeemed", user_id=user.id)
-    return AuthResponse(token=create_token(user.id), user=_user_out(db, user))
+    return AuthResponse(token=create_token(user), user=_user_out(db, user))
 
 
 @router.get("/me", response_model=UserOut)

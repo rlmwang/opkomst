@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import type { AuthResponse, User } from "@/api/types";
 import { clearToken, get, getToken, post, setToken } from "@/api/client";
+import { brand } from "@/lib/branding";
 
 export type { User };
 
@@ -48,7 +49,10 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function requestLoginLink(email: string): Promise<void> {
-    await post("/api/v1/auth/login-link", { email });
+    // The door is per organisation: the same address can organise for
+    // two of them as two accounts, so the sign-in page names the
+    // tenant it is served under.
+    await post("/api/v1/auth/login-link", { email, tenant: brand().slug });
   }
 
   async function redeem(token: string): Promise<void> {

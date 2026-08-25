@@ -10,9 +10,14 @@ class LoginLinkRequest(BaseModel):
     receives a sign-in link, an unknown email receives a
     "finish creating your account" link. The endpoint returns the
     same response shape either way so the API can't be probed for
-    account existence."""
+    account existence.
+
+    ``tenant`` is the organisation's slug — the first segment of the
+    URL the sign-in page is served from. The door is per tenant: the
+    same address can organise for two of them, as two accounts."""
 
     email: LowercaseEmail
+    tenant: str
 
 
 class LoginRequest(BaseModel):

@@ -38,6 +38,7 @@ from ..schemas.admin import (
 )
 from ..schemas.auth import UserOut
 from ..services import chapters as chapters_svc
+from ..services import tenancy
 from ..services import user_chapters as user_chapters_svc
 from ..services.mail import build_url, send_email
 from ..services.rate_limit import Limits, limiter
@@ -48,7 +49,11 @@ router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 def _get_live_user_or_404(db: Session, user_id: str) -> User:
-    user = db.query(User).filter(User.id == user_id, User.deleted_at.is_(None)).first()
+    user = (
+        db.query(User)
+        .filter(User.id == user_id, User.tenant_id == tenancy.current(), User.deleted_at.is_(None))
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
@@ -107,7 +112,11 @@ def pending_user_count(
     # endpoint level.
     if actor.role != "admin":
         raise HTTPException(status_code=403, detail="Forbidden")
-    n = db.query(User).filter(User.deleted_at.is_(None), User.is_approved.is_(False)).count()
+    n = (
+        db.query(User)
+        .filter(User.tenant_id == actor.tenant_id, User.deleted_at.is_(None), User.is_approved.is_(False))
+        .count()
+    )
     return PendingCountOut(count=n)
 
 
@@ -122,7 +131,7 @@ def list_users(
     No "see only your own row" mode; the visibility matches the
     organising context the project is built for."""
     _require(actor, Action.LIST_USERS)
-    q = db.query(User).filter(User.deleted_at.is_(None))
+    q = db.query(User).filter(User.tenant_id == actor.tenant_id, User.deleted_at.is_(None))
     if pending:
         q = q.filter(User.is_approved.is_(False))
     rows = q.order_by(User.created_at.desc()).all()

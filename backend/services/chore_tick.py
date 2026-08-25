@@ -25,6 +25,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from ..models import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
+from . import tenancy
 from .chore_assignment import RotationState, net_credit, weight_from_ledger
 from .chore_projection import ChoreSpec, Diff, Occurrence, PinnedShift, fold, occurrences_between, reconcile
 
@@ -366,6 +367,9 @@ def run_tick(db: Session, today: date) -> tuple[int, int]:
     rosters = db.query(Roster).filter(Roster.archived_at.is_(None)).all()
     created = 0
     for roster in rosters:
-        created += _tick_roster(db, roster, today)
+        # The sweep crosses every organisation, so each roster's own
+        # tenant is bound for the shifts and events it creates.
+        with tenancy.use(roster.tenant_id, roster.tenant.slug):
+            created += _tick_roster(db, roster, today)
     db.commit()
     return len(rosters), created

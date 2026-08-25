@@ -318,8 +318,7 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
     r2 = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Utrecht"})
     other_chapter = r2.json()["id"]
 
-    from backend.auth import create_token
-    from tests._helpers.users import register_user
+    from tests._helpers.users import register_user, token_for
 
     uid = register_user(client, "outsider@local.dev", "O")
     client.post(
@@ -327,7 +326,7 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
         headers=admin_headers,
         json={"chapter_ids": [other_chapter]},
     )
-    outsider_token = create_token(uid)
+    outsider_token = token_for(uid)
 
     r = client.get(
         f"/api/v1/events/{event['id']}/feedback-summary",

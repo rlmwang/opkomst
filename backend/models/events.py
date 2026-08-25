@@ -18,10 +18,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
+class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     """The definition of an event — recurring or one-off. It holds the shared
     content and the recurrence rule; concrete dates are ``Occurrence`` rows,
     materialised over time by the tick. A one-off is ``cycle_slots == []``,
@@ -85,7 +85,7 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     )
 
 
-class Occurrence(UUIDMixin, TimestampMixin, Base):
+class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One materialised, dated instance of an ``Event``. It carries only what
     is genuinely its own: its concrete wall-clock datetimes (the pattern date
     + the event's time of day) and its own public sign-up slug. All content
@@ -112,7 +112,7 @@ class Occurrence(UUIDMixin, TimestampMixin, Base):
     event: Mapped["Event"] = relationship(back_populates="occurrences")
 
 
-class Registration(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
+class Registration(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base):
     """One person's booking against an event — the order header that groups
     the per-occurrence line items (``Signup``) made in one submission. It
     holds the single edit link, an optional pseudonym, and the party size.
@@ -135,7 +135,7 @@ class Registration(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     )
 
 
-class Signup(UUIDMixin, TimestampMixin, Base):
+class Signup(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """A line item: one booking (``registration_id``) attending one occurrence
     (``occurrence_id``). Headcount for an occurrence is ``SUM(party_size)``
     over the registrations of its line items. The optional ``source_choice``

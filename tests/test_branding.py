@@ -38,8 +38,10 @@ def _brand_dirs() -> list[Any]:
 
 def test_every_brand_folder_is_complete() -> None:
     """A brand folder is a contract: the manifest names every key the
-    app reads, the palette is complete, and each file it points at
-    exists next to it."""
+    app reads, the palette is complete, and every file it names exists
+    next to it. Image fields may be ``null`` — the house brand carries
+    no logo, so a page with no owning organisation shows a wordmark
+    rather than somebody else's mark — but a named file must be there."""
     assert _brand_dirs(), "no brands on disk"
     for directory in _brand_dirs():
         manifest = json.loads((directory / "brand.json").read_text(encoding="utf-8"))
@@ -49,7 +51,20 @@ def test_every_brand_folder_is_complete() -> None:
         assert not palette_missing, f"{directory.name}: palette is missing {sorted(palette_missing)}"
         assert (directory / "tokens.css").is_file(), f"{directory.name}: no tokens.css"
         for key in ("logo", "favicon", "apple_touch_icon"):
+            if manifest[key] is None:
+                continue
             assert (directory / manifest[key]).is_file(), f"{directory.name}: {key} file is missing"
+
+
+def test_the_house_brand_exists_and_carries_no_organisations_mark() -> None:
+    """The fallback for pages with no owning organisation. It has a
+    palette like any brand, and deliberately no images."""
+    house = brand_svc.payload(brand_svc.HOUSE_BRAND)
+    assert house["logo_url"] is None
+    assert house["favicon_url"] is None
+    head = brand_svc.head(brand_svc.HOUSE_BRAND)
+    assert f'href="/brand/{brand_svc.HOUSE_BRAND}/tokens.css"' in head
+    assert 'rel="icon"' not in head
 
 
 def test_head_carries_palette_icons_and_window_payload() -> None:

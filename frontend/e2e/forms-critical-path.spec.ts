@@ -19,7 +19,7 @@ test("public visitor fills a form and sees the thanks state", async ({
 }) => {
   // --- arrange: log in as organiser, create a form via the API ---
   const loginRes = await request.post("/api/v1/auth/dev-issue-token", {
-    data: { email: "organiser@local.dev" },
+    data: { email: "organiser@local.dev", tenant: "rsp" },
   });
   expect(loginRes.ok()).toBeTruthy();
   const { token, user } = await loginRes.json();

@@ -20,9 +20,13 @@ Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organ
 - **Open-source disclosure on every public sign-up form.** Never remove that copy.
 - **No third-party analytics or tracking pixels.** Ever.
 
+## Tenants
+
+One organisation per tenant. **Every table carries ``tenant_id``** (NOT NULL, indexed) via ``TenantMixin``, denormalized onto child rows on purpose; ``tests/test_tenancy.py`` guards that it exists everywhere and that no child disagrees with its parent. Writes never name it — the column defaults to the tenant bound to the context (``services/tenancy.py``), bound by ``TenantBindingMiddleware`` from the JWT for organiser requests and by the resolved entity for public ones; nothing bound is an error, not a default. The organiser app lives at ``/{tenant}/…`` and public URLs stay tenant-free. ``tenants.slug`` is both the URL prefix and the brand-folder name. Full picture: ``docs/architecture.md``.
+
 ## Soft-delete
 
-`User` and `Chapter` use a ``deleted_at`` column for soft-delete. ``Event`` uses ``archived_at`` for archive/restore. Edits overwrite in place; there's no version history (the audit log carries change records for admin-driven user mutations).
+`User`, `Chapter` and `Tenant` use a ``deleted_at`` column for soft-delete. ``Event`` uses ``archived_at`` for archive/restore. Edits overwrite in place; there's no version history (the audit log carries change records for admin-driven user mutations).
 
 Conventions:
 
@@ -57,6 +61,7 @@ Daily `python -m backend.cli reap-auth-tokens` deletes expired rows from both to
 - **Cron is one-shot.** `python -m backend.cli <subcommand>` invoked by Coolify scheduled tasks. Five subcommands: `dispatch reminder`, `dispatch feedback`, `reap-partial`, `reap-expired` (covers both expired-window cleanup and the 7-day post-event ciphertext backstop), `reap-auth-tokens` (login + registration tokens). No long-running scheduler container.
 - **`LowercaseEmail`** at the schema boundary normalises identifying input (`backend/schemas/common.py`).
 - **Slug generation**: 8-char nanoid via `backend/services/slug.py`. URL form: `/e/{slug}`.
+- **Organisations are created from the CLI**: `python -m backend.cli tenant-create --slug rsp --name RSP`, and only after `brands/rsp/` exists. No UI, no platform-admin role.
 
 ## Frontend
 

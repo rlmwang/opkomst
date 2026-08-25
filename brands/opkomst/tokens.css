@@ -1,0 +1,74 @@
+/* The house brand: what a page wears when no organisation owns it — a
+ * link to an event that was never created, or one whose organisation
+ * has gone. Deliberately plain and unaffiliated: a visitor who lands on
+ * a dead link should not be shown somebody's logo.
+ *
+ * Same token set as any tenant, so nothing in the app has to know it is
+ * a fallback. There are no image files in this folder: the head
+ * injection leaves the icon links out and the brand mark renders the
+ * wordmark alone. */
+
+:root {
+  --brand-red: #2f2f2d;
+  --brand-red-hover: #1a1a1a;
+  --brand-bg: #f4f4f2;
+  --brand-surface: #ffffff;
+  --brand-text: #1a1a1a;
+  --brand-text-muted: #5b5b58;
+  --brand-border: #e2e2de;
+
+  --brand-green: #1f7a3c;
+  --brand-amber: #8a6915;
+  --brand-neutral: #d6d6d2;
+  --brand-blue: #2a6f97;
+
+  --brand-red-soft: #e8e8e5;
+  --brand-red-soft-border: #d2d2ce;
+  --brand-red-soft-hover: #d2d2ce;
+  --brand-red-soft-active: #bcbcb7;
+  --brand-red-strong: #1a1a1a;
+
+  --brand-notice-bg: #f7f5ef;
+  --brand-notice-border: #e2ddd0;
+
+  --brand-green-soft: #e9f3ec;
+  --brand-green-soft-border: #d3e4d8;
+  --brand-red-wash: #f0eeee;
+  --brand-amber-soft: #f8f4ea;
+  --brand-amber-soft-border: #e6dcc4;
+  --brand-amber-strong: #6b5310;
+  --brand-amber-wash: #f5f1e6;
+  --brand-amber-text: #6b5310;
+  --brand-recovered-bg: #f7f5ef;
+  --brand-recovered-border: #ded7c4;
+  --brand-recovered-text: #4a463c;
+  --brand-rank-silver: #8a8f98;
+  --brand-rank-bronze: #b8763a;
+  --brand-chat-bubble: #e8e8e5;
+  --brand-chat-text: #111111;
+
+  --brand-primary-50: #f6f6f5;
+  --brand-primary-100: #e8e8e5;
+  --brand-primary-200: #d2d2ce;
+  --brand-primary-300: #b0b0aa;
+  --brand-primary-400: #7c7c76;
+  --brand-primary-500: #2f2f2d;
+  --brand-primary-600: #292927;
+  --brand-primary-700: #222220;
+  --brand-primary-800: #1a1a1a;
+  --brand-primary-900: #121211;
+  --brand-primary-950: #0a0a09;
+
+  --brand-surface-0: #ffffff;
+  --brand-surface-50: #f4f4f2;
+  --brand-surface-100: #ececea;
+  --brand-surface-200: #dededa;
+  --brand-surface-300: #c4c4bf;
+  --brand-surface-400: #a3a39d;
+  --brand-surface-500: #7c7c76;
+  --brand-surface-600: #5b5b58;
+  --brand-surface-700: #3f3f3c;
+  --brand-surface-800: #262624;
+  --brand-surface-900: #1a1a1a;
+  --brand-surface-950: #0d0d0c;
+}

@@ -25,7 +25,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 
 
 class EmailChannel(StrEnum):
@@ -55,7 +55,7 @@ class EmailStatus(StrEnum):
     FAILED = "failed"
 
 
-class EmailDispatch(UUIDMixin, TimestampMixin, Base):
+class EmailDispatch(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One per (occurrence, channel, attendee). Created at public-signup
     time when the channel applies; updated by the worker as the
     lifecycle progresses; deleted by the reapers / toggle-off

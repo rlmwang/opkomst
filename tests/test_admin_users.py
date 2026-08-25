@@ -12,10 +12,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.auth import create_token
 from backend.database import SessionLocal
 from backend.models import User
-from tests._helpers.users import register_user
+from tests._helpers.users import register_user, token_for
 
 
 def _register(client: Any, email: str, name: str = "X") -> str:
@@ -711,7 +710,7 @@ def test_jwt_for_deleted_user_invalidates(client, admin_headers, chapter_id):
     is soft-deleted — the SCD2 current_by_entity lookup returns
     None."""
     uid = _register(client, "ephemeral@local.dev")
-    token = create_token(uid)
+    token = token_for(uid)
     assert (
         client.get(
             "/api/v1/auth/me",

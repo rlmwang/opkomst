@@ -5,6 +5,7 @@ from .email_dispatch import EmailChannel, EmailDispatch, EmailStatus
 from .events import Event, Occurrence, Registration, Signup
 from .feedback import FeedbackResponse, FeedbackToken
 from .forms import Form, FormQuestion, FormResponse, FormSubmission
+from .tenants import Tenant
 from .users import LoginToken, RegistrationToken, User, UserChapter
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "Shift",
     "ShiftEvent",
     "Signup",
+    "Tenant",
     "User",
     "UserChapter",
     "Volunteer",

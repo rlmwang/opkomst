@@ -20,6 +20,8 @@ from ..auth import create_token
 from ..database import get_db
 from ..routers.auth import _live_user_by_email, _user_out
 from ..schemas.auth import AuthResponse, LoginLinkRequest
+from ..services import tenancy
+from ..services import tenants as tenants_svc
 
 router = APIRouter(prefix="/api/v1/auth", tags=["dev"], include_in_schema=False)
 
@@ -27,8 +29,14 @@ router = APIRouter(prefix="/api/v1/auth", tags=["dev"], include_in_schema=False)
 @router.post("/dev-issue-token", response_model=AuthResponse)
 def dev_issue_token(data: LoginLinkRequest, db: Session = Depends(get_db)) -> AuthResponse:
     """Mints a JWT for any registered email without going through
-    the magic-link round-trip. Used by Playwright e2e tests."""
-    user = _live_user_by_email(db, data.email)
+    the magic-link round-trip. Used by Playwright e2e tests. Same
+    per-tenant door as the real flow: the email is looked up inside the
+    tenant the caller names."""
+    tenant = tenants_svc.find_live_by_slug(db, data.tenant)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="No such tenant")
+    tenancy.bind(tenant.id, tenant.slug)
+    user = _live_user_by_email(db, data.email, tenant.id)
     if user is None:
         raise HTTPException(status_code=404, detail="No such user")
-    return AuthResponse(token=create_token(user.id), user=_user_out(db, user))
+    return AuthResponse(token=create_token(user), user=_user_out(db, user))

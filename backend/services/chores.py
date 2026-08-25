@@ -37,7 +37,7 @@ from ..schemas.chores import (
     ScheduleStatsOut,
     VolunteerSummaryOut,
 )
-from . import chore_tick
+from . import chore_tick, tenancy
 from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
 
@@ -56,6 +56,7 @@ def get_roster_by_slug_any(db: Session, slug: str) -> Roster | None:
     roster = db.query(Roster).filter(Roster.slug == slug).first()
     if roster is None or roster.archived_at is not None:
         return None
+    tenancy.bind(roster.tenant_id, roster.tenant.slug)
     return roster
 
 

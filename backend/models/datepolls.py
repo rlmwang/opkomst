@@ -50,10 +50,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
+class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     """One dates-only poll. ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table and
     stays attached across archive/restore (same as Event/Form)."""
@@ -78,7 +78,7 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     )
 
 
-class DatepollSlot(UUIDMixin, TimestampMixin, Base):
+class DatepollSlot(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One candidate slot on one poll: a date with an optional time
     range. ``start_time``/``end_time`` are both NULL for a whole-day
     slot, or both set for a timed slot (the schema enforces
@@ -108,7 +108,7 @@ class DatepollSlot(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class DatepollSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
+class DatepollSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base):
     """One fill-out. ``display_name`` is the self-chosen pseudonym
     (NULL = anonymous); the row id is the opaque submission identifier
     that groups the per-date answers. Nothing resolves it back to a
@@ -127,7 +127,7 @@ class DatepollSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
-class DatepollResponse(UUIDMixin, TimestampMixin, Base):
+class DatepollResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One respondent's answer to one slot. Exists only for an
     answered slot; an unset slot has no row. ``availability`` is
     constrained to the three tri-state values (CHECK backstop, the

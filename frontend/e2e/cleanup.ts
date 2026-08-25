@@ -34,7 +34,9 @@ async function purge(request: APIRequestContext, path: string, headers: Record<s
 }
 
 test("clean up throwaway e2e entities", async ({ request }) => {
-  const login = await request.post("/api/v1/auth/dev-issue-token", { data: { email: "organiser@local.dev" } });
+  const login = await request.post("/api/v1/auth/dev-issue-token", {
+    data: { email: "organiser@local.dev", tenant: "rsp" },
+  });
   const { token } = await login.json();
   const headers = { Authorization: `Bearer ${token}` };
   for (const path of ["/api/v1/events", "/api/v1/forms", "/api/v1/datepolls", "/api/v1/chores"]) {

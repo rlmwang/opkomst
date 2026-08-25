@@ -26,6 +26,7 @@ from ..schemas.datepolls import (
     DatepollSubmissionOut,
     PublicDatepollOut,
 )
+from . import tenancy
 
 if TYPE_CHECKING:
     from ..schemas.datepolls import DatepollSlotIn
@@ -46,6 +47,7 @@ def get_datepoll_by_slug_any(db: Session, slug: str) -> Datepoll | None:
     poll = db.query(Datepoll).filter(Datepoll.slug == slug).first()
     if poll is None or poll.archived_at is not None:
         return None
+    tenancy.bind(poll.tenant_id, poll.tenant.slug)
     return poll
 
 

@@ -14,7 +14,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   browser,
 }) => {
   const loginRes = await request.post("/api/v1/auth/dev-issue-token", {
-    data: { email: "organiser@local.dev" },
+    data: { email: "organiser@local.dev", tenant: "rsp" },
   });
   expect(loginRes.ok()).toBeTruthy();
   const { token, user } = await loginRes.json();

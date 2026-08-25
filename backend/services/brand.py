@@ -28,9 +28,11 @@ from ..config import settings
 
 BRANDS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "brands"
 
-# The tenant whose brand every surface uses. Becomes a per-request
-# lookup when tenants land (design-tenants-and-branding.md, step 5).
-DEFAULT_BRAND = "rsp"
+# The brand a page wears when no organisation owns what it is showing:
+# a link to something that never existed, or whose tenant is gone. Plain
+# and unaffiliated — a dead link shouldn't display somebody's logo. It
+# carries no images, which is why every image field below is optional.
+HOUSE_BRAND = "opkomst"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
@@ -52,9 +54,14 @@ def asset_url(slug: str, filename: str) -> str:
 def payload(slug: str) -> dict[str, Any]:
     """What a page or an email needs to render the brand: the names, the
     org link, and both the root-relative and absolute logo URLs. Email
-    clients need the absolute one; pages use the short one."""
+    clients need the absolute one; pages use the short one.
+
+    The image fields are ``None`` for a brand without files (the house
+    brand): the page then renders its wordmark alone, rather than
+    someone else's mark."""
     m = manifest(slug)
-    logo = asset_url(slug, m["logo"])
+    logo = asset_url(slug, m["logo"]) if m["logo"] else None
+    favicon = asset_url(slug, m["favicon"]) if m["favicon"] else None
     return {
         "slug": slug,
         # The six colours in literal form. ``tokens.css`` is the palette
@@ -69,9 +76,9 @@ def payload(slug: str) -> dict[str, Any]:
         "org_url": m["org_url"],
         "mail_from_name": m["mail_from_name"],
         "logo_url": logo,
-        "logo_absolute_url": f"{_PUBLIC_BASE}{logo}",
-        "favicon_url": asset_url(slug, m["favicon"]),
-        "favicon_absolute_url": f"{_PUBLIC_BASE}{asset_url(slug, m['favicon'])}",
+        "logo_absolute_url": f"{_PUBLIC_BASE}{logo}" if logo else None,
+        "favicon_url": favicon,
+        "favicon_absolute_url": f"{_PUBLIC_BASE}{favicon}" if favicon else None,
     }
 
 
@@ -101,10 +108,12 @@ def head(slug: str) -> str:
         "}</style>"
     )
     brand_json = json.dumps(payload(slug), ensure_ascii=False)
-    return (
-        f"{inline_boot}\n"
-        f'    <link rel="stylesheet" href="{asset_url(slug, "tokens.css")}">\n'
-        f'    <link rel="icon" type="image/png" sizes="192x192" href="{asset_url(slug, m["favicon"])}">\n'
-        f'    <link rel="apple-touch-icon" sizes="180x180" href="{asset_url(slug, m["apple_touch_icon"])}">\n'
-        f"    <script>window.__OPKOMST_BRAND__ = {brand_json};</script>"
-    )
+    lines = [inline_boot, f'<link rel="stylesheet" href="{asset_url(slug, "tokens.css")}">']
+    # A brand without icon files simply doesn't link any; the browser
+    # falls back to its own default rather than to another org's mark.
+    if m["favicon"]:
+        lines.append(f'<link rel="icon" type="image/png" sizes="192x192" href="{asset_url(slug, m["favicon"])}">')
+    if m["apple_touch_icon"]:
+        lines.append(f'<link rel="apple-touch-icon" sizes="180x180" href="{asset_url(slug, m["apple_touch_icon"])}">')
+    lines.append(f"<script>window.__OPKOMST_BRAND__ = {brand_json};</script>")
+    return "\n    ".join(lines)

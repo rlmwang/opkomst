@@ -10,6 +10,11 @@ Every public router does the same two lookups:
   (410 if the parent is gone/archived, or fails an entity-specific
   ``extra_guard`` such as the event's "already over" check).
 
+Both resolvers bind the tenant of what they found (see
+``services.tenancy``). A public URL carries no tenant, so this is where
+one enters the picture: the entity behind the slug or the token decides
+which organisation the rest of the request reads and writes in.
+
 The per-entity variance is only the parent model, the FK to it, and the
 410 message; the 404 "invalid link" copy is shared.
 """
@@ -20,7 +25,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from . import edit_token
+from . import edit_token, tenancy
 
 # Shared across all by-token routes — a token that matches no submission.
 _TOKEN_INVALID = "This edit link is not valid."
@@ -32,6 +37,7 @@ def resolve_by_slug(db: Session, model: Any, slug: str, *, gone_detail: str) -> 
     row = db.query(model).filter(model.slug == slug).first()
     if row is None or row.archived_at is not None:
         raise HTTPException(status_code=410, detail=gone_detail)
+    tenancy.bind(row.tenant_id, row.tenant.slug)
     return row
 
 
@@ -60,4 +66,5 @@ def resolve_by_token(
     parent = db.query(parent_model).filter(parent_model.id == getattr(sub, parent_fk.key)).first()
     if parent is None or parent.archived_at is not None or (extra_guard is not None and extra_guard(parent)):
         raise HTTPException(status_code=410, detail=gone_detail)
+    tenancy.bind(parent.tenant_id, parent.tenant.slug)
     return sub

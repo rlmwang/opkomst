@@ -1,0 +1,18 @@
+{
+  "app_name": "opkomst.nu",
+  "wordmark": "opkomst.nu",
+  "org_name": "opkomst.nu",
+  "org_url": "https://opkomst.nu",
+  "logo": null,
+  "favicon": null,
+  "apple_touch_icon": null,
+  "mail_from_name": "opkomst.nu",
+  "palette": {
+    "bg": "#f4f4f2",
+    "surface": "#ffffff",
+    "fg": "#1a1a1a",
+    "fg_muted": "#5b5b58",
+    "accent": "#2f2f2d",
+    "border": "#e2e2de"
+  }
+}

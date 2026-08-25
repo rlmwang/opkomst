@@ -62,7 +62,7 @@ from ..models import (
     Volunteer,
 )
 from ..schemas.common import pick_localized
-from . import encryption
+from . import encryption, tenancy
 from .events import now_wallclock
 from .mail import build_url, email_batch_size, emit_metric, new_message_id, send_with_retry
 from .sanitize import html_to_text
@@ -443,7 +443,11 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .all()
         )
         for dispatch_id, ciphertext, dispatch_locale, occurrence, event in rows:
-            _process_one(db, channel, occurrence, event, dispatch_id, ciphertext, dispatch_locale)
+            # One sweep spans every organisation; the event being mailed
+            # about decides the tenant of the feedback token this may
+            # mint, and the brand the email wears.
+            with tenancy.use(event.tenant_id, event.tenant.slug):
+                _process_one(db, channel, occurrence, event, dispatch_id, ciphertext, dispatch_locale)
         db.commit()
         return len(rows)
     finally:

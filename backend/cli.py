@@ -189,6 +189,24 @@ def _reap_auth_tokens() -> int:
         db.close()
 
 
+def _tenant_create(slug: str, name: str) -> None:
+    """Create an organisation. The only way one comes into existence:
+    nobody signs in to "the platform", only to a tenant, so there is no
+    admin UI for this and no platform-level role."""
+    from .services import tenants as tenants_svc
+
+    db = SessionLocal()
+    try:
+        tenant = tenants_svc.create(db, slug=slug, name=name)
+        logger.info("tenant_created", tenant_id=tenant.id, slug=tenant.slug)
+        print(f"Created tenant {tenant.name} at /{tenant.slug} (id {tenant.id})")
+    except ValueError as exc:
+        print(f"Not created: {exc}")
+        raise SystemExit(1) from exc
+    finally:
+        db.close()
+
+
 def _pending_digest() -> int:
     return admin_digest.send_pending_digest()
 
@@ -263,6 +281,12 @@ def main(argv: list[str] | None = None) -> int:
         "seed-demo",
         help="Local-mode only: insert two demo accounts + an upcoming and a past event.",
     )
+    p_tenant = sub.add_parser(
+        "tenant-create",
+        help="Create an organisation. Its brands/{slug}/ folder must exist first.",
+    )
+    p_tenant.add_argument("--slug", required=True, help="URL segment + brand folder name, e.g. rsp")
+    p_tenant.add_argument("--name", required=True, help="Display name, e.g. RSP")
 
     args = parser.parse_args(argv)
 
@@ -312,6 +336,8 @@ def main(argv: list[str] | None = None) -> int:
             from .seed import run_local_demo
 
             run_local_demo()
+        elif args.cmd == "tenant-create":
+            _tenant_create(args.slug, args.name)
         else:
             parser.error(f"unknown command: {args.cmd}")
     except Exception:

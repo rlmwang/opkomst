@@ -26,6 +26,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from ..models import EmailDispatch, EmailStatus, Occurrence, Signup
+from . import tenancy
 from .recurrence import occurs_on
 from .slug import new_slug
 
@@ -308,6 +309,9 @@ def run_tick(db: Session, now: datetime) -> tuple[int, int]:
     events = db.query(Event).filter(Event.archived_at.is_(None)).all()
     created = 0
     for event in events:
-        created += len(materialise(db, event, now))
+        # The sweep crosses every organisation, so each event's own
+        # tenant is bound for the rows it is about to create.
+        with tenancy.use(event.tenant_id, event.tenant.slug):
+            created += len(materialise(db, event, now))
     db.commit()
     return len(events), created

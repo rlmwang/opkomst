@@ -186,8 +186,26 @@ def db(_bootstrap_schema):
         session.close()
 
 
+@pytest.fixture(autouse=True)
+def tenant_id(db) -> str:
+    """The id of the organisation every test runs inside.
+
+    The row itself comes from ``truncate_all`` — a clean database is an
+    empty organisation, not no organisation — which also binds it as
+    the current tenant, the same thing the auth dependency does for a
+    request. Fixtures that insert rows straight through the session
+    therefore get a ``tenant_id`` without naming it.
+
+    Deliberately a plain string and not an ORM object: holding a
+    ``Tenant`` row open in the session would keep a read lock on the
+    table, and the property tests truncate mid-test."""
+    from tests._helpers.db_reset import TEST_TENANT_ID
+
+    return TEST_TENANT_ID
+
+
 @pytest.fixture()
-def client(db) -> Iterator:
+def client(db, tenant_id) -> Iterator:
     """TestClient bound to the per-test DB. Rate-limit storage is
     in-process so each test starts with a clean budget."""
     from fastapi.testclient import TestClient
@@ -220,7 +238,7 @@ def admin_token(db) -> str:
     db.add(user)
     db.commit()
     db.refresh(user)
-    return create_token(user.id)
+    return create_token(user)
 
 
 @pytest.fixture()
@@ -265,7 +283,7 @@ def organiser_token(db, admin_token, chapter_id) -> str:
     db.refresh(user)
     db.add(UserChapter(user_id=user.id, chapter_id=chapter_id))
     db.commit()
-    return create_token(user.id)
+    return create_token(user)
 
 
 @pytest.fixture()

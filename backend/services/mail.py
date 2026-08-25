@@ -148,10 +148,15 @@ def render(template_name: str, context: dict[str, Any], locale: str = DEFAULT_LO
     ``services.brand``, which reads the tenant's ``brand.json``, so the
     logo, the wordmark and the org link live in one folder rather than
     in every template."""
-    from .brand import DEFAULT_BRAND, payload
+    from .brand import HOUSE_BRAND, payload
+    from .tenancy import current_or_none
 
     resolved_locale = locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
-    brand = payload(DEFAULT_BRAND)
+    # The mail wears the brand of the organisation the send belongs to —
+    # the tenant bound by the request or the sweep. Nothing bound means
+    # nothing organisation-specific to wear.
+    bound = current_or_none()
+    brand = payload(bound.slug if bound is not None else HOUSE_BRAND)
     context = {
         **context,
         "locale": resolved_locale,

@@ -26,6 +26,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event
+from . import tenancy
 from . import user_chapters as user_chapters_svc
 from .slug import chapter_slug
 
@@ -51,8 +52,16 @@ def normalise_name(name: str) -> str:
     return " ".join(name.split())
 
 
+def _tenant_scoped(db: Session):  # noqa: ANN201
+    """Every chapter query starts here: rows of the tenant bound to this
+    request and no other. Reading chapters outside a tenant is not a
+    thing the app does, so an unbound context raises rather than
+    silently listing everybody's."""
+    return db.query(Chapter).filter(Chapter.tenant_id == tenancy.current())
+
+
 def _live(db: Session):  # noqa: ANN201
-    return db.query(Chapter).filter(Chapter.deleted_at.is_(None))
+    return _tenant_scoped(db).filter(Chapter.deleted_at.is_(None))
 
 
 def all_active(db: Session) -> list[Chapter]:
@@ -63,7 +72,7 @@ def latest_versions(db: Session, *, include_archived: bool) -> list[Chapter]:
     """List chapters. With ``include_archived=False`` returns live
     only; with ``True`` returns every row (live + soft-deleted)
     so the admin autocomplete can offer restore."""
-    q = db.query(Chapter)
+    q = _tenant_scoped(db)
     if not include_archived:
         q = q.filter(Chapter.deleted_at.is_(None))
     return sorted(q.all(), key=lambda a: a.name.lower())
@@ -80,13 +89,21 @@ def find_by_id(db: Session, chapter_id: str) -> Chapter | None:
 
 def find_any_by_id(db: Session, chapter_id: str) -> Chapter | None:
     """Any chapter (live or soft-deleted) by id."""
-    return db.query(Chapter).filter(Chapter.id == chapter_id).first()
+    return _tenant_scoped(db).filter(Chapter.id == chapter_id).first()
 
 
 def find_live_by_slug(db: Session, slug: str) -> Chapter | None:
     """Live chapter by its public slug, or ``None``. Drives the public
-    agenda page (``/e/{slug}``)."""
-    return _live(db).filter(Chapter.slug == slug).first()
+    agenda page (``/e/{slug}``).
+
+    The only chapter read that is *not* tenant-scoped, and it can't be:
+    the URL carries no tenant, so the slug — globally unique for exactly
+    this reason — is what identifies the organisation. Finding one binds
+    it, so everything the agenda does afterwards is inside it."""
+    row = db.query(Chapter).filter(Chapter.deleted_at.is_(None), Chapter.slug == slug).first()
+    if row is not None:
+        tenancy.bind(row.tenant_id, row.tenant.slug)
+    return row
 
 
 def _require_live(db: Session, chapter_id: str) -> Chapter:
@@ -116,7 +133,11 @@ def name_exists_active(db: Session, name: str, *, exclude_id: str | None = None)
 
 
 def slug_exists_active(db: Session, slug: str, *, exclude_id: str | None = None) -> bool:
-    q = _live(db).filter(Chapter.slug == slug)
+    """Deliberately *not* tenant-scoped. The public agenda lives at
+    ``/e/{slug}`` with no tenant in the URL, so a slug taken by another
+    organisation is taken, full stop — the suffixer then hands out
+    ``amsterdam-2``."""
+    q = db.query(Chapter).filter(Chapter.deleted_at.is_(None), Chapter.slug == slug)
     if exclude_id is not None:
         q = q.filter(Chapter.id != exclude_id)
     return q.first() is not None

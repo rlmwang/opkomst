@@ -9,6 +9,9 @@ completion when the email matches ``BOOTSTRAP_ADMIN_EMAIL``.
 Tests that don't care about exercising the real flow can use
 ``register_user`` and treat it as a one-liner; tests that *do*
 care call the public endpoints directly.
+
+``token_for`` mints a JWT for an existing user id — the tokens carry
+the user's tenant now, so a test can't sign one without the row.
 """
 
 from typing import Any
@@ -22,7 +25,7 @@ def register_user(client: Any, email: str, name: str = "X") -> str:
     newly-created user's id. Asserts the round-trip succeeded so a
     test failure here points at a real auth regression rather than
     a downstream symptom."""
-    r = client.post("/api/v1/auth/login-link", json={"email": email})
+    r = client.post("/api/v1/auth/login-link", json={"email": email, "tenant": "rsp"})
     assert r.status_code == 200, r.text
 
     db = SessionLocal()
@@ -49,5 +52,18 @@ def register_user(client: Any, email: str, name: str = "X") -> str:
         user = db.query(User).filter(User.email == email, User.deleted_at.is_(None)).first()
         assert user is not None
         return user.id
+    finally:
+        db.close()
+
+
+def token_for(user_id: str) -> str:
+    """A JWT for an existing user id. The token carries the user's
+    tenant, so it is signed from the row rather than from the id."""
+    from backend.auth import create_token
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).one()
+        return create_token(user)
     finally:
         db.close()

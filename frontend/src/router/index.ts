@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
+import { brand } from "@/lib/branding";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
@@ -59,7 +60,15 @@ const routes = [
   { path: "/:pathMatch(.*)*", component: () => import("@/pages/NotFoundPage.vue") },
 ];
 
-const router = createRouter({ history: createWebHistory(), routes });
+// The organiser app is served under its organisation's slug
+// (``opkomst.nu/rsp/events``), so every route above is relative to that
+// base. The slug comes from the brand the server injected into the page
+// head — the app never parses it out of the URL, so a mismatch between
+// what the page is wearing and what it routes to is impossible.
+const router = createRouter({
+  history: createWebHistory(`/${brand().slug}/`),
+  routes,
+});
 
 router.beforeEach(async (to: RouteLocationNormalized) => {
   const auth = useAuthStore();

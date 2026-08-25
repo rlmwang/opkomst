@@ -5,13 +5,13 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, PrimaryKeyConstrain
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from .chapters import Chapter
 
 
-class User(UUIDMixin, TimestampMixin, Base):
+class User(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One row per logical user. JWT ``sub`` is ``user.id``.
 
     Soft-delete via ``deleted_at`` — set to a timestamp when an
@@ -43,11 +43,13 @@ class User(UUIDMixin, TimestampMixin, Base):
     )
 
     __table_args__ = (
-        # Email is unique across live users only — soft-deleted rows
-        # don't block re-registration with the same address (that's
-        # how restore works).
+        # Email is unique per organisation across live users only —
+        # soft-deleted rows don't block re-registration with the same
+        # address (that's how restore works), and the same person can
+        # organise for two organisations as two accounts.
         Index(
             "uq_users_email_live",
+            "tenant_id",
             "email",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
@@ -55,7 +57,7 @@ class User(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class UserChapter(TimestampMixin, Base):
+class UserChapter(TimestampMixin, TenantMixin, Base):
     """User ↔ Chapter membership row.
 
     Composite PK ``(user_id, chapter_id)`` enforces uniqueness; an
@@ -77,7 +79,7 @@ class UserChapter(TimestampMixin, Base):
     __table_args__ = (PrimaryKeyConstraint("user_id", "chapter_id", name="pk_user_chapters"),)
 
 
-class LoginToken(UUIDMixin, TimestampMixin, Base):
+class LoginToken(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One-shot magic-link token. Issued on /auth/login-link, redeemed
     on /auth/login. Single-use; deleted on redeem."""
 
@@ -88,7 +90,7 @@ class LoginToken(UUIDMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class RegistrationToken(UUIDMixin, TimestampMixin, Base):
+class RegistrationToken(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One-shot "finish creating your account" token. Issued by
     /auth/login-link when an unknown email is submitted, redeemed
     by /auth/complete-registration with a user-supplied name. The

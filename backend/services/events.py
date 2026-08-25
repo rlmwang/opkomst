@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..models import Occurrence
 from ..schemas.events import ProjectedOccurrenceOut, PublicEventOut, PublicOccurrenceOut
-from . import event_recurrence
+from . import event_recurrence, tenancy
 
 # Single source of truth: occurrence / event datetimes are naive
 # Europe/Amsterdam wall clock (see the model docstrings). Comparisons
@@ -38,8 +38,15 @@ def now_wallclock() -> datetime:
 def get_occurrence_by_slug_any(db: Session, slug: str) -> Occurrence | None:
     """Any occurrence by slug, its event archived or not, with the event
     eager-loaded. Public surfaces that want to render a soft "this event
-    is archived" message use this and check ``event.archived_at``."""
-    return db.query(Occurrence).options(joinedload(Occurrence.event)).filter(Occurrence.slug == slug).first()
+    is archived" message use this and check ``event.archived_at``.
+
+    Binds the owning tenant: the public URL carries none, so the
+    occurrence behind the slug is what decides whose organisation this
+    request is in (branding included)."""
+    occ = db.query(Occurrence).options(joinedload(Occurrence.event)).filter(Occurrence.slug == slug).first()
+    if occ is not None:
+        tenancy.bind(occ.tenant_id, occ.tenant.slug)
+    return occ
 
 
 def get_public_occurrence_by_slug(db: Session, slug: str) -> Occurrence | None:

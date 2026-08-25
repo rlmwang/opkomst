@@ -38,10 +38,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
+class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     """One questionnaire. ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table
     and stays attached to the row across archive/restore so a
@@ -65,7 +65,7 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     )
 
 
-class FormQuestion(UUIDMixin, TimestampMixin, Base):
+class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One question on one form. ``ordinal`` drives display order
     (re-numbered 1..N on every update from the input order; the
     client doesn't have to send dense ordinals). ``options`` is
@@ -99,7 +99,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
+class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base):
     """One fill-out. Holds the self-chosen pseudonym
     (``display_name``, NULL = anonymous) and groups the per-question
     answer rows. Same parent-submission shape as ``Signup`` /
@@ -113,7 +113,7 @@ class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
-class FormResponse(UUIDMixin, TimestampMixin, Base):
+class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One answer — one row per answered question, FK'd to the parent
     ``form_submissions`` row that carries the pseudonym.
 

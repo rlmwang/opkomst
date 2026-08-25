@@ -3972,16 +3972,21 @@
         "type": "object"
       },
       "LoginLinkRequest": {
-        "description": "Single entry point for both populations: a registered email\nreceives a sign-in link, an unknown email receives a\n\"finish creating your account\" link. The endpoint returns the\nsame response shape either way so the API can't be probed for\naccount existence.",
+        "description": "Single entry point for both populations: a registered email\nreceives a sign-in link, an unknown email receives a\n\"finish creating your account\" link. The endpoint returns the\nsame response shape either way so the API can't be probed for\naccount existence.\n\n``tenant`` is the organisation's slug \u2014 the first segment of the\nURL the sign-in page is served from. The door is per tenant: the\nsame address can organise for two of them, as two accounts.",
         "properties": {
           "email": {
             "format": "email",
             "title": "Email",
             "type": "string"
+          },
+          "tenant": {
+            "title": "Tenant",
+            "type": "string"
           }
         },
         "required": [
-          "email"
+          "email",
+          "tenant"
         ],
         "title": "LoginLinkRequest",
         "type": "object"
@@ -6907,7 +6912,7 @@
     },
     "/api/v1/auth/login-link": {
       "post": {
-        "description": "Send a magic link.\n\nBranches on whether the email matches a live user. Both\nbranches return the same ``LinkSent`` so the API can't be\nprobed for account existence.",
+        "description": "Send a magic link.\n\nBranches on whether the email matches a live user *of this\ntenant*. Both branches return the same ``LinkSent`` so the API\ncan't be probed for account existence \u2014 including by an unknown\ntenant slug, which returns the same shape rather than confirming\nwhich organisations exist.",
         "operationId": "login_link_api_v1_auth_login_link_post",
         "requestBody": {
           "content": {

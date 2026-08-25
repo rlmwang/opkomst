@@ -17,7 +17,7 @@ are all covered here.
 
 from backend.database import SessionLocal
 from backend.models import LoginToken, RegistrationToken, User
-from tests._helpers.users import register_user
+from tests._helpers.users import register_user, token_for
 
 
 def _latest_login_token() -> str:
@@ -61,7 +61,7 @@ def test_complete_registration_returns_jwt_and_logs_user_in(client):
     """Completing registration is the user's first sign-in: the
     response carries a JWT plus the freshly-created user row, no
     separate /auth/login round-trip required."""
-    r = client.post("/api/v1/auth/login-link", json={"email": "first@local.dev"})
+    r = client.post("/api/v1/auth/login-link", json={"email": "first@local.dev", "tenant": "rsp"})
     assert r.status_code == 200
     raw = _latest_registration_token("first@local.dev")
 
@@ -89,7 +89,7 @@ def test_login_link_known_email_sends_login_email(client, admin_token, monkeypat
 
     monkeypatch.setattr("backend.routers.auth.send_email", _capture)
 
-    r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+    r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
     assert r.status_code == 200
     assert sent == [("admin@local.dev", "login.html")]
 
@@ -104,7 +104,7 @@ def test_login_link_unknown_email_sends_register_complete_email(client, monkeypa
 
     monkeypatch.setattr("backend.routers.auth.send_email", _capture)
 
-    r = client.post("/api/v1/auth/login-link", json={"email": "ghost@local.dev"})
+    r = client.post("/api/v1/auth/login-link", json={"email": "ghost@local.dev", "tenant": "rsp"})
     assert r.status_code == 200
     assert sent == [("ghost@local.dev", "register_complete.html")]
 
@@ -119,8 +119,8 @@ def test_login_link_unknown_email_sends_register_complete_email(client, monkeypa
 def test_login_link_response_shape_identical_for_known_and_unknown(client, admin_token):
     """The privacy invariant: /login-link can't be probed for whether
     an email is registered. Both branches return the same body."""
-    known = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
-    unknown = client.post("/api/v1/auth/login-link", json={"email": "nobody@local.dev"})
+    known = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
+    unknown = client.post("/api/v1/auth/login-link", json={"email": "nobody@local.dev", "tenant": "rsp"})
     assert known.status_code == unknown.status_code == 200
     assert known.json() == unknown.json()
 
@@ -132,10 +132,10 @@ def test_login_link_repeated_unknown_email_replaces_old_token(client, monkeypatc
     token per email exists."""
     monkeypatch.setattr("backend.routers.auth.send_email", lambda **kw: None)
 
-    client.post("/api/v1/auth/login-link", json={"email": "twice@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "twice@local.dev", "tenant": "rsp"})
     first_raw = _latest_registration_token("twice@local.dev")
 
-    client.post("/api/v1/auth/login-link", json={"email": "twice@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "twice@local.dev", "tenant": "rsp"})
     second_raw = _latest_registration_token("twice@local.dev")
     assert first_raw != second_raw
 
@@ -167,7 +167,7 @@ def test_complete_registration_invalid_token(client):
 
 
 def test_complete_registration_replay_blocked(client):
-    client.post("/api/v1/auth/login-link", json={"email": "replay@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "replay@local.dev", "tenant": "rsp"})
     raw = _latest_registration_token("replay@local.dev")
 
     r = client.post(
@@ -219,7 +219,7 @@ def test_complete_registration_blank_name_rejected(client):
     """``name`` is the only field the user supplies at completion;
     a blank or whitespace-only value would create a useless user
     row, so the endpoint 422s before redeeming the token."""
-    client.post("/api/v1/auth/login-link", json={"email": "blank@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "blank@local.dev", "tenant": "rsp"})
     raw = _latest_registration_token("blank@local.dev")
 
     # Empty string fails Pydantic ``min_length=1``.
@@ -247,7 +247,7 @@ def test_complete_registration_blank_name_rejected(client):
 
 
 def test_complete_registration_strips_whitespace_in_name(client):
-    client.post("/api/v1/auth/login-link", json={"email": "trim@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "trim@local.dev", "tenant": "rsp"})
     raw = _latest_registration_token("trim@local.dev")
 
     r = client.post(
@@ -305,7 +305,7 @@ def test_bootstrap_admin_auto_approved_via_complete_registration(client):
     """First completion matching ``BOOTSTRAP_ADMIN_EMAIL`` lands as
     ``role=admin, is_approved=true``. (Same path admin_token uses,
     asserted explicitly here.)"""
-    client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
     raw = _latest_registration_token("admin@local.dev")
     r = client.post(
         "/api/v1/auth/complete-registration",
@@ -336,7 +336,7 @@ def test_bootstrap_only_promotes_first_completion(client, admin_token):
     import unittest.mock as _mock
 
     with _mock.patch("backend.routers.auth.send_email", side_effect=_capture):
-        r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+        r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
         assert r.status_code == 200
 
     assert sent == [("admin@local.dev", "login.html")]
@@ -386,13 +386,13 @@ def test_complete_registration_race_against_concurrent_completion(client, monkey
 
     monkeypatch.setattr(auth_module, "send_email", lambda **kw: None)
 
-    client.post("/api/v1/auth/login-link", json={"email": "race@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "race@local.dev", "tenant": "rsp"})
     raw = _latest_registration_token("race@local.dev")
 
     real = auth_module._create_fresh_with_race_recovery
     raced: dict[str, bool] = {"done": False}
 
-    def _commit_rival_then_create(db, email, name):  # noqa: ANN001, ANN201
+    def _commit_rival_then_create(db, email, name, tenant_id):  # noqa: ANN001, ANN201
         if not raced["done"] and email == "race@local.dev":
             raced["done"] = True
             rival = SessionLocal()
@@ -408,7 +408,7 @@ def test_complete_registration_race_against_concurrent_completion(client, monkey
                 rival.commit()
             finally:
                 rival.close()
-        return real(db, email, name)
+        return real(db, email, name, tenant_id)
 
     monkeypatch.setattr(auth_module, "_create_fresh_with_race_recovery", _commit_rival_then_create)
 
@@ -434,7 +434,7 @@ def test_complete_registration_race_against_concurrent_completion(client, monkey
 
 
 def test_login_link_then_redeem(client, admin_token):
-    r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+    r = client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
     assert r.status_code == 200
     raw = _latest_login_token()
 
@@ -444,7 +444,7 @@ def test_login_link_then_redeem(client, admin_token):
 
 
 def test_login_token_is_single_use(client, admin_token):
-    client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "admin@local.dev", "tenant": "rsp"})
     raw = _latest_login_token()
     assert client.post("/api/v1/auth/login", json={"token": raw}).status_code == 200
     assert client.post("/api/v1/auth/login", json={"token": raw}).status_code == 410
@@ -482,7 +482,7 @@ def test_login_rejects_token_for_archived_user(client, admin_token, admin_header
     """Archive a user between minting and redeeming a token. The
     redeem path 410s instead of issuing a JWT for a deleted row."""
     uid = register_user(client, "ghost@local.dev", "Ghost")
-    client.post("/api/v1/auth/login-link", json={"email": "ghost@local.dev"})
+    client.post("/api/v1/auth/login-link", json={"email": "ghost@local.dev", "tenant": "rsp"})
     raw = _latest_login_token()
 
     assert client.delete(f"/api/v1/admin/users/{uid}", headers=admin_headers).status_code == 204
@@ -499,9 +499,7 @@ def test_jwt_id_stable_across_user_updates(client, admin_headers, chapter_id):
     invalidate previously-minted tokens."""
     uid = register_user(client, "x@local.dev", "X")
 
-    from backend.auth import create_token
-
-    token = create_token(uid)
+    token = token_for(uid)
     client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
@@ -544,19 +542,24 @@ def test_jwt_expired_rejected(client, admin_token):
     assert r.status_code == 401
 
 
-def test_jwt_round_trip_uses_pyjwt(client, organiser_headers):
+def test_jwt_round_trip_uses_pyjwt(client, organiser_headers, tenant_id):
     import jwt as pyjwt
 
-    from backend.auth import JWT_ALGORITHM, create_token
+    from backend.auth import JWT_ALGORITHM
     from backend.config import settings
 
-    token = create_token("00000000-0000-0000-0000-000000000000")
+    uid = register_user(client, "roundtrip@local.dev", "RT")
+    token = token_for(uid)
     decoded = pyjwt.decode(
         token,
         settings.jwt_secret.get_secret_value(),
         algorithms=[JWT_ALGORITHM],
     )
-    assert decoded["sub"] == "00000000-0000-0000-0000-000000000000"
+    assert decoded["sub"] == uid
+    # The tenant travels in the token: it is what binds the request to
+    # one organisation, before any route or query runs.
+    assert decoded["tenant"] == tenant_id
+    assert decoded["tenant_slug"] == "rsp"
     assert "iat" in decoded
     assert "exp" in decoded
     header = pyjwt.get_unverified_header(token)
@@ -567,9 +570,7 @@ def test_jwt_round_trip_uses_pyjwt(client, organiser_headers):
 def test_jwt_for_archived_user_rejected(client, admin_headers, admin_token):
     uid = register_user(client, "ephemeral@local.dev", "E")
 
-    from backend.auth import create_token
-
-    token = create_token(uid)
+    token = token_for(uid)
     assert client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 200
 
     assert client.delete(f"/api/v1/admin/users/{uid}", headers=admin_headers).status_code == 204
@@ -591,7 +592,8 @@ def test_restored_user_can_log_in_via_magic_link(client, admin_headers):
     uid_after = register_user(client, "phoenix@local.dev", "Phoenix-back")
     assert uid_after == uid  # restored in place
 
-    assert client.post("/api/v1/auth/login-link", json={"email": "phoenix@local.dev"}).status_code == 200
+    resent = client.post("/api/v1/auth/login-link", json={"email": "phoenix@local.dev", "tenant": "rsp"})
+    assert resent.status_code == 200
 
     raw = _latest_login_token()
     r = client.post("/api/v1/auth/login", json={"token": raw})
@@ -650,15 +652,13 @@ def test_me_excludes_soft_deleted_chapter_membership(client, admin_headers):
     r = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Tilburg"})
     tilburg_id = r.json()["id"]
 
-    from backend.auth import create_token
-
     uid = register_user(client, "tilburger@local.dev", "Tilly")
     client.post(
         f"/api/v1/admin/users/{uid}/approve",
         headers=admin_headers,
         json={"chapter_ids": [tilburg_id]},
     )
-    user_token = create_token(uid)
+    user_token = token_for(uid)
 
     # Archive the chapter; the membership row should silently drop
     # from the user's effective projection.
@@ -675,7 +675,7 @@ def test_login_link_rate_limit(client, monkeypatch):
     /register no longer exists."""
     monkeypatch.setattr("backend.routers.auth.send_email", lambda **kw: None)
     for i in range(5):
-        r = client.post("/api/v1/auth/login-link", json={"email": f"rl{i}@local.dev"})
+        r = client.post("/api/v1/auth/login-link", json={"email": f"rl{i}@local.dev", "tenant": "rsp"})
         assert r.status_code == 200, r.text
-    r = client.post("/api/v1/auth/login-link", json={"email": "rl-over@local.dev"})
+    r = client.post("/api/v1/auth/login-link", json={"email": "rl-over@local.dev", "tenant": "rsp"})
     assert r.status_code == 429

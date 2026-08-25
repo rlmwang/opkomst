@@ -48,7 +48,8 @@ from .models import (
     VolunteerAvailability,
 )
 from .services import chapters as chapters_svc
-from .services import chore_tick, edit_token, encryption, event_recurrence
+from .services import chore_tick, edit_token, encryption, event_recurrence, tenancy
+from .services import tenants as tenants_svc
 from .services import user_chapters as user_chapters_svc
 from .services.events import now_wallclock
 from .services.slug import new_slug
@@ -142,6 +143,13 @@ def run_local_demo() -> None:
 
     db = SessionLocal()
     try:
+        # Everything below belongs to one organisation. The migration
+        # created it; a checkout that dropped its database gets it here.
+        tenant = tenants_svc.find_live_by_slug(db, "rsp")
+        if tenant is None:
+            tenant = tenants_svc.create(db, slug="rsp", name="RSP")
+        tenancy.bind(tenant.id, tenant.slug)
+
         admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", role="admin")
         organiser = _ensure_user(
             db,

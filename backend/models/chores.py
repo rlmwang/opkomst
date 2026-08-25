@@ -57,10 +57,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import EditTokenMixin, OrgEntityMixin, TimestampMixin, UUIDMixin
+from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
+class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     """One chore roster. ``archived_at`` flips for archive/restore; edits
     overwrite in place. The slug is unique across the table and stays
     attached across archive/restore (same as Event/Form/Datepoll)."""
@@ -105,7 +105,7 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, Base):
     )
 
 
-class Chore(UUIDMixin, TimestampMixin, Base):
+class Chore(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One recurring task on one roster. ``ordinal`` drives display order
     (re-numbered 1..N on every update). ``cycle_slots`` are flat offsets
     into the roster's k-week cycle (``week*7 + weekday``, 0..7k-1, Mon=0);
@@ -125,7 +125,7 @@ class Chore(UUIDMixin, TimestampMixin, Base):
     emoji: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class Volunteer(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
+class Volunteer(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base):
     """One public enrolment. ``display_name`` is the self-chosen pseudonym
     (NULL = anonymous). ``encrypted_email`` is the optional, long-lived
     AES-GCM ciphertext of the email (design §6) — nulled on mute/leave,
@@ -147,7 +147,7 @@ class Volunteer(UUIDMixin, EditTokenMixin, TimestampMixin, Base):
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
 
 
-class Enrollment(TimestampMixin, Base):
+class Enrollment(TimestampMixin, TenantMixin, Base):
     """Volunteer ↔ Chore opt-in. Composite PK ``(volunteer_id, chore_id)``
     enforces one row per pair; both FKs cascade on hard-delete (mirrors
     ``user_chapters``)."""
@@ -162,7 +162,7 @@ class Enrollment(TimestampMixin, Base):
     __table_args__ = (PrimaryKeyConstraint("volunteer_id", "chore_id", name="pk_enrollments"),)
 
 
-class VolunteerAvailability(UUIDMixin, TimestampMixin, Base):
+class VolunteerAvailability(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """A date range one volunteer is unavailable. Fed into the projection
     and the pin step so an away volunteer is excluded from occurrences on
     those dates (design §7 availability). Ranges are inclusive."""
@@ -176,7 +176,7 @@ class VolunteerAvailability(UUIDMixin, TimestampMixin, Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
 
 
-class Shift(UUIDMixin, TimestampMixin, Base):
+class Shift(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One materialised ``(chore, date, slot_index)`` occurrence. ``status``
     is the lifecycle: ``open`` (unassigned / up for grabs), ``scheduled``
     (assigned), ``done``, ``missed``. ``volunteer_id`` is ``SET NULL`` so a
@@ -205,7 +205,7 @@ class Shift(UUIDMixin, TimestampMixin, Base):
     )
 
 
-class ShiftEvent(UUIDMixin, TimestampMixin, Base):
+class ShiftEvent(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """Append-only accountability log: one row per volunteer action or
     outcome on a shift. The mutable Shift row loses history the moment a
     shift is handed off or reassigned (``volunteer_id`` is overwritten),

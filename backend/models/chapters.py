@@ -4,10 +4,10 @@ from sqlalchemy import DateTime, Float, Index, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
-from ..mixins import TimestampMixin, UUIDMixin
+from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 
 
-class Chapter(UUIDMixin, TimestampMixin, Base):
+class Chapter(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """A local chapter / department.
 
     Soft-delete via ``deleted_at``. Restore is "clear
@@ -35,19 +35,23 @@ class Chapter(UUIDMixin, TimestampMixin, Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     __table_args__ = (
-        # Chapter names are unique across live chapters
+        # Chapter names are unique per organisation across live chapters
         # (case-insensitive lookup is the dupe check; the index is
         # plain to keep it simple — the dupe check in
         # ``services.chapters.name_exists_active`` is the real gate).
+        # Two organisations may each have an "Amsterdam".
         Index(
             "uq_chapters_name_live",
+            "tenant_id",
             "name",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
-        # Slug is unique across live chapters — same live-scoped shape as
-        # the name index; ``services.chapters.slug_exists_active`` is the
-        # dupe gate that drives collision suffixing.
+        # The slug is unique across *every* live chapter, tenant or not:
+        # the public agenda lives at ``/e/{slug}`` and that URL carries
+        # no tenant, so two organisations can't both own ``amsterdam``.
+        # ``services.chapters.slug_exists_active`` is the dupe gate that
+        # drives collision suffixing.
         Index(
             "uq_chapters_slug_live",
             "slug",

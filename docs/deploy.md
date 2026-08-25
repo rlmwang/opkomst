@@ -50,6 +50,20 @@ sweeps, so scaling the API up doesn't double-send any email. We
 deliberately run a **single API replica** anyway — see "Rate
 limiting" under Operations for why.
 
+**Organisations.** The app is multi-tenant: the organiser app lives at
+``/{tenant}`` and every row carries its tenant. Adding one is two steps,
+in this order:
+
+1. commit ``brands/{slug}/`` — ``brand.json``, ``tokens.css``, logo and
+   the two icons — and deploy, so the image carries the brand;
+2. ``python -m backend.cli tenant-create --slug {slug} --name "{Name}"``
+   on the API container (Coolify → Terminal). It refuses a slug whose
+   brand folder is missing, so step 1 can't be skipped.
+
+The first person to sign in at ``/{slug}/login`` with
+``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin. The bare
+root and any unknown first segment return 404.
+
 ## 1. Generate secrets
 
 Two secrets to mint before you touch Coolify. Keep them in a

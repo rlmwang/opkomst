@@ -36,18 +36,23 @@ _Scoped = TypeVar("_Scoped", Event, Form, Datepoll, Roster)
 
 
 def chapter_ids_for_user(db: Session, user: User) -> set[str]:
-    """Live chapter ids the user belongs to. Admins are global —
-    they implicitly belong to every live chapter, including ones
-    they were never explicitly assigned to. Live filter on
-    ``Chapter.deleted_at IS NULL`` so soft-deleted chapters drop
-    out without an admin having to re-assign people."""
+    """Live chapter ids the user belongs to, always within the user's
+    own tenant. An admin is global *inside their organisation* — they
+    implicitly belong to every live chapter of it, including ones they
+    were never explicitly assigned to, and to none of anyone else's.
+    Live filter on ``Chapter.deleted_at IS NULL`` so soft-deleted
+    chapters drop out without an admin having to re-assign people."""
     if user.role == "admin":
-        rows = db.query(Chapter.id).filter(Chapter.deleted_at.is_(None)).all()
+        rows = db.query(Chapter.id).filter(Chapter.tenant_id == user.tenant_id, Chapter.deleted_at.is_(None)).all()
         return {row[0] for row in rows}
     rows = (
         db.query(UserChapter.chapter_id)
         .join(Chapter, Chapter.id == UserChapter.chapter_id)
-        .filter(UserChapter.user_id == user.id, Chapter.deleted_at.is_(None))
+        .filter(
+            UserChapter.user_id == user.id,
+            Chapter.tenant_id == user.tenant_id,
+            Chapter.deleted_at.is_(None),
+        )
         .all()
     )
     return {row[0] for row in rows}
@@ -56,8 +61,11 @@ def chapter_ids_for_user(db: Session, user: User) -> set[str]:
 def scope_filter(db: Session, user: User, column: "Mapped[str | None]") -> ColumnElement[bool]:
     """SQL predicate scoping a list query to the user's chapter set.
     A user with zero live memberships sees an empty list (the
-    predicate evaluates to ``FALSE``); admins match every row
-    because every chapter id is in their effective set."""
+    predicate evaluates to ``FALSE``); admins match every row of their
+    own organisation because every one of its chapter ids is in their
+    effective set. The chapter set is already tenant-scoped, so a row
+    of another tenant can't match — the entity's own ``tenant_id``
+    predicate in ``get_scoped`` is the belt to this braces."""
     ids = chapter_ids_for_user(db, user)
     if not ids:
         return false()
@@ -88,13 +96,21 @@ def get_scoped(
     *,
     not_found: str,
 ) -> _Scoped:
-    """Fetch a chapter-scoped entity by id, scoped to the user's
-    chapter set. 404 if missing, in a chapter the user can't see,
-    or the user has no live memberships."""
+    """Fetch a chapter-scoped entity by id, scoped to the user's tenant
+    and chapter set. 404 if missing, in another organisation, in a
+    chapter the user can't see, or the user has no live memberships."""
     ids = chapter_ids_for_user(db, user)
     if not ids:
         raise HTTPException(status_code=404, detail=not_found)
-    row = db.query(model).filter(model.id == entity_id, model.chapter_id.in_(ids)).first()
+    row = (
+        db.query(model)
+        .filter(
+            model.id == entity_id,
+            model.tenant_id == user.tenant_id,
+            model.chapter_id.in_(ids),
+        )
+        .first()
+    )
     if row is None:
         raise HTTPException(status_code=404, detail=not_found)
     return row

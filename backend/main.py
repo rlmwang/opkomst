@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from .auth import TenantBindingMiddleware
 from .bootstrap import init_sentry
 from .config import cors_origins_list, settings
 from .database import engine
@@ -76,6 +77,11 @@ async def _rate_limited(_request, exc: RateLimitExceeded):  # type: ignore[no-un
         content={"detail": f"Too many requests; retry later. Limit: {exc.detail}"},
     )
 
+
+# Binds the signed-in user's organisation for the whole request, from
+# the JWT's own claims. Has to be middleware: a sync dependency runs in
+# a worker thread whose context copy the endpoint never sees.
+app.add_middleware(TenantBindingMiddleware)
 
 # Security headers on every response. Installed before CORS so
 # CSP / HSTS / nosniff apply uniformly to preflights too.

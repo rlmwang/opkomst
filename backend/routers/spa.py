@@ -5,21 +5,23 @@ The hashed ``assets/`` directory mounts with a 1-year ``immutable``
 ``Cache-Control`` header (filenames are content-hashed by Vite, so
 a changed file ships under a new URL).
 
-Three HTML entry points:
+Entry points:
 
-* ``/e/{slug}`` — the public sign-up mini-app (``public-event.html``).
-  The handler looks the event up server-side and injects the
-  payload into the HTML as ``window.__OPKOMST_EVENT__`` so the
-  Vue mini-app has data on first paint, no API round-trip needed.
-* ``/f/{slug}`` — the public form mini-app (``public-form.html``).
-  Same shape as the event handler one level down: payload inlined
-  as ``window.__OPKOMST_FORM__``; per-form ``<head>`` metadata
-  for link-preview cards.
-* every other non-/api path — the admin SPA (``index.html``); the
-  client-side router takes it from there.
+* ``/e/{slug}``, ``/f/{slug}``, ``/d/{slug}``, ``/c/{slug}`` and
+  ``/e/{chapter}`` — the public mini-apps. Each handler resolves its
+  entity server-side and injects the payload into the HTML (as
+  ``window.__OPKOMST_EVENT__`` and friends) so the page is interactive
+  on first paint, plus the per-page ``<head>`` metadata for link
+  previews. These URLs carry no tenant: the entity behind the slug is
+  what decides whose brand the page wears.
+* ``/{tenant}/…`` — the organiser SPA (``index.html``), for every live
+  tenant slug. The bare root and unknown slugs are 404: a shell that
+  can't know whose data it would show is worse than nothing.
+* ``/brand/{tenant}/…`` — the brand files (palette, logo, icons),
+  served from ``brands/`` whether or not a frontend build exists.
 
-Locally (``frontend/dist`` absent) ``mount(app)`` is a no-op, so
-``uvicorn --reload`` against a fresh checkout doesn't 500 on
+Locally (``frontend/dist`` absent) everything but the brand mount is
+skipped, so ``uvicorn --reload`` against a fresh checkout doesn't 500 on
 missing files.
 """
 
@@ -29,7 +31,7 @@ import pathlib
 import re
 
 from fastapi import Depends, FastAPI, HTTPException, Response
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.types import Scope
@@ -45,6 +47,7 @@ from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
 from ..services import events as events_svc
 from ..services import forms as forms_svc
+from ..services import tenants as tenants_svc
 from ..services.sanitize import html_to_text
 from ..services.slug import is_event_slug
 
@@ -78,14 +81,9 @@ _CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
 _BRAND_INJECTION_MARKER = "<!-- OPKOMST_BRAND_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
-# Static OG image — the brand's own favicon. WhatsApp/Telegram require
-# an absolute URL with a valid extension; ``favicon.png`` is 192×192
-# which is above the 200×200 minimum most parsers want.
-_OG_IMAGE_URL = brand_svc.payload(brand_svc.DEFAULT_BRAND)["favicon_absolute_url"]
-_APP_NAME = brand_svc.payload(brand_svc.DEFAULT_BRAND)["app_name"]
 
 
-def _og_head(*, name: str, description: str, canonical_url: str, image_url: str | None) -> str:
+def _og_head(*, name: str, description: str, canonical_url: str, image_url: str | None, brand_slug: str) -> str:
     """Shared ``<head>`` markup: page title + Open Graph + Twitter
     Card tags. Drives the link-preview cards rendered by WhatsApp,
     Facebook, iMessage, Slack, Twitter, LinkedIn — all of which
@@ -98,37 +96,46 @@ def _og_head(*, name: str, description: str, canonical_url: str, image_url: str 
     ``OrgEntity`` — event / datepoll / roster / form — carries one on
     its spine), or ``None`` for surfaces without an image. A real
     upload gets the large-image card; the ``None`` fallback shows the
-    square favicon under the tiny ``summary`` thumbnail."""
-    og_image = image_url or _OG_IMAGE_URL
+    owning organisation's square favicon under the tiny ``summary``
+    thumbnail (the house brand has none, so that card has no image).
+
+    The site name and the title suffix are the owning organisation's
+    too — a shared link says whose event it is, not which tool made
+    the page."""
+    brand = brand_svc.payload(brand_slug)
+    app_name = brand["app_name"]
+    og_image = image_url or brand["favicon_absolute_url"]
     twitter_card = "summary_large_image" if image_url else "summary"
-    et = html.escape(f"{name} — {_APP_NAME}", quote=True)
+    et = html.escape(f"{name} — {app_name}", quote=True)
     ed = html.escape(description, quote=True)
     eu = html.escape(canonical_url, quote=True)
-    ei = html.escape(og_image, quote=True)
     en = html.escape(name, quote=True)
-    return (
-        f"<title>{et}</title>\n"
-        f'    <meta name="description" content="{ed}">\n'
-        f'    <meta property="og:title" content="{en}">\n'
-        f'    <meta property="og:description" content="{ed}">\n'
-        f'    <meta property="og:type" content="website">\n'
-        f'    <meta property="og:url" content="{eu}">\n'
-        f'    <meta property="og:site_name" content="{html.escape(_APP_NAME, quote=True)}">\n'
-        f'    <meta property="og:image" content="{ei}">\n'
-        f'    <meta name="twitter:card" content="{twitter_card}">\n'
-        f'    <meta name="twitter:title" content="{en}">\n'
-        f'    <meta name="twitter:description" content="{ed}">\n'
-        f'    <meta name="twitter:image" content="{ei}">'
-    )
+    tags = [
+        f"<title>{et}</title>",
+        f'<meta name="description" content="{ed}">',
+        f'<meta property="og:title" content="{en}">',
+        f'<meta property="og:description" content="{ed}">',
+        '<meta property="og:type" content="website">',
+        f'<meta property="og:url" content="{eu}">',
+        f'<meta property="og:site_name" content="{html.escape(app_name, quote=True)}">',
+        f'<meta name="twitter:card" content="{twitter_card}">',
+        f'<meta name="twitter:title" content="{en}">',
+        f'<meta name="twitter:description" content="{ed}">',
+    ]
+    if og_image:
+        ei = html.escape(og_image, quote=True)
+        tags.append(f'<meta property="og:image" content="{ei}">')
+        tags.append(f'<meta name="twitter:image" content="{ei}">')
+    return "\n    ".join(tags)
 
 
-def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
+def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) -> str:
     """Per-occurrence link-preview ``<head>`` (the public page is per
     occurrence). For unknown slugs (occurrence is None) only the bare site
     title is emitted; sharing a 404 link is rare enough that elaborate
     fallback metadata isn't worth the bytes."""
     if occurrence is None:
-        return f"<title>{_APP_NAME}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
     event = occurrence.event
 
     # Description: topic if the organiser set one (it's the
@@ -152,43 +159,46 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str) -> str:
         description=description,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
         image_url=event.image_url,
+        brand_slug=brand_slug,
     )
 
 
-def _build_form_head_meta(form: Form | None, slug: str) -> str:
+def _build_form_head_meta(form: Form | None, slug: str, brand_slug: str) -> str:
     """Per-form link-preview ``<head>``. Forms have no topic /
     location / date, so the description is just the form name; the
     card uses the organiser's uploaded image when set."""
     if form is None:
-        return f"<title>{_APP_NAME}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
     form_name = pick_localized(form.name_nl, form.name_en, form.locale) or ""
     return _og_head(
         name=form_name,
         description=form_name,
         canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
         image_url=form.image_url,
+        brand_slug=brand_slug,
     )
 
 
-def _build_datepoll_head_meta(poll: Datepoll | None, slug: str) -> str:
+def _build_datepoll_head_meta(poll: Datepoll | None, slug: str, brand_slug: str) -> str:
     """Per-datepoll link-preview ``<head>``. Description is the poll's
     blurb if set, else its name; card uses the uploaded image when set."""
     if poll is None:
-        return f"<title>{_APP_NAME}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
     poll_name = pick_localized(poll.name_nl, poll.name_en, poll.locale) or ""
     return _og_head(
         name=poll_name,
         description=html_to_text(pick_localized(poll.description_nl, poll.description_en, poll.locale)) or poll_name,
         canonical_url=f"{_PUBLIC_BASE}/d/{slug}",
         image_url=poll.image_url,
+        brand_slug=brand_slug,
     )
 
 
-def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
+def _build_roster_head_meta(roster: Roster | None, slug: str, brand_slug: str) -> str:
     """Per-roster link-preview ``<head>``. Description is the roster's
     blurb if set, else its name; card uses the uploaded image when set."""
     if roster is None:
-        return f"<title>{_APP_NAME}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
     roster_name = pick_localized(roster.name_nl, roster.name_en, roster.locale) or ""
     blurb = html_to_text(pick_localized(roster.description_nl, roster.description_en, roster.locale))
     return _og_head(
@@ -196,19 +206,21 @@ def _build_roster_head_meta(roster: Roster | None, slug: str) -> str:
         description=blurb or roster_name,
         canonical_url=f"{_PUBLIC_BASE}/c/{slug}",
         image_url=roster.image_url,
+        brand_slug=brand_slug,
     )
 
 
-def _build_chapter_head_meta(chapter: Chapter | None, slug: str) -> str:
+def _build_chapter_head_meta(chapter: Chapter | None, slug: str, brand_slug: str) -> str:
     """Per-chapter agenda link-preview ``<head>``. Title is
     ``Agenda · {name}``; a chapter has no image, so the favicon card."""
     if chapter is None:
-        return f"<title>{_APP_NAME}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
     return _og_head(
         name=f"Agenda · {chapter.name}",
         description=chapter.name,
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
         image_url=None,
+        brand_slug=brand_slug,
     )
 
 
@@ -233,17 +245,19 @@ class _BrandStatic(StaticFiles):
         return response
 
 
-def _serve_admin_shell() -> HTMLResponse:
-    """The admin SPA shell with the brand injected. Served for every
-    path the explicit handlers don't claim, so the client-side router
-    can take over (including its own 404 page).
+def _serve_admin_shell(tenant_slug: str) -> HTMLResponse:
+    """The organiser SPA shell, wearing the brand of the organisation
+    whose slug opened the URL. Served for every path under a live
+    tenant so the client-side router can take over (including its own
+    404 page); the injected brand carries the slug, which is what the
+    router uses as its history base.
 
     ``index.html`` MUST NOT be browser-cached — see the note in
     ``_spa_fallback``."""
     rendered = (
         (_DIST / "index.html")
         .read_text(encoding="utf-8")
-        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_svc.DEFAULT_BRAND), 1)
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug), 1)
     )
     return HTMLResponse(rendered, headers={"Cache-Control": "no-store"})
 
@@ -255,6 +269,7 @@ def _serve_public_app(
     payload_marker: str,
     payload: object | None,
     head_meta: str,
+    brand_slug: str,
 ) -> HTMLResponse:
     """Render one public mini-app shell with its payload inlined.
 
@@ -271,16 +286,19 @@ def _serve_public_app(
     Each caller resolves its own entity and decides the archived
     policy (events inline the archived event's payload to render a
     banner; forms/datepolls inline ``null`` so the mini-app shows
-    "no longer available"). When the build artefact is missing
-    (local dev without a frontend build) we fall back to the admin
-    SPA shell, uncached."""
+    "no longer available"), and passes the brand of the organisation
+    that owns it — the URL carries no tenant, so the entity is what
+    decides whose logo and palette the visitor sees. An unknown slug
+    has no owner and gets the house brand. When the build artefact is
+    missing (local dev without a frontend build) we fall back to the
+    organiser shell, uncached."""
     public_html_path = _DIST / html_name
     if not public_html_path.is_file():
-        return _serve_admin_shell()
+        return _serve_admin_shell(brand_slug)
     inlined = f"<script>window.{window_var} = " + json.dumps(payload, ensure_ascii=False) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
-        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_svc.DEFAULT_BRAND), 1)
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_slug), 1)
         .replace(_HEAD_INJECTION_MARKER, head_meta, 1)
         .replace(payload_marker, inlined, 1)
     )
@@ -290,6 +308,17 @@ def _serve_public_app(
     )
 
 
+def _brand_slug_for(db: Session, entity: object | None) -> str:
+    """Which brand a public page wears: the one belonging to the tenant
+    that owns the entity behind the slug. An unknown or archived slug
+    resolved to nothing, so there is no owner to ask — those pages, and
+    only those, wear the house brand."""
+    if entity is None:
+        return brand_svc.HOUSE_BRAND
+    tenant = tenants_svc.get_live(db, entity.tenant_id)  # type: ignore[attr-defined]
+    return tenant.slug if tenant is not None else brand_svc.HOUSE_BRAND
+
+
 def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
@@ -297,12 +326,14 @@ def _serve_public_event(slug: str, db: Session) -> HTMLResponse:
     payload = (
         json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
     )
+    brand_slug = _brand_slug_for(db, occurrence)
     return _serve_public_app(
         html_name="public-event.html",
         window_var="__OPKOMST_EVENT__",
         payload_marker=_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_head_meta(occurrence, slug),
+        head_meta=_build_head_meta(occurrence, slug, brand_slug),
+        brand_slug=brand_slug,
     )
 
 
@@ -311,12 +342,14 @@ def _serve_public_form(slug: str, db: Session) -> HTMLResponse:
     # "no longer available" state it would on a 410.
     form = forms_svc.get_form_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
     payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
+    brand_slug = _brand_slug_for(db, form)
     return _serve_public_app(
         html_name="public-form.html",
         window_var="__OPKOMST_FORM__",
         payload_marker=_FORM_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_form_head_meta(form, slug),
+        head_meta=_build_form_head_meta(form, slug, brand_slug),
+        brand_slug=brand_slug,
     )
 
 
@@ -324,12 +357,14 @@ def _serve_public_datepoll(slug: str, db: Session) -> HTMLResponse:
     # Archived/unknown polls inline null, same as forms.
     poll = datepolls_svc.get_datepoll_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
+    brand_slug = _brand_slug_for(db, poll)
     return _serve_public_app(
         html_name="public-datepoll.html",
         window_var="__OPKOMST_DATEPOLL__",
         payload_marker=_DATEPOLL_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_datepoll_head_meta(poll, slug),
+        head_meta=_build_datepoll_head_meta(poll, slug, brand_slug),
+        brand_slug=brand_slug,
     )
 
 
@@ -337,12 +372,14 @@ def _serve_public_roster(slug: str, db: Session) -> HTMLResponse:
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = chores_svc.get_roster_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
+    brand_slug = _brand_slug_for(db, roster)
     return _serve_public_app(
         html_name="public-chore.html",
         window_var="__OPKOMST_CHORE__",
         payload_marker=_CHORE_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_roster_head_meta(roster, slug),
+        head_meta=_build_roster_head_meta(roster, slug, brand_slug),
+        brand_slug=brand_slug,
     )
 
 
@@ -351,12 +388,14 @@ def _serve_public_chapter(slug: str, db: Session) -> HTMLResponse:
     # "chapter not found" state, same tri-state as the other pages.
     chapter = chapters_svc.find_live_by_slug(db, slug)
     payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json()) if chapter is not None else None
+    brand_slug = _brand_slug_for(db, chapter)
     return _serve_public_app(
         html_name="public-chapter.html",
         window_var="__OPKOMST_CHAPTER__",
         payload_marker=_CHAPTER_INJECTION_MARKER,
         payload=payload,
-        head_meta=_build_chapter_head_meta(chapter, slug),
+        head_meta=_build_chapter_head_meta(chapter, slug, brand_slug),
+        brand_slug=brand_slug,
     )
 
 
@@ -370,7 +409,6 @@ def mount(app: FastAPI) -> None:
         return
 
     app.mount("/assets", _ImmutableStatic(directory=_DIST / "assets"), name="assets")
-    dist_resolved = _DIST.resolve()
 
     @app.get("/e/{ident}", include_in_schema=False)
     def _public_event(ident: str, db: Session = Depends(get_db)) -> HTMLResponse:
@@ -393,12 +431,14 @@ def mount(app: FastAPI) -> None:
         return _serve_public_roster(slug, db)
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    def _spa_fallback(full_path: str) -> Response:
-        # ``StaticFiles`` already won the route for ``/assets/*``
-        # and the explicit ``/e/{slug}`` handler above wins for
-        # the public mini-app; this handler covers everything
-        # else. We serve ``index.html`` for unknown paths so the
-        # admin client-side router can render its 404 page.
+    def _spa_fallback(full_path: str, db: Session = Depends(get_db)) -> Response:
+        # ``StaticFiles`` already won the route for ``/assets/*`` and
+        # ``/brand/*``, and the explicit public handlers above won for
+        # the mini-apps. What's left is the organiser app, which lives
+        # under its organisation's slug: ``/rsp/events``. The first
+        # segment must be a live tenant — anything else, the bare root
+        # included, is a 404 rather than a shell that can't know whose
+        # data it would show.
         #
         # ``index.html`` MUST NOT be browser-cached. Vite emits
         # content-hashed asset names (``main-AbCd1234.js``) which
@@ -412,15 +452,8 @@ def mount(app: FastAPI) -> None:
         # fast on warm visits.
         if full_path.startswith("api/") or full_path == "health":
             raise HTTPException(status_code=404, detail="Not found")
-        # Resolve the requested path and require it to live under
-        # the dist directory; without this a request like
-        # ``/../../etc/passwd`` would happily serve any readable
-        # file off the host.
-        candidate = (_DIST / full_path).resolve()
-        try:
-            candidate.relative_to(dist_resolved)
-        except ValueError:
-            return _serve_admin_shell()
-        if candidate.is_file():
-            return FileResponse(candidate)
-        return _serve_admin_shell()
+        tenant_slug = full_path.split("/", 1)[0]
+        tenant = tenants_svc.find_live_by_slug(db, tenant_slug) if tenant_slug else None
+        if tenant is None:
+            raise HTTPException(status_code=404, detail="Not found")
+        return _serve_admin_shell(tenant.slug)

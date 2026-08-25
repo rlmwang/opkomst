@@ -257,9 +257,11 @@ export interface paths {
          * Login Link
          * @description Send a magic link.
          *
-         *     Branches on whether the email matches a live user. Both
-         *     branches return the same ``LinkSent`` so the API can't be
-         *     probed for account existence.
+         *     Branches on whether the email matches a live user *of this
+         *     tenant*. Both branches return the same ``LinkSent`` so the API
+         *     can't be probed for account existence — including by an unknown
+         *     tenant slug, which returns the same shape rather than confirming
+         *     which organisations exist.
          */
         post: operations["login_link_api_v1_auth_login_link_post"];
         delete?: never;
@@ -3912,6 +3914,10 @@ export interface components {
          *     "finish creating your account" link. The endpoint returns the
          *     same response shape either way so the API can't be probed for
          *     account existence.
+         *
+         *     ``tenant`` is the organisation's slug — the first segment of the
+         *     URL the sign-in page is served from. The door is per tenant: the
+         *     same address can organise for two of them, as two accounts.
          */
         LoginLinkRequest: {
             /**
@@ -3919,6 +3925,8 @@ export interface components {
              * Format: email
              */
             email: string;
+            /** Tenant */
+            tenant: string;
         };
         /**
          * LoginRequest

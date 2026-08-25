@@ -1,9 +1,12 @@
 from datetime import UTC, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import DateTime, ForeignKey, Text
-from sqlalchemy.orm import Mapped, declared_attr, mapped_column
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 from uuid_utils import uuid7
+
+if TYPE_CHECKING:
+    from .models.tenants import Tenant
 
 
 def _now() -> datetime:
@@ -12,6 +15,14 @@ def _now() -> datetime:
 
 def _uuid7_str() -> str:
     return str(uuid7())
+
+
+def _current_tenant() -> str:
+    """Column default for ``tenant_id``. Imported lazily so the models
+    package doesn't pull the services package at import time."""
+    from .services.tenancy import current
+
+    return current()
 
 
 class UUIDMixin:
@@ -39,6 +50,43 @@ class EditTokenMixin:
     @declared_attr
     def link_recovered_at(cls) -> Mapped[datetime | None]:
         return mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TenantMixin:
+    """The owning tenant, on every table without exception.
+
+    For a root row (a chapter, a user, an event) this is the fact
+    itself. For a child row (an occurrence, a signup, a shift event) it
+    is denormalized from the parent, deliberately: every read filter,
+    every uniqueness index and every "could this leak across tenants"
+    question then reduces to one predicate on the row in front of you,
+    with no join to get wrong.
+
+    Denormalization needs a guard, and it has two, in
+    ``tests/test_tenancy.py``: one asserts the column exists on every
+    mapped table, the other walks the foreign keys and asserts a child
+    never disagrees with its parent.
+
+    The value defaults to the tenant bound to the current context (see
+    ``services.tenancy``), so an insert doesn't have to name it and
+    can't quietly omit it — a write with no tenant in scope raises
+    rather than guessing."""
+
+    @declared_attr
+    def tenant_id(cls) -> Mapped[str]:
+        return mapped_column(
+            Text,
+            ForeignKey("tenants.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
+            default=_current_tenant,
+        )
+
+    @declared_attr
+    def tenant(cls) -> Mapped["Tenant"]:
+        """The owning organisation. Loaded when a surface needs the slug
+        — the brand a page or an email wears — rather than the id."""
+        return relationship("Tenant", lazy="select", viewonly=True)
 
 
 class TimestampMixin:

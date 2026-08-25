@@ -116,6 +116,31 @@ function publicChoreDevRoute(): Plugin {
 }
 
 /**
+ * Dev-only middleware: serve the organiser SPA for ``/{tenant}/…``.
+ *
+ * In production ``backend/routers/spa.py`` looks the first segment up as
+ * a live tenant and serves ``index.html`` (404 otherwise, the bare root
+ * included). The dev server has no database, so it treats the one local
+ * tenant — the same ``rsp`` the brand plugin below injects — as the only
+ * organiser prefix, and everything else falls through to Vite's own
+ * handling.
+ */
+function organiserAppDevRoute(): Plugin {
+  const prefix = /^\/rsp(?:\/|$)/;
+  return {
+    name: "opkomst-organiser-app-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (prefix.test(path)) req.url = "/index.html";
+        next();
+      });
+    },
+  };
+}
+
+/**
  * Substitute ``<!-- OPKOMST_BRAND_INJECTION -->`` in every HTML shell,
  * exactly as ``backend/services/brand.py::head`` does in production:
  * the first-paint colours, the palette stylesheet, the icons and
@@ -167,6 +192,7 @@ export default defineConfig({
   plugins: [
     vue(),
     brandDevInjection(),
+    organiserAppDevRoute(),
     publicEventDevRoute(),
     publicFormDevRoute(),
     publicDatepollDevRoute(),
