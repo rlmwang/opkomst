@@ -310,9 +310,10 @@ Each step ends green, so the work can stop between any two:
 
 1. **Cross-tenant integrity** is enforced by the structural test, not by
    composite `(id, tenant_id)` foreign keys.
-2. **The root path 404s.** No tenant index, no redirect to a default
-   tenant. A public marketing site lands there later, built separately
-   once the tenants exist.
+2. **The root path is the personal app.** No tenant index and no
+   redirect to a default tenant: an address is an account there, and
+   the four create forms are its front door. See
+   `docs/design-personal-tenants.md`.
 3. **Email keeps one sending domain** and one SMTP account; only the
    From display name and the logo come from the tenant's brand.
 4. **Locale strings stay shared.** Only the interpolated `appName`

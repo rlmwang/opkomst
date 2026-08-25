@@ -204,7 +204,9 @@ URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
   in and the organisation's public chapter index when not, decided in
   the client because the session lives in localStorage. The per-entity
   public pages stay tenant-free (`/e/`, `/f/`, `/d/`, `/c/`); `/e/`
-  means an occurrence slug and nothing else. The bare root 404s.
+  means an occurrence slug and nothing else. The bare root is the app
+  itself, in the house brand: the personal accounts, where an address is
+  the account and the four create forms are the front door.
 - **Chapter slugs** are unique per tenant and follow the name: renaming
   a chapter re-slugs it, and the old agenda URL stops resolving.
 

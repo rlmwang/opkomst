@@ -1,16 +1,16 @@
 # Design: personal accounts (tenant-less pages)
 
-Status: proposed. Gives `opkomst.nu` itself a front door. Someone with
+Status: built. Gives `opkomst.nu` itself a front door. Someone with
 no organisation behind them fills in one form, gives an address, and has
 a working event and a working app: their own events, forms, datepolls
 and chore rosters, and nothing else. No admin pages, no WhatsApp, no
 chapters, nobody to invite, and no sign-up step before the first useful
 thing they make.
 
-Today the root 404s and every organiser URL is `/{tenant}/…`, which
-answers "which organisation?" before anything else can happen. A person
-who just wants to run one event has no answer to that question, and
-shouldn't have to have one.
+Before this, the root 404'd and every organiser URL was `/{tenant}/…`,
+which answers "which organisation?" before anything else can happen. A
+person who just wants to run one event has no answer to that question,
+and shouldn't have to have one.
 
 ## What a personal account is
 
@@ -188,16 +188,21 @@ The rule becomes: **the tenant is always the boundary; the chapter set
 narrows it only for organisations.**
 
 ```python
-def scope_filter(db, user, column):
-    if user.tenant.kind == "personal":
-        return true()          # the tenant predicate is the whole scope
+def scope_filter(db, user, model):
+    same_tenant = model.tenant_id == user.tenant_id
+    if is_personal(db, user):
+        return same_tenant     # the tenant predicate is the whole scope
     ids = chapter_ids_for_user(db, user)
-    return column.in_(ids) if ids else false()
+    return and_(same_tenant, model.chapter_id.in_(ids)) if ids else false()
 ```
 
-`get_scoped` keeps its `tenant_id == user.tenant_id` predicate in both
-branches, so a personal user's `true()` is scoped by the layer under it,
-not by trust.
+The tenant predicate is inside the filter rather than left to each
+caller, so a personal account's missing chapter set never widens into
+everybody's rows. The same goes for the one read that reaches through a
+chapter id instead of a scope filter: the public agenda joins on the
+chapter *and* its tenant, because `chapter_id` is a bare FK and a row
+in another tenant carrying that id would otherwise be published on an
+organisation's page.
 
 ## Emails
 
@@ -209,16 +214,31 @@ none of it ever knew about organisations.
 
 ## What changes, by file
 
-- `backend/models/tenants.py` — `kind`.
+- `backend/models/tenants.py` — `kind`, plus the two properties every
+  caller asks instead of reading it: `is_personal` and `brand_slug`.
 - `backend/alembic/versions/…` — add `kind`, existing tenant is
   `organisation`.
-- `backend/services/tenants.py` — `create_personal(email)`; `create`
-  refuses a reserved slug.
+- `backend/services/tenants.py` — `resolve_personal(email)`, the one
+  resolve-or-create both doors use; `sync_from_env` refuses a reserved
+  slug and the house brand.
+- `backend/services/tenancy.py` — the binding carries the brand.
+- `backend/services/limits.py` — the ceilings, each one question about
+  `tenant.is_personal`.
+- `backend/services/entities.py` — one create path per kind, reached by
+  the organiser route and the start endpoint both.
+- `backend/services/mail.py` — the worker thread inherits the caller's
+  context, so a mail wears its own account's brand; the From name comes
+  from that brand too.
+- `backend/services/admin_digest.py` — per organisation, so no admin
+  reads another's pending list.
+- `backend/services/agenda.py`, `backend/routers/chapters.py` — the
+  tenant predicate alongside `chapter_id`.
 - `backend/services/slug.py` — the reserved set + `personal_slug()`.
 - `backend/routers/auth.py` — `tenant: str | None`; the root branch of
   login-link resolves-or-creates and always mints a `LoginToken`.
 - `backend/routers/start.py` — the four `POST /api/v1/start/{kind}`
-  routes: resolve the account, bind, create, mail the link.
+  routes: resolve the account, bind, refuse a `chapter_id`, create,
+  mail the link in the language the form was filled in.
 - `backend/schemas/auth.py` — `tenant` optional; `UserOut.tenant_kind`
   so the frontend can hide what doesn't exist.
 - `backend/schemas/start.py` — the four `Start*` bodies: the existing
@@ -230,29 +250,49 @@ none of it ever knew about organisations.
   personal actors.
 - `backend/services/access.py` — the conditional chapter scope.
 - `backend/routers/spa.py` — root serves the personal app, no 404.
-- `frontend/src/lib/branding.ts` — `app_base` already carries `/`.
+- `frontend/src/lib/branding.ts` — `app_base` already carries `/`;
+  `isPersonalApp()` reads it.
 - `frontend/src/api/client.ts` — `token:personal` at the root.
+- `frontend/src/composables/useStartMode.ts` — what the four create
+  pages share: the flags, the address, the POST, the refusals in words
+  the visitor can act on, the chapter rule and where cancel goes.
+- `frontend/src/composables/useFormDraft.ts` — drafts scoped per app
+  and dropped on sign-out.
+- `frontend/src/components/{StartAccountField,StartedPanel}.vue` — the
+  one extra field, and the link that already works.
 - `frontend/src/components/AppHeader.vue` — hide what a personal
   account doesn't have.
 - `frontend/src/pages/HomePage.vue` — the root's signed-out face: the
   same four tiles, sign-in below, no admin tile.
-- `frontend/src/pages/*FormPage.vue` — no chapter picker; signed out at
-  the root, an email field on top and the start endpoint as the target.
-- `frontend/vite.config.ts` — the dev server's root serves the app.
+- `frontend/src/pages/*FormPage.vue` — no chapter picker and no agenda
+  toggle; signed out at the root, an email field on top and the start
+  endpoint as the target.
+- `frontend/src/public*/` — a full instance says so, rather than
+  reporting a failure to submit.
+- `frontend/vite.config.ts` — the dev server resolves the first segment
+  as an organisation first, exactly as prod does, so the root's own
+  deep paths get the app.
 - `tests/test_personal_tenants.py` — the capability table, end to end.
 - `tests/test_start_flow.py` — new address creates tenant + user +
   entity + link; known address writes into the existing account;
   neither response says which of the two happened.
 
-## Steps
+## The brand a tenant wears
 
-1. `kind` + migration + `create_personal` + reserved slugs.
-2. The tenant-less door: root serving, resolve-or-create sign-in,
-   session key.
-3. Conditional chapter scope + the permission denials + route 404s.
-4. The start endpoints + the mail template.
-5. The frontend: the landing page's two halves, the forms' email field,
-   the nav's missing entries.
+An organisation's slug names its folder under `brands/`, because an
+operator committed it there. A personal tenant's slug is a generated id
+with no folder behind it, so it wears the house brand. That is one
+rule, `Tenant.brand_slug`, and everything that renders asks a tenant for
+it rather than assuming a slug names a folder: the public shells, the
+mail, and the tenancy binding, which carries the brand rather than the
+slug because the brand is the only thing it was ever read for. The JWT
+carries it too, so a request binds both data and brand from the token
+with no query.
+
+Getting this wrong is not cosmetic: reading `brands/{nanoid}/` raises,
+which would 500 the public page the start flow exists to produce and
+permanently fail the mail, since a failed dispatch nulls the address it
+needed.
 
 ## Decisions
 
@@ -277,8 +317,15 @@ none of it ever knew about organisations.
      caller can't mint accounts or entities in bulk;
    - a personal tenant has a ceiling on **active** entities per kind
      (archived ones don't count — archiving is how you make room);
-   - a personal tenant has a daily ceiling on outgoing mail, since every
-     event with an address on it costs sends;
+   - a personal tenant has a daily ceiling on the mail its entities
+     generate, since every event with an address on it costs sends. It
+     counts sends, not queued rows, from both places mail leaves: the
+     dispatch rows behind reminders and feedback, and the stamps behind
+     chore reminders and volunteer welcomes. Over it, the worker leaves
+     a dispatch pending and sends it once the rolling day has moved on,
+     because there is no caller there to refuse. Transactional mail (a
+     sign-in link, a "here is what you made") is outside it: one send
+     per request, bounded by the rate limiter on the endpoint;
    - **an instance of a personal tenant takes at most 50 participants** —
      sign-ups on an event, fills on a form, submissions on a datepoll,
      volunteers on a roster. The 51st is refused on the public page with

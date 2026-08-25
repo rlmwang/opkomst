@@ -71,9 +71,10 @@ in place retires an organisation and creates another, so only the
 display name is safe to change.
 
 The first person to sign in at ``/{slug}/login`` with
-``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin — per
+``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin, per
 organisation, so the same address bootstraps each one. The bare root and
-any unknown first segment return 404.
+any first segment no organisation owns is the personal app, where
+anyone can make an event with nothing but an address.
 
 ## 1. Generate secrets
 

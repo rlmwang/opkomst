@@ -22,7 +22,7 @@ Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organ
 
 ## Tenants
 
-One organisation per tenant. **Every table carries ``tenant_id``** (NOT NULL, indexed) via ``TenantMixin``, denormalized onto child rows on purpose; ``tests/test_tenancy.py`` guards that it exists everywhere and that no child disagrees with its parent. Writes never name it — the column defaults to the tenant bound to the context (``services/tenancy.py``), bound by ``TenantBindingMiddleware`` from the JWT for organiser requests and by the resolved entity for public ones; nothing bound is an error, not a default. The organiser app lives at ``/{tenant}/…`` and public URLs stay tenant-free. ``tenants.slug`` is both the URL prefix and the brand-folder name. Full picture: ``docs/architecture.md``.
+Two kinds of tenant, one shape. An **organisation** is named in ``TENANTS`` with a brand folder committed for it; a **personal** tenant is one person who typed an address at the root, holds no chapters and no admin surface, and carries the ceilings in ``services/limits.py``. Ask ``Tenant.is_personal``, never ``kind`` itself. **Every table carries ``tenant_id``** (NOT NULL, indexed) via ``TenantMixin``, denormalized onto child rows on purpose; ``tests/test_tenancy.py`` guards that it exists everywhere and that no child disagrees with its parent. Writes never name it — the column defaults to the tenant bound to the context (``services/tenancy.py``), bound by ``TenantBindingMiddleware`` from the JWT for organiser requests and by the resolved entity for public ones; nothing bound is an error, not a default. An organisation's app lives at ``/{tenant}/…``; the root is the personal app, and public URLs stay tenant-free. ``tenants.slug`` is an organisation's URL prefix and brand folder both; a personal tenant's slug is a generated id that never appears in a URL, and ``Tenant.brand_slug`` is what any page or email asks for the folder it wears. Full picture: ``docs/architecture.md``.
 
 ## Soft-delete
 
@@ -33,7 +33,7 @@ Conventions:
 - Reads of live users/chapters filter `deleted_at IS NULL`.
 - The ``users.email`` and ``chapters.name`` partial-unique indexes scope to ``deleted_at IS NULL``, so a soft-deleted email/name frees up its slot for a fresh registration. Re-registering an email un-deletes the existing row (clears ``deleted_at``, resets name+role+is_approved).
 - **Multi-chapter membership** lives in ``user_chapters`` (composite PK ``(user_id, chapter_id)``, CASCADE on user/chapter hard-delete). Membership rows pointing at a soft-deleted chapter are preserved on disk so a chapter restore brings members back; reads filter on ``Chapter.deleted_at IS NULL`` everywhere — DTO projection, access scope, admin usage counts. Admins are global: ``access.chapter_ids_for_user`` returns every live chapter for ``role=admin``.
-- ``Event.chapter_id`` is a real FK with ``ON DELETE SET NULL``. An event still belongs to exactly one chapter; the user's membership set must include it for the user to create or update the event.
+- ``Event.chapter_id`` is a real FK with ``ON DELETE SET NULL``. In an organisation an event belongs to exactly one chapter and the user's membership set must include it to create or update the event; in a personal tenant there are no chapters, so it is null and a supplied one is a 422. Both rules live in ``access.assert_user_can_assign_chapter``.
 
 ## Auth
 
@@ -41,9 +41,10 @@ Magic-link only. No passwords, no bcrypt, no verify-email flow.
 
 One door for both populations:
 
-- `POST /auth/login-link` — accepts an email and always returns 200 (privacy: never reveal email existence). Branches by whether the email matches a live user:
+- `POST /auth/login-link` — accepts an email plus an optional `tenant`, and always returns 200 (privacy: never reveal email existence). With a tenant it is that organisation's door and branches by whether the email matches a live user in it:
   - Live user → mints a single-use 30-min `LoginToken`, sends `login.html` with a `/auth/redeem` link.
   - Unknown email → mints a single-use 30-min `RegistrationToken` keyed to the email (no `User` row yet), sends `register_complete.html` with a `/register/complete` link. A second `/login-link` for the same unknown email replaces the prior token, so only the most recent inbox link works.
+  - Without a tenant it is the root's door: the address resolves to its personal account, or becomes one (`tenants.resolve_personal`), and always gets a `LoginToken`. No registration step, because there is nobody to approve you.
 - `POST /auth/login` — redeems a `LoginToken`, issues a JWT signed against `user.id`, deletes the token row.
 - `POST /auth/complete-registration` — `{token, name}`; redeems a `RegistrationToken`, creates (or restores a soft-deleted) user, deletes the token row, returns the same `AuthResponse` shape as `/login` so completing sign-up is also the user's first sign-in.
 - Bootstrap: the very first completion matching `BOOTSTRAP_ADMIN_EMAIL` lands as `role=admin, is_approved=true`. Race-safe via `IntegrityError` fallback on the partial-unique email index — concurrent completions or any concurrent live-user appearance leave the loser with 410.
