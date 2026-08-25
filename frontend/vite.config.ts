@@ -24,22 +24,17 @@ import { defineConfig, type Plugin } from "vite";
  * mini-app code.
  */
 function publicEventDevRoute(): Plugin {
-  // The ``/e/`` namespace is shared: an 8-char event slug (nanoid
-  // alphabet) serves the sign-up page; anything else is a chapter slug →
-  // the agenda page. This mirrors the ``is_event_slug`` dispatch in
-  // ``backend/routers/spa.py`` so both dev and prod route the same way.
-  const eventSlug = /^\/e\/[23456789abcdefghijkmnpqrstuvwxyz]{8}(?:[/?#]|$)/;
+  // ``/e/`` is the event sign-up page and nothing else — the chapter
+  // agenda moved under its organisation (see
+  // ``organiserAppDevRoute``), so this prefix no longer sniffs slug
+  // shapes to decide which page it means.
   return {
     name: "opkomst-public-event-dev-route",
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const path = (req.url ?? "").split("?")[0];
-        if (/^\/e\/[^/?#]+/.test(path)) {
-          req.url = eventSlug.test(req.url ?? "")
-            ? "/public-event.html"
-            : "/public-chapter.html";
-        }
+        if (/^\/e\/[^/?#]+/.test(path)) req.url = "/public-event.html";
         next();
       });
     },
@@ -137,18 +132,40 @@ function organiserAppDevRoute(): Plugin {
   // Paths the dev server owns: Vite internals, the source tree, and the
   // public mini-apps rewritten by the plugins below.
   const notAPage = /^\/(@|src\/|node_modules\/|api\/|brand\/|assets\/|e\/|f\/|d\/|c\/|__)/;
+  // The organiser app's own first-level routes. Everything else under a
+  // tenant is a chapter agenda — the same split prod makes by looking
+  // the second segment up as a chapter, decided here by the only signal
+  // a database-less dev server has. ``services/slug.RESERVED_SLUGS``
+  // keeps a real chapter from ever being called one of these.
+  const appRoutes = new Set([
+    "", "admin", "auth", "chapters", "chores", "datepolls",
+    "events", "forms", "login", "logout", "register", "users",
+  ]);
   return {
     name: "opkomst-organiser-app-dev-route",
     apply: "serve",
     configureServer(server) {
-      server.middlewares.use((req, _res, next) => {
+      server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? "").split("?")[0];
         const wantsHtml = (req.headers.accept ?? "").includes("text/html");
-        // Both branches serve the same shell; which brand it wears (and
-        // so whether it renders the app or the 404) is decided by the
-        // brand plugin from the same first path segment.
-        if (wantsHtml && !notAPage.test(path)) req.url = "/index.html";
-        next();
+        if (!wantsHtml || notAPage.test(path)) return next();
+
+        const second = path.split("/")[2] ?? "";
+        const shell = appRoutes.has(second) ? "index.html" : "public-chapter.html";
+        // Read and transform the shell here rather than rewriting
+        // ``req.url`` and letting Vite serve it: the brand plugin
+        // decides the tenant from the request path, and a rewrite would
+        // hand it ``/index.html`` — which fell back to the house brand,
+        // so every organiser page came out unstyled and routed against
+        // the wrong base. Passing the real path keeps that decision on
+        // the URL the visitor actually asked for.
+        try {
+          const html = readFileSync(fileURLToPath(new URL(`./${shell}`, import.meta.url)), "utf-8");
+          res.setHeader("content-type", "text/html; charset=utf-8");
+          res.end(await server.transformIndexHtml(path, html, path));
+        } catch (err) {
+          next(err);
+        }
       });
     },
   };
@@ -180,7 +197,9 @@ function brandDevInjection(): Plugin {
       // would resolve to can't be looked up here; anything else belongs
       // to no organisation and gets the house brand, which renders the
       // not-found page — the same thing prod serves with a 404.
-      const path = (ctx.originalUrl ?? "").split("?")[0];
+      // ``originalUrl`` is the path the visitor asked for; ``ctx.path``
+      // is the fallback for the shells Vite serves directly.
+      const path = (ctx.originalUrl ?? ctx.path ?? "").split("?")[0];
       const first = path.split("/")[1] ?? "";
       const brandsDir = fileURLToPath(new URL("../brands", import.meta.url));
       const isPublicPage = /^\/[efdc]\//.test(path);
@@ -254,9 +273,8 @@ export default defineConfig({
       // E2E_API_PORT override lets ``playwright test`` boot the backend
       // on a non-default port when 8000 is already in use.
       "/api": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
-      // The brand files (palette, logo, icons) are served by the
-      // backend off ``brands/`` in dev and prod alike, so the page head
-      // the dev server injects points at the same URLs prod emits.
+      // The brand files (palette, logo, icons) come from the API in dev
+      // exactly as they do in prod — one server owns them.
       "/brand": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
     },
   },

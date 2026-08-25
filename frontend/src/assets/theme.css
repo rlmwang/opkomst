@@ -38,6 +38,33 @@
     border-radius: 4px;
   }
 
+  /* Browsers paint an autofilled field their own colour — Firefox a
+   * pale yellow, Chrome a pale blue — which lands on a cream form as a
+   * stain. Repaint it with the field's own surface: the inset shadow is
+   * the only way to override the UA's background, and
+   * ``-webkit-text-fill-color`` the only way to override its text. */
+  input:autofill,
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    box-shadow: 0 0 0 1000px var(--brand-surface) inset;
+    -webkit-box-shadow: 0 0 0 1000px var(--brand-surface) inset;
+    -webkit-text-fill-color: var(--brand-text);
+    caret-color: var(--brand-text);
+    filter: none;
+  }
+
+  /* The public pages' header row: identity left, language toggle right.
+   * One rule, so an organisation's front page and its chapters' agendas
+   * put the logo at the same size and on the same line. */
+  .public-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
   .container {
     max-width: 720px;
     margin: 0 auto;

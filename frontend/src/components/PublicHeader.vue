@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import BrandMark from "@/public_shared/BrandMark.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
+
+/** The public header for pages that carry no page-specific identity
+ * (the feedback form). Pages that do — an organisation's front page, a
+ * chapter's agenda — use ``PublicIdentity`` in the same
+ * ``.public-header`` row instead. */
 </script>
 
 <template>
@@ -9,13 +14,3 @@ import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
     <LanguageSwitcher />
   </header>
 </template>
-
-<style scoped>
-.public-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
-}
-</style>

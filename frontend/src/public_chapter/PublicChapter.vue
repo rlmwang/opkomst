@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { brand } from "@/lib/branding";
+import PublicIdentity from "@/public_shared/PublicIdentity.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
@@ -11,7 +12,10 @@ import { pickLocale, strings } from "./i18n";
 // Tri-state payload convention (same as the other mini-apps): an object
 // renders, ``null`` is "chapter not found", ``undefined`` is the dev
 // server (no server injection) → fetch over the API proxy.
-const slug = window.location.pathname.replace(/^\/e\/+/, "").split(/[/?#]/)[0];
+// ``/{tenant}/{chapter}`` — the organisation owns the URL, so the
+// chapter is the second segment. The tenant is the brand the server
+// already injected, not a re-parse of the first one.
+const slug = window.location.pathname.split("/").filter(Boolean)[1] ?? "";
 const locale = ref<Locale>(pickLocale());
 const t = computed(() => strings(locale.value));
 const c = computed(() => chromeStrings(locale.value));
@@ -24,7 +28,7 @@ const notFound = ref(initial === null);
 const loadFailed = ref(false);
 
 if (initial === undefined) {
-  fetchChapterAgenda(slug)
+  fetchChapterAgenda(b.slug, slug)
     .then((a) => {
       agenda.value = a;
     })
@@ -38,24 +42,16 @@ if (initial === undefined) {
 <template>
   <PublicShell v-model:locale="locale" wide>
     <template #brand>
-      <div class="chapter-brand">
-        <a
-          class="chapter-brand__logo"
-          :href="b.org_url"
-          target="_blank"
-          rel="noopener"
-          :aria-label="`${b.org_name} — ${b.org_url.replace('https://', '')}`"
-        ><img :src="b.logo_url" alt="" /></a>
-        <div class="chapter-identity">
-          <span class="chapter-identity__eyebrow">{{ b.wordmark }}</span>
-          <template v-if="agenda">
-            <h1>{{ agenda.chapter.name }}</h1>
-            <p v-if="agenda.chapter.city" class="muted chapter-identity__city">
-              {{ agenda.chapter.city }}
-            </p>
-          </template>
-        </div>
-      </div>
+      <!-- Until the agenda loads there is no chapter to name, so the
+           header shows the organisation alone — exactly what its front
+           page shows. -->
+      <PublicIdentity
+        v-if="agenda"
+        :eyebrow="b.wordmark"
+        :title="agenda.chapter.name"
+        :subtitle="agenda.chapter.city"
+      />
+      <PublicIdentity v-else :title="b.wordmark" />
     </template>
 
     <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
@@ -91,47 +87,6 @@ if (initial === undefined) {
 </template>
 
 <style scoped>
-/* Chapter identity, hoisted into the shared header beside the party
- * logo: a small "RSP" eyebrow over the chapter name (the page's real
- * H1) and its city. Replaces the old orphaned second-row title, which
- * read as a stray heading on mobile. */
-.chapter-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-  min-width: 0;
-}
-.chapter-brand__logo {
-  display: block;
-  flex: none;
-}
-.chapter-brand__logo img {
-  height: 60px;
-  width: 60px;
-  object-fit: contain;
-  display: block;
-}
-.chapter-identity {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.chapter-identity__eyebrow {
-  font-weight: 700;
-  font-size: 0.8125rem;
-  letter-spacing: 0.5px;
-  line-height: 1.2;
-  color: var(--brand-red);
-}
-.chapter-identity h1 {
-  margin: 0.0625rem 0 0;
-  font-size: 1.5rem;
-  line-height: 1.15;
-}
-.chapter-identity__city {
-  margin: 0.125rem 0 0;
-  font-size: 0.9375rem;
-}
 .agenda-section {
   margin-top: 1.5rem;
 }

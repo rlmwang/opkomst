@@ -581,7 +581,7 @@
         "type": "object"
       },
       "ChapterPublicOut": {
-        "description": "Slim public projection of a chapter for the agenda page: no ids,\ncounts, or membership \u2014 just what the header renders.",
+        "description": "Slim public projection of a chapter for the agenda page and the\norganisation's public index: no ids, counts, or membership \u2014 just\nwhat the header and the chapter list render.",
         "properties": {
           "city": {
             "anyOf": [
@@ -7165,48 +7165,6 @@
         ]
       }
     },
-    "/api/v1/chapters/by-slug/{slug}/agenda": {
-      "get": {
-        "operationId": "chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "slug",
-            "required": true,
-            "schema": {
-              "title": "Slug",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChapterAgendaOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Chapter Agenda",
-        "tags": [
-          "chapters-public"
-        ]
-      }
-    },
     "/api/v1/chapters/{chapter_id}": {
       "delete": {
         "operationId": "archive_chapter_api_v1_chapters__chapter_id__delete",
@@ -13234,6 +13192,104 @@
         "summary": "Form Summary",
         "tags": [
           "forms"
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenant_slug}/agenda/{slug}": {
+      "get": {
+        "operationId": "chapter_agenda_api_v1_tenants__tenant_slug__agenda__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_slug",
+            "required": true,
+            "schema": {
+              "title": "Tenant Slug",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterAgendaOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chapter Agenda",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/v1/tenants/{tenant_slug}/chapters": {
+      "get": {
+        "description": "The organisation's live chapters, for its public front page.",
+        "operationId": "tenant_chapters_api_v1_tenants__tenant_slug__chapters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_slug",
+            "required": true,
+            "schema": {
+              "title": "Tenant Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChapterPublicOut"
+                  },
+                  "title": "Response Tenant Chapters Api V1 Tenants  Tenant Slug  Chapters Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tenant Chapters",
+        "tags": [
+          "public"
         ]
       }
     },

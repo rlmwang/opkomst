@@ -22,8 +22,12 @@ watch(locale, (l) => {
 </script>
 
 <template>
+  <!-- The toast is a fixed overlay; keeping it outside the column means
+       it doesn't count as the stack's first child and push the header
+       down by one gap — which is what made this header sit 12px lower
+       than the organisation's front page. -->
+  <PublicToast />
   <div class="stack" :class="wide ? 'container-wide' : 'container'">
-    <PublicToast />
     <header class="public-header">
       <slot name="brand"><BrandMark public-link /></slot>
       <div class="lang-switcher" role="group" aria-label="Language">
@@ -51,14 +55,9 @@ watch(locale, (l) => {
 </template>
 
 <style scoped>
-/* ``.container`` and ``.stack`` come from the global theme.css that
- * every mini-app imports in its ``main.ts``. */
-.public-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
+/* ``.container``, ``.stack`` and ``.public-header`` come from the
+ * global theme.css that every mini-app imports in its ``main.ts`` —
+ * the header rule is shared with the organisation's front page. */
 .lang-switcher {
   display: flex;
   gap: 0.25rem;

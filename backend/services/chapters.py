@@ -26,6 +26,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event
+from . import slug as slug_svc
 from . import tenancy
 from . import user_chapters as user_chapters_svc
 from .slug import chapter_slug
@@ -93,17 +94,11 @@ def find_any_by_id(db: Session, chapter_id: str) -> Chapter | None:
 
 
 def find_live_by_slug(db: Session, slug: str) -> Chapter | None:
-    """Live chapter by its public slug, or ``None``. Drives the public
-    agenda page (``/e/{slug}``).
-
-    The only chapter read that is *not* tenant-scoped, and it can't be:
-    the URL carries no tenant, so the slug — globally unique for exactly
-    this reason — is what identifies the organisation. Finding one binds
-    it, so everything the agenda does afterwards is inside it."""
-    row = db.query(Chapter).filter(Chapter.deleted_at.is_(None), Chapter.slug == slug).first()
-    if row is not None:
-        tenancy.bind(row.tenant_id, row.tenant.slug)
-    return row
+    """Live chapter of the bound organisation by its public slug, or
+    ``None``. Drives the public agenda page
+    (``/{tenant}/{slug}``), where the caller has already resolved the
+    tenant from the first path segment and bound it."""
+    return _live(db).filter(Chapter.slug == slug).first()
 
 
 def _require_live(db: Session, chapter_id: str) -> Chapter:
@@ -133,25 +128,31 @@ def name_exists_active(db: Session, name: str, *, exclude_id: str | None = None)
 
 
 def slug_exists_active(db: Session, slug: str, *, exclude_id: str | None = None) -> bool:
-    """Deliberately *not* tenant-scoped. The public agenda lives at
-    ``/e/{slug}`` with no tenant in the URL, so a slug taken by another
-    organisation is taken, full stop — the suffixer then hands out
-    ``amsterdam-2``."""
-    q = db.query(Chapter).filter(Chapter.deleted_at.is_(None), Chapter.slug == slug)
+    """Tenant-scoped, like every other chapter read: the agenda lives at
+    ``/{tenant}/{slug}``, so two organisations may each have an
+    ``amsterdam``."""
+    q = _live(db).filter(Chapter.slug == slug)
     if exclude_id is not None:
         q = q.filter(Chapter.id != exclude_id)
     return q.first() is not None
 
 
+def _taken(db: Session, slug: str, *, exclude_id: str | None) -> bool:
+    """A slug is unavailable when another live chapter of this
+    organisation holds it, or when it names a page of the organiser app
+    — ``/{tenant}/{chapter}`` and ``/{tenant}/events`` are the same
+    namespace, and the app wins."""
+    return slug in slug_svc.RESERVED_SLUGS or slug_exists_active(db, slug, exclude_id=exclude_id)
+
+
 def _unique_slug(db: Session, base: str, *, exclude_id: str | None = None) -> str:
-    """Make ``base`` unique across live chapters, appending ``-2``,
-    ``-3``, … on collision. ``base`` comes from ``chapter_slug`` so it is
-    already event-shape-safe; the numeric suffix keeps it that way (it
-    always contains a hyphen)."""
-    if not slug_exists_active(db, base, exclude_id=exclude_id):
+    """Make ``base`` available within this organisation, appending
+    ``-2``, ``-3``, … on collision. A chapter called "Events" therefore
+    lands on ``events-2`` rather than shadowing the events page."""
+    if not _taken(db, base, exclude_id=exclude_id):
         return base
     n = 2
-    while slug_exists_active(db, f"{base}-{n}", exclude_id=exclude_id):
+    while _taken(db, f"{base}-{n}", exclude_id=exclude_id):
         n += 1
     return f"{base}-{n}"
 
@@ -190,10 +191,16 @@ def update(
             if name_exists_active(db, name, exclude_id=chapter_id):
                 raise ChapterRuleViolation("Name already in use")
             changes["name"] = name
+            # The URL follows the name: a chapter renamed to Utrecht
+            # Centrum is at ``/{tenant}/utrecht-centrum`` afterwards.
+            # Links to the old agenda URL stop resolving — an explicit
+            # ``slug`` in the same request still wins, for the case
+            # where the organiser wants to keep it.
+            changes["slug"] = _unique_slug(db, chapter_slug(name), exclude_id=chapter_id)
     if slug is not None:
         slug = slug.strip().lower()
         if slug != row.slug:
-            if slug_exists_active(db, slug, exclude_id=chapter_id):
+            if _taken(db, slug, exclude_id=chapter_id):
                 raise ChapterRuleViolation("Slug already in use")
             changes["slug"] = slug
     if set_city:

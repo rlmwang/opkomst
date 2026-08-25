@@ -196,9 +196,17 @@ URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
   slug with no `brands/` folder stops the boot. There is no UI and no
   platform-level role: nobody signs in to the platform, only to a
   tenant.
-- **URLs.** Organiser: `/{tenant}/…`, with the router's history base
-  read from the injected brand. Public: unchanged and tenant-free
-  (`/e/`, `/f/`, `/d/`, `/c/`). The bare root 404s.
+- **URLs.** `/{tenant}/…` is the organiser app, except that a second
+  segment naming one of that organisation's chapters is its public
+  agenda (`/rsp/utrecht`) — the two share a namespace, so
+  `services/slug.RESERVED_SLUGS` keeps a chapter from being called
+  `events`. `/{tenant}` itself is the organiser landing page when signed
+  in and the organisation's public chapter index when not, decided in
+  the client because the session lives in localStorage. The per-entity
+  public pages stay tenant-free (`/e/`, `/f/`, `/d/`, `/c/`); `/e/`
+  means an occurrence slug and nothing else. The bare root 404s.
+- **Chapter slugs** are unique per tenant and follow the name: renaming
+  a chapter re-slugs it, and the old agenda URL stops resolving.
 
 ## Email pipeline
 

@@ -1,11 +1,14 @@
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
+import { getToken } from "@/api/client";
 import { brand } from "@/lib/branding";
 import { useAuthStore } from "@/stores/auth";
 
 const routes = [
-  // The organisation's landing page: one tile per workspace, plus the
-  // organisation-management pages. The wordmark points here.
-  { path: "/", component: () => import("@/pages/HomePage.vue"), meta: { requiresAuth: true } },
+  // ``/{tenant}``: the organiser's landing page when signed in, the
+  // organisation's public chapter index when not. Deliberately no
+  // ``requiresAuth`` — a visitor with no session gets the public face
+  // rather than a redirect to the login page.
+  { path: "/", component: () => import("@/pages/HomePage.vue") },
   { path: "/login", component: () => import("@/pages/LoginPage.vue") },
   { path: "/register/complete", component: () => import("@/pages/RegisterCompletePage.vue") },
   { path: "/auth/redeem", component: () => import("@/pages/RedeemPage.vue") },
@@ -83,7 +86,11 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   // and shouldn't pay a network hop to confirm that.
   const needsAuth =
     to.meta.requiresAuth || to.meta.requiresAdmin || to.meta.requiresApproved;
-  if (needsAuth && !auth.loaded) await auth.fetchMe();
+  // ``/{tenant}`` gates on nothing but renders two different pages
+  // depending on whether there's a session, so a held token has to be
+  // resolved even on routes that don't require one. No token, no
+  // round-trip — visitors still pay nothing.
+  if ((needsAuth || getToken()) && !auth.loaded) await auth.fetchMe();
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/login", query: { next: to.fullPath } };
   if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/events" };

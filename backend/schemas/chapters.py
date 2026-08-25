@@ -23,12 +23,14 @@ class ChapterOut(BaseModel):
 
 
 class ChapterPublicOut(BaseModel):
-    """Slim public projection of a chapter for the agenda page: no ids,
-    counts, or membership — just what the header renders."""
+    """Slim public projection of a chapter for the agenda page and the
+    organisation's public index: no ids, counts, or membership — just
+    what the header and the chapter list render."""
 
     name: str
     slug: str
     city: str | None
+    model_config = {"from_attributes": True}
 
 
 class ChapterCreate(BaseModel):

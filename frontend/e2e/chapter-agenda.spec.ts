@@ -68,7 +68,8 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   // --- act: visitor opens the chapter agenda ---
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(`/e/${chapter!.slug}`);
+  // The agenda lives under its organisation: /{tenant}/{chapter}.
+  await v.goto(`/rsp/${chapter!.slug}`);
 
   // The listed event's card is visible; the unlisted one is absent.
   await expect(v.getByRole("heading", { name: listedName })).toBeVisible({

@@ -46,6 +46,12 @@
     "removeFailed": "Verwijderen mislukt",
     "credit": "Ontwerp:"
   },
+  "tenantIndex": {
+    "lede": "Kies een afdeling om te zien wat er op de agenda staat.",
+    "none": "Deze organisatie heeft nog geen afdelingen.",
+    "failed": "De afdelingen konden niet worden geladen.",
+    "signIn": "of log in"
+  },
   "home": {
     "lede": "Waar wil je aan werken?",
     "eventsHint": "Bijeenkomsten met aanmeldingen",
@@ -620,7 +626,7 @@
     "editDialogBody": "De thuisstad bepaalt welke adressen voorrang krijgen bij het maken van evenementen.",
     "namePlaceholder": "Naam van de afdeling",
     "slugPlaceholder": "URL-naam (bijv. amsterdam)",
-    "slugHelp": "De agenda van deze afdeling staat op opkomst.nu/e/{slug}",
+    "slugHelp": "De agenda van deze afdeling staat op opkomst.nu/{tenant}/{slug}",
     "cityPlaceholder": "Thuisstad – typ om te zoeken",
     "restoreFail": "Herstellen mislukt",
     "restoredToast": "{name} hersteld",

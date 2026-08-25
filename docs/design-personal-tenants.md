@@ -1,10 +1,11 @@
 # Design: personal accounts (tenant-less pages)
 
 Status: proposed. Gives `opkomst.nu` itself a front door. Someone with
-no organisation behind them signs up with an email address, confirms a
-link, and lands in a working app: their own events, forms, datepolls and
-chore rosters, and nothing else. No admin pages, no WhatsApp, no
-chapters, nobody to invite.
+no organisation behind them fills in one form, gives an address, and has
+a working event and a working app: their own events, forms, datepolls
+and chore rosters, and nothing else. No admin pages, no WhatsApp, no
+chapters, nobody to invite, and no sign-up step before the first useful
+thing they make.
 
 Today the root 404s and every organiser URL is `/{tenant}/…`, which
 answers "which organisation?" before anything else can happen. A person
@@ -45,9 +46,10 @@ The root *is* the app for personal accounts:
 
 | | |
 | --- | --- |
-| `/login`, `/register/complete`, `/auth/redeem` | the tenant-less door |
+| `/login`, `/auth/redeem` | the tenant-less door |
 | `/events`, `/forms`, `/datepolls`, `/chores` | the four workspaces |
-| `/` | the landing page (4 tiles, no admin tile) |
+| `/events/new` etc. | the create forms, signed in or not |
+| `/` | the landing page: 4 tiles, sign-in under them |
 | `/rsp/…` | unchanged — an organisation's app |
 | `/e/…`, `/f/…`, `/d/…`, `/c/…` | unchanged — public, no tenant in the URL |
 
@@ -69,26 +71,92 @@ an organisation, `token:personal` at the root. Signing in to your own
 account and to RSP in two tabs stays possible, and neither leaks into
 the other's URLs (the bug the per-tenant key already fixed once).
 
-## Signing up
+## The landing page
 
-The existing magic-link door, minus the parts that only make sense with
-an organisation behind them. `POST /auth/login-link` takes `tenant:
-null` for the root app:
+`/` is a door with four handles, not a sign-in wall. The signed-out root
+shows the same four tiles the signed-in app shows, in a 2x2 grid. The
+sign-in form sits below them, past a rule and a word that says it is the
+other way in:
 
-1. the address matches a live personal account → sign-in link;
-2. it doesn't → registration link;
-3. either way, the same 200 — the privacy contract is unchanged, and now
-   also hides which addresses have personal accounts.
+```
+        ┌───────────┬───────────┐
+        │  Events   │   Forms   │
+        ├───────────┼───────────┤
+        │ Datepolls │  Chores   │
+        └───────────┴───────────┘
 
-Redeeming a personal registration link creates the tenant and the user
-in one transaction: `kind="personal"`, `role="organiser"`,
-`is_approved=True`. Self-approval is not a carve-out in the approval
-rule — there is nobody to approve you, because the tenant is you.
 
-**No name step.** The account's name is the email address. The current
-completion page exists only to ask for a name; for a personal account it
-asks nothing and redeems on load. An organisation's flow keeps the name
-prompt: there, other people read your name in a user list.
+        ───────  or sign in  ───────
+
+            email  [ send link ]
+```
+
+The gap is the design. The tiles are the offer; sign-in is for the
+people who have already taken it, and a form pressed up against four
+buttons reads as a step in them ("pick one, then identify yourself")
+rather than as the alternative to them. So: roughly triple the tile
+grid's own gap above the divider, the divider labelled, and the form
+narrower than the grid, so nothing about it looks like a fifth tile.
+
+A tile is not "learn more". It opens that thing's create form, the same
+`EventFormPage` a signed-in organiser gets, with one extra field pinned
+above the rest: **the organiser's email address**, required. Everything
+below it is the form that already exists, minus the chapter picker (a
+personal tenant has none).
+
+The order matters. The visitor came to make an event, so the app asks
+about the event; the address is the last thing standing between the
+finished form and a working public link, not the first thing standing
+between them and the form.
+
+`/{tenant}/` is untouched: an organisation's signed-out root is still
+its public `TenantIndexPage`. Organisations have members, and members
+sign in.
+
+## Starting without an account
+
+Submitting that form creates the thing. No confirmation step in front of
+it, no draft state behind it, and the response carries the public URL
+(`/e/{slug}`) so the visitor can share it before they have read the mail.
+
+`POST /api/v1/start/events` (and `/forms`, `/datepolls`, `/chores`)
+takes `{email, ...the same *Create body the organiser endpoint takes}`
+and does three things in one transaction:
+
+1. **Resolve the account.** A live personal user with that address owns
+   the write. Otherwise a personal tenant and its one user are created
+   right there: `kind="personal"`, `role="organiser"`,
+   `is_approved=True`, name = the address.
+2. **Bind and write.** `tenancy.bind(tenant.id, ...)`, then the same
+   service call the organiser route makes. One create path per entity,
+   reached by two doors.
+3. **Mail the link.** A single-use `LoginToken` for that user, in the
+   house brand, saying what was created and linking to it.
+
+So the entity's owner is decided by an address nobody has proved they
+control yet, and that is deliberate: proving it is what the mail does,
+and the only thing an unproven address buys you is a row in an inbox you
+cannot read. What it costs is that a stranger who types someone else's
+address can add an event to their account. The mail names the event and
+the account it landed in, which makes that visible on arrival rather
+than discoverable later, and `Limits.PUBLIC_WRITE` keeps it from being
+done in bulk. Nothing else in the account is readable, writable, or
+enumerable from the start form.
+
+## Signing up, which is now just signing in
+
+For a personal account, an address *is* the account, so there is no
+registration step to complete. `POST /auth/login-link` with `tenant:
+null` resolves the address the same way the start form does, creating
+the personal tenant and user if it is new, and always sends a
+`LoginToken`. Same 200 either way, so the endpoint still cannot be
+probed, and now it also hides which addresses have personal accounts.
+
+That deletes a flow rather than adding one: `RegistrationToken`,
+`/register/complete` and the name prompt stay where they belong, in an
+organisation's door, where a human reads your name in a user list and an
+admin decides whether you are in. At the root there is nobody to tell
+apart and nobody to approve you, because the tenant is you.
 
 ## What a personal account cannot do
 
@@ -147,10 +215,16 @@ none of it ever knew about organisations.
 - `backend/services/tenants.py` — `create_personal(email)`; `create`
   refuses a reserved slug.
 - `backend/services/slug.py` — the reserved set + `personal_slug()`.
-- `backend/routers/auth.py` — `tenant: str | None`; the personal branch
-  of complete-registration; no-name redemption.
+- `backend/routers/auth.py` — `tenant: str | None`; the root branch of
+  login-link resolves-or-creates and always mints a `LoginToken`.
+- `backend/routers/start.py` — the four `POST /api/v1/start/{kind}`
+  routes: resolve the account, bind, create, mail the link.
 - `backend/schemas/auth.py` — `tenant` optional; `UserOut.tenant_kind`
   so the frontend can hide what doesn't exist.
+- `backend/schemas/start.py` — the four `Start*` bodies: the existing
+  `*Create` plus a `LowercaseEmail`.
+- `backend/services/mail_templates/{nl,en}/started.html` — what was
+  created, where it lives, and the sign-in link.
 - `backend/permissions.py` — the personal-tenant denial rule.
 - `backend/routers/admin.py`, `chapters.py`, `whatsapp.py` — 404 for
   personal actors.
@@ -158,28 +232,44 @@ none of it ever knew about organisations.
 - `backend/routers/spa.py` — root serves the personal app, no 404.
 - `frontend/src/lib/branding.ts` — `app_base` already carries `/`.
 - `frontend/src/api/client.ts` — `token:personal` at the root.
-- `frontend/src/components/AppHeader.vue`, `pages/HomePage.vue` — hide
-  what a personal account doesn't have.
-- `frontend/src/pages/*FormPage.vue` — no chapter picker.
+- `frontend/src/components/AppHeader.vue` — hide what a personal
+  account doesn't have.
+- `frontend/src/pages/HomePage.vue` — the root's signed-out face: the
+  same four tiles, sign-in below, no admin tile.
+- `frontend/src/pages/*FormPage.vue` — no chapter picker; signed out at
+  the root, an email field on top and the start endpoint as the target.
 - `frontend/vite.config.ts` — the dev server's root serves the app.
 - `tests/test_personal_tenants.py` — the capability table, end to end.
+- `tests/test_start_flow.py` — new address creates tenant + user +
+  entity + link; known address writes into the existing account;
+  neither response says which of the two happened.
 
 ## Steps
 
 1. `kind` + migration + `create_personal` + reserved slugs.
-2. The tenant-less door: root serving, sign-up, session key.
+2. The tenant-less door: root serving, resolve-or-create sign-in,
+   session key.
 3. Conditional chapter scope + the permission denials + route 404s.
-4. The frontend's missing pieces (nav, landing, forms).
+4. The start endpoints + the mail template.
+5. The frontend: the landing page's two halves, the forms' email field,
+   the nav's missing entries.
 
 ## Open questions
 
-1. **Upgrading.** A personal account that grows into an organisation —
+1. **The unproven address.** A start submission writes into an existing
+   account on an address nobody verified. Accepted above, with the mail
+   as the disclosure. If that reads as too loose, the alternative is
+   holding the row invisible until the link is clicked, which costs a
+   pending state on four entities and a reaper, and hands the visitor a
+   public link that doesn't work yet.
+2. **Upgrading.** A personal account that grows into an organisation —
    same rows, new kind and slug, first user becomes admin. Worth doing
    now, or when someone asks?
-2. **Two accounts, one address.** Signing in at `/rsp/login` and at the
+3. **Two accounts, one address.** Signing in at `/rsp/login` and at the
    root with the same address gives two separate accounts, by design.
    Should the root's sign-in email mention it ("this is your personal
    account, not RSP's"), or is that noise?
-3. **Limits.** A personal tenant is free to create unlimited events and
-   send unlimited reminder mail. Does that need a cap before the root
-   page is public?
+4. **Limits.** A personal tenant is free to create unlimited events and
+   send unlimited reminder mail, and the start form mints an account per
+   unknown address. Does either need a cap before the root page is
+   public?

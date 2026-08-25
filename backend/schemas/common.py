@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, BaseModel, BeforeValidator, EmailStr, Field, model_validator
 
 from ..services.sanitize import VISIBLE_MAX_LENGTH, html_to_text, sanitize_richtext
-from ..services.slug import is_event_slug
+from ..services.slug import RESERVED_SLUGS
 
 # Two-letter ISO language tag. Names the primary language of an
 # organiser-authored entity: the public page's default view + fallback
@@ -117,14 +117,15 @@ RichText = Annotated[
 
 
 def _validate_chapter_slug(v: str) -> str:
-    """A chapter's public-agenda slug: lowercase kebab, and never the
-    reserved 8-char event-slug shape (so ``/e/{ident}`` dispatch can tell
-    a chapter from an event without a lookup)."""
+    """A chapter's public-agenda slug: lowercase kebab, and never one of
+    the organiser app's own page names. The agenda lives at
+    ``/{tenant}/{slug}``, so a chapter called ``events`` would shadow
+    the events page."""
     v = v.strip().lower()
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", v):
         raise ValueError("Slug may contain only lowercase letters, digits, and single hyphens.")
-    if is_event_slug(v):
-        raise ValueError("Slug may not use the reserved 8-character event shape.")
+    if v in RESERVED_SLUGS:
+        raise ValueError(f"Slug {v!r} is the name of a page in the app; pick another.")
     return v
 
 

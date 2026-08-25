@@ -46,6 +46,12 @@
     "removeFailed": "Remove failed",
     "credit": "Design:"
   },
+  "tenantIndex": {
+    "lede": "Pick a chapter to see what's coming up.",
+    "none": "This organisation has no chapters yet.",
+    "failed": "The chapters could not be loaded.",
+    "signIn": "or sign in"
+  },
   "home": {
     "lede": "What are you working on?",
     "eventsHint": "Gatherings with sign-ups",
@@ -620,7 +626,7 @@
     "editDialogBody": "The chapter's home city is used to bias address suggestions when organisers create events here.",
     "namePlaceholder": "Chapter name",
     "slugPlaceholder": "URL name (e.g. amsterdam)",
-    "slugHelp": "This chapter's agenda lives at opkomst.nu/e/{slug}",
+    "slugHelp": "This chapter's agenda lives at opkomst.nu/{tenant}/{slug}",
     "cityPlaceholder": "Home city — type to search",
     "restoreFail": "Restore failed",
     "restoredToast": "{name} restored",

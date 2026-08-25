@@ -47,9 +47,9 @@ from ..services import chores as chores_svc
 from ..services import datepolls as datepolls_svc
 from ..services import events as events_svc
 from ..services import forms as forms_svc
+from ..services import tenancy
 from ..services import tenants as tenants_svc
 from ..services.sanitize import html_to_text
-from ..services.slug import is_event_slug
 
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -398,12 +398,12 @@ def _serve_public_roster(slug: str, db: Session, nonce: str) -> HTMLResponse:
     )
 
 
-def _serve_public_chapter(slug: str, db: Session, nonce: str) -> HTMLResponse:
-    # Unknown/soft-deleted chapter slug inlines null; the mini-app shows a
-    # "chapter not found" state, same tri-state as the other pages.
-    chapter = chapters_svc.find_live_by_slug(db, slug)
-    payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json()) if chapter is not None else None
-    brand_slug = _brand_slug_for(db, chapter)
+def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, nonce: str, brand_slug: str) -> HTMLResponse:
+    """The organisation's agenda for one of its chapters, at
+    ``/{tenant}/{chapter}``. The caller has already resolved both — the
+    tenant from the first path segment, the chapter within it — so the
+    brand is the tenant's, not a lookup through the entity."""
+    payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json())
     return _serve_public_app(
         html_name="public-chapter.html",
         window_var="__OPKOMST_CHAPTER__",
@@ -426,13 +426,9 @@ def mount(app: FastAPI) -> None:
 
     app.mount("/assets", _ImmutableStatic(directory=_DIST / "assets"), name="assets")
 
-    @app.get("/e/{ident}", include_in_schema=False)
-    def _public_event(ident: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-        # The ``/e/`` namespace is shared: an 8-char event slug serves the
-        # sign-up page; anything else is a chapter slug → the agenda.
-        if is_event_slug(ident):
-            return _serve_public_event(ident, db, _nonce(request))
-        return _serve_public_chapter(ident, db, _nonce(request))
+    @app.get("/e/{slug}", include_in_schema=False)
+    def _public_event(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_event(slug, db, _nonce(request))
 
     @app.get("/f/{slug}", include_in_schema=False)
     def _public_form(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
@@ -450,11 +446,17 @@ def mount(app: FastAPI) -> None:
     def _spa_fallback(full_path: str, request: Request, db: Session = Depends(get_db)) -> Response:
         # ``StaticFiles`` already won the route for ``/assets/*`` and
         # ``/brand/*``, and the explicit public handlers above won for
-        # the mini-apps. What's left is the organiser app, which lives
-        # under its organisation's slug: ``/rsp/events``. The first
-        # segment must be a live tenant — anything else, the bare root
-        # included, is a 404 rather than a shell that can't know whose
-        # data it would show.
+        # the per-entity mini-apps. What's left lives under an
+        # organisation's slug, and is one of two things:
+        #
+        #   /rsp/utrecht  → that chapter's public agenda
+        #   /rsp/…        → the organiser app
+        #
+        # A chapter and a workspace share this namespace, which is why
+        # ``services.slug.RESERVED_SLUGS`` keeps a chapter from being
+        # called "events". The first segment must be a live tenant —
+        # anything else, the bare root included, is a 404 rather than a
+        # shell that can't know whose data it would show.
         #
         # ``index.html`` MUST NOT be browser-cached. Vite emits
         # content-hashed asset names (``main-AbCd1234.js``) which
@@ -477,4 +479,12 @@ def mount(app: FastAPI) -> None:
             # served with a 404 so crawlers and monitors agree with what
             # the visitor sees.
             return _serve_admin_shell(brand_svc.HOUSE_BRAND, _nonce(request), status_code=404)
+
+        # Inside the organisation now, so chapter reads are scoped to it.
+        tenancy.bind(tenant.id, tenant.slug)
+        _, _, rest = full_path.partition("/")
+        second = rest.split("/", 1)[0]
+        chapter = chapters_svc.find_live_by_slug(db, second) if second else None
+        if chapter is not None:
+            return _serve_public_chapter(chapter, second, db, _nonce(request), tenant.slug)
         return _serve_admin_shell(tenant.slug, _nonce(request))

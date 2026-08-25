@@ -1,10 +1,12 @@
-"""Public chapter-agenda endpoint + slug dispatch.
+"""Public chapter-agenda endpoint + chapter slugs.
 
 Covers the window split (upcoming / recent-past with the last-full-month
 floor), the ``listed`` and ``archived`` exclusions, the slim card DTO,
-404s, and the slug helpers that keep ``/e/{ident}`` dispatch unambiguous.
+404s, and the slug rules that let the agenda live at
+``/{tenant}/{chapter}`` next to the organiser app's own pages.
 """
 
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -15,7 +17,7 @@ from backend.schemas.chapters import ChapterPatch
 from backend.services import chapters as chapters_svc
 from backend.services.agenda import _last_full_month_start
 from backend.services.events import now_wallclock
-from backend.services.slug import chapter_slug, is_event_slug, new_slug
+from backend.services.slug import RESERVED_SLUGS, chapter_slug
 from tests._helpers.events import first_occurrence, make_event
 
 
@@ -25,8 +27,8 @@ def _chapter(db, name="Testafdeling"):
     return ch
 
 
-def _agenda(client, slug):
-    r = client.get(f"/api/v1/chapters/by-slug/{slug}/agenda")
+def _agenda(client, slug, tenant="rsp"):
+    r = client.get(f"/api/v1/tenants/{tenant}/agenda/{slug}")
     return r.status_code, r.json() if r.headers.get("content-type", "").startswith("application/json") else None
 
 
@@ -150,33 +152,68 @@ def test_attendee_count_sums_party_size(db, client):
 
 
 def test_unknown_chapter_404(client):
-    assert client.get("/api/v1/chapters/by-slug/nope-nope/agenda").status_code == 404
+    assert client.get("/api/v1/tenants/rsp/agenda/nope-nope").status_code == 404
+
+
+def test_unknown_organisation_404(client):
+    """An unknown organisation answers exactly like an unknown chapter,
+    so the surface can't be walked for which organisations exist."""
+    assert client.get("/api/v1/tenants/nope/agenda/whatever").status_code == 404
 
 
 def test_soft_deleted_chapter_404(db, client):
     ch = _chapter(db)
     chapters_svc.archive(db, chapter_id=ch.id)
     db.commit()
-    assert client.get(f"/api/v1/chapters/by-slug/{ch.slug}/agenda").status_code == 404
+    assert client.get(f"/api/v1/tenants/rsp/agenda/{ch.slug}").status_code == 404
 
 
 # --- slug helpers / dispatch ----------------------------------------------
 
 
-@pytest.mark.parametrize("name", ["amsterda", "xxxxxxxx", "Almere", "Den Haag", "x"])
-def test_chapter_slug_never_event_shaped(name):
-    assert not is_event_slug(chapter_slug(name))
+@pytest.mark.parametrize("name", ["Almere", "Den Haag", "Utrecht Centrum", "x"])
+def test_chapter_slug_is_readable_kebab(name):
+    slug = chapter_slug(name)
+    assert re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug)
 
 
-def test_is_event_slug_dispatch():
-    assert is_event_slug(new_slug())
-    assert not is_event_slug("amsterdam")
-    assert not is_event_slug("den-haag")
+def test_a_chapter_cannot_be_named_after_a_page_of_the_app(db):
+    """``/{tenant}/{chapter}`` and ``/{tenant}/events`` are one
+    namespace, and the app wins: a chapter called Events lands on
+    ``events-2``."""
+    ch = chapters_svc.create(db, name="Events")
+    db.commit()
+    assert ch.slug == "events-2"
 
 
-def test_slug_validator_rejects_event_shape():
+def test_slug_validator_rejects_a_page_name():
     with pytest.raises(ValidationError):
-        ChapterPatch(slug=new_slug())
+        ChapterPatch(slug="events")
+
+
+def test_reserved_slugs_cover_every_first_level_route(db):
+    """The dev server splits ``/{tenant}/{second}`` on the same set. If
+    a route is added to the SPA without adding it here, a chapter can
+    already be holding that slug and would shadow the new page."""
+    assert {"events", "forms", "datepolls", "chores", "users", "chapters", "login"} <= RESERVED_SLUGS
+
+
+def test_two_organisations_may_each_have_an_amsterdam(db):
+    """The reason the agenda moved under its organisation."""
+    from backend.models import Tenant
+    from backend.services import tenancy
+
+    ours = chapters_svc.create(db, name="Amsterdam")
+    db.commit()
+
+    other = Tenant(slug="other", name="Other")
+    db.add(other)
+    db.commit()
+    with tenancy.use(other.id, other.slug):
+        theirs = chapters_svc.create(db, name="Amsterdam")
+        db.commit()
+
+    assert ours.slug == theirs.slug == "amsterdam"
 
 
 def test_create_disambiguates_slug_collision(db):

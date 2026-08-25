@@ -18,7 +18,7 @@ from datetime import date, datetime, time, timedelta
 import structlog
 from sqlalchemy.orm import Session
 
-from .config import settings
+from .config import settings, tenants_list
 from .database import SessionLocal
 from .models import (
     Chapter,
@@ -143,10 +143,14 @@ def run_local_demo() -> None:
 
     db = SessionLocal()
     try:
-        # Everything below belongs to one organisation — the first one
-        # ``TENANTS`` lists. The CLI reconciles the table before any
-        # subcommand runs, so it is already there.
-        tenant = tenants_svc.list_live(db)[0]
+        # Everything below belongs to one organisation: the first one
+        # ``TENANTS`` lists, in the order it lists them — not the
+        # alphabetically first, which quietly seeded the demo accounts
+        # into ROOD. The CLI reconciles the table before any subcommand
+        # runs, so the row is already there.
+        first_slug = tenants_list()[0][0]
+        tenant = tenants_svc.find_live_by_slug(db, first_slug)
+        assert tenant is not None, f"TENANTS names {first_slug!r} but the reconcile didn't create it"
         tenancy.bind(tenant.id, tenant.slug)
 
         admin = _ensure_user(db, email=ADMIN_EMAIL, name="Local Admin", role="admin")

@@ -11,6 +11,7 @@ import AppHeader from "@/components/AppHeader.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import ChapterPicker from "@/components/ChapterPicker.vue";
 import CityPicker from "@/components/CityPicker.vue";
+import { brand } from "@/lib/branding";
 import EditableList from "@/components/EditableList.vue";
 import {
   type Chapter,
@@ -279,7 +280,9 @@ async function submitDelete() {
       <p class="muted dialog-text">{{ t("chapters.editDialogBody") }}</p>
       <InputText v-model="editName" :placeholder="t('chapters.namePlaceholder')" fluid />
       <InputText v-model="editSlug" :placeholder="t('chapters.slugPlaceholder')" fluid />
-      <p class="muted dialog-text">{{ t("chapters.slugHelp", { slug: editSlug || "…" }) }}</p>
+      <p class="muted dialog-text">
+        {{ t("chapters.slugHelp", { tenant: brand().slug, slug: editSlug || "…" }) }}
+      </p>
       <CityPicker v-model="editCity" :placeholder="t('chapters.cityPlaceholder')" />
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="editDialog.close()" />

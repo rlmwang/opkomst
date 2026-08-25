@@ -47,8 +47,17 @@ export class ApiError extends Error {
 // Dev-only fallback: in ``vite dev`` the HTML has no server-injected
 // payload (``window.__OPKOMST_CHAPTER__ === undefined``), so fetch the
 // agenda over the ``/api`` proxy. In production the payload is inlined.
-export async function fetchChapterAgenda(slug: string): Promise<ChapterAgenda> {
-  const r = await fetch(`/api/v1/chapters/by-slug/${encodeURIComponent(slug)}/agenda`);
+// The organisation is part of the path now, so it is part of the
+// request: chapter slugs are unique within one, not across all.
+export async function fetchChapterAgenda(tenant: string, slug: string): Promise<ChapterAgenda> {
+  const r = await fetch(`/api/v1/tenants/${encodeURIComponent(tenant)}/agenda/${encodeURIComponent(slug)}`);
+  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
+  return r.json();
+}
+
+/** The organisation's live chapters — its public front page. */
+export async function fetchTenantChapters(tenant: string): Promise<ChapterPublic[]> {
+  const r = await fetch(`/api/v1/tenants/${encodeURIComponent(tenant)}/chapters`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return r.json();
 }

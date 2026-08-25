@@ -2,23 +2,27 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import AppHeader from "@/components/AppHeader.vue";
-import { brand } from "@/lib/branding";
+import TenantIndexPage from "@/pages/TenantIndexPage.vue";
 import { useAuthStore } from "@/stores/auth";
 
 /**
- * The organisation's landing page — where the wordmark takes you, and
- * where a fresh sign-in lands. One tile per kind of thing the tool
- * makes (events, forms, datepolls, chore rosters), with the
- * organisation-management pages on a full-width tile below them.
+ * ``/{tenant}`` has two faces, decided by whether the visitor has a
+ * session for this organisation:
  *
- * It exists because "which of the four workspaces did I want?" is the
- * first question every session starts with, and answering it from a
- * dropdown on the events list made events the accidental home.
+ * * signed in — the organiser's landing page: one tile per kind of
+ *   thing the tool makes, with the organisation-management pages on a
+ *   full-width tile below. "Which of the four workspaces did I want?"
+ *   is the first question every session starts with, and answering it
+ *   from a dropdown on the events list made events the accidental home.
+ * * signed out — the organisation's public page (``TenantIndexPage``):
+ *   its chapters, each linking to that chapter's agenda.
+ *
+ * The split is client-side because the session lives in localStorage;
+ * the server has no way to know which face to render.
  */
 
 const { t } = useI18n();
 const auth = useAuthStore();
-const b = brand();
 
 interface Tile {
   key: string;
@@ -42,32 +46,28 @@ const tiles = computed<Tile[]>(() => {
 </script>
 
 <template>
-  <AppHeader />
-  <main class="container stack">
-    <h1 class="home-title">{{ b.wordmark }}</h1>
-    <p class="muted home-lede">{{ t("home.lede") }}</p>
+  <TenantIndexPage v-if="!auth.isAuthenticated" />
+  <template v-else>
+    <AppHeader />
+    <main class="container stack">
+      <!-- No title or lede: the header already says whose app this is,
+           and the tiles say what it does. -->
+      <div class="tile-grid">
+        <router-link v-for="tile in tiles" :key="tile.key" :to="tile.to" class="tile">
+          <span class="tile-label">{{ tile.label }}</span>
+          <span class="tile-hint muted">{{ tile.hint }}</span>
+        </router-link>
 
-    <div class="tile-grid">
-      <router-link v-for="tile in tiles" :key="tile.key" :to="tile.to" class="tile">
-        <span class="tile-label">{{ tile.label }}</span>
-        <span class="tile-hint muted">{{ tile.hint }}</span>
-      </router-link>
-
-      <router-link v-if="auth.isApproved" to="/users" class="tile tile-wide">
-        <span class="tile-label">{{ t("header.admin") }}</span>
-        <span class="tile-hint muted">{{ t("home.adminHint") }}</span>
-      </router-link>
-    </div>
-  </main>
+        <router-link v-if="auth.isApproved" to="/users" class="tile tile-wide">
+          <span class="tile-label">{{ t("header.admin") }}</span>
+          <span class="tile-hint muted">{{ t("home.adminHint") }}</span>
+        </router-link>
+      </div>
+    </main>
+  </template>
 </template>
 
 <style scoped>
-.home-title {
-  margin-top: 0.5rem;
-}
-.home-lede {
-  margin: 0;
-}
 
 /* Two columns at every width. The tiles are the whole page, so on a
  * phone they should still be side by side — a single column would push

@@ -338,23 +338,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chapters/by-slug/{slug}/agenda": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Chapter Agenda */
-        get: operations["chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/chapters/{chapter_id}": {
         parameters: {
             query?: never;
@@ -2219,6 +2202,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tenants/{tenant_slug}/agenda/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chapter Agenda */
+        get: operations["chapter_agenda_api_v1_tenants__tenant_slug__agenda__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenants/{tenant_slug}/chapters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tenant Chapters
+         * @description The organisation's live chapters, for its public front page.
+         */
+        get: operations["tenant_chapters_api_v1_tenants__tenant_slug__chapters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/heartbeat": {
         parameters: {
             query?: never;
@@ -2637,8 +2657,9 @@ export interface components {
         };
         /**
          * ChapterPublicOut
-         * @description Slim public projection of a chapter for the agenda page: no ids,
-         *     counts, or membership — just what the header renders.
+         * @description Slim public projection of a chapter for the agenda page and the
+         *     organisation's public index: no ids, counts, or membership — just
+         *     what the header and the chapter list render.
          */
         ChapterPublicOut: {
             /** City */
@@ -5303,37 +5324,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChapterOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chapter_agenda_api_v1_chapters_by_slug__slug__agenda_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChapterAgendaOut"];
                 };
             };
             /** @description Validation Error */
@@ -8857,6 +8847,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chapter_agenda_api_v1_tenants__tenant_slug__agenda__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_slug: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterAgendaOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tenant_chapters_api_v1_tenants__tenant_slug__chapters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterPublicOut"][];
                 };
             };
             /** @description Validation Error */

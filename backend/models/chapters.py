@@ -20,9 +20,10 @@ class Chapter(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
     # Human-readable kebab slug for the public agenda URL
-    # (``/e/{slug}``). Unique across live chapters; never has the
-    # 8-char event-slug shape (see ``services.slug.chapter_slug``) so
-    # ``/e/{ident}`` dispatch is unambiguous.
+    # (``/{tenant}/{slug}``). Unique among the organisation's live
+    # chapters, and never one of the organiser app's own page names —
+    # they share that namespace (see ``services.slug.RESERVED_SLUGS``).
+    # It follows the name: renaming a chapter re-slugs it.
     slug: Mapped[str] = mapped_column(Text, nullable=False)
     # Optional anchor city — used to bias address autocomplete on
     # event creation toward streets near this chapter's home town.
@@ -47,13 +48,15 @@ class Chapter(UUIDMixin, TimestampMixin, TenantMixin, Base):
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
         ),
-        # The slug is unique across *every* live chapter, tenant or not:
-        # the public agenda lives at ``/e/{slug}`` and that URL carries
-        # no tenant, so two organisations can't both own ``amsterdam``.
-        # ``services.chapters.slug_exists_active`` is the dupe gate that
-        # drives collision suffixing.
+        # The slug is unique per organisation among live chapters. The
+        # agenda lives at ``/{tenant}/{slug}``, so the tenant already
+        # separates two organisations that each have an Amsterdam.
+        # ``services.chapters._unique_slug`` is the dupe gate that
+        # drives collision suffixing, and it also refuses the names of
+        # the organiser app's own pages.
         Index(
             "uq_chapters_slug_live",
+            "tenant_id",
             "slug",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),
