@@ -76,7 +76,17 @@ pre-push:
       # things vue-tsc alone misses, like duplicate operationIds
       # in the generated openapi schema.ts that only blow up at
       # bundle time.
-      run: cd frontend && npm run build
+      #
+      # Built to ``dist-check`` rather than ``dist`` because these
+      # commands run in parallel and ``dist`` is not this job's
+      # alone: ``routers/spa.py`` serves the app shell out of it on
+      # every request, so the backend suite reads it while a build
+      # here is emptying it. That raced twice in a row, on two
+      # different dist-reading tests, which is exactly what a shared
+      # mutable directory looks like from the outside. Nothing
+      # downstream wants this output: prod builds in the Dockerfile
+      # and the e2e job runs its own dev server.
+      run: cd frontend && npm run build -- --outDir dist-check
     frontend-tests:
       # Vitest unit/composables suite — small, fast, was missed
       # by the previous lefthook config.

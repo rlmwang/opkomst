@@ -20,6 +20,8 @@ __pycache__/
 # Frontend
 node_modules/
 frontend/dist/
+# The pre-push build's throwaway output; see lefthook.yml.
+frontend/dist-check/
 frontend/.vite/
 
 # Editor
