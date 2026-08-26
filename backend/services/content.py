@@ -31,6 +31,11 @@ class Page:
     slug: str
     title: str
     description: str
+    # What the footer calls it. The title is a sentence because a
+    # search result is read as one; a colophon of six sentences is a
+    # wall, so the same page gets a two-word name where it is only
+    # being pointed at.
+    label: str
     # The create page this one is an argument for. Every written page
     # ends by pointing at the thing that solves the problem it
     # describes; a page that reads well and goes nowhere is a leaflet.
@@ -41,6 +46,7 @@ class Page:
 PAGES: tuple[Page, ...] = (
     Page(
         slug="datumprikker-zonder-account",
+        label="Datumprikker",
         title="Datumprikker zonder account of cookies",
         description=(
             "Een datum prikken met een groep, zonder dat iemand een account maakt "
@@ -51,6 +57,7 @@ PAGES: tuple[Page, ...] = (
     ),
     Page(
         slug="aanmeldformulier-zonder-google",
+        label="Aanmeldformulier",
         title="Aanmeldformulier maken zonder Google Forms",
         description=(
             "Een aanmeldformulier voor je evenement zonder Google-account en zonder "
@@ -61,6 +68,7 @@ PAGES: tuple[Page, ...] = (
     ),
     Page(
         slug="wat-gebeurt-er-met-je-mailadres",
+        label="E-mailadressen",
         title="Wat er met je e-mailadres gebeurt",
         description=(
             "Versleuteld opgeslagen, gebruikt voor de mails die de organisator "
@@ -71,6 +79,7 @@ PAGES: tuple[Page, ...] = (
     ),
     Page(
         slug="vrijwilligers-inroosteren",
+        label="Vrijwilligersrooster",
         title="Vrijwilligers inroosteren zonder spreadsheet",
         description=(
             "Een terugkerend rooster waarin de beurten eerlijk rondgaan, zonder "

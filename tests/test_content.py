@@ -16,7 +16,9 @@ import pytest
 from backend.services.content import BY_SLUG, PAGES
 from backend.services.slug import RESERVED_SLUGS
 
-_FOOTER = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "src" / "components" / "SiteFooter.vue"
+_FRONTEND = pathlib.Path(__file__).resolve().parent.parent / "frontend"
+_FOOTER = _FRONTEND / "src" / "components" / "SiteFooter.vue"
+_VITE_CONFIG = _FRONTEND / "vite.config.ts"
 
 
 @pytest.mark.parametrize("page", PAGES, ids=[p.slug for p in PAGES])
@@ -57,9 +59,9 @@ def test_the_footer_list_matches_the_server(client) -> None:
     copy from rotting."""
     source = _FOOTER.read_text(encoding="utf-8")
     slugs = re.findall(r'slug: "([^"]+)"', source)
-    titles = re.findall(r'title: "([^"]+)"', source)
+    labels = re.findall(r'label: "([^"]+)"', source)
     assert slugs == [p.slug for p in PAGES]
-    assert titles == [p.title for p in PAGES]
+    assert labels == [p.label for p in PAGES]
 
 
 def test_the_sitemap_lists_what_should_be_indexed(client) -> None:
@@ -134,3 +136,14 @@ def test_a_page_is_reachable_from_its_own_footer(client) -> None:
 
 def test_by_slug_covers_every_page() -> None:
     assert set(BY_SLUG) == {p.slug for p in PAGES}
+
+
+def test_the_dev_server_proxies_every_written_page() -> None:
+    """These paths are rendered by the backend, so Vite has to forward
+    them. A slug missing here is a link that works in production and
+    dies in dev, which is the one place it will be clicked while the
+    page is being written."""
+    source = _VITE_CONFIG.read_text(encoding="utf-8")
+    block = source.split("const CONTENT_PATHS = [", 1)[1].split("]", 1)[0]
+    proxied = re.findall(r'"([^"]+)"', block)
+    assert proxied == ["/privacy", *(f"/{p.slug}" for p in PAGES)]

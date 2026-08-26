@@ -1,12 +1,20 @@
 <script setup lang="ts">
 /**
  * The colophon: where the written pages, the policy and the source
- * live. Only on house-brand pages, and only in the app.
+ * live. Only on house-brand pages, and only on the five pages a
+ * stranger can land on.
  *
  * A footer rather than a nav bar, and below the content rather than
  * beside it, because these are places a reader goes *instead of* the
  * task rather than during it (`docs/focus.md`). It is also where a
  * crawler looks for the site graph.
+ *
+ * Two things keep it quiet. It names each page in two words rather
+ * than repeating the sentence-long title a search result needs, and it
+ * appears only where somebody might still be deciding what this is:
+ * the root and the four create pages. An organiser halfway through
+ * their own event has already decided, and a dashboard is not a place
+ * to advertise reading material.
  *
  * Not rendered on a brand an organisation owns: their pages carry their
  * own identity, and a list of our essays is not part of it. `brand()`
@@ -20,57 +28,59 @@
  */
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { brand, isPersonalApp } from "@/lib/branding";
+import { useRoute } from "vue-router";
+import { isPersonalApp } from "@/lib/branding";
 import { GITHUB_URL } from "@/public_shared/strings";
 
 const { t } = useI18n();
+const route = useRoute();
 
 const PAGES = [
-  { slug: "datumprikker-zonder-account", title: "Datumprikker zonder account of cookies" },
-  { slug: "aanmeldformulier-zonder-google", title: "Aanmeldformulier maken zonder Google Forms" },
-  { slug: "wat-gebeurt-er-met-je-mailadres", title: "Wat er met je e-mailadres gebeurt" },
-  { slug: "vrijwilligers-inroosteren", title: "Vrijwilligers inroosteren zonder spreadsheet" },
+  { slug: "datumprikker-zonder-account", label: "Datumprikker" },
+  { slug: "aanmeldformulier-zonder-google", label: "Aanmeldformulier" },
+  { slug: "wat-gebeurt-er-met-je-mailadres", label: "E-mailadressen" },
+  { slug: "vrijwilligers-inroosteren", label: "Vrijwilligersrooster" },
 ];
 
-const show = computed(() => isPersonalApp());
-const b = brand();
+// The landing page and the four things it offers to make. The same
+// five paths the server writes a title and description for
+// (``routers/spa.py``), for the same reason: they are the pages a
+// stranger arrives on.
+const LANDING_PATHS = ["/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"];
+
+const show = computed(() => isPersonalApp() && LANDING_PATHS.includes(route.path));
 </script>
 
 <template>
   <footer v-if="show" class="site-footer">
     <nav class="footer-links" :aria-label="t('footer.label')">
-      <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.title }}</a>
+      <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.label }}</a>
       <a href="/privacy">{{ t("footer.privacy") }}</a>
       <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
     </nav>
-    <p class="footer-note muted">{{ b.app_name }}</p>
   </footer>
 </template>
 
 <style scoped>
-/* Muted throughout, the same treatment the disclosure card uses: this
- * is a colophon and it competes with nothing above it. */
+/* One wrapping row of short names, in the muted treatment the
+ * disclosure card uses. A colophon competes with nothing above it. */
 .site-footer {
   max-width: 720px;
   margin: 3rem auto 0;
-  padding: 1.5rem 1rem 2rem;
+  padding: 1.25rem 1rem 2rem;
   border-top: 1px solid var(--brand-border);
 }
 .footer-links {
   display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
 }
 .footer-links a {
   color: var(--brand-text-muted);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   text-decoration: none;
-  width: fit-content;
 }
 .footer-links a:hover {
   text-decoration: underline;
-}
-.footer-note {
-  margin: 1rem 0 0;
 }
 </style>

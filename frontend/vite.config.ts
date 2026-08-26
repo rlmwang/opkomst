@@ -18,6 +18,17 @@ const HOUSE_BRAND = "opkomst";
 // questionnaire.
 const PUBLIC_MINI_APP = /^\/[efdc]\/[^/?#]+\/?$/;
 
+// Mirrors ``backend/services/content.py`` plus the privacy policy: the
+// top-level paths the backend renders itself. ``tests/test_content.py``
+// fails if this list and the server's ever disagree.
+const CONTENT_PATHS = [
+  "/privacy",
+  "/datumprikker-zonder-account",
+  "/aanmeldformulier-zonder-google",
+  "/wat-gebeurt-er-met-je-mailadres",
+  "/vrijwilligers-inroosteren",
+];
+
 /**
  * Dev-only middleware: route ``/e/{slug}`` to ``public-event.html``.
  *
@@ -340,6 +351,15 @@ export default defineConfig({
       // The brand files (palette, logo, icons) come from the API in dev
       // exactly as they do in prod — one server owns them.
       "/brand": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
+      // The written pages and the privacy policy are server-rendered
+      // HTML with no bundle behind them, so in dev they have to come
+      // from the backend too. Without these the footer's links fall
+      // through to ``index.html`` and every one of them opens the app
+      // instead of the page, which is a dead link that only exists in
+      // dev and so is only ever found by whoever is writing the page.
+      ...Object.fromEntries(
+        CONTENT_PATHS.map((path) => [path, `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`]),
+      ),
     },
   },
   build: {
