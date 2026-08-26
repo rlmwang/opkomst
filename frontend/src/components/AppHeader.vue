@@ -203,11 +203,12 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
       <span class="group-divider" aria-hidden="true" />
     </nav>
 
-    <!-- Exactly two controls, at every width: language, then the
-         nav menu. Fixed and compact enough that this cluster
-         never wraps. -->
+    <!-- Exactly two controls, at every width: the nav menu, then
+         language at the far right. Language is the last thing in the
+         row on every surface, public pages included, so it sits in the
+         same place whichever part of the app someone is in. Fixed and
+         compact enough that this cluster never wraps. -->
     <div class="actions">
-      <LanguageSwitcher />
       <template v-if="auth.isAuthenticated">
         <button
           type="button"
@@ -265,6 +266,7 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
           </div>
         </Popover>
       </template>
+      <LanguageSwitcher />
     </div>
     </div>
   </header>

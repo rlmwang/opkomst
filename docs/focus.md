@@ -1,6 +1,6 @@
 # Keeping attention on the content
 
-Status: proposal. Research summary plus a list of changes, none built.
+Status: built, except where a section says otherwise.
 
 The goal: someone who opens a sign-up link should read the event and
 fill the form, and should not have their attention pulled sideways. The
@@ -63,9 +63,17 @@ links are accent-coloured throughout the body copy, and the public
 sign-up page has an accent submit button competing with accent links in
 the disclosure card and the add-to-calendar control.
 
-Change: keep the accent for the submit button and for genuine inline
-links in prose. Take it off secondary buttons and off the chrome around
-the form.
+Change, done: the language switcher's active flag lost its accent ring
+(full opacity against a dimmed neighbour already shows which language
+is on), and the add-to-calendar control's hover and open states use the
+muted token instead of the accent.
+
+Change, not done: the secondary buttons. `theme.css` gives
+`.p-button-secondary` and `.btn-secondary` a soft accent tint with
+accent text, on every page in the app rather than only the ones that
+carry ads. Restyling them is a whole-app visual decision with no
+attention argument behind it on organisation pages, so it is left as a
+question rather than taken unilaterally.
 
 ### 2. Shorter measure inside cards
 
@@ -74,10 +82,10 @@ characters a line, above the 50 to 75 that readability work converges
 on. The column width is right for the page's layout, but the text
 inside a card does not have to fill it.
 
-Change: cap running prose at about 65 characters (`max-width: 34rem` at
-the current body size) inside `.card`, leaving headings, form fields
-and lists at full width. This is one rule in `theme.css` and it touches
-every page at once.
+Change, done: one rule in `theme.css` caps `.card > p`, `.card > .muted`
+and `.stack > p` at `34rem`, about 65 characters. Headings, form
+fields, lists and tables keep the full column, because their line
+length comes from their content rather than from the column.
 
 ### 3. Give the form's sections real headings
 
@@ -87,8 +95,19 @@ question sit under them without their own. Layer-cake scanning lands on
 headings, so a section without one is a section that gets skipped or
 read as part of the previous one.
 
-Change: a heading per section on the public forms, at the `h2` size the
-app now uses everywhere.
+Change, done, on `PublicEvent.vue`, which was the only page affected.
+The session picker's `<span class="session-heading">` (0.95rem/600) and
+the help question's `<span class="help-label">` (0.95rem/400) are now
+`<h2>` like the two headings they sat between, and both bespoke size
+rules are deleted. The help group referenced its own label twice, as
+visible text and as `aria-label`; it now points at the heading with
+`aria-labelledby`, so a screen reader announces it once. The edit-mode
+view had the same span and got the same change.
+
+"Help ons leren" still heads both the source question and the email
+field: it describes both, and either can be switched off on its own, so
+splitting it would mean new copy and a heading that sometimes stands
+alone over one field.
 
 ### 4. Raise the fold on the sign-up page
 
@@ -97,10 +116,10 @@ field. On a phone that can be an entire screen before anything
 actionable appears, which puts the task below the fold for the one page
 where the task is the whole point.
 
-Change: cap the hero image's height on narrow viewports so the first
-field is reachable within the first screen. `PublicHero.vue` fixes a
-4:5 frame at up to 320x400; a `max-height` in the phone breakpoint
-solves it without touching the desktop layout.
+Change, done: `PublicHero.vue` caps the image at 40vh (max 400px) under
+a `max-height: 720px` media query, letting the crop take the
+difference. The 4:5 ratio still holds on every screen tall enough for
+it.
 
 ### 5. Quieten the chrome
 
@@ -108,11 +127,39 @@ The language switcher, the share cluster and the add-to-calendar
 control are all above or beside the form and all compete for the first
 fixation. None of them is what the reader came for.
 
-Change: make them visually subordinate. Muted colour, no accent, no
-border unless hovered. The disclosure card already does this correctly
-and is a good model.
+Change, done as part of item 1: the language switcher and the
+add-to-calendar control no longer use the accent in any state.
 
-### 6. Keep the periphery boring
+### 6. Do not let our own content look like an ad
+
+The same eye-tracking work has a second half that is easy to miss:
+readers ignore content that resembles an ad, sits near one, or appears
+where ads usually appear, whether or not it is an ad. The filter is
+applied on learned visual patterns before the content can compete, so
+"make it stand out with a colourful box in the margin" is precisely the
+treatment that gets it skipped. Right rails are a named case of this.
+
+Two things in our own design fall foul of it:
+
+- **The support buttons inside the ad slot.** They sit in an
+  ad-positioned, ad-shaped, framed box. Everything we did to make the
+  slot legible as advertising also guarantees that our own ask inside
+  it gets filtered out. Two consequences: the slot's empty state should
+  not be counted on to raise anything, and the label belongs only on a
+  real ad. The label is now conditional for exactly this reason, and
+  because calling our own donation link an advertisement is not true.
+- **Colourful graphics at the edge of a row.** The Buy Me a Coffee and
+  Patreon buttons in the form footers are bright image blocks at the
+  left margin, which is the shape and position readers discount. That
+  is partly intended here, since they must not compete with the primary
+  action, but it means the footer placement is not the one to measure
+  donations by either.
+
+Nothing to build beyond the conditional label. It is written down so
+the next person to add a colourful promo box in a margin knows why it
+will not be seen.
+
+### 7. Keep the periphery boring
 
 Already true and worth writing down so it stays true: the ad slot's
 frame is a dashed muted outline, its empty state is muted text, and the
@@ -183,6 +230,8 @@ session. If a change does not move either, revert it.
 - [F-shaped pattern of reading: misunderstood, but still relevant](https://www.nngroup.com/articles/f-shaped-pattern-reading-web-content/)
 - [Scanning patterns on the web are optimized for the current task](https://www.nngroup.com/articles/eyetracking-tasks-efficient-scanning/)
 - [Text scanning patterns: eye-tracking evidence](https://www.nngroup.com/articles/text-scanning-patterns-eyetracking/)
+- [Banner blindness revisited: users dodge ads on mobile and desktop](https://www.nngroup.com/articles/banner-blindness-old-and-new-findings/)
+- [Fight against right-rail blindness](https://www.nngroup.com/articles/fight-right-rail-blindness/)
 - [How white space affects comprehension and engagement](https://cieden.com/book/sub-atomic/spacing/white-space)
 - [Readability research: an interdisciplinary approach](https://arxiv.org/pdf/2107.09615)
 - [Visual salience (Scholarpedia)](http://www.scholarpedia.org/article/Visual_salience)

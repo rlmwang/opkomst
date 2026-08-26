@@ -1,6 +1,9 @@
 # Ads on the house-brand pages
 
-Status: open question. Research done, nothing built, decision pending.
+Status: built and switched off. The slot, the split CSP and the tests
+are in the codebase; with no ``ADSENSE_CLIENT_ID`` in the environment
+no ad code loads, so turning it on is an env var and an AdSense
+account, not a deploy of new code.
 
 ## Scope
 
@@ -201,14 +204,89 @@ as this gets.
 A test pins that an organisation-owned page never receives the loosened
 header.
 
-### Work
+### What is left to switch it on
 
-| Piece | Size |
-|---|---|
-| Split CSP plus its test | 1 hour |
-| `AdSlot.vue`, both formats, breakpoint, brand gate | half a day |
-| CMP setup and privacy-policy copy | half a day |
-| Mounting it in the four mini-app shells | half a day |
+The code is written. What remains is outside the repository:
+
+1. An AdSense account with opkomst.nu verified and approved.
+2. Two ad units created there, one 160x600 and one 320x50.
+3. `ADSENSE_CLIENT_ID`, `ADSENSE_SLOT_RAIL` and `ADSENSE_SLOT_BANNER`
+   in the environment.
+4. Google's Privacy & messaging CMP configured in the console, which is
+   free and certified, and which the AdSense tag brings with it.
+5. A privacy-policy line about the ad request, which is the one piece
+   of copy this still needs.
+
+Until step 3 the app behaves exactly as it does today: strict CSP, no
+Google code, no consent dialog, no cookie.
+
+## The strategy: traffic over click-through
+
+We optimise for traffic by being the event and date-picker app people
+prefer, and we accept a lower click-through rate as the price.
+
+That is a choice, and it is worth writing down because every design
+decision in this document follows from it. A page that keeps its
+readers is worth more over time than a page that squeezes clicks out of
+each one. Advertising here is a way to cover costs, not the product,
+and the product is the reason anyone arrives.
+
+The reasoning is symmetric and ordinary. Advertisers use attention
+research to be seen; publishers use the same research to decide what
+their pages emphasise. Nobody is owed a click-through rate, and on a
+cost-per-click buy a click that never happens costs the advertiser
+nothing. What we owe is an ad that renders honestly where we said it
+would.
+
+There is one line, and it is narrow: never make an ad unviewable while
+its impression still fires. No zero-opacity containers, no off-screen
+or clipped-to-nothing frames, no element stacked on top, no unit sized
+to hide. Those are policy violations, viewability is measured either
+way, and inventory nobody can see does not pay. Everything else about
+placement, size, framing and the design of the page around it is ours
+to decide.
+
+### What the attention literature offers, and where we already are
+
+Each of these is a finding from the eye-tracking work in
+``docs/focus.md``, read as a lever rather than as an observation.
+
+| Lever | What the research says | Where we are |
+|---|---|---|
+| Position | The right rail is the most-ignored region on a page, with its own literature. Top banners are the original 1997 finding. | Vertical rails at the window edges, the two most-ignored positions available. |
+| Separation | Native and in-content formats get substantially more attention, because they defeat the learned filter. Distinct, framed, isolated ads keep it working. | A dashed frame, its own region, never inside the content column. This is also what the policy asks for. |
+| Labelling | An explicit "Advertisement" is among the fastest classification cues a reader has. | Labelled, on live ads only. |
+| Distance | Content next to ads gets caught by the same filter; ads next to content get caught by the reader's task focus. | 64px minimum gutter, widening with the window. |
+| Density | More ad-shaped blocks train the filter faster. | Two rails or one banner. Nothing to gain without adding units. |
+| Task focus | Goal-directed readers filter harder than browsing ones. | Someone opening a sign-up link is maximally goal-directed. ``docs/focus.md`` strengthens this for free. |
+| Motion | Animation defeats blindness, which is why animated formats sell. | Declined. This one has a real revenue cost and we are paying it. |
+
+Nearly everything the literature offers is already applied, and each
+piece was independently defensible on its own merits before it was ever
+read as a lever. There is little left to win on the visual side.
+
+### The remaining lever is selection, not rendering
+
+The control that is actually still open is which ads are eligible at
+all. In the AdSense console, under **Brand safety > Blocking
+controls**:
+
+- **Sensitive categories.** Gambling, alcohol, dating, weight loss,
+  politics and similar, blockable as a group.
+- **General categories.** Around thirty of them (clothing, travel,
+  finance). Blocking narrows the auction, so this is the one control
+  here with a direct revenue cost.
+- **Advertiser URLs.** A blocklist by destination domain. This is how a
+  landlords' association or a payday lender stays off the page.
+- **Ad review centre.** Individual creatives, blockable before they run
+  for placement-targeted ads and after first appearance otherwise.
+- **Site-level blocking.** All of the above per site, so opkomst.nu can
+  be stricter than anything else on the account.
+
+None of it exists until there is an AdSense account with the site
+verified. The earlier attempts at controlling what the ads look like
+kept hitting a wall because they aimed at rendering, which belongs to
+the advertiser. Selection belongs to us.
 
 ## The alternative, if the goal is money rather than ads
 
@@ -226,3 +304,7 @@ This is a separate decision and is not assumed here.
 - [Limited ads, Ad Manager](https://support.google.com/admanager/answer/9882911?hl=en)
 - [AdSense cookie consent publisher guide, 2026](https://kukie.io/blog/google-adsense-cookie-consent)
 - [EthicalAds publisher policy](https://www.ethicalads.io/publisher-policy/)
+- [Brand safety: control the ads that appear on your site](https://support.google.com/adsense/answer/1059482?hl=en)
+- [Guide to allow and block ads](https://support.google.com/adsense/answer/180609?hl=en)
+- [Block sensitive categories](https://support.google.com/adsense/answer/164131?hl=en)
+- [Fight against right-rail blindness](https://www.nngroup.com/articles/fight-right-rail-blindness/)

@@ -1,74 +1,88 @@
-/* The house brand: what a page wears when no organisation owns it — a
- * link to an event that was never created, or one whose organisation
- * has gone. Deliberately plain and unaffiliated: a visitor who lands on
- * a dead link should not be shown somebody's logo.
+/* The house brand: what a page wears when no organisation owns it. The
+ * personal app at the root, the public pages of a personal account, and
+ * a link to something that was never created or whose organisation has
+ * gone. It belongs to no organisation and shows nobody's logo.
+ *
+ * Deep teal rather than the near-black it used to be. Three reasons:
+ * the app reads as a thing with a point of view rather than a wireframe;
+ * no organisation in ``brands/`` uses this hue, so the house brand is
+ * never mistaken for one of theirs; and these are the only pages that
+ * carry advertising, where a page with its own colour is easier to tell
+ * apart from whatever the auction delivers.
+ *
+ * Contrast is higher than the palette it replaces, not lower:
+ *
+ *   white on accent   7.8:1   (WCAG AAA for body text)
+ *   accent on bg      7.2:1   (links)
+ *   text on bg       15.2:1
+ *   muted on bg       6.0:1
  *
  * Same token set as any tenant, so nothing in the app has to know it is
- * a fallback. There are no image files in this folder: the head
- * injection leaves the icon links out and the brand mark renders the
- * wordmark alone. */
+ * a fallback. There are no logo files in this folder: the head injection
+ * leaves the icon links out and the brand mark renders the wordmark
+ * alone. */
 
 :root {
-  --brand-red: #2f2f2d;
-  --brand-red-hover: #1a1a1a;
-  --brand-bg: #f4f4f2;
+  --brand-red: #0d5c55;
+  --brand-red-hover: #0b514b;
+  --brand-bg: #f2f5f4;
   --brand-surface: #ffffff;
-  --brand-text: #1a1a1a;
-  --brand-text-muted: #5b5b58;
-  --brand-border: #e2e2de;
+  --brand-text: #14201f;
+  --brand-text-muted: #4f605e;
+  --brand-border: #dbe4e2;
 
   --brand-green: #1f7a3c;
   --brand-amber: #8a6915;
-  --brand-neutral: #d6d6d2;
+  --brand-neutral: #ccd6d4;
   --brand-blue: #2a6f97;
 
-  --brand-red-soft: #e8e8e5;
-  --brand-red-soft-border: #d2d2ce;
-  --brand-red-soft-hover: #d2d2ce;
-  --brand-red-soft-active: #bcbcb7;
-  --brand-red-strong: #1a1a1a;
+  --brand-red-soft: #e2ebeb;
+  --brand-red-soft-border: #c5d8d6;
+  --brand-red-soft-hover: #c5d8d6;
+  --brand-red-soft-active: #95b7b4;
+  --brand-red-strong: #083531;
 
-  --brand-notice-bg: #f7f5ef;
-  --brand-notice-border: #e2ddd0;
+  --brand-notice-bg: #f0f5f5;
+  --brand-notice-border: #d3e2e0;
 
   --brand-green-soft: #e9f3ec;
   --brand-green-soft-border: #d3e4d8;
-  --brand-red-wash: #f0eeee;
+  --brand-red-wash: #eef4f3;
   --brand-amber-soft: #f8f4ea;
   --brand-amber-soft-border: #e6dcc4;
   --brand-amber-strong: #6b5310;
   --brand-amber-wash: #f5f1e6;
   --brand-amber-text: #6b5310;
-  --brand-recovered-bg: #f7f5ef;
+  --brand-recovered-bg: #f4f2ea;
   --brand-recovered-border: #ded7c4;
   --brand-recovered-text: #4a463c;
   --brand-rank-silver: #8a8f98;
   --brand-rank-bronze: #b8763a;
-  --brand-chat-bubble: #e8e8e5;
+  --brand-chat-bubble: #e2ebeb;
   --brand-chat-text: #111111;
 
-  --brand-primary-50: #f6f6f5;
-  --brand-primary-100: #e8e8e5;
-  --brand-primary-200: #d2d2ce;
-  --brand-primary-300: #b0b0aa;
-  --brand-primary-400: #7c7c76;
-  --brand-primary-500: #2f2f2d;
-  --brand-primary-600: #292927;
-  --brand-primary-700: #222220;
-  --brand-primary-800: #1a1a1a;
-  --brand-primary-900: #121211;
-  --brand-primary-950: #0a0a09;
+  --brand-primary-50: #f0f5f5;
+  --brand-primary-100: #e2ebeb;
+  --brand-primary-200: #c5d8d6;
+  --brand-primary-300: #95b7b4;
+  --brand-primary-400: #568d88;
+  --brand-primary-500: #0d5c55;
+  --brand-primary-600: #0b514b;
+  --brand-primary-700: #0a443f;
+  --brand-primary-800: #083531;
+  --brand-primary-900: #052724;
+  --brand-primary-950: #031816;
 
   --brand-surface-0: #ffffff;
-  --brand-surface-50: #f4f4f2;
-  --brand-surface-100: #ececea;
-  --brand-surface-200: #dededa;
-  --brand-surface-300: #c4c4bf;
-  --brand-surface-400: #a3a39d;
-  --brand-surface-500: #7c7c76;
-  --brand-surface-600: #5b5b58;
-  --brand-surface-700: #3f3f3c;
-  --brand-surface-800: #262624;
-  --brand-surface-900: #1a1a1a;
-  --brand-surface-950: #0d0d0c;
+  --brand-surface-50: #f2f5f4;
+  --brand-surface-100: #edeeee;
+  --brand-surface-200: #dee0e0;
+  --brand-surface-300: #c6caca;
+  --brand-surface-400: #a5aaa9;
+  --brand-surface-500: #808887;
+  --brand-surface-600: #616b69;
+  --brand-surface-700: #465150;
+  --brand-surface-800: #2f3c3a;
+  --brand-surface-900: #1d2b29;
+  --brand-surface-950: #101817;
 }

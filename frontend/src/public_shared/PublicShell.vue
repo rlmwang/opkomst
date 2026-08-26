@@ -84,11 +84,14 @@ watch(locale, (l) => {
   transition: opacity 120ms, filter 120ms, border-color 120ms, background 120ms;
 }
 .flag:hover { opacity: 0.85; filter: grayscale(0.2); }
+/* No accent here. The switcher is chrome, and full opacity against its
+ * dimmed neighbour is enough to show which language is on; an accent
+ * ring put a second target on the page competing with the button the
+ * visitor came to press. */
 .flag.active {
   opacity: 1;
   filter: none;
   background: var(--brand-bg);
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 1px var(--brand-red);
+  border-color: var(--brand-border);
 }
 </style>

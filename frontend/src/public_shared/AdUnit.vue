@@ -74,8 +74,8 @@ onMounted(() => {
   height: 100%;
 }
 
-/* Dashed, so the slot reads as the place an ad would be rather than as
- * a bordered card of its own. */
+/* The dashed frame belongs to the slot, not to this: it wraps a live
+ * ad the same way (see ``AdSlot``). */
 .filler {
   display: flex;
   align-items: center;
@@ -83,8 +83,6 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  border: 1px dashed var(--brand-border);
-  border-radius: 6px;
 }
 /* Down the rail, which has room for the line and both buttons under
  * it; across the banner, which is one line high. */

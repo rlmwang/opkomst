@@ -337,6 +337,18 @@
    * ``.muted`` — only multi-line user text changes. */
   .muted { color: var(--brand-text-muted); font-size: 0.875rem; white-space: pre-line; }
 
+  /* Running prose stops at a readable measure. The column is 720px,
+   * which at the body size is 90 to 100 characters a line, well past
+   * the 50 to 75 that readability research converges on. Only
+   * paragraphs are capped: headings, form fields, lists and tables
+   * keep the full width, because their line length is set by their
+   * content rather than by the column. */
+  .card > p,
+  .card > .muted,
+  .stack > p {
+    max-width: 34rem;
+  }
+
   /* The one home for the sanitized rich-text "details" body (event
    * topic, form / datepoll / roster description), rendered with
    * ``v-html`` so it can't be reached by scoped styles. Shared by the

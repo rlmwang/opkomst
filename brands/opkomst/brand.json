@@ -8,12 +8,12 @@
   "apple_touch_icon": null,
   "mail_from_name": "opkomst.nu",
   "palette": {
-    "bg": "#f4f4f2",
+    "bg": "#f2f5f4",
     "surface": "#ffffff",
-    "fg": "#1a1a1a",
-    "fg_muted": "#5b5b58",
-    "accent": "#2f2f2d",
-    "border": "#e2e2de"
+    "fg": "#14201f",
+    "fg_muted": "#4f605e",
+    "accent": "#0d5c55",
+    "border": "#dbe4e2"
   },
   "support_coffee_button": "support-coffee.png",
   "support_patreon_button": "support-patreon.png"

@@ -41,4 +41,16 @@ defineProps<{
 }
 .credit { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--brand-text-muted); }
 .credit a { color: inherit; }
+
+/* On a short screen the 4:5 frame plus the header fills the viewport,
+ * which puts the first form field below the fold on the page whose
+ * whole point is that field. Cap the height there and let the crop take
+ * the difference; the ratio still holds everywhere it fits. */
+@media (max-height: 720px) {
+  .hero-img {
+    aspect-ratio: auto;
+    height: 40vh;
+    max-height: 400px;
+  }
+}
 </style>

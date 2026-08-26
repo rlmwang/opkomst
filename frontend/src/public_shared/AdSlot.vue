@@ -30,14 +30,21 @@ const props = defineProps<{
   hide?: boolean;
 }>();
 
-/** Wide enough for 16 + 160 + 64 + 720 + 64 + 160 + 16: the content
- *  column, a rail either side at the standard wide-skyscraper size, the
+/** Wide enough for 16 + 178 + 64 + 720 + 64 + 178 + 16: the content
+ *  column, a framed rail either side (160 of ad plus its frame), the
  *  64px gutter that keeps them off the content, and a margin. */
-const RAILS_FROM = "(min-width: 1200px)";
+const RAILS_FROM = "(min-width: 1236px)";
 
 const ads = brand().ads;
 const c = computed(() => chromeStrings(props.locale));
 const show = computed(() => Boolean(ads) && !props.hide);
+
+/** Whether a real ad is being served in each format. The label is for
+ *  advertising: it is inaccurate over our own support buttons, and it
+ *  would also be the thing that gets them ignored, since readers filter
+ *  anything sitting inside a labelled ad frame. */
+const railLive = Boolean(ads?.client_id && ads?.rail_slot);
+const bannerLive = Boolean(ads?.client_id && ads?.banner_slot);
 
 
 const wide = ref(false);
@@ -77,18 +84,27 @@ function loadAdSense(clientId: string) {
     <!-- Wide: two rails fixed to the viewport just outside the content
          column, so no page has to change its own layout to make room. -->
     <template v-if="wide">
-      <aside class="ad-rail ad-rail-left" :aria-label="c.adLabel">
-        <AdUnit :ads="ads" :slot-id="ads.rail_slot" variant="rail" :locale="locale" />
+      <aside class="ad-rail ad-rail-left">
+        <span v-if="railLive" class="ad-label">{{ c.adLabel }}</span>
+        <div class="ad-box rail-box">
+          <AdUnit :ads="ads" :slot-id="ads.rail_slot" variant="rail" :locale="locale" />
+        </div>
       </aside>
-      <aside class="ad-rail ad-rail-right" :aria-label="c.adLabel">
-        <AdUnit :ads="ads" :slot-id="ads.rail_slot" variant="rail" :locale="locale" />
+      <aside class="ad-rail ad-rail-right">
+        <span v-if="railLive" class="ad-label">{{ c.adLabel }}</span>
+        <div class="ad-box rail-box">
+          <AdUnit :ads="ads" :slot-id="ads.rail_slot" variant="rail" :locale="locale" />
+        </div>
       </aside>
     </template>
     <!-- Narrow: one banner at the foot of the page, in the flow. Never
          pinned to the screen, which on a sign-up page would land on top
          of the submit button. -->
-    <aside v-else class="ad-banner" :aria-label="c.adLabel">
-      <AdUnit :ads="ads" :slot-id="ads.banner_slot" variant="banner" :locale="locale" />
+    <aside v-else class="ad-banner">
+      <span v-if="bannerLive" class="ad-label">{{ c.adLabel }}</span>
+      <div class="ad-box banner-box">
+        <AdUnit :ads="ads" :slot-id="ads.banner_slot" variant="banner" :locale="locale" />
+      </div>
     </aside>
   </template>
 </template>
@@ -101,16 +117,12 @@ function loadAdSense(clientId: string) {
  * every pixel of screen beyond that widens the gap instead of the
  * margins, so on a large display the ads sit far out in the periphery
  * and the content is left alone. */
-/* The box is always the ad's exact size, whether or not an ad is in it:
- * the script reports a container it cannot fill otherwise, and an empty
- * slot should show where the ad goes rather than quietly collapse. */
 .ad-rail {
   position: fixed;
   top: 50%;
   transform: translateY(-50%);
-  width: 160px;
-  height: 600px;
-  overflow: hidden;
+  /* 160 of ad plus the frame's padding and rule on each side. */
+  width: 178px;
 }
 .ad-rail-left {
   left: 16px;
@@ -120,10 +132,51 @@ function loadAdSense(clientId: string) {
 }
 
 .ad-banner {
+  width: 338px;
+  max-width: 100%;
+  margin: 1.5rem auto 0;
+}
+
+/* A frame and a word, both deliberately quiet.
+ *
+ * An edge is a salience feature, so a strong border would pull the eye
+ * out to the periphery. A faint one does the opposite job: a framed,
+ * labelled rectangle is the clearest possible "this is an ad", and
+ * banner blindness is triggered by exactly that, so the region is
+ * classified and skipped sooner. Low contrast is what gets both.
+ *
+ * "Advertentie" / "Advertisement" is also the labelling AdSense
+ * permits: those two words, or "Sponsored Links", and nothing else. */
+.ad-label {
   display: block;
+  margin-bottom: 0.25rem;
+  color: var(--brand-text-muted);
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  opacity: 0.7;
+}
+/* ``content-box`` plus padding: the inner area stays the ad's exact
+ * pixel size, and the frame stands off it instead of running along the
+ * creative's own edge, where a dashed line against a busy image reads
+ * as noise rather than as a boundary. */
+.ad-box {
+  border: 1px dashed var(--brand-border);
+  border-radius: 6px;
+  padding: 8px;
+  overflow: hidden;
+  box-sizing: content-box;
+}
+/* The ad itself is always given its exact size, whether or not one is
+ * being served: the script reports a container it cannot fill
+ * otherwise, and an empty slot should show where the ad goes rather
+ * than quietly collapse. */
+.rail-box {
+  width: 160px;
+  height: 600px;
+}
+.banner-box {
   width: 320px;
   height: 50px;
-  margin: 1.5rem auto 0;
-  overflow: hidden;
 }
 </style>

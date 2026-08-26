@@ -607,7 +607,7 @@ watchEffect(() => {
              the sessions you want, or flip the toggle to take every
              upcoming one at once. -->
         <section v-if="!isOneOff" class="form-section session-section">
-          <span class="session-heading">{{ t.sessionsTitle }}</span>
+          <h2>{{ t.sessionsTitle }}</h2>
           <p class="muted picker-explainer">{{ t.pickerExplainer }}</p>
           <label class="all-upcoming-row">
             <input v-model="allUpcoming" type="checkbox" role="switch" class="switch" />
@@ -627,8 +627,8 @@ watchEffect(() => {
         </section>
 
         <section v-if="event.help_options.length > 0" class="form-section help-section">
-          <div class="help-choices" role="group" :aria-label="t.helpHeading">
-            <span class="help-label">{{ t.helpHeading }}</span>
+          <h2 id="help-heading">{{ t.helpHeading }}</h2>
+          <div class="help-choices" role="group" aria-labelledby="help-heading">
             <label v-for="opt in event.help_options" :key="opt" class="help-row">
               <input v-model="helpChoices" type="checkbox" :value="opt" />
               <span>{{ opt }}</span>
@@ -717,7 +717,7 @@ watchEffect(() => {
                pre-filled with the booking. Past sessions show locked
                (attended); future ones are added/deselected freely. -->
           <section v-if="event && !isOneOff" class="form-section session-section">
-            <span class="session-heading">{{ t.bookingSessions }}</span>
+            <h2>{{ t.bookingSessions }}</h2>
             <p class="muted picker-explainer">{{ t.pickerExplainer }}</p>
             <label class="all-upcoming-row">
               <input v-model="allUpcoming" type="checkbox" role="switch" class="switch" />
@@ -790,10 +790,6 @@ watchEffect(() => {
 }
 
 /* --- Occurrence picker --- */
-.session-heading {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
 /* Explainer under the header (above the toggle). */
 .picker-explainer {
   font-size: 0.85rem;
@@ -975,7 +971,6 @@ watchEffect(() => {
   align-items: center;
   gap: 1.25rem;
 }
-.help-label { font-size: 0.95rem; }
 .help-row {
   display: flex;
   align-items: center;
@@ -1019,9 +1014,9 @@ watchEffect(() => {
   user-select: none;
 }
 .cal-button::-webkit-details-marker { display: none; }
-.cal-button:hover { border-color: var(--brand-red); }
+.cal-button:hover { border-color: var(--brand-text-muted); }
 .cal[open] .cal-button {
-  border-color: var(--brand-red);
+  border-color: var(--brand-text-muted);
 }
 .cal-menu {
   position: absolute;
