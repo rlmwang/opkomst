@@ -1,4 +1,5 @@
 /// <reference types="vitest" />
+import { request as httpRequest } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
 import vue from "@vitejs/plugin-vue";
@@ -28,6 +29,51 @@ const CONTENT_PATHS = [
   "/wat-gebeurt-er-met-je-mailadres",
   "/vrijwilligers-inroosteren",
 ];
+
+/**
+ * Dev-only middleware: hand the written pages to the backend.
+ *
+ * ``/privacy`` and the four pages in ``backend/services/content.py``
+ * are server-rendered Jinja with no bundle behind them, so in dev they
+ * have to come from the backend the way they come from it in prod.
+ *
+ * A ``server.proxy`` entry is the obvious tool and it does not work:
+ * Vite answers document requests (``Accept: text/html``) from its own
+ * HTML middleware before the proxy is consulted, so ``curl`` got the
+ * page and a browser got ``index.html`` with the SPA's own 404 inside
+ * it. Middleware registered here runs ahead of all of that.
+ *
+ * The failure this prevents only exists in dev, which is the worst
+ * place for it: dev is where these links get clicked while the page is
+ * being written.
+ */
+function contentPagesDevRoute(): Plugin {
+  const port = process.env.E2E_API_PORT ?? "8000";
+  return {
+    name: "opkomst-content-pages-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url ?? "").split("?")[0].replace(/\/$/, "") || "/";
+        if (!CONTENT_PATHS.includes(path)) return next();
+        const upstream = httpRequest(
+          { host: "localhost", port, path: req.url, method: req.method, headers: req.headers },
+          (backend) => {
+            res.writeHead(backend.statusCode ?? 502, backend.headers);
+            backend.pipe(res);
+          },
+        );
+        upstream.on("error", () => {
+          // The one thing worth saying out loud: the page is fine, the
+          // backend is not running on the port Vite is looking at.
+          res.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
+          res.end(`No backend on localhost:${port}. Start it with: uv run uvicorn backend.main:app --reload\n`);
+        });
+        req.pipe(upstream);
+      });
+    },
+  };
+}
 
 /**
  * Dev-only middleware: route ``/e/{slug}`` to ``public-event.html``.
@@ -148,7 +194,10 @@ function publicChoreDevRoute(): Plugin {
 function organiserAppDevRoute(): Plugin {
   // Paths the dev server owns: Vite internals and the source tree. The
   // public mini-app URLs are handled by the plugins below and skipped
-  // via ``PUBLIC_MINI_APP``.
+  // via ``PUBLIC_MINI_APP``; the written pages come off the backend and
+  // are skipped via ``CONTENT_PATHS``. This middleware answers every
+  // other request that wants HTML, so anything it does not skip here
+  // never reaches the plugin that owns it.
   const notAPage = /^\/(@|src\/|node_modules\/|api\/|brand\/|assets\/|health$|__)/;
   // The app's own first-level routes. Under an organisation's slug,
   // anything that is not one of these is a chapter agenda: the same
@@ -170,6 +219,7 @@ function organiserAppDevRoute(): Plugin {
         const path = (req.url ?? "").split("?")[0];
         const wantsHtml = (req.headers.accept ?? "").includes("text/html");
         if (!wantsHtml || notAPage.test(path) || PUBLIC_MINI_APP.test(path)) return next();
+        if (CONTENT_PATHS.includes(path.replace(/\/$/, "") || "/")) return next();
 
         // Prod resolves the first segment as an organisation and only
         // then asks whether the second names a chapter. Dev has to make
@@ -324,6 +374,7 @@ export default defineConfig({
     publicFormDevRoute(),
     publicDatepollDevRoute(),
     publicChoreDevRoute(),
+    contentPagesDevRoute(),
   ],
   test: {
     // happy-dom for component / Vue-Query composables (need a DOM
@@ -351,15 +402,6 @@ export default defineConfig({
       // The brand files (palette, logo, icons) come from the API in dev
       // exactly as they do in prod — one server owns them.
       "/brand": `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`,
-      // The written pages and the privacy policy are server-rendered
-      // HTML with no bundle behind them, so in dev they have to come
-      // from the backend too. Without these the footer's links fall
-      // through to ``index.html`` and every one of them opens the app
-      // instead of the page, which is a dead link that only exists in
-      // dev and so is only ever found by whoever is writing the page.
-      ...Object.fromEntries(
-        CONTENT_PATHS.map((path) => [path, `http://localhost:${process.env.E2E_API_PORT ?? "8000"}`]),
-      ),
     },
   },
   build: {
