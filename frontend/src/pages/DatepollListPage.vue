@@ -96,7 +96,7 @@ function askArchive(p: DatepollListOut) {
 <template>
   <template v-if="auth.needsChapters">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <h1>{{ t("datepolls.list.title") }}</h1>
       <p class="muted">{{ t("datepolls.list.intro") }}</p>
       <AppCard>

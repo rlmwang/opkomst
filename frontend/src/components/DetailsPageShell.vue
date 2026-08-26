@@ -31,7 +31,7 @@ defineProps<{
 
 <template>
   <AppHeader />
-  <div class="container stack">
+  <div class="container-wide stack">
     <AppSkeleton v-if="!loaded" :rows="skeletonRows ?? 4" cards />
     <template v-else>
       <slot />

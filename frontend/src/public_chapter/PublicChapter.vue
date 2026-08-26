@@ -49,7 +49,6 @@ if (initial === undefined) {
         v-if="agenda"
         :eyebrow="b.wordmark"
         :title="agenda.chapter.name"
-        :subtitle="agenda.chapter.city"
       />
       <PublicIdentity v-else :title="b.wordmark" />
     </template>

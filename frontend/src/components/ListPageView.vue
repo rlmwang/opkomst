@@ -66,7 +66,7 @@ const filtered = computed(() => {
 
 <template>
   <AppHeader />
-  <div class="container stack">
+  <div class="container-wide stack">
     <h1>{{ title }}</h1>
     <p v-if="intro" class="muted">{{ intro }}</p>
 

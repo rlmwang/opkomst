@@ -183,7 +183,7 @@ function askArchive(e: EventOut) {
        showing. -->
   <template v-if="auth.needsChapters">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <h1>{{ t("dashboard.title") }}</h1>
       <p class="muted">{{ t("dashboard.intro") }}</p>
       <!-- Approved-but-no-chapter banner. The signup flow doesn't

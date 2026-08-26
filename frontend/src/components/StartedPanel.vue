@@ -43,7 +43,7 @@ async function copy() {
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard>
       <h1>{{ t("start.doneTitle") }}</h1>
       <p class="muted">{{ t("start.doneBody", { email }) }}</p>

@@ -190,7 +190,7 @@ async function submitDelete() {
 
 <template>
   <AppHeader />
-  <div class="container stack">
+  <div class="container-wide stack">
     <h1>{{ t("chapters.title") }}</h1>
     <p class="muted">{{ t("chapters.intro") }}</p>
 

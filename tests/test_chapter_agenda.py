@@ -1,9 +1,14 @@
 """Public chapter-agenda endpoint + chapter slugs.
 
-Covers the window split (upcoming / recent-past with the last-full-month
-floor), the ``listed`` and ``archived`` exclusions, the slim card DTO,
-404s, and the slug rules that let the agenda live at
-``/{tenant}/{chapter}`` next to the organiser app's own pages.
+Covers the window split (upcoming / recent-past, both ends bounded by
+the owning tenant's ``agenda_future_days`` / ``agenda_past_days``), the
+``listed`` and ``archived`` exclusions, the slim card DTO, 404s, and the
+slug rules that let the agenda live at ``/{tenant}/{chapter}`` next to
+the organiser app's own pages.
+
+The settings endpoint that writes those two numbers is covered in
+``tests/test_tenant_settings.py``; here they are set on the row
+directly, because what is under test is the read.
 """
 
 import re
@@ -12,10 +17,9 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from backend.models import Registration, Signup
+from backend.models import Registration, Signup, Tenant
 from backend.schemas.chapters import ChapterPatch
 from backend.services import chapters as chapters_svc
-from backend.services.agenda import _last_full_month_start
 from backend.services.events import now_wallclock
 from backend.services.slug import RESERVED_SLUGS, chapter_slug
 from tests._helpers.events import first_occurrence, make_event
@@ -25,6 +29,18 @@ def _chapter(db, name="Testafdeling"):
     ch = chapters_svc.create(db, name=name)
     db.commit()
     return ch
+
+
+def _window(db, *, future_days=None, past_days=None):
+    """Set the tenant's agenda window. The chapter fixture's tenant is
+    the one every test in this file reads through."""
+    tenant = db.query(Tenant).filter(Tenant.slug == "rsp").one()
+    if future_days is not None:
+        tenant.agenda_future_days = future_days
+    if past_days is not None:
+        tenant.agenda_past_days = past_days
+    db.commit()
+    return tenant
 
 
 def _agenda(client, slug, tenant="rsp"):
@@ -37,13 +53,13 @@ def _agenda(client, slug, tenant="rsp"):
 
 def test_upcoming_and_recent_past_split(db, client):
     ch = _chapter(db)
-    now = now_wallclock()
+    _window(db, future_days=31, past_days=60)
     make_event(db, name="Upcoming", starts_in=timedelta(days=3), chapter_id=ch.id)
     make_event(db, name="RecentPast", starts_in=timedelta(days=-2), chapter_id=ch.id)
-    # An event that ended before the start of the last full calendar
-    # month must be excluded from the past section.
-    old_start = _last_full_month_start(now) - timedelta(days=5)
-    make_event(db, name="Old", starts_in=old_start - now, chapter_id=ch.id)
+    # Outside the window in each direction: one past the future edge,
+    # one behind the past floor. Neither section may hold them.
+    make_event(db, name="TooFar", starts_in=timedelta(days=40), chapter_id=ch.id)
+    make_event(db, name="Old", starts_in=timedelta(days=-70), chapter_id=ch.id)
     db.commit()
 
     status, j = _agenda(client, ch.slug)
@@ -52,6 +68,54 @@ def test_upcoming_and_recent_past_split(db, client):
     past_names = [e["name_nl"] for e in j["past"]]
     assert "RecentPast" in past_names
     assert "Old" not in past_names
+    assert "TooFar" not in past_names
+
+
+def test_widening_the_future_window_surfaces_an_event(db, client):
+    """The reason the setting exists: an organisation that programmes a
+    season ahead sets the window to reach it, and the occurrence that
+    was already materialised shows up."""
+    ch = _chapter(db)
+    _window(db, future_days=31)
+    make_event(db, name="Season", starts_in=timedelta(days=48), chapter_id=ch.id)
+    db.commit()
+
+    _, j = _agenda(client, ch.slug)
+    assert j["upcoming"] == []
+
+    _window(db, future_days=90)
+    _, j = _agenda(client, ch.slug)
+    assert [e["name_nl"] for e in j["upcoming"]] == ["Season"]
+
+
+def test_narrowing_the_past_window_drops_an_event(db, client):
+    ch = _chapter(db)
+    _window(db, past_days=60)
+    make_event(db, name="LastMonth", starts_in=timedelta(days=-40), chapter_id=ch.id)
+    db.commit()
+
+    _, j = _agenda(client, ch.slug)
+    assert [e["name_nl"] for e in j["past"]] == ["LastMonth"]
+
+    _window(db, past_days=7)
+    _, j = _agenda(client, ch.slug)
+    assert j["past"] == []
+
+
+def test_window_comes_from_the_chapters_own_tenant(db, client):
+    """A public read binds no tenant of its own, so the window has to be
+    read off the row the URL resolved to, not off whatever was bound."""
+    ch = _chapter(db)
+    _window(db, future_days=90)
+    make_event(db, name="Season", starts_in=timedelta(days=48), chapter_id=ch.id)
+    db.commit()
+
+    other = Tenant(slug="other", name="Other", agenda_future_days=7)
+    db.add(other)
+    db.commit()
+
+    _, j = _agenda(client, ch.slug)
+    assert [e["name_nl"] for e in j["upcoming"]] == ["Season"]
 
 
 def test_event_ending_one_minute_ago_is_past(db, client):
@@ -66,12 +130,6 @@ def test_event_ending_one_minute_ago_is_past(db, client):
     _, j = _agenda(client, ch.slug)
     assert "JustEnded" in [x["name_nl"] for x in j["past"]]
     assert "JustEnded" not in [x["name_nl"] for x in j["upcoming"]]
-
-
-def test_cutoff_is_first_of_last_month():
-    assert _last_full_month_start(datetime(2026, 7, 8, 12, 30)) == datetime(2026, 6, 1)
-    # January rolls back across the year boundary.
-    assert _last_full_month_start(datetime(2026, 1, 15)) == datetime(2025, 12, 1)
 
 
 # --- exclusions -----------------------------------------------------------
@@ -195,12 +253,20 @@ def test_reserved_slugs_cover_every_first_level_route(db):
     """The dev server splits ``/{tenant}/{second}`` on the same set. If
     a route is added to the SPA without adding it here, a chapter can
     already be holding that slug and would shadow the new page."""
-    assert {"events", "forms", "datepolls", "chores", "users", "chapters", "login"} <= RESERVED_SLUGS
+    assert {
+        "events",
+        "forms",
+        "datepolls",
+        "chores",
+        "users",
+        "chapters",
+        "settings",
+        "login",
+    } <= RESERVED_SLUGS
 
 
 def test_two_organisations_may_each_have_an_amsterdam(db):
     """The reason the agenda moved under its organisation."""
-    from backend.models import Tenant
     from backend.services import tenancy
 
     ours = chapters_svc.create(db, name="Amsterdam")

@@ -91,7 +91,7 @@ function askArchive(r: RosterListOut) {
 <template>
   <template v-if="auth.needsChapters">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <h1>{{ t("chores.list.title") }}</h1>
       <p class="muted">{{ t("chores.list.intro") }}</p>
       <AppCard>

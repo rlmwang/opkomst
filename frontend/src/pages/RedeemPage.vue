@@ -34,7 +34,7 @@ onMounted(async () => {
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard v-if="error">
       <h1>{{ t("auth.linkExpiredTitle") }}</h1>
       <p class="muted">{{ error }}</p>

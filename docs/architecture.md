@@ -106,6 +106,7 @@ All under `/api/v1/`.
 | RedeemPage | `/auth/redeem?token=` | public (one-shot magic-link landing) |
 | DashboardPage | `/events` | required (events list with search + skeleton loading) |
 | AdminPage | `/admin` | admin (chapters + users with city picker, search, skeleton loading) |
+| SettingsPage | `/settings` | approved reads, admin writes (organisation settings; today the agenda's rolling window) |
 | EventFormPage | `/events/new`, `/events/:id/edit` | approved (locale picker, draft persisted to localStorage) |
 | EventDetailsPage | `/events/:id/details` | approved (overview + read-only occurrence list with per-occurrence signups + per-submission CSV export) |
 | ArchivedEventsPage | `/events/archived` | approved |
@@ -188,6 +189,16 @@ URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
   tenant among live rows. `chapters.slug` stays globally unique — the
   agenda at `/e/{slug}` carries no tenant, so two organisations cannot
   both own `amsterdam`; the existing suffixer hands out `amsterdam-2`.
+- **What a tenant sets for itself.** `TENANTS` decides which
+  organisations exist; the organisation decides how it publishes.
+  `tenants.agenda_future_days` / `agenda_past_days` (1..365, default
+  31 / 60) are the two ends of the rolling window its chapters'
+  public agendas show, read by `services/agenda.build_agenda` off the
+  chapter's own tenant and edited by its admins at `/settings`
+  (`routers/tenant_settings.py`, gated through `permissions.can`).
+  An occurrence outside the window still exists and is still reachable
+  by its own link; widening the window surfaces it, because events are
+  materialised further ahead than they are shown.
 - **Which tenants exist is configuration.** `TENANTS=rsp:RSP,rood:ROOD`
   is the source of truth; `services/tenants.sync_from_env` reconciles
   the table to it in the CLI preamble, which the Dockerfile chains

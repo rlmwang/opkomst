@@ -44,7 +44,7 @@ const { t } = useI18n();
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard tag="form" novalidate @submit.prevent="emit('submit')">
       <h1>{{ title }}</h1>
       <slot />

@@ -77,8 +77,9 @@ question rather than taken unilaterally.
 
 ### 2. Shorter measure inside cards
 
-The content column is 720px. At the body size that is roughly 90 to 100
-characters a line, above the 50 to 75 that readability work converges
+The content column is 1120px (`.container-wide`; the public-facing
+forms keep the 720px `.container`). At the body size either is well
+above the 50 to 75 characters a line that readability work converges
 on. The column width is right for the page's layout, but the text
 inside a card does not have to fill it.
 
@@ -202,14 +203,14 @@ signal there is.
 Not rejected, fixed. `AppHeader` was a bar spanning the window, so on a
 wide screen the logo and the menu sat at the far edges, which is exactly
 where the rails are, while every organiser page below is a centred
-720px column. Reading the header therefore meant looking out to the
-margins and back.
+column. Reading the header therefore meant looking out to the margins
+and back.
 
 The bar still spans the window for its background and its bottom rule,
-but its contents are capped at 720px and centred, with horizontal
-padding matched to `.container` so the logo lines up with the cards
-below it. The two catalog pages already constrained their own headers
-and needed no change.
+but its contents are capped and centred at the same width as the page,
+with horizontal padding matched to `.container-wide` so the logo lines
+up with the cards below it. The two catalog pages already constrained
+their own headers and needed no change.
 
 ## What to measure
 

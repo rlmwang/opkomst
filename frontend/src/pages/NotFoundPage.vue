@@ -8,7 +8,7 @@ const { t } = useI18n();
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard :stack="false">
       <h1>{{ t("notFound.title") }}</h1>
       <p>{{ t("notFound.body") }}</p>

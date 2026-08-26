@@ -24,7 +24,10 @@ export type Action =
   | "create_chapter"
   | "patch_chapter"
   | "archive_chapter"
-  | "restore_chapter";
+  | "restore_chapter"
+  // The organisation's own settings
+  | "read_settings"
+  | "update_settings";
 
 const ADMIN_ONLY = new Set<Action>([
   "approve_user",
@@ -34,18 +37,20 @@ const ADMIN_ONLY = new Set<Action>([
   "patch_chapter",
   "archive_chapter",
   "restore_chapter",
+  "update_settings",
 ]);
 
 const SELF_OR_ADMIN = new Set<Action>(["rename_user", "set_user_chapters"]);
 
-const ANY_APPROVED = new Set<Action>(["list_users"]);
+const ANY_APPROVED = new Set<Action>(["list_users", "read_settings"]);
 
 export function can(actor: User | null, action: Action, target?: User | null): boolean {
   if (!actor || !actor.is_approved) return false;
 
-  // Every action here is about other people or about chapters, and a
-  // personal account has one person and no chapters. The backend says
-  // the same thing one step earlier: those routes 404 for it.
+  // Every action here is about other people, about chapters, or about
+  // settings an organisation shares, and a personal account has one
+  // person and no chapters. The backend says the same thing one step
+  // earlier: those routes 404 for it.
   if (actor.tenant_kind === "personal") return false;
 
   const isAdmin = actor.role === "admin";

@@ -34,6 +34,9 @@ export type StartDatepoll = S["StartDatepoll"];
 export type StartRoster = S["StartRoster"];
 export type Started = S["StartedOut"];
 
+// --- Organisation settings ---
+export type TenantSettings = S["TenantSettingsOut"];
+
 // --- Chapters ---
 export type Chapter = S["ChapterOut"];
 export type ChapterCreate = S["ChapterCreate"];

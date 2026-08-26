@@ -57,7 +57,7 @@ async function submit() {
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard v-if="linkInvalid">
       <h1>{{ t("auth.linkExpiredTitle") }}</h1>
       <p class="muted">{{ t("auth.linkExpired") }}</p>

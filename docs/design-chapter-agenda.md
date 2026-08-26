@@ -139,19 +139,22 @@ auto-suggested from the name, editable, validated.
 "Now" and the past cutoff both move, so the split is computed per
 request against Amsterdam wall-clock:
 
-- **Upcoming**: `archived_at IS NULL AND listed IS TRUE AND ends_at >= now`,
-  ordered `starts_at ASC`. An event happening right now counts as
-  upcoming until it ends.
-- **Past**: `archived_at IS NULL AND listed IS TRUE AND ends_at < now AND starts_at >= last_full_month_start`,
-  ordered `starts_at DESC`.
+- **Upcoming**: `archived_at IS NULL AND listed IS TRUE AND ends_at >= now
+  AND starts_at <= now + agenda_future_days`, ordered `starts_at ASC`. An
+  event happening right now counts as upcoming until it ends.
+- **Past**: `archived_at IS NULL AND listed IS TRUE AND ends_at < now AND
+  starts_at >= now - agenda_past_days`, ordered `starts_at DESC`.
 
-`last_full_month_start` is the first day of the previous calendar month
-(the current month is not yet "full"):
+Both ends are days, and both belong to the owning tenant
+(`tenants.agenda_future_days` / `agenda_past_days`, 1..365, default
+31 / 60), edited by its admins at `/settings`. An organisation that
+programmes a season ahead widens the window; one that runs a weekly
+meeting narrows it.
 
 ```
-now = 2026-07-08  ->  last full month = June  ->  cutoff = 2026-06-01 00:00
-  upcoming: every live event ending on/after 2026-07-08
-  past:     live events that ended before now, back to 2026-06-01
+now = 2026-07-08, window = 31 ahead / 60 back
+  upcoming: live occurrences ending on/after now, starting by 2026-08-08
+  past:     live occurrences that ended before now, back to 2026-05-09
 ```
 
 The window is rolling: it always covers the last full calendar month

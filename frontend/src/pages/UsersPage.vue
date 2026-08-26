@@ -275,7 +275,7 @@ async function submitUserEdit() {
 
 <template>
   <AppHeader />
-  <div class="container stack">
+  <div class="container-wide stack">
     <h1>{{ t("admin.usersTitle") }}</h1>
     <p class="muted">{{ t("admin.usersIntro") }}</p>
 

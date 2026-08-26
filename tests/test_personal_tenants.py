@@ -77,6 +77,7 @@ def _event_payload(**over: Any) -> dict[str, Any]:
         ("get", "/api/v1/admin/users/pending-count"),
         ("get", "/api/v1/chapters"),
         ("post", "/api/v1/chapters"),
+        ("get", "/api/v1/settings"),
         ("get", "/api/v1/whatsapp/status"),
     ],
 )

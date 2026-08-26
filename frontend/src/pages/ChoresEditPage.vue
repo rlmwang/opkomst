@@ -399,7 +399,7 @@ async function submit() {
 <template>
   <template v-if="notFound">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <AppCard>
         <h2>{{ t("chores.edit.notFoundTitle") }}</h2>
         <p class="muted">{{ t("chores.edit.notFoundBody") }}</p>
@@ -410,7 +410,7 @@ async function submit() {
 
   <template v-else-if="otherError">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <AppCard>
         <p>{{ t("chores.edit.loadFailed") }}</p>
       </AppCard>

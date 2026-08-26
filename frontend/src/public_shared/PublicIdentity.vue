@@ -11,7 +11,7 @@ import { brand } from "@/lib/branding";
  *
  *     [logo] RSP          [logo] RSP
  *            (front page)        Utrecht
- *                                Utrecht (city)
+ *                                       (chapter agenda)
  */
 
 defineProps<{
@@ -19,7 +19,9 @@ defineProps<{
    * organisation. */
   eyebrow?: string;
   title: string;
-  /** Optional line under the title — a chapter's city. */
+  /** Optional line under the title — the house brand's tagline on the
+   * personal front page. A chapter agenda names the chapter and stops
+   * there. */
   subtitle?: string | null;
 }>();
 

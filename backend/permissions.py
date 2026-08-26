@@ -21,8 +21,8 @@ themselves out of admin (mirrors the existing 409
 self-demotion rule), or delete their own account.
 
 Read endpoints are open to every approved user: the chapter
-list, the user list, /me. There is no "see only your own row"
-mode — peers seeing each other is consistent with the
+list, the user list, /me, the organisation's settings. There is
+no "see only your own row" mode — peers seeing each other is consistent with the
 project's organising mission and matches how the dashboard
 treats events (every approved user sees every event in their
 chapter set).
@@ -53,6 +53,10 @@ class Action(StrEnum):
     ARCHIVE_CHAPTER = "archive_chapter"
     RESTORE_CHAPTER = "restore_chapter"
 
+    # The organisation's own settings
+    READ_SETTINGS = "read_settings"
+    UPDATE_SETTINGS = "update_settings"
+
 
 # Admin-only actions: pure role gate, no self-service branch.
 _ADMIN_ONLY: frozenset[Action] = frozenset(
@@ -64,6 +68,7 @@ _ADMIN_ONLY: frozenset[Action] = frozenset(
         Action.PATCH_CHAPTER,
         Action.ARCHIVE_CHAPTER,
         Action.RESTORE_CHAPTER,
+        Action.UPDATE_SETTINGS,
     }
 )
 
@@ -71,7 +76,7 @@ _ADMIN_ONLY: frozenset[Action] = frozenset(
 # accounts page surface. The matrix still funnels these through
 # ``can`` so the gate is consistent and unauthenticated /
 # unapproved actors are blocked uniformly upstream.
-_ANY_APPROVED: frozenset[Action] = frozenset({Action.LIST_USERS})
+_ANY_APPROVED: frozenset[Action] = frozenset({Action.LIST_USERS, Action.READ_SETTINGS})
 
 # Self-service actions: admin OR ``target == actor``. The
 # target field is required for these — passing ``None`` for a
@@ -95,8 +100,9 @@ def can(actor: User, action: Action, target: User | None = None, *, tenant_kind:
 
     Every action in this matrix is about *other people* — approving
     them, renaming them, sorting them into chapters — or about the
-    chapters themselves. A personal tenant holds one person and no
-    chapters, so none of it applies: one rule ahead of the role checks,
+    chapters and settings an organisation shares. A personal tenant
+    holds one person, no chapters and no public agenda to bound, so
+    none of it applies: one rule ahead of the role checks,
     rather than a branch inside each of them. ``tenant_kind`` is a
     parameter rather than a read off ``actor.tenant`` so this module
     keeps taking only typed inputs and stays testable without a DB."""

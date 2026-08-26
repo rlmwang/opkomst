@@ -65,14 +65,20 @@
     padding: 1rem 0;
   }
 
+  /* The narrow column: the public-facing forms a stranger fills in —
+   * the sign-up, form, datepoll and chore mini-apps, and the feedback
+   * questionnaire. One question at a time reads better in a short
+   * line, and none of them lay anything out in a grid. */
   .container {
     max-width: 720px;
     margin: 0 auto;
     padding: 1.5rem 1rem;
   }
 
-  /* Wider column for grid layouts (the public chapter agenda). Same
-   * centring + padding as ``.container``, just a roomier cap. */
+  /* The app's column: every organiser page and both landing pages.
+   * Same centring + padding as ``.container``, a roomier cap. The
+   * organiser app is one width throughout — a page that narrowed or
+   * widened as you moved through it read as a different site. */
   .container-wide {
     max-width: 1120px;
     margin: 0 auto;
@@ -325,7 +331,7 @@
    * stretch closer to the viewport edges, and shrink the heading
    * sizes one notch so they fit the narrower frame. */
   @media (max-width: 480px) {
-    .container { padding: 1rem 0.75rem; }
+    .container, .container-wide { padding: 1rem 0.75rem; }
     .card { padding: 1rem; }
     h1 { font-size: 1.25rem; }
     h2 { font-size: 1rem; }

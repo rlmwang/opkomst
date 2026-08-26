@@ -19,7 +19,7 @@ onMounted(() => {
 
 <template>
   <AppHeader />
-  <div class="container">
+  <div class="container-wide">
     <AppCard>
       <template v-if="!sent">
         <h1>{{ t("auth.login") }}</h1>

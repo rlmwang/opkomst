@@ -1,15 +1,20 @@
 """Public chapter-agenda read model.
 
 ``build_agenda`` turns a chapter into its ``ChapterAgendaOut``: the
-upcoming **occurrences** (materialised, not yet ended, within a rolling
-one-month display window) and a recent-past section going back to the
-start of the last full calendar month. Both filter on the event's
-``listed IS TRUE`` and ``archived_at IS NULL``. A bi-weekly course
-therefore shows at most a couple of cards at a time. Times are naive
-Europe/Amsterdam wall-clock, matching how occurrences are stored.
+upcoming **occurrences** (materialised, not yet ended) and a
+recent-past section, both inside a rolling window the owning tenant
+sets — ``agenda_future_days`` forward and ``agenda_past_days`` back,
+edited at ``/settings`` (``routers/tenant_settings.py``). Both filter
+on the event's ``listed IS TRUE`` and ``archived_at IS NULL``. Times
+are naive Europe/Amsterdam wall-clock, matching how occurrences are
+stored.
+
+The window is deliberately not the materialisation horizon: events
+are materialised further out than they are shown, so widening the
+window here surfaces occurrences that already exist.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -19,20 +24,6 @@ from ..schemas.chapters import ChapterPublicOut
 from . import event_recurrence, event_stats
 from . import image as image_svc
 from .events import now_wallclock
-
-# How far ahead the agenda shows occurrences. Separate from (and shorter
-# than) the materialisation horizon — the display window bounds the grid
-# so a weekly series doesn't flood the page.
-DISPLAY_HORIZON = timedelta(days=31)
-
-
-def _last_full_month_start(now: datetime) -> datetime:
-    """First day (00:00) of the previous calendar month. The current
-    month isn't 'full' yet, so the past window's floor is last month's
-    first day; on 2026-07-08 that's 2026-06-01."""
-    first_of_this_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_of_prev_month = first_of_this_month - timedelta(days=1)
-    return last_of_prev_month.replace(day=1)
 
 
 def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
@@ -56,7 +47,12 @@ def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
 
 def build_agenda(db: Session, chapter: Chapter) -> ChapterAgendaOut:
     now = now_wallclock()
-    cutoff = _last_full_month_start(now)
+    # The chapter's own tenant, never the bound one: this is a public
+    # read and the URL is what resolved the chapter, so the window has
+    # to come from the row the page is actually about.
+    tenant = chapter.tenant
+    horizon = now + timedelta(days=tenant.agenda_future_days)
+    cutoff = now - timedelta(days=tenant.agenda_past_days)
 
     base = (
         db.query(Occurrence)
@@ -75,7 +71,7 @@ def build_agenda(db: Session, chapter: Chapter) -> ChapterAgendaOut:
         )
     )
     upcoming = (
-        base.filter(Occurrence.ends_at >= now, Occurrence.starts_at <= now + DISPLAY_HORIZON)
+        base.filter(Occurrence.ends_at >= now, Occurrence.starts_at <= horizon)
         .order_by(Occurrence.starts_at.asc())
         .all()
     )

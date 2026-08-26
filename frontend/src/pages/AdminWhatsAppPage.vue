@@ -402,7 +402,7 @@ onBeforeUnmount(() => {
 
 <template>
   <AppHeader />
-  <div class="container wa-container stack">
+  <div class="container-wide wa-container stack">
     <h1>{{ t("whatsapp.title") }}</h1>
     <p class="muted">{{ t("whatsapp.lede") }}</p>
 

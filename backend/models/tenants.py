@@ -1,11 +1,22 @@
 from datetime import datetime
 from typing import Literal
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Text, text
+from sqlalchemy import CheckConstraint, DateTime, Index, Integer, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
 from ..mixins import TimestampMixin, UUIDMixin
+
+# How far the public chapter agenda looks in each direction, in days.
+# Both ends are the tenant's to set (``routers/tenant_settings.py``);
+# these are what a tenant starts with and the range it may pick from.
+# The rule they feed lives in ``services/agenda.py``.
+AGENDA_FUTURE_DAYS_DEFAULT = 31
+AGENDA_PAST_DAYS_DEFAULT = 60
+# One day is the tightest useful window (today only); a year is the
+# widest that still reads as an agenda rather than an archive.
+AGENDA_WINDOW_MIN_DAYS = 1
+AGENDA_WINDOW_MAX_DAYS = 365
 
 
 class Tenant(UUIDMixin, TimestampMixin, Base):
@@ -49,6 +60,25 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
+    # The two ends of the public agenda's rolling window. An
+    # organisation that programmes a season wants to publish months
+    # ahead; one that runs a weekly meeting wants the next few. Same
+    # unit in both directions, so the page is one rule read twice.
+    # A personal tenant has no chapters and therefore no agenda, so
+    # these sit unread on its row rather than being made nullable.
+    agenda_future_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=AGENDA_FUTURE_DAYS_DEFAULT,
+        server_default=text(str(AGENDA_FUTURE_DAYS_DEFAULT)),
+    )
+    agenda_past_days: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=AGENDA_PAST_DAYS_DEFAULT,
+        server_default=text(str(AGENDA_PAST_DAYS_DEFAULT)),
+    )
+
     __table_args__ = (
         # Live-scoped, like every other unique index in the app: a
         # soft-deleted tenant frees its slug for a fresh one.
@@ -65,6 +95,14 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
             postgresql_where=text("deleted_at IS NULL"),
         ),
         CheckConstraint("kind IN ('organisation', 'personal')", name="ck_tenants_kind"),
+        CheckConstraint(
+            f"agenda_future_days BETWEEN {AGENDA_WINDOW_MIN_DAYS} AND {AGENDA_WINDOW_MAX_DAYS}",
+            name="ck_tenants_agenda_future_days",
+        ),
+        CheckConstraint(
+            f"agenda_past_days BETWEEN {AGENDA_WINDOW_MIN_DAYS} AND {AGENDA_WINDOW_MAX_DAYS}",
+            name="ck_tenants_agenda_past_days",
+        ),
     )
 
     @property
