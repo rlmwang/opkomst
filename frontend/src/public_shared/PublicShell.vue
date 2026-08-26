@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { watch } from "vue";
+import AdSlot from "./AdSlot.vue";
 import BrandMark from "./BrandMark.vue";
 import PublicToast from "./PublicToast.vue";
 import type { Locale } from "./strings";
@@ -14,7 +15,7 @@ const locale = defineModel<Locale>("locale", { required: true });
 
 // The sign-up / fill pages use the narrow 720px column; the chapter
 // agenda opts into a wider ~1120px container for its card grid.
-defineProps<{ wide?: boolean }>();
+defineProps<{ wide?: boolean; hideAds?: boolean }>();
 
 watch(locale, (l) => {
   document.documentElement.lang = l;
@@ -51,6 +52,10 @@ watch(locale, (l) => {
     </header>
 
     <slot />
+
+    <!-- Advertising, on the pages that carry any. ``AdSlot`` decides:
+         organisation-branded pages get nothing at all. -->
+    <AdSlot :locale="locale" :hide="hideAds" />
   </div>
 </template>
 

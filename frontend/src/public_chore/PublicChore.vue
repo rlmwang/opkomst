@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import SupportButtons from "@/public_shared/SupportButtons.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
@@ -534,6 +535,7 @@ async function leave(): Promise<void> {
       <p v-if="errorMsg" class="error">{{ errorMsg }}</p>
 
       <div v-if="status === 'enrol'" class="submit-row">
+        <SupportButtons />
         <button type="button" class="btn-primary" :disabled="busy" @click="enrol">
           {{ ch.enrolButton }}
         </button>

@@ -258,7 +258,22 @@ def _nonce(request: Request) -> str:
     return request.state.csp_nonce
 
 
-def _serve_admin_shell(tenant_slug: str, nonce: str, *, status_code: int = 200) -> HTMLResponse:
+def _allow_ads(request: Request, brand_slug: str) -> None:
+    """Say whether this response may carry advertising, for
+    ``SecurityHeadersMiddleware`` to pick the CSP from (see
+    ``docs/ads.md``).
+
+    Two conditions, both required. Only pages no organisation owns may
+    ever carry ads, and the brand the page wears is exactly that
+    question, already answered. And only a deployment that has been
+    given an ``ADSENSE_CLIENT_ID`` serves an ad script at all: without
+    one the slot renders a committed image, no Google code loads, no
+    consent dialog appears and no cookie is set, so there is nothing to
+    open the policy for."""
+    request.state.ads_allowed = brand_slug == brand_svc.HOUSE_BRAND and settings.adsense_client_id is not None
+
+
+def _serve_admin_shell(tenant_slug: str, request: Request, *, status_code: int = 200) -> HTMLResponse:
     """The organiser SPA shell, wearing the brand of the organisation
     whose slug opened the URL. Served for every path under a live
     tenant so the client-side router can take over; the injected brand
@@ -270,10 +285,11 @@ def _serve_admin_shell(tenant_slug: str, nonce: str, *, status_code: int = 200) 
 
     ``index.html`` MUST NOT be browser-cached — see the note in
     ``_spa_fallback``."""
+    _allow_ads(request, tenant_slug)
     rendered = (
         (_DIST / "index.html")
         .read_text(encoding="utf-8")
-        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug, nonce), 1)
+        .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug, _nonce(request)), 1)
     )
     return HTMLResponse(rendered, status_code=status_code, headers={"Cache-Control": "no-store"})
 
@@ -286,7 +302,7 @@ def _serve_public_app(
     payload: object | None,
     head_meta: str,
     brand_slug: str,
-    nonce: str,
+    request: Request,
 ) -> HTMLResponse:
     """Render one public mini-app shell with its payload inlined.
 
@@ -311,7 +327,9 @@ def _serve_public_app(
     organiser shell, uncached."""
     public_html_path = _DIST / html_name
     if not public_html_path.is_file():
-        return _serve_admin_shell(brand_slug, nonce)
+        return _serve_admin_shell(brand_slug, request)
+    _allow_ads(request, brand_slug)
+    nonce = _nonce(request)
     inlined = f'<script nonce="{nonce}">window.{window_var} = ' + json.dumps(payload, ensure_ascii=False) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
@@ -366,7 +384,7 @@ def _brand_slug_for(db: Session, entity: object | None) -> str:
     return tenant.brand_slug if tenant is not None else brand_svc.HOUSE_BRAND
 
 
-def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
+def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLResponse:
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
     occurrence = _resolve_public(db, slug, events_svc.get_occurrence_by_slug_any)
@@ -381,11 +399,11 @@ def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
         payload=payload,
         head_meta=_build_head_meta(occurrence, slug, brand_slug),
         brand_slug=brand_slug,
-        nonce=nonce,
+        request=request,
     )
 
 
-def _serve_public_form(slug: str, db: Session, nonce: str) -> HTMLResponse:
+def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse:
     # Archived/unknown forms inline null; the mini-app shows the same
     # "no longer available" state it would on a 410.
     form = _resolve_public(db, slug, forms_svc.get_form_by_slug_any)
@@ -398,11 +416,11 @@ def _serve_public_form(slug: str, db: Session, nonce: str) -> HTMLResponse:
         payload=payload,
         head_meta=_build_form_head_meta(form, slug, brand_slug),
         brand_slug=brand_slug,
-        nonce=nonce,
+        request=request,
     )
 
 
-def _serve_public_datepoll(slug: str, db: Session, nonce: str) -> HTMLResponse:
+def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResponse:
     # Archived/unknown polls inline null, same as forms.
     poll = _resolve_public(db, slug, datepolls_svc.get_datepoll_by_slug_any)
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
@@ -414,11 +432,11 @@ def _serve_public_datepoll(slug: str, db: Session, nonce: str) -> HTMLResponse:
         payload=payload,
         head_meta=_build_datepoll_head_meta(poll, slug, brand_slug),
         brand_slug=brand_slug,
-        nonce=nonce,
+        request=request,
     )
 
 
-def _serve_public_roster(slug: str, db: Session, nonce: str) -> HTMLResponse:
+def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLResponse:
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = _resolve_public(db, slug, chores_svc.get_roster_by_slug_any)
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
@@ -430,11 +448,11 @@ def _serve_public_roster(slug: str, db: Session, nonce: str) -> HTMLResponse:
         payload=payload,
         head_meta=_build_roster_head_meta(roster, slug, brand_slug),
         brand_slug=brand_slug,
-        nonce=nonce,
+        request=request,
     )
 
 
-def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, nonce: str, brand_slug: str) -> HTMLResponse:
+def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, brand_slug: str) -> HTMLResponse:
     """The organisation's agenda for one of its chapters, at
     ``/{tenant}/{chapter}``. The caller has already resolved both — the
     tenant from the first path segment, the chapter within it — so the
@@ -447,7 +465,7 @@ def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, nonce: str, 
         payload=payload,
         head_meta=_build_chapter_head_meta(chapter, slug, brand_slug),
         brand_slug=brand_slug,
-        nonce=nonce,
+        request=request,
     )
 
 
@@ -464,19 +482,19 @@ def mount(app: FastAPI) -> None:
 
     @app.get("/e/{slug}", include_in_schema=False)
     def _public_event(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_event(slug, db, _nonce(request))
+        return _serve_public_event(slug, db, request)
 
     @app.get("/f/{slug}", include_in_schema=False)
     def _public_form(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_form(slug, db, _nonce(request))
+        return _serve_public_form(slug, db, request)
 
     @app.get("/d/{slug}", include_in_schema=False)
     def _public_datepoll(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_datepoll(slug, db, _nonce(request))
+        return _serve_public_datepoll(slug, db, request)
 
     @app.get("/c/{slug}", include_in_schema=False)
     def _public_roster(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-        return _serve_public_roster(slug, db, _nonce(request))
+        return _serve_public_roster(slug, db, request)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def _spa_fallback(full_path: str, request: Request, db: Session = Depends(get_db)) -> Response:
@@ -513,7 +531,7 @@ def mount(app: FastAPI) -> None:
             # ``/``. Its router resolves ``/events``, ``/login`` and the
             # rest, and renders its own not-found page for anything it
             # doesn't know — which is why this is a 200 and not a 404.
-            return _serve_admin_shell(brand_svc.HOUSE_BRAND, _nonce(request))
+            return _serve_admin_shell(brand_svc.HOUSE_BRAND, request)
 
         # Inside the organisation now, so chapter reads are scoped to it.
         tenancy.bind(tenant.id, tenant.brand_slug)
@@ -521,5 +539,5 @@ def mount(app: FastAPI) -> None:
         second = rest.split("/", 1)[0]
         chapter = chapters_svc.find_live_by_slug(db, second) if second else None
         if chapter is not None:
-            return _serve_public_chapter(chapter, second, db, _nonce(request), tenant.slug)
-        return _serve_admin_shell(tenant.slug, _nonce(request))
+            return _serve_public_chapter(chapter, second, db, request, tenant.slug)
+        return _serve_admin_shell(tenant.slug, request)

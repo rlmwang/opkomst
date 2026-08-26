@@ -46,6 +46,20 @@ export interface ChromeStrings {
   explainerTitle: string;
   explainerBody: string;
   explainerLink: string;
+  /** Names the ad slot for screen readers and as the fallback image's
+   *  alt text. */
+  adLabel: string;
+  /** Added to the disclosure only while an ad network is actually
+   *  configured. Without one the slot is a static image we host and
+   *  ``explainerBody`` is true as written. */
+  adDisclosure: string;
+  /** What the slot says when it is not showing an ad and there is
+   *  nothing to ask for either. */
+  adNone: string;
+  /** What the slot says when it is not showing an ad and there is
+   *  somewhere to support the project. The two service names on the
+   *  buttons are brands and stay in English in both languages. */
+  supportHeading: string;
   imageCredit: string;
   editPrompt: string;
   editWarning: string;
@@ -77,6 +91,11 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerTitle: "Privacy & open source",
     explainerBody: "We slaan geen e-mailadres of tracking op. De code is open source:",
     explainerLink: "bekijk de broncode",
+    adLabel: "Advertentie",
+    adDisclosure:
+      "Op deze pagina staat één advertentie van Google. Die zet cookies, en je kunt zelf kiezen wat je toestaat.",
+    adNone: "Geen advertenties",
+    supportHeading: "Help je mee dit advertentievrij te houden?",
     imageCredit: "Ontwerp:",
     editPrompt: "Bewaar deze link om dit later aan te passen:",
     editWarning:
@@ -105,6 +124,11 @@ const chrome: Record<Locale, ChromeStrings> = {
     explainerTitle: "Privacy & open source",
     explainerBody: "We store no email address and no tracking. The code is open source:",
     explainerLink: "view the source",
+    adLabel: "Advertisement",
+    adDisclosure:
+      "This page carries one advertisement from Google. It sets cookies, and you choose what you allow.",
+    adNone: "No ads",
+    supportHeading: "Want to help us keep this ad free?",
     imageCredit: "Design:",
     editPrompt: "Save this link to change this later:",
     editWarning: "Save it before you close this page. Lost it? An organiser can mint a new one.",

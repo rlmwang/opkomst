@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import Disclosure from "@/public_shared/Disclosure.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
+import SupportButtons from "@/public_shared/SupportButtons.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
@@ -244,7 +245,7 @@ async function withdraw(): Promise<void> {
 </script>
 
 <template>
-  <PublicShell v-model:locale="locale">
+  <PublicShell v-model:locale="locale" :hide-ads="status === 'submitted' || status === 'withdrawn'">
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
@@ -347,6 +348,10 @@ async function withdraw(): Promise<void> {
             @revert="revert"
             @withdraw="withdraw"
           />
+          <!-- This page's primary action is full width rather than a
+               right-aligned row, so the ask sits under it on the left
+               instead of beside it. -->
+          <SupportButtons class="support-row" />
         </div>
       </template>
     </template>
@@ -354,6 +359,9 @@ async function withdraw(): Promise<void> {
 </template>
 
 <style scoped>
+.support-row {
+  margin-top: 1rem;
+}
 .intro-text { color: var(--brand-text-muted); margin-right: auto; }
 /* Text boxes use the shared ``.input`` (forms.css). */
 .name-card { display: flex; flex-direction: column; gap: 0.625rem; }

@@ -8,7 +8,28 @@
  * folder in ``brands/`` plus a row, with no rebuild.
  */
 
+/** What the house brand's advertising slot needs. Null on every brand
+ *  an organisation owns, which is how a page knows it carries none.
+ *  ``client_id`` is null until a deployment is given one, and then no
+ *  network script, consent dialog or cookie is involved at all: the
+ *  slot renders ``fallback_*_url`` instead. See ``docs/ads.md``. */
+export interface BrandAds {
+  client_id: string | null;
+  rail_slot: string | null;
+  banner_slot: string | null;
+  /** Offered in the slot when no ad is served. Each service's own
+   *  button artwork, committed to ``brands/`` and served from this app
+   *  rather than from their CDNs, wrapped in an ordinary link: no embed
+   *  widget, no third-party request, no CSP hole. The two URLs are
+   *  optional and independent; the button images ship with the brand. */
+  coffee_url: string | null;
+  coffee_button_url: string | null;
+  patreon_url: string | null;
+  patreon_button_url: string | null;
+}
+
 export interface Brand {
+  ads: BrandAds | null;
   slug: string;
   /** Where the app is mounted: the router's history base. ``/{tenant}/``
    * for an organisation, ``/`` for the house brand, which is the

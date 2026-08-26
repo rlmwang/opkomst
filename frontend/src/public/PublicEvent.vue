@@ -3,6 +3,7 @@ import { computed, ref, watch, watchEffect } from "vue";
 import { formatDate, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { isValidEmail } from "@/lib/validate";
+import SupportButtons from "@/public_shared/SupportButtons.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
@@ -482,7 +483,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <PublicShell v-model:locale="locale">
+  <PublicShell v-model:locale="locale" :hide-ads="submitted || withdrawn">
     <PublicNotice v-if="loadFailed" :message="c.loadFailed" />
 
     <PublicNotice v-else-if="notFound" :message="c.unavailable" />
@@ -666,6 +667,7 @@ watchEffect(() => {
         <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
 
         <div class="submit-row">
+          <SupportButtons />
           <button type="submit" class="btn-primary" :disabled="submitting" :aria-busy="submitting">
             <span class="btn-label" :class="{ hidden: submitting }">{{ t.submit }}</span>
             <span v-if="submitting" class="btn-spinner" aria-hidden="true">

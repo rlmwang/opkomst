@@ -3,6 +3,7 @@ import Button from "primevue/button";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
+import SupportButtons from "@/public_shared/SupportButtons.vue";
 
 /**
  * Shared shell for "managed resource" edit pages — EventFormPage
@@ -48,6 +49,9 @@ const { t } = useI18n();
       <h1>{{ title }}</h1>
       <slot />
       <div class="form-footer">
+        <!-- An aside, opposite the primary action: it asks, it does not
+             compete. Renders nothing unless a support URL is set. -->
+        <SupportButtons class="form-footer-support" />
         <Button
           :label="cancelLabel ?? t('common.cancel')"
           severity="secondary"
@@ -66,8 +70,14 @@ const { t } = useI18n();
  * the footer doesn't feel glued to the last section. */
 .form-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 1.5rem;
+}
+/* Pushes everything after it to the right, so the row is support on the
+ * left and the actions on the right however many buttons there are. */
+.form-footer-support {
+  margin-right: auto;
 }
 </style>

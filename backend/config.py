@@ -106,6 +106,23 @@ class Settings(BaseSettings):
     github_images_branch: str = "main"
     github_images_token: _OptionalSecret = None
 
+    # Advertising on the house-brand pages (see ``docs/ads.md``). All
+    # three unset is the normal state and means no ad script is served:
+    # the slot renders the committed fallback image instead. Ads only
+    # ever appear on pages an organisation does not own, which
+    # ``services/brand.py`` decides, not these values.
+    adsense_client_id: _OptionalStr = None
+    adsense_slot_rail: _OptionalStr = None
+    adsense_slot_banner: _OptionalStr = None
+
+    # What the slot offers instead of an ad, when there is no ad. Both
+    # optional and independent: give one, the other, or neither. They
+    # are rendered as ordinary links, never as either service's embed
+    # widget, so nothing here loads third-party code or needs the CSP
+    # opened.
+    support_coffee_url: _OptionalStr = None
+    support_patreon_url: _OptionalStr = None
+
     sentry_dsn: _OptionalStr = None
     sentry_environment: str = "production"
     sentry_traces_sample_rate: float = 0.0

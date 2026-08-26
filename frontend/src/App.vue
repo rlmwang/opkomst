@@ -3,6 +3,8 @@ import ConfirmDialog from "primevue/confirmdialog";
 import Toast from "primevue/toast";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import AdSlot from "@/public_shared/AdSlot.vue";
+import { useI18n } from "vue-i18n";
 
 // Auth bootstrapping lives in the router guard — it's the one
 // place that knows which routes need auth state. App.vue used to
@@ -19,6 +21,7 @@ import { useRouter } from "vue-router";
 // loading indicator over that gap instead of a blank page. A short
 // delay keeps fast loads from flashing the spinner.
 const router = useRouter();
+const { locale } = useI18n();
 const ready = ref(false);
 const showLoader = ref(false);
 const timer = window.setTimeout(() => {
@@ -38,6 +41,10 @@ router.isReady().finally(() => {
   <ConfirmDialog :style="{ width: '420px' }" />
 
   <router-view />
+
+  <!-- Advertising, on the pages that carry any. ``AdSlot`` decides:
+       an organisation's app gets nothing at all. -->
+  <AdSlot :locale="(locale as 'nl' | 'en')" />
 
   <Transition name="app-loading-fade">
     <div v-if="!ready && showLoader" class="app-loading" role="status" aria-label="Laden…">

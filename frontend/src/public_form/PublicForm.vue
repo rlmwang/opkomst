@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import SupportButtons from "@/public_shared/SupportButtons.vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
@@ -214,7 +215,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 </script>
 
 <template>
-  <PublicShell v-model:locale="locale">
+  <PublicShell v-model:locale="locale" :hide-ads="status === 'submitted' || status === 'withdrawn'">
     <PublicNotice v-if="status === 'loading'" :message="c.loading" />
     <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
     <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
@@ -318,6 +319,7 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
         <p v-if="submitError" class="error" role="alert">{{ submitError }}</p>
 
         <div v-if="!editToken" class="submit-row">
+          <SupportButtons />
           <button type="submit" class="btn-primary" :disabled="submitting">
             {{ submitting ? c.submitting : c.submit }}
           </button>

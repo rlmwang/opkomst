@@ -62,6 +62,39 @@ CSP_TEMPLATE = (
     "object-src 'none'"
 )
 
+# The same policy with the holes advertising needs, served only for
+# pages no organisation owns (see ``docs/ads.md``). Two things force
+# each hole:
+#
+# * the ad script and Google's consent dialog load from their own hosts;
+# * the creative itself comes from whichever advertiser won the auction,
+#   and that host is not knowable in advance, so ``img-src`` and
+#   ``frame-src`` cannot be a list.
+#
+# An organisation's pages never receive this. ``routers/spa.py`` sets
+# ``request.state.ads_allowed`` from the brand it resolved, and
+# ``tests/test_ads.py`` pins that an organisation-owned page gets the
+# strict policy above.
+_AD_HOSTS = "https://pagead2.googlesyndication.com https://fundingchoicesmessages.google.com"
+CSP_ADS_TEMPLATE = (
+    CSP_TEMPLATE.replace(
+        "script-src 'self' 'nonce-{nonce}'; ",
+        f"script-src 'self' 'nonce-{{nonce}}' {_AD_HOSTS} https://*.googlesyndication.com; ",
+    )
+    .replace(
+        "img-src 'self' data: blob: ",
+        "img-src 'self' data: blob: https: ",
+    )
+    .replace(
+        "frame-ancestors 'none'; ",
+        "frame-src https:; frame-ancestors 'none'; ",
+    )
+    .replace(
+        "connect-src 'self' ",
+        "connect-src 'self' https://pagead2.googlesyndication.com https://*.googlesyndication.com ",
+    )
+)
+
 PERMISSIONS_POLICY = (
     "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
 )
@@ -74,7 +107,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         nonce = secrets.token_urlsafe(16)
         request.state.csp_nonce = nonce
         response: Response = await call_next(request)
-        response.headers["Content-Security-Policy"] = CSP_TEMPLATE.format(nonce=nonce)
+        # The route has run by now, so it has already resolved which
+        # brand the page wears and said whether this page may carry ads.
+        # Anything that never went through a page handler keeps the
+        # strict policy.
+        template = CSP_ADS_TEMPLATE if getattr(request.state, "ads_allowed", False) else CSP_TEMPLATE
+        response.headers["Content-Security-Policy"] = template.format(nonce=nonce)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

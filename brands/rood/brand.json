@@ -14,5 +14,7 @@
     "fg_muted": "#565656",
     "accent": "#c2000b",
     "border": "#e5e7eb"
-  }
+  },
+  "support_coffee_button": null,
+  "support_patreon_button": null
 }

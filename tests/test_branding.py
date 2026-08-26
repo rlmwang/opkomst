@@ -29,6 +29,12 @@ REQUIRED_KEYS = {
     "apple_touch_icon",
     "mail_from_name",
     "palette",
+    # The support buttons the advertising slot offers when it is not
+    # showing an ad. Only the house brand carries any, because only its
+    # pages ever show the slot, but every manifest names the keys so the
+    # app reads one shape everywhere.
+    "support_coffee_button",
+    "support_patreon_button",
 }
 REQUIRED_PALETTE_KEYS = {"bg", "surface", "fg", "fg_muted", "accent", "border"}
 

@@ -250,6 +250,21 @@ function brandDevInjection(): Plugin {
       const url = (file: string | null) => (file ? `/brand/${slug}/${file}` : null);
       const p = m.palette;
       const brand = {
+        // Mirrors ``brand.py::_ads``: null on an organisation's brand,
+        // and on the house brand a config with no network configured,
+        // which is the state a developer works in.
+        ads:
+          slug === HOUSE_BRAND
+            ? {
+                client_id: null,
+                rail_slot: null,
+                banner_slot: null,
+                coffee_url: process.env.SUPPORT_COFFEE_URL ?? null,
+                coffee_button_url: url(m.support_coffee_button),
+                patreon_url: process.env.SUPPORT_PATREON_URL ?? null,
+                patreon_button_url: url(m.support_patreon_button),
+              }
+            : null,
         slug,
         app_base: slug === HOUSE_BRAND ? "/" : `/${slug}/`,
         palette: p,

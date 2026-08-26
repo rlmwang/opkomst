@@ -51,6 +51,28 @@ def asset_url(slug: str, filename: str) -> str:
     return f"/brand/{slug}/{filename}"
 
 
+def _ads(slug: str) -> dict[str, Any]:
+    """The house brand's ad configuration: the AdSense identifiers when
+    the environment carries them, and the support links to offer in the
+    slot when it does not. An unset ``ADSENSE_CLIENT_ID`` is the normal
+    state, not a misconfiguration; the slot then says so in words rather
+    than sitting empty."""
+    m = manifest(slug)
+    return {
+        "client_id": settings.adsense_client_id,
+        "rail_slot": settings.adsense_slot_rail,
+        "banner_slot": settings.adsense_slot_banner,
+        # Shown in the slot when no ad is being served: each service's
+        # own button artwork, committed here and served from this app
+        # rather than from their CDNs, so an unconfigured deployment
+        # still makes no third-party request and needs no CSP hole.
+        "coffee_url": settings.support_coffee_url,
+        "coffee_button_url": asset_url(slug, m["support_coffee_button"]) if m["support_coffee_button"] else None,
+        "patreon_url": settings.support_patreon_url,
+        "patreon_button_url": asset_url(slug, m["support_patreon_button"]) if m["support_patreon_button"] else None,
+    }
+
+
 def payload(slug: str) -> dict[str, Any]:
     """What a page or an email needs to render the brand: the names, the
     org link, and both the root-relative and absolute logo URLs. Email
@@ -63,6 +85,11 @@ def payload(slug: str) -> dict[str, Any]:
     logo = asset_url(slug, m["logo"]) if m["logo"] else None
     favicon = asset_url(slug, m["favicon"]) if m["favicon"] else None
     return {
+        # ``None`` on every brand an organisation owns, which is what
+        # says "this page carries no advertising". The page reads the
+        # brand it was served with, so the rule is decided here, once,
+        # rather than by each surface remembering to ask.
+        "ads": _ads(slug) if slug == HOUSE_BRAND else None,
         "slug": slug,
         # Where the organiser app is mounted, and therefore the router's
         # history base. A tenant's app lives under its slug; the house

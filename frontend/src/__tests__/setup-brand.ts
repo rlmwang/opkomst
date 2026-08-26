@@ -14,6 +14,9 @@
 import brandManifest from "../../../brands/rsp/brand.json";
 
 window.__OPKOMST_BRAND__ = {
+  // An organisation's brand, so no advertising: the same null the
+  // server sends for every brand but the house one.
+  ads: null,
   slug: "rsp",
   app_base: "/rsp/",
   app_name: brandManifest.app_name,

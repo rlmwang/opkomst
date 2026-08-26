@@ -18,7 +18,11 @@ Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organ
 - **Encrypt write sites are an allowlist.** `tests/test_privacy.py::test_encrypted_email_writes_only_from_allowlisted_modules` keeps it tight.
 - **Feedback responses carry no signup link.** No `signup_id` column on `FeedbackResponse`.
 - **Open-source disclosure on every public sign-up form.** Never remove that copy.
-- **No third-party analytics or tracking pixels.** Ever.
+- **No third-party scripts on organisation-branded pages.** Ever. No analytics or
+  tracking pixels anywhere, on any page, in any brand. Advertising is the single
+  exception to the first half: it runs on house-brand pages only (the root app and
+  a personal account's public pages), behind a consent manager, and the CSP is
+  loosened per response for those pages alone. Design in ``docs/ads.md``; not built yet.
 
 ## Tenants
 

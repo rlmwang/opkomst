@@ -72,9 +72,16 @@
    * add their own ``margin-top``; alignment always comes from here. */
   .submit-row {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 0.75rem;
     flex-wrap: wrap;
+  }
+  /* Support buttons sit at the far left of the row and push the primary
+   * action to the right, so the thing to press stays where it has
+   * always been. */
+  .submit-row > .support-buttons {
+    margin-right: auto;
   }
 
   /* Branded checkbox — ``appearance: none`` strips the OS default so the
