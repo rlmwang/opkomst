@@ -130,6 +130,25 @@ def test_the_privacy_policy_is_not_swallowed_by_the_spa(client) -> None:
     assert "OPKOMST_BRAND_INJECTION" not in body
 
 
+def test_the_crawler_files_answer_head_as_well_as_get(client, configured) -> None:
+    """FastAPI's router, unlike Starlette's, does not add HEAD to a GET
+    route. A crawler or a link checker that probes with HEAD gets 405
+    unless the route says otherwise, and a 405 is indistinguishable
+    from a missing file to anything reading it."""
+    for path in ("/ads.txt", "/robots.txt", "/privacy"):
+        assert client.head(path).status_code == 200, path
+
+
+def test_robots_is_a_text_file_not_the_app(client) -> None:
+    """Without its own route this falls to the SPA fallback and answers
+    with HTML, which a crawler reads as an unusable file."""
+    response = client.get("/robots.txt")
+    assert response.headers["content-type"].startswith("text/plain")
+    assert response.text.startswith("User-agent:")
+    # The API and the sign-in paths are not worth a crawl budget.
+    assert "Disallow: /api/" in response.text
+
+
 def test_the_strict_policy_names_no_ad_host() -> None:
     """The regression guard for the whole feature: whatever else
     changes, the default policy every page gets stays closed."""

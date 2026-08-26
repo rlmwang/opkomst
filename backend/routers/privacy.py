@@ -31,6 +31,7 @@ router = APIRouter(tags=["privacy"], include_in_schema=False)
 _TEMPLATES = Jinja2Templates(directory=str(pathlib.Path(__file__).resolve().parent.parent / "templates"))
 
 
+@router.head("/privacy", include_in_schema=False)
 @router.get("/privacy", response_class=HTMLResponse)
 def privacy(request: Request) -> HTMLResponse:
     """The house brand's policy. Organisations using this app answer for

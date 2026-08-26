@@ -1,4 +1,11 @@
-"""``/ads.txt``: who is allowed to sell this site's inventory.
+"""``/ads.txt`` and ``/robots.txt``: the two files a crawler asks for.
+
+Both are text served from the root, both would otherwise be answered by
+the SPA fallback with the app's HTML shell, and both are read by
+machines that quietly draw the wrong conclusion from that rather than
+erroring. They share a module for that reason.
+
+``/ads.txt``: who is allowed to sell this site's inventory.
 
 The IAB file every programmatic buyer checks before bidding. It names
 the ad systems authorised to sell for this domain, and a buyer that
@@ -22,7 +29,21 @@ from fastapi.responses import PlainTextResponse
 
 from ..config import settings
 
-router = APIRouter(tags=["ads"], include_in_schema=False)
+router = APIRouter(tags=["crawlers"], include_in_schema=False)
+
+# Nothing here is secret, and the pages worth indexing are the public
+# ones. What a crawler should not spend its budget on is the organiser
+# app behind a login, the per-submission edit links, or the API. The
+# edit links matter most: they carry a secret token in the URL, and a
+# crawler that follows one out of a referrer header would put it in an
+# index.
+_ROBOTS = """User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /admin/
+Disallow: /register/
+Allow: /
+"""
 
 # The one relationship this site has: a direct account with Google, and
 # their certification-authority id, which is a fixed constant every
@@ -42,6 +63,17 @@ def _publisher_id() -> str | None:
     return raw.removeprefix("ca-")
 
 
+@router.head("/robots.txt", include_in_schema=False)
+@router.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt() -> PlainTextResponse:
+    """What a crawler may walk. Without this the SPA fallback answers
+    with an HTML page, which a crawler parses as an unusable file and
+    treats as no rules at all: the right outcome by accident, from a
+    response that says nothing anyone meant."""
+    return PlainTextResponse(_ROBOTS, headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.head("/ads.txt", include_in_schema=False)
 @router.get("/ads.txt", response_class=PlainTextResponse)
 def ads_txt() -> PlainTextResponse:
     """Authorised sellers for this domain, or a 404 when there are
