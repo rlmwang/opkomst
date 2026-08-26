@@ -27,6 +27,7 @@ from .routers import forms as forms_router
 from .routers import forms_public as forms_public_router
 from .routers import health as health_router
 from .routers import images as images_router
+from .routers import privacy as privacy_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
@@ -154,6 +155,11 @@ if settings.local_mode:
 # ``/ads.txt`` — the authorised-sellers file. Before the SPA fallback,
 # which would otherwise answer it with the app's HTML shell.
 app.include_router(ads_txt_router.router)
+
+# ``/privacy`` — the policy, served outside the SPA so it carries no ad
+# tag and therefore no consent dialog. Before the fallback for the same
+# reason as ads.txt.
+app.include_router(privacy_router.router)
 
 # SPA fallback last so router matches win first.
 spa.mount(app)

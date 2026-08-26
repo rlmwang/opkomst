@@ -228,9 +228,18 @@ matters because the earlier steps are what let the later ones verify.
 5. **Set the blocking controls** under Brand safety, at least the
    sensitive categories. See the section on selection below: this is
    the only real control over what appears.
-6. **Add the privacy-policy line** about the ad request. The one piece
-   of copy this still needs, and the only item here that is a code
-   change.
+6. **Set `PRIVACY_CONTACT_EMAIL`** (and `PRIVACY_CONTROLLER`), then
+   give AdSense `https://opkomst.nu/privacy` as the policy URL for the
+   consent message. The page itself is built; without the contact
+   variable it says so on the page, which is worse than saying nothing.
+
+`/privacy` is served by `routers/privacy.py` outside the SPA, and that
+is the point rather than a detail. Google asks that the policy the
+consent dialog links to sit on a path the dialog does not itself cover,
+so that "learn more" does not land the reader back in front of the
+dialog. A page outside the SPA loads no bundle, so it loads no ad tag,
+so no dialog can appear on it. `tests/test_ads.py` pins that, including
+with a network configured.
 
 Until step 1 the app behaves exactly as it does today: strict CSP, no
 Google code, no consent dialog, no cookie, and `/ads.txt` answering

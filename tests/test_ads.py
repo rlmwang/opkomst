@@ -111,6 +111,25 @@ def test_ads_txt_is_not_swallowed_by_the_spa(client, configured) -> None:
     assert "<html" not in client.get("/ads.txt").text.lower()
 
 
+def test_the_privacy_policy_carries_no_advertising(client, configured) -> None:
+    """The consent dialog links here, and Google asks that the page it
+    links to not be one the dialog covers, or "learn more" lands the
+    reader back in front of the thing they were reading about. The page
+    is served outside the SPA, so it loads no bundle, no ad tag and no
+    dialog, whatever the environment is configured with."""
+    response = client.get("/privacy")
+    assert response.status_code == 200
+    assert "googlesyndication" not in response.text
+    assert "googlesyndication" not in response.headers["content-security-policy"]
+
+
+def test_the_privacy_policy_is_not_swallowed_by_the_spa(client) -> None:
+    """It is a page in its own right, not a route in the app."""
+    body = client.get("/privacy").text
+    assert "Privacyverklaring" in body
+    assert "OPKOMST_BRAND_INJECTION" not in body
+
+
 def test_the_strict_policy_names_no_ad_host() -> None:
     """The regression guard for the whole feature: whatever else
     changes, the default policy every page gets stays closed."""

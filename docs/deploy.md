@@ -300,6 +300,13 @@ ADSENSE_SLOT_BANNER=
 # nothing third-party loads.
 SUPPORT_COFFEE_URL=
 SUPPORT_PATREON_URL=
+
+# The privacy policy at /privacy names these. The advertising
+# consent dialog links to that page as "learn more", so set the
+# contact before pointing AdSense at it: without one the page
+# says no contact is configured.
+PRIVACY_CONTACT_EMAIL=
+PRIVACY_CONTROLLER=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module

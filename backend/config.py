@@ -123,6 +123,13 @@ class Settings(BaseSettings):
     support_coffee_url: _OptionalStr = None
     support_patreon_url: _OptionalStr = None
 
+    # Who answers a privacy question, named on ``/privacy``. Optional
+    # only so the app boots without it; a deployment that shows the page
+    # to the public should set it, and the page says as much when it is
+    # missing rather than pretending there is nobody to ask.
+    privacy_contact_email: _OptionalStr = None
+    privacy_controller: _OptionalStr = None
+
     sentry_dsn: _OptionalStr = None
     sentry_environment: str = "production"
     sentry_traces_sample_rate: float = 0.0

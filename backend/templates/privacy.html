@@ -1,0 +1,246 @@
+{#- The privacy policy. Served by ``routers/privacy.py`` outside the SPA,
+    so this page loads no bundle, no ad tag and therefore no consent
+    dialog: the reader arrived here from that dialog's "learn more".
+
+    Everything stated below is a fact about the code in this
+    repository, and each claim has somewhere it is enforced. If a
+    behaviour changes, this page changes with it, and the tests named
+    in CLAUDE.md are what make that hard to forget. -#}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy · {{ brand.app_name }}</title>
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="/brand/{{ brand.slug }}/tokens.css">
+  {% if brand.favicon_url %}<link rel="icon" type="image/png" sizes="192x192" href="{{ brand.favicon_url }}">{% endif %}
+  <style>
+    body {
+      margin: 0;
+      background: var(--brand-bg);
+      color: var(--brand-text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+    header img { width: 48px; height: 48px; display: block; }
+    header a { color: var(--brand-text); text-decoration: none; font-weight: 600; font-size: 1.125rem; }
+    h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
+    h2 { font-size: 1.125rem; line-height: 1.3; margin: 2rem 0 0.5rem; }
+    h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+    p, li { max-width: 34rem; }
+    ul { padding-left: 1.25rem; }
+    a { color: var(--brand-red); }
+    .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+    .note {
+      border: 1px dashed var(--brand-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      background: var(--brand-surface);
+    }
+    hr { border: 0; border-top: 1px solid var(--brand-border); margin: 3rem 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="">{% endif %}
+    <a href="/">{{ brand.wordmark }}</a>
+  </header>
+
+  <h1>Privacyverklaring</h1>
+  <p class="muted">Deze pagina beschrijft wat {{ brand.app_name }} met gegevens doet.
+    <a href="#en">In English below.</a></p>
+
+  <h2>Kort samengevat</h2>
+  <p>We vragen zo min mogelijk. Je naam mag een schuilnaam zijn. Een
+    e-mailadres is optioneel, wordt versleuteld bewaard, wordt gebruikt
+    voor de mails die de organisator heeft aangezet, en wordt daarna
+    gewist. We gebruiken geen analytics en geen trackingpixels.</p>
+
+  <h2>Wat we vragen bij een aanmelding</h2>
+  <ul>
+    <li>Een naam. Een schuilnaam is prima; we tellen koppen.</li>
+    <li>Met hoeveel mensen je komt.</li>
+    <li>Alleen als de organisator die vragen aanzet: hoe je van het
+      evenement hoorde, en waarmee je kunt helpen.</li>
+    <li>Optioneel je e-mailadres.</li>
+  </ul>
+
+  <h2>Je e-mailadres</h2>
+  <ul>
+    <li>Het is optioneel. Zonder adres kun je je gewoon aanmelden.</li>
+    <li>Het wordt versleuteld opgeslagen.</li>
+    <li>Het wordt alleen gebruikt voor de mails die de organisator heeft
+      aangezet: een herinnering voor het evenement, en een korte
+      vragenlijst erna.</li>
+    <li>Het wordt gewist zodra die mails verstuurd zijn, en uiterlijk
+      zeven dagen na afloop van het evenement.</li>
+    <li>Antwoorden op de vragenlijst zijn niet aan jouw aanmelding
+      gekoppeld en dus niet naar jou terug te leiden.</li>
+    <li>Zet de organisator beide mails uit, dan wordt er niet om een
+      adres gevraagd.</li>
+  </ul>
+
+  <h2>Als je zelf evenementen organiseert</h2>
+  <ul>
+    <li>We bewaren je e-mailadres en je naam voor je account.</li>
+    <li>Er zijn geen wachtwoorden. Je logt in via een link die eenmalig
+      werkt en na 30 minuten vervalt.</li>
+  </ul>
+
+  <h2>Cookies en opslag op je apparaat</h2>
+  <ul>
+    <li>Wij zetten zelf geen cookies.</li>
+    <li>Ben je ingelogd als organisator, dan bewaart je browser je
+      sessie, zodat je niet bij elke pagina opnieuw hoeft in te loggen.
+      Bij uitloggen wordt die gewist.</li>
+    <li>Een half ingevuld formulier wordt in je eigen browser bewaard
+      zodat je het niet kwijt bent. Het staat alleen op je apparaat.</li>
+    <li>Op de pagina's van {{ brand.app_name }} zelf kunnen advertenties
+      van Google staan. Die zetten cookies als je daar toestemming voor
+      geeft; je krijgt die keuze voordat er iets gezet wordt, en je kunt
+      hem later wijzigen. Op de pagina's van een aangesloten organisatie
+      staan geen advertenties en wordt geen advertentiecode geladen.</li>
+  </ul>
+
+  <h2>Wie je gegevens nog meer ziet</h2>
+  <ul>
+    <li><strong>Google AdSense</strong>, alleen op onze eigen pagina's
+      en alleen met je toestemming, voor advertenties.</li>
+    <li><strong>Onze mailprovider</strong>, om de herinnering en de
+      vragenlijst te versturen.</li>
+    <li><strong>Sentry</strong>, voor foutmeldingen uit de app. Daar
+      gaan geen namen of adressen in mee.</li>
+    <li><strong>PDOK en OpenStreetMap</strong>, als een organisator een
+      locatie opzoekt of een kaartje bekijkt.</li>
+    <li><strong>GitHub</strong>, waar de afbeelding bij een evenement
+      wordt opgeslagen.</li>
+  </ul>
+  <p>De organisator van het evenement waar je je voor aanmeldt, ziet je
+    naam en met hoeveel mensen je komt. Je e-mailadres ziet die niet.</p>
+
+  <h2>Hoe lang we dingen bewaren</h2>
+  <ul>
+    <li>E-mailadres: tot de mails verstuurd zijn, uiterlijk zeven dagen
+      na het evenement.</li>
+    <li>Inloglink: 30 minuten.</li>
+    <li>Link naar de vragenlijst: 30 dagen.</li>
+    <li>Aanmelding zelf: zolang het evenement in de app staat.</li>
+  </ul>
+
+  <h2>Je rechten</h2>
+  <p>Je mag opvragen wat we van je hebben, en je mag vragen het te laten
+    verwijderen.</p>
+  {% if contact_email %}
+  <p>Mail daarvoor naar <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  {% else %}
+  <p class="note">Er is nog geen contactadres ingesteld voor deze
+    installatie. Zet <code>PRIVACY_CONTACT_EMAIL</code> in de omgeving.</p>
+  {% endif %}
+  {% if controller %}<p class="muted">Verwerkingsverantwoordelijke: {{ controller }}.</p>{% endif %}
+
+  <h2>De code</h2>
+  <p>Deze app is open source. Alles wat hierboven staat, staat ook in de
+    code: <a href="https://github.com/rlmwang/opkomst">github.com/rlmwang/opkomst</a>.</p>
+
+  <hr>
+
+  <h1 id="en">Privacy policy</h1>
+  <p class="muted">What {{ brand.app_name }} does with data.</p>
+
+  <h2>In short</h2>
+  <p>We ask for as little as possible. Your name can be a pseudonym. An
+    email address is optional, stored encrypted, used for the messages
+    the organiser turned on, and then deleted. We use no analytics and
+    no tracking pixels.</p>
+
+  <h2>What we ask when you sign up</h2>
+  <ul>
+    <li>A name. A pseudonym is fine; we are counting heads.</li>
+    <li>How many people you are bringing.</li>
+    <li>Only if the organiser turns those questions on: how you heard
+      about the event, and what you can help with.</li>
+    <li>Your email address, optionally.</li>
+  </ul>
+
+  <h2>Your email address</h2>
+  <ul>
+    <li>It is optional. You can sign up without one.</li>
+    <li>It is stored encrypted.</li>
+    <li>It is used only for the messages the organiser turned on: a
+      reminder before the event, and a short questionnaire after it.</li>
+    <li>It is deleted once those messages have been sent, and at the
+      latest seven days after the event.</li>
+    <li>Questionnaire answers are not linked to your sign-up and cannot
+      be traced back to you.</li>
+    <li>If the organiser turns both messages off, we do not ask for an
+      address at all.</li>
+  </ul>
+
+  <h2>If you organise events yourself</h2>
+  <ul>
+    <li>We keep your email address and your name for your account.</li>
+    <li>There are no passwords. You sign in through a link that works
+      once and expires after 30 minutes.</li>
+  </ul>
+
+  <h2>Cookies and storage on your device</h2>
+  <ul>
+    <li>We set no cookies of our own.</li>
+    <li>While you are signed in as an organiser, your browser keeps your
+      session so you do not sign in again on every page. Signing out
+      clears it.</li>
+    <li>A half-filled form is kept in your own browser so you do not
+      lose it. It stays on your device.</li>
+    <li>{{ brand.app_name }}'s own pages may carry advertising from
+      Google. That sets cookies if you consent; you get the choice
+      before anything is set, and you can change it later. An affiliated
+      organisation's pages carry no advertising and load no advertising
+      code.</li>
+  </ul>
+
+  <h2>Who else sees anything</h2>
+  <ul>
+    <li><strong>Google AdSense</strong>, on our own pages only and with
+      your consent only, for advertising.</li>
+    <li><strong>Our mail provider</strong>, to send the reminder and the
+      questionnaire.</li>
+    <li><strong>Sentry</strong>, for error reports from the app. No
+      names or addresses go into those.</li>
+    <li><strong>PDOK and OpenStreetMap</strong>, when an organiser looks
+      up a location or views a map.</li>
+    <li><strong>GitHub</strong>, where an event's image is stored.</li>
+  </ul>
+  <p>The organiser of the event you sign up for sees your name and how
+    many people you are bringing. They do not see your email address.</p>
+
+  <h2>How long we keep things</h2>
+  <ul>
+    <li>Email address: until the messages have been sent, at the latest
+      seven days after the event.</li>
+    <li>Sign-in link: 30 minutes.</li>
+    <li>Questionnaire link: 30 days.</li>
+    <li>The sign-up itself: as long as the event is in the app.</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>You may ask what we hold about you, and you may ask us to delete
+    it.</p>
+  {% if contact_email %}
+  <p>Write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  {% else %}
+  <p class="note">No contact address is configured for this
+    installation. Set <code>PRIVACY_CONTACT_EMAIL</code> in the
+    environment.</p>
+  {% endif %}
+  {% if controller %}<p class="muted">Data controller: {{ controller }}.</p>{% endif %}
+
+  <h2>The code</h2>
+  <p>This app is open source. Everything above is also in the code:
+    <a href="https://github.com/rlmwang/opkomst">github.com/rlmwang/opkomst</a>.</p>
+</div>
+</body>
+</html>

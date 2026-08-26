@@ -55,6 +55,9 @@ export interface ChromeStrings {
   adDisclosure: string;
   /** What the slot says when it is not showing an ad and there is
    *  nothing to ask for either. */
+  /** The privacy policy, linked from the disclosure on every public
+   *  page. */
+  privacyLink: string;
   adNone: string;
   /** What the slot says when it is not showing an ad and there is
    *  somewhere to support the project. The two service names on the
@@ -94,6 +97,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     adLabel: "Advertentie",
     adDisclosure:
       "Op deze pagina staat één advertentie van Google. Die zet cookies, en je kunt zelf kiezen wat je toestaat.",
+    privacyLink: "Privacyverklaring",
     adNone: "Geen advertenties",
     supportHeading: "Help je mee dit advertentievrij te houden?",
     imageCredit: "Ontwerp:",
@@ -127,6 +131,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     adLabel: "Advertisement",
     adDisclosure:
       "This page carries one advertisement from Google. It sets cookies, and you choose what you allow.",
+    privacyLink: "Privacy policy",
     adNone: "No ads",
     supportHeading: "Want to help us keep this ad free?",
     imageCredit: "Design:",

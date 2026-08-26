@@ -22,6 +22,7 @@ const advertising = Boolean(brand().ads?.client_id);
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ c.explainerLink }}</a>
       </p>
       <p v-if="advertising" class="body">{{ c.adDisclosure }}</p>
+      <p class="body"><a href="/privacy">{{ c.privacyLink }}</a></p>
     </details>
   </div>
 </template>
