@@ -32,6 +32,7 @@ from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
 from .routers import whatsapp as whatsapp_router
+from .services.canonical_host import CanonicalHostMiddleware
 from .services.observability import TimingMiddleware
 from .services.observability import install as install_timing
 from .services.rate_limit import limiter
@@ -117,6 +118,12 @@ app.add_middleware(
     # (dev: 5173 → 8000).
     expose_headers=["Server-Timing"],
 )
+
+# One hostname. Added just inside the timing middleware so a redirect
+# off ``www.`` is measured like any other response but happens before
+# rate limiting, tenant binding and routing: none of them have anything
+# to say about a request that is not going to be served here.
+app.add_middleware(CanonicalHostMiddleware)
 
 # Timing middleware added LAST so it sits OUTERMOST in the
 # Starlette stack — measures the full server-side duration the
