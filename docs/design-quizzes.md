@@ -110,24 +110,47 @@ expressible without a second flag.
 
 | Kind | Key | Correct when |
 |---|---|---|
-| `short_text` | `correct_text` | Case-folded, whitespace-collapsed exact match |
 | `single_choice` | `correct_choices` (one) | The chosen option is the one |
-| `multi_choice` | `correct_choices` (n) | The chosen set equals the key set exactly, no partial credit |
+| `multi_choice` | `correct_choices` (n) | Part marks: `(right ticks - wrong ticks) / right options`, rounded down |
 | `number` | `correct_int` plus optional `tolerance` | Within plus or minus tolerance, 0 by default |
 | `rating` | `correct_int` | Equal |
-| `text` | none | Never scored: `points` is forced to 0 |
+| `text` / `short_text` | none | **Refused.** A quiz asks only what it can mark |
 
-`text` is the long free-form kind, and no rule can grade it. Rather
-than forbid it in a quiz, it is allowed and always worth zero, which is
-how "explain your answer" stays possible without inventing manual
-grading. `apply_questions` already normalises fields per kind (it drops
-the scale labels off a non-rating question); forcing `points = 0` on a
-`text` question is one more line in the same loop, in the same place.
+Both free-text kinds are out of a quiz entirely, which is a change from
+the first draft of this document: it allowed them, worth zero. No rule
+grades a paragraph, and an exact-match short answer turns a quiz into a
+spelling test, so `services/quizzes.QUIZ_KINDS` refuses them when the
+organiser saves and `QuestionEditor` never offers them. Refusing beats
+allowing-and-ignoring: a question that silently counted for nothing is
+found out by the room, on the night.
 
-No partial credit on `multi_choice` in this version. Partial credit
-needs a rule for wrong extras (does picking all five options score
-three out of three?), and every rule for that is arguable. Exact-set is
-the one nobody has to explain.
+Every quiz question is also required. Skipping one is a free zero
+rather than a choice, so the switch is not offered and the server sets
+it whatever the payload says.
+
+**Multiple choice pays part marks**, and wrong ticks cost. The share of
+the points earned is
+
+```
+(right ticks - wrong ticks) / right options       (clamped at 0)
+```
+
+rounded down to whole points. On a six-point question with two right
+options: both of them is six, one of them is three, both plus a wrong
+one is three, and one right plus one wrong is nothing.
+
+One wrong tick cancels one right tick, which is the property worth
+having: a pick is worth the same whichever way it goes, so the rule
+survives being explained to a room in one sentence. Ticking every box
+nets out at nothing whenever there are at least as many wrong options
+as right ones.
+
+Scaling the penalty by how many wrong options a question happens to
+have was the alternative. It is guessing-neutral in expectation, and it
+makes the same mistake cost a quarter of a point on one question and a
+whole one on the next, which is harder to defend than it is to
+calculate. Negative totals clamp to zero either way: a question cannot
+take away points earned on another one.
 
 ### 1.4 Keeping quizzes out of the forms list
 
@@ -252,6 +275,72 @@ QuizResultOut
 Rendered as the score, then the list of questions with what you said
 and what was right, when `reveal_answers` is on. An organiser running
 the same quiz twice in one evening turns it off.
+
+### 3.4 What a marked answer looks like, per kind
+
+The result screen has to answer four questions per row, and the first
+two are the ones a bare "you: 3, right: 3" throws away: **what was
+asked, what could have been answered, what this person answered, and
+what was right.** So each kind is drawn as the question it was, with
+the answers marked in place rather than summarised beside it.
+
+One grammar across all of them: a list of answer rows, each with a mark
+in front and, where it helps, a label behind.
+
+| Mark | Means |
+|---|---|
+| green tick | this was a right answer |
+| filled dot | this is what the player picked |
+| both | picked, and right |
+| nothing | an option that was neither |
+
+**Single choice.** One row per option, in the order the organiser wrote
+them, so the question reads as it did when it was asked:
+
+```
+ ✓ ●  Amsterdam        jouw antwoord
+      Rotterdam
+      Utrecht
+```
+
+and when the pick was wrong, the two marks separate:
+
+```
+ ✓    Amsterdam        goed antwoord
+   ●  Rotterdam        jouw antwoord
+      Utrecht
+```
+
+**Multiple choice.** The same list, with as many marks as apply. A
+right option the player did not tick is the one case that needs its own
+word, because "not marked" would otherwise read as "not part of the
+answer":
+
+```
+ ✓ ●  Rotterdam        jouw antwoord
+ ✓    Vlissingen       gemist
+   ●  Utrecht          jouw antwoord
+```
+
+**Number.** There is no option list to reproduce, so the two values are
+rows in the same grammar, the right one first:
+
+```
+ ✓    12               goed antwoord
+   ●  11               jouw antwoord
+```
+
+with a unit appended when the question had one, and a single row when
+the answer was right.
+
+**Rating.** The scale is the question, so it is drawn: the five points
+in a row, the right one ticked and the pick filled. Seeing that you
+said 2 where the key was 4 is the whole answer, and a two-row list
+would throw the scale away.
+
+When the organiser turned the reveal off, the key marks are simply
+absent: the player still sees what they answered, and no row claims to
+be right.
 
 ### 3.4 The edit link becomes a result link
 

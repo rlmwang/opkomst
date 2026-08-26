@@ -44,7 +44,7 @@ const QUIZ = {
       high_label: null,
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 2,
     },
     {
@@ -58,7 +58,7 @@ const QUIZ = {
       high_label: null,
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 3,
     },
   ],
@@ -101,8 +101,30 @@ describe("playing a quiz", () => {
       max_score: 5,
       reveal_answers: true,
       answers: [
-        { question_id: "one", awarded: 2, points: 2, correct: true, correct_int: null, correct_text: null, correct_choices: ["Amsterdam"] },
-        { question_id: "two", awarded: 0, points: 3, correct: false, correct_int: 12, correct_text: null, correct_choices: null },
+        {
+          question_id: "one",
+          awarded: 2,
+          points: 2,
+          correct: true,
+          given_int: null,
+          given_text: null,
+          given_choices: ["Amsterdam"],
+          correct_int: null,
+          correct_text: null,
+          correct_choices: ["Amsterdam"],
+        },
+        {
+          question_id: "two",
+          awarded: 0,
+          points: 3,
+          correct: false,
+          given_int: 7,
+          given_text: null,
+          given_choices: null,
+          correct_int: 12,
+          correct_text: null,
+          correct_choices: null,
+        },
       ],
     });
     const wrapper = mountQuiz();
@@ -124,8 +146,10 @@ describe("playing a quiz", () => {
     expect(payload.answers[0].answer_choices).toEqual(["Amsterdam"]);
 
     // The score is the response's, not a sum the page did itself.
-    expect(wrapper.text()).toContain("2 van de 5 punten");
-    expect(wrapper.text()).toContain("Goede antwoord: 12");
+    expect(wrapper.text()).toContain("2/ 5 punten");
+    // Both halves of the comparison: what was given and what was right.
+    expect(wrapper.text()).toContain("7");
+    expect(wrapper.text()).toContain("12");
   });
 
   it("reopens a finished attempt read-only from its token", async () => {
@@ -141,7 +165,7 @@ describe("playing a quiz", () => {
     const wrapper = mountQuiz();
     await flushPromises();
     expect(api.fetchQuizResult).toHaveBeenCalledWith("tok");
-    expect(wrapper.text()).toContain("5 van de 5 punten");
+    expect(wrapper.text()).toContain("5/ 5 punten");
     // Nothing to answer again: a quiz submission has no edit.
     expect(wrapper.findAll("button").some((b) => b.text() === "Volgende")).toBe(false);
   });

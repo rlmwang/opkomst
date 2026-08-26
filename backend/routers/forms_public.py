@@ -12,7 +12,7 @@ together would invite a leaky-private mistake.
   applies; the response is the random ``submission_id`` only
   (no link back to the submitter).
 * ``GET /by-slug/{slug}/qr.svg`` — QR code that resolves to
-  ``PUBLIC_BASE_URL/f/{slug}``. Mirrors the events QR endpoint
+  ``PUBLIC_BASE_URL/{f,q}/{slug}``. Mirrors the events QR endpoint
   one-to-one — same SVG-path rendering, same per-process LRU,
   same 24h browser cache.
 
@@ -25,9 +25,10 @@ differ in exactly three places and share the rest:
 
 * a quiz is graded on submit, so the response is a result rather than
   an acknowledgement;
-* a quiz submission cannot be edited, because changing an answer after
-  seeing the score is a second attempt rather than a correction. The
-  token opens the result read-only;
+* a quiz submission cannot be edited at all, because changing an answer
+  after seeing the score is a second attempt rather than a correction.
+  The token opens the result read-only. The name comes with the
+  submission, from the quiz's cover page;
 * withdrawing works on both: "delete what I sent" is a privacy right,
   and it costs the withdrawer their score, so it is no loophole.
 """
@@ -80,11 +81,13 @@ def _named(name: str):
     return wrap
 
 
-def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -> APIRouter:
+def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, public_prefix: str) -> APIRouter:
     """The public surface for one of the two products.
 
-    ``surface`` is the traffic counter name and ``noun`` names the log
-    events, so a submission still says which product it was."""
+    ``surface`` is the traffic counter name, ``noun`` names the log
+    events so a submission still says which product it was, and
+    ``public_prefix`` is the one-letter path the QR code points at:
+    ``/f/{slug}`` for a questionnaire, ``/q/{slug}`` for a quiz."""
     _MODE = mode
     router = APIRouter(prefix=prefix, tags=[tag])
     is_quiz = mode == "quiz"
@@ -109,7 +112,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
         slug 410s rather than 200ing with a wrong-target QR."""
         form = _resolve_form(db, slug)
         return Response(
-            content=render_qr(f"{PUBLIC_BASE_URL}/f/{form.slug}"),
+            content=render_qr(f"{PUBLIC_BASE_URL}/{public_prefix}/{form.slug}"),
             media_type="image/svg+xml",
             headers={"Cache-Control": "public, max-age=86400"},
         )
@@ -144,6 +147,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: number below the lowest allowed.")
                 if q.max_value is not None and ans.answer_int > q.max_value:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: number above the highest allowed.")
+                if q.step and (ans.answer_int - (q.min_value or 0)) % q.step != 0:
+                    raise HTTPException(status_code=400, detail=f"Question {q.id}: number is not on the step.")
                 submitted[q.id] = {"answer_int": ans.answer_int}
             elif q.kind in ("text", "short_text"):
                 text = (ans.answer_text or "").strip()
@@ -162,6 +167,14 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
             elif q.kind == "multi_choice":
                 choices = ans.answer_choices or []
                 if not choices:
+                    # On a quiz, ticking nothing is an answer: "none of
+                    # these" is a position, and every question there is
+                    # required, so refusing it would leave somebody
+                    # stuck on a question they have answered. A
+                    # questionnaire's required question still wants a
+                    # tick.
+                    if is_quiz:
+                        submitted[q.id] = {"answer_choices": []}
                     continue
                 invalid = [c for c in choices if c not in q.options]
                 if invalid:
@@ -183,11 +196,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
         form_id: str,
         submission_id: str,
         submitted: dict[str, dict[str, object]],
-        graded: list[FormQuestion] | None,
     ) -> None:
-        by_id = {q.id: q for q in graded or []}
         for qid, fields in submitted.items():
-            question = by_id.get(qid)
             db.add(
                 FormResponse(
                     form_id=form_id,
@@ -196,10 +206,6 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
                     answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
                     answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
                     answer_choices=fields.get("answer_choices"),  # type: ignore[arg-type]
-                    # What this answer earned, at the moment it was
-                    # given. Null on a survey, and on a quiz question
-                    # worth nothing.
-                    awarded=quizzes.grade(question, fields) if question is not None else None,
                 )
             )
 
@@ -227,23 +233,33 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
         )
 
     def _result(db: Session, form: Form, submission: FormSubmission, token: str) -> QuizResultOut:
-        """The score, and what was right. Assembled from the stored
-        grades rather than by re-grading, so a result opened months
-        later still says what it said on the day, whatever the organiser
-        has changed since."""
-        awarded = {r.question_id: r for r in db.query(FormResponse).filter(FormResponse.submission_id == submission.id)}
+        """The score, and what was right.
+
+        Marked hererather than read from a stored number: the answers
+        are what is kept, and an organiser who fixes a key or changes a
+        weight means every score to follow (``services/quizzes``). The
+        rows are the answers this person actually gave, so the list and
+        the score cannot disagree about what was in the quiz."""
+        questions = {q.id: q for q in _form_questions(db, form.id)}
+        rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
         answers = []
-        for q in _form_questions(db, form.id):
-            if q.points <= 0:
+        score = 0
+        for row in rows:
+            q = questions.get(row.question_id)
+            if q is None or q.points <= 0:
                 continue
-            row = awarded.get(q.id)
-            earned = int(row.awarded or 0) if row is not None else 0
+            fields = quizzes._as_fields(row)
+            earned = quizzes.grade(q, fields)
+            score += earned
             answers.append(
                 QuizAnswerResult(
                     question_id=q.id,
                     awarded=earned,
                     points=q.points,
                     correct=earned >= q.points,
+                    given_int=row.answer_int,
+                    given_text=row.answer_text,
+                    given_choices=list(row.answer_choices) if row.answer_choices else None,
                     # The key travels only when the organiser left the
                     # reveal on. A quiz being run twice in one evening
                     # has it off.
@@ -252,11 +268,12 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
                     correct_choices=q.correct_choices if form.reveal_answers else None,
                 )
             )
+        answers.sort(key=lambda a: questions[a.question_id].ordinal)
         return QuizResultOut(
             submission_id=submission.id,
             edit_token=token,
-            score=int(submission.score or 0),
-            max_score=int(submission.max_score or 0),
+            score=score,
+            max_score=quizzes.max_score(list(questions.values())),
             reveal_answers=form.reveal_answers,
             answers=answers,
         )
@@ -287,15 +304,9 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
 
         raw_token, token_hash = edit_token.new_edit_token()
         submission = FormSubmission(form_id=form.id, display_name=data.display_name, edit_token_hash=token_hash)
-        if is_quiz:
-            # Graded here, from the stored key, and stored with the
-            # total it was out of: an organiser can edit the quiz
-            # afterwards and an old score has to stay readable.
-            submission.score = sum(quizzes.grade(q, submitted.get(q.id)) for q in questions)
-            submission.max_score = quizzes.max_score(questions)
         db.add(submission)
         db.flush()  # need submission.id for the response rows
-        _write_responses(db, form.id, submission.id, submitted, questions if is_quiz else None)
+        _write_responses(db, form.id, submission.id, submitted)
         db.commit()
         logger.info(f"{noun}_submitted", form_id=form.id, submission_id=submission.id)
         traffic.record(surface, "submit")
@@ -344,7 +355,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
             submitted = _build_submitted(_form_questions(db, sub.form_id), data.answers)
             db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
             sub.display_name = data.display_name
-            _write_responses(db, sub.form_id, sub.id, submitted, None)
+            _write_responses(db, sub.form_id, sub.id, submitted)
             db.commit()
             logger.info(f"{noun}_submission_edited", form_id=sub.form_id, submission_id=sub.id)
             return FormEditOut(
@@ -370,5 +381,9 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str) -
     return router
 
 
-router = build_router("survey", prefix="/api/v1/forms", tag="forms", surface="public_form", noun="form")
-quiz_router = build_router("quiz", prefix="/api/v1/quizzes", tag="quizzes", surface="public_quiz", noun="quiz")
+router = build_router(
+    "survey", prefix="/api/v1/forms", tag="forms", surface="public_form", noun="form", public_prefix="f"
+)
+quiz_router = build_router(
+    "quiz", prefix="/api/v1/quizzes", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
+)

@@ -38,7 +38,10 @@ const api = useFormsApi();
 const isQuiz = computed(() => api.resource === "quizzes");
 /** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise. The
  *  two products share every string that is not about scoring. */
-const L = (key: string) => (isQuiz.value && te(`quizzes.${key}`) ? t(`quizzes.${key}`) : t(`forms.${key}`));
+const L = (key: string, params?: Record<string, unknown>) => {
+  const full = isQuiz.value && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
+  return params ? t(full, params) : t(full);
+};
 
 const {
   active: startActive,
@@ -147,7 +150,7 @@ watch(
       high_label: q.high_label ?? null,
       min_value: q.min_value ?? null,
       max_value: q.max_value ?? null,
-      unit: q.unit ?? null,
+      step: q.step ?? null,
       points: q.points ?? 0,
       correct_int: q.correct_int ?? null,
       correct_text: q.correct_text ?? null,
@@ -226,6 +229,29 @@ function restoreDraftOnce(): void {
 draftReady = true;
 if (formQuery?.data.value) restoreDraftOnce();
 
+/** The first thing wrong with the question list, in words, or null.
+ *  Mirrors the rules in ``services/forms._validate_questions`` and
+ *  ``services/quizzes.validate_keys``: the server is still the
+ *  authority, this is so the answer arrives in Dutch and names the
+ *  question. */
+function firstQuestionProblem(): string | null {
+  for (const [index, q] of questions.value.entries()) {
+    const n = index + 1;
+    if (!q.prompt.trim()) return L("edit.questionNeedsPrompt", { n });
+    const choice = q.kind === "single_choice" || q.kind === "multi_choice";
+    if (choice && q.options.length < 2) return L("edit.questionNeedsOptions", { n });
+    if (!isQuiz.value || q.points <= 0) continue;
+    if (choice && (q.correct_choices ?? []).length === 0) return L("edit.questionNeedsKey", { n });
+    if (q.kind === "single_choice" && (q.correct_choices ?? []).length !== 1) {
+      return L("edit.questionNeedsOneKey", { n });
+    }
+    if ((q.kind === "number" || q.kind === "rating") && q.correct_int === null) {
+      return L("edit.questionNeedsKey", { n });
+    }
+  }
+  return null;
+}
+
 // --- Question list helpers -----------------------------------------
 
 function addQuestion(): void {
@@ -239,7 +265,7 @@ function addQuestion(): void {
     high_label: null,
     min_value: null,
     max_value: null,
-    unit: null,
+    step: null,
     // A new quiz question is worth one point; a survey's is worth
     // nothing and the server drops it either way.
     points: isQuiz.value ? 1 : 0,
@@ -277,6 +303,15 @@ function cancel(): void {
 async function submit() {
   // Backend requires the title in the primary language (``formLocale``).
   const primaryName = (formLocale.value === "en" ? nameEn.value : nameNl.value).trim();
+  // What the server refuses, checked here first and said with the
+  // question's number in it. A 400 from the API is accurate and
+  // English, and "saving failed" is neither: an organiser who left one
+  // answer unmarked should be told which one.
+  const problem = firstQuestionProblem();
+  if (problem) {
+    toasts.warn(problem);
+    return;
+  }
   if (!primaryName) {
     toasts.warn(L("edit.fillName"));
     return;
@@ -311,7 +346,7 @@ async function submit() {
           high_label: q.high_label,
           min_value: q.min_value,
           max_value: q.max_value,
-          unit: q.unit,
+          step: q.step,
           points: q.points,
           correct_int: q.correct_int,
           correct_text: q.correct_text,

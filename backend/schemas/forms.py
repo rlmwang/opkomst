@@ -51,14 +51,18 @@ class FormQuestionIn(BaseModel):
     low_label: str | None = Field(default=None, max_length=80)
     high_label: str | None = Field(default=None, max_length=80)
     # ``number`` only; the service drops them on every other kind.
+    # ``step`` is what an answer has to land on: 5 accepts 0, 5, 10,
+    # counted from ``min_value`` when there is one.
     min_value: int | None = None
     max_value: int | None = None
-    unit: str | None = Field(default=None, max_length=20)
+    step: int | None = Field(default=None, ge=1)
     # Quiz only; the service drops them on a survey. ``points`` is what
     # a correct answer earns, and one of the ``correct_*`` fields is the
-    # key, depending on the kind. A question worth 0 is asked and not
-    # scored, which is the only thing a ``text`` question can be.
-    points: int = Field(default=0, ge=0, le=100)
+    # key, depending on the kind. Null means "not said", which on a quiz
+    # is one point: questions are worth the same until somebody decides
+    # otherwise, and a quiz where every question is worth nothing is
+    # nobody's intention.
+    points: int | None = Field(default=None, ge=0, le=100)
     correct_int: int | None = None
     correct_text: str | None = Field(default=None, max_length=200)
     correct_choices: list[str] | None = Field(default=None, max_length=50)
@@ -81,7 +85,7 @@ class FormQuestionOut(BaseModel):
     high_label: str | None = None
     min_value: int | None = None
     max_value: int | None = None
-    unit: str | None = None
+    step: int | None = None
     # The key. Organiser-side only: it is what they typed, and it is
     # what the edit page has to show them again.
     points: int = 0
@@ -110,7 +114,12 @@ class PublicQuestionOut(BaseModel):
     high_label: str | None = None
     min_value: int | None = None
     max_value: int | None = None
-    unit: str | None = None
+    step: int | None = None
+    # How far off an answer may be and still count. Not the key: it is
+    # the rule the question is marked by, and a guess-the-number
+    # question that hides its own margin is asking people to guess the
+    # rules as well as the answer.
+    tolerance: int | None = None
     # What it is worth is not a secret, and on a quiz it is worth
     # knowing before you answer.
     points: int = 0
@@ -229,8 +238,13 @@ class QuizAnswerResult(BaseModel):
     awarded: int
     points: int
     correct: bool
-    # What the right answer was, in the kind's own shape. Null when the
-    # quiz is set not to reveal answers, or the question is unscored.
+    # What this person answered, in the kind's own shape. This is what
+    # is stored; everything else on this shape is derived from it.
+    given_int: int | None = None
+    given_text: str | None = None
+    given_choices: list[str] | None = None
+    # What the right answer was, in the same shapes. Null when the quiz
+    # is set not to reveal answers.
     correct_int: int | None = None
     correct_text: str | None = None
     correct_choices: list[str] | None = None

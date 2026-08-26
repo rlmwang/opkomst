@@ -271,8 +271,8 @@
         "rating": "Beoordeling",
         "text": "Tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Eén keuze",
-        "multi_choice": "Meerkeuze",
+        "single_choice": "Meerkeuze",
+        "multi_choice": "Meerdere antwoorden",
         "number": "Getal"
       },
       "responsesTitle": "Inzendingen",
@@ -315,7 +315,11 @@
       "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
       "loadFailed": "Kon deze vragenlijst niet laden.",
       "backToList": "← Terug naar vragenlijsten",
-      "descriptionPlaceholder": "Toelichting (optioneel)"
+      "descriptionPlaceholder": "Toelichting (optioneel)",
+      "questionNeedsPrompt": "Vraag {n}: vul de vraag nog in.",
+      "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe.",
+      "questionNeedsKey": "Vraag {n}: geef aan welk antwoord goed is.",
+      "questionNeedsOneKey": "Vraag {n}: bij meerkeuze is er precies één goed antwoord."
     },
     "question": {
       "promptPlaceholder": "Vraag",
@@ -323,21 +327,21 @@
         "rating": "Score (1-5)",
         "text": "Lange tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Eén keuze",
-        "multi_choice": "Meerdere keuzes",
+        "single_choice": "Meerkeuze",
+        "multi_choice": "Meerdere antwoorden",
         "number": "Getal"
       },
       "required": "Verplicht",
       "lowLabel": "Laagste",
       "highLabel": "Hoogste",
-      "minValue": "Laagste getal (optioneel)",
-      "maxValue": "Hoogste getal (optioneel)",
-      "unit": "Eenheid (bijvoorbeeld jaar)",
+      "minValue": "Laagste",
+      "maxValue": "Hoogste",
       "options": "Opties",
       "newOption": "Optie",
       "delete": "Vraag verwijderen",
       "moveUp": "Omhoog",
-      "moveDown": "Omlaag"
+      "moveDown": "Omlaag",
+      "step": "Stapgrootte"
     }
   },
   "datepolls": {
@@ -933,7 +937,7 @@
       "saveFailed": "Opslaan ging mis",
       "fillName": "Geef je quiz een naam",
       "questionsHeading": "Vragen",
-      "questionsExplainer": "Zet bij elke vraag het goede antwoord en wat 'ie waard is. Een open vraag mag ook, die telt gewoon niet mee.",
+      "questionsExplainer": "Zet bij elke vraag het goede antwoord en wat 'ie waard is. Alles wordt automatisch nagekeken, dus open vragen kunnen hier niet.",
       "noQuestionsYet": "Nog geen vragen.",
       "addQuestion": "Vraag toevoegen",
       "revealHeading": "Antwoorden laten zien",
@@ -961,8 +965,8 @@
       "pickCorrect": "Antwoorden. Vink aan welke goed is.",
       "markCorrect": "Dit is het goede antwoord",
       "correctText": "Goede antwoord",
-      "correctNumber": "Goede getal",
-      "tolerance": "Marge (mag leeg)",
+      "correctNumber": "Goede antwoord",
+      "tolerance": "Marge",
       "points": "punten"
     }
   }

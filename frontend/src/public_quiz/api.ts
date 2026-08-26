@@ -18,6 +18,10 @@ export interface QuizAnswerResult {
   awarded: number;
   points: number;
   correct: boolean;
+  /** What this person answered. Always sent: it is their own answer. */
+  given_int: number | null;
+  given_text: string | null;
+  given_choices: string[] | null;
   /** Null when the organiser turned the reveal off. */
   correct_int: number | null;
   correct_text: string | null;

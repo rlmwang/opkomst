@@ -3700,11 +3700,17 @@
             "type": "array"
           },
           "points": {
-            "default": 0,
-            "maximum": 100.0,
-            "minimum": 0.0,
-            "title": "Points",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points"
           },
           "prompt": {
             "maxLength": 500,
@@ -3717,6 +3723,18 @@
             "title": "Required",
             "type": "boolean"
           },
+          "step": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
           "tolerance": {
             "anyOf": [
               {
@@ -3728,18 +3746,6 @@
               }
             ],
             "title": "Tolerance"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "maxLength": 20,
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
           }
         },
         "required": [
@@ -3864,6 +3870,17 @@
             "title": "Required",
             "type": "boolean"
           },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
           "tolerance": {
             "anyOf": [
               {
@@ -3874,17 +3891,6 @@
               }
             ],
             "title": "Tolerance"
-          },
-          "unit": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unit"
           }
         },
         "required": [
@@ -5383,16 +5389,27 @@
             "title": "Required",
             "type": "boolean"
           },
-          "unit": {
+          "step": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Unit"
+            "title": "Step"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance"
           }
         },
         "required": [
@@ -5635,6 +5652,42 @@
               }
             ],
             "title": "Correct Text"
+          },
+          "given_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Given Choices"
+          },
+          "given_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Given Int"
+          },
+          "given_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Given Text"
           },
           "points": {
             "title": "Points",

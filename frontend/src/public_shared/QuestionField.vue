@@ -22,7 +22,8 @@ export interface QuestionShape {
   high_label: string | null;
   min_value: number | null;
   max_value: number | null;
-  unit: string | null;
+  step: number | null;
+  tolerance: number | null;
 }
 
 export interface AnswerShape {
@@ -37,6 +38,13 @@ const props = defineProps<{
   /** Localised "required" marker text, from the mini-app's own tiny
    *  string table: this component carries no i18n of its own. */
   requiredLabel: string;
+  /** The bounds of a number question, in words, from the same table.
+   *  A box that silently refuses 150 is a box nobody can answer. */
+  rangeHint?: string | null;
+  /** Whether a required question is marked with a star. False on a
+   *  quiz, where every question is required and a star on all of them
+   *  marks nothing. */
+  markRequired?: boolean;
 }>();
 
 const emit = defineEmits<{ (e: "update", value: AnswerShape): void }>();
@@ -61,7 +69,7 @@ function toggleMulti(opt: string, on: boolean) {
   <div class="q-block">
     <label class="prompt">
       {{ question.prompt }}
-      <span v-if="question.required" class="required-mark" :aria-label="requiredLabel">*</span>
+      <span v-if="question.required && markRequired !== false" class="required-mark" :aria-label="requiredLabel">*</span>
     </label>
 
     <div v-if="question.kind === 'rating'" class="rating">
@@ -89,17 +97,22 @@ function toggleMulti(opt: string, on: boolean) {
          ``type=number`` is deliberately not used, because its spinner
          and its silent scroll-to-change are worse than the keypad is
          good. -->
-    <div v-else-if="question.kind === 'number'" class="number-row">
+    <div v-else-if="question.kind === 'number'" class="number-block">
       <input
         type="text"
         inputmode="numeric"
         :value="answer?.answer_int ?? ''"
         :min="question.min_value ?? undefined"
         :max="question.max_value ?? undefined"
+        :step="question.step ?? undefined"
         class="input number-input"
         @input="(e) => setNumber((e.target as HTMLInputElement).value)"
       />
-      <span v-if="question.unit" class="unit muted">{{ question.unit }}</span>
+      <!-- Everything about what this box takes goes on one line under
+           it, each part named. A bare value beside the box is a number
+           nobody can place: "1" says nothing without the word in front
+           of it. -->
+      <p v-if="rangeHint" class="range muted">{{ rangeHint }}</p>
     </div>
 
     <textarea
@@ -199,6 +212,11 @@ function toggleMulti(opt: string, on: boolean) {
   resize: vertical;
   min-height: 5rem;
 }
+.number-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
 .number-row {
   display: flex;
   align-items: center;
@@ -209,6 +227,10 @@ function toggleMulti(opt: string, on: boolean) {
 }
 .unit {
   font-size: 0.9375rem;
+}
+.range {
+  margin: 0;
+  font-size: 0.8125rem;
 }
 .choice-list {
   display: flex;

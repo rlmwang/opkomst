@@ -4203,11 +4203,8 @@ export interface components {
             min_value?: number | null;
             /** Options */
             options?: string[];
-            /**
-             * Points
-             * @default 0
-             */
-            points: number;
+            /** Points */
+            points?: number | null;
             /** Prompt */
             prompt: string;
             /**
@@ -4215,10 +4212,10 @@ export interface components {
              * @default true
              */
             required: boolean;
+            /** Step */
+            step?: number | null;
             /** Tolerance */
             tolerance?: number | null;
-            /** Unit */
-            unit?: string | null;
         };
         /**
          * FormQuestionOut
@@ -4259,10 +4256,10 @@ export interface components {
             prompt: string;
             /** Required */
             required: boolean;
+            /** Step */
+            step?: number | null;
             /** Tolerance */
             tolerance?: number | null;
-            /** Unit */
-            unit?: string | null;
         };
         /**
          * FormQuestionSummary
@@ -4857,8 +4854,10 @@ export interface components {
             prompt: string;
             /** Required */
             required: boolean;
-            /** Unit */
-            unit?: string | null;
+            /** Step */
+            step?: number | null;
+            /** Tolerance */
+            tolerance?: number | null;
         };
         /**
          * PublicRosterOut
@@ -4931,6 +4930,12 @@ export interface components {
             correct_int?: number | null;
             /** Correct Text */
             correct_text?: string | null;
+            /** Given Choices */
+            given_choices?: string[] | null;
+            /** Given Int */
+            given_int?: number | null;
+            /** Given Text */
+            given_text?: string | null;
             /** Points */
             points: number;
             /** Question Id */

@@ -31,11 +31,12 @@ export interface QuestionDraft {
   options: string[];
   low_label: string | null;
   high_label: string | null;
-  /** ``number`` only: the bounds an answer has to sit inside, and the
-   *  word rendered after the box ("jaar", "km"). All optional. */
+  /** ``number`` only, and all three say which numbers count as an
+   *  answer: the bounds it sits between and the step it lands on.
+   *  All optional. */
   min_value: number | null;
   max_value: number | null;
-  unit: string | null;
+  step: number | null;
   /** Quiz only: what a correct answer is worth, and what it is. The
    *  server drops all five on a questionnaire. */
   points: number;
@@ -47,9 +48,11 @@ export interface QuestionDraft {
 
 const props = defineProps<{
   modelValue: QuestionDraft;
-  /** On a quiz the question also has a right answer and a value. On a
-   *  questionnaire neither exists, and the fields are not rendered
-   *  rather than rendered and ignored. */
+  /** On a quiz the question also has a right answer and a value, and
+   *  it is always answered: skipping one would be a free zero, so
+   *  there is no switch to offer. On a questionnaire none of that
+   *  exists, and the fields are not rendered rather than rendered and
+   *  ignored. */
   scored?: boolean;
   /** Hide the "move up" button on the first row. */
   canMoveUp: boolean;
@@ -71,10 +74,18 @@ const { t } = useI18n();
 // the EventForm sources/help inputs.
 const newOption = ref("");
 
+/** A quiz asks only what it can mark: both free-text kinds are out,
+ *  because no rule grades a paragraph and an exact-match short answer
+ *  is a quiz about spelling. Mirrors ``services/quizzes.QUIZ_KINDS``,
+ *  which refuses them on save; this is why they are never offered. */
+const QUIZ_KINDS: QuestionKind[] = ["single_choice", "multi_choice", "number", "rating"];
+const FORM_KINDS: QuestionKind[] = ["rating", "short_text", "text", "single_choice", "multi_choice", "number"];
+
 const kindOptions = computed(() =>
-  (["rating", "short_text", "text", "single_choice", "multi_choice", "number"] as QuestionKind[]).map(
-    (k) => ({ value: k, label: t(`forms.question.kind.${k}`) }),
-  ),
+  (props.scored ? QUIZ_KINDS : FORM_KINDS).map((k) => ({
+    value: k,
+    label: t(`forms.question.kind.${k}`),
+  })),
 );
 
 const isChoice = computed(
@@ -84,13 +95,17 @@ const isChoice = computed(
 );
 const isRating = computed(() => props.modelValue.kind === "rating");
 const isNumber = computed(() => props.modelValue.kind === "number");
-/** No rule grades a paragraph, so a long-text question is asked and
- *  never scored, whatever the quiz says. */
-const gradable = computed(() => Boolean(props.scored) && props.modelValue.kind !== "text");
+/** A quiz question always has a key and a value; a questionnaire's
+ *  never does. The free-text kinds a quiz cannot mark are not offered
+ *  in the first place (``QUIZ_KINDS``). */
+const gradable = computed(() => Boolean(props.scored));
 
 /** Empty box → no bound. ``0`` is a legitimate bound, so the check is
  *  against the empty string rather than falsiness. */
-function patchNumber(key: "min_value" | "max_value" | "correct_int" | "tolerance", raw: string | null | undefined): void {
+function patchNumber(
+  key: "min_value" | "max_value" | "correct_int" | "tolerance" | "step",
+  raw: string | null | undefined,
+): void {
   const text = (raw ?? "").trim();
   const parsed = Number.parseInt(text, 10);
   patch(key, text === "" || Number.isNaN(parsed) ? null : parsed);
@@ -114,7 +129,7 @@ function patch<K extends keyof QuestionDraft>(key: K, value: QuestionDraft[K]): 
     if (value !== "number") {
       next.min_value = null;
       next.max_value = null;
-      next.unit = null;
+      next.step = null;
       next.tolerance = null;
     }
     // The key is kind-shaped: keeping the old one would save a
@@ -122,7 +137,6 @@ function patch<K extends keyof QuestionDraft>(key: K, value: QuestionDraft[K]): 
     next.correct_int = null;
     next.correct_text = null;
     next.correct_choices = null;
-    if (value === "text") next.points = 0;
   }
   emit("update:modelValue", next);
 }
@@ -181,6 +195,27 @@ function removeOption(opt: string) {
         class="kind-select"
         @update:model-value="(v) => patch('kind', v)"
       />
+      <!-- The one thing beside the kind, and which one it is depends
+           on the product: a questionnaire's question may be skipped,
+           a quiz's never can, and a quiz's is worth points. Both are
+           facts about the question rather than about its wording, so
+           both belong on this row. -->
+      <label v-if="!scored" class="required-row">
+        <ToggleSwitch
+          :model-value="modelValue.required"
+          @update:model-value="(v) => patch('required', v)"
+        />
+        <span>{{ t("forms.question.required") }}</span>
+      </label>
+      <label v-if="gradable" class="points-field">
+        <InputText
+          class="points-input"
+          :model-value="String(modelValue.points)"
+          inputmode="numeric"
+          @update:model-value="(v) => patch('points', Math.max(0, Number.parseInt((v ?? '').trim(), 10) || 0))"
+        />
+        <span class="muted points-label">{{ t("quizzes.question.points") }}</span>
+      </label>
       <div class="header-actions">
         <Button
           type="button"
@@ -221,19 +256,6 @@ function removeOption(opt: string) {
       @update:model-value="(v) => patch('prompt', v ?? '')"
     />
 
-    <!-- For a number the bounds and the unit are what the question
-         *is*, so the switch that only says whether it may be skipped
-         belongs under them rather than between the prompt and its
-         own configuration. ``order`` rather than a second copy of the
-         markup: the card is already a flex column. -->
-    <label class="required-row" :class="{ 'required-last': isNumber }">
-      <ToggleSwitch
-        :model-value="modelValue.required"
-        @update:model-value="(v) => patch('required', v)"
-      />
-      <span>{{ t("forms.question.required") }}</span>
-    </label>
-
     <!-- Rating scale captions. Both optional; an empty caption
          renders blank on the public form — the right choice for
          a generic 1..5 scale. -->
@@ -254,28 +276,38 @@ function removeOption(opt: string) {
 
     <!-- Bounds and a unit, all optional. A question with no bounds
          takes any whole number, which is the right default for "how
-         old are you" and wrong for nothing. -->
-    <div v-if="isNumber" class="scale-row">
-      <InputText
-        :model-value="modelValue.min_value === null ? '' : String(modelValue.min_value)"
-        :placeholder="t('forms.question.minValue')"
-        inputmode="numeric"
-        fluid
-        @update:model-value="(v) => patchNumber('min_value', v)"
-      />
-      <InputText
-        :model-value="modelValue.max_value === null ? '' : String(modelValue.max_value)"
-        :placeholder="t('forms.question.maxValue')"
-        inputmode="numeric"
-        fluid
-        @update:model-value="(v) => patchNumber('max_value', v)"
-      />
-      <InputText
-        :model-value="modelValue.unit ?? ''"
-        :placeholder="t('forms.question.unit')"
-        fluid
-        @update:model-value="(v) => patch('unit', v ? v : null)"
-      />
+         old are you" and wrong for nothing.
+         Labelled rather than three placeholder boxes: a placeholder is
+         gone the moment there is a value, and a row of numbers with no
+         words is how a stray "1" ends up being a unit. -->
+    <div v-if="isNumber" class="field-row">
+      <label class="field">
+        <span class="field-label muted">{{ t("forms.question.minValue") }}</span>
+        <InputText
+          :model-value="modelValue.min_value === null ? '' : String(modelValue.min_value)"
+          inputmode="numeric"
+          fluid
+          @update:model-value="(v) => patchNumber('min_value', v)"
+        />
+      </label>
+      <label class="field">
+        <span class="field-label muted">{{ t("forms.question.maxValue") }}</span>
+        <InputText
+          :model-value="modelValue.max_value === null ? '' : String(modelValue.max_value)"
+          inputmode="numeric"
+          fluid
+          @update:model-value="(v) => patchNumber('max_value', v)"
+        />
+      </label>
+      <label class="field">
+        <span class="field-label muted">{{ t("forms.question.step") }}</span>
+        <InputText
+          :model-value="modelValue.step === null ? '' : String(modelValue.step)"
+          inputmode="numeric"
+          fluid
+          @update:model-value="(v) => patchNumber('step', v)"
+        />
+      </label>
     </div>
 
     <div v-if="isChoice" class="options-block">
@@ -299,7 +331,10 @@ function removeOption(opt: string) {
               :aria-label="t('quizzes.question.markCorrect')"
               @click="toggleCorrect(item)"
             >
-              <i class="pi pi-check" />
+              <!-- Hidden rather than removed: a tick on every option
+                   says every option is right, and an icon that leaves
+                   the DOM takes the row's height with it. -->
+              <i class="pi pi-check" :class="{ 'is-blank': !isCorrectOption(item) }" />
             </button>
             <span>{{ item }}</span>
           </span>
@@ -323,44 +358,27 @@ function removeOption(opt: string) {
       </EditableList>
     </div>
 
-    <!-- The rest of the key, for the kinds whose answer is typed
-         rather than picked, plus what the question is worth. Quiz
-         only, and never on a long-text question: no rule grades a
-         paragraph (``docs/design-quizzes.md`` part 1.3). -->
-    <div v-if="gradable" class="key-row">
-      <InputText
-        v-if="modelValue.kind === 'short_text'"
-        :model-value="modelValue.correct_text ?? ''"
-        :placeholder="t('quizzes.question.correctText')"
-        fluid
-        @update:model-value="(v) => patch('correct_text', v ? v : null)"
-      />
-      <InputText
-        v-if="modelValue.kind === 'rating' || modelValue.kind === 'number'"
-        :model-value="modelValue.correct_int === null ? '' : String(modelValue.correct_int)"
-        :placeholder="t('quizzes.question.correctNumber')"
-        inputmode="numeric"
-        fluid
-        @update:model-value="(v) => patchNumber('correct_int', v)"
-      />
-      <InputText
-        v-if="modelValue.kind === 'number'"
-        :model-value="modelValue.tolerance === null ? '' : String(modelValue.tolerance)"
-        :placeholder="t('quizzes.question.tolerance')"
-        inputmode="numeric"
-        fluid
-        @update:model-value="(v) => patchNumber('tolerance', v)"
-      />
-      <!-- A placeholder disappears the moment there is a value, and a
-           bare box with "2" in it says nothing. The word stays. -->
-      <label class="points-field">
+    <!-- The key for the kinds whose answer is a number rather than one
+         of the options (``docs/design-quizzes.md`` part 1.3). A choice
+         question names its answer in the option list above. -->
+    <div v-if="gradable && (modelValue.kind === 'rating' || modelValue.kind === 'number')" class="field-row">
+      <label class="field">
+        <span class="field-label muted">{{ t("quizzes.question.correctNumber") }}</span>
         <InputText
-          class="points-input"
-          :model-value="String(modelValue.points)"
+          :model-value="modelValue.correct_int === null ? '' : String(modelValue.correct_int)"
           inputmode="numeric"
-          @update:model-value="(v) => patch('points', Math.max(0, Number.parseInt((v ?? '').trim(), 10) || 0))"
+          fluid
+          @update:model-value="(v) => patchNumber('correct_int', v)"
         />
-        <span class="muted points-label">{{ t("quizzes.question.points") }}</span>
+      </label>
+      <label v-if="modelValue.kind === 'number'" class="field">
+        <span class="field-label muted">{{ t("quizzes.question.tolerance") }}</span>
+        <InputText
+          :model-value="modelValue.tolerance === null ? '' : String(modelValue.tolerance)"
+          inputmode="numeric"
+          fluid
+          @update:model-value="(v) => patchNumber('tolerance', v)"
+        />
       </label>
     </div>
   </div>
@@ -390,18 +408,12 @@ function removeOption(opt: string) {
   align-items: center;
   gap: 0.125rem;
 }
-.required-last {
-  order: 1;
-}
 .required-row {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9375rem;
-  /* Inline so the toggle and its label sit on one line; the
-   * surrounding question card's gap takes care of vertical
-   * breathing room. */
-  align-self: flex-start;
+  flex-shrink: 0;
 }
 .scale-row {
   display: flex;
@@ -417,11 +429,22 @@ function removeOption(opt: string) {
   margin: 0;
   font-size: 0.8125rem;
 }
-.key-row {
+/* Labelled fields in a row: the label stays when the box has a value,
+ * which a placeholder does not. */
+.field-row {
   display: flex;
   gap: 0.5rem;
 }
-.key-row :deep(.p-inputtext) { flex: 1; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  flex: 1;
+  min-width: 0;
+}
+.field-label {
+  font-size: 0.75rem;
+}
 .points-field {
   display: inline-flex;
   align-items: center;
@@ -454,6 +477,9 @@ function removeOption(opt: string) {
   background: transparent;
   color: var(--brand-text-muted);
   cursor: pointer;
+}
+.correct-mark .is-blank {
+  visibility: hidden;
 }
 .correct-mark.is-correct {
   background: var(--brand-green-soft);

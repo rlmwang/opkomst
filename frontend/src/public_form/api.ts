@@ -16,7 +16,8 @@ export interface PublicFormQuestion {
   high_label: string | null;
   min_value: number | null;
   max_value: number | null;
-  unit: string | null;
+  step: number | null;
+  tolerance: number | null;
 }
 
 export interface PublicForm {

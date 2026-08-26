@@ -271,8 +271,8 @@
         "rating": "Rating",
         "text": "Text",
         "short_text": "Short text",
-        "single_choice": "Single choice",
-        "multi_choice": "Multiple choice",
+        "single_choice": "Multiple choice",
+        "multi_choice": "Multiple answer",
         "number": "Number"
       },
       "responsesTitle": "Responses",
@@ -315,7 +315,11 @@
       "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
       "loadFailed": "Could not load this form.",
       "backToList": "← Back to forms",
-      "descriptionPlaceholder": "Description (optional)"
+      "descriptionPlaceholder": "Description (optional)",
+      "questionNeedsPrompt": "Question {n}: write the question first.",
+      "questionNeedsOptions": "Question {n}: add at least two answers.",
+      "questionNeedsKey": "Question {n}: mark which answer is right.",
+      "questionNeedsOneKey": "Question {n}: multiple choice has exactly one right answer."
     },
     "question": {
       "promptPlaceholder": "Question",
@@ -323,21 +327,21 @@
         "rating": "Rating (1-5)",
         "text": "Long text",
         "short_text": "Short text",
-        "single_choice": "Single choice",
-        "multi_choice": "Multiple choice",
+        "single_choice": "Multiple choice",
+        "multi_choice": "Multiple answer",
         "number": "Number"
       },
       "required": "Required",
       "lowLabel": "Low end",
       "highLabel": "High end",
-      "minValue": "Lowest number (optional)",
-      "maxValue": "Highest number (optional)",
-      "unit": "Unit (for example years)",
+      "minValue": "Lowest",
+      "maxValue": "Highest",
       "options": "Options",
       "newOption": "Option",
       "delete": "Remove question",
       "moveUp": "Move up",
-      "moveDown": "Move down"
+      "moveDown": "Move down",
+      "step": "Step size"
     }
   },
   "datepolls": {
@@ -933,7 +937,7 @@
       "saveFailed": "Saving failed",
       "fillName": "Give the quiz a name",
       "questionsHeading": "Questions",
-      "questionsExplainer": "Give each question its right answer and what it is worth. An open question is fine too, it just does not count.",
+      "questionsExplainer": "Give each question its right answer and what it is worth. Everything is marked automatically, so open questions are not possible here.",
       "noQuestionsYet": "No questions yet.",
       "addQuestion": "Add question",
       "revealHeading": "Show the answers",
@@ -961,8 +965,8 @@
       "pickCorrect": "Answers. Tick the right one.",
       "markCorrect": "This is the right answer",
       "correctText": "Right answer",
-      "correctNumber": "Right number",
-      "tolerance": "Margin (can be empty)",
+      "correctNumber": "Right answer",
+      "tolerance": "Margin",
       "points": "points"
     }
   }

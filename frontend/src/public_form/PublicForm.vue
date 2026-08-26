@@ -239,6 +239,7 @@ async function withdraw() {
           :question="q"
           :answer="answers[q.id]"
           :required-label="f.required"
+          :range-hint="f.range(q.min_value, q.max_value, q.tolerance, q.step)"
           @update="(value) => (answers[q.id] = value)"
         />
 

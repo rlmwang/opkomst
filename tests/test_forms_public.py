@@ -458,12 +458,12 @@ def test_number_rejects_above_the_maximum(client, organiser_headers):
     assert r.status_code == 400
 
 
-def test_number_bounds_and_unit_reach_the_public_shape(client, organiser_headers):
-    """The public page draws its own validation from these, so they
-    have to arrive."""
-    form = _number_form(client, organiser_headers, min_value=1, max_value=99, unit="jaar")
+def test_number_bounds_and_step_reach_the_public_shape(client, organiser_headers):
+    """The public page draws its own validation and its own hint line
+    from these, so they have to arrive."""
+    form = _number_form(client, organiser_headers, min_value=1, max_value=99, step=2)
     q = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]
-    assert (q["min_value"], q["max_value"], q["unit"]) == (1, 99, "jaar")
+    assert (q["min_value"], q["max_value"], q["step"]) == (1, 99, 2)
 
 
 def test_a_form_rejects_a_minimum_above_the_maximum(client, organiser_headers):
@@ -480,7 +480,7 @@ def test_a_form_rejects_a_minimum_above_the_maximum(client, organiser_headers):
 def test_bounds_are_dropped_when_the_kind_changes(client, organiser_headers):
     """Same normalisation every other kind gets: a question that stops
     being a number stops carrying a number's configuration."""
-    form = _number_form(client, organiser_headers, min_value=1, max_value=99, unit="jaar")
+    form = _number_form(client, organiser_headers, min_value=1, max_value=99, step=2)
     qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
     r = client.put(
         f"/api/v1/forms/{form['id']}",
@@ -496,7 +496,7 @@ def test_bounds_are_dropped_when_the_kind_changes(client, organiser_headers):
     )
     assert r.status_code == 200, r.text
     q = r.json()["questions"][0]
-    assert (q["min_value"], q["max_value"], q["unit"]) == (None, None, None)
+    assert (q["min_value"], q["max_value"], q["step"]) == (None, None, None)
 
 
 def test_the_summary_reports_average_and_range(client, organiser_headers):
@@ -522,3 +522,39 @@ def test_the_csv_projection_carries_the_number(client, organiser_headers):
     )
     rows = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
     assert rows[0]["answers"][qid] == 42
+
+
+def test_a_number_question_can_demand_a_step(client, organiser_headers):
+    """The step says which numbers count as an answer: 5 from a lowest
+    of 0 accepts 0, 5, 10. A number off the step is refused the same way
+    one out of range is."""
+    form = _create(
+        client,
+        organiser_headers,
+        questions=[
+            {"kind": "number", "prompt": "Hoeveel?", "required": True, "min_value": 0, "max_value": 100, "step": 5}
+        ],
+    )
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+
+    def submit(value: int) -> int:
+        return client.post(
+            f"/api/v1/forms/by-slug/{form['slug']}/submit",
+            json={"display_name": None, "answers": [{"question_id": qid, "answer_int": value}]},
+        ).status_code
+
+    assert submit(15) == 201
+    assert submit(0) == 201
+    assert submit(17) == 400
+
+
+def test_a_step_no_number_can_land_on_is_refused(client, organiser_headers):
+    """3 to 5 in steps of 7 accepts nothing at all, which is a question
+    nobody can answer. Caught when the organiser saves."""
+    body = {
+        "chapter_id": _chapter_id(client, organiser_headers),
+        "name_nl": "Onmogelijke stap",
+        "locale": "nl",
+        "questions": [{"kind": "number", "prompt": "Hoeveel?", "min_value": 3, "max_value": 5, "step": 7}],
+    }
+    assert client.post("/api/v1/forms", headers=organiser_headers, json=body).status_code == 400

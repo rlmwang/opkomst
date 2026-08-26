@@ -24,7 +24,8 @@ Three tables:
 * ``form_questions`` also carries the quiz half of a question: what a
   correct answer is worth and what the correct answer is. Both are
   null-or-zero on a survey, dropped on write rather than trusted from
-  the payload.
+  the payload. Nothing stores a score: an answer plus the current key
+  is the score (``services/quizzes``).
 * ``form_responses`` — one row per (submission, question). The
   random ``submission_id`` groups answers from one fill-out into
   one logical submission, with no link back to whoever sent it
@@ -103,13 +104,15 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     low_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     high_label: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # ``number`` only. The bounds are validation rather than
-    # decoration: the public page refuses an out-of-range answer and
-    # the submit handler refuses it again. ``unit`` is the short word
-    # rendered after the box ("jaar", "km"), not part of the answer.
+    # ``number`` only, and all three are about which numbers count as
+    # an answer: the bounds it has to sit between, and the step it has
+    # to land on. ``step`` of 5 with a minimum of 0 accepts 0, 5, 10;
+    # without a minimum it accepts any multiple of 5. The public page
+    # says all of this above the box and the submit handler enforces
+    # it, because the first is a courtesy and the second is the rule.
     min_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    unit: Mapped[str | None] = mapped_column(Text, nullable=True)
+    step: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # The quiz half. ``points`` is what a correct answer earns and
     # defaults to nothing, because a survey's questions are worth
@@ -153,13 +156,11 @@ class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Bas
     form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
-
-    # Quiz only, and stored rather than computed: an organiser can edit
-    # a quiz after people have taken it, and a score of 7 means nothing
-    # if the total silently moved from 10 to 20. Both numbers are what
-    # they were at the moment this was submitted.
-    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    max_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    #
+    # No score column: a score is what these answers are worth against
+    # the quiz as it stands, computed on every read
+    # (``services/quizzes.score_of``). Storing it would freeze it, and
+    # an organiser who re-weights a question means the scores to move.
 
 
 class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
@@ -190,7 +191,3 @@ class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # JSON list of chosen option strings. ``single_choice`` carries
     # a one-element list; ``multi_choice`` carries the full subset.
     answer_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    # What this answer earned, at submit time, for the same reason the
-    # submission stores its own total: the key it was graded against can
-    # move afterwards.
-    awarded: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -283,7 +283,11 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         user: User = Depends(require_approved),
     ) -> FormSummaryOut:
         access.get_form_for_user(db, form_id, user, _MODE)
-        average, best, out_of = quizzes.score_stats(db, form_id) if _MODE == "quiz" else (None, None, None)
+        average, best, out_of = (
+            quizzes.score_stats(db, form_id, forms_svc.questions_of(db, form_id))
+            if _MODE == "quiz"
+            else (None, None, None)
+        )
         return FormSummaryOut(
             submission_count=forms_svc.submission_count(db, form_id),
             score_average=average,

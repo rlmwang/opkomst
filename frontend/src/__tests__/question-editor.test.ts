@@ -74,7 +74,7 @@ describe("QuestionEditor kind switching", () => {
       high_label: "Great",
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 0,
       correct_int: null,
       correct_text: null,
@@ -102,7 +102,7 @@ describe("QuestionEditor kind switching", () => {
       high_label: null,
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 0,
       correct_int: null,
       correct_text: null,
@@ -129,7 +129,7 @@ describe("QuestionEditor kind switching", () => {
       high_label: null,
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 0,
       correct_int: null,
       correct_text: null,
@@ -156,7 +156,7 @@ describe("QuestionEditor kind switching", () => {
       high_label: null,
       min_value: 0,
       max_value: 120,
-      unit: "jaar",
+      step: 5,
       points: 0,
       correct_int: null,
       correct_text: null,
@@ -170,7 +170,7 @@ describe("QuestionEditor kind switching", () => {
     exposed.$.setupState.patch("kind", "short_text");
     expect(get().min_value).toBeNull();
     expect(get().max_value).toBeNull();
-    expect(get().unit).toBeNull();
+    expect(get().step).toBeNull();
   });
 
   it("drops a key that no longer fits when the kind changes", () => {
@@ -184,7 +184,7 @@ describe("QuestionEditor kind switching", () => {
       high_label: null,
       min_value: null,
       max_value: null,
-      unit: null,
+      step: null,
       points: 2,
       correct_int: null,
       correct_text: null,

@@ -128,16 +128,28 @@ def _validate_questions(questions: list["FormQuestionIn"], mode: str) -> None:
                     status_code=400,
                     detail=f"Question {idx}: options must be unique.",
                 )
-        if q.kind == "number" and q.min_value is not None and q.max_value is not None:
-            if q.min_value > q.max_value:
+        if q.kind == "number":
+            if q.min_value is not None and q.max_value is not None and q.min_value > q.max_value:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Question {idx}: the lowest allowed number is above the highest.",
                 )
+            # A step the bounds cannot reach is a question nobody can
+            # answer: 0 to 10 in steps of 7 accepts 0 and 7 and nothing
+            # else, which is fine, but 3 to 5 in steps of 7 accepts
+            # nothing at all.
+            if q.step and q.min_value is not None and q.max_value is not None:
+                first = q.min_value
+                if first + (q.step - (first % q.step)) % q.step > q.max_value and first % q.step != 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Question {idx}: no number between the lowest and the highest lands on this step.",
+                    )
     if mode == "quiz":
-        # The answer key is checked when the organiser saves, not when
-        # somebody submits: at submit time the person who can fix it is
-        # not the person looking at the screen.
+        # Both checked when the organiser saves, not when somebody
+        # submits: at submit time the person who can fix it is not the
+        # person looking at the screen.
+        quizzes.validate_kinds(questions)
         quizzes.validate_keys(questions)
 
 
@@ -171,14 +183,19 @@ def apply_questions(
         is_number = payload.kind == "number"
         min_value = payload.min_value if is_number else None
         max_value = payload.max_value if is_number else None
-        unit = (payload.unit or "").strip() or None if is_number else None
-        # The answer key, on the same terms: a survey has none, and a
-        # kind no rule can grade is worth nothing however many points
-        # the payload claims.
-        scored = mode == "quiz" and payload.kind not in quizzes.UNSCORABLE_KINDS
-        points = payload.points if scored else 0
+        step = payload.step if is_number else None
+        # The answer key, on the same terms: a survey has none.
+        scored = mode == "quiz"
+        # One point unless the organiser said a number. Zero stays
+        # expressible, it just has to be typed.
+        points = (payload.points if payload.points is not None else 1) if scored else 0
+        # Every quiz question is answered. Skipping one is a free zero
+        # rather than a choice, and the walk gates on this
+        # (``public_quiz``), so it is the server that decides it and not
+        # the editor that happens not to offer the switch.
+        required = True if mode == "quiz" else payload.required
         correct_int = payload.correct_int if scored and payload.kind in ("rating", "number") else None
-        correct_text = (payload.correct_text or "").strip() or None if scored and payload.kind == "short_text" else None
+        correct_text = None
         correct_choices = (
             [c.strip() for c in (payload.correct_choices or []) if c.strip()]
             if scored and payload.kind in _CHOICE_KINDS
@@ -191,13 +208,13 @@ def apply_questions(
             row.ordinal = ordinal
             row.kind = payload.kind
             row.prompt = payload.prompt.strip()
-            row.required = payload.required
+            row.required = required
             row.options = clean_options
             row.low_label = low_label
             row.high_label = high_label
             row.min_value = min_value
             row.max_value = max_value
-            row.unit = unit
+            row.step = step
             row.points = points
             row.correct_int = correct_int
             row.correct_text = correct_text
@@ -215,13 +232,13 @@ def apply_questions(
                     ordinal=ordinal,
                     kind=payload.kind,
                     prompt=payload.prompt.strip(),
-                    required=payload.required,
+                    required=required,
                     options=clean_options,
                     low_label=low_label,
                     high_label=high_label,
                     min_value=min_value,
                     max_value=max_value,
-                    unit=unit,
+                    step=step,
                     points=points,
                     correct_int=correct_int,
                     correct_text=correct_text,
@@ -288,6 +305,13 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
 
 def _questions(db: Session, form_id: str) -> list[FormQuestion]:
     return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
+
+
+def questions_of(db: Session, form_id: str) -> list[FormQuestion]:
+    """The question rows, for a caller that has to mark answers against
+    them (``routers/forms`` asking ``services/quizzes`` for the score
+    stats)."""
+    return _questions(db, form_id)
 
 
 def to_out(db: Session, form: Form) -> FormOut:
@@ -475,37 +499,24 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
 
 
 def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
-    """The organiser's list of taken quizzes: the survey projection
-    plus what each one scored, out of what it was scored out of at the
-    time (``docs/design-quizzes.md`` part 1.2)."""
+    """The organiser's list of played quizzes: the survey projection
+    plus what each one scored, marked against the quiz as it stands
+    now (``services/quizzes``)."""
+    questions = _questions(db, form_id)
+    grouped = quizzes.rows_by_submission(db, form_id)
+    out_of = quizzes.max_score(questions)
     return [
         QuizSubmissionOut(
             submission_id=row.submission_id,
             display_name=row.display_name,
             created_at=row.created_at,
-            score=score,
-            max_score=max_score,
+            score=quizzes.score_of(questions, grouped.get(row.submission_id, [])),
+            max_score=out_of,
             answers=row.answers,
             link_recovered_at=row.link_recovered_at,
         )
-        for row, (score, max_score) in zip(
-            submissions(db, form_id),
-            _scores(db, form_id),
-            strict=True,
-        )
+        for row in submissions(db, form_id)
     ]
-
-
-def _scores(db: Session, form_id: str) -> list[tuple[int, int]]:
-    """Score and total per submission, in the same order ``submissions``
-    returns them: oldest first."""
-    rows = (
-        db.query(FormSubmission.score, FormSubmission.max_score)
-        .filter(FormSubmission.form_id == form_id)
-        .order_by(FormSubmission.created_at)
-        .all()
-    )
-    return [(int(s or 0), int(m or 0)) for s, m in rows]
 
 
 def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
