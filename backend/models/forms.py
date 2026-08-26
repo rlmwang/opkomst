@@ -10,8 +10,11 @@ the page shells extracted in the previous phase.
 
 Three tables:
 
-* ``forms`` — one row per questionnaire. ``archived_at`` for soft
-  archive (mirrors Event); a fresh slug per form makes the public
+* ``forms`` — one row per questionnaire. ``mode`` says which of the
+  two products it is, ``survey`` or ``quiz``: they differ by an answer
+  key, a score and how the questions are walked through, and share
+  everything else (``docs/design-quizzes.md``). ``archived_at`` for
+  soft archive (mirrors Event); a fresh slug per form makes the public
   URL bookmark-stable across restores.
 * ``form_questions`` — per-form question list, ordered. Six
   kinds: ``rating``, ``text``, ``short_text``, ``single_choice``,
@@ -42,7 +45,8 @@ from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin
 
 
 class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
-    """One questionnaire. ``archived_at`` flips for archive/restore;
+    """One questionnaire or one quiz, told apart by ``mode``.
+    ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table
     and stays attached to the row across archive/restore so a
     bookmarked URL keeps resolving after a restore (the public
@@ -52,6 +56,10 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
 
     # Spine (slug, name, image_url, image_artist_instagram, locale,
     # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
+    # ``survey`` or ``quiz``. Every read filters on it; the one place
+    # that does is ``services/forms.query``, and a test greps for
+    # anyone else querying this table.
+    mode: Mapped[str] = mapped_column(Text, nullable=False, default="survey", server_default="survey")
     # Optional blurb shown on the public page under the name — same
     # role as the event topic / datepoll description.
     description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -60,8 +68,11 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.
     __table_args__ = (
-        Index("ix_forms_archived_chapter", "archived_at", "chapter_id"),
+        # ``mode`` leads: every list query names it before it filters
+        # anything else.
+        Index("ix_forms_mode_archived_chapter", "mode", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_forms_name_present"),
+        CheckConstraint("mode IN ('survey', 'quiz')", name="ck_forms_mode"),
     )
 
 

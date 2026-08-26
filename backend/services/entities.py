@@ -71,6 +71,7 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
 
 def create_form(db: Session, data: FormCreate, user: User) -> Form:
     form = Form(
+        mode="survey",
         slug=new_slug(),
         name_nl=data.name_nl,
         name_en=data.name_en,

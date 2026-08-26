@@ -48,6 +48,10 @@ MAX_PARTICIPANTS = 50
 MAX_MAIL_PER_DAY = 200
 
 _ENTITY_MODELS = {"event": Event, "form": Form, "datepoll": Datepoll, "roster": Roster}
+# The forms table holds two products, so its ceilings are per product:
+# a personal account's quizzes do not eat into its questionnaires
+# (``docs/design-quizzes.md``).
+_ENTITY_FILTERS = {"form": Form.mode == "survey"}
 
 
 def assert_can_add_entity(db: Session, tenant: Tenant, kind: str) -> None:
@@ -56,7 +60,10 @@ def assert_can_add_entity(db: Session, tenant: Tenant, kind: str) -> None:
     if not tenant.is_personal:
         return
     model = _ENTITY_MODELS[kind]
-    active = db.query(model).filter(model.tenant_id == tenant.id, model.archived_at.is_(None)).count()
+    predicates = [model.tenant_id == tenant.id, model.archived_at.is_(None)]
+    if kind in _ENTITY_FILTERS:
+        predicates.append(_ENTITY_FILTERS[kind])
+    active = db.query(model).filter(*predicates).count()
     if active >= MAX_ACTIVE_PER_KIND:
         raise HTTPException(
             status_code=409,

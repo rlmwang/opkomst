@@ -41,6 +41,10 @@ from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
+# The survey half of the ``forms`` table; the quiz half has its own
+# public surface (``docs/design-quizzes.md``).
+_MODE = "survey"
+
 # Public-facing base URL — validated at import time (HttpUrl),
 # never empty. Same constant ``events_public.py`` uses.
 PUBLIC_BASE_URL = str(settings.public_base_url).rstrip("/")
@@ -56,7 +60,7 @@ def _resolve_form(db: Session, slug: str) -> Form:
     existed" from "archived since you bookmarked the link"; both
     look the same to the visitor and that's correct (no info
     leak)."""
-    return public_access.resolve_by_slug(db, Form, slug, gone_detail="This form is no longer available.")
+    return forms_svc.resolve_public(db, slug, _MODE)
 
 
 def _form_questions(db: Session, form_id: str) -> list[FormQuestion]:

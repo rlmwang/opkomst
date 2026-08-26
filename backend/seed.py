@@ -49,6 +49,7 @@ from .models import (
 )
 from .services import chapters as chapters_svc
 from .services import chore_tick, edit_token, encryption, event_recurrence, tenancy
+from .services import forms as forms_svc
 from .services import tenants as tenants_svc
 from .services import user_chapters as user_chapters_svc
 from .services.events import now_wallclock
@@ -725,7 +726,7 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
     ``(name, created_by)``)."""
 
     def _form(name: str, description: str, *, archived_at: datetime | None = None) -> Form | None:
-        if db.query(Form).filter(Form.name_nl == name, Form.created_by == created_by).first():
+        if forms_svc.query(db, "survey").filter(Form.name_nl == name, Form.created_by == created_by).first():
             return None
         f = Form(
             slug=new_slug(),

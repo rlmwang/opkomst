@@ -31,10 +31,18 @@ from . import edit_token, tenancy
 _TOKEN_INVALID = "This edit link is not valid."
 
 
-def resolve_by_slug(db: Session, model: Any, slug: str, *, gone_detail: str) -> Any:
+def resolve_by_slug(db: Session, model: Any, slug: str, *, gone_detail: str, where: Any | None = None) -> Any:
     """Resolve a slug to a live (non-archived) entity. Unknown or
-    archived both raise 410 with ``gone_detail``."""
-    row = db.query(model).filter(model.slug == slug).first()
+    archived both raise 410 with ``gone_detail``.
+
+    ``where`` narrows the lookup for a table that holds more than one
+    product: the forms table carries surveys and quizzes, and a quiz
+    reached through a survey URL is "no longer available" rather than
+    a page (``services/forms.resolve_public``)."""
+    q = db.query(model).filter(model.slug == slug)
+    if where is not None:
+        q = q.filter(where)
+    row = q.first()
     if row is None or row.archived_at is not None:
         raise HTTPException(status_code=410, detail=gone_detail)
     tenancy.bind(row.tenant_id, row.tenant.brand_slug)

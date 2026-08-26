@@ -117,13 +117,19 @@ def get_scoped(
     user: User,
     *,
     not_found: str,
+    where: ColumnElement[bool] | None = None,
 ) -> _Scoped:
     """Fetch an entity by id, scoped to the user's tenant and — for an
     organisation — their chapter set. 404 if missing, in another tenant,
     in a chapter the user can't see, or the user has no live
     memberships. A personal tenant has no chapters, so there the tenant
     predicate is the whole scope."""
-    row = db.query(model).filter(model.id == entity_id, scope_filter(db, user, model)).first()
+    predicates = [model.id == entity_id, scope_filter(db, user, model)]
+    if where is not None:
+        # The forms table holds two products; a survey id looked up as
+        # a quiz is a 404 rather than a page (docs/design-quizzes.md).
+        predicates.append(where)
+    row = db.query(model).filter(*predicates).first()
     if row is None:
         raise HTTPException(status_code=404, detail=not_found)
     return row
@@ -171,12 +177,15 @@ def get_event_for_user(db: Session, event_id: str, user: User) -> Event:
     return get_scoped(db, Event, event_id, user, not_found="Event not found")
 
 
-def form_scope_filter(db: Session, user: User) -> ColumnElement[bool]:
-    return scope_filter(db, user, Form)
+def form_scope_filter(db: Session, user: User, mode: str) -> ColumnElement[bool]:
+    """Scoped to the caller *and* to one of the two products the forms
+    table holds. The mode has no default on purpose: a caller has to
+    say which one it means (docs/design-quizzes.md)."""
+    return and_(scope_filter(db, user, Form), Form.mode == mode)
 
 
-def get_form_for_user(db: Session, form_id: str, user: User) -> Form:
-    return get_scoped(db, Form, form_id, user, not_found="Form not found")
+def get_form_for_user(db: Session, form_id: str, user: User, mode: str) -> Form:
+    return get_scoped(db, Form, form_id, user, not_found="Form not found", where=Form.mode == mode)
 
 
 def datepoll_scope_filter(db: Session, user: User) -> ColumnElement[bool]:

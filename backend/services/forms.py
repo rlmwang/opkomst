@@ -15,15 +15,22 @@ Responsibilities:
   — organiser-side reads for the details page + CSV export. Pure
   SQL aggregation, no router fixture needed.
 
+* ``query`` — the only place the ``forms`` table is read from. Every
+  read names the mode it means, because the table holds both products
+  (``docs/design-quizzes.md``) and a read that forgets puts quizzes in
+  the forms list. ``tests/test_form_modes.py`` greps the tree for
+  anyone querying it anywhere else.
+
 Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
-``form_scope_filter``) alongside the event equivalents.
+``form_scope_filter``) alongside the event equivalents; they take the
+mode for the same reason.
 """
 
 from typing import TYPE_CHECKING, Final, get_args
 
 from fastapi import HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from ..models import Chapter, Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
@@ -36,7 +43,7 @@ from ..schemas.forms import (
     QuestionKind,
 )
 from . import image as image_svc
-from . import tenancy
+from . import public_access, tenancy
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
@@ -51,17 +58,42 @@ _CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice
 _TEXT_KINDS: Final[frozenset[str]] = frozenset({"text", "short_text"})
 
 
-def get_form_by_slug_any(db: Session, slug: str) -> Form | None:
+def query(db: Session, mode: str) -> Query[Form]:
+    """Every read of the ``forms`` table starts here.
+
+    The table carries both products, so a query without the mode
+    predicate is a quiz in somebody's questionnaire list, or the other
+    way round. Making that one function rather than one convention is
+    what lets a test check it: ``tests/test_form_modes.py`` fails on a
+    ``db.query(Form)`` anywhere else in the tree."""
+    return db.query(Form).filter(Form.mode == mode)
+
+
+def get_form_by_slug_any(db: Session, slug: str, mode: str) -> Form | None:
     """Slug lookup that includes archived forms — used by the
     public HTML route in ``routers/spa.py``. Returns ``None`` when
     the slug is unknown OR the form is archived: the public mini-
     app treats both as "no longer available", matching how the
     public JSON endpoint 410s on both."""
-    form = db.query(Form).filter(Form.slug == slug).first()
+    form = query(db, mode).filter(Form.slug == slug).first()
     if form is None or form.archived_at is not None:
         return None
     tenancy.bind(form.tenant_id, form.tenant.brand_slug)
     return form
+
+
+def resolve_public(db: Session, slug: str, mode: str) -> Form:
+    """The public JSON surface's lookup: a live form of this mode, or
+    410. Unknown, archived and "that is the other product's slug" are
+    one answer on purpose, the same way an unknown slug and an archived
+    one already were."""
+    return public_access.resolve_by_slug(
+        db,
+        Form,
+        slug,
+        gone_detail="This form is no longer available.",
+        where=Form.mode == mode,
+    )
 
 
 def _validate_questions(questions: list["FormQuestionIn"]) -> None:

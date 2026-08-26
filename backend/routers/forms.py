@@ -9,6 +9,11 @@ scoped to the user's chapter via ``access.get_form_for_user``
 Public-by-slug surfaces (the public form fetch + submit) live
 in ``routers/forms_public.py``.
 
+Every read here names ``_MODE``. The ``forms`` table holds both
+products, surveys and quizzes (``docs/design-quizzes.md``), and this
+router is the survey half of it: without the predicate an organiser's
+questionnaire list would fill up with their quizzes.
+
 Form CRUD mirrors the events router shape one-to-one: create,
 list active, list archived, get, update, archive, restore,
 delete-when-archived, summary, submissions CSV source.
@@ -37,6 +42,9 @@ from ..services import access, crud, edit_token, entities, limits
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
+
+# Which of the two products in the ``forms`` table this router serves.
+_MODE = "survey"
 
 logger = structlog.get_logger()
 
@@ -70,7 +78,7 @@ def list_forms(
     user: User = Depends(require_approved),
 ) -> list[FormListOut]:
     rows = (
-        db.query(Form)
+        forms_svc.query(db, _MODE)
         .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_(None))
         .order_by(Form.created_at.desc())
         .all()
@@ -85,7 +93,7 @@ def list_archived_forms(
     user: User = Depends(require_approved),
 ) -> list[FormListOut]:
     rows = (
-        db.query(Form)
+        forms_svc.query(db, _MODE)
         .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_not(None))
         .order_by(Form.archived_at.desc())
         .all()
@@ -99,7 +107,7 @@ def get_form(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FormOut:
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     return forms_svc.to_out(db, form)
 
 
@@ -116,7 +124,7 @@ def update_form(
     have picked the wrong chapter at create time) but the new one
     still has to be in the user's set. Questions are diff-applied
     by id — see ``services/forms.apply_questions``."""
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     if data.chapter_id != form.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 
@@ -142,7 +150,7 @@ def archive_form(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FormOut:
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     crud.archive(db, form, log_event="form_archived", actor_id=user.id)
     return forms_svc.to_out(db, form)
 
@@ -155,7 +163,7 @@ def restore_form(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FormOut:
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     crud.restore(db, form, log_event="form_restored", actor_id=user.id)
     return forms_svc.to_out(db, form)
 
@@ -173,7 +181,7 @@ def delete_form(
     responses would be a data-loss footgun. Cascades through
     ``form_questions`` / ``form_responses`` via the FK ON DELETE
     CASCADEs in the schema."""
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     crud.hard_delete(
         db,
         form,
@@ -196,7 +204,7 @@ async def upload_form_image(
     pipeline as events (``services/image.py``)."""
     if not settings.event_images_enabled:
         raise HTTPException(status_code=503, detail="Image storage is not configured")
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     raw = await file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
@@ -227,7 +235,7 @@ def delete_form_image(
 ) -> FormOut:
     """Clear the reference and delete the file: nothing else points at
     it."""
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     if form.image_path is None:
         raise HTTPException(status_code=404, detail="No image to delete")
     dropped = form.image_path
@@ -245,7 +253,7 @@ def form_summary(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> FormSummaryOut:
-    access.get_form_for_user(db, form_id, user)
+    access.get_form_for_user(db, form_id, user, _MODE)
     return FormSummaryOut(
         submission_count=forms_svc.submission_count(db, form_id),
         questions=forms_svc.question_aggregates(db, form_id),
@@ -264,7 +272,7 @@ def recover_submission_edit_link(
     """Organiser recovery of a respondent's lost magic link — rotates
     the token (never reveals it) and permanently stamps
     ``link_recovered_at``; see ``services/edit_token.recover``."""
-    form = access.get_form_for_user(db, form_id, user)
+    form = access.get_form_for_user(db, form_id, user, _MODE)
     sub = db.query(FormSubmission).filter(FormSubmission.id == submission_id, FormSubmission.form_id == form.id).first()
     if sub is None:
         raise HTTPException(status_code=404, detail="Submission not found")
@@ -287,5 +295,5 @@ def form_submissions(
     Privacy: ``submission_id`` is a random per-submission token
     with no link back to whoever submitted — same contract as
     the post-event feedback CSV."""
-    access.get_form_for_user(db, form_id, user)
+    access.get_form_for_user(db, form_id, user, _MODE)
     return forms_svc.submissions(db, form_id)

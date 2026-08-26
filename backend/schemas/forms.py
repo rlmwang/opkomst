@@ -27,6 +27,11 @@ from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, R
 
 QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice", "number"]
 
+# The two products the forms tables carry. A survey collects answers; a
+# quiz grades them (``docs/design-quizzes.md``). Every read of the table
+# names one, which is what keeps them out of each other's lists.
+FormMode = Literal["survey", "quiz"]
+
 
 class FormQuestionIn(BaseModel):
     """One question on the create / update payload. ``id`` is null

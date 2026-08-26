@@ -32,6 +32,7 @@ import json
 import pathlib
 import re
 from collections.abc import Callable
+from functools import partial
 from typing import Any, TypeVar
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -459,7 +460,7 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
 # is the one question a caller outside this module asks of it.
 _PUBLIC_RESOLVERS: dict[str, Callable[[Session, str], Any]] = {
     "e": events_svc.get_occurrence_by_slug_any,
-    "f": forms_svc.get_form_by_slug_any,
+    "f": partial(forms_svc.get_form_by_slug_any, mode="survey"),
     "d": datepolls_svc.get_datepoll_by_slug_any,
     "c": chores_svc.get_roster_by_slug_any,
 }
@@ -521,7 +522,7 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
     traffic.record("public_form")
     # Archived/unknown forms inline null; the mini-app shows the same
     # "no longer available" state it would on a 410.
-    form = _resolve_public(db, slug, forms_svc.get_form_by_slug_any)
+    form = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="survey"))
     payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
     brand_slug = _brand_slug_for(db, form)
     return _serve_public_app(
