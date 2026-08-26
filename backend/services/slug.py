@@ -34,8 +34,10 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "events",
         "forms",
         "login",
+        "quizzes",
         "logout",
         "register",
+        "settings",
         "users",
         # The rest of the root's vocabulary: an organisation slug that
         # matched one of these would shadow a public page or a mount.

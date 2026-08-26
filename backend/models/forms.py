@@ -21,6 +21,10 @@ Three tables:
   ``multi_choice``, ``number``. The kind enum is enforced at the
   schema layer and the public submit handler — adding a seventh
   requires touching both.
+* ``form_questions`` also carries the quiz half of a question: what a
+  correct answer is worth and what the correct answer is. Both are
+  null-or-zero on a survey, dropped on write rather than trusted from
+  the payload.
 * ``form_responses`` — one row per (submission, question). The
   random ``submission_id`` groups answers from one fill-out into
   one logical submission, with no link back to whoever sent it
@@ -64,6 +68,10 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # role as the event topic / datepoll description.
     description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Quiz only: whether the result screen names the right answer per
+    # question or only says the score. An organiser running the same
+    # quiz twice in one evening turns it off.
+    reveal_answers: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.
@@ -103,6 +111,22 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     max_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     unit: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # The quiz half. ``points`` is what a correct answer earns and
+    # defaults to nothing, because a survey's questions are worth
+    # nothing and always will be; a quiz question worth 0 is one that
+    # is asked but not scored, which is how an open "why?" stays
+    # possible without inventing manual grading. The key itself is one
+    # of the three ``correct_*`` columns depending on the kind, and
+    # ``tolerance`` widens a number's key into a range.
+    #
+    # None of this ever reaches a respondent's browser before they
+    # submit (``schemas/forms.PublicQuestionOut``).
+    points: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    correct_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    correct_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correct_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    tolerance: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # DB-level backstop for the kind vocabulary. The canonical set
     # is the ``QuestionKind`` literal in ``schemas/forms.py`` (the
     # API contract); this constraint makes a malformed row
@@ -129,6 +153,13 @@ class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Bas
     form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     display_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ``edit_token_hash`` + ``link_recovered_at`` come from EditTokenMixin.
+
+    # Quiz only, and stored rather than computed: an organiser can edit
+    # a quiz after people have taken it, and a score of 7 means nothing
+    # if the total silently moved from 10 to 20. Both numbers are what
+    # they were at the moment this was submitted.
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
 class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
@@ -159,3 +190,7 @@ class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # JSON list of chosen option strings. ``single_choice`` carries
     # a one-element list; ``multi_choice`` carries the full subset.
     answer_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # What this answer earned, at submit time, for the same reason the
+    # submission stores its own total: the key it was graded against can
+    # move afterwards.
+    awarded: Mapped[int | None] = mapped_column(Integer, nullable=True)

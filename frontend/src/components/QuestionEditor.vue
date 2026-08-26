@@ -176,7 +176,12 @@ function removeOption(opt: string) {
       @update:model-value="(v) => patch('prompt', v ?? '')"
     />
 
-    <label class="required-row">
+    <!-- For a number the bounds and the unit are what the question
+         *is*, so the switch that only says whether it may be skipped
+         belongs under them rather than between the prompt and its
+         own configuration. ``order`` rather than a second copy of the
+         markup: the card is already a flex column. -->
+    <label class="required-row" :class="{ 'required-last': isNumber }">
       <ToggleSwitch
         :model-value="modelValue.required"
         @update:model-value="(v) => patch('required', v)"
@@ -280,6 +285,9 @@ function removeOption(opt: string) {
   display: flex;
   align-items: center;
   gap: 0.125rem;
+}
+.required-last {
+  order: 1;
 }
 .required-row {
   display: inline-flex;

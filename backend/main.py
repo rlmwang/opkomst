@@ -31,6 +31,7 @@ from .routers import privacy as privacy_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
+from .routers import tenant_settings as tenant_settings_router
 from .routers import whatsapp as whatsapp_router
 from .services.canonical_host import CanonicalHostMiddleware
 from .services.observability import TimingMiddleware
@@ -145,6 +146,11 @@ app.include_router(feedback_router.router)
 # a form id and 404.
 app.include_router(forms_public_router.router)
 app.include_router(forms_router.router)
+# Quizzes are the same two routers built for the other product in the
+# forms table (docs/design-quizzes.md); public before organiser, so
+# ``/by-slug/{slug}`` wins over ``/{quiz_id}``.
+app.include_router(forms_public_router.quiz_router)
+app.include_router(forms_router.quiz_router)
 app.include_router(datepolls_public_router.router)
 app.include_router(datepolls_router.router)
 # Public-by-slug routes mount BEFORE the organiser router (same reason
@@ -152,6 +158,7 @@ app.include_router(datepolls_router.router)
 app.include_router(chores_public_router.router)
 app.include_router(chores_router.router)
 app.include_router(start_router.router)
+app.include_router(tenant_settings_router.router)
 app.include_router(health_router.router)
 app.include_router(whatsapp_router.router)
 # ``/i/{path}`` — the hero images, under this app's own domain. Before

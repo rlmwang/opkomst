@@ -26,7 +26,7 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 mode for the same reason.
 """
 
-from typing import TYPE_CHECKING, Final, get_args
+from typing import TYPE_CHECKING, Final, cast, get_args
 
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -35,15 +35,18 @@ from sqlalchemy.orm import Query, Session
 from ..models import Chapter, Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
     FormListOut,
+    FormMode,
     FormOut,
     FormQuestionOut,
     FormQuestionSummary,
     FormSubmissionOut,
     PublicFormOut,
+    PublicQuestionOut,
     QuestionKind,
+    QuizSubmissionOut,
 )
 from . import image as image_svc
-from . import public_access, tenancy
+from . import public_access, quizzes, tenancy
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
@@ -56,6 +59,13 @@ if TYPE_CHECKING:
 ALLOWED_KINDS: Final[frozenset[str]] = frozenset(get_args(QuestionKind))
 _CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice"})
 _TEXT_KINDS: Final[frozenset[str]] = frozenset({"text", "short_text"})
+
+
+def as_mode(value: str) -> FormMode:
+    """The column is text and the DTO is the two-value vocabulary. The
+    CHECK constraint on ``forms.mode`` is what makes this narrowing
+    true, which is why it is a cast rather than a parse."""
+    return cast(FormMode, value)
 
 
 def query(db: Session, mode: str) -> Query[Form]:
@@ -96,7 +106,7 @@ def resolve_public(db: Session, slug: str, mode: str) -> Form:
     )
 
 
-def _validate_questions(questions: list["FormQuestionIn"]) -> None:
+def _validate_questions(questions: list["FormQuestionIn"], mode: str) -> None:
     """Per-kind sanity on a question payload. Raises HTTPException(400)
     — the router lets it propagate so the validation message
     surfaces verbatim."""
@@ -124,12 +134,18 @@ def _validate_questions(questions: list["FormQuestionIn"]) -> None:
                     status_code=400,
                     detail=f"Question {idx}: the lowest allowed number is above the highest.",
                 )
+    if mode == "quiz":
+        # The answer key is checked when the organiser saves, not when
+        # somebody submits: at submit time the person who can fix it is
+        # not the person looking at the screen.
+        quizzes.validate_keys(questions)
 
 
 def apply_questions(
     db: Session,
     form_id: str,
     questions: list["FormQuestionIn"],
+    mode: str,
 ) -> None:
     """Diff-apply a question payload against the form's current
     rows. Matches by id. Rows with no id (or an id not in the
@@ -139,7 +155,7 @@ def apply_questions(
     re-numbered 1..N from input order.
 
     Caller commits the session."""
-    _validate_questions(questions)
+    _validate_questions(questions, mode)
 
     existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
     seen_ids: set[str] = set()
@@ -156,6 +172,19 @@ def apply_questions(
         min_value = payload.min_value if is_number else None
         max_value = payload.max_value if is_number else None
         unit = (payload.unit or "").strip() or None if is_number else None
+        # The answer key, on the same terms: a survey has none, and a
+        # kind no rule can grade is worth nothing however many points
+        # the payload claims.
+        scored = mode == "quiz" and payload.kind not in quizzes.UNSCORABLE_KINDS
+        points = payload.points if scored else 0
+        correct_int = payload.correct_int if scored and payload.kind in ("rating", "number") else None
+        correct_text = (payload.correct_text or "").strip() or None if scored and payload.kind == "short_text" else None
+        correct_choices = (
+            [c.strip() for c in (payload.correct_choices or []) if c.strip()]
+            if scored and payload.kind in _CHOICE_KINDS
+            else None
+        )
+        tolerance = payload.tolerance if scored and payload.kind == "number" else None
 
         if payload.id and payload.id in existing:
             row = existing[payload.id]
@@ -169,6 +198,11 @@ def apply_questions(
             row.min_value = min_value
             row.max_value = max_value
             row.unit = unit
+            row.points = points
+            row.correct_int = correct_int
+            row.correct_text = correct_text
+            row.correct_choices = correct_choices
+            row.tolerance = tolerance
             seen_ids.add(payload.id)
         else:
             # Insert. An id submitted that doesn't exist on disk is
@@ -188,6 +222,11 @@ def apply_questions(
                     min_value=min_value,
                     max_value=max_value,
                     unit=unit,
+                    points=points,
+                    correct_int=correct_int,
+                    correct_text=correct_text,
+                    correct_choices=correct_choices,
+                    tolerance=tolerance,
                 )
             )
 
@@ -233,6 +272,7 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
         FormListOut(
             id=f.id,
             slug=f.slug,
+            mode=as_mode(f.mode),
             name_nl=f.name_nl,
             name_en=f.name_en,
             locale=f.locale,
@@ -257,6 +297,7 @@ def to_out(db: Session, form: Form) -> FormOut:
     return FormOut(
         id=form.id,
         slug=form.slug,
+        mode=as_mode(form.mode),
         name_nl=form.name_nl,
         name_en=form.name_en,
         locale=form.locale,
@@ -269,6 +310,7 @@ def to_out(db: Session, form: Form) -> FormOut:
         description_en=form.description_en,
         image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
+        reveal_answers=form.reveal_answers,
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
 
@@ -286,7 +328,11 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
         image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
         locale=form.locale,
-        questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
+        mode=as_mode(form.mode),
+        # ``PublicQuestionOut``, not ``FormQuestionOut``: this is the
+        # shape that leaves out the answer key, and it is the only thing
+        # standing between a quiz and being solved by view-source.
+        questions=[PublicQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
 
 
@@ -296,6 +342,18 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
 def submission_count(db: Session, form_id: str) -> int:
     """Number of fill-outs (parent submission rows) for the form."""
     return db.query(func.count(FormSubmission.id)).filter(FormSubmission.form_id == form_id).scalar() or 0
+
+
+def _summary(q: FormQuestion, db: Session, form_id: str, **fields: object) -> FormQuestionSummary:
+    """One aggregate row, plus the one number only a quiz has."""
+    return FormQuestionSummary(
+        id=q.id,
+        ordinal=q.ordinal,
+        kind=q.kind,
+        prompt=q.prompt,
+        correct_share=quizzes.correct_share(db, form_id, q),
+        **fields,  # type: ignore[arg-type]
+    )
 
 
 def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
@@ -322,11 +380,10 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
             )
             distribution, total, average = rating_distribution([(v, c) for v, c in rows])
             summaries.append(
-                FormQuestionSummary(
-                    id=q.id,
-                    ordinal=q.ordinal,
-                    kind=q.kind,
-                    prompt=q.prompt,
+                _summary(
+                    q,
+                    db,
+                    form_id,
                     response_count=total,
                     rating_distribution=distribution,
                     rating_average=average,
@@ -344,11 +401,10 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                 .all()
             ]
             summaries.append(
-                FormQuestionSummary(
-                    id=q.id,
-                    ordinal=q.ordinal,
-                    kind=q.kind,
-                    prompt=q.prompt,
+                _summary(
+                    q,
+                    db,
+                    form_id,
                     response_count=len(values),
                     number_average=round(sum(values) / len(values), 1) if values else None,
                     number_min=min(values) if values else None,
@@ -367,11 +423,10 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                 .all()
             )
             summaries.append(
-                FormQuestionSummary(
-                    id=q.id,
-                    ordinal=q.ordinal,
-                    kind=q.kind,
-                    prompt=q.prompt,
+                _summary(
+                    q,
+                    db,
+                    form_id,
                     response_count=len(texts),
                     texts=[t[0] for t in texts],
                 )
@@ -396,11 +451,10 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                     if c in counts:
                         counts[c] += 1
             summaries.append(
-                FormQuestionSummary(
-                    id=q.id,
-                    ordinal=q.ordinal,
-                    kind=q.kind,
-                    prompt=q.prompt,
+                _summary(
+                    q,
+                    db,
+                    form_id,
                     response_count=response_count,
                     choice_counts=counts,
                 )
@@ -410,15 +464,48 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
             # write + DB CHECK), but the summary endpoint shouldn't
             # crash on a malformed row.
             summaries.append(
-                FormQuestionSummary(
-                    id=q.id,
-                    ordinal=q.ordinal,
-                    kind=q.kind,
-                    prompt=q.prompt,
+                _summary(
+                    q,
+                    db,
+                    form_id,
                     response_count=0,
                 )
             )
     return summaries
+
+
+def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
+    """The organiser's list of taken quizzes: the survey projection
+    plus what each one scored, out of what it was scored out of at the
+    time (``docs/design-quizzes.md`` part 1.2)."""
+    return [
+        QuizSubmissionOut(
+            submission_id=row.submission_id,
+            display_name=row.display_name,
+            created_at=row.created_at,
+            score=score,
+            max_score=max_score,
+            answers=row.answers,
+            link_recovered_at=row.link_recovered_at,
+        )
+        for row, (score, max_score) in zip(
+            submissions(db, form_id),
+            _scores(db, form_id),
+            strict=True,
+        )
+    ]
+
+
+def _scores(db: Session, form_id: str) -> list[tuple[int, int]]:
+    """Score and total per submission, in the same order ``submissions``
+    returns them: oldest first."""
+    rows = (
+        db.query(FormSubmission.score, FormSubmission.max_score)
+        .filter(FormSubmission.form_id == form_id)
+        .order_by(FormSubmission.created_at)
+        .all()
+    )
+    return [(int(s or 0), int(m or 0)) for s, m in rows]
 
 
 def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:

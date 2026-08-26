@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import User
-from ..schemas.start import StartDatepoll, StartedOut, StartEvent, StartForm, StartRoster
+from ..schemas.start import StartDatepoll, StartedOut, StartEvent, StartForm, StartQuiz, StartRoster
 from ..services import access, entities, event_stats, limits, tenancy
 from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
@@ -45,7 +45,7 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # The public path each kind's slug lives under. What the mail *calls*
 # each kind is in the templates, one set of words per language, because
 # that is what a translation is.
-_PREFIXES = {"event": "e", "form": "f", "datepoll": "d", "roster": "c"}
+_PREFIXES = {"event": "e", "form": "f", "datepoll": "d", "roster": "c", "quiz": "q"}
 
 
 def _resolve_account(db: Session, email: str) -> User:
@@ -117,6 +117,17 @@ def start_form(request: Request, data: StartForm, db: Session = Depends(get_db))
     form = entities.create_form(db, data.form, user)
     db.commit()
     return _finish(db, user, "form", form.slug, form.name_nl or form.name_en or "", form.locale)
+
+
+@router.post("/quizzes", response_model=StartedOut, status_code=201)
+@limiter.limit(Limits.PUBLIC_WRITE)
+def start_quiz(request: Request, data: StartQuiz, db: Session = Depends(get_db)) -> StartedOut:
+    user = _resolve_account(db, data.email)
+    access.assert_user_can_assign_chapter(db, user, data.quiz.chapter_id)
+    limits.assert_can_add_entity(db, user.tenant, "quiz")
+    quiz = entities.create_form(db, data.quiz, user, mode="quiz")
+    db.commit()
+    return _finish(db, user, "quiz", quiz.slug, quiz.name_nl or quiz.name_en or "", quiz.locale)
 
 
 @router.post("/datepolls", response_model=StartedOut, status_code=201)

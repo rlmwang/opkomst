@@ -69,9 +69,13 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
     return event
 
 
-def create_form(db: Session, data: FormCreate, user: User) -> Form:
+def create_form(db: Session, data: FormCreate, user: User, mode: str = "survey") -> Form:
+    """A questionnaire or a quiz: one row shape, told apart by ``mode``
+    (``docs/design-quizzes.md``). Both doors, organiser and start, reach
+    this for both products."""
     form = Form(
-        mode="survey",
+        mode=mode,
+        reveal_answers=data.reveal_answers,
         slug=new_slug(),
         name_nl=data.name_nl,
         name_en=data.name_en,
@@ -85,7 +89,7 @@ def create_form(db: Session, data: FormCreate, user: User) -> Form:
     db.add(form)
     db.flush()  # Need form.id for the question rows below.
     if data.questions:
-        forms_svc.apply_questions(db, form.id, data.questions)
+        forms_svc.apply_questions(db, form.id, data.questions, form.mode)
     logger.info("form_created", form_id=form.id, actor_id=user.id, chapter_id=data.chapter_id)
     return form
 

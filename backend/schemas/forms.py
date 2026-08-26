@@ -54,6 +54,15 @@ class FormQuestionIn(BaseModel):
     min_value: int | None = None
     max_value: int | None = None
     unit: str | None = Field(default=None, max_length=20)
+    # Quiz only; the service drops them on a survey. ``points`` is what
+    # a correct answer earns, and one of the ``correct_*`` fields is the
+    # key, depending on the kind. A question worth 0 is asked and not
+    # scored, which is the only thing a ``text`` question can be.
+    points: int = Field(default=0, ge=0, le=100)
+    correct_int: int | None = None
+    correct_text: str | None = Field(default=None, max_length=200)
+    correct_choices: list[str] | None = Field(default=None, max_length=50)
+    tolerance: int | None = Field(default=None, ge=0)
 
 
 class FormQuestionOut(BaseModel):
@@ -73,6 +82,38 @@ class FormQuestionOut(BaseModel):
     min_value: int | None = None
     max_value: int | None = None
     unit: str | None = None
+    # The key. Organiser-side only: it is what they typed, and it is
+    # what the edit page has to show them again.
+    points: int = 0
+    correct_int: int | None = None
+    correct_text: str | None = None
+    correct_choices: list[str] | None = None
+    tolerance: int | None = None
+    model_config = {"from_attributes": True}
+
+
+class PublicQuestionOut(BaseModel):
+    """What a respondent's browser is allowed to know about a question.
+
+    Everything ``FormQuestionOut`` has except the answer key. This is
+    the one class standing between a quiz and being solved by
+    view-source, so it lists its fields rather than excluding: a field
+    added to the question model does not silently appear here."""
+
+    id: str
+    ordinal: int
+    kind: str
+    prompt: str
+    required: bool
+    options: list[str]
+    low_label: str | None = None
+    high_label: str | None = None
+    min_value: int | None = None
+    max_value: int | None = None
+    unit: str | None = None
+    # What it is worth is not a secret, and on a quiz it is worth
+    # knowing before you answer.
+    points: int = 0
     model_config = {"from_attributes": True}
 
 
@@ -86,6 +127,10 @@ class FormCreate(BilingualTitleMixin):
     description_en: RichText
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
+    # Quiz only: whether the result screen names the right answers or
+    # only gives the score. Ignored on a survey, which has no answers to
+    # reveal.
+    reveal_answers: bool = True
     # Optional on create — an organiser can save a draft form with
     # no questions and add them on the edit page afterwards. On
     # update the same field is "the exact question set after the
@@ -110,6 +155,7 @@ class FormListOut(BaseModel):
 
     id: str
     slug: str
+    mode: FormMode
     name_nl: str | None
     name_en: str | None
     locale: Locale
@@ -130,6 +176,7 @@ class FormOut(FormListOut):
     description_en: str | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
+    reveal_answers: bool = True
     questions: list[FormQuestionOut] = Field(default_factory=list)
 
 
@@ -146,7 +193,8 @@ class PublicFormOut(BaseModel):
     image_url: str | None = None
     image_artist_instagram: str | None = None
     locale: Locale
-    questions: list[FormQuestionOut]
+    mode: FormMode
+    questions: list[PublicQuestionOut]
 
 
 class FormAnswerIn(BaseModel):
@@ -170,6 +218,37 @@ class FormSubmitIn(BaseModel):
     # contract as the event sign-up name.
     display_name: DisplayName
     answers: list[FormAnswerIn]
+
+
+class QuizAnswerResult(BaseModel):
+    """One graded answer on the result screen. The key is here and
+    nowhere earlier: this shape is the response to the submit, so it
+    arrives once the answering is over."""
+
+    question_id: str
+    awarded: int
+    points: int
+    correct: bool
+    # What the right answer was, in the kind's own shape. Null when the
+    # quiz is set not to reveal answers, or the question is unscored.
+    correct_int: int | None = None
+    correct_text: str | None = None
+    correct_choices: list[str] | None = None
+
+
+class QuizResultOut(BaseModel):
+    """What a respondent sees when they finish: the score, the total
+    that score was out of, and the per-question breakdown. ``edit_token``
+    opens the same result again later, read-only: changing an answer
+    after seeing the score is a second attempt, not a correction
+    (``docs/design-quizzes.md`` part 3)."""
+
+    submission_id: str
+    edit_token: str
+    score: int
+    max_score: int
+    reveal_answers: bool
+    answers: list[QuizAnswerResult]
 
 
 class FormSubmitAck(BaseModel):
@@ -215,6 +294,10 @@ class FormQuestionSummary(BaseModel):
     kind: str
     prompt: str
     response_count: int
+    # Quiz only: the share of answers that earned full marks, which is
+    # the one aggregate a quiz has that a survey cannot, and the one
+    # that says which question was broken.
+    correct_share: float | None = None
     rating_distribution: list[int] | None = None
     rating_average: float | None = None
     texts: list[str] | None = None
@@ -227,10 +310,28 @@ class FormQuestionSummary(BaseModel):
 class FormSummaryOut(BaseModel):
     """Organiser summary endpoint. ``submission_count`` is the
     number of distinct fill-outs; per-question aggregates explain
-    what each question collected."""
+    what each question collected. The three score fields are null on a
+    survey, which has no score."""
 
     submission_count: int
+    score_average: float | None = None
+    score_best: int | None = None
+    max_score: int | None = None
     questions: list[FormQuestionSummary]
+
+
+class QuizSubmissionOut(BaseModel):
+    """One taken quiz, for the organiser's list. Same privacy contract
+    as the survey row: the id is opaque and the pseudonym is the only
+    identifier."""
+
+    submission_id: str
+    display_name: str | None
+    created_at: datetime
+    score: int
+    max_score: int
+    answers: dict[str, int | str | list[str]]
+    link_recovered_at: datetime | None = None
 
 
 class FormSubmissionOut(BaseModel):

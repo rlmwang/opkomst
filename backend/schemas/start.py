@@ -34,6 +34,13 @@ class StartForm(StartBase):
     form: FormCreate
 
 
+class StartQuiz(StartBase):
+    # Same payload as a questionnaire: the two products differ by an
+    # answer key and a score, not by what it takes to make one
+    # (``docs/design-quizzes.md``).
+    quiz: FormCreate
+
+
 class StartDatepoll(StartBase):
     datepoll: DatepollCreate
 
