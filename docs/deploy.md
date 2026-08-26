@@ -286,6 +286,10 @@ GITHUB_IMAGES_TOKEN=
 # never opened, whatever these say. The two slot ids are ad units
 # created in the AdSense console, one 160x600 and one 320x50.
 # Design and reasoning: docs/ads.md.
+# Setting CLIENT_ID alone publishes /ads.txt and loads the tag,
+# which is what AdSense verification looks for; the two slot ids
+# are what actually start showing ads. Ordered walkthrough in
+# docs/ads.md.
 ADSENSE_CLIENT_ID=
 ADSENSE_SLOT_RAIL=
 ADSENSE_SLOT_BANNER=

@@ -12,6 +12,7 @@ from .bootstrap import init_sentry
 from .config import cors_origins_list, settings
 from .database import engine
 from .routers import admin as admin_router
+from .routers import ads_txt as ads_txt_router
 from .routers import auth as auth_router
 from .routers import chapters as chapters_router
 from .routers import chapters_public as chapters_public_router
@@ -149,6 +150,10 @@ if settings.local_mode:
     from .routers import dev as dev_router
 
     app.include_router(dev_router.router)
+
+# ``/ads.txt`` — the authorised-sellers file. Before the SPA fallback,
+# which would otherwise answer it with the app's HTML shell.
+app.include_router(ads_txt_router.router)
 
 # SPA fallback last so router matches win first.
 spa.mount(app)

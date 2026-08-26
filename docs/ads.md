@@ -204,21 +204,54 @@ as this gets.
 A test pins that an organisation-owned page never receives the loosened
 header.
 
-### What is left to switch it on
+### Turning it on, in order
 
-The code is written. What remains is outside the repository:
+The code is written. Everything below is configuration, and the order
+matters because the earlier steps are what let the later ones verify.
 
-1. An AdSense account with opkomst.nu verified and approved.
-2. Two ad units created there, one 160x600 and one 320x50.
-3. `ADSENSE_CLIENT_ID`, `ADSENSE_SLOT_RAIL` and `ADSENSE_SLOT_BANNER`
-   in the environment.
-4. Google's Privacy & messaging CMP configured in the console, which is
-   free and certified, and which the AdSense tag brings with it.
-5. A privacy-policy line about the ad request, which is the one piece
-   of copy this still needs.
+1. **Set `ADSENSE_CLIENT_ID` and deploy.** The `ca-pub-…` value from
+   the account. On its own this publishes `/ads.txt`, which is how
+   AdSense confirms that the account and the domain belong to the same
+   person, and it starts loading the ad tag. The two slot ids can wait:
+   without them the slot renders its unconfigured state, and the page
+   already carries the tag that verification looks for.
+2. **Add the site in AdSense and let it verify.** Verification is
+   real-time for the tag; the `ads.txt` crawl can take a few days to
+   show as verified in the console. Nothing else waits on it.
+3. **Create two display ad units**, one 160x600 and one 320x50, and put
+   their ids in `ADSENSE_SLOT_RAIL` and `ADSENSE_SLOT_BANNER`. This is
+   the deploy that actually starts showing ads.
+4. **Turn on Privacy & messaging** in the console and publish the GDPR
+   message. The AdSense tag delivers it, so there is no second script
+   and no CSP change; the loosened policy already allows its host. Do
+   this before step 3 reaches production traffic in the EEA.
+5. **Set the blocking controls** under Brand safety, at least the
+   sensitive categories. See the section on selection below: this is
+   the only real control over what appears.
+6. **Add the privacy-policy line** about the ad request. The one piece
+   of copy this still needs, and the only item here that is a code
+   change.
 
-Until step 3 the app behaves exactly as it does today: strict CSP, no
-Google code, no consent dialog, no cookie.
+Until step 1 the app behaves exactly as it does today: strict CSP, no
+Google code, no consent dialog, no cookie, and `/ads.txt` answering
+404 because there is nobody to authorise.
+
+### ads.txt
+
+`routers/ads_txt.py` serves one line, built from the environment:
+
+```
+google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+```
+
+It is generated rather than committed for the same reason nothing else
+about advertising is committed: a deployment with no client id
+authorises nobody and returns 404, rather than publishing an empty file
+or somebody else's publisher id. The `ca-` prefix belongs to the ad tag
+and is stripped here, which is the usual reason a publisher id reads as
+missing in the console. The route is registered before the SPA
+fallback, or the file would answer with the app's HTML shell and read
+as malformed rather than absent.
 
 ## The strategy: traffic over click-through
 

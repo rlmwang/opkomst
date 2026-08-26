@@ -57,6 +57,7 @@ def configured(monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr("backend.services.brand.settings", fake)
     monkeypatch.setattr("backend.routers.spa.settings", fake)
+    monkeypatch.setattr("backend.routers.ads_txt.settings", fake)
     return fake
 
 
@@ -84,6 +85,30 @@ def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> No
     an organisation's pages, now or by accident later."""
     csp = client.get("/rsp/events").headers["content-security-policy"]
     assert "googlesyndication" not in csp
+
+
+def test_ads_txt_is_absent_until_a_publisher_is_configured(client) -> None:
+    """An empty or placeholder file is a claim that nobody is
+    authorised to sell this inventory. Having nothing to declare is a
+    different statement, and a 404 is how it is made."""
+    assert client.get("/ads.txt").status_code == 404
+
+
+def test_ads_txt_declares_google_once_configured(client, configured) -> None:
+    """The IAB line every programmatic buyer checks before bidding.
+    The ``ca-`` prefix belongs to the ad tag, not to this file: leaving
+    it on is the usual reason a publisher id reads as missing."""
+    response = client.get("/ads.txt")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert response.text.strip() == "google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0"
+
+
+def test_ads_txt_is_not_swallowed_by_the_spa(client, configured) -> None:
+    """It is registered before the catch-all. Served as HTML it would
+    read to a crawler as a malformed file rather than as a missing
+    one."""
+    assert "<html" not in client.get("/ads.txt").text.lower()
 
 
 def test_the_strict_policy_names_no_ad_host() -> None:
