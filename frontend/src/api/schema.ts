@@ -1978,7 +1978,7 @@ export interface paths {
          * Submit Form
          * @description Accept one public submission. Mints a secret edit-link token
          *     (raw returned once; only its hash stored) so the respondent can
-         *     revisit and edit. Nothing in the response links the submission
+         *     come back to it. Nothing in the response links the submission
          *     back to a person beyond the self-chosen pseudonym.
          */
         post: operations["submit_form_api_v1_forms_by_slug__slug__submit_post"];
@@ -1997,16 +1997,16 @@ export interface paths {
         };
         /**
          * Get Form Submission
-         * @description Current values of a submission, for pre-filling the edit form.
-         *     Gated by the secret token (the link).
+         * @description Current values of a submission, for pre-filling the edit
+         *     form. Gated by the secret token (the link).
          */
         get: operations["get_form_submission_api_v1_forms_by_token__token__get"];
         /**
-         * Update Form Submission
-         * @description Update a submission in place via its edit-link token. Replaces
-         *     the submission's answer rows and the pseudonym.
+         * Update Submission Form
+         * @description Update a submission in place via its edit-link token.
+         *     Replaces the submission's answer rows and the pseudonym.
          */
-        put: operations["update_form_submission_api_v1_forms_by_token__token__put"];
+        put: operations["update_submission_form_api_v1_forms_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2024,12 +2024,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Withdraw Form Submission
+         * Withdraw Submission Form
          * @description Withdraw a submission via its edit-link token — the respondent
          *     deleting their own answers. Removes the response rows and the
          *     submission; nothing else references either (pseudonymous, no email).
          */
-        post: operations["withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post"];
+        post: operations["withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2095,17 +2095,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload Form Image
+         * Upload Image Form
          * @description Upload (or replace) the form's hero image — same 4:5 GitHub
          *     pipeline as events (``services/image.py``).
          */
-        post: operations["upload_form_image_api_v1_forms__form_id__image_post"];
+        post: operations["upload_image_form_api_v1_forms__form_id__image_post"];
         /**
-         * Delete Form Image
+         * Delete Image Form
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_form_image_api_v1_forms__form_id__image_delete"];
+        delete: operations["delete_image_form_api_v1_forms__form_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2164,12 +2164,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Recover Submission Edit Link
+         * Recover Edit Link Form
          * @description Organiser recovery of a respondent's lost magic link — rotates
          *     the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post"];
+        post: operations["recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2186,6 +2186,328 @@ export interface paths {
         /** Form Summary */
         get: operations["form_summary_api_v1_forms__form_id__summary_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Forms */
+        get: operations["list_forms_api_v1_quizzes_get"];
+        put?: never;
+        /**
+         * Create Quiz
+         * @description Create a new form. Questions are optional — a blank form
+         *     can be saved and the question list filled in on the edit
+         *     page afterwards. Caller-supplied ``chapter_id`` must be in
+         *     the user's live membership set.
+         */
+        post: operations["create_quiz_api_v1_quizzes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Forms */
+        get: operations["list_archived_forms_api_v1_quizzes_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Form */
+        get: operations["get_public_form_api_v1_quizzes_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Form Qr
+         * @description QR SVG for one slug. Resolves the form first so a typo'd
+         *     slug 410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/by-slug/{slug}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Quiz
+         * @description Accept one public submission. Mints a secret edit-link token
+         *     (raw returned once; only its hash stored) so the respondent can
+         *     come back to it. Nothing in the response links the submission
+         *     back to a person beyond the self-chosen pseudonym.
+         */
+        post: operations["submit_quiz_api_v1_quizzes_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Quiz Result
+         * @description The result again, later. Read-only on purpose: changing
+         *     an answer after seeing the score is a second attempt, not a
+         *     correction (``docs/design-quizzes.md`` part 3.4). There is
+         *     no PUT on this path for a quiz.
+         */
+        get: operations["get_quiz_result_api_v1_quizzes_by_token__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/by-token/{token}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Submission Quiz
+         * @description Withdraw a submission via its edit-link token — the respondent
+         *     deleting their own answers. Removes the response rows and the
+         *     submission; nothing else references either (pseudonymous, no email).
+         */
+        post: operations["withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Form */
+        get: operations["get_form_api_v1_quizzes__form_id__get"];
+        /**
+         * Update Quiz
+         * @description Update a form. Chapter changes are allowed (organiser might
+         *     have picked the wrong chapter at create time) but the new one
+         *     still has to be in the user's set. Questions are diff-applied
+         *     by id — see ``services/forms.apply_questions``.
+         */
+        put: operations["update_quiz_api_v1_quizzes__form_id__put"];
+        post?: never;
+        /**
+         * Delete Quiz
+         * @description Hard-delete an archived form. Refuses if the form isn't
+         *     archived first — accidentally hard-deleting a live form with
+         *     responses would be a data-loss footgun. Cascades through
+         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
+         *     CASCADEs in the schema.
+         */
+        delete: operations["delete_quiz_api_v1_quizzes__form_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Quiz */
+        post: operations["archive_quiz_api_v1_quizzes__form_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Image Quiz
+         * @description Upload (or replace) the form's hero image — same 4:5 GitHub
+         *     pipeline as events (``services/image.py``).
+         */
+        post: operations["upload_image_quiz_api_v1_quizzes__form_id__image_post"];
+        /**
+         * Delete Image Quiz
+         * @description Clear the reference and delete the file: nothing else points at
+         *     it.
+         */
+        delete: operations["delete_image_quiz_api_v1_quizzes__form_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Quiz */
+        post: operations["restore_quiz_api_v1_quizzes__form_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions
+         * @description Per-submission rows, keyed by question id. CSV consumers
+         *     map columns by question id; a separate lookup against the
+         *     questions list gives them the prompt text.
+         *
+         *     Privacy: ``submission_id`` is a random per-submission token
+         *     with no link back to whoever submitted — same contract as
+         *     the post-event feedback CSV.
+         */
+        get: operations["form_submissions_api_v1_quizzes__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/submissions/{submission_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Edit Link Quiz
+         * @description Organiser recovery of a respondent's lost magic link — rotates
+         *     the token (never reveals it) and permanently stamps
+         *     ``link_recovered_at``; see ``services/edit_token.recover``.
+         */
+        post: operations["recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quizzes/{form_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Form Summary */
+        get: operations["form_summary_api_v1_quizzes__form_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Settings */
+        get: operations["get_settings_api_v1_settings_get"];
+        /** Update Settings */
+        put: operations["update_settings_api_v1_settings_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2255,6 +2577,23 @@ export interface paths {
         put?: never;
         /** Start Form */
         post: operations["start_form_api_v1_start_forms_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/start/quizzes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Quiz */
+        post: operations["start_quiz_api_v1_start_quizzes_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2511,8 +2850,13 @@ export interface components {
             /** File */
             file: string;
         };
-        /** Body_upload_form_image_api_v1_forms__form_id__image_post */
-        Body_upload_form_image_api_v1_forms__form_id__image_post: {
+        /** Body_upload_image_form_api_v1_forms__form_id__image_post */
+        Body_upload_image_form_api_v1_forms__form_id__image_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_image_quiz_api_v1_quizzes__form_id__image_post */
+        Body_upload_image_quiz_api_v1_quizzes__form_id__image_post: {
             /** File */
             file: string;
         };
@@ -3706,6 +4050,11 @@ export interface components {
             name_nl?: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
+            /**
+             * Reveal Answers
+             * @default true
+             */
+            reveal_answers: boolean;
         };
         /**
          * FormEditOut
@@ -3752,6 +4101,11 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "survey" | "quiz";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
@@ -3794,12 +4148,22 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "survey" | "quiz";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionOut"][];
+            /**
+             * Reveal Answers
+             * @default true
+             */
+            reveal_answers: boolean;
             /** Slug */
             slug: string;
             /** Submission Count */
@@ -3816,6 +4180,12 @@ export interface components {
          *     "send back in the new order".
          */
         FormQuestionIn: {
+            /** Correct Choices */
+            correct_choices?: string[] | null;
+            /** Correct Int */
+            correct_int?: number | null;
+            /** Correct Text */
+            correct_text?: string | null;
             /** High Label */
             high_label?: string | null;
             /** Id */
@@ -3833,6 +4203,11 @@ export interface components {
             min_value?: number | null;
             /** Options */
             options?: string[];
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
             /** Prompt */
             prompt: string;
             /**
@@ -3840,6 +4215,8 @@ export interface components {
              * @default true
              */
             required: boolean;
+            /** Tolerance */
+            tolerance?: number | null;
             /** Unit */
             unit?: string | null;
         };
@@ -3851,6 +4228,12 @@ export interface components {
          *     verbatim. ``ordinal`` is server-assigned (1..N).
          */
         FormQuestionOut: {
+            /** Correct Choices */
+            correct_choices?: string[] | null;
+            /** Correct Int */
+            correct_int?: number | null;
+            /** Correct Text */
+            correct_text?: string | null;
             /** High Label */
             high_label?: string | null;
             /** Id */
@@ -3867,10 +4250,17 @@ export interface components {
             options: string[];
             /** Ordinal */
             ordinal: number;
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
             /** Prompt */
             prompt: string;
             /** Required */
             required: boolean;
+            /** Tolerance */
+            tolerance?: number | null;
             /** Unit */
             unit?: string | null;
         };
@@ -3895,6 +4285,8 @@ export interface components {
             choice_counts?: {
                 [key: string]: number;
             } | null;
+            /** Correct Share */
+            correct_share?: number | null;
             /** Id */
             id: string;
             /** Kind */
@@ -3970,11 +4362,18 @@ export interface components {
          * FormSummaryOut
          * @description Organiser summary endpoint. ``submission_count`` is the
          *     number of distinct fill-outs; per-question aggregates explain
-         *     what each question collected.
+         *     what each question collected. The three score fields are null on a
+         *     survey, which has no score.
          */
         FormSummaryOut: {
+            /** Max Score */
+            max_score?: number | null;
             /** Questions */
             questions: components["schemas"]["FormQuestionSummary"][];
+            /** Score Average */
+            score_average?: number | null;
+            /** Score Best */
+            score_best?: number | null;
             /** Submission Count */
             submission_count: number;
         };
@@ -4005,6 +4404,11 @@ export interface components {
             name_nl?: string | null;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
+            /**
+             * Reveal Answers
+             * @default true
+             */
+            reveal_answers: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4380,12 +4784,17 @@ export interface components {
              * @enum {string}
              */
             locale: "nl" | "en";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "survey" | "quiz";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
             /** Questions */
-            questions: components["schemas"]["FormQuestionOut"][];
+            questions: components["schemas"]["PublicQuestionOut"][];
         };
         /**
          * PublicOccurrenceOut
@@ -4412,6 +4821,44 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
+        };
+        /**
+         * PublicQuestionOut
+         * @description What a respondent's browser is allowed to know about a question.
+         *
+         *     Everything ``FormQuestionOut`` has except the answer key. This is
+         *     the one class standing between a quiz and being solved by
+         *     view-source, so it lists its fields rather than excluding: a field
+         *     added to the question model does not silently appear here.
+         */
+        PublicQuestionOut: {
+            /** High Label */
+            high_label?: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Low Label */
+            low_label?: string | null;
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
+            /** Options */
+            options: string[];
+            /** Ordinal */
+            ordinal: number;
+            /**
+             * Points
+             * @default 0
+             */
+            points: number;
+            /** Prompt */
+            prompt: string;
+            /** Required */
+            required: boolean;
+            /** Unit */
+            unit?: string | null;
         };
         /**
          * PublicRosterOut
@@ -4466,6 +4913,77 @@ export interface components {
             pairingCode?: string | null;
             /** Qr */
             qr?: string | null;
+        };
+        /**
+         * QuizAnswerResult
+         * @description One graded answer on the result screen. The key is here and
+         *     nowhere earlier: this shape is the response to the submit, so it
+         *     arrives once the answering is over.
+         */
+        QuizAnswerResult: {
+            /** Awarded */
+            awarded: number;
+            /** Correct */
+            correct: boolean;
+            /** Correct Choices */
+            correct_choices?: string[] | null;
+            /** Correct Int */
+            correct_int?: number | null;
+            /** Correct Text */
+            correct_text?: string | null;
+            /** Points */
+            points: number;
+            /** Question Id */
+            question_id: string;
+        };
+        /**
+         * QuizResultOut
+         * @description What a respondent sees when they finish: the score, the total
+         *     that score was out of, and the per-question breakdown. ``edit_token``
+         *     opens the same result again later, read-only: changing an answer
+         *     after seeing the score is a second attempt, not a correction
+         *     (``docs/design-quizzes.md`` part 3).
+         */
+        QuizResultOut: {
+            /** Answers */
+            answers: components["schemas"]["QuizAnswerResult"][];
+            /** Edit Token */
+            edit_token: string;
+            /** Max Score */
+            max_score: number;
+            /** Reveal Answers */
+            reveal_answers: boolean;
+            /** Score */
+            score: number;
+            /** Submission Id */
+            submission_id: string;
+        };
+        /**
+         * QuizSubmissionOut
+         * @description One taken quiz, for the organiser's list. Same privacy contract
+         *     as the survey row: the id is opaque and the pseudonym is the only
+         *     identifier.
+         */
+        QuizSubmissionOut: {
+            /** Answers */
+            answers: {
+                [key: string]: number | string | string[];
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Display Name */
+            display_name: string | null;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
+            /** Max Score */
+            max_score: number;
+            /** Score */
+            score: number;
+            /** Submission Id */
+            submission_id: string;
         };
         /**
          * RenameUserRequest
@@ -4880,6 +5398,15 @@ export interface components {
             email: string;
             form: components["schemas"]["FormCreate"];
         };
+        /** StartQuiz */
+        StartQuiz: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            quiz: components["schemas"]["FormCreate"];
+        };
         /** StartRoster */
         StartRoster: {
             /**
@@ -4923,6 +5450,31 @@ export interface components {
             mine_shift_id: string;
             /** Theirs Shift Id */
             theirs_shift_id: string;
+        };
+        /**
+         * TenantSettingsOut
+         * @description The organisation-wide settings an admin can change from inside
+         *     the app. Today that is the public agenda's rolling window; the DTO
+         *     is a container so the next one is a field rather than an endpoint.
+         */
+        TenantSettingsOut: {
+            /** Agenda Future Days */
+            agenda_future_days: number;
+            /** Agenda Past Days */
+            agenda_past_days: number;
+        };
+        /**
+         * TenantSettingsUpdate
+         * @description A full replacement, not a patch: two numbers on one form that is
+         *     saved as a whole, so both always arrive. The bounds match the
+         *     table's check constraints, which is what makes a 422 here rather
+         *     than a 500 three frames later.
+         */
+        TenantSettingsUpdate: {
+            /** Agenda Future Days */
+            agenda_future_days: number;
+            /** Agenda Past Days */
+            agenda_past_days: number;
         };
         /** UserOut */
         UserOut: {
@@ -8594,7 +9146,7 @@ export interface operations {
             };
         };
     };
-    update_form_submission_api_v1_forms_by_token__token__put: {
+    update_submission_form_api_v1_forms_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -8629,7 +9181,7 @@ export interface operations {
             };
         };
     };
-    withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post: {
+    withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8792,7 +9344,7 @@ export interface operations {
             };
         };
     };
-    upload_form_image_api_v1_forms__form_id__image_post: {
+    upload_image_form_api_v1_forms__form_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8805,7 +9357,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_form_image_api_v1_forms__form_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_image_form_api_v1_forms__form_id__image_post"];
             };
         };
         responses: {
@@ -8829,7 +9381,7 @@ export interface operations {
             };
         };
     };
-    delete_form_image_api_v1_forms__form_id__image_delete: {
+    delete_image_form_api_v1_forms__form_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -8928,7 +9480,7 @@ export interface operations {
             };
         };
     };
-    recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post: {
+    recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8982,6 +9534,667 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FormSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_forms_api_v1_quizzes_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_quiz_api_v1_quizzes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_forms_api_v1_quizzes_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_form_api_v1_quizzes_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicFormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_quiz_api_v1_quizzes_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_quiz_result_api_v1_quizzes_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_api_v1_quizzes__form_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_quiz_api_v1_quizzes__form_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_quiz_api_v1_quizzes__form_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_quiz_api_v1_quizzes__form_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_quiz_api_v1_quizzes__form_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_quiz_api_v1_quizzes__form_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_image_quiz_api_v1_quizzes__form_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_quiz_api_v1_quizzes__form_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_submissions_api_v1_quizzes__form_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_summary_api_v1_quizzes__form_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSummaryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_api_v1_settings_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantSettingsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_settings_api_v1_settings_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TenantSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantSettingsOut"];
                 };
             };
             /** @description Validation Error */
@@ -9104,6 +10317,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StartForm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_quiz_api_v1_start_quizzes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartQuiz"];
             };
         };
         responses: {

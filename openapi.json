@@ -95,7 +95,7 @@
         "title": "Body_upload_event_image_api_v1_events__event_id__image_post",
         "type": "object"
       },
-      "Body_upload_form_image_api_v1_forms__form_id__image_post": {
+      "Body_upload_image_form_api_v1_forms__form_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -106,7 +106,21 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_form_image_api_v1_forms__form_id__image_post",
+        "title": "Body_upload_image_form_api_v1_forms__form_id__image_post",
+        "type": "object"
+      },
+      "Body_upload_image_quiz_api_v1_quizzes__form_id__image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_image_quiz_api_v1_quizzes__form_id__image_post",
         "type": "object"
       },
       "Body_upload_roster_image_api_v1_chores__roster_id__image_post": {
@@ -3245,6 +3259,11 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "reveal_answers": {
+            "default": true,
+            "title": "Reveal Answers",
+            "type": "boolean"
           }
         },
         "title": "FormCreate",
@@ -3350,6 +3369,14 @@
             "title": "Locale",
             "type": "string"
           },
+          "mode": {
+            "enum": [
+              "survey",
+              "quiz"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "name_en": {
             "anyOf": [
               {
@@ -3384,6 +3411,7 @@
         "required": [
           "id",
           "slug",
+          "mode",
           "name_nl",
           "name_en",
           "locale",
@@ -3486,6 +3514,14 @@
             "title": "Locale",
             "type": "string"
           },
+          "mode": {
+            "enum": [
+              "survey",
+              "quiz"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "name_en": {
             "anyOf": [
               {
@@ -3515,6 +3551,11 @@
             "title": "Questions",
             "type": "array"
           },
+          "reveal_answers": {
+            "default": true,
+            "title": "Reveal Answers",
+            "type": "boolean"
+          },
           "slug": {
             "title": "Slug",
             "type": "string"
@@ -3527,6 +3568,7 @@
         "required": [
           "id",
           "slug",
+          "mode",
           "name_nl",
           "name_en",
           "locale",
@@ -3542,6 +3584,44 @@
       "FormQuestionIn": {
         "description": "One question on the create / update payload. ``id`` is null\nfor newly-added rows; existing questions carry their server-\nassigned uuid so the diff-apply on update matches by id (and\nthe row's responses stay attached across a prompt edit).\n``ordinal`` is not on this shape \u2014 the server re-numbers from\ninput order, which means reordering on the frontend is just\n\"send back in the new order\".",
         "properties": {
+          "correct_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Choices"
+          },
+          "correct_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Int"
+          },
+          "correct_text": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Text"
+          },
           "high_label": {
             "anyOf": [
               {
@@ -3619,6 +3699,13 @@
             "title": "Options",
             "type": "array"
           },
+          "points": {
+            "default": 0,
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Points",
+            "type": "integer"
+          },
           "prompt": {
             "maxLength": 500,
             "minLength": 1,
@@ -3629,6 +3716,18 @@
             "default": true,
             "title": "Required",
             "type": "boolean"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance"
           },
           "unit": {
             "anyOf": [
@@ -3653,6 +3752,42 @@
       "FormQuestionOut": {
         "description": "Question shape on the wire. Organiser endpoints + the\npublic-by-slug endpoint both return this; the public form\nrenders ``prompt`` / ``options`` / ``low_label`` / ``high_label``\nverbatim. ``ordinal`` is server-assigned (1..N).",
         "properties": {
+          "correct_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Choices"
+          },
+          "correct_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Int"
+          },
+          "correct_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Text"
+          },
           "high_label": {
             "anyOf": [
               {
@@ -3716,6 +3851,11 @@
             "title": "Ordinal",
             "type": "integer"
           },
+          "points": {
+            "default": 0,
+            "title": "Points",
+            "type": "integer"
+          },
           "prompt": {
             "title": "Prompt",
             "type": "string"
@@ -3723,6 +3863,17 @@
           "required": {
             "title": "Required",
             "type": "boolean"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance"
           },
           "unit": {
             "anyOf": [
@@ -3763,6 +3914,17 @@
               }
             ],
             "title": "Choice Counts"
+          },
+          "correct_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Share"
           },
           "id": {
             "title": "Id",
@@ -3980,14 +4142,47 @@
         "type": "object"
       },
       "FormSummaryOut": {
-        "description": "Organiser summary endpoint. ``submission_count`` is the\nnumber of distinct fill-outs; per-question aggregates explain\nwhat each question collected.",
+        "description": "Organiser summary endpoint. ``submission_count`` is the\nnumber of distinct fill-outs; per-question aggregates explain\nwhat each question collected. The three score fields are null on a\nsurvey, which has no score.",
         "properties": {
+          "max_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Score"
+          },
           "questions": {
             "items": {
               "$ref": "#/components/schemas/FormQuestionSummary"
             },
             "title": "Questions",
             "type": "array"
+          },
+          "score_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Average"
+          },
+          "score_best": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Best"
           },
           "submission_count": {
             "title": "Submission Count",
@@ -4090,6 +4285,11 @@
             },
             "title": "Questions",
             "type": "array"
+          },
+          "reveal_answers": {
+            "default": true,
+            "title": "Reveal Answers",
+            "type": "boolean"
           }
         },
         "title": "FormUpdate",
@@ -5014,6 +5214,14 @@
             "title": "Locale",
             "type": "string"
           },
+          "mode": {
+            "enum": [
+              "survey",
+              "quiz"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
           "name_en": {
             "anyOf": [
               {
@@ -5038,7 +5246,7 @@
           },
           "questions": {
             "items": {
-              "$ref": "#/components/schemas/FormQuestionOut"
+              "$ref": "#/components/schemas/PublicQuestionOut"
             },
             "title": "Questions",
             "type": "array"
@@ -5049,6 +5257,7 @@
           "name_nl",
           "name_en",
           "locale",
+          "mode",
           "questions"
         ],
         "title": "PublicFormOut",
@@ -5093,6 +5302,108 @@
           "is_current"
         ],
         "title": "PublicOccurrenceOut",
+        "type": "object"
+      },
+      "PublicQuestionOut": {
+        "description": "What a respondent's browser is allowed to know about a question.\n\nEverything ``FormQuestionOut`` has except the answer key. This is\nthe one class standing between a quiz and being solved by\nview-source, so it lists its fields rather than excluding: a field\nadded to the question model does not silently appear here.",
+        "properties": {
+          "high_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Label"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "low_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Label"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "ordinal": {
+            "title": "Ordinal",
+            "type": "integer"
+          },
+          "points": {
+            "default": 0,
+            "title": "Points",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "id",
+          "ordinal",
+          "kind",
+          "prompt",
+          "required",
+          "options"
+        ],
+        "title": "PublicQuestionOut",
         "type": "object"
       },
       "PublicRosterOut": {
@@ -5276,6 +5587,188 @@
           }
         },
         "title": "QrResponse",
+        "type": "object"
+      },
+      "QuizAnswerResult": {
+        "description": "One graded answer on the result screen. The key is here and\nnowhere earlier: this shape is the response to the submit, so it\narrives once the answering is over.",
+        "properties": {
+          "awarded": {
+            "title": "Awarded",
+            "type": "integer"
+          },
+          "correct": {
+            "title": "Correct",
+            "type": "boolean"
+          },
+          "correct_choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Choices"
+          },
+          "correct_int": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Int"
+          },
+          "correct_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct Text"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "question_id": {
+            "title": "Question Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id",
+          "awarded",
+          "points",
+          "correct"
+        ],
+        "title": "QuizAnswerResult",
+        "type": "object"
+      },
+      "QuizResultOut": {
+        "description": "What a respondent sees when they finish: the score, the total\nthat score was out of, and the per-question breakdown. ``edit_token``\nopens the same result again later, read-only: changing an answer\nafter seeing the score is a second attempt, not a correction\n(``docs/design-quizzes.md`` part 3).",
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/QuizAnswerResult"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "edit_token": {
+            "title": "Edit Token",
+            "type": "string"
+          },
+          "max_score": {
+            "title": "Max Score",
+            "type": "integer"
+          },
+          "reveal_answers": {
+            "title": "Reveal Answers",
+            "type": "boolean"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "edit_token",
+          "score",
+          "max_score",
+          "reveal_answers",
+          "answers"
+        ],
+        "title": "QuizResultOut",
+        "type": "object"
+      },
+      "QuizSubmissionOut": {
+        "description": "One taken quiz, for the organiser's list. Same privacy contract\nas the survey row: the id is opaque and the pseudonym is the only\nidentifier.",
+        "properties": {
+          "answers": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "title": "Answers",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "link_recovered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link Recovered At"
+          },
+          "max_score": {
+            "title": "Max Score",
+            "type": "integer"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "submission_id": {
+            "title": "Submission Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "submission_id",
+          "display_name",
+          "created_at",
+          "score",
+          "max_score",
+          "answers"
+        ],
+        "title": "QuizSubmissionOut",
         "type": "object"
       },
       "RenameUserRequest": {
@@ -6386,6 +6879,24 @@
         "title": "StartForm",
         "type": "object"
       },
+      "StartQuiz": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "quiz": {
+            "$ref": "#/components/schemas/FormCreate"
+          }
+        },
+        "required": [
+          "email",
+          "quiz"
+        ],
+        "title": "StartQuiz",
+        "type": "object"
+      },
       "StartRoster": {
         "properties": {
           "email": {
@@ -6461,6 +6972,48 @@
           "theirs_shift_id"
         ],
         "title": "SwapIn",
+        "type": "object"
+      },
+      "TenantSettingsOut": {
+        "description": "The organisation-wide settings an admin can change from inside\nthe app. Today that is the public agenda's rolling window; the DTO\nis a container so the next one is a field rather than an endpoint.",
+        "properties": {
+          "agenda_future_days": {
+            "title": "Agenda Future Days",
+            "type": "integer"
+          },
+          "agenda_past_days": {
+            "title": "Agenda Past Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agenda_future_days",
+          "agenda_past_days"
+        ],
+        "title": "TenantSettingsOut",
+        "type": "object"
+      },
+      "TenantSettingsUpdate": {
+        "description": "A full replacement, not a patch: two numbers on one form that is\nsaved as a whole, so both always arrive. The bounds match the\ntable's check constraints, which is what makes a 422 here rather\nthan a 500 three frames later.",
+        "properties": {
+          "agenda_future_days": {
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Agenda Future Days",
+            "type": "integer"
+          },
+          "agenda_past_days": {
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Agenda Past Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agenda_future_days",
+          "agenda_past_days"
+        ],
+        "title": "TenantSettingsUpdate",
         "type": "object"
       },
       "UserOut": {
@@ -12670,7 +13223,7 @@
     },
     "/api/v1/forms/by-slug/{slug}/submit": {
       "post": {
-        "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\nrevisit and edit. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
+        "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\ncome back to it. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
         "operationId": "submit_form_api_v1_forms_by_slug__slug__submit_post",
         "parameters": [
           {
@@ -12723,7 +13276,7 @@
     },
     "/api/v1/forms/by-token/{token}": {
       "get": {
-        "description": "Current values of a submission, for pre-filling the edit form.\nGated by the secret token (the link).",
+        "description": "Current values of a submission, for pre-filling the edit\nform. Gated by the secret token (the link).",
         "operationId": "get_form_submission_api_v1_forms_by_token__token__get",
         "parameters": [
           {
@@ -12764,8 +13317,8 @@
         ]
       },
       "put": {
-        "description": "Update a submission in place via its edit-link token. Replaces\nthe submission's answer rows and the pseudonym.",
-        "operationId": "update_form_submission_api_v1_forms_by_token__token__put",
+        "description": "Update a submission in place via its edit-link token.\nReplaces the submission's answer rows and the pseudonym.",
+        "operationId": "update_submission_form_api_v1_forms_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -12809,7 +13362,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Form Submission",
+        "summary": "Update Submission Form",
         "tags": [
           "forms"
         ]
@@ -12818,7 +13371,7 @@
     "/api/v1/forms/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
-        "operationId": "withdraw_form_submission_api_v1_forms_by_token__token__withdraw_post",
+        "operationId": "withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -12845,7 +13398,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Withdraw Form Submission",
+        "summary": "Withdraw Submission Form",
         "tags": [
           "forms"
         ]
@@ -13087,7 +13640,7 @@
     "/api/v1/forms/{form_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_form_image_api_v1_forms__form_id__image_delete",
+        "operationId": "delete_image_form_api_v1_forms__form_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -13137,14 +13690,14 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Delete Form Image",
+        "summary": "Delete Image Form",
         "tags": [
           "forms"
         ]
       },
       "post": {
         "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
-        "operationId": "upload_form_image_api_v1_forms__form_id__image_post",
+        "operationId": "upload_image_form_api_v1_forms__form_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -13176,7 +13729,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_form_image_api_v1_forms__form_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_image_form_api_v1_forms__form_id__image_post"
               }
             }
           },
@@ -13204,7 +13757,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Upload Form Image",
+        "summary": "Upload Image Form",
         "tags": [
           "forms"
         ]
@@ -13334,7 +13887,7 @@
     "/api/v1/forms/{form_id}/submissions/{submission_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_submission_edit_link_api_v1_forms__form_id__submissions__submission_id__edit_link_post",
+        "operationId": "recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -13393,7 +13946,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Recover Submission Edit Link",
+        "summary": "Recover Edit Link Form",
         "tags": [
           "forms"
         ]
@@ -13454,6 +14007,1129 @@
         "summary": "Form Summary",
         "tags": [
           "forms"
+        ]
+      }
+    },
+    "/api/v1/quizzes": {
+      "get": {
+        "operationId": "list_forms_api_v1_quizzes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormListOut"
+                  },
+                  "title": "Response List Forms Api V1 Quizzes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Forms",
+        "tags": [
+          "quizzes"
+        ]
+      },
+      "post": {
+        "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
+        "operationId": "create_quiz_api_v1_quizzes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/archived": {
+      "get": {
+        "operationId": "list_archived_forms_api_v1_quizzes_archived_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chapter_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Chapter Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FormListOut"
+                  },
+                  "title": "Response List Archived Forms Api V1 Quizzes Archived Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Archived Forms",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/by-slug/{slug}": {
+      "get": {
+        "operationId": "get_public_form_api_v1_quizzes_by_slug__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Public Form",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/by-slug/{slug}/qr.svg": {
+      "get": {
+        "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
+        "operationId": "get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form Qr",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/by-slug/{slug}/submit": {
+      "post": {
+        "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\ncome back to it. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
+        "operationId": "submit_quiz_api_v1_quizzes_by_slug__slug__submit_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormSubmitIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/by-token/{token}": {
+      "get": {
+        "description": "The result again, later. Read-only on purpose: changing\nan answer after seeing the score is a second attempt, not a\ncorrection (``docs/design-quizzes.md`` part 3.4). There is\nno PUT on this path for a quiz.",
+        "operationId": "get_quiz_result_api_v1_quizzes_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizResultOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Quiz Result",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/by-token/{token}/withdraw": {
+      "post": {
+        "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
+        "operationId": "withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Withdraw Submission Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}": {
+      "delete": {
+        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "operationId": "delete_quiz_api_v1_quizzes__form_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      },
+      "get": {
+        "operationId": "get_form_api_v1_quizzes__form_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Form",
+        "tags": [
+          "quizzes"
+        ]
+      },
+      "put": {
+        "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
+        "operationId": "update_quiz_api_v1_quizzes__form_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FormUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/archive": {
+      "post": {
+        "operationId": "archive_quiz_api_v1_quizzes__form_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/image": {
+      "delete": {
+        "description": "Clear the reference and delete the file: nothing else points at\nit.",
+        "operationId": "delete_image_quiz_api_v1_quizzes__form_id__image_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Image Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      },
+      "post": {
+        "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
+        "operationId": "upload_image_quiz_api_v1_quizzes__form_id__image_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_image_quiz_api_v1_quizzes__form_id__image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Image Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/restore": {
+      "post": {
+        "operationId": "restore_quiz_api_v1_quizzes__form_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/submissions": {
+      "get": {
+        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "operationId": "form_submissions_api_v1_quizzes__form_id__submissions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuizSubmissionOut"
+                  },
+                  "title": "Response Form Submissions Api V1 Quizzes  Form Id  Submissions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/submissions/{submission_id}/edit-link": {
+      "post": {
+        "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
+        "operationId": "recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLinkRecoverOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover Edit Link Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quizzes/{form_id}/summary": {
+      "get": {
+        "operationId": "form_summary_api_v1_quizzes__form_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FormSummaryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Summary",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "operationId": "get_settings_api_v1_settings_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "update_settings_api_v1_settings_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSettingsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Settings",
+        "tags": [
+          "settings"
         ]
       }
     },
@@ -13616,6 +15292,47 @@
           }
         },
         "summary": "Start Form",
+        "tags": [
+          "start"
+        ]
+      }
+    },
+    "/api/v1/start/quizzes": {
+      "post": {
+        "operationId": "start_quiz_api_v1_start_quizzes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartQuiz"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Quiz",
         "tags": [
           "start"
         ]
