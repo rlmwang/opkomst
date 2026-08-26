@@ -1,14 +1,14 @@
-{# See the Dutch copy: the account this link opens is named, and no
-   other account is mentioned. #}
+{# See the Dutch copy: the subject names this app, the body names the
+   account the link opens, and no other account is mentioned. #}
 {% extends "base.html" %}
-{% set subject = "Sign in to " + account %}
+{% set subject = "Sign in to " + app_name %}
 {% block content %}
 {# A personal account is named by its owner's address, and so is its
    one user, so greeting them by name would read "Hi you@example.com,
    … sign in to you@example.com". The greeting is dropped when the two
    are the same thing. #}
 <p>{% if name != account %}Hi {{ name }},{% else %}Hi,{% endif %}</p>
-<p>The button below signs you in to <strong>{{ account }}</strong>.</p>
+<p>The button below signs you in to {{ app_name }}, on the <strong>{{ account }}</strong> account.</p>
 <a href="{{ login_url }}" class="cta">Sign in</a>
 <p class="muted">This link works once and expires in 30 minutes. If you didn't ask for it, you don't need to do anything.</p>
 {% endblock %}

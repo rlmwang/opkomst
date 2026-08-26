@@ -1,8 +1,9 @@
 {# Only an organisation has a registration step; the root's door creates
-   the account outright. So this mail names the organisation being
-   joined, and nothing else. #}
+   the account outright. The subject names this app, because that is
+   where the account is being made; the body names the organisation
+   being joined, and nothing else. #}
 {% extends "base.html" %}
-{% set subject = "Account aanmaken bij " + account %}
+{% set subject = "Account aanmaken bij " + app_name %}
 {% block content %}
 <p>Hoi,</p>
 <p>Je hebt dit e-mailadres ingevuld bij <strong>{{ account }}</strong>, maar daar hoort nog geen account bij. Met onderstaande knop maak je er één aan; daarna ben je meteen ingelogd.</p>
