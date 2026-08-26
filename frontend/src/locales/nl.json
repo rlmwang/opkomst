@@ -906,14 +906,17 @@
   "quizzes": {
     "list": {
       "title": "Quizzen",
-      "intro": "Een quiz met vragen en punten. Deel de link, en na afloop ziet iedereen z'n eigen score.",
+      "intro": "Een quiz met punten. Deel de link, iedereen ziet z'n eigen score.",
       "submissionCount": "{n}x gespeeld",
       "archiveConfirmTitle": "Quiz archiveren",
       "archiveConfirmBody": "Weet je zeker dat je \"{name}\" wilt archiveren? De link doet het daarna niet meer.",
       "archive": "Archiveren",
       "archiveFail": "Archiveren ging mis",
       "archived": "Archief",
-      "loadFailed": "Quizzen ophalen ging mis"
+      "loadFailed": "Quizzen ophalen ging mis",
+      "newForm": "Nieuwe quiz",
+      "empty": "Nog geen quizzen.",
+      "noMatches": "Geen quiz gevonden."
     },
     "archived": {
       "title": "Gearchiveerde quizzen",
@@ -936,7 +939,9 @@
       "revealHeading": "Antwoorden laten zien",
       "revealExplainer": "Na afloop ziet iedereen bij welke vragen ze goed zaten. Zet dit uit als je dezelfde quiz op één avond nog een keer speelt.",
       "editTitle": "Quiz bewerken",
-      "newTitle": "Nieuwe quiz"
+      "newTitle": "Nieuwe quiz",
+      "create": "Quiz aanmaken",
+      "namePlaceholder": "Naam van de quiz"
     },
     "details": {
       "questionsHeading": "Vragen",
@@ -948,7 +953,9 @@
       "backToList": "Terug naar quizzen",
       "loadFailed": "Quiz ophalen ging mis",
       "scoreLine": "Gemiddeld {avg} van de {max}, hoogste {best}",
-      "correctShare": "{pct}% had deze goed"
+      "correctShare": "{pct}% had deze goed",
+      "qResponses": "{n} antwoorden",
+      "noTextResponses": "Niemand heeft hier iets ingevuld."
     },
     "question": {
       "pickCorrect": "Antwoorden. Vink aan welke goed is.",

@@ -906,14 +906,17 @@
   "quizzes": {
     "list": {
       "title": "Quizzes",
-      "intro": "A quiz with questions and points. Share the link, and everyone sees their own score at the end.",
+      "intro": "A quiz with points. Share the link, everyone sees their own score.",
       "submissionCount": "played {n} times",
       "archiveConfirmTitle": "Archive quiz",
       "archiveConfirmBody": "Archive \"{name}\"? The link stops working afterwards.",
       "archive": "Archive",
       "archiveFail": "Archiving failed",
       "archived": "Archive",
-      "loadFailed": "Could not load quizzes"
+      "loadFailed": "Could not load quizzes",
+      "newForm": "New quiz",
+      "empty": "No quizzes yet.",
+      "noMatches": "No quiz found."
     },
     "archived": {
       "title": "Archived quizzes",
@@ -936,7 +939,9 @@
       "revealHeading": "Show the answers",
       "revealExplainer": "Afterwards players see what was right for each question. Turn this off if you run the same quiz twice in one evening.",
       "editTitle": "Edit quiz",
-      "newTitle": "New quiz"
+      "newTitle": "New quiz",
+      "create": "Create quiz",
+      "namePlaceholder": "Quiz name"
     },
     "details": {
       "questionsHeading": "Questions",
@@ -948,7 +953,9 @@
       "backToList": "Back to quizzes",
       "loadFailed": "Could not load the quiz",
       "scoreLine": "Average {avg} out of {max}, best {best}",
-      "correctShare": "{pct}% got this right"
+      "correctShare": "{pct}% got this right",
+      "qResponses": "{n} answers",
+      "noTextResponses": "Nobody wrote anything here."
     },
     "question": {
       "pickCorrect": "Answers. Tick the right one.",
