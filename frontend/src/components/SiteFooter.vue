@@ -21,6 +21,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { brand, isPersonalApp } from "@/lib/branding";
+import { GITHUB_URL } from "@/public_shared/strings";
 
 const { t } = useI18n();
 
@@ -40,7 +41,7 @@ const b = brand();
     <nav class="footer-links" :aria-label="t('footer.label')">
       <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.title }}</a>
       <a href="/privacy">{{ t("footer.privacy") }}</a>
-      <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
+      <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
     </nav>
     <p class="footer-note muted">{{ b.app_name }}</p>
   </footer>
