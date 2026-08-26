@@ -909,7 +909,8 @@
   "footer": {
     "label": "Meer lezen",
     "privacy": "Privacy",
-    "source": "Broncode"
+    "source": "Broncode",
+    "blogs": "Blogs:"
   },
   "quizzes": {
     "list": {

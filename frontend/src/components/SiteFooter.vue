@@ -36,10 +36,10 @@ const { t } = useI18n();
 const route = useRoute();
 
 const PAGES = [
-  { slug: "datumprikker-zonder-account", label: "Datumprikker" },
-  { slug: "aanmeldformulier-zonder-google", label: "Aanmeldformulier" },
-  { slug: "wat-gebeurt-er-met-je-mailadres", label: "E-mailadressen" },
-  { slug: "vrijwilligers-inroosteren", label: "Vrijwilligersrooster" },
+  { slug: "datumprikker-zonder-account", title: "Datumprikker zonder account of cookies" },
+  { slug: "aanmeldformulier-zonder-google", title: "Aanmeldformulier maken zonder Google Forms" },
+  { slug: "wat-gebeurt-er-met-je-mailadres", title: "Wat er met je e-mailadres gebeurt" },
+  { slug: "vrijwilligers-inroosteren", title: "Vrijwilligers inroosteren zonder spreadsheet" },
 ];
 
 // The landing page and the four things it offers to make. The same
@@ -62,7 +62,21 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
   <footer v-if="show" class="site-footer">
     <div :class="column">
       <nav class="footer-links" :aria-label="t('footer.label')">
-        <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.label }}</a>
+        <!-- Numbered rather than named. The footer is here so a crawler
+           finds the written pages from every app page; a reader who
+           wants them reads the pages themselves, and five sentence
+           titles under a landing page is the noise this used to be.
+           The title still travels, as the link's own label. -->
+      <span class="blogs">
+        {{ t("footer.blogs") }}
+        <a
+          v-for="(page, i) in PAGES"
+          :key="page.slug"
+          :href="`/${page.slug}`"
+          :title="page.title"
+          :aria-label="page.title"
+        >{{ i + 1 }}</a>
+      </span>
         <a href="/privacy">{{ t("footer.privacy") }}</a>
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
       </nav>
@@ -86,6 +100,13 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
   gap: 0.375rem 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--brand-border);
+}
+.blogs {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
 }
 .footer-links a {
   color: var(--brand-text-muted);

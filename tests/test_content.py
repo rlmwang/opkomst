@@ -61,9 +61,9 @@ def test_the_footer_list_matches_the_server(client) -> None:
     copy from rotting."""
     source = _FOOTER.read_text(encoding="utf-8")
     slugs = re.findall(r'slug: "([^"]+)"', source)
-    labels = re.findall(r'label: "([^"]+)"', source)
+    titles = re.findall(r'title: "([^"]+)"', source)
     assert slugs == [p.slug for p in PAGES]
-    assert labels == [p.label for p in PAGES]
+    assert titles == [p.title for p in PAGES]
 
 
 def test_the_sitemap_lists_what_should_be_indexed(client) -> None:

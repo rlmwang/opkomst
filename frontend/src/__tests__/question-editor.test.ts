@@ -197,9 +197,8 @@ describe("QuestionEditor kind switching", () => {
     };
     exposed.$.setupState.patch("kind", "number");
     expect(get().correct_choices).toBeNull();
-    // A paragraph cannot be graded, so it is worth nothing whatever
-    // the quiz says.
-    exposed.$.setupState.patch("kind", "text");
-    expect(get().points).toBe(0);
+    // What it is worth survives: the points are about the question,
+    // not about the shape of its answer.
+    expect(get().points).toBe(2);
   });
 });
