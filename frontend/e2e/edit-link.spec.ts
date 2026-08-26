@@ -31,6 +31,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
       start_time: "19:00:00",
       end_time: "21:00:00",
       source_options: ["Mond-tot-mond"],
+      source_enabled: true,
       help_options: [],
       feedback_enabled: false,
       reminder_enabled: false,
