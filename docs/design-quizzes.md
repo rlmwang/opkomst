@@ -1,6 +1,17 @@
 # Design: quizzes, and a number question for both
 
-Status: proposal.
+Status: built. The order of work at the bottom is done, step by step.
+
+Two things stayed out, as designed: partial credit on multi-choice, and
+correctness revealed *during* the walk. The result screen does name the
+right answer per question, and an organiser can switch that off
+(``reveal_answers``); what is not built is telling somebody they were
+right before the quiz is over, because doing that honestly costs a
+round-trip per question and doing it cheaply means shipping the key.
+
+One thing the design did not anticipate: the app has three landing
+pages, not one, and the fifth tile belongs on all of them (the
+signed-out root, the signed-in home, and the workspace menu).
 
 A quiz is a questionnaire with a right answer. An organiser writes the
 questions and the answers, a visitor answers them one at a time, and at
@@ -328,16 +339,16 @@ which contradicts everything above.
 
 ## Order of work
 
-1. The number kind, on forms alone. It ships on its own, is useful on
+1. **Done.** The number kind, on forms alone. It ships on its own, is useful on
    its own, and forces the per-kind validation split in 2.3 that the
    quiz work then builds on.
-2. `QuestionField.vue` extracted, `PublicForm` switched to it. No
+2. **Done.** `QuestionField.vue` extracted, `PublicForm` switched to it. No
    behaviour change, and the diff is reviewable precisely because
    nothing else moves.
-3. The migration, the `mode` discriminator, the `query(db, mode)`
+3. **Done.** The migration, the `mode` discriminator, the `query(db, mode)`
    helper and its grep test. Still no quizzes: forms behave exactly as
    before, now with the seam in place.
-4. The quiz backend: keys, grading, submit, result-by-token.
-5. The quiz organiser pages, which are the form pages parameterised.
-6. `public_quiz`, the one-at-a-time walk and the result screen.
-7. The fifth tile, once there is something behind it.
+4. **Done.** The quiz backend: keys, grading, submit, result-by-token.
+5. **Done.** The quiz organiser pages, which are the form pages parameterised.
+6. **Done.** `public_quiz`, the one-at-a-time walk and the result screen.
+7. **Done.** The fifth tile, once there is something behind it.
