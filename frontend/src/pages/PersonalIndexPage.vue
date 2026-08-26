@@ -30,11 +30,14 @@ interface Tile {
   hint: string;
 }
 
+/* Ordered the way somebody organising something meets them: settle a
+ * date, put the event up, share out the work, then ask people
+ * something. */
 const tiles = computed<Tile[]>(() => [
   { key: "events", to: "/events/new", label: t("header.events"), hint: t("home.eventsHint") },
-  { key: "forms", to: "/forms/new", label: t("header.forms"), hint: t("home.formsHint") },
   { key: "datepolls", to: "/datepolls/new", label: t("header.datepolls"), hint: t("home.datepollsHint") },
   { key: "chores", to: "/chores/new", label: t("header.chores"), hint: t("home.choresHint") },
+  { key: "forms", to: "/forms/new", label: t("header.forms"), hint: t("home.formsHint") },
 ]);
 </script>
 

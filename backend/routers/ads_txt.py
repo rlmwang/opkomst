@@ -42,9 +42,9 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 _SITEMAP_PATHS = (
     "/",
     "/events/new",
-    "/forms/new",
     "/datepolls/new",
     "/chores/new",
+    "/forms/new",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
 )

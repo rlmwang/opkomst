@@ -40,6 +40,11 @@ interface MenuItem {
 // Group one: the content workspaces. All four are approval-gated, so an
 // account still waiting on an admin is offered none of them; its menu is
 // the sign-out and nothing else.
+//
+// Same order as the tiles on the landing page (``PersonalIndexPage``):
+// somebody meets these in the order they organise something, and a menu
+// that disagrees with the front page about the order is a menu you have
+// to read rather than know.
 const workspaceItems = computed<MenuItem[]>(() => {
   if (!auth.isApproved) return [];
   return [
@@ -48,12 +53,6 @@ const workspaceItems = computed<MenuItem[]>(() => {
       to: "/events",
       label: t("header.events"),
       isActive: (p) => p === "/events" || p.startsWith("/events/"),
-    },
-    {
-      key: "forms",
-      to: "/forms",
-      label: t("header.forms"),
-      isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
     },
     {
       key: "datepolls",
@@ -66,6 +65,12 @@ const workspaceItems = computed<MenuItem[]>(() => {
       to: "/chores",
       label: t("header.chores"),
       isActive: (p) => p === "/chores" || p.startsWith("/chores/"),
+    },
+    {
+      key: "forms",
+      to: "/forms",
+      label: t("header.forms"),
+      isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
     },
   ];
 });
