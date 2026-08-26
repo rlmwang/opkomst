@@ -79,7 +79,8 @@ async function prefillFromSubmission(form_: PublicForm): Promise<void> {
   for (const q of form_.questions) {
     const v = sub.answers[q.id];
     if (v === undefined) continue;
-    if (q.kind === "rating") answers.value[q.id] = { answer_int: typeof v === "number" ? v : null };
+    if (q.kind === "rating" || q.kind === "number")
+      answers.value[q.id] = { answer_int: typeof v === "number" ? v : null };
     else if (q.kind === "text" || q.kind === "short_text")
       answers.value[q.id] = { answer_text: typeof v === "string" ? v : "" };
     else answers.value[q.id] = { answer_choices: Array.isArray(v) ? v : [] };
@@ -98,7 +99,7 @@ const answers = ref<Record<string, Answer>>({});
 function initAnswers(form_: PublicForm): void {
   const next: Record<string, Answer> = {};
   for (const q of form_.questions) {
-    if (q.kind === "rating") next[q.id] = { answer_int: null };
+    if (q.kind === "rating" || q.kind === "number") next[q.id] = { answer_int: null };
     else if (q.kind === "text" || q.kind === "short_text") next[q.id] = { answer_text: "" };
     else next[q.id] = { answer_choices: [] };
   }
@@ -116,6 +117,13 @@ const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
 
 function setRating(qid: string, value: number) {
   answers.value[qid] = { answer_int: value };
+}
+/** Empty box means unanswered, not zero: ``0`` is a legitimate answer
+ *  to "how many", so the empty string is what maps to null. */
+function setNumber(qid: string, raw: string) {
+  const text = raw.trim();
+  const parsed = Number.parseInt(text, 10);
+  answers.value[qid] = { answer_int: text === "" || Number.isNaN(parsed) ? null : parsed };
 }
 function setText(qid: string, value: string) {
   answers.value[qid] = { answer_text: value };
@@ -137,7 +145,7 @@ function isChecked(qid: string, option: string): boolean {
 
 function isAnswered(q: PublicFormQuestion): boolean {
   const a = answers.value[q.id] ?? {};
-  if (q.kind === "rating") return a.answer_int != null;
+  if (q.kind === "rating" || q.kind === "number") return a.answer_int != null;
   if (q.kind === "text" || q.kind === "short_text") return (a.answer_text ?? "").trim().length > 0;
   return (a.answer_choices ?? []).length > 0;
 }
@@ -172,7 +180,8 @@ async function submit() {
 
   const payload: SubmitAnswer[] = form.value.questions.map((q) => {
     const a = answers.value[q.id] ?? {};
-    if (q.kind === "rating") return { question_id: q.id, answer_int: a.answer_int ?? null };
+    if (q.kind === "rating" || q.kind === "number")
+      return { question_id: q.id, answer_int: a.answer_int ?? null };
     if (q.kind === "text" || q.kind === "short_text")
       return { question_id: q.id, answer_text: a.answer_text ?? "" };
     return { question_id: q.id, answer_choices: a.answer_choices ?? [] };
@@ -273,6 +282,24 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
             </div>
           </div>
 
+          <!-- One box and, when the question names one, the unit
+               after it. ``inputmode`` gets the numeric keypad on a
+               phone; ``type=number`` is deliberately not used, because
+               its spinner and its silent scroll-to-change are worse
+               than the keypad is good. -->
+          <div v-else-if="q.kind === 'number'" class="number-row">
+            <input
+              type="text"
+              inputmode="numeric"
+              :value="answers[q.id]?.answer_int ?? ''"
+              :min="q.min_value ?? undefined"
+              :max="q.max_value ?? undefined"
+              class="input number-input"
+              @input="(e) => setNumber(q.id, (e.target as HTMLInputElement).value)"
+            />
+            <span v-if="q.unit" class="unit muted">{{ q.unit }}</span>
+          </div>
+
           <textarea
             v-else-if="q.kind === 'text'"
             :value="answers[q.id]?.answer_text ?? ''"
@@ -370,6 +397,17 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 .textarea { resize: vertical; min-height: 5rem; }
 
 /* --- Choice lists --- */
+.number-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.number-input {
+  max-width: 8rem;
+}
+.unit {
+  font-size: 0.9375rem;
+}
 .choice-list { display: flex; flex-direction: column; gap: 0.375rem; }
 .choice-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
 .choice-row input { width: 1.125rem; height: 1.125rem; }

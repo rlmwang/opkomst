@@ -20,7 +20,8 @@ export type QuestionKind =
   | "text"
   | "short_text"
   | "single_choice"
-  | "multi_choice";
+  | "multi_choice"
+  | "number";
 
 export interface QuestionDraft {
   id: string | null;
@@ -30,6 +31,11 @@ export interface QuestionDraft {
   options: string[];
   low_label: string | null;
   high_label: string | null;
+  /** ``number`` only: the bounds an answer has to sit inside, and the
+   *  word rendered after the box ("jaar", "km"). All optional. */
+  min_value: number | null;
+  max_value: number | null;
+  unit: string | null;
 }
 
 const props = defineProps<{
@@ -55,7 +61,7 @@ const { t } = useI18n();
 const newOption = ref("");
 
 const kindOptions = computed(() =>
-  (["rating", "short_text", "text", "single_choice", "multi_choice"] as QuestionKind[]).map(
+  (["rating", "short_text", "text", "single_choice", "multi_choice", "number"] as QuestionKind[]).map(
     (k) => ({ value: k, label: t(`forms.question.kind.${k}`) }),
   ),
 );
@@ -66,6 +72,15 @@ const isChoice = computed(
     props.modelValue.kind === "multi_choice",
 );
 const isRating = computed(() => props.modelValue.kind === "rating");
+const isNumber = computed(() => props.modelValue.kind === "number");
+
+/** Empty box → no bound. ``0`` is a legitimate bound, so the check is
+ *  against the empty string rather than falsiness. */
+function patchBound(key: "min_value" | "max_value", raw: string | null | undefined): void {
+  const text = (raw ?? "").trim();
+  const parsed = Number.parseInt(text, 10);
+  patch(key, text === "" || Number.isNaN(parsed) ? null : parsed);
+}
 
 /** Builds a new QuestionDraft with one field patched and kind-
  * incompatible fields reset. Switching from rating to choice
@@ -81,6 +96,11 @@ function patch<K extends keyof QuestionDraft>(key: K, value: QuestionDraft[K]): 
     }
     if (value !== "single_choice" && value !== "multi_choice") {
       next.options = [];
+    }
+    if (value !== "number") {
+      next.min_value = null;
+      next.max_value = null;
+      next.unit = null;
     }
   }
   emit("update:modelValue", next);
@@ -179,6 +199,32 @@ function removeOption(opt: string) {
         :placeholder="t('forms.question.highLabel')"
         fluid
         @update:model-value="(v) => patch('high_label', v ? v : null)"
+      />
+    </div>
+
+    <!-- Bounds and a unit, all optional. A question with no bounds
+         takes any whole number, which is the right default for "how
+         old are you" and wrong for nothing. -->
+    <div v-if="isNumber" class="scale-row">
+      <InputText
+        :model-value="modelValue.min_value === null ? '' : String(modelValue.min_value)"
+        :placeholder="t('forms.question.minValue')"
+        inputmode="numeric"
+        fluid
+        @update:model-value="(v) => patchBound('min_value', v)"
+      />
+      <InputText
+        :model-value="modelValue.max_value === null ? '' : String(modelValue.max_value)"
+        :placeholder="t('forms.question.maxValue')"
+        inputmode="numeric"
+        fluid
+        @update:model-value="(v) => patchBound('max_value', v)"
+      />
+      <InputText
+        :model-value="modelValue.unit ?? ''"
+        :placeholder="t('forms.question.unit')"
+        fluid
+        @update:model-value="(v) => patch('unit', v ? v : null)"
       />
     </div>
 

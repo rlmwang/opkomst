@@ -93,6 +93,19 @@ def _build_submitted(questions: list[FormQuestion], answers: list[FormAnswerIn])
         if q.kind == "rating":
             if ans.answer_int is None:
                 continue
+            # The 1-to-5 scale, checked here rather than on the schema:
+            # the column is shared with ``number``, whose range is its
+            # own question's business.
+            if not 1 <= ans.answer_int <= 5:
+                raise HTTPException(status_code=400, detail=f"Question {q.id}: rating must be 1 to 5.")
+            submitted[q.id] = {"answer_int": ans.answer_int}
+        elif q.kind == "number":
+            if ans.answer_int is None:
+                continue
+            if q.min_value is not None and ans.answer_int < q.min_value:
+                raise HTTPException(status_code=400, detail=f"Question {q.id}: number below the lowest allowed.")
+            if q.max_value is not None and ans.answer_int > q.max_value:
+                raise HTTPException(status_code=400, detail=f"Question {q.id}: number above the highest allowed.")
             submitted[q.id] = {"answer_int": ans.answer_int}
         elif q.kind in ("text", "short_text"):
             text = (ans.answer_text or "").strip()

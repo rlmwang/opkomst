@@ -3125,8 +3125,6 @@
           "answer_int": {
             "anyOf": [
               {
-                "maximum": 5.0,
-                "minimum": 1.0,
                 "type": "integer"
               },
               {
@@ -3573,7 +3571,8 @@
               "text",
               "short_text",
               "single_choice",
-              "multi_choice"
+              "multi_choice",
+              "number"
             ],
             "title": "Kind",
             "type": "string"
@@ -3589,6 +3588,28 @@
               }
             ],
             "title": "Low Label"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
           },
           "options": {
             "items": {
@@ -3608,6 +3629,18 @@
             "default": true,
             "title": "Required",
             "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
@@ -3650,6 +3683,28 @@
             ],
             "title": "Low Label"
           },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
           "options": {
             "items": {
               "type": "string"
@@ -3668,6 +3723,17 @@
           "required": {
             "title": "Required",
             "type": "boolean"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
@@ -3682,7 +3748,7 @@
         "type": "object"
       },
       "FormQuestionSummary": {
-        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.",
+        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.\n* ``number`` \u2014 ``number_average`` with the range people used.\n  No histogram: the buckets for an arbitrary range are a choice\n  with no obvious right answer, and four numbers answer \"what did\n  people say\" for an age or a headcount. The raw values are in\n  the CSV for anyone who wants to do better.",
         "properties": {
           "choice_counts": {
             "anyOf": [
@@ -3705,6 +3771,39 @@
           "kind": {
             "title": "Kind",
             "type": "string"
+          },
+          "number_average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Average"
+          },
+          "number_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Max"
+          },
+          "number_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number Min"
           },
           "ordinal": {
             "title": "Ordinal",

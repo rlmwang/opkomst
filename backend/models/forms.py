@@ -13,11 +13,11 @@ Three tables:
 * ``forms`` — one row per questionnaire. ``archived_at`` for soft
   archive (mirrors Event); a fresh slug per form makes the public
   URL bookmark-stable across restores.
-* ``form_questions`` — per-form question list, ordered. Five
+* ``form_questions`` — per-form question list, ordered. Six
   kinds: ``rating``, ``text``, ``short_text``, ``single_choice``,
-  ``multi_choice``. The kind enum is enforced at the schema layer
-  and the public submit handler — adding a sixth requires
-  touching both.
+  ``multi_choice``, ``number``. The kind enum is enforced at the
+  schema layer and the public submit handler — adding a seventh
+  requires touching both.
 * ``form_responses`` — one row per (submission, question). The
   random ``submission_id`` groups answers from one fill-out into
   one logical submission, with no link back to whoever sent it
@@ -84,6 +84,13 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     low_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     high_label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # ``number`` only. The bounds are validation rather than
+    # decoration: the public page refuses an out-of-range answer and
+    # the submit handler refuses it again. ``unit`` is the short word
+    # rendered after the box ("jaar", "km"), not part of the answer.
+    min_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    unit: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # DB-level backstop for the kind vocabulary. The canonical set
     # is the ``QuestionKind`` literal in ``schemas/forms.py`` (the
@@ -93,7 +100,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # kind — the schema-drift CI gate doesn't cover this CHECK.
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('rating', 'text', 'short_text', 'single_choice', 'multi_choice')",
+            "kind IN ('rating', 'text', 'short_text', 'single_choice', 'multi_choice', 'number')",
             name="ck_form_questions_kind",
         ),
     )

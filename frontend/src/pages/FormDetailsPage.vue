@@ -199,6 +199,21 @@ async function exportCsv() {
               </div>
             </template>
 
+            <!-- Four numbers rather than a chart: the buckets for an
+                 arbitrary range are a choice with no obvious right
+                 answer, and "what did people say" for an age or a
+                 headcount is answered by these (docs/design-quizzes.md
+                 part 2). The raw values are in the CSV. -->
+            <template v-else-if="q.kind === 'number'">
+              <p class="muted q-meta">
+                {{ t("forms.details.qResponses", { n: q.response_count }) }}
+                <template v-if="q.number_average !== null && q.number_average !== undefined">
+                  · {{ t("forms.details.qAverage", { avg: q.number_average.toFixed(1) }) }}
+                  · {{ t("forms.details.qRange", { low: q.number_min, high: q.number_max }) }}
+                </template>
+              </p>
+            </template>
+
             <template v-else-if="q.kind === 'text' || q.kind === 'short_text'">
               <p v-if="!q.texts || q.texts.length === 0" class="muted q-meta">
                 {{ t("forms.details.noTextResponses") }}

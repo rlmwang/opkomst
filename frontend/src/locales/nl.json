@@ -268,7 +268,8 @@
         "text": "Tekst",
         "short_text": "Korte tekst",
         "single_choice": "Eén keuze",
-        "multi_choice": "Meerkeuze"
+        "multi_choice": "Meerkeuze",
+        "number": "Getal"
       },
       "responsesTitle": "Inzendingen",
       "responses": "inzendingen",
@@ -279,6 +280,7 @@
       "csvSubmittedAt": "submitted_at",
       "qResponses": "{n} reacties",
       "qAverage": "gemiddeld {avg}",
+      "qRange": "van {low} tot {high}",
       "noTextResponses": "Geen tekstreacties.",
       "notFoundTitle": "Vragenlijst niet gevonden",
       "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
@@ -318,11 +320,15 @@
         "text": "Lange tekst",
         "short_text": "Korte tekst",
         "single_choice": "Eén keuze",
-        "multi_choice": "Meerdere keuzes"
+        "multi_choice": "Meerdere keuzes",
+        "number": "Getal"
       },
       "required": "Verplicht",
       "lowLabel": "Laagste",
       "highLabel": "Hoogste",
+      "minValue": "Laagste getal (optioneel)",
+      "maxValue": "Hoogste getal (optioneel)",
+      "unit": "Eenheid (bijvoorbeeld jaar)",
       "options": "Opties",
       "newOption": "Optie",
       "delete": "Vraag verwijderen",

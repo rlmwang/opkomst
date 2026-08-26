@@ -8,12 +8,15 @@
 export interface PublicFormQuestion {
   id: string;
   ordinal: number;
-  kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice";
+  kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
   prompt: string;
   required: boolean;
   options: string[];
   low_label: string | null;
   high_label: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  unit: string | null;
 }
 
 export interface PublicForm {

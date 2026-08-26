@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 # carries an options list.
 ALLOWED_KINDS: Final[frozenset[str]] = frozenset(get_args(QuestionKind))
 _CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice"})
+_TEXT_KINDS: Final[frozenset[str]] = frozenset({"text", "short_text"})
 
 
 def get_form_by_slug_any(db: Session, slug: str) -> Form | None:
@@ -85,6 +86,12 @@ def _validate_questions(questions: list["FormQuestionIn"]) -> None:
                     status_code=400,
                     detail=f"Question {idx}: options must be unique.",
                 )
+        if q.kind == "number" and q.min_value is not None and q.max_value is not None:
+            if q.min_value > q.max_value:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Question {idx}: the lowest allowed number is above the highest.",
+                )
 
 
 def apply_questions(
@@ -113,6 +120,10 @@ def apply_questions(
         clean_options = [opt.strip() for opt in payload.options if opt.strip()] if payload.kind in _CHOICE_KINDS else []
         low_label = payload.low_label if payload.kind == "rating" else None
         high_label = payload.high_label if payload.kind == "rating" else None
+        is_number = payload.kind == "number"
+        min_value = payload.min_value if is_number else None
+        max_value = payload.max_value if is_number else None
+        unit = (payload.unit or "").strip() or None if is_number else None
 
         if payload.id and payload.id in existing:
             row = existing[payload.id]
@@ -123,6 +134,9 @@ def apply_questions(
             row.options = clean_options
             row.low_label = low_label
             row.high_label = high_label
+            row.min_value = min_value
+            row.max_value = max_value
+            row.unit = unit
             seen_ids.add(payload.id)
         else:
             # Insert. An id submitted that doesn't exist on disk is
@@ -139,6 +153,9 @@ def apply_questions(
                     options=clean_options,
                     low_label=low_label,
                     high_label=high_label,
+                    min_value=min_value,
+                    max_value=max_value,
+                    unit=unit,
                 )
             )
 
@@ -254,6 +271,7 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
     Per-kind shape:
 
     * ``rating`` — 5-bucket distribution + average.
+    * ``number`` — average, lowest, highest.
     * ``text`` / ``short_text`` — raw answers, newest first.
     * ``single_choice`` / ``multi_choice`` — option → count map.
     """
@@ -282,7 +300,30 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                     rating_average=average,
                 )
             )
-        elif q.kind in ("text", "short_text"):
+        elif q.kind == "number":
+            values = [
+                v
+                for (v,) in db.query(FormResponse.answer_int)
+                .filter(
+                    FormResponse.form_id == form_id,
+                    FormResponse.question_id == q.id,
+                    FormResponse.answer_int.is_not(None),
+                )
+                .all()
+            ]
+            summaries.append(
+                FormQuestionSummary(
+                    id=q.id,
+                    ordinal=q.ordinal,
+                    kind=q.kind,
+                    prompt=q.prompt,
+                    response_count=len(values),
+                    number_average=round(sum(values) / len(values), 1) if values else None,
+                    number_min=min(values) if values else None,
+                    number_max=max(values) if values else None,
+                )
+            )
+        elif q.kind in _TEXT_KINDS:
             texts = (
                 db.query(FormResponse.answer_text)
                 .filter(
@@ -366,9 +407,9 @@ def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
         kind = kinds.get(r.question_id)
         if kind is None:
             continue
-        if kind == "rating" and r.answer_int is not None:
+        if kind in ("rating", "number") and r.answer_int is not None:
             answers[r.submission_id][r.question_id] = r.answer_int
-        elif kind in ("text", "short_text") and r.answer_text is not None:
+        elif kind in _TEXT_KINDS and r.answer_text is not None:
             answers[r.submission_id][r.question_id] = r.answer_text
         elif kind in _CHOICE_KINDS and r.answer_choices is not None:
             answers[r.submission_id][r.question_id] = list(r.answer_choices)

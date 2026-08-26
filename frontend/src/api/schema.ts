@@ -3824,9 +3824,13 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice";
+            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
             /** Low Label */
             low_label?: string | null;
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
             /** Options */
             options?: string[];
             /** Prompt */
@@ -3836,6 +3840,8 @@ export interface components {
              * @default true
              */
             required: boolean;
+            /** Unit */
+            unit?: string | null;
         };
         /**
          * FormQuestionOut
@@ -3853,6 +3859,10 @@ export interface components {
             kind: string;
             /** Low Label */
             low_label?: string | null;
+            /** Max Value */
+            max_value?: number | null;
+            /** Min Value */
+            min_value?: number | null;
             /** Options */
             options: string[];
             /** Ordinal */
@@ -3861,6 +3871,8 @@ export interface components {
             prompt: string;
             /** Required */
             required: boolean;
+            /** Unit */
+            unit?: string | null;
         };
         /**
          * FormQuestionSummary
@@ -3872,6 +3884,11 @@ export interface components {
          *     * ``text`` / ``short_text`` — ``texts`` (newest first).
          *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
          *       keyed by option string.
+         *     * ``number`` — ``number_average`` with the range people used.
+         *       No histogram: the buckets for an arbitrary range are a choice
+         *       with no obvious right answer, and four numbers answer "what did
+         *       people say" for an age or a headcount. The raw values are in
+         *       the CSV for anyone who wants to do better.
          */
         FormQuestionSummary: {
             /** Choice Counts */
@@ -3882,6 +3899,12 @@ export interface components {
             id: string;
             /** Kind */
             kind: string;
+            /** Number Average */
+            number_average?: number | null;
+            /** Number Max */
+            number_max?: number | null;
+            /** Number Min */
+            number_min?: number | null;
             /** Ordinal */
             ordinal: number;
             /** Prompt */

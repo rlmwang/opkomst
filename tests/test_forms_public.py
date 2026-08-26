@@ -88,7 +88,7 @@ def test_submit_rating_happy_path(client, organiser_headers):
     assert "submission_id" in r.json()
 
 
-def test_submit_rating_out_of_range_422s(client, organiser_headers):
+def test_submit_rating_out_of_range_400s(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
@@ -101,9 +101,10 @@ def test_submit_rating_out_of_range_422s(client, organiser_headers):
         f"/api/v1/forms/by-slug/{form['slug']}/submit",
         json={"answers": [{"question_id": qid, "answer_int": 9}]},
     )
-    # Pydantic schema bounds (ge=1, le=5) reject this at the
-    # validation layer before the kind code sees it.
-    assert r.status_code == 422
+    # The 1-to-5 scale is checked per kind rather than on the schema:
+    # ``answer_int`` is shared with ``number``, whose range belongs to
+    # its own question. Rejected all the same, one layer in.
+    assert r.status_code == 400
 
 
 def test_submit_required_skipped_400s(client, organiser_headers):
@@ -395,3 +396,129 @@ def test_submit_then_csv_source_includes_row(client, organiser_headers):
     rows = r.json()
     assert len(rows) == 1
     assert rows[0]["answers"][qid] == 5
+
+
+# --- number ---------------------------------------------------------
+#
+# The sixth kind. It shares ``answer_int`` with rating, which is the
+# reason each of these exists: the 1-to-5 bound that belongs to rating
+# moved out of the schema and into the per-kind validation, and a
+# regression there is a form that silently refuses somebody's age.
+
+
+def _number_form(client, headers, **question):
+    q = {"kind": "number", "prompt": "Hoe oud ben je?", "required": True, **question}
+    return _create(client, headers, questions=[q])
+
+
+def test_number_accepts_a_value_outside_the_rating_scale(client, organiser_headers):
+    """The bound that used to sit on the schema was ``1 <= n <= 5``.
+    An age is the counter-example the kind exists for."""
+    form = _number_form(client, organiser_headers)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    r = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 37}]},
+    )
+    assert r.status_code == 201, r.text
+    with SessionLocal() as db:
+        stored = db.query(FormResponse).filter(FormResponse.question_id == qid).one()
+        assert stored.answer_int == 37
+
+
+def test_number_accepts_zero(client, organiser_headers):
+    """``0`` is an answer, not an empty box. A falsiness check anywhere
+    on this path turns "none" into "unanswered"."""
+    form = _number_form(client, organiser_headers, min_value=0)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    r = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": None, "answers": [{"question_id": qid, "answer_int": 0}]},
+    )
+    assert r.status_code == 201, r.text
+
+
+def test_number_rejects_below_the_minimum(client, organiser_headers):
+    form = _number_form(client, organiser_headers, min_value=18, max_value=120)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    r = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": None, "answers": [{"question_id": qid, "answer_int": 17}]},
+    )
+    assert r.status_code == 400
+
+
+def test_number_rejects_above_the_maximum(client, organiser_headers):
+    form = _number_form(client, organiser_headers, min_value=18, max_value=120)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    r = client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": None, "answers": [{"question_id": qid, "answer_int": 121}]},
+    )
+    assert r.status_code == 400
+
+
+def test_number_bounds_and_unit_reach_the_public_shape(client, organiser_headers):
+    """The public page draws its own validation from these, so they
+    have to arrive."""
+    form = _number_form(client, organiser_headers, min_value=1, max_value=99, unit="jaar")
+    q = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]
+    assert (q["min_value"], q["max_value"], q["unit"]) == (1, 99, "jaar")
+
+
+def test_a_form_rejects_a_minimum_above_the_maximum(client, organiser_headers):
+    body = {
+        "chapter_id": _chapter_id(client, organiser_headers),
+        "name_nl": "Impossible",
+        "locale": "nl",
+        "questions": [{"kind": "number", "prompt": "?", "min_value": 10, "max_value": 1}],
+    }
+    r = client.post("/api/v1/forms", headers=organiser_headers, json=body)
+    assert r.status_code == 400
+
+
+def test_bounds_are_dropped_when_the_kind_changes(client, organiser_headers):
+    """Same normalisation every other kind gets: a question that stops
+    being a number stops carrying a number's configuration."""
+    form = _number_form(client, organiser_headers, min_value=1, max_value=99, unit="jaar")
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    r = client.put(
+        f"/api/v1/forms/{form['id']}",
+        headers=organiser_headers,
+        json={
+            "chapter_id": _chapter_id(client, organiser_headers),
+            "name_nl": "Public form",
+            "locale": "nl",
+            "questions": [
+                {"id": qid, "kind": "short_text", "prompt": "Hoe oud ben je?", "min_value": 1, "unit": "jaar"}
+            ],
+        },
+    )
+    assert r.status_code == 200, r.text
+    q = r.json()["questions"][0]
+    assert (q["min_value"], q["max_value"], q["unit"]) == (None, None, None)
+
+
+def test_the_summary_reports_average_and_range(client, organiser_headers):
+    form = _number_form(client, organiser_headers)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    for value in (10, 20, 30):
+        client.post(
+            f"/api/v1/forms/by-slug/{form['slug']}/submit",
+            json={"display_name": None, "answers": [{"question_id": qid, "answer_int": value}]},
+        )
+    q = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()["questions"][0]
+    assert q["response_count"] == 3
+    assert q["number_average"] == 20.0
+    assert (q["number_min"], q["number_max"]) == (10, 30)
+
+
+def test_the_csv_projection_carries_the_number(client, organiser_headers):
+    form = _number_form(client, organiser_headers)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    client.post(
+        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 42}]},
+    )
+    rows = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    assert rows[0]["answers"][qid] == 42

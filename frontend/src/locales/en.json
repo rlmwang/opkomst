@@ -268,7 +268,8 @@
         "text": "Text",
         "short_text": "Short text",
         "single_choice": "Single choice",
-        "multi_choice": "Multiple choice"
+        "multi_choice": "Multiple choice",
+        "number": "Number"
       },
       "responsesTitle": "Responses",
       "responses": "responses",
@@ -279,6 +280,7 @@
       "csvSubmittedAt": "submitted_at",
       "qResponses": "{n} responses",
       "qAverage": "average {avg}",
+      "qRange": "{low} to {high}",
       "noTextResponses": "No text responses.",
       "notFoundTitle": "Form not found",
       "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
@@ -318,11 +320,15 @@
         "text": "Long text",
         "short_text": "Short text",
         "single_choice": "Single choice",
-        "multi_choice": "Multiple choice"
+        "multi_choice": "Multiple choice",
+        "number": "Number"
       },
       "required": "Required",
       "lowLabel": "Low end",
       "highLabel": "High end",
+      "minValue": "Lowest number (optional)",
+      "maxValue": "Highest number (optional)",
+      "unit": "Unit (for example years)",
       "options": "Options",
       "newOption": "Option",
       "delete": "Remove question",

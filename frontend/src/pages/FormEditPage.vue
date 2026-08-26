@@ -138,6 +138,9 @@ watch(
       options: [...(q.options ?? [])],
       low_label: q.low_label ?? null,
       high_label: q.high_label ?? null,
+      min_value: q.min_value ?? null,
+      max_value: q.max_value ?? null,
+      unit: q.unit ?? null,
     }));
     // Restore the mid-edit draft after server hydration so the
     // user's unsaved edits win over the stored form.
@@ -221,6 +224,9 @@ function addQuestion(): void {
     options: [],
     low_label: null,
     high_label: null,
+    min_value: null,
+    max_value: null,
+    unit: null,
   });
 }
 
@@ -282,6 +288,9 @@ async function submit() {
           options: q.options,
           low_label: q.low_label,
           high_label: q.high_label,
+          min_value: q.min_value,
+          max_value: q.max_value,
+          unit: q.unit,
         }),
       ),
     };

@@ -15,7 +15,7 @@ Three concerns:
 
 The question kind enum is defined here and re-imported by the
 service layer + submit handler — one source of truth for the
-five supported kinds.
+six supported kinds.
 """
 
 from datetime import datetime
@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, RichText
 
-QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice"]
+QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice", "number"]
 
 
 class FormQuestionIn(BaseModel):
@@ -45,6 +45,10 @@ class FormQuestionIn(BaseModel):
     options: list[str] = Field(default_factory=list, max_length=50)
     low_label: str | None = Field(default=None, max_length=80)
     high_label: str | None = Field(default=None, max_length=80)
+    # ``number`` only; the service drops them on every other kind.
+    min_value: int | None = None
+    max_value: int | None = None
+    unit: str | None = Field(default=None, max_length=20)
 
 
 class FormQuestionOut(BaseModel):
@@ -61,6 +65,9 @@ class FormQuestionOut(BaseModel):
     options: list[str]
     low_label: str | None = None
     high_label: str | None = None
+    min_value: int | None = None
+    max_value: int | None = None
+    unit: str | None = None
     model_config = {"from_attributes": True}
 
 
@@ -144,7 +151,11 @@ class FormAnswerIn(BaseModel):
     stored kind, and ignores the others."""
 
     question_id: str
-    answer_int: int | None = Field(default=None, ge=1, le=5)
+    # No range here. 1 to 5 is a fact about ratings, not about
+    # integers, and a number question's bounds are its own. Both are
+    # checked per kind in ``routers/forms_public._build_submitted``,
+    # where every other kind's rule already lives.
+    answer_int: int | None = None
     answer_text: str | None = Field(default=None, max_length=2000)
     answer_choices: list[str] | None = Field(default=None, max_length=50)
 
@@ -187,6 +198,11 @@ class FormQuestionSummary(BaseModel):
     * ``text`` / ``short_text`` — ``texts`` (newest first).
     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
       keyed by option string.
+    * ``number`` — ``number_average`` with the range people used.
+      No histogram: the buckets for an arbitrary range are a choice
+      with no obvious right answer, and four numbers answer "what did
+      people say" for an age or a headcount. The raw values are in
+      the CSV for anyone who wants to do better.
     """
 
     id: str
@@ -198,6 +214,9 @@ class FormQuestionSummary(BaseModel):
     rating_average: float | None = None
     texts: list[str] | None = None
     choice_counts: dict[str, int] | None = None
+    number_average: float | None = None
+    number_min: int | None = None
+    number_max: int | None = None
 
 
 class FormSummaryOut(BaseModel):

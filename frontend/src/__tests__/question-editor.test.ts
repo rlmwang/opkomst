@@ -72,6 +72,9 @@ describe("QuestionEditor kind switching", () => {
       options: [],
       low_label: "Poor",
       high_label: "Great",
+      min_value: null,
+      max_value: null,
+      unit: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -92,6 +95,9 @@ describe("QuestionEditor kind switching", () => {
       options: ["A", "B", "C"],
       low_label: null,
       high_label: null,
+      min_value: null,
+      max_value: null,
+      unit: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -111,6 +117,9 @@ describe("QuestionEditor kind switching", () => {
       options: ["A", "B"],
       low_label: null,
       high_label: null,
+      min_value: null,
+      max_value: null,
+      unit: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -119,5 +128,28 @@ describe("QuestionEditor kind switching", () => {
     exposed.$.setupState.patch("kind", "multi_choice");
     expect(get().options).toEqual(["A", "B"]);
     expect(get().kind).toBe("multi_choice");
+  });
+
+  it("clears the number bounds when switching away from number", () => {
+    const initial: QuestionDraft = {
+      id: "q1",
+      kind: "number",
+      prompt: "How old are you?",
+      required: true,
+      options: [],
+      low_label: null,
+      high_label: null,
+      min_value: 0,
+      max_value: 120,
+      unit: "jaar",
+    };
+    const { wrapper, get } = mountEditor(initial);
+    const exposed = wrapper.vm as unknown as {
+      $: { setupState: { patch: (k: keyof QuestionDraft, v: unknown) => void } };
+    };
+    exposed.$.setupState.patch("kind", "short_text");
+    expect(get().min_value).toBeNull();
+    expect(get().max_value).toBeNull();
+    expect(get().unit).toBeNull();
   });
 });
