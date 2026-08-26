@@ -46,7 +46,7 @@ from ..schemas.forms import (
     QuizSubmissionOut,
 )
 from . import image as image_svc
-from . import public_access, quizzes, tenancy
+from . import numbers, public_access, quizzes, tenancy
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
@@ -433,6 +433,7 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                     number_average=round(sum(values) / len(values), 1) if values else None,
                     number_min=min(values) if values else None,
                     number_max=max(values) if values else None,
+                    number_buckets=numbers.histogram(values, q.min_value, q.max_value, q.step) or None,
                 )
             )
         elif q.kind in _TEXT_KINDS:

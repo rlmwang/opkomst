@@ -71,6 +71,19 @@ onMounted(() => {
 
 onBeforeUnmount(() => editor.value?.destroy());
 
+// The placeholder is drawn by a ProseMirror decoration, which is only
+// recomputed when a transaction runs through the view. A prop change is
+// not a transaction, so switching language left the old text sitting
+// there until the field was focused and something moved. An empty
+// transaction is the nudge: no document change, decorations redrawn.
+watch(
+  () => props.placeholder,
+  () => {
+    const e = editor.value;
+    if (e) e.view.dispatch(e.state.tr);
+  },
+);
+
 // Sync when the parent replaces the value out from under us (e.g. an
 // edit page that loads the existing entity after mount). Skip while the
 // user is typing so the caret never jumps.

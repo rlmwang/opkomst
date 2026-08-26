@@ -558,3 +558,41 @@ def test_a_step_no_number_can_land_on_is_refused(client, organiser_headers):
         "questions": [{"kind": "number", "prompt": "Hoeveel?", "min_value": 3, "max_value": 5, "step": 7}],
     }
     assert client.post("/api/v1/forms", headers=organiser_headers, json=body).status_code == 400
+
+
+def test_a_number_question_gets_a_bar_per_value_when_there_are_few(client, organiser_headers):
+    """"How many are you bringing" collects 1, 2, 3: binning that into
+    ranges throws away the only thing it says. The gaps are drawn too,
+    so a value nobody picked reads as an empty bar."""
+    form = _number_form(client, organiser_headers)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    for value in (1, 2, 2, 4):
+        client.post(
+            f"/api/v1/forms/by-slug/{form['slug']}/submit",
+            json={"display_name": None, "answers": [{"question_id": qid, "answer_int": value}]},
+        )
+    q = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()["questions"][0]
+    assert [(b["label"], b["count"]) for b in q["number_buckets"]] == [("1", 1), ("2", 2), ("3", 0), ("4", 1)]
+
+
+def test_a_spread_of_numbers_is_binned(client, organiser_headers):
+    """Past a dozen distinct values a bar per value is a comb. The bin
+    count is Freedman-Diaconis, clamped (``services/numbers``); what is
+    asserted here is the shape: fewer bars than values, ranges as
+    labels, and every answer in one of them."""
+    form = _number_form(client, organiser_headers)
+    qid = client.get(f"/api/v1/forms/by-slug/{form['slug']}").json()["questions"][0]["id"]
+    # Under the public submit rate limit: the shape is what is being
+    # asserted, not the volume.
+    values = list(range(20, 80, 5))
+    for value in values:
+        client.post(
+            f"/api/v1/forms/by-slug/{form['slug']}/submit",
+            json={"display_name": None, "answers": [{"question_id": qid, "answer_int": value}]},
+        )
+    q = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()["questions"][0]
+    buckets = q["number_buckets"]
+    assert 5 <= len(buckets) <= 20
+    assert len(buckets) < len(values)
+    assert sum(b["count"] for b in buckets) == len(values)
+    assert "-" in buckets[0]["label"]

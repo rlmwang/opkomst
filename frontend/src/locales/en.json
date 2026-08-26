@@ -291,7 +291,11 @@
       "loadFailed": "Could not load this form.",
       "backToList": "← Back to forms",
       "csvName": "Name",
-      "anonymous": "Anonymous"
+      "anonymous": "Anonymous",
+      "ruleStep": "step size {step}",
+      "ruleBetween": "between {min} and {max}",
+      "ruleFrom": "{min} or more",
+      "ruleUpTo": "{max} or less"
     },
     "edit": {
       "newTitle": "New form",
@@ -299,7 +303,7 @@
       "save": "Save",
       "create": "Create form",
       "saveFailed": "Save failed",
-      "namePlaceholder": "Form name",
+      "namePlaceholder": "Title",
       "chapterPlaceholder": "Chapter",
       "fillName": "Fill in a name",
       "fillChapter": "Pick a chapter",
@@ -393,7 +397,7 @@
       "save": "Save",
       "create": "Create date poll",
       "saveFailed": "Save failed",
-      "namePlaceholder": "Date poll name",
+      "namePlaceholder": "Title",
       "descriptionPlaceholder": "Description (optional)",
       "chapterPlaceholder": "Chapter",
       "fillName": "Fill in a name",
@@ -499,7 +503,7 @@
       "editTitle": "Edit roster",
       "create": "Create",
       "save": "Save",
-      "namePlaceholder": "Roster name",
+      "namePlaceholder": "Title",
       "descriptionPlaceholder": "Description (optional)",
       "chapterPlaceholder": "Pick a chapter",
       "recurrenceHeading": "Recurrence",
@@ -676,9 +680,9 @@
   "event": {
     "newTitle": "New event",
     "editTitle": "Edit event",
-    "name": "Event name",
+    "name": "Title",
     "chapter": "Chapter",
-    "topic": "Topic (optional)",
+    "topic": "Description (optional)",
     "location": "Location (optional), type to search OpenStreetMap",
     "houseNumber": "Nr.",
     "date": "Date",
@@ -945,7 +949,7 @@
       "editTitle": "Edit quiz",
       "newTitle": "New quiz",
       "create": "Create quiz",
-      "namePlaceholder": "Quiz name"
+      "namePlaceholder": "Title"
     },
     "details": {
       "questionsHeading": "Questions",
@@ -959,7 +963,9 @@
       "scoreLine": "Average {avg} out of {max}, best {best}",
       "correctShare": "{pct}% got this right",
       "qResponses": "{n} answers",
-      "noTextResponses": "Nobody wrote anything here."
+      "noTextResponses": "Nobody wrote anything here.",
+      "ruleMargin": "margin {margin}",
+      "rightAnswerIs": "Right answer: {answer}"
     },
     "question": {
       "pickCorrect": "Answers. Tick the right one.",

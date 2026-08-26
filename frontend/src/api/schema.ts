@@ -4271,11 +4271,8 @@ export interface components {
          *     * ``text`` / ``short_text`` — ``texts`` (newest first).
          *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
          *       keyed by option string.
-         *     * ``number`` — ``number_average`` with the range people used.
-         *       No histogram: the buckets for an arbitrary range are a choice
-         *       with no obvious right answer, and four numbers answer "what did
-         *       people say" for an age or a headcount. The raw values are in
-         *       the CSV for anyone who wants to do better.
+         *     * ``number`` — ``number_average`` with the range people used, and
+         *       ``number_buckets``, the histogram (``services/numbers``).
          */
         FormQuestionSummary: {
             /** Choice Counts */
@@ -4290,6 +4287,8 @@ export interface components {
             kind: string;
             /** Number Average */
             number_average?: number | null;
+            /** Number Buckets */
+            number_buckets?: components["schemas"]["NumberBucket"][] | null;
             /** Number Max */
             number_max?: number | null;
             /** Number Min */
@@ -4469,6 +4468,18 @@ export interface components {
         LoginRequest: {
             /** Token */
             token: string;
+        };
+        /**
+         * NumberBucket
+         * @description One bar of a number question's histogram. ``label`` is what the
+         *     axis says: a value when the bars are one per number, a range when
+         *     they are binned.
+         */
+        NumberBucket: {
+            /** Count */
+            count: number;
+            /** Label */
+            label: string;
         };
         /**
          * OccurrenceCardOut

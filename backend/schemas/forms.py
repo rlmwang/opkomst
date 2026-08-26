@@ -287,6 +287,15 @@ class FormEditOut(BaseModel):
     link_recovered_at: datetime | None = None
 
 
+class NumberBucket(BaseModel):
+    """One bar of a number question's histogram. ``label`` is what the
+    axis says: a value when the bars are one per number, a range when
+    they are binned."""
+
+    label: str
+    count: int
+
+
 class FormQuestionSummary(BaseModel):
     """Per-question aggregate on the organiser details page.
     Shape mirrors the post-event feedback summary:
@@ -296,11 +305,8 @@ class FormQuestionSummary(BaseModel):
     * ``text`` / ``short_text`` — ``texts`` (newest first).
     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
       keyed by option string.
-    * ``number`` — ``number_average`` with the range people used.
-      No histogram: the buckets for an arbitrary range are a choice
-      with no obvious right answer, and four numbers answer "what did
-      people say" for an age or a headcount. The raw values are in
-      the CSV for anyone who wants to do better.
+    * ``number`` — ``number_average`` with the range people used, and
+      ``number_buckets``, the histogram (``services/numbers``).
     """
 
     id: str
@@ -319,6 +325,7 @@ class FormQuestionSummary(BaseModel):
     number_average: float | None = None
     number_min: int | None = None
     number_max: int | None = None
+    number_buckets: list[NumberBucket] | None = None
 
 
 class FormSummaryOut(BaseModel):

@@ -10,7 +10,7 @@ import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinks
 import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
 import { useFormClipboard, useQuizClipboard } from "@/composables/useFormClipboard";
-import { useFormsApi } from "@/composables/useForms";
+import { type FormOut, useFormsApi } from "@/composables/useForms";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
 import { barWidth } from "@/lib/format";
@@ -32,7 +32,40 @@ const isQuiz = computed(() => api.resource === "quizzes");
 const { copyLink, copyQr } = isQuiz.value ? useQuizClipboard() : useFormClipboard();
 const publicPageUrl = isQuiz.value ? publicQuizUrl : publicFormUrl;
 const qrSrc = isQuiz.value ? quizQrUrl : formQrUrl;
-const L = (key: string) => (isQuiz.value && te(`quizzes.${key}`) ? t(`quizzes.${key}`) : t(`forms.${key}`));
+const L = (key: string, params?: Record<string, unknown>) => {
+  const full = isQuiz.value && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
+  return params ? t(full, params) : t(full);
+};
+
+type Question = NonNullable<FormOut["questions"]>[number];
+
+/** What a number question accepts, in one line: the same rule the
+ *  person answering it reads under the box. */
+function numberRule(q: Question): string | null {
+  const parts: string[] = [];
+  if (q.step && q.step > 1) parts.push(t("forms.details.ruleStep", { step: q.step }));
+  if (q.min_value !== null && q.min_value !== undefined && q.max_value !== null && q.max_value !== undefined) {
+    parts.push(t("forms.details.ruleBetween", { min: q.min_value, max: q.max_value }));
+  } else if (q.min_value !== null && q.min_value !== undefined) {
+    parts.push(t("forms.details.ruleFrom", { min: q.min_value }));
+  } else if (q.max_value !== null && q.max_value !== undefined) {
+    parts.push(t("forms.details.ruleUpTo", { max: q.max_value }));
+  }
+  if (isQuiz.value && q.tolerance) parts.push(t("quizzes.details.ruleMargin", { margin: q.tolerance }));
+  return parts.length ? parts.join(", ") : null;
+}
+
+/** Is this option the right answer? Only a quiz has one. */
+function isKeyOption(q: Question, option: string): boolean {
+  return isQuiz.value && (q.correct_choices ?? []).includes(option);
+}
+
+/** The right answer for the kinds that do not list their options. */
+function typedKey(q: Question): string | null {
+  if (!isQuiz.value || q.points <= 0) return null;
+  if (q.kind === "number" || q.kind === "rating") return q.correct_int === null ? null : String(q.correct_int);
+  return null;
+}
 
 const formQuery = api.useSingle(computed(() => props.formId));
 const form = computed(() => formQuery.data.value ?? null);
@@ -138,9 +171,23 @@ async function exportCsv() {
               <span class="q-overview-prompt">{{ q.prompt }}</span>
               <span class="q-overview-kind">{{ t(`forms.details.kind.${q.kind}`) }}</span>
             </div>
+            <!-- What this question accepts, for the kind whose answer
+                 is typed rather than picked. The same line the person
+                 answering it reads. -->
+            <p v-if="q.kind === 'number' && numberRule(q)" class="muted q-overview-rule">
+              {{ numberRule(q) }}
+            </p>
+            <!-- The options, with the right one marked on a quiz: an
+                 overview that cannot say which answer was right is one
+                 an organiser has to open the editor to read. -->
             <ul v-if="q.options.length" class="q-overview-options">
-              <li v-for="o in q.options" :key="o">{{ o }}</li>
+              <li v-for="o in q.options" :key="o" :class="{ 'is-key': isKeyOption(q, o) }">
+                {{ o }}
+              </li>
             </ul>
+            <p v-if="typedKey(q)" class="muted q-overview-rule">
+              {{ t("quizzes.details.rightAnswerIs", { answer: typedKey(q) }) }}
+            </p>
           </li>
         </ol>
       </AppCard>
@@ -231,12 +278,23 @@ async function exportCsv() {
                  part 2). The raw values are in the CSV. -->
             <template v-else-if="q.kind === 'number'">
               <p class="muted q-meta">
-                {{ t("forms.details.qResponses", { n: q.response_count }) }}
+                {{ L("details.qResponses", { n: q.response_count }) }}
                 <template v-if="q.number_average !== null && q.number_average !== undefined">
                   · {{ t("forms.details.qAverage", { avg: q.number_average.toFixed(1) }) }}
                   · {{ t("forms.details.qRange", { low: q.number_min, high: q.number_max }) }}
                 </template>
               </p>
+              <!-- One bar per allowed value while the question's own
+                   bounds and step leave few of them, binned past that
+                   (``services/numbers``). Same bar track as the rating
+                   and choice aggregates, so the three read alike. -->
+              <div v-if="q.number_buckets?.length" class="bars">
+                <template v-for="bucket in q.number_buckets" :key="bucket.label">
+                  <span class="bar-label">{{ bucket.label }}</span>
+                  <StatBar :segments="[{ width: barWidth(q.number_buckets.map((b) => b.count), bucket.count) }]" />
+                  <span class="bar-count">{{ bucket.count }}</span>
+                </template>
+              </div>
             </template>
 
             <template v-else-if="q.kind === 'text' || q.kind === 'short_text'">
@@ -298,6 +356,16 @@ async function exportCsv() {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--brand-text-muted);
+}
+.q-overview-rule {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+}
+/* The right answer, marked where the options are listed. */
+.q-overview-options li.is-key {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green);
+  color: var(--brand-text);
 }
 .q-overview-options {
   list-style: none;

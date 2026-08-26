@@ -291,7 +291,11 @@
       "loadFailed": "Kon deze vragenlijst niet laden.",
       "backToList": "← Terug naar vragenlijsten",
       "csvName": "Naam",
-      "anonymous": "Anoniem"
+      "anonymous": "Anoniem",
+      "ruleStep": "stapgrootte {step}",
+      "ruleBetween": "tussen {min} en {max}",
+      "ruleFrom": "{min} of meer",
+      "ruleUpTo": "{max} of minder"
     },
     "edit": {
       "newTitle": "Nieuwe vragenlijst",
@@ -299,7 +303,7 @@
       "save": "Opslaan",
       "create": "Vragenlijst aanmaken",
       "saveFailed": "Opslaan mislukt",
-      "namePlaceholder": "Naam vragenlijst",
+      "namePlaceholder": "Titel",
       "chapterPlaceholder": "Afdeling",
       "fillName": "Vul een naam in",
       "fillChapter": "Kies een afdeling",
@@ -315,7 +319,7 @@
       "notFoundBody": "Deze vragenlijst bestaat niet, is verwijderd, of hoort bij een afdeling waar je geen toegang toe hebt.",
       "loadFailed": "Kon deze vragenlijst niet laden.",
       "backToList": "← Terug naar vragenlijsten",
-      "descriptionPlaceholder": "Toelichting (optioneel)",
+      "descriptionPlaceholder": "Beschrijving (optioneel)",
       "questionNeedsPrompt": "Vraag {n}: vul de vraag nog in.",
       "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe.",
       "questionNeedsKey": "Vraag {n}: geef aan welk antwoord goed is.",
@@ -393,8 +397,8 @@
       "save": "Opslaan",
       "create": "Datumprikker aanmaken",
       "saveFailed": "Opslaan mislukt",
-      "namePlaceholder": "Naam datumprikker",
-      "descriptionPlaceholder": "Toelichting (optioneel)",
+      "namePlaceholder": "Titel",
+      "descriptionPlaceholder": "Beschrijving (optioneel)",
       "chapterPlaceholder": "Afdeling",
       "fillName": "Vul een naam in",
       "fillChapter": "Kies een afdeling",
@@ -499,8 +503,8 @@
       "editTitle": "Rooster bewerken",
       "create": "Aanmaken",
       "save": "Opslaan",
-      "namePlaceholder": "Naam van het rooster",
-      "descriptionPlaceholder": "Omschrijving (optioneel)",
+      "namePlaceholder": "Titel",
+      "descriptionPlaceholder": "Beschrijving (optioneel)",
       "chapterPlaceholder": "Kies een afdeling",
       "recurrenceHeading": "Herhaling",
       "recurrenceExplainer": "Kies hoeveel weken de cyclus duurt. De taken hieronder herhalen zich met dit ritme.",
@@ -676,9 +680,9 @@
   "event": {
     "newTitle": "Nieuw evenement",
     "editTitle": "Evenement bewerken",
-    "name": "Naam van het evenement",
+    "name": "Titel",
     "chapter": "Afdeling",
-    "topic": "Onderwerp (optioneel)",
+    "topic": "Beschrijving (optioneel)",
     "location": "Locatie (optioneel), typ om te zoeken op OpenStreetMap",
     "houseNumber": "Nr.",
     "date": "Datum",
@@ -945,7 +949,7 @@
       "editTitle": "Quiz bewerken",
       "newTitle": "Nieuwe quiz",
       "create": "Quiz aanmaken",
-      "namePlaceholder": "Naam van de quiz"
+      "namePlaceholder": "Titel"
     },
     "details": {
       "questionsHeading": "Vragen",
@@ -959,7 +963,9 @@
       "scoreLine": "Gemiddeld {avg} van de {max}, hoogste {best}",
       "correctShare": "{pct}% had deze goed",
       "qResponses": "{n} antwoorden",
-      "noTextResponses": "Niemand heeft hier iets ingevuld."
+      "noTextResponses": "Niemand heeft hier iets ingevuld.",
+      "ruleMargin": "marge {margin}",
+      "rightAnswerIs": "Goed antwoord: {answer}"
     },
     "question": {
       "pickCorrect": "Antwoorden. Vink aan welke goed is.",
