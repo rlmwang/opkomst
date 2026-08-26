@@ -546,9 +546,9 @@ async function submit() {
     <section class="form-section">
       <label class="toggle-row" for="reminderToggle">
         <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
-        <strong>{{ t("chores.edit.reminderEnabled") }}</strong>
+        <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>
       </label>
-      <p class="muted toggle-help">{{ t("chores.edit.remindersExplainer") }}</p>
+      <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
 
       <div v-if="reminderEnabled" class="field">
         <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
@@ -578,7 +578,7 @@ async function submit() {
 
 <style scoped>
 /* Shared form chrome (.form-section, .section-heading, .section-explainer,
- * .toggle-row, .toggle-help, .field, .field-label) lives in
+ * .toggle-row, .field, .field-label) lives in
  * ``src/assets/forms.css``. Only chore-specific rules stay here. */
 .stepper-row {
   display: flex;

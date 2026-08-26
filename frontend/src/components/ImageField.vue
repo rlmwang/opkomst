@@ -166,7 +166,6 @@ defineExpose({ flushPendingUpload });
 
 <style scoped>
 .form-section { display: flex; flex-direction: column; gap: 0.75rem; }
-.section-heading { margin: 0; font-size: 1.0625rem; font-weight: 600; }
 /* 4:5 portrait preview, capped so it doesn't dominate the form. */
 .image-preview { display: flex; flex-direction: column; gap: 0.5rem; }
 .image-preview img {

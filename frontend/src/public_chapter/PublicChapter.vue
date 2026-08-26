@@ -90,9 +90,10 @@ if (initial === undefined) {
 .agenda-section {
   margin-top: 1.5rem;
 }
+/* An ``h2`` at the app's own size (theme.css); only the spacing under
+   it is this page's business. */
 .section-heading {
   margin: 0 0 0.75rem;
-  font-size: 1.1rem;
 }
 .agenda-grid {
   display: grid;

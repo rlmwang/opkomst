@@ -20,34 +20,39 @@
     margin-top: 2.5rem;
   }
 
+  /* A section title is an ``h2`` and wears the app's ``h2`` size, the
+   * same one every other card heading uses (theme.css), including the
+   * notch it drops on a narrow screen. The class carries no size of its
+   * own: two scales for one heading level is how a page ends up with
+   * three sizes of bold text. */
   .section-heading {
     margin: 0;
-    font-size: 1.0625rem;
-    font-weight: 600;
   }
-  /* Tight under the heading so heading + intro read as one unit, then
-   * the section's normal 0.75rem gap kicks in below. */
+  /* Pulled up against the title above it so the two read as one unit
+   * (0.25rem apart), leaving the section's own 0.75rem gap below. One
+   * rhythm whether the title is a heading or a toggle row, so a run of
+   * toggle + explainer pairs is evenly grouped instead of alternating. */
   .section-explainer {
-    margin: -0.25rem 0 0.25rem;
+    margin: -0.5rem 0 0;
   }
 
-  /* Toggle: a ``ToggleSwitch`` + bold label on one row, with an optional
-   * muted help paragraph beneath. */
+  /* Toggle: a ``ToggleSwitch`` + its label on one row, with an optional
+   * ``.section-explainer`` beneath. A switch that governs a whole
+   * section carries that section's ``h2.section-heading`` as its label,
+   * in front of the title rather than on a line of its own above it;
+   * every toggle row is otherwise identical, gap included. */
   .toggle-row {
     display: flex;
     align-items: center;
     gap: 0.625rem;
     cursor: pointer;
   }
-  .toggle-help {
-    font-size: 0.8125rem;
-  }
-
-  /* The same row, but the label is the section's own heading: the
-   * switch turns the whole block on and off, so it belongs in front of
-   * the title rather than on a line of its own underneath it. */
-  .section-toggle {
-    gap: 0.75rem;
+  /* The label of a switch nested inside a section, under that section's
+   * own heading: one step down from ``.section-heading`` so the nesting
+   * is legible. Every top-level switch is a section of its own and uses
+   * the heading instead. */
+  .toggle-label {
+    font-weight: 600;
   }
 
   /* A single labelled control: a small muted label stacked above its

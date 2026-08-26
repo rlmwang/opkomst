@@ -641,7 +641,7 @@ async function submit() {
       <section class="form-section">
         <!-- The switch turns the whole block on, so it sits in front of
              the heading rather than on a line of its own under it. -->
-        <label class="toggle-row section-toggle" for="repeatToggle">
+        <label class="toggle-row" for="repeatToggle">
           <ToggleSwitch v-model="repeats" inputId="repeatToggle" />
           <h2 class="section-heading">{{ t("event.repeatHeading") }}</h2>
         </label>
@@ -649,9 +649,9 @@ async function submit() {
 
         <template v-if="repeats">
           <div class="repeat-row">
-            <span class="repeat-label">{{ t("event.repeat.everyLead") }}</span>
+            <span class="muted">{{ t("event.repeat.everyLead") }}</span>
             <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('event.repeat.everyWeeks')" />
-            <span class="repeat-label">{{ t("event.repeat.everyTrail") }}</span>
+            <span class="muted">{{ t("event.repeat.everyTrail") }}</span>
           </div>
 
           <p class="muted section-explainer">{{ t("event.repeat.gridExplainer") }}</p>
@@ -659,12 +659,12 @@ async function submit() {
 
           <label class="toggle-row">
             <ToggleSwitch v-model="openEnded" />
-            <span>{{ t("event.span.openEnded") }}</span>
+            <span class="toggle-label">{{ t("event.span.openEnded") }}</span>
           </label>
           <div v-if="!openEnded" class="repeat-row">
-            <span class="repeat-label">{{ t("event.span.forLead") }}</span>
+            <span class="muted">{{ t("event.span.forLead") }}</span>
             <NumberStepper v-model="spanWeeks" :min="1" :max="104" :aria-label="t('event.span.weeks')" />
-            <span class="repeat-label">{{ t("event.span.weeksTrail") }}</span>
+            <span class="muted">{{ t("event.span.weeksTrail") }}</span>
           </div>
           <p v-else class="muted section-explainer">{{ t("event.span.openEndedHelp") }}</p>
         </template>
@@ -673,7 +673,7 @@ async function submit() {
       <!-- What people can offer comes before where they heard about it:
            one is about the event itself, the other is about us. -->
       <section class="form-section">
-        <label class="toggle-row section-toggle" for="helpToggle">
+        <label class="toggle-row" for="helpToggle">
           <ToggleSwitch v-model="helpEnabled" inputId="helpToggle" />
           <h2 class="section-heading">{{ t("event.helpHeading") }}</h2>
         </label>
@@ -705,7 +705,7 @@ async function submit() {
       </section>
 
       <section class="form-section">
-        <label class="toggle-row section-toggle" for="sourcesToggle">
+        <label class="toggle-row" for="sourcesToggle">
           <ToggleSwitch v-model="sourceEnabled" inputId="sourcesToggle" />
           <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
         </label>
@@ -739,26 +739,28 @@ async function submit() {
       <section class="form-section">
         <label class="toggle-row" for="reminderToggle">
           <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
-          <strong>{{ t("event.reminderToggle") }}</strong>
+          <h2 class="section-heading">{{ t("event.reminderToggle") }}</h2>
         </label>
-        <p class="muted toggle-help">{{ t("event.reminderHelp") }}</p>
+        <p class="muted section-explainer">{{ t("event.reminderHelp") }}</p>
+      </section>
 
+      <section class="form-section">
         <label class="toggle-row" for="questionnaireToggle">
           <ToggleSwitch v-model="feedbackEnabled" inputId="questionnaireToggle" />
-          <strong>{{ t("event.questionnaireToggle") }}</strong>
+          <h2 class="section-heading">{{ t("event.questionnaireToggle") }}</h2>
         </label>
-        <p class="muted toggle-help">{{ t("event.questionnaireHelp") }}</p>
+        <p class="muted section-explainer">{{ t("event.questionnaireHelp") }}</p>
+      </section>
 
-        <!-- The agenda this lists on is a chapter's. An account with no
-             chapters has no agenda to be on, so there is no choice to
-             offer. -->
-        <template v-if="hasChapters">
-          <label class="toggle-row" for="listedToggle">
-            <ToggleSwitch v-model="listed" inputId="listedToggle" />
-            <strong>{{ t("event.listedToggle") }}</strong>
-          </label>
-          <p class="muted toggle-help">{{ t("event.listedHelp") }}</p>
-        </template>
+      <!-- The agenda this lists on is a chapter's. An account with no
+           chapters has no agenda to be on, so there is no choice to
+           offer. -->
+      <section v-if="hasChapters" class="form-section">
+        <label class="toggle-row" for="listedToggle">
+          <ToggleSwitch v-model="listed" inputId="listedToggle" />
+          <h2 class="section-heading">{{ t("event.listedToggle") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("event.listedHelp") }}</p>
       </section>
 
       <section class="form-section">
@@ -781,7 +783,7 @@ async function submit() {
 
 <style scoped>
 /* Shared form chrome (.form-section, .section-heading,
- * .section-explainer, .toggle-row, .toggle-help) lives in
+ * .section-explainer, .toggle-row, .toggle-label) lives in
  * ``src/assets/forms.css``. Only event-specific rules stay here. */
 .time-row {
   display: flex;
@@ -790,17 +792,14 @@ async function submit() {
 .time-row > * {
   flex: 1;
 }
-/* Recurrence rows: a stepper flanked by inline labels ("elke … weken",
- * "… sessies"). */
+/* Recurrence rows: a stepper flanked by inline ``.muted`` labels
+ * ("elke … weken", "… sessies"). */
 .repeat-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
-.repeat-label {
-  color: var(--brand-text-muted);
-}
-/* Footer (Cancel + Save buttons) is owned by FormPageShell —
+/* Footer (Cancel + Save buttons) is owned by FormPageShell:
  * see ``FormPageShell.vue::.form-footer``. */
 </style>
