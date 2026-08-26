@@ -5,15 +5,18 @@ import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { useArchivedList } from "@/composables/useArchivedList";
-import {
-  type FormListOut,
-  useArchivedForms,
-  useDeleteForm,
-  useRestoreForm,
-} from "@/composables/useForms";
+import { type FormListOut, useFormsApi } from "@/composables/useForms";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const lt = useLocalizedText();
+// One page, two products; the route says which (``useForms``).
+const api = useFormsApi();
+/** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise: the
+ *  two products share every string that is not about scoring. */
+const L = (key: string, params?: Record<string, unknown>) => {
+  const full = api.resource === "quizzes" && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
+  return params ? t(full, params) : t(full);
+};
 
 const {
   chapterFilter,
@@ -24,25 +27,25 @@ const {
   restoreItem,
   askDelete,
 } = useArchivedList({
-  query: (chapterId) => useArchivedForms({ chapterId }),
-  restore: useRestoreForm(),
-  remove: useDeleteForm(),
-  prefix: "forms.archived",
+  query: (chapterId) => api.useArchived({ chapterId }),
+  restore: api.useRestore(),
+  remove: api.useDelete(),
+  prefix: `${api.resource === "quizzes" ? "quizzes" : "forms"}.archived`,
 });
 </script>
 
 <template>
   <ListPageView
-    :title="t('forms.archived.title')"
-    :intro="t('forms.archived.intro')"
+    :title="L('archived.title')"
+    :intro="L('archived.intro')"
     :items="archived"
     :loaded="loaded"
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
-    :search-placeholder="t('forms.archived.searchPlaceholder')"
+    :search-placeholder="L('archived.searchPlaceholder')"
     :search-keys="(f: FormListOut) => [lt(f.name_nl, f.name_en) ?? '']"
-    :empty-copy="t('forms.archived.empty')"
-    :no-matches-copy="t('forms.archived.noMatches')"
+    :empty-copy="L('archived.empty')"
+    :no-matches-copy="L('archived.noMatches')"
     :skeleton-rows="2"
     @update:chapter-filter="setChapterFilter"
   >
@@ -55,14 +58,14 @@ const {
           </h3>
         </div>
         <div class="archive-row-actions">
-          <Button :label="t('forms.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(f)" />
+          <Button :label="L('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(f)" />
           <Button
             icon="pi pi-trash"
             size="small"
             severity="secondary"
             text
-            v-tooltip.top="t('forms.archived.delete')"
-            :aria-label="t('forms.archived.delete')"
+            v-tooltip.top="L('archived.delete')"
+            :aria-label="L('archived.delete')"
             @click="askDelete(f)"
           />
         </div>

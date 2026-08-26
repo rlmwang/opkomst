@@ -37,7 +37,7 @@ interface MenuItem {
   badge?: number;
 }
 
-// Group one: the content workspaces. All four are approval-gated, so an
+// Group one: the content workspaces. All five are approval-gated, so an
 // account still waiting on an admin is offered none of them; its menu is
 // the sign-out and nothing else.
 //
@@ -72,6 +72,12 @@ const workspaceItems = computed<MenuItem[]>(() => {
       label: t("header.forms"),
       isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
     },
+    {
+      key: "quizzes",
+      to: "/quizzes",
+      label: t("header.quizzes"),
+      isActive: (p) => p === "/quizzes" || p.startsWith("/quizzes/"),
+    },
   ];
 });
 
@@ -89,7 +95,7 @@ const adminItems = computed<MenuItem[]>(() => {
       key: "admin",
       to: "/users",
       label: t("header.admin"),
-      isActive: (p) => p === "/users" || p === "/chapters",
+      isActive: (p) => p === "/users" || p === "/chapters" || p === "/settings",
       badge: showPendingBadge.value ? pendingCount.value : undefined,
     });
   }
@@ -165,7 +171,7 @@ const subtabs = computed<Subtab[]>(() => {
       { to: "/chores/archived", label: t("header.archive") },
     ];
   }
-  if (p === "/users" || p === "/chapters") {
+  if (p === "/users" || p === "/chapters" || p === "/settings") {
     return [
       {
         to: "/users",
@@ -173,6 +179,7 @@ const subtabs = computed<Subtab[]>(() => {
         badge: showPendingBadge.value ? pendingCount.value : undefined,
       },
       { to: "/chapters", label: t("header.chapters") },
+      { to: "/settings", label: t("header.settings") },
     ];
   }
   return [];
@@ -296,7 +303,8 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
  * the logo and the menu at the far edges of the screen, which is where
  * the ad rails are. Matching the column keeps the eye inside the
  * content and never sends it out to the margins. Horizontal padding
- * matches ``.container``'s so the logo lines up with the cards below. */
+ * and width match ``.container-wide``'s so the logo lines up with the
+ * cards below — the app's pages are all one column now. */
 .app-bar {
   border-bottom: 1px solid var(--brand-border);
   background: var(--brand-surface);
@@ -307,7 +315,7 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
   grid-template-columns: auto 1fr auto;
   align-items: center;
   column-gap: 1rem;
-  max-width: 720px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 0.75rem 1rem;
 }

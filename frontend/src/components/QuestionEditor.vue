@@ -36,10 +36,21 @@ export interface QuestionDraft {
   min_value: number | null;
   max_value: number | null;
   unit: string | null;
+  /** Quiz only: what a correct answer is worth, and what it is. The
+   *  server drops all five on a questionnaire. */
+  points: number;
+  correct_int: number | null;
+  correct_text: string | null;
+  correct_choices: string[] | null;
+  tolerance: number | null;
 }
 
 const props = defineProps<{
   modelValue: QuestionDraft;
+  /** On a quiz the question also has a right answer and a value. On a
+   *  questionnaire neither exists, and the fields are not rendered
+   *  rather than rendered and ignored. */
+  scored?: boolean;
   /** Hide the "move up" button on the first row. */
   canMoveUp: boolean;
   /** Hide the "move down" button on the last row. */
@@ -73,10 +84,13 @@ const isChoice = computed(
 );
 const isRating = computed(() => props.modelValue.kind === "rating");
 const isNumber = computed(() => props.modelValue.kind === "number");
+/** No rule grades a paragraph, so a long-text question is asked and
+ *  never scored, whatever the quiz says. */
+const gradable = computed(() => Boolean(props.scored) && props.modelValue.kind !== "text");
 
 /** Empty box → no bound. ``0`` is a legitimate bound, so the check is
  *  against the empty string rather than falsiness. */
-function patchBound(key: "min_value" | "max_value", raw: string | null | undefined): void {
+function patchNumber(key: "min_value" | "max_value" | "correct_int" | "tolerance", raw: string | null | undefined): void {
   const text = (raw ?? "").trim();
   const parsed = Number.parseInt(text, 10);
   patch(key, text === "" || Number.isNaN(parsed) ? null : parsed);
@@ -101,9 +115,31 @@ function patch<K extends keyof QuestionDraft>(key: K, value: QuestionDraft[K]): 
       next.min_value = null;
       next.max_value = null;
       next.unit = null;
+      next.tolerance = null;
     }
+    // The key is kind-shaped: keeping the old one would save a
+    // rating's number as a text question's answer.
+    next.correct_int = null;
+    next.correct_text = null;
+    next.correct_choices = null;
+    if (value === "text") next.points = 0;
   }
   emit("update:modelValue", next);
+}
+
+/** The key for a choice question is a subset of its own options, so it
+ *  is picked rather than typed. Single choice replaces; multi toggles. */
+function toggleCorrect(opt: string) {
+  const current = props.modelValue.correct_choices ?? [];
+  if (props.modelValue.kind === "single_choice") {
+    patch("correct_choices", [opt]);
+    return;
+  }
+  patch("correct_choices", current.includes(opt) ? current.filter((o) => o !== opt) : [...current, opt]);
+}
+
+function isCorrectOption(opt: string): boolean {
+  return (props.modelValue.correct_choices ?? []).includes(opt);
 }
 
 function addOption() {
@@ -122,6 +158,15 @@ function removeOption(opt: string) {
     "options",
     props.modelValue.options.filter((o) => o !== opt),
   );
+  // An option that no longer exists cannot be the right answer: the
+  // server would refuse the save, and the organiser would have to work
+  // out why.
+  if (isCorrectOption(opt)) {
+    patch(
+      "correct_choices",
+      (props.modelValue.correct_choices ?? []).filter((o) => o !== opt),
+    );
+  }
 }
 </script>
 
@@ -216,14 +261,14 @@ function removeOption(opt: string) {
         :placeholder="t('forms.question.minValue')"
         inputmode="numeric"
         fluid
-        @update:model-value="(v) => patchBound('min_value', v)"
+        @update:model-value="(v) => patchNumber('min_value', v)"
       />
       <InputText
         :model-value="modelValue.max_value === null ? '' : String(modelValue.max_value)"
         :placeholder="t('forms.question.maxValue')"
         inputmode="numeric"
         fluid
-        @update:model-value="(v) => patchBound('max_value', v)"
+        @update:model-value="(v) => patchNumber('max_value', v)"
       />
       <InputText
         :model-value="modelValue.unit ?? ''"
@@ -234,13 +279,31 @@ function removeOption(opt: string) {
     </div>
 
     <div v-if="isChoice" class="options-block">
-      <p class="muted options-label">{{ t("forms.question.options") }}</p>
+      <p class="muted options-label">{{ gradable ? t("quizzes.question.pickCorrect") : t("forms.question.options") }}</p>
       <EditableList
         :items="modelValue.options"
         :item-label="(s: string) => s"
         :item-key="(s: string) => s"
         @remove="removeOption"
       >
+        <!-- On a quiz the option list is also where the right answer
+             is named: a key that is one of the options should be
+             picked from them, not typed again underneath. -->
+        <template v-if="gradable" #row="{ item }">
+          <span class="option-row">
+            <button
+              type="button"
+              class="correct-mark"
+              :class="{ 'is-correct': isCorrectOption(item) }"
+              :aria-pressed="isCorrectOption(item)"
+              :aria-label="t('quizzes.question.markCorrect')"
+              @click="toggleCorrect(item)"
+            >
+              <i class="pi pi-check" />
+            </button>
+            <span>{{ item }}</span>
+          </span>
+        </template>
         <template #add>
           <InputText
             v-model="newOption"
@@ -258,6 +321,47 @@ function removeOption(opt: string) {
           />
         </template>
       </EditableList>
+    </div>
+
+    <!-- The rest of the key, for the kinds whose answer is typed
+         rather than picked, plus what the question is worth. Quiz
+         only, and never on a long-text question: no rule grades a
+         paragraph (``docs/design-quizzes.md`` part 1.3). -->
+    <div v-if="gradable" class="key-row">
+      <InputText
+        v-if="modelValue.kind === 'short_text'"
+        :model-value="modelValue.correct_text ?? ''"
+        :placeholder="t('quizzes.question.correctText')"
+        fluid
+        @update:model-value="(v) => patch('correct_text', v ? v : null)"
+      />
+      <InputText
+        v-if="modelValue.kind === 'rating' || modelValue.kind === 'number'"
+        :model-value="modelValue.correct_int === null ? '' : String(modelValue.correct_int)"
+        :placeholder="t('quizzes.question.correctNumber')"
+        inputmode="numeric"
+        fluid
+        @update:model-value="(v) => patchNumber('correct_int', v)"
+      />
+      <InputText
+        v-if="modelValue.kind === 'number'"
+        :model-value="modelValue.tolerance === null ? '' : String(modelValue.tolerance)"
+        :placeholder="t('quizzes.question.tolerance')"
+        inputmode="numeric"
+        fluid
+        @update:model-value="(v) => patchNumber('tolerance', v)"
+      />
+      <!-- A placeholder disappears the moment there is a value, and a
+           bare box with "2" in it says nothing. The word stays. -->
+      <label class="points-field">
+        <InputText
+          class="points-input"
+          :model-value="String(modelValue.points)"
+          inputmode="numeric"
+          @update:model-value="(v) => patch('points', Math.max(0, Number.parseInt((v ?? '').trim(), 10) || 0))"
+        />
+        <span class="muted points-label">{{ t("quizzes.question.points") }}</span>
+      </label>
     </div>
   </div>
 </template>
@@ -312,5 +416,48 @@ function removeOption(opt: string) {
 .options-label {
   margin: 0;
   font-size: 0.8125rem;
+}
+.key-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.key-row :deep(.p-inputtext) { flex: 1; }
+.points-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+.points-input {
+  max-width: 4.5rem;
+}
+.points-label {
+  font-size: 0.875rem;
+}
+/* The tick that marks an option as the right answer. Off it is an
+ * outline; on it fills. Full opacity in both states: a control that
+ * only appears on hover is a control nobody finds. */
+.option-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.correct-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border: 1px solid var(--brand-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--brand-text-muted);
+  cursor: pointer;
+}
+.correct-mark.is-correct {
+  background: var(--brand-green-soft);
+  border-color: var(--brand-green);
+  color: var(--brand-green);
 }
 </style>

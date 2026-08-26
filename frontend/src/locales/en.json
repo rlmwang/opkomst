@@ -68,13 +68,16 @@
     "lede": "What are you working on?",
     "eventsHint": "Gatherings with sign-ups",
     "formsHint": "Questionnaires and polls",
+    "quizzesHint": "A quiz with scores",
     "datepollsHint": "Pick a date with the group",
     "choresHint": "Share out recurring tasks",
-    "adminHint": "Users and chapters"
+    "adminHint": "Users and chapters",
+    "chapterAgendas": "Chapter pages"
   },
   "header": {
     "events": "Events",
     "forms": "Forms",
+    "quizzes": "Quizzes",
     "datepolls": "Date polls",
     "chores": "Chores",
     "menu": "Menu",
@@ -87,7 +90,8 @@
     "chapters": "Chapters",
     "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} sign-ups awaiting approval",
-    "logout": "Log out"
+    "logout": "Log out",
+    "settings": "Settings"
   },
   "whatsapp": {
     "title": "WhatsApp blast",
@@ -653,6 +657,18 @@
     "deleteNoDeps": "No users or events are linked to this chapter.",
     "pickerPlaceholder": "Pick a chapter…"
   },
+  "settings": {
+    "title": "Settings",
+    "intro": "Settings for the whole organisation.",
+    "agendaTitle": "Agenda",
+    "agendaBody": "A chapter's public agenda shows what falls inside this window. An event outside it still exists, is reachable by its own link, and appears once the window reaches it.",
+    "futureDays": "Show ahead (days)",
+    "pastDays": "Show back (days)",
+    "days": "{n} days",
+    "readOnly": "Only an admin can change this.",
+    "saved": "Settings saved",
+    "saveFailed": "Could not save"
+  },
   "event": {
     "newTitle": "New event",
     "editTitle": "Edit event",
@@ -886,5 +902,61 @@
     "label": "Read more",
     "privacy": "Privacy",
     "source": "Source"
+  },
+  "quizzes": {
+    "list": {
+      "title": "Quizzes",
+      "intro": "A quiz with questions and points. Share the link, and everyone sees their own score at the end.",
+      "submissionCount": "played {n} times",
+      "archiveConfirmTitle": "Archive quiz",
+      "archiveConfirmBody": "Archive \"{name}\"? The link stops working afterwards.",
+      "archive": "Archive",
+      "archiveFail": "Archiving failed",
+      "archived": "Archive",
+      "loadFailed": "Could not load quizzes"
+    },
+    "archived": {
+      "title": "Archived quizzes",
+      "intro": "Quizzes you have archived.",
+      "empty": "No archived quizzes yet.",
+      "searchPlaceholder": "Search quizzes",
+      "noMatches": "No quizzes found."
+    },
+    "edit": {
+      "notFoundTitle": "Quiz not found",
+      "notFoundBody": "This quiz does not exist, or you have no access to it.",
+      "backToList": "Back to quizzes",
+      "loadFailed": "Could not load the quiz",
+      "saveFailed": "Saving failed",
+      "fillName": "Give the quiz a name",
+      "questionsHeading": "Questions",
+      "questionsExplainer": "Give each question its right answer and what it is worth. An open question is fine too, it just does not count.",
+      "noQuestionsYet": "No questions yet.",
+      "addQuestion": "Add question",
+      "revealHeading": "Show the answers",
+      "revealExplainer": "Afterwards players see what was right for each question. Turn this off if you run the same quiz twice in one evening.",
+      "editTitle": "Edit quiz",
+      "newTitle": "New quiz"
+    },
+    "details": {
+      "questionsHeading": "Questions",
+      "responsesTitle": "Played",
+      "responses": "plays",
+      "noResponsesYet": "Nobody has played it yet.",
+      "notFoundTitle": "Quiz not found",
+      "notFoundBody": "This quiz does not exist, or you have no access to it.",
+      "backToList": "Back to quizzes",
+      "loadFailed": "Could not load the quiz",
+      "scoreLine": "Average {avg} out of {max}, best {best}",
+      "correctShare": "{pct}% got this right"
+    },
+    "question": {
+      "pickCorrect": "Answers. Tick the right one.",
+      "markCorrect": "This is the right answer",
+      "correctText": "Right answer",
+      "correctNumber": "Right number",
+      "tolerance": "Margin (can be empty)",
+      "points": "points"
+    }
   }
 }

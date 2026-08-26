@@ -17,7 +17,7 @@ const HOUSE_BRAND = "opkomst";
 // misses it and falls through to the app's own router. Dev has to draw
 // the line in the same place, or the sign-up page swallows the feedback
 // questionnaire.
-const PUBLIC_MINI_APP = /^\/[efdc]\/[^/?#]+\/?$/;
+const PUBLIC_MINI_APP = /^\/[efdcq]\/[^/?#]+\/?$/;
 
 // Mirrors ``backend/services/content.py`` plus the privacy policy: the
 // top-level paths the backend renders itself. ``tests/test_content.py``
@@ -123,6 +123,20 @@ function publicEventDevRoute(): Plugin {
  * this rewrite ``/f/foo`` would fall through to the admin SPA's
  * ``index.html`` and the form mini-app would never mount.
  */
+function publicQuizDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-quiz-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (path.startsWith("/q/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-quiz.html";
+        next();
+      });
+    },
+  };
+}
+
 function publicFormDevRoute(): Plugin {
   return {
     name: "opkomst-public-form-dev-route",
@@ -207,7 +221,7 @@ function organiserAppDevRoute(): Plugin {
   // being called one of these.
   const appRoutes = new Set([
     "", "admin", "auth", "chapters", "chores", "datepolls",
-    "events", "forms", "login", "register", "users",
+    "events", "forms", "login", "quizzes", "register", "settings", "users",
   ]);
   const isOrganisation = (segment: string) =>
     segment !== "" && segment !== HOUSE_BRAND && existsSync(`${BRANDS_DIR}/${segment}/brand.json`);
@@ -372,6 +386,7 @@ export default defineConfig({
     organiserAppDevRoute(),
     publicEventDevRoute(),
     publicFormDevRoute(),
+    publicQuizDevRoute(),
     publicDatepollDevRoute(),
     publicChoreDevRoute(),
     contentPagesDevRoute(),
@@ -425,6 +440,11 @@ export default defineConfig({
         // gzip instead of the admin SPA's ~200 KB.
         publicForm: fileURLToPath(
           new URL("./public-form.html", import.meta.url),
+        ),
+        // And the same again for ``/q/{slug}``: a quiz is answered one
+        // question at a time, and shares every renderer with the form.
+        publicQuiz: fileURLToPath(
+          new URL("./public-quiz.html", import.meta.url),
         ),
         // Same split again: dedicated bundle graph for ``/d/{slug}``.
         publicDatepoll: fileURLToPath(

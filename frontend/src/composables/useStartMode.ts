@@ -27,12 +27,13 @@ import type { Started } from "@/api/types";
 
 /** The wire name of the create body, which is also the key the start
  * endpoint expects it under. */
-export type StartKind = "event" | "form" | "datepoll" | "roster";
+export type StartKind = "event" | "form" | "datepoll" | "roster" | "quiz";
 
 // The endpoint path per kind. Rosters are "chores" everywhere in the
 // URL space, so the two names differ here and nowhere else.
 const PATHS: Record<StartKind, string> = {
   event: "events",
+  quiz: "quizzes",
   form: "forms",
   datepoll: "datepolls",
   roster: "chores",

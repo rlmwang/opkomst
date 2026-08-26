@@ -23,6 +23,7 @@ const routes = [
   // and finding a page full of errors.
   { path: "/users", component: () => import("@/pages/UsersPage.vue"), meta: { requiresAuth: true, requiresApproved: true, requiresOrganisation: true } },
   { path: "/chapters", component: () => import("@/pages/ChaptersPage.vue"), meta: { requiresAuth: true, requiresApproved: true, requiresOrganisation: true } },
+  { path: "/settings", component: () => import("@/pages/SettingsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, requiresOrganisation: true } },
   // ``startable``: at the root these four are also the signed-out
   // front door — a tile on the landing page opens the create form
   // itself, and the address is a field in it rather than a wall in
@@ -41,6 +42,18 @@ const routes = [
   { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
   { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  // Quizzes — the other product in the forms table: the same four
+  // pages, told apart by ``meta.resource``, which is what the pages
+  // read to decide which API they are on (``useForms.useFormsApi``).
+  // A quiz differs from a questionnaire by an answer key, a score and
+  // how the questions are walked through, and none of that is on this
+  // side of the app (``docs/design-quizzes.md``).
+  { path: "/quizzes", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+  { path: "/quizzes/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+  { path: "/quizzes/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "quizzes" } },
+  { path: "/quizzes/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+  { path: "/quizzes/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+
   // Datepolls — dates-only availability polls (no relation to
   // Events/Forms). Same chapter-scoped four-page experience; the
   // public fill-out lives at /d/:slug and is unauthenticated

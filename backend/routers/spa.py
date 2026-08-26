@@ -80,6 +80,7 @@ _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
 # because the per-page head metadata serves the same role on both
 # pages.
 _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
+_QUIZ_INJECTION_MARKER = "<!-- OPKOMST_QUIZ_INJECTION -->"
 _DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
 _CHORE_INJECTION_MARKER = "<!-- OPKOMST_CHORE_INJECTION -->"
 _CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
@@ -461,6 +462,7 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
 _PUBLIC_RESOLVERS: dict[str, Callable[[Session, str], Any]] = {
     "e": events_svc.get_occurrence_by_slug_any,
     "f": partial(forms_svc.get_form_by_slug_any, mode="survey"),
+    "q": partial(forms_svc.get_form_by_slug_any, mode="quiz"),
     "d": datepolls_svc.get_datepoll_by_slug_any,
     "c": chores_svc.get_roster_by_slug_any,
 }
@@ -538,6 +540,28 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
     )
 
 
+def _serve_public_quiz(slug: str, db: Session, request: Request) -> HTMLResponse:
+    """The other product in the forms table, on its own prefix so a link
+    says which it is before it opens (``docs/design-quizzes.md``). The
+    payload is the same key-free shape the survey gets: grading happens
+    on the server, from the stored answer key."""
+    traffic.record("public_quiz")
+    quiz = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="quiz"))
+    payload = json.loads(forms_svc.to_public_out(db, quiz).model_dump_json()) if quiz is not None else None
+    brand_slug = _brand_slug_for(db, quiz)
+    return _serve_public_app(
+        html_name="public-quiz.html",
+        window_var="__OPKOMST_QUIZ__",
+        payload_marker=_QUIZ_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_form_head_meta(quiz, slug, brand_slug),
+        brand_slug=brand_slug,
+        request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if quiz is not None else 404,
+    )
+
+
 def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResponse:
     traffic.record("public_datepoll")
     # Archived/unknown polls inline null, same as forms.
@@ -612,6 +636,10 @@ def mount(app: FastAPI) -> None:
     @app.get("/f/{slug}", include_in_schema=False)
     def _public_form(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_form(slug, db, request)
+
+    @app.get("/q/{slug}", include_in_schema=False)
+    def _public_quiz(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_quiz(slug, db, request)
 
     @app.get("/d/{slug}", include_in_schema=False)
     def _public_datepoll(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:

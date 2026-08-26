@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import SupportButtons from "@/public_shared/SupportButtons.vue";
 import Disclosure from "@/public_shared/Disclosure.vue";
+import QuestionField from "@/public_shared/QuestionField.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
 import PublicEditBar from "@/public_shared/PublicEditBar.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
@@ -115,34 +116,6 @@ const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
   },
 });
 
-function setRating(qid: string, value: number) {
-  answers.value[qid] = { answer_int: value };
-}
-/** Empty box means unanswered, not zero: ``0`` is a legitimate answer
- *  to "how many", so the empty string is what maps to null. */
-function setNumber(qid: string, raw: string) {
-  const text = raw.trim();
-  const parsed = Number.parseInt(text, 10);
-  answers.value[qid] = { answer_int: text === "" || Number.isNaN(parsed) ? null : parsed };
-}
-function setText(qid: string, value: string) {
-  answers.value[qid] = { answer_text: value };
-}
-function setSingle(qid: string, value: string) {
-  answers.value[qid] = { answer_choices: value ? [value] : [] };
-}
-function toggleMulti(qid: string, option: string, checked: boolean) {
-  const current = answers.value[qid].answer_choices ?? [];
-  answers.value[qid] = {
-    answer_choices: checked
-      ? [...current.filter((c) => c !== option), option]
-      : current.filter((c) => c !== option),
-  };
-}
-function isChecked(qid: string, option: string): boolean {
-  return (answers.value[qid].answer_choices ?? []).includes(option);
-}
-
 function isAnswered(q: PublicFormQuestion): boolean {
   const a = answers.value[q.id] ?? {};
   if (q.kind === "rating" || q.kind === "number") return a.answer_int != null;
@@ -220,7 +193,6 @@ async function withdraw() {
   }
 }
 
-const ratings = computed(() => [1, 2, 3, 4, 5]);
 </script>
 
 <template>
@@ -258,90 +230,17 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
           maxlength="100"
         />
 
-        <div v-for="q in form.questions" :key="q.id" class="q-block">
-          <label class="prompt">
-            {{ q.prompt }}
-            <span v-if="q.required" class="required-mark" :aria-label="f.required">*</span>
-          </label>
-
-          <div v-if="q.kind === 'rating'" class="rating">
-            <div class="rating-row">
-              <button
-                v-for="v in ratings"
-                :key="v"
-                type="button"
-                class="dot"
-                :class="{ active: answers[q.id]?.answer_int === v }"
-                :aria-label="String(v)"
-                @click="setRating(q.id, v)"
-              >{{ v }}</button>
-            </div>
-            <div v-if="q.low_label || q.high_label" class="legend">
-              <span>{{ q.low_label ?? '' }}</span>
-              <span>{{ q.high_label ?? '' }}</span>
-            </div>
-          </div>
-
-          <!-- One box and, when the question names one, the unit
-               after it. ``inputmode`` gets the numeric keypad on a
-               phone; ``type=number`` is deliberately not used, because
-               its spinner and its silent scroll-to-change are worse
-               than the keypad is good. -->
-          <div v-else-if="q.kind === 'number'" class="number-row">
-            <input
-              type="text"
-              inputmode="numeric"
-              :value="answers[q.id]?.answer_int ?? ''"
-              :min="q.min_value ?? undefined"
-              :max="q.max_value ?? undefined"
-              class="input number-input"
-              @input="(e) => setNumber(q.id, (e.target as HTMLInputElement).value)"
-            />
-            <span v-if="q.unit" class="unit muted">{{ q.unit }}</span>
-          </div>
-
-          <textarea
-            v-else-if="q.kind === 'text'"
-            :value="answers[q.id]?.answer_text ?? ''"
-            maxlength="2000"
-            rows="3"
-            class="input textarea"
-            @input="(e) => setText(q.id, (e.target as HTMLTextAreaElement).value)"
-          />
-
-          <input
-            v-else-if="q.kind === 'short_text'"
-            type="text"
-            :value="answers[q.id]?.answer_text ?? ''"
-            maxlength="200"
-            class="input"
-            @input="(e) => setText(q.id, (e.target as HTMLInputElement).value)"
-          />
-
-          <div v-else-if="q.kind === 'single_choice'" class="choice-list">
-            <label v-for="opt in q.options" :key="opt" class="choice-row">
-              <input
-                type="radio"
-                :name="`q-${q.id}`"
-                :value="opt"
-                :checked="(answers[q.id]?.answer_choices ?? [])[0] === opt"
-                @change="setSingle(q.id, opt)"
-              />
-              <span>{{ opt }}</span>
-            </label>
-          </div>
-
-          <div v-else-if="q.kind === 'multi_choice'" class="choice-list">
-            <label v-for="opt in q.options" :key="opt" class="choice-row">
-              <input
-                type="checkbox"
-                :checked="isChecked(q.id, opt)"
-                @change="(e) => toggleMulti(q.id, opt, (e.target as HTMLInputElement).checked)"
-              />
-              <span>{{ opt }}</span>
-            </label>
-          </div>
-        </div>
+        <!-- One component per kind, shared with the quiz mini-app
+             (``public_shared/QuestionField.vue``). A questionnaire
+             renders the whole list; a quiz renders one at a time. -->
+        <QuestionField
+          v-for="q in form.questions"
+          :key="q.id"
+          :question="q"
+          :answer="answers[q.id]"
+          :required-label="f.required"
+          @update="(value) => (answers[q.id] = value)"
+        />
 
         <p v-if="submitError" class="error" role="alert">{{ submitError }}</p>
 
@@ -369,48 +268,13 @@ const ratings = computed(() => [1, 2, 3, 4, 5]);
 
 <style scoped>
 .form-card { display: flex; flex-direction: column; gap: 1.25rem; }
-.q-block { display: flex; flex-direction: column; gap: 0.5rem; }
-.prompt { font-weight: 600; font-size: 1.0625rem; line-height: 1.4; }
-.required-mark { color: var(--brand-red); margin-left: 0.125rem; }
 .error { color: var(--brand-red); margin: 0; }
 
 /* --- Rating --- */
-.rating { display: flex; flex-direction: column; gap: 0.375rem; }
-.rating-row { display: flex; gap: 0.5rem; }
-.dot {
-  flex: 1;
-  border: 1px solid var(--brand-border);
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  font-size: 1rem;
-  font-weight: 600;
-  padding: 0.625rem 0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
-}
-.dot:hover { border-color: var(--brand-red); }
-.dot.active { background: var(--brand-red); border-color: var(--brand-red); color: #fff; }
-.legend { display: flex; justify-content: space-between; font-size: 0.8125rem; color: var(--brand-text-muted); }
 
 /* --- Text inputs (base ``.input`` comes from forms.css) --- */
-.textarea { resize: vertical; min-height: 5rem; }
 
 /* --- Choice lists --- */
-.number-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-.number-input {
-  max-width: 8rem;
-}
-.unit {
-  font-size: 0.9375rem;
-}
-.choice-list { display: flex; flex-direction: column; gap: 0.375rem; }
-.choice-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-.choice-row input { width: 1.125rem; height: 1.125rem; }
 
 /* --- Submit --- */
 /* .submit-row (right-aligned action row) comes from ``forms.css``. */

@@ -68,13 +68,16 @@
     "lede": "Waar wil je aan werken?",
     "eventsHint": "Bijeenkomsten met aanmeldingen",
     "formsHint": "Vragenlijsten en peilingen",
+    "quizzesHint": "Een quiz met scores",
     "datepollsHint": "Prik een datum met de groep",
     "choresHint": "Terugkerende taken verdelen",
-    "adminHint": "Gebruikers en afdelingen"
+    "adminHint": "Gebruikers en afdelingen",
+    "chapterAgendas": "Afdelingspagina's"
   },
   "header": {
     "events": "Evenementen",
     "forms": "Vragenlijsten",
+    "quizzes": "Quizzen",
     "datepolls": "Datumprikkers",
     "chores": "Takenroosters",
     "menu": "Menu",
@@ -87,7 +90,8 @@
     "chapters": "Afdelingen",
     "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
-    "logout": "Uitloggen"
+    "logout": "Uitloggen",
+    "settings": "Instellingen"
   },
   "whatsapp": {
     "title": "WhatsApp-blast",
@@ -653,6 +657,18 @@
     "deleteNoDeps": "Er zijn geen gebruikers of evenementen aan deze afdeling gekoppeld.",
     "pickerPlaceholder": "Kies een afdeling…"
   },
+  "settings": {
+    "title": "Instellingen",
+    "intro": "Instellingen voor de hele organisatie.",
+    "agendaTitle": "Agenda",
+    "agendaBody": "De openbare agenda van een afdeling toont wat binnen dit venster valt. Een evenement daarbuiten bestaat gewoon, is bereikbaar via zijn eigen link, en verschijnt vanzelf zodra het venster het bereikt.",
+    "futureDays": "Vooruit tonen (dagen)",
+    "pastDays": "Terug tonen (dagen)",
+    "days": "{n} dagen",
+    "readOnly": "Alleen een admin kan dit wijzigen.",
+    "saved": "Instellingen opgeslagen",
+    "saveFailed": "Opslaan mislukt"
+  },
   "event": {
     "newTitle": "Nieuw evenement",
     "editTitle": "Evenement bewerken",
@@ -886,5 +902,61 @@
     "label": "Meer lezen",
     "privacy": "Privacy",
     "source": "Broncode"
+  },
+  "quizzes": {
+    "list": {
+      "title": "Quizzen",
+      "intro": "Een quiz met vragen en punten. Deel de link, en na afloop ziet iedereen z'n eigen score.",
+      "submissionCount": "{n}x gespeeld",
+      "archiveConfirmTitle": "Quiz archiveren",
+      "archiveConfirmBody": "Weet je zeker dat je \"{name}\" wilt archiveren? De link doet het daarna niet meer.",
+      "archive": "Archiveren",
+      "archiveFail": "Archiveren ging mis",
+      "archived": "Archief",
+      "loadFailed": "Quizzen ophalen ging mis"
+    },
+    "archived": {
+      "title": "Gearchiveerde quizzen",
+      "intro": "Herstel een quiz om 'm weer speelbaar te maken, of gooi 'm definitief weg.",
+      "empty": "Geen gearchiveerde quizzen.",
+      "searchPlaceholder": "Zoek een quiz",
+      "noMatches": "Geen quiz gevonden."
+    },
+    "edit": {
+      "notFoundTitle": "Quiz niet gevonden",
+      "notFoundBody": "Deze quiz bestaat niet, of je mag er niet bij.",
+      "backToList": "Terug naar quizzen",
+      "loadFailed": "Quiz ophalen ging mis",
+      "saveFailed": "Opslaan ging mis",
+      "fillName": "Geef je quiz een naam",
+      "questionsHeading": "Vragen",
+      "questionsExplainer": "Zet bij elke vraag het goede antwoord en wat 'ie waard is. Een open vraag mag ook, die telt gewoon niet mee.",
+      "noQuestionsYet": "Nog geen vragen.",
+      "addQuestion": "Vraag toevoegen",
+      "revealHeading": "Antwoorden laten zien",
+      "revealExplainer": "Na afloop ziet iedereen bij welke vragen ze goed zaten. Zet dit uit als je dezelfde quiz op één avond nog een keer speelt.",
+      "editTitle": "Quiz bewerken",
+      "newTitle": "Nieuwe quiz"
+    },
+    "details": {
+      "questionsHeading": "Vragen",
+      "responsesTitle": "Gespeeld",
+      "responses": "keer gespeeld",
+      "noResponsesYet": "Nog niemand heeft 'm gespeeld.",
+      "notFoundTitle": "Quiz niet gevonden",
+      "notFoundBody": "Deze quiz bestaat niet, of je mag er niet bij.",
+      "backToList": "Terug naar quizzen",
+      "loadFailed": "Quiz ophalen ging mis",
+      "scoreLine": "Gemiddeld {avg} van de {max}, hoogste {best}",
+      "correctShare": "{pct}% had deze goed"
+    },
+    "question": {
+      "pickCorrect": "Antwoorden. Vink aan welke goed is.",
+      "markCorrect": "Dit is het goede antwoord",
+      "correctText": "Goede antwoord",
+      "correctNumber": "Goede getal",
+      "tolerance": "Marge (mag leeg)",
+      "points": "punten"
+    }
   }
 }

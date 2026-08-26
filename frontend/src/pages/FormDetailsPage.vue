@@ -9,16 +9,12 @@ import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
-import { useFormClipboard } from "@/composables/useFormClipboard";
-import {
-  fetchFormSubmissions,
-  useForm,
-  useFormSummary,
-} from "@/composables/useForms";
+import { useFormClipboard, useQuizClipboard } from "@/composables/useFormClipboard";
+import { useFormsApi } from "@/composables/useForms";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
 import { barWidth } from "@/lib/format";
-import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
+import { formQrUrl, publicFormUrl, publicQuizUrl, quizQrUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
@@ -27,12 +23,18 @@ const props = defineProps<{ formId: string }>();
 // organisation has no ceiling, so the pill shows the bare count.
 const auth = useAuthStore();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const lt = useLocalizedText();
 const toasts = useToasts();
-const { copyLink, copyQr } = useFormClipboard();
+// One page, two products; the route says which (``useForms``).
+const api = useFormsApi();
+const isQuiz = computed(() => api.resource === "quizzes");
+const { copyLink, copyQr } = isQuiz.value ? useQuizClipboard() : useFormClipboard();
+const publicPageUrl = isQuiz.value ? publicQuizUrl : publicFormUrl;
+const qrSrc = isQuiz.value ? quizQrUrl : formQrUrl;
+const L = (key: string) => (isQuiz.value && te(`quizzes.${key}`) ? t(`quizzes.${key}`) : t(`forms.${key}`));
 
-const formQuery = useForm(computed(() => props.formId));
+const formQuery = api.useSingle(computed(() => props.formId));
 const form = computed(() => formQuery.data.value ?? null);
 
 // ``loaded`` flips true once the query has resolved either way —
@@ -52,12 +54,12 @@ const otherError = computed(
   () => formQuery.error.value && !(notFound.value),
 );
 
-const summaryQuery = useFormSummary(computed(() => props.formId));
+const summaryQuery = api.useSummary(computed(() => props.formId));
 const summary = computed(() => summaryQuery.data.value ?? null);
 
 // Rows for the responses pill's recovery popover.
 async function recoverRows(): Promise<RecoverableRow[]> {
-  const subs = await fetchFormSubmissions(props.formId);
+  const subs = await api.fetchSubmissions(props.formId);
   return subs.map((s) => ({ id: s.submission_id, name: s.display_name, recoveredAt: s.link_recovered_at ?? null }));
 }
 
@@ -69,17 +71,17 @@ async function recoverRows(): Promise<RecoverableRow[]> {
 async function exportCsv() {
   if (!form.value) return;
   try {
-    const submissions = await fetchFormSubmissions(props.formId);
+    const submissions = await api.fetchSubmissions(props.formId);
     const questions = form.value.questions ?? [];
     const ids = questions.map((q) => q.id);
     const prompts = questions.map((q) => q.prompt);
     const header = [
-      t("forms.details.csvName"),
-      t("forms.details.csvSubmittedAt"),
+      L("details.csvName"),
+      L("details.csvSubmittedAt"),
       ...prompts,
     ];
     const rows = submissions.map((s) => [
-      s.display_name ?? t("forms.details.anonymous"),
+      s.display_name ?? L("details.anonymous"),
       s.created_at,
       ...ids.map((id) => {
         const v = s.answers[id];
@@ -88,7 +90,7 @@ async function exportCsv() {
     ]);
     downloadCsv(`${filenameSlug(lt(form.value.name_nl, form.value.name_en) ?? "")}-${form.value.id}.csv`, [header, ...rows]);
   } catch {
-    toasts.error(t("forms.details.csvFail"));
+    toasts.error(L("details.csvFail"));
   }
 }
 </script>
@@ -96,13 +98,13 @@ async function exportCsv() {
 <template>
   <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
     <AppCard v-if="notFound" :stack="false">
-      <h2>{{ t("forms.details.notFoundTitle") }}</h2>
-      <p class="muted">{{ t("forms.details.notFoundBody") }}</p>
-      <router-link to="/forms" class="back-link">{{ t("forms.details.backToList") }}</router-link>
+      <h2>{{ L("details.notFoundTitle") }}</h2>
+      <p class="muted">{{ L("details.notFoundBody") }}</p>
+      <router-link :to="`/${api.resource}`" class="back-link">{{ L("details.backToList") }}</router-link>
     </AppCard>
 
     <AppCard v-else-if="otherError" :stack="false">
-      <p>{{ t("forms.details.loadFailed") }}</p>
+      <p>{{ L("details.loadFailed") }}</p>
     </AppCard>
 
     <template v-else-if="form">
@@ -116,9 +118,9 @@ async function exportCsv() {
         :image-url="form.image_url"
         :image-artist="form.image_artist_instagram"
         :description-html="lt(form.description_nl, form.description_en)"
-        :qr-src="formQrUrl(form.slug)"
-        :public-url="publicFormUrl(form.slug)"
-        :edit-to="`/forms/${form.id}/edit`"
+        :qr-src="qrSrc(form.slug)"
+        :public-url="publicPageUrl(form.slug)"
+        :edit-to="`/${api.resource}/${form.id}/edit`"
         @copy-qr="copyQr(form.slug)"
         @copy-link="copyLink(form.slug)"
       />
@@ -128,7 +130,7 @@ async function exportCsv() {
            details "Taken" card listing the defined chores). -->
       <AppCard v-if="form.questions?.length">
         <div class="summary-header">
-          <h2>{{ t("forms.details.questionsHeading") }}</h2>
+          <h2>{{ L("details.questionsHeading") }}</h2>
         </div>
         <ol class="q-overview">
           <li v-for="q in form.questions ?? []" :key="q.id" class="q-overview-item">
@@ -145,10 +147,10 @@ async function exportCsv() {
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("forms.details.responsesTitle") }}</h2>
+          <h2>{{ L("details.responsesTitle") }}</h2>
           <div class="header-actions">
             <Button
-              :label="t('forms.details.exportCsv')"
+              :label="L('details.exportCsv')"
               size="small"
               severity="secondary"
               text
@@ -160,21 +162,44 @@ async function exportCsv() {
               v-if="summary && form"
               :count="summary.submission_count"
               :cap="auth.user?.participant_cap ?? null"
-              :label="t('forms.details.responses')"
+              :label="L('details.responses')"
               :load-rows="recoverRows"
-              :recover-path="(id: string) => `/api/v1/forms/${props.formId}/submissions/${id}/edit-link`"
-              :public-url="(tok: string) => `${publicFormUrl(form!.slug)}?s=${tok}`"
+              :recover-path="(id: string) => `/api/v1/${api.resource}/${props.formId}/submissions/${id}/edit-link`"
+              :public-url="(tok: string) => `${publicPageUrl(form!.slug)}?s=${tok}`"
             />
           </div>
         </div>
 
         <p v-if="!summary || summary.submission_count === 0" class="muted">
-          {{ t("forms.details.noResponsesYet") }}
+          {{ L("details.noResponsesYet") }}
         </p>
 
         <template v-else>
+          <!-- Quiz only: how the room did, above the per-question
+               breakdown that says which question it was that did for
+               them. Its own element rather than a branch of the
+               chain, or it takes the breakdown's place. -->
+          <p
+            v-if="isQuiz && summary.score_average !== null && summary.score_average !== undefined"
+            class="muted q-meta score-line"
+          >
+            {{
+              t("quizzes.details.scoreLine", {
+                avg: summary.score_average,
+                best: summary.score_best,
+                max: summary.max_score,
+              })
+            }}
+          </p>
+
           <div v-for="q in summary.questions" :key="q.id" class="q-block">
             <p class="q-prompt">{{ q.prompt }}</p>
+            <!-- The one aggregate a quiz has that a survey cannot: the
+                 share who got it right, which is what says a question
+                 was broken rather than hard. -->
+            <p v-if="q.correct_share !== null && q.correct_share !== undefined" class="muted q-meta">
+              {{ t("quizzes.details.correctShare", { pct: Math.round(q.correct_share * 100) }) }}
+            </p>
 
             <template v-if="q.kind === 'rating' && q.rating_distribution">
               <p class="muted q-meta">
@@ -216,7 +241,7 @@ async function exportCsv() {
 
             <template v-else-if="q.kind === 'text' || q.kind === 'short_text'">
               <p v-if="!q.texts || q.texts.length === 0" class="muted q-meta">
-                {{ t("forms.details.noTextResponses") }}
+                {{ L("details.noTextResponses") }}
               </p>
               <ul v-else class="texts">
                 <li v-for="(txt, i) in q.texts" :key="i">{{ txt }}</li>
@@ -299,6 +324,9 @@ async function exportCsv() {
   border-top: none;
   padding-top: 0;
   margin-top: 0;
+}
+.score-line {
+  margin-bottom: 1rem;
 }
 .q-prompt { margin: 0 0 0.5rem; font-weight: 600; }
 .q-meta { margin: 0 0 0.5rem; }

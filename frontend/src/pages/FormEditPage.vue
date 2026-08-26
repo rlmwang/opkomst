@@ -2,6 +2,7 @@
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
+import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -19,24 +20,26 @@ import { useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useOrderedList } from "@/composables/useOrderedList";
-import {
-  type FormCreate,
-  type FormQuestionIn,
-  type FormUpdate,
-  useCreateForm,
-  useForm,
-  useUpdateForm,
-} from "@/composables/useForms";
+import { type FormCreate, type FormQuestionIn, type FormUpdate, useFormsApi } from "@/composables/useForms";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ formId?: string }>();
 
-const { t, locale } = useI18n();
+const { t, te, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
 // The root's front door: see ``useStartMode``.
+// One page, two products (``docs/design-quizzes.md``). The route says
+// which; everything below that reads the same, because a quiz is a
+// questionnaire with an answer key.
+const api = useFormsApi();
+const isQuiz = computed(() => api.resource === "quizzes");
+/** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise. The
+ *  two products share every string that is not about scoring. */
+const L = (key: string) => (isQuiz.value && te(`quizzes.${key}`) ? t(`quizzes.${key}`) : t(`forms.${key}`));
+
 const {
   active: startActive,
   hasChapters,
@@ -46,14 +49,18 @@ const {
   submit: submitStart,
   chapterFor,
   cancel: cancelStart,
-} = useStartMode("form");
+} = useStartMode(api.resource === "quizzes" ? "quiz" : "form");
 const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
 const auth = useAuthStore();
-const createMutation = useCreateForm();
-const updateMutation = useUpdateForm();
+const createMutation = api.useCreate();
+const updateMutation = api.useUpdate();
 
 const isEdit = computed(() => Boolean(props.formId));
+
+/* Quiz only: whether the result screen names the right answers. An
+ * organiser running the same quiz twice in one evening turns it off. */
+const revealAnswers = ref(true);
 
 // Chapter assignment. Same pattern as EventFormPage: pre-fill on
 // create from ``?chapter=`` if it matches a live membership; if
@@ -82,7 +89,7 @@ const submitting = ref(false);
 // Edit-mode hydration. ``useForm`` caches per-form-id so we only
 // pay one round-trip even when navigating back through the list.
 const existingQuery = computed(() => (props.formId ? props.formId : ""));
-const formQuery = isEdit.value ? useForm(existingQuery) : null;
+const formQuery = isEdit.value ? api.useSingle(existingQuery) : null;
 
 // Edit-mode error states. A bad / deleted form id used to leave
 // the page stuck on a half-rendered form-shell skeleton; surface
@@ -141,7 +148,13 @@ watch(
       min_value: q.min_value ?? null,
       max_value: q.max_value ?? null,
       unit: q.unit ?? null,
+      points: q.points ?? 0,
+      correct_int: q.correct_int ?? null,
+      correct_text: q.correct_text ?? null,
+      correct_choices: q.correct_choices ? [...q.correct_choices] : null,
+      tolerance: q.tolerance ?? null,
     }));
+    revealAnswers.value = existing.reveal_answers ?? true;
     // Restore the mid-edit draft after server hydration so the
     // user's unsaved edits win over the stored form.
     if (draftReady) restoreDraftOnce();
@@ -227,6 +240,13 @@ function addQuestion(): void {
     min_value: null,
     max_value: null,
     unit: null,
+    // A new quiz question is worth one point; a survey's is worth
+    // nothing and the server drops it either way.
+    points: isQuiz.value ? 1 : 0,
+    correct_int: null,
+    correct_text: null,
+    correct_choices: null,
+    tolerance: null,
   });
 }
 
@@ -248,9 +268,9 @@ function cancel(): void {
   clearDraft();
   if (cancelStart()) return;
   if (isEdit.value && props.formId) {
-    void router.push(`/forms/${props.formId}/details`);
+    void router.push(`/${api.resource}/${props.formId}/details`);
   } else {
-    void router.push("/forms");
+    void router.push(`/${api.resource}`);
   }
 }
 
@@ -258,11 +278,11 @@ async function submit() {
   // Backend requires the title in the primary language (``formLocale``).
   const primaryName = (formLocale.value === "en" ? nameEn.value : nameNl.value).trim();
   if (!primaryName) {
-    toasts.warn(t("forms.edit.fillName"));
+    toasts.warn(L("edit.fillName"));
     return;
   }
   if (hasChapters.value && !chapterId.value) {
-    toasts.warn(t("forms.edit.fillChapter"));
+    toasts.warn(L("edit.fillChapter"));
     return;
   }
   if (startActive.value && !validateStartEmail()) return;
@@ -279,6 +299,7 @@ async function submit() {
       description_en: descEn.value.trim() || null,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: formLocale.value,
+      reveal_answers: revealAnswers.value,
       questions: questions.value.map(
         (q): FormQuestionIn => ({
           id: q.id,
@@ -291,6 +312,11 @@ async function submit() {
           min_value: q.min_value,
           max_value: q.max_value,
           unit: q.unit,
+          points: q.points,
+          correct_int: q.correct_int,
+          correct_text: q.correct_text,
+          correct_choices: q.correct_choices,
+          tolerance: q.tolerance,
         }),
       ),
     };
@@ -309,9 +335,9 @@ async function submit() {
     // (no-op in edit mode / when nothing was picked).
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
-    void router.push(`/forms/${result.id}/details`);
+    void router.push(`/${api.resource}/${result.id}/details`);
   } catch {
-    toasts.error(t("forms.edit.saveFailed"));
+    toasts.error(L("edit.saveFailed"));
   } finally {
     submitting.value = false;
   }
@@ -325,20 +351,20 @@ async function submit() {
        misleading. -->
   <template v-if="notFound">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <AppCard>
-        <h2>{{ t("forms.edit.notFoundTitle") }}</h2>
-        <p class="muted">{{ t("forms.edit.notFoundBody") }}</p>
-        <router-link to="/forms" class="back-link">{{ t("forms.edit.backToList") }}</router-link>
+        <h2>{{ L("edit.notFoundTitle") }}</h2>
+        <p class="muted">{{ L("edit.notFoundBody") }}</p>
+        <router-link :to="`/${api.resource}`" class="back-link">{{ L("edit.backToList") }}</router-link>
       </AppCard>
     </div>
   </template>
 
   <template v-else-if="otherError">
     <AppHeader />
-    <div class="container stack">
+    <div class="container-wide stack">
       <AppCard>
-        <p>{{ t("forms.edit.loadFailed") }}</p>
+        <p>{{ L("edit.loadFailed") }}</p>
       </AppCard>
     </div>
   </template>
@@ -347,7 +373,7 @@ async function submit() {
 
   <FormPageShell
     v-else
-    :title="isEdit ? t('forms.edit.editTitle') : t('forms.edit.newTitle')"
+    :title="isEdit ? L('edit.editTitle') : L('edit.newTitle')"
     :submit-label="isEdit ? t('forms.edit.save') : t('forms.edit.create')"
     :submitting="submitting"
     @submit="submit"
@@ -389,16 +415,17 @@ async function submit() {
     />
 
     <section class="form-section">
-      <h2 class="section-heading">{{ t("forms.edit.questionsHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("forms.edit.questionsExplainer") }}</p>
+      <h2 class="section-heading">{{ L("edit.questionsHeading") }}</h2>
+      <p class="muted section-explainer">{{ L("edit.questionsExplainer") }}</p>
 
       <div v-if="questions.length === 0" class="empty muted">
-        {{ t("forms.edit.noQuestionsYet") }}
+        {{ L("edit.noQuestionsYet") }}
       </div>
 
       <div class="questions-stack">
         <QuestionEditor
           v-for="(q, idx) in questions"
+          :scored="isQuiz"
           :key="q.id ?? `new-${idx}`"
           :model-value="q"
           :can-move-up="idx > 0"
@@ -412,16 +439,26 @@ async function submit() {
 
       <Button
         type="button"
-        :label="t('forms.edit.addQuestion')"
+        :label="L('edit.addQuestion')"
         icon="pi pi-plus"
         severity="secondary"
         @click="addQuestion"
       />
     </section>
 
+    <!-- Quiz only. Under the questions because it is about what
+         happens after they are answered. -->
+    <section v-if="isQuiz" class="form-section">
+      <label class="toggle-row" for="revealToggle">
+        <ToggleSwitch v-model="revealAnswers" inputId="revealToggle" />
+        <h2 class="section-heading">{{ t("quizzes.edit.revealHeading") }}</h2>
+      </label>
+      <p class="muted section-explainer">{{ t("quizzes.edit.revealExplainer") }}</p>
+    </section>
+
     <section class="form-section">
-      <h2 class="section-heading">{{ t("forms.edit.localeHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("forms.edit.localeExplainer") }}</p>
+      <h2 class="section-heading">{{ L("edit.localeHeading") }}</h2>
+      <p class="muted section-explainer">{{ L("edit.localeExplainer") }}</p>
       <Select
         v-model="formLocale"
         :options="[

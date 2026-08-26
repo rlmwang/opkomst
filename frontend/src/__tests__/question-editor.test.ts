@@ -75,6 +75,11 @@ describe("QuestionEditor kind switching", () => {
       min_value: null,
       max_value: null,
       unit: null,
+      points: 0,
+      correct_int: null,
+      correct_text: null,
+      correct_choices: null,
+      tolerance: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -98,6 +103,11 @@ describe("QuestionEditor kind switching", () => {
       min_value: null,
       max_value: null,
       unit: null,
+      points: 0,
+      correct_int: null,
+      correct_text: null,
+      correct_choices: null,
+      tolerance: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -120,6 +130,11 @@ describe("QuestionEditor kind switching", () => {
       min_value: null,
       max_value: null,
       unit: null,
+      points: 0,
+      correct_int: null,
+      correct_text: null,
+      correct_choices: null,
+      tolerance: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -142,6 +157,11 @@ describe("QuestionEditor kind switching", () => {
       min_value: 0,
       max_value: 120,
       unit: "jaar",
+      points: 0,
+      correct_int: null,
+      correct_text: null,
+      correct_choices: null,
+      tolerance: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -151,5 +171,35 @@ describe("QuestionEditor kind switching", () => {
     expect(get().min_value).toBeNull();
     expect(get().max_value).toBeNull();
     expect(get().unit).toBeNull();
+  });
+
+  it("drops a key that no longer fits when the kind changes", () => {
+    const initial: QuestionDraft = {
+      id: "q1",
+      kind: "single_choice",
+      prompt: "Welke?",
+      required: true,
+      options: ["A", "B"],
+      low_label: null,
+      high_label: null,
+      min_value: null,
+      max_value: null,
+      unit: null,
+      points: 2,
+      correct_int: null,
+      correct_text: null,
+      correct_choices: ["A"],
+      tolerance: null,
+    };
+    const { wrapper, get } = mountEditor(initial);
+    const exposed = wrapper.vm as unknown as {
+      $: { setupState: { patch: (k: keyof QuestionDraft, v: unknown) => void } };
+    };
+    exposed.$.setupState.patch("kind", "number");
+    expect(get().correct_choices).toBeNull();
+    // A paragraph cannot be graded, so it is worth nothing whatever
+    // the quiz says.
+    exposed.$.setupState.patch("kind", "text");
+    expect(get().points).toBe(0);
   });
 });

@@ -32,12 +32,18 @@ interface Tile {
 
 /* Ordered the way somebody organising something meets them: settle a
  * date, put the event up, share out the work, then ask people
- * something. */
+ * something, and last the one that is for the evening itself.
+ *
+ * Five tiles in two columns is three rows with the last one alone,
+ * which is a gap rather than a problem: the grid is two columns at
+ * every width and this is that rule continuing (docs/design-quizzes.md
+ * part 4). */
 const tiles = computed<Tile[]>(() => [
   { key: "events", to: "/events/new", label: t("header.events"), hint: t("home.eventsHint") },
   { key: "datepolls", to: "/datepolls/new", label: t("header.datepolls"), hint: t("home.datepollsHint") },
   { key: "chores", to: "/chores/new", label: t("header.chores"), hint: t("home.choresHint") },
   { key: "forms", to: "/forms/new", label: t("header.forms"), hint: t("home.formsHint") },
+  { key: "quizzes", to: "/quizzes/new", label: t("header.quizzes"), hint: t("home.quizzesHint") },
 ]);
 </script>
 
