@@ -678,6 +678,8 @@
     "imageCredit": "Ontwerp:",
     "sourcesHeading": "Hoe heb je ons gevonden?",
     "sourcesExplainer": "Deze opties verschijnen op het openbare aanmeldformulier.",
+    "advancedShow": "Geavanceerde opties tonen",
+    "advancedHide": "Geavanceerde opties verbergen",
     "localeHeading": "Taal",
     "localeExplainer": "De taal van de openbare aanmeldpagina en de feedbackmail na afloop.",
     "localeNl": "Nederlands",

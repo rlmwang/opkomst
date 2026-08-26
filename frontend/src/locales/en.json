@@ -678,6 +678,8 @@
     "imageCredit": "Artwork by",
     "sourcesHeading": "How did you find us?",
     "sourcesExplainer": "These options will appear on the public sign-up form.",
+    "advancedShow": "Show advanced options",
+    "advancedHide": "Hide advanced options",
     "localeHeading": "Language",
     "localeExplainer": "The language of the public sign-up page and the post-event feedback email.",
     "localeNl": "Dutch",
