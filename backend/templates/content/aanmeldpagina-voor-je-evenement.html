@@ -1,0 +1,70 @@
+{% extends "_page.html" %}
+{% block content %}
+<h1>Aanmeldpagina voor je evenement, zonder kosten per aanmelding</h1>
+<p class="lede">Eén link waar mensen hun naam achterlaten en zeggen met
+hoeveel ze komen. Jij ziet wie er is, zij krijgen hooguit twee mails, en
+per persoon betaal je niets.</p>
+
+<h2>Wat je nu waarschijnlijk gebruikt</h2>
+<ul>
+  <li><strong>Een appgroep.</strong> Werkt tot een stuk of vijftien
+    mensen. Daarna scrol je terug om te tellen wie nou wel of niet
+    "ik ben er" had gezegd.</li>
+  <li><strong>Eventbrite.</strong> Een gratis evenement aanmaken kan
+    prima. Vraag je geld, dan gaan er servicekosten per ticket af: voor
+    goede doelen vanaf 3% plus 99 cent. Volgens hun eigen privacybeleid
+    delen ze gegevens van bezoekers met marketingpartijen en
+    mailproviders.</li>
+  <li><strong>Aanmelder.nl.</strong> Een account en een testevenement
+    zijn gratis. Daarna betaal je vanaf 2,29 euro per aanmelding, plus
+    1,50 euro per betaling. Bij een ledenvergadering met tachtig man
+    loopt dat hard op.</li>
+  <li><strong>Een formulier plus een spreadsheet.</strong> Prima, tot je
+    een herinnering wilt sturen en de adressen ergens moeten blijven.</li>
+</ul>
+
+<h2>Hoe het hier werkt</h2>
+<ul>
+  <li>Je maakt het evenement aan en krijgt één link, plus een QR-code
+    voor op een poster.</li>
+  <li>Wie zich aanmeldt vult een naam in en zegt met hoeveel mensen
+    diegene komt. Een schuilnaam mag.</li>
+  <li>Je kunt erbij vragen waarmee iemand wil helpen en hoe diegene van
+    het evenement hoorde. Allebei kun je uitzetten.</li>
+  <li>Aanmelders krijgen een eigen link waarmee ze hun aanmelding later
+    kunnen aanpassen of intrekken.</li>
+  <li>Herhaalt het zich, dan stel je het ritme één keer in. Elke keer
+    krijgt daarna z'n eigen aanmeldpagina.</li>
+</ul>
+
+<h2>Het mailadres, als je erom vraagt</h2>
+<p>Een adres is optioneel. Het veld staat er alleen als je een
+herinnering of een vragenlijst achteraf aanzet. Er gaan dan hooguit twee
+mails naartoe: een herinnering vooraf en een korte vragenlijst erna.
+Daarna wissen we het adres.</p>
+<p>Zelf zie je die adressen nooit. Je ziet wie er komt en met hoeveel
+mensen. Een knop om er een mailinglijst van te maken is er niet. Hoe dat
+precies zit staat op de pagina over
+<a href="/wat-gebeurt-er-met-je-mailadres">wat er met je e-mailadres
+gebeurt</a>.</p>
+<p class="note">Deze app is open source. Wat hierboven staat, staat ook
+in de code, en die kun je zelf nalezen.</p>
+
+<h2>Wat het niet doet</h2>
+<p>Geen kaartverkoop, geen betalingen, geen stoelindeling. Wil je geld
+ophalen, vooraf of bij de deur, dan moet dat ergens anders. Wat je hier
+wel krijgt kost niets, ook niet bij honderd aanmeldingen.</p>
+
+<h2>Voor afdelingen</h2>
+<p>Hoort je evenement bij een afdeling, dan komt het op de openbare
+agenda van die afdeling te staan. Eén pagina met alles wat eraan komt,
+en per evenement dezelfde aanmeldlink. Je kunt een evenement ook van de
+agenda houden: de link blijft dan gewoon werken.</p>
+
+<a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
+
+<p class="muted">Weet je de datum nog niet? Prik er eerst een met een
+<a href="/datumprikker-zonder-account">datumprikker</a>. Wil je alleen
+iets vragen, zonder evenement, maak dan een
+<a href="/aanmeldformulier-zonder-google">aanmeldformulier</a>.</p>
+{% endblock %}

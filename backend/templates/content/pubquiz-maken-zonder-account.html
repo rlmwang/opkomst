@@ -1,0 +1,70 @@
+{% extends "_page.html" %}
+{% block content %}
+<h1>Pubquiz maken zonder account of abonnement</h1>
+<p class="lede">Je bedenkt de vragen en stuurt één link rond. Na afloop
+ziet iedereen z'n eigen score. Niemand maakt een account aan en jij
+betaalt niks per maand.</p>
+
+<h2>Waar quiztools op vastlopen</h2>
+<p>Tools zijn er genoeg. Het gedoe zit meestal niet in de vragen, maar
+in drie andere dingen:</p>
+<ul>
+  <li><strong>Een spelerslimiet.</strong> Bij Kahoot doen er in de
+    gratis versie tien mensen mee aan een ronde. Daarboven begint een
+    abonnement vanaf 19 dollar per maand per presentator. Ook als je
+    twee keer per jaar een quiz doet.</li>
+  <li><strong>Iedereen moet iets installeren of inloggen.</strong> Een
+    app, een code, een account. Aan een cafétafel ben je zo tien minuten
+    kwijt voordat de eerste vraag valt.</li>
+  <li><strong>De antwoorden komen ergens terecht.</strong> Voor Google
+    Forms heb je zelf een Google-account nodig, en de antwoorden van je
+    leden staan daarna bij een advertentiebedrijf.</li>
+</ul>
+<p>Je kunt ook een kant-en-klare pubquiz kopen, vanaf een euro of
+vijftien. Prima als je zelf niks wilt bedenken. Alleen gaan die vragen
+niet over jullie.</p>
+
+<h2>Hoe het hier werkt</h2>
+<ul>
+  <li>Je maakt de quiz aan en krijgt één link. Die stuur je rond, of je
+    hangt de QR-code op tafel.</li>
+  <li>Wie meedoet vult een naam in en krijgt de vragen één voor één. De
+    naam mag ook leeg blijven.</li>
+  <li>Na de laatste vraag ziet iedereen z'n eigen score, met per vraag
+    het goede antwoord erbij. Speel je dezelfde quiz die avond nog een
+    keer, dan zet je dat laatste uit.</li>
+  <li>Jij ziet wie wat scoorde en welke vraag de meesten fout hadden.
+    Alles is als CSV te downloaden.</li>
+  <li>De spelers hebben geen account nodig. Jij ook geen wachtwoord: je
+    vult je mailadres in en klikt op de link die je krijgt.</li>
+</ul>
+
+<h2>Wat voor vragen je kunt stellen</h2>
+<table>
+  <tr><th>Meerkeuze</th><td>Eén goed antwoord uit een rijtje.</td></tr>
+  <tr><th>Meerdere antwoorden</th><td>Meerdere goede. Elk goed antwoord levert punten op en elk fout antwoord haalt er weer een af.</td></tr>
+  <tr><th>Getal</th><td>Raad het aantal. Je kunt een marge instellen, dus "op 500 na goed" telt ook.</td></tr>
+  <tr><th>Score 1 tot 5</th><td>Een schaal, met een goed antwoord erop.</td></tr>
+</table>
+<p>Per vraag zet je zelf hoeveel punten hij waard is. Verander je dat
+later, dan rekenen we alle scores opnieuw uit met de antwoorden die er
+al liggen. Dat gebeurt ook als je een goed antwoord corrigeert.</p>
+
+<h2>Wat we niet van je vragen</h2>
+<p>Het mailadres van je spelers. We bewaren de naam die iemand zelf
+invulde en wat diegene aankruiste. Wie niks invult blijft naamloos.</p>
+<p class="note">Deze app is open source. Wat hierboven staat, staat ook
+in de code, en die kun je zelf nalezen.</p>
+
+<h2>Wat het kost</h2>
+<p>Niets. Er is geen betaalde versie met meer deelnemers. Op een
+persoonlijk account spelen maximaal vijftig mensen één quiz. Heeft je
+organisatie een eigen pagina, dan zit daar geen grens aan.</p>
+
+<a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
+
+<p class="muted">Wil je geen quiz maar gewoon een vraag stellen? Maak dan
+een <a href="/aanmeldformulier-zonder-google">aanmeldformulier</a>, of
+prik eerst een datum met een
+<a href="/datumprikker-zonder-account">datumprikker</a>.</p>
+{% endblock %}
