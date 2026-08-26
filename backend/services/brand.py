@@ -78,9 +78,10 @@ def payload(slug: str) -> dict[str, Any]:
     org link, and both the root-relative and absolute logo URLs. Email
     clients need the absolute one; pages use the short one.
 
-    The image fields are ``None`` for a brand without files (the house
-    brand): the page then renders its wordmark alone, rather than
-    someone else's mark."""
+    The image fields are ``None`` for a brand with no files committed:
+    the page then renders its wordmark alone, rather than someone
+    else's mark. Every brand in the repository has them today; the
+    fallback is what keeps adding one from being a prerequisite."""
     m = manifest(slug)
     logo = asset_url(slug, m["logo"]) if m["logo"] else None
     favicon = asset_url(slug, m["favicon"]) if m["favicon"] else None
@@ -105,6 +106,11 @@ def payload(slug: str) -> dict[str, Any]:
         "app_name": m["app_name"],
         "wordmark": m["wordmark"],
         "org_name": m["org_name"],
+        # The house brand's strapline, in both languages. ``None`` for
+        # an organisation: their pages carry their own name and nothing
+        # of ours.
+        "tagline_nl": m["tagline_nl"],
+        "tagline_en": m["tagline_en"],
         "org_url": m["org_url"],
         "mail_from_name": m["mail_from_name"],
         "logo_url": logo,

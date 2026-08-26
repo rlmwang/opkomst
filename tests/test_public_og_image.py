@@ -80,10 +80,14 @@ def test_chapter_agenda_has_no_image_and_uses_the_favicon():
     assert '<meta name="twitter:card" content="summary">' in head
 
 
-def test_the_house_brand_has_no_favicon_so_its_card_has_no_image():
-    """An unknown slug belongs to no organisation, so the page wears the
-    house brand — which has no image files, and therefore no image
-    tags rather than a borrowed logo."""
+def test_the_house_brand_shares_its_own_mark_and_nobody_elses():
+    """A page no organisation owns wears the house brand, which has its
+    own icon now, so a shared link shows that rather than nothing. What
+    it must never show is an organisation's logo on a page that is not
+    theirs."""
     head = spa._build_chapter_head_meta(Chapter(name="Utrecht"), "utrecht", brand_svc.HOUSE_BRAND)
-    assert "og:image" not in head
-    assert "twitter:image" not in head
+    house_favicon = brand_svc.payload(brand_svc.HOUSE_BRAND)["favicon_absolute_url"]
+    assert f'<meta property="og:image" content="{house_favicon}">' in head
+    assert f"/brand/{brand_svc.HOUSE_BRAND}/" in house_favicon
+    for slug in ("rsp", "rood"):
+        assert f"/brand/{slug}/" not in head, slug

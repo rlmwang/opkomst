@@ -3,18 +3,20 @@
   "wordmark": "opkomst.nu",
   "org_name": "opkomst.nu",
   "org_url": "https://opkomst.nu",
-  "logo": null,
-  "favicon": null,
-  "apple_touch_icon": null,
+  "logo": "logo.png",
+  "favicon": "favicon.png",
+  "apple_touch_icon": "apple-touch-icon.png",
   "mail_from_name": "opkomst.nu",
   "palette": {
-    "bg": "#f2f5f4",
-    "surface": "#ffffff",
-    "fg": "#14201f",
-    "fg_muted": "#4f605e",
-    "accent": "#0d5c55",
-    "border": "#dbe4e2"
+    "bg": "#faf6ec",
+    "surface": "#fffdf7",
+    "fg": "#241f1c",
+    "fg_muted": "#6b6259",
+    "accent": "#0f4c5c",
+    "border": "#e8dfd0"
   },
   "support_coffee_button": "support-coffee.png",
-  "support_patreon_button": "support-patreon.png"
+  "support_patreon_button": "support-patreon.png",
+  "tagline_nl": "Aanmelden zonder gedoe",
+  "tagline_en": "Sign-ups without the hassle"
 }

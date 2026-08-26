@@ -1,88 +1,97 @@
 /* The house brand: what a page wears when no organisation owns it. The
  * personal app at the root, the public pages of a personal account, and
  * a link to something that was never created or whose organisation has
- * gone. It belongs to no organisation and shows nobody's logo.
+ * gone.
  *
- * Deep teal rather than the near-black it used to be. Three reasons:
- * the app reads as a thing with a point of view rather than a wireframe;
- * no organisation in ``brands/`` uses this hue, so the house brand is
- * never mistaken for one of theirs; and these are the only pages that
- * carry advertising, where a page with its own colour is easier to tell
- * apart from whatever the auction delivers.
+ * Built around the logo rather than beside it. The surfaces are the
+ * mark's own cream (``#fff8e9``) opened up into a page: warm, not the
+ * cool grey a default palette gives you, so the red square in the
+ * corner reads as part of the page instead of pasted onto it. Text is a
+ * warm near-black for the same reason.
  *
- * Contrast is higher than the palette it replaces, not lower:
+ * The accent is petrol, a near-complement of the logo's red. It has to
+ * be a different colour from the mark, because it is on every button
+ * and link and a page of red buttons under a red logo is a page with no
+ * hierarchy left. Complementary rather than merely different, so the
+ * two read as chosen together. It is also nothing like the red an
+ * organisation in ``brands/`` uses, and nothing like the blue most
+ * display advertising uses, which matters on the only pages that carry
+ * any.
  *
- *   white on accent   7.8:1   (WCAG AAA for body text)
- *   accent on bg      7.2:1   (links)
- *   text on bg       15.2:1
- *   muted on bg       6.0:1
+ * Contrast, all above the AAA threshold for body text:
+ *
+ *   white on accent   9.5:1
+ *   accent on bg      8.8:1
+ *   text on bg       15.1:1
+ *   muted on bg       5.5:1
+ *   the logo's red on bg 5.2:1
  *
  * Same token set as any tenant, so nothing in the app has to know it is
- * a fallback. There are no logo files in this folder: the head injection
- * leaves the icon links out and the brand mark renders the wordmark
- * alone. */
+ * a fallback, and the folder carries its own logo, icons and strapline
+ * like any other brand. What it must never carry is an organisation's
+ * mark, which is a different thing from carrying none. */
 
 :root {
-  --brand-red: #0d5c55;
-  --brand-red-hover: #0b514b;
-  --brand-bg: #f2f5f4;
-  --brand-surface: #ffffff;
-  --brand-text: #14201f;
-  --brand-text-muted: #4f605e;
-  --brand-border: #dbe4e2;
+  --brand-red: #0f4c5c;
+  --brand-red-hover: #0d4351;
+  --brand-bg: #faf6ec;
+  --brand-surface: #fffdf7;
+  --brand-text: #241f1c;
+  --brand-text-muted: #6b6259;
+  --brand-border: #e8dfd0;
 
-  --brand-green: #1f7a3c;
+  --brand-green: #1f6b43;
   --brand-amber: #8a6915;
-  --brand-neutral: #ccd6d4;
+  --brand-neutral: #dcd8cf;
   --brand-blue: #2a6f97;
 
-  --brand-red-soft: #e2ebeb;
-  --brand-red-soft-border: #c5d8d6;
-  --brand-red-soft-hover: #c5d8d6;
-  --brand-red-soft-active: #95b7b4;
-  --brand-red-strong: #083531;
+  --brand-red-soft: #e2eaeb;
+  --brand-red-soft-border: #c5d4d8;
+  --brand-red-soft-hover: #c5d4d8;
+  --brand-red-soft-active: #95b0b7;
+  --brand-red-strong: #092c35;
 
-  --brand-notice-bg: #f0f5f5;
-  --brand-notice-border: #d3e2e0;
+  --brand-notice-bg: #f5f1e4;
+  --brand-notice-border: #e4dcc8;
 
-  --brand-green-soft: #e9f3ec;
-  --brand-green-soft-border: #d3e4d8;
-  --brand-red-wash: #eef4f3;
-  --brand-amber-soft: #f8f4ea;
+  --brand-green-soft: #e7f1ea;
+  --brand-green-soft-border: #cfe2d6;
+  --brand-red-wash: #eef3f3;
+  --brand-amber-soft: #f7f2e6;
   --brand-amber-soft-border: #e6dcc4;
   --brand-amber-strong: #6b5310;
-  --brand-amber-wash: #f5f1e6;
+  --brand-amber-wash: #f5f0e3;
   --brand-amber-text: #6b5310;
-  --brand-recovered-bg: #f4f2ea;
+  --brand-recovered-bg: #f5f1e4;
   --brand-recovered-border: #ded7c4;
   --brand-recovered-text: #4a463c;
   --brand-rank-silver: #8a8f98;
   --brand-rank-bronze: #b8763a;
-  --brand-chat-bubble: #e2ebeb;
-  --brand-chat-text: #111111;
+  --brand-chat-bubble: #e2eaeb;
+  --brand-chat-text: #241f1c;
 
-  --brand-primary-50: #f0f5f5;
-  --brand-primary-100: #e2ebeb;
-  --brand-primary-200: #c5d8d6;
-  --brand-primary-300: #95b7b4;
-  --brand-primary-400: #568d88;
-  --brand-primary-500: #0d5c55;
-  --brand-primary-600: #0b514b;
-  --brand-primary-700: #0a443f;
-  --brand-primary-800: #083531;
-  --brand-primary-900: #052724;
-  --brand-primary-950: #031816;
+  --brand-primary-50: #f1f4f5;
+  --brand-primary-100: #e2eaeb;
+  --brand-primary-200: #c5d4d8;
+  --brand-primary-300: #95b0b7;
+  --brand-primary-400: #57828d;
+  --brand-primary-500: #0f4c5c;
+  --brand-primary-600: #0d4351;
+  --brand-primary-700: #0b3844;
+  --brand-primary-800: #092c35;
+  --brand-primary-900: #062027;
+  --brand-primary-950: #041418;
 
-  --brand-surface-0: #ffffff;
-  --brand-surface-50: #f2f5f4;
-  --brand-surface-100: #edeeee;
-  --brand-surface-200: #dee0e0;
-  --brand-surface-300: #c6caca;
-  --brand-surface-400: #a5aaa9;
-  --brand-surface-500: #808887;
-  --brand-surface-600: #616b69;
-  --brand-surface-700: #465150;
-  --brand-surface-800: #2f3c3a;
-  --brand-surface-900: #1d2b29;
-  --brand-surface-950: #101817;
+  --brand-surface-0: #fffdf7;
+  --brand-surface-50: #faf6ec;
+  --brand-surface-100: #ebe7dd;
+  --brand-surface-200: #dcd8cf;
+  --brand-surface-300: #c2beb6;
+  --brand-surface-400: #a09c95;
+  --brand-surface-500: #7e7973;
+  --brand-surface-600: #605b56;
+  --brand-surface-700: #48443f;
+  --brand-surface-800: #332e2b;
+  --brand-surface-900: #241f1c;
+  --brand-surface-950: #14110f;
 }

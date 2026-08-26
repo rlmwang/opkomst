@@ -276,6 +276,8 @@ function brandDevInjection(): Plugin {
         app_name: m.app_name,
         wordmark: m.wordmark,
         org_name: m.org_name,
+        tagline_nl: m.tagline_nl ?? null,
+        tagline_en: m.tagline_en ?? null,
         org_url: m.org_url,
         logo_url: url(m.logo),
         favicon_url: url(m.favicon),

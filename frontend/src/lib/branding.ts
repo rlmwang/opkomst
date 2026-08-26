@@ -30,6 +30,11 @@ export interface BrandAds {
 
 export interface Brand {
   ads: BrandAds | null;
+  /** The house brand's strapline, in both languages. Null on a brand
+   *  an organisation owns: their pages carry their name, not our
+   *  slogan. Read it through ``tagline()``. */
+  tagline_nl: string | null;
+  tagline_en: string | null;
   slug: string;
   /** Where the app is mounted: the router's history base. ``/{tenant}/``
    * for an organisation, ``/`` for the house brand, which is the
@@ -60,6 +65,15 @@ export function brand(): Brand {
 }
 
 export const APP_NAME = brand().app_name;
+
+/** The brand's strapline in the given language, or null when the brand
+ *  has none. Brand copy, so it lives in ``brands/{slug}/brand.json``
+ *  rather than in the app's i18n files: an organisation's slogan is
+ *  not ours to translate, and ours is not theirs to carry. */
+export function tagline(locale: string): string | null {
+  const b = brand();
+  return (locale === "en" ? b.tagline_en : b.tagline_nl) ?? null;
+}
 
 /** Whether this page is the tenant-less app at the root.
  *

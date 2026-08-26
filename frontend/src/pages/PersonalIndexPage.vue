@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import LoginForm from "@/components/LoginForm.vue";
 import PublicIdentity from "@/public_shared/PublicIdentity.vue";
-import { brand } from "@/lib/branding";
+import { brand, tagline } from "@/lib/branding";
 
 /**
  * The root's signed-out face: a door with four handles.
@@ -20,7 +20,7 @@ import { brand } from "@/lib/branding";
  * making something. The distance is what says so.
  */
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const b = brand();
 
 interface Tile {
@@ -44,7 +44,7 @@ const tiles = computed<Tile[]>(() => [
        organisation in front of it. -->
   <main class="container-wide stack">
     <header class="public-header">
-      <PublicIdentity :title="b.wordmark" />
+      <PublicIdentity :title="b.wordmark" :subtitle="tagline(locale)" />
       <LanguageSwitcher />
     </header>
     <div class="tile-grid">

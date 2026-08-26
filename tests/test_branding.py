@@ -29,6 +29,9 @@ REQUIRED_KEYS = {
     "apple_touch_icon",
     "mail_from_name",
     "palette",
+    # The house brand's strapline; null on an organisation's.
+    "tagline_nl",
+    "tagline_en",
     # The support buttons the advertising slot offers when it is not
     # showing an ad. Only the house brand carries any, because only its
     # pages ever show the slot, but every manifest names the keys so the
@@ -63,15 +66,28 @@ def test_every_brand_folder_is_complete() -> None:
             assert (directory / manifest[key]).is_file(), f"{directory.name}: {key} file is missing"
 
 
-def test_the_house_brand_exists_and_carries_no_organisations_mark() -> None:
-    """The fallback for pages with no owning organisation. It has a
-    palette like any brand, and deliberately no images."""
+def test_the_house_brand_carries_its_own_mark_and_nobody_elses() -> None:
+    """The house brand is a brand in its own right now: it has its own
+    logo, icons and strapline, all served from its own folder. What it
+    must never carry is an organisation's mark, which is a different
+    statement from carrying none."""
     house = brand_svc.payload(brand_svc.HOUSE_BRAND)
-    assert house["logo_url"] is None
-    assert house["favicon_url"] is None
+    for key in ("logo_url", "favicon_url"):
+        assert house[key].startswith(f"/brand/{brand_svc.HOUSE_BRAND}/"), key
+    assert house["tagline_nl"] and house["tagline_en"]
     head = brand_svc.head(brand_svc.HOUSE_BRAND, "nonce")
     assert f'href="/brand/{brand_svc.HOUSE_BRAND}/tokens.css"' in head
-    assert 'rel="icon"' not in head
+    assert 'rel="icon"' in head
+    # No other brand's folder is ever referenced from this one's head.
+    for slug in ("rsp", "rood"):
+        assert f"/brand/{slug}/" not in head, slug
+
+
+def test_only_the_house_brand_has_a_tagline() -> None:
+    """An organisation's pages carry their name, not our slogan."""
+    for slug in ("rsp", "rood"):
+        assert brand_svc.payload(slug)["tagline_nl"] is None, slug
+        assert brand_svc.payload(slug)["tagline_en"] is None, slug
 
 
 def test_the_inline_brand_script_carries_the_csp_nonce() -> None:
@@ -132,14 +148,20 @@ def test_email_renders_the_brand_with_an_absolute_logo() -> None:
     assert "/rsp-logo.png" not in html
 
 
-def test_a_brand_without_a_logo_renders_its_wordmark_in_email() -> None:
-    """The house brand has no logo file, and every personal account
-    wears it. An ``<img>`` pointing at nothing is a broken box in a mail
-    client, showing the alt text clipped to the image's width, so the
-    chrome falls back to the wordmark as text, the same rule
-    ``BrandMark.vue`` follows on the page."""
-    house = brand_svc.payload(brand_svc.HOUSE_BRAND)
-    assert house["logo_absolute_url"] is None
+def test_a_brand_without_a_logo_renders_its_wordmark_in_email(monkeypatch) -> None:
+    """A brand with no logo file renders its wordmark as text. An
+    ``<img>`` pointing at nothing is a broken box in a mail client,
+    showing the alt text clipped to the image's width, so the chrome
+    falls back to words, the same rule ``BrandMark.vue`` follows on the
+    page.
+
+    Every brand committed today has a logo, so the branch is exercised
+    against a payload with the field emptied rather than against
+    whichever brand happens to lack one this month."""
+    house = dict(brand_svc.payload(brand_svc.HOUSE_BRAND))
+    house["logo_absolute_url"] = None
+    house["logo_url"] = None
+    monkeypatch.setattr("backend.services.brand.payload", lambda _slug: house)
     with tenancy.use("t-house", brand_svc.HOUSE_BRAND):
         _subject, html = render(
             "reminder.html",

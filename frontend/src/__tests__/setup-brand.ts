@@ -17,6 +17,9 @@ window.__OPKOMST_BRAND__ = {
   // An organisation's brand, so no advertising: the same null the
   // server sends for every brand but the house one.
   ads: null,
+  // An organisation's brand, so no strapline of ours either.
+  tagline_nl: null,
+  tagline_en: null,
   slug: "rsp",
   app_base: "/rsp/",
   app_name: brandManifest.app_name,
