@@ -251,14 +251,19 @@ function brandDevInjection(): Plugin {
       const p = m.palette;
       const brand = {
         // Mirrors ``brand.py::_ads``: null on an organisation's brand,
-        // and on the house brand a config with no network configured,
-        // which is the state a developer works in.
+        // and on the house brand whatever the environment carries.
+        // Normally nothing is set and the slot renders its unconfigured
+        // state, which is what a developer sees by default; exporting
+        // the same vars the backend reads exercises the live path.
+        // The dev server does not serve the loosened CSP, so a real ad
+        // will be blocked here even when the ids are set: this is for
+        // the slot's markup, not for the ad itself.
         ads:
           slug === HOUSE_BRAND
             ? {
-                client_id: null,
-                rail_slot: null,
-                banner_slot: null,
+                client_id: process.env.ADSENSE_CLIENT_ID ?? null,
+                rail_slot: process.env.ADSENSE_SLOT_RAIL ?? null,
+                banner_slot: process.env.ADSENSE_SLOT_BANNER ?? null,
                 coffee_url: process.env.SUPPORT_COFFEE_URL ?? null,
                 coffee_button_url: url(m.support_coffee_button),
                 patreon_url: process.env.SUPPORT_PATREON_URL ?? null,

@@ -277,6 +277,25 @@ GITHUB_IMAGES_REPO_OWNER=
 GITHUB_IMAGES_REPO_NAME=
 GITHUB_IMAGES_BRANCH=main
 GITHUB_IMAGES_TOKEN=
+
+# Advertising on the house-brand pages. Optional, and unset is the
+# normal state: without ADSENSE_CLIENT_ID no Google code loads at
+# all, no consent dialog appears, no cookie is set, and every page
+# keeps the strict Content-Security-Policy. Setting it opens that
+# policy for house-brand pages only; an organisation's pages are
+# never opened, whatever these say. The two slot ids are ad units
+# created in the AdSense console, one 160x600 and one 320x50.
+# Design and reasoning: docs/ads.md.
+ADSENSE_CLIENT_ID=
+ADSENSE_SLOT_RAIL=
+ADSENSE_SLOT_BANNER=
+
+# Support links. Optional and independent. Each shows that
+# service's own button at the left of every form's action row, and
+# in the ad slot whenever no ad is being served. Plain links, so
+# nothing third-party loads.
+SUPPORT_COFFEE_URL=
+SUPPORT_PATREON_URL=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module

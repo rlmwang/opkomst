@@ -47,7 +47,10 @@ const railLive = Boolean(ads?.client_id && ads?.rail_slot);
 const bannerLive = Boolean(ads?.client_id && ads?.banner_slot);
 
 
-const wide = ref(false);
+/* Resolved during setup, not on mount: deciding it a tick later
+ * rendered the phone banner first and swapped it for the rails a frame
+ * afterwards, which is a visible jump on every desktop load. */
+const wide = ref(window.matchMedia(RAILS_FROM).matches);
 let media: MediaQueryList | null = null;
 const onChange = (e: MediaQueryListEvent) => {
   wide.value = e.matches;
@@ -56,7 +59,6 @@ const onChange = (e: MediaQueryListEvent) => {
 onMounted(() => {
   if (!show.value) return;
   media = window.matchMedia(RAILS_FROM);
-  wide.value = media.matches;
   media.addEventListener("change", onChange);
   if (ads?.client_id) loadAdSense(ads.client_id);
 });

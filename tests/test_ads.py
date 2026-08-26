@@ -41,6 +41,51 @@ def test_the_support_buttons_are_served_from_this_app() -> None:
     assert ads["patreon_button_url"].startswith("/brand/")
 
 
+@pytest.fixture
+def configured(monkeypatch: pytest.MonkeyPatch):
+    """A deployment that has been given a network. ``Settings`` is
+    frozen and built at import time, so the copy is swapped in wherever
+    it is read rather than mutated."""
+    from backend.config import settings
+
+    fake = settings.model_copy(
+        update={
+            "adsense_client_id": "ca-pub-0000000000000000",
+            "adsense_slot_rail": "1111111111",
+            "adsense_slot_banner": "2222222222",
+        }
+    )
+    monkeypatch.setattr("backend.services.brand.settings", fake)
+    monkeypatch.setattr("backend.routers.spa.settings", fake)
+    return fake
+
+
+def test_configured_ids_reach_the_house_brand_only(configured) -> None:
+    """The env var is what turns advertising on, and the brand is what
+    decides where it may appear. Both, or nothing."""
+    ads = brand_svc.payload(brand_svc.HOUSE_BRAND)["ads"]
+    assert ads["client_id"] == "ca-pub-0000000000000000"
+    assert ads["rail_slot"] == "1111111111"
+    assert ads["banner_slot"] == "2222222222"
+    for slug in ("rsp", "rood"):
+        assert brand_svc.payload(slug)["ads"] is None, slug
+
+
+def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configured) -> None:
+    """The other half of the gate: with a network configured, the page
+    that may carry ads is served the policy that lets them load."""
+    csp = client.get("/events").headers["content-security-policy"]
+    assert "https://pagead2.googlesyndication.com" in csp
+    assert "https://fundingchoicesmessages.google.com" in csp
+
+
+def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> None:
+    """The rule that matters most: configuring a network does not open
+    an organisation's pages, now or by accident later."""
+    csp = client.get("/rsp/events").headers["content-security-policy"]
+    assert "googlesyndication" not in csp
+
+
 def test_the_strict_policy_names_no_ad_host() -> None:
     """The regression guard for the whole feature: whatever else
     changes, the default policy every page gets stays closed."""
