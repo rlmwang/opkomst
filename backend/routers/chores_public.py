@@ -46,7 +46,7 @@ from ..schemas.chores import (
     PublicRosterOut,
     SwapIn,
 )
-from ..services import chore_tick, edit_token, encryption, limits, mail, public_access
+from ..services import chore_tick, edit_token, encryption, limits, mail, public_access, traffic
 from ..services import chores as chores_svc
 from ..services.events import now_wallclock
 from ..services.qr import render_qr
@@ -137,6 +137,7 @@ def enroll(
             locale=data.locale or roster.locale,
         )
     logger.info("volunteer_enrolled", roster_id=roster.id)
+    traffic.record("public_chore", "submit")
     return EnrollAck(edit_token=raw)
 
 

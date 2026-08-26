@@ -25,6 +25,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..config import settings
 from ..services import brand as brand_svc
+from ..services import traffic
 
 router = APIRouter(tags=["privacy"], include_in_schema=False)
 
@@ -37,6 +38,7 @@ def privacy(request: Request) -> HTMLResponse:
     """The house brand's policy. Organisations using this app answer for
     their own processing under their own policy; what is described here
     is what this app does, which is the same in either case."""
+    traffic.record("privacy")
     return _TEMPLATES.TemplateResponse(
         request,
         "privacy.html",

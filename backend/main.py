@@ -60,7 +60,14 @@ async def _lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
 
     _warmup_db()
     yield
-    # Shutdown: drain the WhatsApp Evolution proxy's HTTP pool.
+    # Shutdown: write out the traffic tally this worker is holding. It
+    # is buffered for up to a minute, so without this a restart loses
+    # whatever came in since the last flush.
+    from .services import traffic as _traffic  # noqa: PLC0415
+
+    _traffic.flush()
+
+    # And drain the WhatsApp Evolution proxy's HTTP pool.
     from .services import whatsapp as _whatsapp  # noqa: PLC0415
 
     await _whatsapp.shutdown()

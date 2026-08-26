@@ -171,19 +171,77 @@ create page that solves it:
    differentiator and currently it is buried in a collapsed disclosure.
 4. **Vrijwilligers inroosteren zonder spreadsheet.** For the chores
    feature, which nobody is searching for by name.
-5. **Voor organisaties.** What a tenant gets, aimed at the RSPs of the
-   world rather than at individuals.
 
-Five pages, each 400 to 800 words, each linking into the app. That is a
+Four pages, each 400 to 800 words, each linking into the app. That is a
 week of writing, not a week of engineering.
+
+Deliberately not written: a "voor organisaties" page. An organisation
+arrives because somebody in it already uses the tool, not through a
+search result, so a page pitching at them would be aimed at an audience
+that is not searching.
 
 ### 3.3 Internal linking
 
-The five app pages barely link to each other. The root's tiles link
-into the create forms, and that is the whole graph. Each content page
-above should link to its create page and to one sibling, and the root
-should link to the content pages. A crawler that arrives at one page
-should be able to reach all of them.
+An earlier draft of this section said the pages barely link to each
+other. That was wrong, and worth correcting rather than quietly
+deleting, because the correction changes what needs building.
+
+What already exists:
+
+| Link | Where |
+|---|---|
+| Root to the four create pages | the tiles in `PersonalIndexPage` |
+| Any organiser page back to the root | `AppHeader`, whose wordmark is a `router-link to="/"` |
+| A public sign-up page to the landing page | `BrandMark public-link`, pointing at `org_url` |
+| Any public page to the privacy policy and the source | `Disclosure` |
+
+The graph is therefore already connected. A crawler that lands on
+`/events/new` reaches the root in one hop and every sibling in two,
+which is well inside what a crawler will follow. **There is no crawl
+problem to fix.** The remaining work is about the pages in 3.2, which
+do not exist yet, and about one small correctness fix.
+
+#### The one fix worth making now
+
+`BrandMark`'s public link opens in a new tab. On an organisation's
+page that is right: it leads to `rsp.nu`, which is somewhere else. On a
+house-brand page `org_url` is `https://opkomst.nu`, so it is a link
+from our own page to our own site, opening a new tab for no reason and
+written as an absolute URL rather than a route. Make it a same-tab
+in-app link when the brand is the house brand. Ten minutes.
+
+#### Where the content pages hang, when they exist
+
+The four pages in 3.2 need somewhere to be linked from, and the answer
+is not "the landing page", because `docs/focus.md` spent a day making
+that page one clear choice between four tiles. Adding a reading list
+above the fold would undo it.
+
+**A footer, on house-brand app pages only.** The app has no footer
+today, which is why this question has no obvious answer yet. One
+belongs here:
+
+- **Where it appears:** the root and the four create pages. Not on
+  public sign-up, form, datepoll or roster pages, which are somebody's
+  invitation to their own event and already carry the `Disclosure`
+  card. Not on any organisation-branded page, for the same reason
+  advertising never appears there: it is their page.
+- **What it holds:** the four content pages, the privacy policy, and
+  the source link. Nothing else, and no marketing copy.
+- **What it looks like:** the muted treatment `Disclosure` already
+  uses. Small type, no accent colour, separated by a rule. It is a
+  colophon, not a nav bar, and it sits below the primary content so it
+  competes with nothing.
+- **Why a footer rather than a nav:** a nav bar is for places you go
+  during a task. These are places you go instead of the task. The
+  bottom of the page is where a reader who did not find what they
+  wanted goes looking, and it is where a crawler looks for the site
+  graph.
+
+That is one shared component, mounted in two shells, and it is about
+half a day. It is worth doing when there is something to put in it and
+not before: a footer linking to four pages that do not exist yet is
+four broken links.
 
 ---
 
@@ -226,11 +284,14 @@ loud before anyone measures it next week.
 | 5 | `/sitemap.xml` and the `Sitemap:` line | 1 hour | 1.4 |
 | 6 | www DNS and redirect | DNS task | 1.3 |
 | 7 | JSON-LD on the root | 1 hour | 1.5 |
-| 8 | The five content pages | a week of writing | 3.2 |
-| 9 | Internal linking | 2 hours | 3.3 |
+| 8 | The four content pages | a week of writing | 3.2 |
+| 9 | Same-tab house-brand logo link | 10 min | 3.3 |
+| 10 | The footer, once the content pages exist | half a day | 3.3 |
 
 Items 2 to 7 and 9 are about two days of engineering together. Item 8
-is the one that decides whether any of it matters.
+is the one that decides whether any of it matters, and item 10 waits
+for it: a footer linking to four pages that do not exist yet is four
+broken links.
 
 ## What this deliberately does not do
 

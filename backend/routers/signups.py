@@ -26,7 +26,7 @@ from ..schemas.events import (
     SignupAck,
     SignupCreate,
 )
-from ..services import access, edit_token, encryption, event_recurrence, limits, public_access
+from ..services import access, edit_token, encryption, event_recurrence, limits, public_access, traffic
 from ..services import events as events_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
@@ -141,6 +141,7 @@ def create_signup(
         occurrences=len(targets),
         dispatches=total_dispatches,
     )
+    traffic.record("public_event", "submit")
     return SignupAck(edit_token=raw_token)
 
 

@@ -6,6 +6,7 @@ from .events import Event, Occurrence, Registration, Signup
 from .feedback import FeedbackResponse, FeedbackToken
 from .forms import Form, FormQuestion, FormResponse, FormSubmission
 from .tenants import Tenant
+from .traffic import TrafficCount
 from .users import LoginToken, RegistrationToken, User, UserChapter
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "ShiftEvent",
     "Signup",
     "Tenant",
+    "TrafficCount",
     "User",
     "UserChapter",
     "Volunteer",

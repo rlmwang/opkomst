@@ -30,7 +30,7 @@ from ..schemas.datepolls import (
     PublicDatepollOut,
 )
 from ..services import datepolls as datepolls_svc
-from ..services import edit_token, limits, public_access
+from ..services import edit_token, limits, public_access, traffic
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
 
@@ -137,6 +137,7 @@ def submit_datepoll(
     _write_responses(db, submission.id, by_slot)
     db.commit()
     logger.info("datepoll_submitted", datepoll_id=poll.id, submission_id=submission.id, answers=len(by_slot))
+    traffic.record("public_datepoll", "submit")
     return DatepollSubmitAck(edit_token=raw_token)
 
 

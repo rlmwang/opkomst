@@ -36,7 +36,7 @@ from ..schemas.forms import (
     FormSubmitIn,
     PublicFormOut,
 )
-from ..services import edit_token, limits, public_access
+from ..services import edit_token, limits, public_access, traffic
 from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
@@ -190,6 +190,7 @@ def submit_form(
     _write_responses(db, form.id, submission.id, submitted)
     db.commit()
     logger.info("form_submitted", form_id=form.id, submission_id=submission.id)
+    traffic.record("public_form", "submit")
     return FormSubmitAck(submission_id=submission.id, edit_token=raw_token)
 
 

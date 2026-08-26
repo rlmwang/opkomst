@@ -31,12 +31,21 @@ from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
 
+# Tables that record something about the platform rather than about a
+# tenant's data, and so have no tenant to carry. The bar for this list
+# is high and there is exactly one thing on it: a page view of the
+# signed-out root belongs to nobody, and a nullable tenant column would
+# be a worse lie than an honest absence. Anything holding a person, a
+# submission or an organisation's content does not qualify, whatever
+# the argument.
+_PLATFORM_TABLES = {"traffic_counts"}
+
 
 def test_every_table_carries_its_tenant() -> None:
     """The structural half of the invariant."""
     offenders: list[str] = []
     for name, table in sorted(Base.metadata.tables.items()):
-        if name == _ROOT_TABLE:
+        if name == _ROOT_TABLE or name in _PLATFORM_TABLES:
             continue
         column = table.c.get("tenant_id")
         if column is None:
@@ -101,7 +110,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     mismatches: list[str] = []
     with engine.connect() as conn:
         for name, table in sorted(Base.metadata.tables.items()):
-            if name == _ROOT_TABLE:
+            if name == _ROOT_TABLE or name in _PLATFORM_TABLES:
                 continue
             for fk in table.foreign_keys:
                 parent = fk.column.table

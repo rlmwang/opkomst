@@ -52,7 +52,7 @@ from ..services import datepolls as datepolls_svc
 from ..services import events as events_svc
 from ..services import forms as forms_svc
 from ..services import image as image_svc
-from ..services import tenancy
+from ..services import tenancy, traffic
 from ..services import tenants as tenants_svc
 from ..services.sanitize import html_to_text
 
@@ -285,6 +285,7 @@ def _serve_admin_shell(tenant_slug: str, request: Request, *, status_code: int =
 
     ``index.html`` MUST NOT be browser-cached — see the note in
     ``_spa_fallback``."""
+    traffic.record(_APP_SURFACES.get(request.url.path.rstrip("/") or "/", "app"))
     _allow_ads(request, tenant_slug)
     rendered = (
         (_DIST / "index.html")
@@ -343,6 +344,17 @@ def _serve_public_app(
     )
 
 
+# The app routes worth counting on their own: the root and the four
+# pages that make something, which are the only ones a stranger can
+# reach. Everything else the shell serves is one "app" bucket.
+_APP_SURFACES = {
+    "/": "root",
+    "/events/new": "create_event",
+    "/forms/new": "create_form",
+    "/datepolls/new": "create_datepoll",
+    "/chores/new": "create_chore",
+}
+
 # The four tenant-free public URL prefixes, each with the resolver that
 # turns its slug back into the entity that owns it. ``brand_slug_for``
 # is the one question a caller outside this module asks of it.
@@ -385,6 +397,7 @@ def _brand_slug_for(db: Session, entity: object | None) -> str:
 
 
 def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLResponse:
+    traffic.record("public_event")
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
     occurrence = _resolve_public(db, slug, events_svc.get_occurrence_by_slug_any)
@@ -404,6 +417,7 @@ def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLRespons
 
 
 def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse:
+    traffic.record("public_form")
     # Archived/unknown forms inline null; the mini-app shows the same
     # "no longer available" state it would on a 410.
     form = _resolve_public(db, slug, forms_svc.get_form_by_slug_any)
@@ -421,6 +435,7 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
 
 
 def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResponse:
+    traffic.record("public_datepoll")
     # Archived/unknown polls inline null, same as forms.
     poll = _resolve_public(db, slug, datepolls_svc.get_datepoll_by_slug_any)
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
@@ -437,6 +452,7 @@ def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResp
 
 
 def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLResponse:
+    traffic.record("public_chore")
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = _resolve_public(db, slug, chores_svc.get_roster_by_slug_any)
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
@@ -453,6 +469,7 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
 
 
 def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, brand_slug: str) -> HTMLResponse:
+    traffic.record("chapter_agenda")
     """The organisation's agenda for one of its chapters, at
     ``/{tenant}/{chapter}``. The caller has already resolved both — the
     tenant from the first path segment, the chapter within it — so the

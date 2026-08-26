@@ -233,6 +233,54 @@ def _roster_tick() -> int:
         db.close()
 
 
+def _traffic_report(days: int) -> None:
+    """Print what each surface did, per day totals collapsed.
+
+    A report rather than a page. Traffic is platform-level, and this
+    project keeps platform-level things out of the app on purpose: the
+    tenant list is an env var, the brands are folders, and neither has
+    a UI. A dashboard route would be the first exception and would need
+    an auth surface built for it alone.
+
+    Every number here is an aggregate that was never personal. See
+    ``models/traffic.py`` for what is deliberately not counted."""
+    from datetime import date, timedelta
+
+    from sqlalchemy import func, select
+
+    from .database import SessionLocal
+    from .models.traffic import SURFACES, TrafficCount
+
+    since = date.today() - timedelta(days=days)
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(TrafficCount.surface, TrafficCount.action, func.sum(TrafficCount.count))
+            .where(TrafficCount.day >= since)
+            .group_by(TrafficCount.surface, TrafficCount.action)
+        ).all()
+
+    totals: dict[str, dict[str, int]] = {}
+    for surface, action, count in rows:
+        totals.setdefault(surface, {})[action] = int(count or 0)
+
+    print(f"\nTraffic, last {days} days (since {since})\n")
+    print(f"  {'surface':<18}{'views':>9}{'submits':>10}{'rate':>8}")
+    print(f"  {'-' * 43}")
+    for surface in SURFACES:
+        seen = totals.get(surface)
+        if not seen:
+            continue
+        views, submits = seen.get("view", 0), seen.get("submit", 0)
+        # A rate only means something where both are counted: the
+        # create pages have no submit event, so they get no ratio
+        # rather than a misleading 0%.
+        rate = f"{submits / views:.0%}" if views and submits else ""
+        print(f"  {surface:<18}{views:>9}{submits:>10}{rate:>8}")
+    if not totals:
+        print("  (nothing recorded yet)")
+    print()
+
+
 def _event_tick() -> int:
     """Materialise the incoming horizon edge of concrete occurrences for
     every live event. Returns the number of occurrences created (for the
@@ -291,6 +339,13 @@ def main(argv: list[str] | None = None) -> int:
         "seed-demo",
         help="Local-mode only: insert two demo accounts + an upcoming and a past event.",
     )
+    p_traffic = sub.add_parser(
+        "traffic-report",
+        help="Print page views and submissions per surface. There is no dashboard "
+        "page on purpose: this is platform-level, like the tenant list and the "
+        "brand folders, and those have no UI either.",
+    )
+    p_traffic.add_argument("--days", type=int, default=30, help="How far back to report. Default 30.")
 
     args = parser.parse_args(argv)
 
@@ -342,6 +397,8 @@ def main(argv: list[str] | None = None) -> int:
             # explicitly. The body is intentionally empty: the work
             # already happened.
             logger.info("cli_migrate_done")
+        elif args.cmd == "traffic-report":
+            _traffic_report(args.days)
         elif args.cmd == "seed-demo":
             from .seed import run_local_demo
 
