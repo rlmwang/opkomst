@@ -176,7 +176,8 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'has-subtabs': hasSubtabs }">
+  <header class="app-bar">
+    <div class="app-header" :class="{ 'has-subtabs': hasSubtabs }">
     <BrandMark class="brand">
       <template #wordmark>
         <router-link to="/" class="wordmark">{{ APP_NAME }}</router-link>
@@ -265,6 +266,7 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
         </Popover>
       </template>
     </div>
+    </div>
   </header>
 </template>
 
@@ -282,15 +284,25 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
  * The brand column is ``auto`` and the middle is ``1fr``, so the
  * actions cluster is pinned to the right edge whether or not
  * subtabs exist. */
+/* The bar spans the window; its contents do not. Every organiser page
+ * below is a centred 720px ``.container``, so a full-bleed header put
+ * the logo and the menu at the far edges of the screen, which is where
+ * the ad rails are. Matching the column keeps the eye inside the
+ * content and never sends it out to the margins. Horizontal padding
+ * matches ``.container``'s so the logo lines up with the cards below. */
+.app-bar {
+  border-bottom: 1px solid var(--brand-border);
+  background: var(--brand-surface);
+}
 .app-header {
   display: grid;
   grid-template-areas: "brand subtabs actions";
   grid-template-columns: auto 1fr auto;
   align-items: center;
   column-gap: 1rem;
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid var(--brand-border);
-  background: var(--brand-surface);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
 }
 .brand {
   grid-area: brand;
