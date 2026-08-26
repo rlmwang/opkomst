@@ -11,7 +11,7 @@
 <p>Er staan {{ pending|length }} nieuwe aanmeldingen klaar voor goedkeuring bij <strong>{{ account }}</strong>:</p>
 {% endif %}
 <ul>
-{% for u in pending %}<li>{{ u.name }} – {{ u.email }}</li>
+{% for u in pending %}<li>{{ u.name }} ({{ u.email }})</li>
 {% endfor %}</ul>
 <a href="{{ accounts_url }}" class="cta">Naar Accounts</a>
 {% endblock %}

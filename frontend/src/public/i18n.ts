@@ -22,12 +22,13 @@ interface Strings {
   displayName: string;
   partySize: string;
   sourcePlaceholder: string;
-  emailPlaceholder: string;
+  /** One per combination of enabled mail channels. The field is only
+   *  shown when at least one of them is on, so there is no variant for
+   *  "neither". */
+  emailPlaceholder: { both: string; reminder: string; feedback: string };
   emailUses: { reminder: string; feedback: string };
   submit: string;
   submitFail: string;
-  fillName: string;
-  fillSource: string;
   // Occurrence checklist.
   sessionsTitle: string;
   allUpcoming: string;
@@ -42,9 +43,12 @@ interface Strings {
   reminderOptOut: string;
   // Booking edit.
   bookingSessions: string;
-  withdrawFromSession: string;
-  withdrawSessionConfirm: string;
   withdrawConfirm: string;
+  /** Appended to the withdraw confirmation when this event still has a
+   *  channel switched on. Switching one off deletes its pending
+   *  dispatches, so with both off nothing can arrive and the caveat
+   *  would be a lie. */
+  pendingMailWarning: string;
   withdrawn: string;
   explainerTitle: string;
   explainerIntro: string;
@@ -69,15 +73,17 @@ const dict: Record<Locale, Strings> = {
     displayName: "(Schuil)naam",
     partySize: "Aantal personen",
     sourcePlaceholder: "Hoe heb je ons gevonden?",
-    emailPlaceholder: "E-mailadres (optioneel, voor herinnering + feedback)",
+    emailPlaceholder: {
+      both: "E-mailadres (optioneel, voor de herinnering en de feedbackmail)",
+      reminder: "E-mailadres (optioneel, voor de herinnering)",
+      feedback: "E-mailadres (optioneel, voor de feedbackmail)",
+    },
     emailUses: {
       reminder: "Een herinnering, een paar dagen voor het evenement.",
       feedback: "Een korte feedbackmail, kort na afloop.",
     },
     submit: "Aanmelden",
     submitFail: "Aanmelden mislukt",
-    fillName: "Vul een naam in",
-    fillSource: "Kies hoe je ons hebt gevonden",
     sessionsTitle: "Voor welke sessies wil je je aanmelden?",
     allUpcoming: "Alle komende sessies",
     sessionOf: (i, n) => `sessie ${i} van ${n}`,
@@ -90,11 +96,8 @@ const dict: Record<Locale, Strings> = {
     reminderOptIn: "Latere sessies moet je zelf toevoegen wanneer ze verschijnen.",
     reminderOptOut: "Latere sessies moet je zelf laten vallen wanneer ze verschijnen.",
     bookingSessions: "Je sessies",
-    withdrawFromSession: "Afmelden",
-    withdrawSessionConfirm:
-      "Je afmelden voor deze sessie? Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
-    withdrawConfirm:
-      "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
+    withdrawConfirm: "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd.",
+    pendingMailWarning: "Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
     withdrawn: "Je bent afgemeld.",
     explainerTitle: "Privacy & open source",
     explainerIntro:
@@ -119,15 +122,17 @@ const dict: Record<Locale, Strings> = {
     displayName: "(Pseudo)name",
     partySize: "Number of people",
     sourcePlaceholder: "How did you find us?",
-    emailPlaceholder: "Email (optional, for a reminder + feedback)",
+    emailPlaceholder: {
+      both: "Email (optional, for the reminder and the feedback message)",
+      reminder: "Email (optional, for the reminder)",
+      feedback: "Email (optional, for the feedback message)",
+    },
     emailUses: {
       reminder: "One reminder about 3 days before the event starts.",
       feedback: "One short feedback message shortly after the event.",
     },
     submit: "Sign up",
     submitFail: "Sign-up failed",
-    fillName: "Fill in a name",
-    fillSource: "Pick how you found us",
     sessionsTitle: "Which sessions do you want to join?",
     allUpcoming: "All upcoming sessions",
     sessionOf: (i, n) => `session ${i} of ${n}`,
@@ -140,11 +145,8 @@ const dict: Record<Locale, Strings> = {
     reminderOptIn: "You'll need to add later sessions yourself as they appear.",
     reminderOptOut: "You'll need to drop later sessions yourself as they appear.",
     bookingSessions: "Your sessions",
-    withdrawFromSession: "Withdraw",
-    withdrawSessionConfirm:
-      "Withdraw from this session? A reminder or feedback email that's already scheduled may still arrive.",
-    withdrawConfirm:
-      "Withdraw from every session? Your whole sign-up will be removed. A reminder or feedback email that's already scheduled may still arrive.",
+    withdrawConfirm: "Withdraw from every session? Your whole sign-up will be removed.",
+    pendingMailWarning: "A reminder or feedback email that's already scheduled may still arrive.",
     withdrawn: "You've withdrawn.",
     explainerTitle: "Privacy & open source",
     explainerIntro:

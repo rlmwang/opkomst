@@ -125,9 +125,15 @@ const askDeleteSignup = useGuardedMutation(deleteSignupMutation, (s: SignupSumma
   },
 }));
 
-// Tabular layout: name | one column per help_option | party_size | delete.
+// The help options this event still asks about. Switched off, the
+// question isn't asked and its answers aren't shown: no column per
+// option, no chips, no breakdown. Switching it back on brings the
+// recorded answers back with it.
+const helpColumns = computed(() => (event.value?.help_enabled ? event.value.help_options : []));
+
+// Tabular layout: name | one column per help option | party_size | delete.
 const signupGridTemplate = computed(() => {
-  const n = event.value?.help_options.length ?? 0;
+  const n = helpColumns.value.length;
   return n > 0 ? `minmax(0, 1fr) repeat(${n}, auto) auto auto` : "minmax(0, 1fr) auto auto";
 });
 
@@ -300,17 +306,20 @@ function askTriggerNow(channel: EmailChannel) {
       >
         <template #meta>
           <p class="muted overview-meta">
-            <a
-              :href="mapLink({
-                location: event.location,
-                latitude: event.latitude,
-                longitude: event.longitude,
-              })"
-              target="_blank"
-              rel="noopener"
-              class="meta-link"
-            >{{ event.location }}</a>
-            · {{ recurrenceSummary }}
+            <template v-if="event.location">
+              <a
+                :href="mapLink({
+                  location: event.location,
+                  latitude: event.latitude,
+                  longitude: event.longitude,
+                })"
+                target="_blank"
+                rel="noopener"
+                class="meta-link"
+              >{{ event.location }}</a>
+              ·
+            </template>
+            {{ recurrenceSummary }}
             <template v-if="event.next_starts_at">
               · {{ t("event.nextSession") }} {{ formatDateTime(event.next_starts_at, locale) }}
             </template>
@@ -368,14 +377,14 @@ function askTriggerNow(channel: EmailChannel) {
             </p>
 
             <template v-if="dayStats">
-              <div v-if="Object.keys(dayStats.by_help).length > 0" class="subgroup">
+              <div v-if="event.help_enabled && Object.keys(dayStats.by_help).length > 0" class="subgroup">
                 <h3 class="subhead">{{ t("event.byHelp") }}</h3>
                 <div v-for="(count, opt) in dayStats.by_help" :key="opt" class="list-row">
                   <span class="list-row-label">{{ opt }}</span>
                   <span class="row-count">{{ count }}</span>
                 </div>
               </div>
-              <div v-if="Object.keys(dayStats.by_source).length > 0" class="subgroup">
+              <div v-if="event.source_enabled && Object.keys(dayStats.by_source).length > 0" class="subgroup">
                 <h3 class="subhead">{{ t("event.bySource") }}</h3>
                 <div v-for="(count, src) in dayStats.by_source" :key="src" class="list-row">
                   <span class="list-row-label">{{ src }}</span>
@@ -389,7 +398,7 @@ function askTriggerNow(channel: EmailChannel) {
               <div class="signup-grid" :style="{ gridTemplateColumns: signupGridTemplate }">
                 <div v-for="s in daySignups" :key="s.id" class="signup-row">
                   <span class="signup-name">{{ s.display_name ?? t("event.signupAnonymous") }}</span>
-                  <span v-for="opt in event.help_options" :key="opt" class="help-cell">
+                  <span v-for="opt in helpColumns" :key="opt" class="help-cell">
                     <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
                   </span>
                   <span class="row-count signup-count">{{ s.party_size }}</span>
@@ -428,7 +437,11 @@ function askTriggerNow(channel: EmailChannel) {
         </template>
       </AppCard>
 
-      <AppCard>
+      <!-- The questionnaire's results. With the channel switched off
+           this event asks nothing and its pending sends are deleted, so
+           there is nothing here to read; switching it back on brings any
+           answers already collected back with it. -->
+      <AppCard v-if="event.feedback_enabled">
         <div class="summary-header">
           <h2>{{ t("feedback.summary.title") }}</h2>
           <div class="header-actions">
@@ -442,8 +455,8 @@ function askTriggerNow(channel: EmailChannel) {
               @click="exportCsv"
             />
             <a
-              v-if="event"
-              :href="`/e/${event.slug}/feedback?t=preview`"
+              v-if="primaryOccurrence"
+              :href="`/e/${primaryOccurrence.slug}/feedback?t=preview`"
               target="_blank"
               rel="noopener"
             >

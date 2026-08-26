@@ -43,6 +43,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "start_time": "18:00:00",
             "end_time": "20:00:00",
             "source_options": ["F"],
+            "source_enabled": True,
             "feedback_enabled": True,
             "locale": "nl",
         },

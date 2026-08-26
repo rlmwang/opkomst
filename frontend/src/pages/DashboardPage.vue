@@ -224,7 +224,7 @@ function askArchive(e: EventOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('dashboard.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location]"
+    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
     :empty-copy="t('dashboard.empty')"
     :no-matches-copy="t('dashboard.noMatches')"
     :skeleton-rows="3"
@@ -258,7 +258,7 @@ function askArchive(e: EventOut) {
 
         <template #meta>
           <p class="muted">
-            {{ e.location }} ·
+            <template v-if="e.location">{{ e.location }} · </template>
             <template v-if="e.next_starts_at">{{ formatDateTime(e.next_starts_at, locale) }}</template>
             <template v-else>{{ t("dashboard.noUpcoming") }}</template>
           </p>

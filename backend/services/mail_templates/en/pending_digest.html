@@ -7,7 +7,7 @@
 <p>Hi {{ admin_name }},</p>
 <p>There {% if pending|length == 1 %}is 1 account{% else %}are {{ pending|length }} accounts{% endif %} awaiting approval at <strong>{{ account }}</strong>:</p>
 <ul>
-{% for u in pending %}<li>{{ u.name }} – {{ u.email }}</li>
+{% for u in pending %}<li>{{ u.name }} ({{ u.email }})</li>
 {% endfor %}</ul>
 <a href="{{ accounts_url }}" class="cta">Open Accounts</a>
 {% endblock %}

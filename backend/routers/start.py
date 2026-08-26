@@ -31,7 +31,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..schemas.start import StartDatepoll, StartedOut, StartEvent, StartForm, StartRoster
-from ..services import access, entities, limits, tenancy
+from ..services import access, entities, event_stats, limits, tenancy
 from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
 from ..services.rate_limit import Limits, limiter
@@ -102,7 +102,10 @@ def start_event(request: Request, data: StartEvent, db: Session = Depends(get_db
     limits.assert_can_add_entity(db, user.tenant, "event")
     event = entities.create_event(db, data.event, user)
     db.commit()
-    return _finish(db, user, "event", event.slug, event.name_nl or event.name_en or "", event.locale)
+    # The event's public page is per occurrence, so the link names the
+    # session the visitor will land on, not the event.
+    slug = event_stats.link_slug(db, event.id)
+    return _finish(db, user, "event", slug, event.name_nl or event.name_en or "", event.locale)
 
 
 @router.post("/forms", response_model=StartedOut, status_code=201)

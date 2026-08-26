@@ -13,7 +13,7 @@
   {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
   <p class="meta">{{ event_date }}</p>
   <p class="meta">{{ event_time }}</p>
-  <p class="meta">{{ location }} &middot; <a href="{{ map_url }}">view on map</a></p>
+  {% if location %}<p class="meta">{{ location }}{% if map_url %} &middot; <a href="{{ map_url }}">view on map</a>{% endif %}</p>{% endif %}
 </div>
 <p>See you there!</p>
 {% endblock %}

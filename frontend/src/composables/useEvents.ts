@@ -45,13 +45,6 @@ export const useArchivedEvents = crud.useArchived;
 // ``window.__OPKOMST_EVENT__`` injected by the backend; no Vue
 // Query, no fetch on first paint.
 
-export function useEventStats(eventId: MaybeRef<string>) {
-  return useApiQuery<EventStats>(
-    () => ["events", unref(eventId), "stats"],
-    () => `/api/v1/events/${unref(eventId)}/stats`,
-  );
-}
-
 /** The organiser occurrence panel: materialised occurrences with
  * per-session headcount + line-item counts, plus the projected future
  * dates. Replaces the old event-level signups list. */

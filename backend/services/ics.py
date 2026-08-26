@@ -117,10 +117,13 @@ def build_occurrence_ics(occurrence: Occurrence, event: Event, *, public_base_ur
         f"DTSTART:{_fmt_utc(occurrence.starts_at)}",
         f"DTEND:{_fmt_utc(occurrence.ends_at)}",
         f"SUMMARY:{_escape(pick_localized(event.name_nl, event.name_en, event.locale) or '')}",
-        f"LOCATION:{_escape(event.location)}",
-        f"URL:{public_url}",
-        f"DESCRIPTION:{description}",
     ]
+    # An event without a place carries no LOCATION line at all: an empty
+    # one shows up as a blank address field in every calendar app.
+    if event.location:
+        raw_lines.append(f"LOCATION:{_escape(event.location)}")
+    raw_lines.append(f"URL:{public_url}")
+    raw_lines.append(f"DESCRIPTION:{description}")
     if event.latitude is not None and event.longitude is not None:
         # GEO uses semicolon separator with no space.
         raw_lines.append(f"GEO:{event.latitude};{event.longitude}")

@@ -8,8 +8,6 @@ Helpers the events routers compose:
 * ``occurrence_totals`` / ``occurrence_signup_counts`` — per-occurrence
   headcount + line-item counts, for the organiser occurrence panel and
   the public agenda.
-* ``per_event_stats`` — source/help breakdowns over the event's line
-  items (attendance is per occurrence).
 * ``occurrence_signups_summary`` — name + party_size + help_choices for
   one occurrence's line items. Privacy-bounded: never email, source, or
   feedback-email status.
@@ -79,7 +77,7 @@ def occurrence_signup_counts(db: Session, occurrence_ids: list[str]) -> dict[str
     }
 
 
-def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[str, tuple[datetime | None, str | None]]:
+def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[str, tuple[datetime | None, str]]:
     """``event_id -> (next_starts_at, link_slug)``. ``next_starts_at`` is the
     soonest occurrence that hasn't ended (``None`` when every session is
     past). ``link_slug`` is that same first-upcoming occurrence's public
@@ -95,7 +93,7 @@ def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[s
     by_event: dict[str, list[tuple[datetime, datetime, str]]] = {}
     for eid, starts, ends, slug in rows:
         by_event.setdefault(eid, []).append((starts, ends, slug))
-    out: dict[str, tuple[datetime | None, str | None]] = {}
+    out: dict[str, tuple[datetime | None, str]] = {}
     for eid, occs in by_event.items():
         occs.sort(key=lambda t: t[0])
         upcoming = [(s, slug) for s, e, slug in occs if e > now]
@@ -104,6 +102,15 @@ def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[s
         else:
             out[eid] = (None, occs[-1][2])  # all past: link to the most recent one
     return out
+
+
+def link_slug(db: Session, event_id: str) -> str:
+    """The occurrence one event's share link points at, the same slug the
+    dashboard card and the detail header use. ``/e/{slug}`` is per
+    occurrence; an event's own slug is organiser-internal and is never a
+    public URL. Creating an event materialises at least its first
+    session, so there is always one to point at."""
+    return _next_occurrence(db, [event_id], now_wallclock())[event_id][1]
 
 
 def enrich(db: Session, events: list[Event]) -> list[EventOut]:
@@ -203,13 +210,6 @@ def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventS
         by_source=by_source,
         by_help=by_help,
     )
-
-
-def per_event_stats(db: Session, event: Event) -> EventStatsOut:
-    """Source/help breakdowns over the event's sign-up line items. A line
-    item joins through its occurrence to the event; attendance is per
-    occurrence, so a course-booker is counted once per session."""
-    return _stats_for(db, help_options=event.help_options, signup_filter=Occurrence.event_id == event.id)
 
 
 def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: list[str]) -> EventStatsOut:

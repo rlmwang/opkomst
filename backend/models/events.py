@@ -45,7 +45,10 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # lives on Occurrence. ``topic`` is the bilingual richtext details body.
     topic_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
     topic_en: Mapped[str | None] = mapped_column(Text, nullable=True)
-    location: Mapped[str] = mapped_column(Text, nullable=False)
+    # Optional location (free text) + resolved coordinates, the same
+    # shape a datepoll and a roster carry: an online meeting or a spot
+    # everyone already knows needs no address.
+    location: Mapped[str | None] = mapped_column(Text, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     # The two optional questions on the public sign-up form, each with
@@ -54,13 +57,17 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # answer to it is refused. The options survive being switched off,
     # so turning a question back on brings the organiser's own list
     # back rather than an empty one.
+    #
+    # Every switch here starts off, mail and agenda listing included: an
+    # event asks for a name and a headcount until its organiser says
+    # otherwise.
     source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    source_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+    source_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    help_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
-    feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
+    help_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
 
     # The recurrence rule (roster's k-week cycle + a time of day).
     # ``starts_on`` anchors cycle week 0 (first Monday on/after it, derived by

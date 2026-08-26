@@ -7,11 +7,18 @@
    own site), not the tooling brand — they signed up for one of its
    events, not for the dashboard. Both come from the tenant's
    ``brand.json``; ``brand.logo_absolute_url`` is absolute because mail
-   clients can't resolve a root-relative image. #}
+   clients can't resolve a root-relative image. A brand with no logo
+   file (the house brand, worn by every personal account) wears its
+   wordmark instead, the same rule ``BrandMark.vue`` follows on the
+   page. #}
 {% extends "base.html" %}
 {% block logo %}
 <a href="{{ brand.org_url }}">
+  {%- if brand.logo_absolute_url %}
   <img src="{{ brand.logo_absolute_url }}" alt="{{ brand.wordmark }}" width="80" height="80" style="display:block; margin:0 auto; border:0;">
+  {%- else %}
+  {{ brand.wordmark }}
+  {%- endif %}
 </a>
 {% endblock %}
 {% block disclaimer %}

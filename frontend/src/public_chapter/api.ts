@@ -14,7 +14,7 @@ export interface EventCard {
   topic_en: string | null;
   starts_at: string;
   ends_at: string;
-  location: string;
+  location: string | null;
   image_url: string | null;
   image_artist_instagram: string | null;
   attendee_count: number;

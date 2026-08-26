@@ -314,7 +314,7 @@
     "question": {
       "promptPlaceholder": "Vraag",
       "kind": {
-        "rating": "Score (1–5)",
+        "rating": "Score (1-5)",
         "text": "Lange tekst",
         "short_text": "Korte tekst",
         "single_choice": "Eén keuze",
@@ -328,14 +328,6 @@
       "delete": "Vraag verwijderen",
       "moveUp": "Omhoog",
       "moveDown": "Omlaag"
-    },
-    "public": {
-      "submit": "Versturen",
-      "thanks": "Bedankt!",
-      "thanksBody": "Je inzending is opgeslagen.",
-      "submitFail": "Versturen mislukt. Probeer het opnieuw.",
-      "loadFailed": "Kon de vragenlijst niet laden.",
-      "unavailable": "Deze vragenlijst is niet meer beschikbaar."
     }
   },
   "datepolls": {
@@ -626,7 +618,7 @@
     "title": "Afdelingen",
     "intro": "Lokale afdelingen. Elk evenement hoort bij één afdeling, en gebruikers zien alleen de evenementen van hun eigen afdeling.",
     "addPlaceholder": "Typ de naam van een nieuwe afdeling en druk op Enter",
-    "archivedTag": "verwijderd – herstellen?",
+    "archivedTag": "verwijderd, herstellen?",
     "createFail": "Aanmaken mislukt",
     "createdToast": "{name} aangemaakt",
     "renamedToast": "Naam gewijzigd",
@@ -634,12 +626,12 @@
     "fillName": "Vul de naam van de afdeling in",
     "editedToast": "Afdeling opgeslagen",
     "editFail": "Opslaan mislukt",
-    "editDialogTitle": "Afdeling bewerken – {name}",
+    "editDialogTitle": "Afdeling bewerken: {name}",
     "editDialogBody": "De thuisstad bepaalt welke adressen voorrang krijgen bij het maken van evenementen.",
     "namePlaceholder": "Naam van de afdeling",
     "slugPlaceholder": "URL-naam (bijv. amsterdam)",
     "slugHelp": "De agenda van deze afdeling staat op opkomst.nu/{tenant}/{slug}",
-    "cityPlaceholder": "Thuisstad – typ om te zoeken",
+    "cityPlaceholder": "Thuisstad, typ om te zoeken",
     "restoreFail": "Herstellen mislukt",
     "restoredToast": "{name} hersteld",
     "archive": "Verwijderen",
@@ -649,8 +641,8 @@
     "archiveConfirmBody": "{name} wordt verborgen. Bestaande evenementen blijven eraan gekoppeld en komen weer terug zodra je de afdeling herstelt.",
     "deleteDialogTitle": "{name} verwijderen",
     "deleteDialogBody": "Je kunt eventueel gebruikers of evenementen overzetten naar een andere afdeling.",
-    "deleteUsersLabel": "{n} gebruiker(s) – overdragen aan",
-    "deleteEventsLabel": "{n} evenement(en) – overdragen aan",
+    "deleteUsersLabel": "{n} gebruiker(s), overdragen aan",
+    "deleteEventsLabel": "{n} evenement(en), overdragen aan",
     "deleteLeaveOrphaned": "Niet overdragen",
     "deleteNoDeps": "Er zijn geen gebruikers of evenementen aan deze afdeling gekoppeld.",
     "pickerPlaceholder": "Kies een afdeling…"
@@ -661,7 +653,7 @@
     "name": "Naam van het evenement",
     "chapter": "Afdeling",
     "topic": "Onderwerp (optioneel)",
-    "location": "Locatie – typ om te zoeken op OpenStreetMap",
+    "location": "Locatie (optioneel), typ om te zoeken op OpenStreetMap",
     "houseNumber": "Nr.",
     "date": "Datum",
     "startTime": "Starttijd",
@@ -698,7 +690,7 @@
       "poster": "Poster"
     },
     "helpHeading": "Ik kan helpen met",
-    "helpExplainer": "Aanmelders kunnen aanvinken waarmee ze willen helpen. Staat dit uit, dan wordt de vraag niet gesteld.",
+    "helpExplainer": "Aanmelders kunnen aanvinken waarmee ze willen helpen.",
     "newHelp": "Nieuwe optie toevoegen",
     "helpDefaults": {
       "setup": "Opbouwen",
@@ -716,7 +708,6 @@
       "image_artist_instagram": "De Instagram van de maker"
     },
     "fillName": "Vul de naam van het evenement in",
-    "fillLocation": "Vul de locatie in",
     "fillDate": "Kies de datum van het evenement",
     "fillStartTime": "Kies de starttijd",
     "fillEndTime": "Kies de eindtijd",
@@ -808,49 +799,6 @@
       "sessionOpen": "sessie {i}"
     }
   },
-  "public": {
-    "loading": "Laden…",
-    "notFound": "Evenement niet gevonden",
-    "loadFailed": "Kon evenement niet laden",
-    "archived": "Dit evenement is gearchiveerd. Je kunt je hier niet meer aanmelden.",
-    "addToCalendar": "Toevoegen aan agenda",
-    "calIcs": "ICS-bestand",
-    "essentialsTitle": "Jouw aanmelding",
-    "feedbackTitle": "Help ons leren",
-    "helpHeading": "Ik kan helpen met",
-    "displayName": "(Schuil)naam",
-    "partySize": "Aantal personen",
-    "sourcePlaceholder": "Hoe heb je ons gevonden?",
-    "emailPlaceholder": "E-mailadres (optioneel, voor herinnering + feedback)",
-    "emailUses": {
-      "reminder": "Een herinnering, een paar dagen voor het evenement.",
-      "feedback": "Een korte feedbackmail, kort na afloop."
-    },
-    "submit": "Aanmelden",
-    "submitFail": "Aanmelden mislukt",
-    "fillName": "Vul een naam in",
-    "fillSource": "Kies hoe je ons hebt gevonden",
-    "sessionsTitle": "Voor welke sessies wil je je aanmelden?",
-    "allUpcoming": "Alle komende sessies",
-    "sessionOf": "sessie {i} van {n}",
-    "sessionOpen": "sessie {i}",
-    "notYetOpen": "nog niet open",
-    "pickSession": "Kies minstens één sessie",
-    "bookingSessions": "Je sessies",
-    "withdrawFromSession": "Afmelden",
-    "withdrawSessionConfirm": "Je afmelden voor deze sessie? Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
-    "withdrawConfirm": "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd. Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
-    "withdrawn": "Je bent afgemeld.",
-    "thanks": "Bedankt, je aanmelding is binnen.",
-    "thanksBody": "Tot dan! Heb je een mailadres achtergelaten? Dan krijg je de dag erna een korte feedbackmail; daarna gooien we je adres weg.",
-    "explainerTitle": "Privacy & open source",
-    "explainerIntro": "We vragen alleen wat we echt nodig hebben. Een schuilnaam mag, we tellen alleen koppen.",
-    "explainerEmailIntro": "Je mailadres is optioneel. Als je het achterlaat, bewaren we het versleuteld en gebruiken we het voor:",
-    "explainerEmailOutro": "Zijn alle mails verstuurd, dan gooien we je adres weg.",
-    "explainerSource": "De code van deze app is",
-    "explainerLink": "openbaar in te zien",
-    "imageCredit": "Ontwerp:"
-  },
   "notFound": {
     "title": "404",
     "body": "Deze pagina bestaat niet.",
@@ -861,11 +809,11 @@
     "intro": "Vijf korte vragen, twee minuten. De eerste drie zijn noodzakelijk; de rest mag je overslaan.",
     "submit": "Verstuur",
     "submitFail": "Versturen mislukt",
-    "thanks": "Bedankt – je feedback is binnen.",
+    "thanks": "Bedankt, je feedback is binnen.",
     "thanksBody": "We gebruiken je antwoorden om het volgende evenement beter te maken. We hebben je e-mailadres meteen na het versturen van deze mail gewist.",
     "expired": "Deze feedbacklink is niet meer geldig.",
     "loadFailed": "Kon de vragenlijst niet laden",
-    "previewBanner": "Voorbeeldweergave – versturen is uitgeschakeld.",
+    "previewBanner": "Voorbeeldweergave: versturen is uitgeschakeld.",
     "questions": {
       "q1_overall": {
         "prompt": "Hoe was het evenement?",

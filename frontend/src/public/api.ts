@@ -33,7 +33,7 @@ export interface PublicEvent {
   name_en: string | null;
   topic_nl: string | null;
   topic_en: string | null;
-  location: string;
+  location: string | null;
   latitude: number | null;
   longitude: number | null;
   source_options: string[];
@@ -42,6 +42,10 @@ export interface PublicEvent {
   image_artist_instagram: string | null;
   locale: string;
   archived: boolean;
+  /** Which mails this event sends. The page asks for an address only
+   *  when one of them will use it. */
+  reminder_enabled: boolean;
+  feedback_enabled: boolean;
   is_recurring: boolean;
   total_sessions: number | null;
   current: PublicOccurrence;

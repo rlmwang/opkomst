@@ -314,7 +314,7 @@
     "question": {
       "promptPlaceholder": "Question",
       "kind": {
-        "rating": "Rating (1–5)",
+        "rating": "Rating (1-5)",
         "text": "Long text",
         "short_text": "Short text",
         "single_choice": "Single choice",
@@ -328,14 +328,6 @@
       "delete": "Remove question",
       "moveUp": "Move up",
       "moveDown": "Move down"
-    },
-    "public": {
-      "submit": "Submit",
-      "thanks": "Thank you!",
-      "thanksBody": "Your response has been recorded.",
-      "submitFail": "Submitting failed. Please try again.",
-      "loadFailed": "Could not load the form.",
-      "unavailable": "This form is no longer available."
     }
   },
   "datepolls": {
@@ -661,7 +653,7 @@
     "name": "Event name",
     "chapter": "Chapter",
     "topic": "Topic (optional)",
-    "location": "Location, type to search OpenStreetMap",
+    "location": "Location (optional), type to search OpenStreetMap",
     "houseNumber": "Nr.",
     "date": "Date",
     "startTime": "Start time",
@@ -698,7 +690,7 @@
       "poster": "Poster"
     },
     "helpHeading": "I can help with",
-    "helpExplainer": "Sign-ups can tick the tasks they want to help with. Switched off, the question isn't asked.",
+    "helpExplainer": "Sign-ups can tick the tasks they want to help with.",
     "newHelp": "Add new option",
     "helpDefaults": {
       "setup": "Setup",
@@ -716,7 +708,6 @@
       "image_artist_instagram": "The artist's Instagram"
     },
     "fillName": "Fill in the event name",
-    "fillLocation": "Fill in the location",
     "fillDate": "Pick the event date",
     "fillStartTime": "Pick the start time",
     "fillEndTime": "Pick the end time",
@@ -807,49 +798,6 @@
       "sessionOf": "session {i} of {n}",
       "sessionOpen": "session {i}"
     }
-  },
-  "public": {
-    "loading": "Loading…",
-    "notFound": "Event not found",
-    "loadFailed": "Could not load event",
-    "archived": "This event has been archived. Sign-ups are no longer accepted.",
-    "addToCalendar": "Add to calendar",
-    "calIcs": "ICS file",
-    "essentialsTitle": "Your sign-up",
-    "feedbackTitle": "Help us learn",
-    "helpHeading": "I can help with",
-    "displayName": "(Pseudo)name",
-    "partySize": "Number of people",
-    "sourcePlaceholder": "How did you find us?",
-    "emailPlaceholder": "Email (optional, for a reminder + feedback)",
-    "emailUses": {
-      "reminder": "One reminder about 3 days before the event starts.",
-      "feedback": "One short feedback message shortly after the event."
-    },
-    "submit": "Sign up",
-    "submitFail": "Sign-up failed",
-    "fillName": "Fill in a name",
-    "fillSource": "Pick how you found us",
-    "sessionsTitle": "Which sessions do you want to join?",
-    "allUpcoming": "All upcoming sessions",
-    "sessionOf": "session {i} of {n}",
-    "sessionOpen": "session {i}",
-    "notYetOpen": "not open yet",
-    "pickSession": "Pick at least one session",
-    "bookingSessions": "Your sessions",
-    "withdrawFromSession": "Withdraw",
-    "withdrawSessionConfirm": "Withdraw from this session? A reminder or feedback email that's already scheduled may still arrive.",
-    "withdrawConfirm": "Withdraw from every session? Your whole sign-up will be removed. A reminder or feedback email that's already scheduled may still arrive.",
-    "withdrawn": "You've withdrawn.",
-    "thanks": "Thanks, we got your sign-up.",
-    "thanksBody": "See you then! If you left an email, you'll get one short feedback question the day after the event. After that we delete your address.",
-    "explainerTitle": "Privacy & open source",
-    "explainerIntro": "We only ask for what we need. Your name can be a pseudonym, it just helps us with the head count.",
-    "explainerEmailIntro": "Your email is optional. If you leave it, we store it encrypted and use it for:",
-    "explainerEmailOutro": "Once every email related to this event has been sent, we permanently delete your address.",
-    "explainerSource": "The full source code of this app is",
-    "explainerLink": "openly available",
-    "imageCredit": "Design:"
   },
   "notFound": {
     "title": "404",

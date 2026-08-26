@@ -16,6 +16,7 @@ import json
 from typing import Any
 
 from backend.services import brand as brand_svc
+from backend.services import tenancy
 from backend.services.mail import render
 
 REQUIRED_KEYS = {
@@ -123,3 +124,29 @@ def test_email_renders_the_brand_with_an_absolute_logo() -> None:
     assert payload["org_url"] in html
     assert payload["palette"]["accent"] in html
     assert "/rsp-logo.png" not in html
+
+
+def test_a_brand_without_a_logo_renders_its_wordmark_in_email() -> None:
+    """The house brand has no logo file, and every personal account
+    wears it. An ``<img>`` pointing at nothing is a broken box in a mail
+    client, showing the alt text clipped to the image's width, so the
+    chrome falls back to the wordmark as text, the same rule
+    ``BrandMark.vue`` follows on the page."""
+    house = brand_svc.payload(brand_svc.HOUSE_BRAND)
+    assert house["logo_absolute_url"] is None
+    with tenancy.use("t-house", brand_svc.HOUSE_BRAND):
+        _subject, html = render(
+            "reminder.html",
+            {
+                "event_name": "Demo",
+                "event_date": "1 januari",
+                "event_time": "20:00",
+                "event_location": "Buurthuis",
+                "event_url": "https://example.test/e/abc",
+                "topic": None,
+                "ics_url": "https://example.test/e/abc/event.ics",
+            },
+            locale="nl",
+        )
+    assert 'src="None"' not in html
+    assert house["wordmark"] in html

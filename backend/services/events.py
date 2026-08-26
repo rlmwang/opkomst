@@ -90,6 +90,8 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         image_artist_instagram=event.image_artist_instagram,
         locale=event.locale,
         archived=event.archived_at is not None,
+        reminder_enabled=event.reminder_enabled,
+        feedback_enabled=event.feedback_enabled,
         is_recurring=bool(event.cycle_slots),
         total_sessions=event_recurrence.total_sessions(event),
         current=PublicOccurrenceOut(

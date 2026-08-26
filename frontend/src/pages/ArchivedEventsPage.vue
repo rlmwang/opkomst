@@ -46,7 +46,7 @@ const {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('archived.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location]"
+    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
     :empty-copy="t('archived.empty')"
     :no-matches-copy="t('archived.noMatches')"
     :skeleton-rows="2"
@@ -60,7 +60,7 @@ const {
             <span v-if="e.chapter_name" class="chapter-chip">{{ e.chapter_name }}</span>
           </h3>
           <p class="muted">
-            {{ e.location }} ·
+            <template v-if="e.location">{{ e.location }} · </template>
             {{ formatDateTime(e.next_starts_at ?? `${e.starts_on}T${e.start_time}`, locale) }} ·
             {{ hint(e) }}
           </p>

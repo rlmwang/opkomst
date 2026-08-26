@@ -55,6 +55,7 @@ def _event_payload(**over: Any) -> dict[str, Any]:
         "span_weeks": None,
         "horizon_days": 90,
         "source_options": ["Van een vriend"],
+        "source_enabled": True,
         "help_options": [],
         "feedback_enabled": False,
         "reminder_enabled": True,

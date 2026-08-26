@@ -1832,23 +1832,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/stats": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Event Stats Endpoint */
-        get: operations["event_stats_endpoint_api_v1_events__event_id__stats_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/feedback/questions": {
         parameters: {
             query?: never;
@@ -3311,7 +3294,7 @@ export interface components {
             end_time: string;
             /**
              * Feedback Enabled
-             * @default true
+             * @default false
              */
             feedback_enabled: boolean;
             /**
@@ -3332,7 +3315,7 @@ export interface components {
             latitude?: number | null;
             /**
              * Listed
-             * @default true
+             * @default false
              */
             listed: boolean;
             /**
@@ -3342,7 +3325,7 @@ export interface components {
              */
             locale: "nl" | "en";
             /** Location */
-            location: string;
+            location?: string | null;
             /** Longitude */
             longitude?: number | null;
             /** Name En */
@@ -3356,12 +3339,12 @@ export interface components {
             period_weeks: number;
             /**
              * Reminder Enabled
-             * @default true
+             * @default false
              */
             reminder_enabled: boolean;
             /**
              * Source Enabled
-             * @default true
+             * @default false
              */
             source_enabled: boolean;
             /** Source Options */
@@ -3428,7 +3411,7 @@ export interface components {
              */
             locale: "nl" | "en";
             /** Location */
-            location: string;
+            location: string | null;
             /** Longitude */
             longitude: number | null;
             /** Name En */
@@ -3503,7 +3486,7 @@ export interface components {
             end_time: string;
             /**
              * Feedback Enabled
-             * @default true
+             * @default false
              */
             feedback_enabled: boolean;
             /**
@@ -3524,7 +3507,7 @@ export interface components {
             latitude?: number | null;
             /**
              * Listed
-             * @default true
+             * @default false
              */
             listed: boolean;
             /**
@@ -3534,7 +3517,7 @@ export interface components {
              */
             locale: "nl" | "en";
             /** Location */
-            location: string;
+            location?: string | null;
             /** Longitude */
             longitude?: number | null;
             /** Name En */
@@ -3548,12 +3531,12 @@ export interface components {
             period_weeks: number;
             /**
              * Reminder Enabled
-             * @default true
+             * @default false
              */
             reminder_enabled: boolean;
             /**
              * Source Enabled
-             * @default true
+             * @default false
              */
             source_enabled: boolean;
             /** Source Options */
@@ -4086,7 +4069,7 @@ export interface components {
             /** Index */
             index: number;
             /** Location */
-            location: string;
+            location: string | null;
             /** Name En */
             name_en: string | null;
             /** Name Nl */
@@ -4312,6 +4295,8 @@ export interface components {
             current: components["schemas"]["PublicOccurrenceOut"];
             /** Event Slug */
             event_slug: string;
+            /** Feedback Enabled */
+            feedback_enabled: boolean;
             /** Help Options */
             help_options: string[];
             /** Image Artist Instagram */
@@ -4328,7 +4313,7 @@ export interface components {
              */
             locale: "nl" | "en";
             /** Location */
-            location: string;
+            location: string | null;
             /** Longitude */
             longitude: number | null;
             /** Name En */
@@ -4337,6 +4322,8 @@ export interface components {
             name_nl: string | null;
             /** Projected */
             projected: components["schemas"]["ProjectedOccurrenceOut"][];
+            /** Reminder Enabled */
+            reminder_enabled: boolean;
             /** Source Options */
             source_options: string[];
             /** Topic En */
@@ -8244,39 +8231,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    event_stats_endpoint_api_v1_events__event_id__stats_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EventStatsOut"];
-                };
             };
             /** @description Validation Error */
             422: {

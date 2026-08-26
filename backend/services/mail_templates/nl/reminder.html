@@ -1,5 +1,5 @@
 {% extends "nl/_event_base.html" %}
-{% set subject = event_name + " – bijna zover" %}
+{% set subject = event_name + ": bijna zover" %}
 {% block content %}
 {% if image_url %}
 <img src="{{ image_url }}" alt="{{ event_name }}" width="544" height="680" style="display:block; width:100%; max-width:544px; height:auto; margin:0 0 6px; border-radius:8px; border:0;">
@@ -13,7 +13,7 @@
   {% if topic %}<p class="topic">{{ topic }}</p>{% endif %}
   <p class="meta">{{ event_date }}</p>
   <p class="meta">{{ event_time }}</p>
-  <p class="meta">{{ location }} &middot; <a href="{{ map_url }}">bekijk op kaart</a></p>
+  {% if location %}<p class="meta">{{ location }}{% if map_url %} &middot; <a href="{{ map_url }}">bekijk op kaart</a>{% endif %}</p>{% endif %}
 </div>
 <p>Tot dan!</p>
 {% endblock %}

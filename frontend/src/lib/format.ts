@@ -23,12 +23,12 @@ export function formatDate(iso: string, locale: string): string {
   });
 }
 
-/** Hour:minute range: ``18:00 — 20:00``. */
+/** Hour:minute range: ``18:00-20:00``. */
 export function formatTimeRange(startIso: string, endIso: string, locale: string): string {
   const opts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
   const start = new Date(startIso).toLocaleTimeString(localeTag(locale), opts);
   const end = new Date(endIso).toLocaleTimeString(localeTag(locale), opts);
-  return `${start} — ${end}`;
+  return `${start}-${end}`;
 }
 
 /** Compact "date + time" used in list rows: ``27-04-2026 18:00``.

@@ -59,7 +59,7 @@ const sessionBadge = computed(() => {
         {{ formatDate(event.starts_at, locale) }} ·
         {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
       </p>
-      <p class="card-where">
+      <p v-if="event.location" class="card-where">
         <a
           :href="mapLink({ location: event.location, latitude: null, longitude: null })"
           target="_blank"

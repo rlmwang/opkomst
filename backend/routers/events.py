@@ -330,16 +330,6 @@ def delete_event_image(
     return event_stats.to_out(db, event)
 
 
-@router.get("/{event_id}/stats", response_model=EventStatsOut)
-def event_stats_endpoint(
-    event_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
-) -> EventStatsOut:
-    event = access.get_event_for_user(db, event_id, user)
-    return event_stats.per_event_stats(db, event)
-
-
 @router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)
 def event_occurrences(
     event_id: str,

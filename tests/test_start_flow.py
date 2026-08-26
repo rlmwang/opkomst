@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
-from backend.models import Datepoll, Event, Form, LoginToken, Roster, Tenant, User
+from backend.models import Datepoll, Event, Form, LoginToken, Occurrence, Roster, Tenant, User
 
 
 def _event_body() -> dict[str, Any]:
@@ -131,7 +131,12 @@ def test_new_address_gets_a_tenant_a_user_and_the_entity(client, db) -> None:
     # generated id rather than anything derived from the address.
     assert user.tenant.slug != "nieuw@example.org"
 
-    event = db.query(Event).filter(Event.slug == body["slug"]).one()
+    # ``/e/{slug}`` is per occurrence, so the link names the first
+    # session rather than the event, and resolves the moment it is
+    # shared.
+    assert client.get(f"/api/v1/events/by-slug/{body['slug']}").status_code == 200
+    occurrence = db.query(Occurrence).filter(Occurrence.slug == body["slug"]).one()
+    event = db.query(Event).filter(Event.id == occurrence.event_id).one()
     assert event.tenant_id == user.tenant_id
     assert event.created_by == user.id
     # A personal tenant has no chapters, so nothing is assigned to one.

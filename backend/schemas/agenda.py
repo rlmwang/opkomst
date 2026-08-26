@@ -19,7 +19,7 @@ class OccurrenceCardOut(BaseModel):
     topic_en: str | None
     starts_at: datetime
     ends_at: datetime
-    location: str
+    location: str | None
     image_url: str | None
     image_artist_instagram: str | None
     attendee_count: int

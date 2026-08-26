@@ -41,8 +41,10 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "start_time": "18:00:00",
         "end_time": "20:00:00",
         "source_options": ["Flyer"],
+        "source_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
+        "listed": True,
         "locale": "nl",
         **overrides,
     }
@@ -561,15 +563,14 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
         )
         assert r.status_code == 201, r.text
 
-    for url in (
-        f"/api/v1/events/{event['id']}/stats",
+    stats = client.get(
         f"/api/v1/events/{event['id']}/occurrences/{occ['id']}/stats",
-    ):
-        stats = client.get(url, headers=organiser_headers).json()
-        assert stats["total_signups"] == 2
-        assert stats["total_attendees"] == 4
-        assert stats["by_help"] == {"Opbouwen": 4, "Afbreken": 1}
-        assert stats["by_source"] == {"Flyer": 4}
+        headers=organiser_headers,
+    ).json()
+    assert stats["total_signups"] == 2
+    assert stats["total_attendees"] == 4
+    assert stats["by_help"] == {"Opbouwen": 4, "Afbreken": 1}
+    assert stats["by_source"] == {"Flyer": 4}
 
 
 def test_event_ics_carries_uid_and_dates(client, organiser_headers):

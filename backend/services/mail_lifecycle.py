@@ -156,20 +156,21 @@ def _format_date(when: datetime, locale: str) -> str:
 
 
 def _format_time_range(starts_at: datetime, ends_at: datetime) -> str:
-    """24-hour HH:MM–HH:MM. Same format in both locales."""
-    return f"{starts_at:%H:%M}–{ends_at:%H:%M}"
+    """24-hour HH:MM-HH:MM. Same format in both locales."""
+    return f"{starts_at:%H:%M}-{ends_at:%H:%M}"
 
 
-def _osm_url(event: Event) -> str:
+def _osm_url(event: Event) -> str | None:
     """Pin-on-map URL when we have coordinates; fall back to a
     text search by ``location`` so the link still goes somewhere
-    useful for events imported without geocoding."""
+    useful for events imported without geocoding. An event with no
+    location at all has no map to link to."""
     if event.latitude is not None and event.longitude is not None:
         return (
             f"https://www.openstreetmap.org/?mlat={event.latitude}"
             f"&mlon={event.longitude}#map=17/{event.latitude}/{event.longitude}"
         )
-    return f"https://www.openstreetmap.org/search?query={quote(event.location)}"
+    return f"https://www.openstreetmap.org/search?query={quote(event.location)}" if event.location else None
 
 
 def build_reminder_context(occurrence: Occurrence, event: Event, locale: str) -> dict[str, Any]:

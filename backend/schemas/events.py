@@ -25,7 +25,7 @@ class EventCreate(BilingualTitleMixin):
     chapter_id: str | None = None
     topic_nl: RichText
     topic_en: RichText
-    location: str = Field(min_length=1, max_length=200)
+    location: str | None = Field(default=None, max_length=200)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
 
@@ -49,18 +49,17 @@ class EventCreate(BilingualTitleMixin):
     # at least one, because a question with nothing to pick is a dead
     # control on the public page.
     #
-    # The defaults say what an event without these fields always meant:
-    # every event asked where people heard about it, and the help
-    # question appeared only where the organiser had written options
-    # for it.
+    # Every switch starts off. An event asks for a name and a headcount
+    # and nothing else until its organiser says otherwise: no extra
+    # questions, no mail, and not on the agenda.
     source_options: list[str] = Field(default_factory=list)
-    source_enabled: bool = True
+    source_enabled: bool = False
     image_artist_instagram: InstagramHandle
     help_options: list[str] = Field(default_factory=list)
     help_enabled: bool = False
-    feedback_enabled: bool = True
-    reminder_enabled: bool = True
-    listed: bool = True
+    feedback_enabled: bool = False
+    reminder_enabled: bool = False
+    listed: bool = False
     locale: Locale = "nl"
 
     # On create an out-of-range cycle slot is a client bug and 422s; on
@@ -142,7 +141,7 @@ class EventOut(BaseModel):
     name_en: str | None
     topic_nl: str | None
     topic_en: str | None
-    location: str
+    location: str | None
     latitude: float | None
     longitude: float | None
     starts_on: date
@@ -269,7 +268,7 @@ class PublicEventOut(BaseModel):
     name_en: str | None
     topic_nl: str | None
     topic_en: str | None
-    location: str
+    location: str | None
     latitude: float | None
     longitude: float | None
     # Empty when the organiser switched that question off. The page has
@@ -281,6 +280,12 @@ class PublicEventOut(BaseModel):
     image_artist_instagram: str | None
     locale: Locale
     archived: bool
+    # The mail this event will actually send. The page asks for an
+    # address only when something is going to use it, and the privacy
+    # disclosure names those uses one by one, so it has to know which
+    # of them are switched on.
+    reminder_enabled: bool
+    feedback_enabled: bool
     # Whether the event recurs (drives the calendar date picker vs a single
     # date on the public page). ``total_sessions`` is the "van N" for the
     # "sessie i van N" labels; null = open-ended.

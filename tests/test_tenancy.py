@@ -76,6 +76,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
             "start_time": "18:00:00",
             "end_time": "20:00:00",
             "source_options": ["Flyer"],
+            "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
             "locale": "nl",
@@ -135,6 +136,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
             "start_time": "18:00:00",
             "end_time": "20:00:00",
             "source_options": ["Flyer"],
+            "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
             "locale": "nl",
@@ -172,8 +174,8 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
         their_event_id = their_event.id
 
     # Ours is visible; theirs is not, and the list shows only ours.
-    assert client.get(f"/api/v1/events/{our_event_id}/stats", headers=organiser_headers).status_code == 200
-    assert client.get(f"/api/v1/events/{their_event_id}/stats", headers=organiser_headers).status_code == 404
+    assert client.get(f"/api/v1/events/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
+    assert client.get(f"/api/v1/events/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
     listed = client.get("/api/v1/events", headers=organiser_headers).json()
     assert {e["id"] for e in listed} == {our_event_id}
 

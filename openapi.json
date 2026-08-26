@@ -2124,7 +2124,7 @@
             "type": "string"
           },
           "feedback_enabled": {
-            "default": true,
+            "default": false,
             "title": "Feedback Enabled",
             "type": "boolean"
           },
@@ -2173,7 +2173,7 @@
             "title": "Latitude"
           },
           "listed": {
-            "default": true,
+            "default": false,
             "title": "Listed",
             "type": "boolean"
           },
@@ -2187,10 +2187,16 @@
             "type": "string"
           },
           "location": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "longitude": {
             "anyOf": [
@@ -2237,12 +2243,12 @@
             "type": "integer"
           },
           "reminder_enabled": {
-            "default": true,
+            "default": false,
             "title": "Reminder Enabled",
             "type": "boolean"
           },
           "source_enabled": {
-            "default": true,
+            "default": false,
             "title": "Source Enabled",
             "type": "boolean"
           },
@@ -2302,7 +2308,6 @@
           }
         },
         "required": [
-          "location",
           "starts_on",
           "start_time",
           "end_time"
@@ -2424,8 +2429,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "longitude": {
             "anyOf": [
@@ -2650,7 +2662,7 @@
             "type": "string"
           },
           "feedback_enabled": {
-            "default": true,
+            "default": false,
             "title": "Feedback Enabled",
             "type": "boolean"
           },
@@ -2699,7 +2711,7 @@
             "title": "Latitude"
           },
           "listed": {
-            "default": true,
+            "default": false,
             "title": "Listed",
             "type": "boolean"
           },
@@ -2713,10 +2725,16 @@
             "type": "string"
           },
           "location": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "longitude": {
             "anyOf": [
@@ -2763,12 +2781,12 @@
             "type": "integer"
           },
           "reminder_enabled": {
-            "default": true,
+            "default": false,
             "title": "Reminder Enabled",
             "type": "boolean"
           },
           "source_enabled": {
-            "default": true,
+            "default": false,
             "title": "Source Enabled",
             "type": "boolean"
           },
@@ -2828,7 +2846,6 @@
           }
         },
         "required": [
-          "location",
           "starts_on",
           "start_time",
           "end_time"
@@ -4104,8 +4121,15 @@
             "type": "integer"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "name_en": {
             "anyOf": [
@@ -4647,6 +4671,10 @@
             "title": "Event Slug",
             "type": "string"
           },
+          "feedback_enabled": {
+            "title": "Feedback Enabled",
+            "type": "boolean"
+          },
           "help_options": {
             "items": {
               "type": "string"
@@ -4700,8 +4728,15 @@
             "type": "string"
           },
           "location": {
-            "title": "Location",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           },
           "longitude": {
             "anyOf": [
@@ -4742,6 +4777,10 @@
             },
             "title": "Projected",
             "type": "array"
+          },
+          "reminder_enabled": {
+            "title": "Reminder Enabled",
+            "type": "boolean"
           },
           "source_options": {
             "items": {
@@ -4806,6 +4845,8 @@
           "image_artist_instagram",
           "locale",
           "archived",
+          "reminder_enabled",
+          "feedback_enabled",
           "is_recurring",
           "total_sessions",
           "current",
@@ -12094,64 +12135,6 @@
         "summary": "Delete Signup",
         "tags": [
           "signups"
-        ]
-      }
-    },
-    "/api/v1/events/{event_id}/stats": {
-      "get": {
-        "operationId": "event_stats_endpoint_api_v1_events__event_id__stats_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EventStatsOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Event Stats Endpoint",
-        "tags": [
-          "events"
         ]
       }
     },

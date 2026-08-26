@@ -292,13 +292,41 @@ interface EmailUseBullet {
   text: string;
   previewUrl: string;
 }
+// Only the channels this event actually sends. A switched-off channel
+// has no preview to link to and no use to disclose, so it isn't named:
+// the same rule the source and help questions follow.
 const emailUseBullets = computed<EmailUseBullet[]>(() => {
-  if (!event.value) return [];
-  return [
-    { text: t.value.emailUses.reminder, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/reminder` },
-    { text: t.value.emailUses.feedback, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/feedback` },
-  ];
+  const e = event.value;
+  if (!e) return [];
+  const bullets: EmailUseBullet[] = [];
+  if (e.reminder_enabled) {
+    bullets.push({ text: t.value.emailUses.reminder, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/reminder` });
+  }
+  if (e.feedback_enabled) {
+    bullets.push({ text: t.value.emailUses.feedback, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/feedback` });
+  }
+  return bullets;
 });
+
+// With every channel off, nothing would ever read the address, so the
+// form doesn't ask for it and the disclosure says nothing about it.
+// With one of the two on, the placeholder names that one rather than
+// promising mail this event will never send.
+// The two sentences that mention the address are joined here rather
+// than in the template, where Vue would eat the space between them.
+const asksEmail = computed(() => emailUseBullets.value.length > 0);
+const explainerOpening = computed(() =>
+  asksEmail.value ? `${t.value.explainerIntro} ${t.value.explainerEmailIntro}` : t.value.explainerIntro,
+);
+const emailPlaceholder = computed(() => {
+  const e = event.value;
+  if (!e) return "";
+  if (e.reminder_enabled && e.feedback_enabled) return t.value.emailPlaceholder.both;
+  return e.reminder_enabled ? t.value.emailPlaceholder.reminder : t.value.emailPlaceholder.feedback;
+});
+const explainerClosing = computed(() =>
+  asksEmail.value ? `${t.value.explainerEmailOutro} ${t.value.explainerSource}` : t.value.explainerSource,
+);
 
 // --- add-to-calendar dropdown (native ``<details>`` for the popup) ---
 const calLinks = computed(() => {
@@ -315,7 +343,7 @@ const calLinks = computed(() => {
     `&text=${enc(eventTitle.value ?? "")}` +
     `&dates=${utc(e.current.starts_at)}/${utc(e.current.ends_at)}` +
     `&details=${enc(desc)}` +
-    `&location=${enc(e.location)}`;
+    (e.location ? `&location=${enc(e.location)}` : "");
   return { google, ics };
 });
 
@@ -433,7 +461,10 @@ async function saveBooking() {
 
 async function withdrawAll() {
   if (!editing) return;
-  if (!window.confirm(t.value.withdrawConfirm)) return;
+  const confirmation = asksEmail.value
+    ? `${t.value.withdrawConfirm} ${t.value.pendingMailWarning}`
+    : t.value.withdrawConfirm;
+  if (!window.confirm(confirmation)) return;
   submitting.value = true;
   try {
     await withdrawBooking(editToken!);
@@ -484,6 +515,7 @@ watchEffect(() => {
             {{ formatTimeRange(current.starts_at, current.ends_at, locale) }}
           </PublicMetaRow>
           <PublicMetaRow
+            v-if="event.location"
             :href="mapLink({ location: event.location, latitude: event.latitude, longitude: event.longitude })"
           >
             <template #icon>
@@ -513,10 +545,8 @@ watchEffect(() => {
       <div v-if="event && !editing && !submitted" class="card privacy-card">
         <details>
           <summary>{{ t.explainerTitle }}</summary>
-          <p class="privacy-body">
-            {{ t.explainerIntro }} {{ t.explainerEmailIntro }}
-          </p>
-          <ul class="privacy-bullets">
+          <p class="privacy-body">{{ explainerOpening }}</p>
+          <ul v-if="asksEmail" class="privacy-bullets">
             <li v-for="b in emailUseBullets" :key="b.previewUrl">
               <a :href="b.previewUrl" target="_blank" rel="noopener" class="meta-link">
                 {{ b.text }}
@@ -525,7 +555,7 @@ watchEffect(() => {
             </li>
           </ul>
           <p class="privacy-body">
-            {{ t.explainerEmailOutro }} {{ t.explainerSource }}
+            {{ explainerClosing }}
             <a href="https://github.com/rlmwang/opkomst" target="_blank" rel="noopener">{{ t.explainerLink }}</a>.
           </p>
         </details>
@@ -605,30 +635,33 @@ watchEffect(() => {
           </div>
         </section>
 
-        <hr class="section-divider" />
+        <!-- Both fields here are optional and independently switchable:
+             no source options means the organiser switched that question
+             off, and no enabled mail channel means nothing would ever
+             read an address. With neither, the whole block goes. -->
+        <template v-if="event.source_options.length > 0 || asksEmail">
+          <hr class="section-divider" />
 
-        <h2>{{ t.feedbackTitle }}</h2>
+          <h2>{{ t.feedbackTitle }}</h2>
 
-        <section class="form-section">
-          <!-- No options means the organiser switched this question
-               off, the same rule the help block above follows. The
-               email field below is not part of that question and
-               stays either way. -->
-          <BrandedSelect
-            v-if="event.source_options.length > 0"
-            v-model="sourceChoice"
-            :options="event.source_options"
-            :placeholder="t.sourcePlaceholder"
-            :aria-label="t.sourcePlaceholder"
-          />
-          <input
-            v-model="email"
-            type="email"
-            class="input"
-            :placeholder="t.emailPlaceholder"
-            autocomplete="email"
-          />
-        </section>
+          <section class="form-section">
+            <BrandedSelect
+              v-if="event.source_options.length > 0"
+              v-model="sourceChoice"
+              :options="event.source_options"
+              :placeholder="t.sourcePlaceholder"
+              :aria-label="t.sourcePlaceholder"
+            />
+            <input
+              v-if="asksEmail"
+              v-model="email"
+              type="email"
+              class="input"
+              :placeholder="emailPlaceholder"
+              autocomplete="email"
+            />
+          </section>
+        </template>
 
         <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
 

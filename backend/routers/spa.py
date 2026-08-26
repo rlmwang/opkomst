@@ -31,6 +31,8 @@ import html
 import json
 import pathlib
 import re
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
@@ -153,7 +155,8 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) 
     if topic_text:
         description = topic_text
     else:
-        description = f"{event.location} · {occurrence.starts_at.strftime('%-d %b %Y')}"
+        when = occurrence.starts_at.strftime("%-d %b %Y")
+        description = f"{event.location} · {when}" if event.location else when
     if len(description) > 200:
         description = description[:197] + "…"
 
@@ -322,6 +325,35 @@ def _serve_public_app(
     )
 
 
+# The four tenant-free public URL prefixes, each with the resolver that
+# turns its slug back into the entity that owns it. ``brand_slug_for``
+# is the one question a caller outside this module asks of it.
+_PUBLIC_RESOLVERS: dict[str, Callable[[Session, str], Any]] = {
+    "e": events_svc.get_occurrence_by_slug_any,
+    "f": forms_svc.get_form_by_slug_any,
+    "d": datepolls_svc.get_datepoll_by_slug_any,
+    "c": chores_svc.get_roster_by_slug_any,
+}
+
+_Entity = TypeVar("_Entity")
+
+
+def _resolve_public(db: Session, slug: str, resolve: Callable[[Session, str], _Entity | None]) -> _Entity | None:
+    """The entity behind a tenant-free public URL, or ``None`` when the
+    slug names nothing. One guard in one place: a malformed slug never
+    reaches the database."""
+    return resolve(db, slug) if _SLUG_RE.match(slug) else None
+
+
+def brand_slug_for(db: Session, prefix: str, slug: str) -> str:
+    """Which brand ``/{prefix}/{slug}`` wears. The Vite dev server asks
+    this because it has no database of its own and would otherwise have
+    to guess."""
+    resolve = _PUBLIC_RESOLVERS.get(prefix)
+    entity = _resolve_public(db, slug, resolve) if resolve is not None else None
+    return _brand_slug_for(db, entity)
+
+
 def _brand_slug_for(db: Session, entity: object | None) -> str:
     """Which brand a public page wears: the one belonging to the tenant
     that owns the entity behind the slug. An unknown or archived slug
@@ -337,7 +369,7 @@ def _brand_slug_for(db: Session, entity: object | None) -> str:
 def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
-    occurrence = events_svc.get_occurrence_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    occurrence = _resolve_public(db, slug, events_svc.get_occurrence_by_slug_any)
     payload = (
         json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
     )
@@ -356,7 +388,7 @@ def _serve_public_event(slug: str, db: Session, nonce: str) -> HTMLResponse:
 def _serve_public_form(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown forms inline null; the mini-app shows the same
     # "no longer available" state it would on a 410.
-    form = forms_svc.get_form_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    form = _resolve_public(db, slug, forms_svc.get_form_by_slug_any)
     payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
     brand_slug = _brand_slug_for(db, form)
     return _serve_public_app(
@@ -372,7 +404,7 @@ def _serve_public_form(slug: str, db: Session, nonce: str) -> HTMLResponse:
 
 def _serve_public_datepoll(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown polls inline null, same as forms.
-    poll = datepolls_svc.get_datepoll_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    poll = _resolve_public(db, slug, datepolls_svc.get_datepoll_by_slug_any)
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
     brand_slug = _brand_slug_for(db, poll)
     return _serve_public_app(
@@ -388,7 +420,7 @@ def _serve_public_datepoll(slug: str, db: Session, nonce: str) -> HTMLResponse:
 
 def _serve_public_roster(slug: str, db: Session, nonce: str) -> HTMLResponse:
     # Archived/unknown rosters inline null, same as forms/datepolls.
-    roster = chores_svc.get_roster_by_slug_any(db, slug) if _SLUG_RE.match(slug) else None
+    roster = _resolve_public(db, slug, chores_svc.get_roster_by_slug_any)
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
     brand_slug = _brand_slug_for(db, roster)
     return _serve_public_app(

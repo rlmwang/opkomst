@@ -172,18 +172,18 @@ function arraysEqual(a: string[], b: string[]): boolean {
 // own list back rather than an empty one.
 const sources = ref<string[]>(defaultSources(((locale.value as "nl" | "en") ?? "nl")));
 const newSource = ref("");
-const sourceEnabled = ref(true);
+const sourceEnabled = ref(false);
 const helpOptions = ref<string[]>(defaultHelp(((locale.value as "nl" | "en") ?? "nl")));
 const newHelp = ref("");
-const helpEnabled = ref(true);
+const helpEnabled = ref(false);
 // Instagram handle of the artist credited on the hero image.
 // Stored without ``@``; the backend's schema validator strips
 // one if present, so paste-friendliness on the form side is
 // fine.
 const imageArtistInstagram = ref("");
-const feedbackEnabled = ref(true);
-const reminderEnabled = ref(true);
-const listed = ref(true);
+const feedbackEnabled = ref(false);
+const reminderEnabled = ref(false);
+const listed = ref(false);
 // Default to the organiser's UI locale — they can override per-event
 // (e.g. an English-language event in NL).
 const eventLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
@@ -276,13 +276,13 @@ function applyDraft(d: FormDraft) {
   openEnded.value = d.openEnded ?? false;
   sources.value = [...d.sources];
   newSource.value = d.newSource;
-  sourceEnabled.value = d.sourceEnabled ?? true;
+  sourceEnabled.value = d.sourceEnabled ?? false;
   helpOptions.value = [...(d.helpOptions ?? [])];
   newHelp.value = d.newHelp ?? "";
-  helpEnabled.value = d.helpEnabled ?? true;
+  helpEnabled.value = d.helpEnabled ?? false;
   feedbackEnabled.value = d.feedbackEnabled;
-  reminderEnabled.value = d.reminderEnabled ?? true;
-  listed.value = d.listed ?? true;
+  reminderEnabled.value = d.reminderEnabled ?? false;
+  listed.value = d.listed ?? false;
   eventLocale.value = d.eventLocale ?? "nl";
   imageArtistInstagram.value = d.imageArtistInstagram ?? "";
 }
@@ -409,7 +409,7 @@ onMounted(async () => {
     chapterId.value = existing.chapter_id ?? null;
     topicNl.value = existing.topic_nl ?? "";
     topicEn.value = existing.topic_en ?? "";
-    location.value = existing.location;
+    location.value = existing.location ?? "";
     latitude.value = existing.latitude;
     longitude.value = existing.longitude;
     // ``starts_on`` is a date, ``start_time`` / ``end_time`` are times.
@@ -461,10 +461,6 @@ async function submit() {
     toasts.warn(t("event.fillName"));
     return;
   }
-  if (!trimmedLocation) {
-    toasts.warn(t("event.fillLocation"));
-    return;
-  }
   if (!eventDate.value) {
     toasts.warn(t("event.fillDate"));
     return;
@@ -510,7 +506,7 @@ async function submit() {
       chapter_id: chapterFor(chapterId.value),
       topic_nl: topicNl.value.trim() || null,
       topic_en: topicEn.value.trim() || null,
-      location: trimmedLocation,
+      location: trimmedLocation || null,
       latitude: latitude.value,
       longitude: longitude.value,
       starts_on: naiveDate(eventDate.value),
@@ -629,6 +625,19 @@ async function submit() {
         </div>
       </section>
 
+      <!-- Uploading a picture writes to the row it belongs to, which
+           takes a session; a visitor starting from the root doesn't
+           have one yet. They add it after signing in through the link
+           they were mailed. -->
+      <ImageField
+        v-if="!startActive"
+        ref="imageField"
+        resource="events"
+        :entity-id="props.eventId ?? null"
+        v-model:image-url="imageUrl"
+        v-model:artist="imageArtistInstagram"
+      />
+
       <section class="form-section">
         <!-- The switch turns the whole block on, so it sits in front of
              the heading rather than on a line of its own under it. -->
@@ -660,19 +669,6 @@ async function submit() {
           <p v-else class="muted section-explainer">{{ t("event.span.openEndedHelp") }}</p>
         </template>
       </section>
-
-      <!-- Uploading a picture writes to the row it belongs to, which
-           takes a session; a visitor starting from the root doesn't
-           have one yet. They add it after signing in through the link
-           they were mailed. -->
-      <ImageField
-        v-if="!startActive"
-        ref="imageField"
-        resource="events"
-        :entity-id="props.eventId ?? null"
-        v-model:image-url="imageUrl"
-        v-model:artist="imageArtistInstagram"
-      />
 
       <!-- What people can offer comes before where they heard about it:
            one is about the event itself, the other is about us. -->

@@ -28,9 +28,9 @@ describe("formatDate", () => {
 });
 
 describe("formatTimeRange", () => {
-  it("returns a hh:mm — hh:mm range", () => {
+  it("returns a hh:mm-hh:mm range", () => {
     const out = formatTimeRange("2026-04-27T18:00:00", "2026-04-27T20:00:00", "nl");
-    expect(out).toMatch(/\d{2}:\d{2}\s+[—-]\s+\d{2}:\d{2}/);
+    expect(out).toMatch(/\d{2}:\d{2}-\d{2}:\d{2}/);
   });
 });
 
@@ -63,15 +63,15 @@ describe("formatDateTime", () => {
 });
 
 describe("formatTimeRange snapshots", () => {
-  it("nl: 18:00 — 20:00", () => {
+  it("nl: 18:00-20:00", () => {
     expect(formatTimeRange("2026-04-27T18:00:00", "2026-04-27T20:00:00", "nl")).toBe(
-      "18:00 — 20:00",
+      "18:00-20:00",
     );
   });
 
-  it("en: 18:00 — 20:00", () => {
+  it("en: 18:00-20:00", () => {
     expect(formatTimeRange("2026-04-27T18:00:00", "2026-04-27T20:00:00", "en")).toBe(
-      "18:00 — 20:00",
+      "18:00-20:00",
     );
   });
 });

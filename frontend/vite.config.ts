@@ -11,6 +11,13 @@ import { defineConfig, type Plugin } from "vite";
 const BRANDS_DIR = fileURLToPath(new URL("../brands", import.meta.url));
 const HOUSE_BRAND = "opkomst";
 
+// A public mini-app URL is ``/{prefix}/{slug}`` and nothing deeper.
+// Prod matches it with a single path parameter, so ``/e/{slug}/feedback``
+// misses it and falls through to the app's own router. Dev has to draw
+// the line in the same place, or the sign-up page swallows the feedback
+// questionnaire.
+const PUBLIC_MINI_APP = /^\/[efdc]\/[^/?#]+\/?$/;
+
 /**
  * Dev-only middleware: route ``/e/{slug}`` to ``public-event.html``.
  *
@@ -41,7 +48,7 @@ function publicEventDevRoute(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
         const path = (req.url ?? "").split("?")[0];
-        if (/^\/e\/[^/?#]+/.test(path)) req.url = "/public-event.html";
+        if (path.startsWith("/e/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-event.html";
         next();
       });
     },
@@ -65,10 +72,8 @@ function publicFormDevRoute(): Plugin {
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        const url = req.url ?? "";
-        if (/^\/f\/[^/?#]+/.test(url.split("?")[0])) {
-          req.url = "/public-form.html";
-        }
+        const path = (req.url ?? "").split("?")[0];
+        if (path.startsWith("/f/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-form.html";
         next();
       });
     },
@@ -86,10 +91,8 @@ function publicDatepollDevRoute(): Plugin {
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        const url = req.url ?? "";
-        if (/^\/d\/[^/?#]+/.test(url.split("?")[0])) {
-          req.url = "/public-datepoll.html";
-        }
+        const path = (req.url ?? "").split("?")[0];
+        if (path.startsWith("/d/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-datepoll.html";
         next();
       });
     },
@@ -107,10 +110,8 @@ function publicChoreDevRoute(): Plugin {
     apply: "serve",
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        const url = req.url ?? "";
-        if (/^\/c\/[^/?#]+/.test(url.split("?")[0])) {
-          req.url = "/public-chore.html";
-        }
+        const path = (req.url ?? "").split("?")[0];
+        if (path.startsWith("/c/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-chore.html";
         next();
       });
     },
@@ -134,9 +135,10 @@ function publicChoreDevRoute(): Plugin {
  * an organisation they didn't ask for.
  */
 function organiserAppDevRoute(): Plugin {
-  // Paths the dev server owns: Vite internals, the source tree, and the
-  // public mini-apps rewritten by the plugins below.
-  const notAPage = /^\/(@|src\/|node_modules\/|api\/|brand\/|assets\/|e\/|f\/|d\/|c\/|health$|__)/;
+  // Paths the dev server owns: Vite internals and the source tree. The
+  // public mini-app URLs are handled by the plugins below and skipped
+  // via ``PUBLIC_MINI_APP``.
+  const notAPage = /^\/(@|src\/|node_modules\/|api\/|brand\/|assets\/|health$|__)/;
   // The app's own first-level routes. Under an organisation's slug,
   // anything that is not one of these is a chapter agenda: the same
   // split prod makes by looking the second segment up as a chapter,
@@ -156,7 +158,7 @@ function organiserAppDevRoute(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const path = (req.url ?? "").split("?")[0];
         const wantsHtml = (req.headers.accept ?? "").includes("text/html");
-        if (!wantsHtml || notAPage.test(path)) return next();
+        if (!wantsHtml || notAPage.test(path) || PUBLIC_MINI_APP.test(path)) return next();
 
         // Prod resolves the first segment as an organisation and only
         // then asks whether the second names a chapter. Dev has to make
@@ -186,6 +188,27 @@ function organiserAppDevRoute(): Plugin {
 }
 
 /**
+ * Ask the backend which brand a public ``/{prefix}/{slug}`` page wears.
+ *
+ * Prod bakes this into the served HTML: the entity behind the slug
+ * names the tenant, and the tenant names the brand folder. The dev
+ * server serves the shells itself and has no database, so it asks the
+ * one process that does. An unreachable backend or an unknown slug
+ * falls back to the house brand, which is what prod serves for a slug
+ * that resolves to nothing.
+ */
+async function publicBrandSlug(prefix: string, slug: string): Promise<string> {
+  const port = process.env.E2E_API_PORT ?? "8000";
+  try {
+    const res = await fetch(`http://localhost:${port}/api/v1/dev-public-brand/${prefix}/${slug}`);
+    if (!res.ok) return HOUSE_BRAND;
+    return ((await res.json()) as { slug: string }).slug;
+  } catch {
+    return HOUSE_BRAND;
+  }
+}
+
+/**
  * Substitute ``<!-- OPKOMST_BRAND_INJECTION -->`` in every HTML shell,
  * exactly as ``backend/services/brand.py::head`` does in production:
  * the first-paint colours, the palette stylesheet, the icons and
@@ -202,24 +225,23 @@ function brandDevInjection(): Plugin {
   return {
     name: "opkomst-brand-dev-injection",
     apply: "serve",
-    transformIndexHtml(html, ctx) {
+    async transformIndexHtml(html, ctx) {
       // Which organisation's brand this page wears. In prod the tenant
       // comes from the URL (organiser app) or the entity behind the
-      // slug (public pages). Dev has no database, so: a first segment
-      // that names a brand folder is that organisation; a public
-      // mini-app path is the default local tenant, since the entity it
-      // would resolve to can't be looked up here; anything else belongs
-      // to no organisation and gets the house brand, which is the
-      // personal app, exactly as prod serves it.
+      // slug (public pages). Dev makes the same two decisions: a first
+      // segment that names a brand folder is that organisation, and a
+      // public mini-app path is whoever owns the entity behind the
+      // slug, which only the database knows, so the backend is asked.
+      // Every other path belongs to no organisation and gets the house
+      // brand, which is the personal app, exactly as prod serves it.
       // ``originalUrl`` is the path the visitor asked for; ``ctx.path``
       // is the fallback for the shells Vite serves directly.
       const path = (ctx.originalUrl ?? ctx.path ?? "").split("?")[0];
-      const first = path.split("/")[1] ?? "";
-      const isPublicPage = /^\/[efdc]\//.test(path);
+      const [, first = "", second = ""] = path.split("/");
       const slug = existsSync(`${BRANDS_DIR}/${first}/brand.json`)
         ? first
-        : isPublicPage
-          ? "rsp"
+        : PUBLIC_MINI_APP.test(path)
+          ? await publicBrandSlug(first, second)
           : HOUSE_BRAND;
       const dir = `${BRANDS_DIR}/${slug}`;
       const m = JSON.parse(readFileSync(`${dir}/brand.json`, "utf-8"));

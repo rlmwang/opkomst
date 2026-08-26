@@ -110,10 +110,16 @@ def _ensure_event(
         period_weeks=1,
         cycle_slots=cycle_slots,
         span_weeks=weekly_weeks,
+        # The demo data shows the app with its questions asked, its mail
+        # on and its events on the agenda. A real event starts with every
+        # switch off and its organiser turns on what they want.
         source_options=source_options,
+        source_enabled=bool(source_options),
         help_options=help_options,
+        help_enabled=bool(help_options),
         feedback_enabled=True,
         reminder_enabled=True,
+        listed=True,
         chapter_id=chapter_id,
         created_by=created_by,
         locale="nl",
