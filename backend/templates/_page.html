@@ -1,8 +1,13 @@
 {#- Shared chrome for the written pages and the privacy policy.
 
-    Server-rendered, no JavaScript, no bundle. A page written to be
-    found should be readable in the HTML that arrives, and these carry
-    no ad tag as a consequence rather than as a special case.
+    Server-rendered and carrying no bundle: a page written to be found
+    should be readable in the HTML that arrives, not after a bundle has
+    loaded and rendered.
+
+    The one script any of these pages loads is the ad tag, on the pages
+    that are passed ``ads`` (``routers/privacy.py``), which is the
+    written pages and never the policy. The reading text is already on
+    screen before it runs.
 
     A child template fills ``content``. Everything else, including the
     footer, is here so the pages cannot drift apart. -#}
@@ -72,6 +77,35 @@
     .site-footer ul { list-style: none; padding: 0; margin: 0 0 0.75rem; }
     .site-footer li { margin: 0.25rem 0; }
     .site-footer a { color: var(--brand-text-muted); }
+    /* The advertising slot, in the shape ``docs/ads.md`` describes and
+     * ``public_shared/AdSlot.vue`` renders in the app: rails pinned to
+     * the window edges well clear of the text, or one banner at the
+     * foot of the page. The rules live twice because these pages carry
+     * no bundle on purpose, so they cannot reach the component's own
+     * styles; ``tests/test_ads.py`` pins the breakpoint and both box
+     * sizes against the component so the two cannot drift. */
+    .ad-rail { position: fixed; top: 50%; transform: translateY(-50%); width: 178px; }
+    .ad-rail-left { left: 16px; }
+    .ad-rail-right { right: 16px; }
+    .ad-banner { width: 338px; max-width: 100%; margin: 2.5rem auto 0; }
+    .ad-label {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: var(--brand-text-muted);
+      font-size: 0.6875rem;
+      letter-spacing: 0.04em;
+      text-transform: lowercase;
+      opacity: 0.7;
+    }
+    .ad-box {
+      border: 1px dashed var(--brand-border);
+      border-radius: 6px;
+      padding: 8px;
+      overflow: hidden;
+      box-sizing: content-box;
+    }
+    .rail-box { width: 160px; height: 600px; }
+    .banner-box { width: 320px; height: 50px; }
     table { border-collapse: collapse; margin: 1rem 0; }
     th, td { text-align: left; padding: 0.375rem 1rem 0.375rem 0; vertical-align: top; }
     th { font-weight: 600; }
@@ -88,6 +122,79 @@
   </header>
 
   {% block content %}{% endblock %}
+
+  {%- if ads %}
+  {#- Advertising. Only where ``ads`` is passed, which is the written
+      pages and never the privacy policy the consent dialog links to.
+
+      The element is empty and the script fills it, because the choice
+      between the rails and the banner has to decide whether the unit is
+      *created*: an ad script measures its container, and one hidden by
+      a media query is a zero-width box it refuses to fill. That is the
+      same reason ``AdSlot.vue`` resolves the breakpoint in script
+      rather than in CSS. -#}
+  <div id="ad-slot"
+       data-client="{{ ads.client_id }}"
+       data-rail="{{ ads.rail_slot or '' }}"
+       data-banner="{{ ads.banner_slot or '' }}"></div>
+  <script nonce="{{ csp_nonce }}">
+    (function () {
+      var el = document.getElementById("ad-slot");
+      var client = el.getAttribute("data-client");
+      /* 16 + 178 + 64 + 720 + 64 + 178 + 16: the reading column, a
+         framed rail either side, and the gutter that keeps them off
+         the text. Mirrors ``RAILS_FROM`` in ``AdSlot.vue``. */
+      var wide = window.matchMedia("(min-width: 1236px)").matches;
+      var unit = wide ? el.getAttribute("data-rail") : el.getAttribute("data-banner");
+      /* A client id with no unit id yet is step one of turning this on:
+         the tag loads so AdSense can verify the site, and there is
+         nothing to render. Better an unbroken page than a box saying
+         so, which is what the app shows only because it must hold the
+         column's width open. */
+      if (!unit) { loadTag(); return; }
+      function fill(parent, size) {
+        var label = document.createElement("span");
+        label.className = "ad-label";
+        label.textContent = "Advertentie";
+        var box = document.createElement("div");
+        box.className = "ad-box " + size;
+        var ins = document.createElement("ins");
+        ins.className = "adsbygoogle";
+        ins.style.display = "block";
+        ins.style.width = "100%";
+        ins.style.height = "100%";
+        ins.setAttribute("data-ad-client", client);
+        ins.setAttribute("data-ad-slot", unit);
+        box.appendChild(ins);
+        parent.appendChild(label);
+        parent.appendChild(box);
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      }
+      if (wide) {
+        ["left", "right"].forEach(function (side) {
+          var rail = document.createElement("aside");
+          rail.className = "ad-rail ad-rail-" + side;
+          document.body.appendChild(rail);
+          fill(rail, "rail-box");
+        });
+      } else {
+        el.className = "ad-banner";
+        fill(el, "banner-box");
+      }
+      loadTag();
+      /* The tag brings Google's consent dialog with it, so this is the
+         only thing on these pages that can put a cookie banner on the
+         screen. Without a client id it never runs. */
+      function loadTag() {
+        var tag = document.createElement("script");
+        tag.async = true;
+        tag.crossOrigin = "anonymous";
+        tag.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(client);
+        document.head.appendChild(tag);
+      }
+    })();
+  </script>
+  {%- endif %}
 
   {#- The colophon, not a nav bar: these are places you go instead of
       the task, so they sit below it. Built from ``services/content.py``

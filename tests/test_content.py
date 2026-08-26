@@ -37,9 +37,11 @@ def test_each_written_page_is_served_and_describes_itself(client, page) -> None:
 
 
 @pytest.mark.parametrize("page", PAGES, ids=[p.slug for p in PAGES])
-def test_a_written_page_loads_no_javascript(client, page) -> None:
-    """No bundle, so no ad tag and no consent dialog, and nothing to
-    render before the text is readable."""
+def test_a_written_page_loads_nothing_without_a_network(client, page) -> None:
+    """No bundle either way, and with no ``ADSENSE_CLIENT_ID`` no script
+    at all: nothing runs before the text is readable, and nothing can
+    put a consent dialog in front of it. What a configured deployment
+    adds is pinned in ``tests/test_ads.py``."""
     body = client.get(f"/{page.slug}").text
     assert "<script" not in body.lower() or "application/ld+json" in body
     assert "googlesyndication" not in body

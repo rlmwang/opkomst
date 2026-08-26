@@ -7,9 +7,9 @@ thing in the app that solves it.
 
 Server-rendered rather than routes in the SPA, for the same reason
 ``/privacy`` is: a page written to be found should be readable in the
-HTML that arrives, not after a bundle has loaded and rendered. They
-also load no JavaScript at all, which keeps them fast and keeps the ad
-tag off them.
+HTML that arrives, not after a bundle has loaded and rendered. The text
+is on screen before anything else runs, including the ad tag these
+pages carry (``docs/ads.md``); the policy page next door carries none.
 
 This module is the single list. The router serves from it, the sitemap
 is generated from it, the footer is built from it, and

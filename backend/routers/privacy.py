@@ -55,10 +55,27 @@ def _render(request: Request, template: str, **context: object) -> HTMLResponse:
 def _written_page(slug: str, request: Request) -> HTMLResponse:
     page = BY_SLUG[slug]
     traffic.record("content")
+    # These are house-brand pages and they carry advertising, on the
+    # terms in ``docs/ads.md``: rails at the window edges on a wide
+    # screen, one banner at the foot of the page otherwise, nothing at
+    # all until a network is configured. ``ads_allowed`` is what
+    # ``SecurityHeadersMiddleware`` reads to pick the loosened policy,
+    # and it stays false without a client id so an unconfigured
+    # deployment keeps the strict one.
+    #
+    # ``/privacy`` next door deliberately gets none of this: Google's
+    # consent dialog links there, and a dialog that reappears on the
+    # page explaining it is the thing their policy is asking us to
+    # avoid. ``tests/test_ads.py`` pins that.
+    ads = brand_svc.payload(brand_svc.HOUSE_BRAND)["ads"]
+    ads = ads if ads and ads["client_id"] else None
+    request.state.ads_allowed = ads is not None
     return _render(
         request,
         f"content/{page.slug}.html",
         page=page,
+        ads=ads,
+        csp_nonce=request.state.csp_nonce,
         page_title=page.title,
         page_description=page.description,
         canonical_url=f"{_PUBLIC_BASE}/{page.slug}",

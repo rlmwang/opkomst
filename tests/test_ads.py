@@ -17,6 +17,8 @@ Design and reasoning: ``docs/ads.md``.
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 
 from backend.services import brand as brand_svc
@@ -58,6 +60,7 @@ def configured(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr("backend.services.brand.settings", fake)
     monkeypatch.setattr("backend.routers.spa.settings", fake)
     monkeypatch.setattr("backend.routers.ads_txt.settings", fake)
+    monkeypatch.setattr("backend.routers.privacy.settings", fake)
     return fake
 
 
@@ -203,3 +206,53 @@ def test_a_house_brand_page_gets_the_strict_policy_without_a_network(client) -> 
     response = client.get("/events")
     csp = response.headers["content-security-policy"]
     assert "googlesyndication" not in csp
+
+
+def test_a_written_page_carries_the_slot_once_configured(client, configured) -> None:
+    """The written pages are house-brand pages and they carry ads
+    (``docs/ads.md``). The tag, the publisher id and the unit ids all
+    have to arrive in the HTML, because there is no bundle here to
+    fetch them later."""
+    body = client.get("/datumprikker-zonder-account").text
+    assert "pagead2.googlesyndication.com" in body
+    assert "ca-pub-0000000000000000" in body
+    assert '"1111111111"' in body or "1111111111" in body
+    assert "2222222222" in body
+    csp = client.get("/datumprikker-zonder-account").headers["content-security-policy"]
+    assert "https://pagead2.googlesyndication.com" in csp
+
+
+def test_the_written_pages_advertise_under_a_nonce(client, configured) -> None:
+    """The slot is built by an inline script, and the strict-by-default
+    ``script-src`` has no ``'unsafe-inline'``. Without the nonce the
+    browser drops it and the page silently carries no ad at all."""
+    response = client.get("/vrijwilligers-inroosteren")
+    nonce = response.headers["content-security-policy"].split("'nonce-", 1)[1].split("'", 1)[0]
+    assert f'<script nonce="{nonce}">' in response.text
+
+
+def test_an_unconfigured_deployment_keeps_the_written_pages_clean(client) -> None:
+    """No client id, no tag, no loosened policy: the pages are exactly
+    what they were before advertising existed."""
+    response = client.get("/aanmeldformulier-zonder-google")
+    assert "googlesyndication" not in response.text
+    assert "googlesyndication" not in response.headers["content-security-policy"]
+
+
+def test_the_written_pages_and_the_component_agree_on_the_slot() -> None:
+    """The rails, the banner and the breakpoint exist twice: once in
+    ``AdSlot.vue`` for the app, once inline in ``templates/_page.html``
+    because these pages carry no bundle to reach the component. Nothing
+    but this test stops the two shapes from drifting."""
+    root = pathlib.Path(__file__).resolve().parent.parent
+    component = (root / "frontend" / "src" / "public_shared" / "AdSlot.vue").read_text(encoding="utf-8")
+    unit = (root / "frontend" / "src" / "public_shared" / "AdUnit.vue").read_text(encoding="utf-8")
+    page = (root / "backend" / "templates" / "_page.html").read_text(encoding="utf-8")
+    assert "(min-width: 1236px)" in component and "(min-width: 1236px)" in page
+    for size in ("width: 160px;", "height: 600px;", "width: 320px;", "height: 50px;"):
+        assert size in component, size
+        assert size in page, size
+    # The class the tag looks for, and the attributes it reads off it.
+    for token in ('class="adsbygoogle"', "data-ad-client", "data-ad-slot"):
+        assert token in unit, token
+        assert token.replace('class="adsbygoogle"', '"adsbygoogle"') in page, token

@@ -138,9 +138,25 @@ on top of it on a small screen.
 
 ### Where the ads run
 
-Both formats run on every house-brand page: the root app and the public
-sign-up, form, datepoll and roster pages owned by personal accounts.
-The public pages carry most of the traffic, which is the point.
+Both formats run on every house-brand page: the root app, the public
+sign-up, form, datepoll and roster pages owned by personal accounts,
+and the written pages in `backend/templates/content/`. The public pages
+carry most of the traffic, which is the point.
+
+The written pages reach the same two formats by a different route,
+because they carry no bundle and so cannot mount `AdSlot.vue`: the slot
+is built by a short inline script in `templates/_page.html`, under the
+per-response CSP nonce. It makes the same decision the component makes
+and for the same reason, choosing between rails and banner before the
+unit is created rather than hiding one with a media query. The shapes
+exist twice and `tests/test_ads.py` pins them against each other.
+
+Two things are deliberately different there. A client id with no unit
+id renders nothing at all rather than the app's placeholder box, since
+there is no column width to hold open on a page of text. And
+`/privacy`, served by the same template, is passed no `ads` at all: the
+consent dialog links to it, and Google asks that the page it links to
+not be one the dialog covers.
 
 Two costs that follow from including them, both worth knowing rather
 than discovering:
@@ -212,7 +228,8 @@ matters because the earlier steps are what let the later ones verify.
 1. **Set `ADSENSE_CLIENT_ID` and deploy.** The `ca-pub-…` value from
    the account. On its own this publishes `/ads.txt`, which is how
    AdSense confirms that the account and the domain belong to the same
-   person, and it starts loading the ad tag. The two slot ids can wait:
+   person, and it starts loading the ad tag on the app and on the
+   written pages both. The two slot ids can wait:
    without them the slot renders its unconfigured state, and the page
    already carries the tag that verification looks for.
 2. **Add the site in AdSense and let it verify.** Verification is
