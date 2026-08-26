@@ -41,15 +41,23 @@ router.isReady().finally(() => {
        long the message text happens to be. -->
   <ConfirmDialog :style="{ width: '420px' }" />
 
-  <router-view />
-
-  <!-- The colophon: the written pages, the policy and the source. Only
-       on the house brand; an organisation's pages are theirs. -->
-  <SiteFooter />
+  <!-- The shell is a column as tall as the viewport and this is the
+       part of it that grows, so the colophon lands on the bottom edge
+       of the screen on a page with too little content to push it
+       there, instead of floating halfway up under the last card. -->
+  <div class="app-main">
+    <router-view />
+  </div>
 
   <!-- Advertising, on the pages that carry any. ``AdSlot`` decides:
        an organisation's app gets nothing at all. -->
   <AdSlot :locale="(locale as 'nl' | 'en')" />
+
+  <!-- The colophon: the written pages, the policy and the source. Only
+       on the house brand; an organisation's pages are theirs. Last on
+       the page, below the banner: it is the bottom edge of the site,
+       and an ad underneath it read as a footer of its own. -->
+  <SiteFooter />
 
   <Transition name="app-loading-fade">
     <div v-if="!ready && showLoader" class="app-loading" role="status" aria-label="Laden…">
@@ -58,7 +66,25 @@ router.isReady().finally(() => {
   </Transition>
 </template>
 
+<!-- Global on purpose: the element that has to be the column is the
+     mount point, which is outside every component. Only this bundle
+     mounts an App.vue, so nothing else sees it. Inside ``@layer app``
+     like every other global rule, so PrimeVue's runtime-injected
+     styles are not trampled (see ``main.ts``). -->
+<style>
+@layer app {
+  #app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+}
+</style>
+
 <style scoped>
+.app-main {
+  flex: 1 0 auto;
+}
 .app-loading {
   position: fixed;
   inset: 0;

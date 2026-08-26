@@ -49,31 +49,43 @@ const PAGES = [
 const LANDING_PATHS = ["/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"];
 
 const show = computed(() => isPersonalApp() && LANDING_PATHS.includes(route.path));
+
+// The rule above the links is the width of the page's own content, so
+// it lines up with whatever horizontal line the page already has: the
+// landing page's "of log in" divider inside its wide column, the four
+// create pages' 720px form column. Wearing the page's own container
+// class is what keeps the two in step when either width changes.
+const column = computed(() => (route.path === "/" ? "container-wide" : "container"));
 </script>
 
 <template>
   <footer v-if="show" class="site-footer">
-    <nav class="footer-links" :aria-label="t('footer.label')">
-      <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.label }}</a>
-      <a href="/privacy">{{ t("footer.privacy") }}</a>
-      <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
-    </nav>
+    <div :class="column">
+      <nav class="footer-links" :aria-label="t('footer.label')">
+        <a v-for="page in PAGES" :key="page.slug" :href="`/${page.slug}`">{{ page.label }}</a>
+        <a href="/privacy">{{ t("footer.privacy") }}</a>
+        <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
+      </nav>
+    </div>
   </footer>
 </template>
 
 <style scoped>
 /* One wrapping row of short names, in the muted treatment the
- * disclosure card uses. A colophon competes with nothing above it. */
+ * disclosure card uses. A colophon competes with nothing above it.
+ *
+ * The rule sits on the links rather than on the footer, so it stops
+ * where the page's content stops instead of running out to the edges
+ * of the window. */
 .site-footer {
-  max-width: 720px;
-  margin: 3rem auto 0;
-  padding: 1.25rem 1rem 2rem;
-  border-top: 1px solid var(--brand-border);
+  margin-top: 1.5rem;
 }
 .footer-links {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--brand-border);
 }
 .footer-links a {
   color: var(--brand-text-muted);
