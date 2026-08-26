@@ -296,14 +296,15 @@ Four of those pages are the existing form pages with the resource name
 changed, which is what `createEntityCrud` and the page shells were
 extracted for.
 
-**The landing page needs a decision that is not mine.** `docs/focus.md`
-made it four tiles in a 2x2 grid, deliberately, and a fifth tile is a
-2x3 grid with a gap or a 3x2 with a different rhythm. The alternatives
-are hiding quizzes behind the forms tile (which buries the feature) or
-leaving the root at four and reaching quizzes from the forms list
-(which makes it a sub-feature, contradicting everything above). My
-recommendation is the 2x3 grid, and it is worth looking at before it is
-built.
+**The landing page becomes two columns and three rows.** Decided.
+`docs/focus.md` made it four tiles in a 2x2 grid deliberately, and the
+fifth goes below the other four rather than into a third column: the
+grid is already two columns at every width (`PersonalIndexPage`), so
+this is the existing rule continuing, not a new layout. The last tile
+sits alone on its row, which is a gap and not a problem, and the two
+alternatives are worse. Hiding quizzes behind the forms tile buries
+them; reaching them only from the forms list makes them a sub-feature,
+which contradicts everything above.
 
 ---
 
