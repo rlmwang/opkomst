@@ -1,40 +1,55 @@
 {% extends "_page.html" %}
 {% block content %}
 <h1>Aanmeldformulier maken zonder Google Forms</h1>
-<p class="lede">Google Forms werkt prima. Het probleem is niet het
-formulier, het is waar de antwoorden terechtkomen en wat je deelnemers
-moeten doorlopen om er iets in te zetten.</p>
+<p class="lede">Google Forms werkt prima. Het bezwaar zit niet in het
+formulier, maar in wat je deelnemers ervoor moeten doorlopen en waar hun
+antwoorden terechtkomen.</p>
 
-<h2>Waarom mensen wisselen</h2>
+<h2>Waarom mensen overstappen</h2>
 <ul>
-  <li>Deelnemers krijgen een Google-inlogscherm te zien, of denken dat
-    ze dat krijgen, en haken af.</li>
-  <li>De antwoorden staan bij een bedrijf waarvan het verdienmodel
-    advertenties is.</li>
-  <li>Je wilt niet dat de mailadressen van je deelnemers ergens blijven
-    staan nadat het evenement voorbij is.</li>
-  <li>Het formulier ziet eruit als een formulier, niet als iets van
-    jullie.</li>
+  <li><strong>Deelnemers zien een Google-scherm.</strong> Een deel van
+    hen denkt dat er ingelogd moet worden en haakt af, ook als dat niet
+    hoeft.</li>
+  <li><strong>De antwoorden staan bij een advertentiebedrijf.</strong>
+    Dat is voor de meeste groepen geen plek voor de aanmeldingen van hun
+    leden.</li>
+  <li><strong>Het formulier is niet van jullie.</strong> Het ziet eruit
+    als een Google-formulier met jullie naam erboven.</li>
 </ul>
 
 <h2>Wat je hier krijgt</h2>
 <table>
-  <tr><th>Aanmelden</th><td>Eén link. Geen account voor jou, geen account voor de deelnemer.</td></tr>
-  <tr><th>Vragen</th><td>Zelf samen te stellen: tekst, meerkeuze, of een cijfer.</td></tr>
-  <tr><th>Mailadres</th><td>Optioneel, versleuteld opgeslagen, en gewist zodra de mails die jij aanzette verstuurd zijn.</td></tr>
+  <tr><th>Aanmelden</th><td>Eén link. Geen account, niet voor jou en niet voor de deelnemer.</td></tr>
+  <tr><th>Vragen</th><td>Zelf samen te stellen: open tekst, meerkeuze, of een cijfer op een schaal.</td></tr>
+  <tr><th>Naam</th><td>Een schuilnaam mag. Het gaat om het antwoord, niet om wie het gaf.</td></tr>
+  <tr><th>Mailadres</th><td>Wordt niet gevraagd. Een vragenlijst verstuurt geen mail, dus er valt niets te bewaren.</td></tr>
   <tr><th>Cookies</th><td>Geen.</td></tr>
   <tr><th>Prijs</th><td>Gratis.</td></tr>
 </table>
 
+<h2>Inloggen zonder wachtwoord</h2>
+<p>Je maakt de vragenlijst eerst en vult daarna pas je mailadres in. Er
+is geen wachtwoord: je krijgt een link in je mail, die één keer werkt en
+na een half uur verloopt.</p>
+<p>Dat is niet minder veilig dan een wachtwoord, eerder het
+tegenovergestelde. Een wachtwoord dat niet bestaat, kan niet uitlekken
+bij een inbraak, niet hergebruikt worden op een andere site, en niet uit
+je worden gevist. En bij elke dienst mét wachtwoord kan wie in je mail
+kan ook je wachtwoord opnieuw instellen: je mailbox is daar dus net zo
+goed de sleutel, met een wachtwoord ernaast dat alleen maar kan
+misgaan.</p>
+
 <h2>Wat je niet krijgt</h2>
-<p>Geen logica die vragen overslaat op basis van eerdere antwoorden,
-geen betalingen, en geen koppeling met een spreadsheet. Als je dat nodig
-hebt, is dit niet het juiste gereedschap, en dat is een eerlijker
-antwoord dan het half proberen.</p>
+<p>Vragen die zich aanpassen aan eerdere antwoorden, betalingen, en een
+koppeling met een spreadsheet: dat kan hier geen van alle. Heb je een
+daarvan nodig, dan is dit niet het juiste gereedschap. Dat is een
+eerlijker antwoord dan het half proberen.</p>
 
 <a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
 
 <p class="muted">Organiseer je een evenement in plaats van een
-vragenlijst? Maak dan een
-<a href="/wat-gebeurt-er-met-je-mailadres">aanmeldpagina met herinnering</a>.</p>
+vragenlijst? Dan kun je ook een aanmeldpagina maken, met een herinnering
+vooraf en een vragenlijst achteraf. Lees eerst
+<a href="/wat-gebeurt-er-met-je-mailadres">wat er dan met een mailadres
+gebeurt</a>.</p>
 {% endblock %}

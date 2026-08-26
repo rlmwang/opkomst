@@ -1,45 +1,55 @@
 {% extends "_page.html" %}
 {% block content %}
 <h1>Wat er met je e-mailadres gebeurt</h1>
-<p class="lede">Kort: het is optioneel, het staat versleuteld, het wordt
-gebruikt voor de mails die de organisator heeft aangezet, en daarna
-wordt het gewist. Hieronder staat wat elk van die vier dingen precies
-betekent.</p>
+<p class="lede">Kort: je hoeft het niet te geven, het staat versleuteld,
+het wordt gebruikt voor hooguit twee mails die de organisator heeft
+aangezet, en daarna wordt het gewist. Hieronder staat wat elk van die
+vier dingen betekent.</p>
+<p>Dit gaat over aanmelden voor een evenement. Een vragenlijst en een
+datumprikker vragen helemaal niet om een adres, want ze versturen geen
+mail.</p>
 
-<h2>Optioneel</h2>
+<h2>Je hoeft het niet te geven</h2>
 <p>Je kunt je aanmelden zonder mailadres. Het veld staat er alleen als
-de organisator een herinnering of een vragenlijst heeft aangezet: staan
-die allebei uit, dan wordt er niet om gevraagd, want er zou niets mee
-gebeuren.</p>
+de organisator een herinnering of een vragenlijst achteraf heeft
+aangezet. Staan die allebei uit, dan wordt er niet om gevraagd, want er
+zou niets mee gebeuren.</p>
 
-<h2>Versleuteld</h2>
-<p>Het adres wordt versleuteld opgeslagen. In de database staat geen
-leesbaar adres, en de sleutel staat niet in de database.</p>
+<h2>Het staat versleuteld</h2>
+<p>In de database staat geen leesbaar adres, en de sleutel om het te
+ontcijferen staat niet in diezelfde database. Wie de database in handen
+krijgt, heeft daarmee nog geen adressenlijst.</p>
 
-<h2>Eén keer gebruikt</h2>
-<p>Er zijn precies twee mails die je kunt krijgen, en beide zijn een
-keuze van de organisator:</p>
+<h2>Er gaan hooguit twee mails naar toe</h2>
+<p>Twee, en allebei alleen als de organisator ze heeft aangezet:</p>
 <ul>
   <li>Een herinnering, een paar dagen voor het evenement.</li>
   <li>Een korte vragenlijst, kort na afloop.</li>
 </ul>
-<p>Er is geen nieuwsbrief, geen aankondiging van een volgend evenement,
-en geen manier voor de organisator om je adres te exporteren. De
-organisator ziet je naam en met hoeveel mensen je komt. Je adres ziet
-die niet.</p>
+<p>Er is geen nieuwsbrief en geen aankondiging van een volgend
+evenement. De organisator ziet je naam en met hoeveel mensen je komt,
+maar je adres niet: er is ook geen knop om de adressen te exporteren,
+omdat de app ze zelf alleen kan lezen op het moment dat ze verstuurd
+worden.</p>
 
-<h2>Daarna gewist</h2>
+<h2>Daarna wordt het gewist</h2>
 <p>Zodra de mails die voor jou klaarstonden verstuurd zijn, wordt het
 adres verwijderd. Uiterlijk zeven dagen na het evenement gebeurt dat
-sowieso, ook als er iets misging bij het versturen.</p>
+hoe dan ook, ook als er onderweg iets misging.</p>
 <p class="note">De antwoorden die je in de vragenlijst geeft, zijn niet
 aan je aanmelding gekoppeld. Er is geen kolom die de twee met elkaar
 verbindt, dus ook wij kunnen niet zien wie wat heeft geantwoord.</p>
 
-<h2>Waarom zo omslachtig</h2>
+<h2>Waarom het gewist wordt</h2>
 <p>Omdat een adressenlijst die blijft bestaan vroeg of laat gebruikt
-wordt, gelekt wordt, of opgevraagd wordt. De enige lijst die dat niet
-kan overkomen, is de lijst die er niet meer is.</p>
+wordt, gelekt wordt, of opgevraagd wordt. De enige lijst waar dat niet
+mee kan gebeuren, is de lijst die er niet meer is.</p>
+
+<h2>En bij een takenrooster?</h2>
+<p>Daar mag je een adres achterlaten om een berichtje te krijgen als je
+aan de beurt bent. Dat adres blijft staan zolang je meedoet, want de
+herinneringen blijven komen, en het verdwijnt zodra je ze uitzet of je
+uitschrijft.</p>
 
 <a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
 
