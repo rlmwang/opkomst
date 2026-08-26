@@ -56,6 +56,7 @@ SURFACES = (
     "public_chore",
     "chapter_agenda",
     "privacy",
+    "content",
 )
 
 # What happened on it. ``view`` is the page being served, ``submit`` is

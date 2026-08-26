@@ -11,7 +11,15 @@
       Marker comment below; do not remove.
     -->
     <!-- OPKOMST_BRAND_INJECTION -->
-    <title>Opkomst</title>
+    <!--
+      Per-page title, description and canonical, for the five paths a
+      stranger can reach. ``backend/routers/spa.py::_app_head_meta``
+      substitutes this; every other route gets a bare title and
+      ``noindex``, because an organiser's dashboard has no business
+      being described to a crawler. The Vite dev server fills it with
+      the same thing. Marker comment below; do not remove.
+    -->
+    <!-- OPKOMST_HEAD_INJECTION -->
     <!--
       Inline first-paint loader. Visible the instant the HTML
       arrives, replaced when Vue mounts onto ``#app``. Kills the

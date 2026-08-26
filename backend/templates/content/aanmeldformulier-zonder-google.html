@@ -1,0 +1,40 @@
+{% extends "_page.html" %}
+{% block content %}
+<h1>Aanmeldformulier maken zonder Google Forms</h1>
+<p class="lede">Google Forms werkt prima. Het probleem is niet het
+formulier, het is waar de antwoorden terechtkomen en wat je deelnemers
+moeten doorlopen om er iets in te zetten.</p>
+
+<h2>Waarom mensen wisselen</h2>
+<ul>
+  <li>Deelnemers krijgen een Google-inlogscherm te zien, of denken dat
+    ze dat krijgen, en haken af.</li>
+  <li>De antwoorden staan bij een bedrijf waarvan het verdienmodel
+    advertenties is.</li>
+  <li>Je wilt niet dat de mailadressen van je deelnemers ergens blijven
+    staan nadat het evenement voorbij is.</li>
+  <li>Het formulier ziet eruit als een formulier, niet als iets van
+    jullie.</li>
+</ul>
+
+<h2>Wat je hier krijgt</h2>
+<table>
+  <tr><th>Aanmelden</th><td>Eén link. Geen account voor jou, geen account voor de deelnemer.</td></tr>
+  <tr><th>Vragen</th><td>Zelf samen te stellen: tekst, meerkeuze, of een cijfer.</td></tr>
+  <tr><th>Mailadres</th><td>Optioneel, versleuteld opgeslagen, en gewist zodra de mails die jij aanzette verstuurd zijn.</td></tr>
+  <tr><th>Cookies</th><td>Geen.</td></tr>
+  <tr><th>Prijs</th><td>Gratis.</td></tr>
+</table>
+
+<h2>Wat je niet krijgt</h2>
+<p>Geen logica die vragen overslaat op basis van eerdere antwoorden,
+geen betalingen, en geen koppeling met een spreadsheet. Als je dat nodig
+hebt, is dit niet het juiste gereedschap, en dat is een eerlijker
+antwoord dan het half proberen.</p>
+
+<a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
+
+<p class="muted">Organiseer je een evenement in plaats van een
+vragenlijst? Maak dan een
+<a href="/wat-gebeurt-er-met-je-mailadres">aanmeldpagina met herinnering</a>.</p>
+{% endblock %}

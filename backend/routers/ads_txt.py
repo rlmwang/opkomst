@@ -1,9 +1,10 @@
-"""``/ads.txt`` and ``/robots.txt``: the two files a crawler asks for.
+"""``/ads.txt``, ``/robots.txt`` and ``/sitemap.xml``: the files a
+crawler asks for.
 
-Both are text served from the root, both would otherwise be answered by
-the SPA fallback with the app's HTML shell, and both are read by
-machines that quietly draw the wrong conclusion from that rather than
-erroring. They share a module for that reason.
+All three are served from the root, all three would otherwise be
+answered by the SPA fallback with the app's HTML shell, and all three
+are read by machines that quietly draw the wrong conclusion from that
+rather than erroring. They share a module for that reason.
 
 ``/ads.txt``: who is allowed to sell this site's inventory.
 
@@ -25,11 +26,28 @@ malformed file (see ``routers/spa.py``).
 """
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from ..config import settings
+from ..services.content import PAGES
 
 router = APIRouter(tags=["crawlers"], include_in_schema=False)
+
+_PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
+
+# What belongs in an index: the root, the four pages that make
+# something, the written pages, and the policy. Not an event, a form or
+# a roster: those are somebody's invitation to their own thing, they
+# expire, and they are ``noindex`` for that reason (see docs/seo.md).
+_SITEMAP_PATHS = (
+    "/",
+    "/events/new",
+    "/forms/new",
+    "/datepolls/new",
+    "/chores/new",
+    *(f"/{page.slug}" for page in PAGES),
+    "/privacy",
+)
 
 # Nothing here is secret, and the pages worth indexing are the public
 # ones. What a crawler should not spend its budget on is the organiser
@@ -43,6 +61,8 @@ Disallow: /auth/
 Disallow: /admin/
 Disallow: /register/
 Allow: /
+
+Sitemap: {base}/sitemap.xml
 """
 
 # The one relationship this site has: a direct account with Google, and
@@ -70,7 +90,10 @@ def robots_txt() -> PlainTextResponse:
     with an HTML page, which a crawler parses as an unusable file and
     treats as no rules at all: the right outcome by accident, from a
     response that says nothing anyone meant."""
-    return PlainTextResponse(_ROBOTS, headers={"Cache-Control": "public, max-age=3600"})
+    return PlainTextResponse(
+        _ROBOTS.format(base=_PUBLIC_BASE),
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.head("/ads.txt", include_in_schema=False)
@@ -85,5 +108,21 @@ def ads_txt() -> PlainTextResponse:
     line = f"{_GOOGLE_ADSYSTEM}, {publisher}, DIRECT, {_GOOGLE_CERTIFICATION_AUTHORITY}"
     return PlainTextResponse(
         line + "\n",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.head("/sitemap.xml", include_in_schema=False)
+@router.get("/sitemap.xml", response_class=Response)
+def sitemap() -> Response:
+    """Every URL worth indexing, and only those. No ``lastmod``: these
+    pages change when somebody edits them, which a build does not know,
+    and a date that is always today teaches a crawler to ignore the
+    field."""
+    urls = "".join(f"<url><loc>{_PUBLIC_BASE}{path}</loc></url>" for path in _SITEMAP_PATHS)
+    body = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
+    return Response(
+        content=body,
+        media_type="application/xml",
         headers={"Cache-Control": "public, max-age=3600"},
     )

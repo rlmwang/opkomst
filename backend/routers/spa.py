@@ -55,6 +55,7 @@ from ..services import image as image_svc
 from ..services import tenancy, traffic
 from ..services import tenants as tenants_svc
 from ..services.sanitize import html_to_text
+from ..services.slug import RESERVED_SLUGS
 
 _DIST = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
@@ -87,8 +88,20 @@ _BRAND_INJECTION_MARKER = "<!-- OPKOMST_BRAND_INJECTION -->"
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
+# Keeps a page out of search results without keeping a crawler out of
+# its links, so whatever it points at is still discovered.
+_NOINDEX = '<meta name="robots" content="noindex, follow">'
 
-def _og_head(*, name: str, description: str, canonical_url: str, image_url: str | None, brand_slug: str) -> str:
+
+def _og_head(
+    *,
+    name: str,
+    description: str,
+    canonical_url: str,
+    image_url: str | None,
+    brand_slug: str,
+    indexable: bool = False,
+) -> str:
     """Shared ``<head>`` markup: page title + Open Graph + Twitter
     Card tags. Drives the link-preview cards rendered by WhatsApp,
     Facebook, iMessage, Slack, Twitter, LinkedIn — all of which
@@ -127,6 +140,11 @@ def _og_head(*, name: str, description: str, canonical_url: str, image_url: str 
         f'<meta name="twitter:title" content="{en}">',
         f'<meta name="twitter:description" content="{ed}">',
     ]
+    if not indexable:
+        # ``noindex`` keeps it out of search listings and changes
+        # nothing about sharing it: the Open Graph card above is what a
+        # link preview reads, and ``follow`` leaves the links usable.
+        tags.append(_NOINDEX)
     if og_image:
         ei = html.escape(og_image, quote=True)
         tags.append(f'<meta property="og:image" content="{ei}">')
@@ -140,7 +158,7 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) 
     title is emitted; sharing a 404 link is rare enough that elaborate
     fallback metadata isn't worth the bytes."""
     if occurrence is None:
-        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>\n    {_NOINDEX}"
     event = occurrence.event
 
     # Description: topic if the organiser set one (it's the
@@ -174,7 +192,7 @@ def _build_form_head_meta(form: Form | None, slug: str, brand_slug: str) -> str:
     location / date, so the description is just the form name; the
     card uses the organiser's uploaded image when set."""
     if form is None:
-        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>\n    {_NOINDEX}"
     form_name = pick_localized(form.name_nl, form.name_en, form.locale) or ""
     return _og_head(
         name=form_name,
@@ -189,7 +207,7 @@ def _build_datepoll_head_meta(poll: Datepoll | None, slug: str, brand_slug: str)
     """Per-datepoll link-preview ``<head>``. Description is the poll's
     blurb if set, else its name; card uses the uploaded image when set."""
     if poll is None:
-        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>\n    {_NOINDEX}"
     poll_name = pick_localized(poll.name_nl, poll.name_en, poll.locale) or ""
     return _og_head(
         name=poll_name,
@@ -204,7 +222,7 @@ def _build_roster_head_meta(roster: Roster | None, slug: str, brand_slug: str) -
     """Per-roster link-preview ``<head>``. Description is the roster's
     blurb if set, else its name; card uses the uploaded image when set."""
     if roster is None:
-        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>"
+        return f"<title>{brand_svc.payload(brand_slug)['app_name']}</title>\n    {_NOINDEX}"
     roster_name = pick_localized(roster.name_nl, roster.name_en, roster.locale) or ""
     blurb = html_to_text(pick_localized(roster.description_nl, roster.description_en, roster.locale))
     return _og_head(
@@ -227,6 +245,7 @@ def _build_chapter_head_meta(chapter: Chapter | None, slug: str, brand_slug: str
         canonical_url=f"{_PUBLIC_BASE}/e/{slug}",
         image_url=None,
         brand_slug=brand_slug,
+        indexable=True,
     )
 
 
@@ -291,6 +310,7 @@ def _serve_admin_shell(tenant_slug: str, request: Request, *, status_code: int =
         (_DIST / "index.html")
         .read_text(encoding="utf-8")
         .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug, _nonce(request)), 1)
+        .replace(_HEAD_INJECTION_MARKER, _app_head_meta(request.url.path, tenant_slug), 1)
     )
     return HTMLResponse(rendered, status_code=status_code, headers={"Cache-Control": "no-store"})
 
@@ -304,6 +324,7 @@ def _serve_public_app(
     head_meta: str,
     brand_slug: str,
     request: Request,
+    status_code: int = 200,
 ) -> HTMLResponse:
     """Render one public mini-app shell with its payload inlined.
 
@@ -340,6 +361,7 @@ def _serve_public_app(
     )
     return HTMLResponse(
         rendered,
+        status_code=status_code,
         headers={"Cache-Control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300"},
     )
 
@@ -354,6 +376,83 @@ _APP_SURFACES = {
     "/datepolls/new": "create_datepoll",
     "/chores/new": "create_chore",
 }
+
+# What a search result for each of those should say. The same five
+# paths, because they are the only ones a stranger can reach: an
+# organiser's dashboard has no business being described to a crawler,
+# and anything not named here keeps the bare title.
+_APP_PAGE_META = {
+    "/": (
+        "opkomst.nu, aanmelden zonder gedoe",
+        "Maak een aanmeldpagina, een vragenlijst, een datumprikker of een rooster. "
+        "Eén link, geen account voor je deelnemers, geen cookies en geen tracking.",
+    ),
+    "/events/new": (
+        "Aanmeldpagina voor je evenement maken",
+        "Maak in een minuut een aanmeldpagina met één deelbare link. Deelnemers "
+        "hoeven geen account, en hun e-mailadres wordt na afloop gewist.",
+    ),
+    "/forms/new": (
+        "Vragenlijst maken zonder Google Forms",
+        "Stel je eigen vragen samen en deel één link. Geen account voor de "
+        "invuller, geen cookies, en de antwoorden blijven bij jou.",
+    ),
+    "/datepolls/new": (
+        "Datumprikker maken zonder account",
+        "Prik een datum met je groep via één link. Niemand hoeft een account te maken en er worden geen cookies gezet.",
+    ),
+    "/chores/new": (
+        "Takenrooster maken voor vrijwilligers",
+        "Verdeel terugkerende taken eerlijk over je vrijwilligers, met een rooster "
+        "dat iedereen kan zien en waar de beurten vanzelf rondgaan.",
+    ),
+}
+
+# One block on the root, which is what fills the richer result card.
+_JSON_LD = json.dumps(
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "opkomst.nu",
+        "url": _PUBLIC_BASE,
+        "applicationCategory": "BusinessApplication",
+        "inLanguage": "nl",
+        "description": _APP_PAGE_META["/"][1],
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+    },
+    ensure_ascii=False,
+)
+
+
+def _app_head_meta(path: str, brand_slug: str) -> str:
+    """Title, description and canonical for the pages worth finding.
+
+    Only the house brand gets any of this: an organisation's app is
+    theirs, sits behind a sign-in, and is ``Disallow``ed in robots.txt
+    anyway."""
+    normalised = path.rstrip("/") or "/"
+    meta = _APP_PAGE_META.get(normalised) if brand_slug == brand_svc.HOUSE_BRAND else None
+    if meta is None:
+        # Everything else says nothing to a crawler on purpose, and says
+        # so explicitly rather than by omission.
+        app_name = brand_svc.payload(brand_slug)["app_name"]
+        return f"<title>{app_name}</title>\n    {_NOINDEX}"
+    title, description = meta
+    tags = [
+        f"<title>{html.escape(title, quote=True)}</title>",
+        f'<meta name="description" content="{html.escape(description, quote=True)}">',
+        f'<link rel="canonical" href="{_PUBLIC_BASE}{normalised}">',
+        f'<meta property="og:title" content="{html.escape(title, quote=True)}">',
+        f'<meta property="og:description" content="{html.escape(description, quote=True)}">',
+        f'<meta property="og:url" content="{_PUBLIC_BASE}{normalised}">',
+        '<meta property="og:type" content="website">',
+        f'<meta property="og:site_name" content="{brand_svc.payload(brand_slug)["app_name"]}">',
+        '<meta name="twitter:card" content="summary">',
+    ]
+    if normalised == "/":
+        tags.append(f'<script type="application/ld+json">{_JSON_LD}</script>')
+    return "\n    ".join(tags)
+
 
 # The four tenant-free public URL prefixes, each with the resolver that
 # turns its slug back into the entity that owns it. ``brand_slug_for``
@@ -413,6 +512,8 @@ def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLRespons
         head_meta=_build_head_meta(occurrence, slug, brand_slug),
         brand_slug=brand_slug,
         request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if occurrence is not None else 404,
     )
 
 
@@ -431,6 +532,8 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
         head_meta=_build_form_head_meta(form, slug, brand_slug),
         brand_slug=brand_slug,
         request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if form is not None else 404,
     )
 
 
@@ -448,6 +551,8 @@ def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResp
         head_meta=_build_datepoll_head_meta(poll, slug, brand_slug),
         brand_slug=brand_slug,
         request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if poll is not None else 404,
     )
 
 
@@ -465,6 +570,8 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
         head_meta=_build_roster_head_meta(roster, slug, brand_slug),
         brand_slug=brand_slug,
         request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if roster is not None else 404,
     )
 
 
@@ -547,8 +654,18 @@ def mount(app: FastAPI) -> None:
             # itself: the personal side, in the house brand, based at
             # ``/``. Its router resolves ``/events``, ``/login`` and the
             # rest, and renders its own not-found page for anything it
-            # doesn't know — which is why this is a 200 and not a 404.
-            return _serve_admin_shell(brand_svc.HOUSE_BRAND, request)
+            # doesn't know.
+            #
+            # The status says which of those two it is. The server does
+            # not know every client-side route, but it does know the
+            # app's first-level vocabulary, because a chapter is
+            # forbidden from using those names: ``RESERVED_SLUGS``. A
+            # first segment outside that list is a path nothing serves,
+            # and answering 200 makes it a soft 404 that a crawler will
+            # keep coming back to. The page is the same either way, so a
+            # person sees no difference.
+            known = tenant_slug in RESERVED_SLUGS or tenant_slug == ""
+            return _serve_admin_shell(brand_svc.HOUSE_BRAND, request, status_code=200 if known else 404)
 
         # Inside the organisation now, so chapter reads are scoped to it.
         tenancy.bind(tenant.id, tenant.brand_slug)

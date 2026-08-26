@@ -1,0 +1,49 @@
+{% extends "_page.html" %}
+{% block content %}
+<h1>Wat er met je e-mailadres gebeurt</h1>
+<p class="lede">Kort: het is optioneel, het staat versleuteld, het wordt
+gebruikt voor de mails die de organisator heeft aangezet, en daarna
+wordt het gewist. Hieronder staat wat elk van die vier dingen precies
+betekent.</p>
+
+<h2>Optioneel</h2>
+<p>Je kunt je aanmelden zonder mailadres. Het veld staat er alleen als
+de organisator een herinnering of een vragenlijst heeft aangezet: staan
+die allebei uit, dan wordt er niet om gevraagd, want er zou niets mee
+gebeuren.</p>
+
+<h2>Versleuteld</h2>
+<p>Het adres wordt versleuteld opgeslagen. In de database staat geen
+leesbaar adres, en de sleutel staat niet in de database.</p>
+
+<h2>Eén keer gebruikt</h2>
+<p>Er zijn precies twee mails die je kunt krijgen, en beide zijn een
+keuze van de organisator:</p>
+<ul>
+  <li>Een herinnering, een paar dagen voor het evenement.</li>
+  <li>Een korte vragenlijst, kort na afloop.</li>
+</ul>
+<p>Er is geen nieuwsbrief, geen aankondiging van een volgend evenement,
+en geen manier voor de organisator om je adres te exporteren. De
+organisator ziet je naam en met hoeveel mensen je komt. Je adres ziet
+die niet.</p>
+
+<h2>Daarna gewist</h2>
+<p>Zodra de mails die voor jou klaarstonden verstuurd zijn, wordt het
+adres verwijderd. Uiterlijk zeven dagen na het evenement gebeurt dat
+sowieso, ook als er iets misging bij het versturen.</p>
+<p class="note">De antwoorden die je in de vragenlijst geeft, zijn niet
+aan je aanmelding gekoppeld. Er is geen kolom die de twee met elkaar
+verbindt, dus ook wij kunnen niet zien wie wat heeft geantwoord.</p>
+
+<h2>Waarom zo omslachtig</h2>
+<p>Omdat een adressenlijst die blijft bestaan vroeg of laat gebruikt
+wordt, gelekt wordt, of opgevraagd wordt. De enige lijst die dat niet
+kan overkomen, is de lijst die er niet meer is.</p>
+
+<a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
+
+<p class="muted">De volledige tekst staat in de
+<a href="/privacy">privacyverklaring</a>, en de code die dit doet is
+<a href="https://github.com/rlmwang/opkomst">openbaar</a>.</p>
+{% endblock %}

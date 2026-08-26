@@ -292,7 +292,14 @@ function brandDevInjection(): Plugin {
         tags.push(`<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`);
       }
       tags.push(`<script>window.__OPKOMST_BRAND__ = ${JSON.stringify(brand)};</script>`);
-      return html.replace("<!-- OPKOMST_BRAND_INJECTION -->", tags.join("\n    "));
+      // The backend substitutes per-page title, description and
+      // canonical here (``spa.py::_app_head_meta``). The dev server has
+      // no such table, so it fills the marker with the bare title the
+      // shell used to carry: enough to see a page, not a claim that the
+      // metadata is being tested locally.
+      return html
+        .replace("<!-- OPKOMST_BRAND_INJECTION -->", tags.join("\n    "))
+        .replace("<!-- OPKOMST_HEAD_INJECTION -->", `<title>${m.app_name}</title>`);
     },
   };
 }

@@ -1,6 +1,8 @@
 # Being findable
 
-Status: proposal, nothing built.
+Status: built, except the two items that are not code. Item 6 (the www
+DNS record) and item 1 (Search Console) are yours; everything else in
+the table at the bottom is shipped.
 
 The goal: someone looking for a way to run a sign-up or a date poll
 finds `opkomst.nu`, and the five pages a stranger can actually use are
@@ -275,23 +277,26 @@ loud before anyone measures it next week.
 
 ## Order of work
 
-| # | Item | Size | Part |
+| # | Item | State | Part |
 |---|---|---|---|
-| 1 | Search Console, baseline | console task | 4.1 |
-| 2 | `noindex, follow` on public entity pages | 1 hour | 2.1 |
-| 3 | Per-route title, description, canonical | half a day | 1.1 |
-| 4 | Real 404s for the two cases the server knows | 2 hours | 1.2 |
-| 5 | `/sitemap.xml` and the `Sitemap:` line | 1 hour | 1.4 |
-| 6 | www DNS and redirect | DNS task | 1.3 |
-| 7 | JSON-LD on the root | 1 hour | 1.5 |
-| 8 | The four content pages | a week of writing | 3.2 |
-| 9 | Same-tab house-brand logo link | 10 min | 3.3 |
-| 10 | The footer, once the content pages exist | half a day | 3.3 |
+| 1 | Search Console, baseline | **yours**: register and submit the sitemap | 4.1 |
+| 2 | `noindex, follow` on public entity pages | done | 2.1 |
+| 3 | Per-route title, description, canonical | done | 1.1 |
+| 4 | Real 404s for the two cases the server knows | done | 1.2 |
+| 5 | `/sitemap.xml` and the `Sitemap:` line | done | 1.4 |
+| 6 | www DNS and redirect | **yours**: DNS record plus redirect | 1.3 |
+| 7 | JSON-LD on the root | done | 1.5 |
+| 8 | The four content pages | done, four pages written | 3.2 |
+| 9 | Same-tab house-brand logo link | done | 3.3 |
+| 10 | The footer, once the content pages exist | done | 3.3 |
 
-Items 2 to 7 and 9 are about two days of engineering together. Item 8
-is the one that decides whether any of it matters, and item 10 waits
-for it: a footer linking to four pages that do not exist yet is four
-broken links.
+The four written pages live in ``backend/templates/content/``, listed
+once in ``services/content.py``, which the router, the sitemap and the
+footer all read. ``tests/test_content.py`` holds the guards: that each
+page serves and describes itself, that the five app pages no longer
+share a title, that an organiser page says ``noindex``, that a path
+nothing serves is a 404, and that the frontend's copy of the page list
+still matches the server's.
 
 ## What this deliberately does not do
 

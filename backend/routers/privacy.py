@@ -1,4 +1,5 @@
-"""``/privacy``: the privacy policy, served outside the app.
+"""The pages that are read rather than used: the policy and the
+written pages behind ``services/content.py``.
 
 A plain server-rendered page rather than a route in the SPA, for one
 reason that is not aesthetic. The consent dialog appears on every
@@ -26,10 +27,60 @@ from fastapi.templating import Jinja2Templates
 from ..config import settings
 from ..services import brand as brand_svc
 from ..services import traffic
+from ..services.content import BY_SLUG, PAGES
 
 router = APIRouter(tags=["privacy"], include_in_schema=False)
 
 _TEMPLATES = Jinja2Templates(directory=str(pathlib.Path(__file__).resolve().parent.parent / "templates"))
+
+
+_PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
+
+
+def _render(request: Request, template: str, **context: object) -> HTMLResponse:
+    """One chrome for every page here: the brand, the footer built from
+    the page list, and the canonical URL."""
+    return _TEMPLATES.TemplateResponse(
+        request,
+        template,
+        {
+            "brand": brand_svc.payload(brand_svc.HOUSE_BRAND),
+            "pages": PAGES,
+            **context,
+        },
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+def _written_page(slug: str, request: Request) -> HTMLResponse:
+    page = BY_SLUG[slug]
+    traffic.record("content")
+    return _render(
+        request,
+        f"content/{page.slug}.html",
+        page=page,
+        page_title=page.title,
+        page_description=page.description,
+        canonical_url=f"{_PUBLIC_BASE}/{page.slug}",
+    )
+
+
+# One route per page, not ``/{slug}``. A single-segment path parameter
+# here would sit in front of the SPA fallback and swallow every
+# one-segment URL in the app: ``/rsp``, ``/login``, ``/events``. Naming
+# each path means only these four are taken.
+for _page in PAGES:
+
+    def _handler(request: Request, _slug: str = _page.slug) -> HTMLResponse:
+        return _written_page(_slug, request)
+
+    router.add_api_route(
+        f"/{_page.slug}",
+        _handler,
+        methods=["GET", "HEAD"],
+        response_class=HTMLResponse,
+        include_in_schema=False,
+    )
 
 
 @router.head("/privacy", include_in_schema=False)
@@ -39,13 +90,15 @@ def privacy(request: Request) -> HTMLResponse:
     their own processing under their own policy; what is described here
     is what this app does, which is the same in either case."""
     traffic.record("privacy")
-    return _TEMPLATES.TemplateResponse(
+    return _render(
         request,
         "privacy.html",
-        {
-            "brand": brand_svc.payload(brand_svc.HOUSE_BRAND),
-            "contact_email": settings.privacy_contact_email,
-            "controller": settings.privacy_controller,
-        },
-        headers={"Cache-Control": "public, max-age=3600"},
+        contact_email=settings.privacy_contact_email,
+        controller=settings.privacy_controller,
+        page_title="Privacyverklaring",
+        page_description=(
+            "Wat opkomst.nu met gegevens doet: welke velden er gevraagd worden, "
+            "hoe lang een e-mailadres bewaard blijft, en wie er verder iets ziet."
+        ),
+        canonical_url=f"{_PUBLIC_BASE}/privacy",
     )

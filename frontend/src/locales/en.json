@@ -873,5 +873,10 @@
     "preview": {
       "open": "View questionnaire"
     }
+  },
+  "footer": {
+    "label": "Read more",
+    "privacy": "Privacy policy",
+    "source": "The source code of this app"
   }
 }

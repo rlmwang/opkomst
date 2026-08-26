@@ -4,6 +4,7 @@ import Toast from "primevue/toast";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import AdSlot from "@/public_shared/AdSlot.vue";
+import SiteFooter from "@/components/SiteFooter.vue";
 import { useI18n } from "vue-i18n";
 
 // Auth bootstrapping lives in the router guard — it's the one
@@ -41,6 +42,10 @@ router.isReady().finally(() => {
   <ConfirmDialog :style="{ width: '420px' }" />
 
   <router-view />
+
+  <!-- The colophon: the written pages, the policy and the source. Only
+       on the house brand; an organisation's pages are theirs. -->
+  <SiteFooter />
 
   <!-- Advertising, on the pages that carry any. ``AdSlot`` decides:
        an organisation's app gets nothing at all. -->

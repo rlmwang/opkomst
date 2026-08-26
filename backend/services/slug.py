@@ -6,12 +6,21 @@ from nanoid import generate
 # URL-safe alphabet, no easily-confused characters (no 0/O, 1/l/I).
 _ALPHABET = "23456789abcdefghijkmnpqrstuvwxyz"
 
+
 # The app's own first-level routes under ``/{tenant}/``. A chapter's
 # agenda lives at ``/{tenant}/{chapter}``, so a chapter slug that
 # matched one of these would shadow a page of the organiser app. The
 # collision suffixer treats them as taken, and
 # ``tests/test_chapter_agenda.py`` walks the router table so a route
 # added later can't quietly shadow a chapter that already exists.
+def _content_pages() -> tuple:
+    """Imported lazily: ``services.content`` is plain data, but keeping
+    the import inside the call avoids a cycle if it ever grows one."""
+    from .content import PAGES
+
+    return PAGES
+
+
 RESERVED_SLUGS: frozenset[str] = frozenset(
     {
         # The organiser app's own pages. A chapter agenda lives at
@@ -39,7 +48,15 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "f",
         "health",
         "me",
+        "privacy",
+        "robots.txt",
+        "ads.txt",
+        "sitemap.xml",
     }
+    # The written pages are top-level paths too, so an organisation or
+    # a chapter named after one would shadow it. One list, in
+    # ``services/content.py``.
+    | {page.slug for page in _content_pages()}
 )
 
 
