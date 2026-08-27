@@ -24,86 +24,57 @@ pre-commit:
       # to a CI run that's already failed somewhere else.
       run: uv run pyright backend
 
-# Pre-push runs the full validation pipeline so a green ``git
-# push`` matches what CI is going to do. Slower than pre-commit
-# (~2 min vs ~10 s) but worth it: every CI failure today has been
-# something a local pipeline would have caught — stale openapi
-# schema, vue-tsc duplicate-operationId, e2e selectors mismatched
-# to a refactored DOM. ``parallel: true`` lets backend and frontend
-# work overlap.
+# Pre-push runs the full validation pipeline so a green ``git push``
+# matches what CI is going to do. Every CI failure so far has been
+# something a local pipeline would have caught: a stale openapi schema,
+# a vue-tsc duplicate-operationId, e2e selectors mismatched to a
+# refactored DOM.
 #
-# Skip with ``LEFTHOOK=0 git push`` (or use ``--no-verify`` when
-# you genuinely know better — e.g. fixing a CI-only flake on
-# main). Don't make a habit of it.
+# **The order is the point.** ``piped: true`` runs these in sequence and
+# stops at the first failure, and the sequence exists because only one
+# of these jobs has deadlines. The four checks in ``make -j4
+# pre-push-checks`` run concurrently and take as long as they take;
+# ``pytest -n auto`` alone claims every core. The e2e job boots a
+# uvicorn and a vite dev server, holds a 30s boot timeout and a 60s
+# per-test timeout, and compiles routes on demand while it runs, so
+# under that load it does not fail on the code, it fails on the clock.
+# Six specs timed out at once when it ran beside the others; alone it
+# finishes in eleven seconds. Wall-clock costs about a minute; a push
+# that fails for a reason nobody can act on costs more.
+#
+# It also matches CI, where the e2e job carries ``needs: [backend,
+# frontend]`` for the same reason: a red backend explains the e2e
+# symptom, so running both is a waste of a Playwright boot.
+#
+# Skip with ``LEFTHOOK=0 git push`` (or use ``--no-verify`` when you
+# genuinely know better — e.g. fixing a CI-only flake on main). Don't
+# make a habit of it.
 pre-push:
-  parallel: true
+  piped: true
   commands:
-    backend-tests:
-      # Full suite, no coverage gate (fast feedback). The CI
-      # ``test`` job runs the same command with coverage on top;
-      # if pytest passes here it'll pass there.
-      #
-      # When ``pyproject.toml`` or ``uv.lock`` is in the push, we
-      # also force a fresh ``uv sync`` first — otherwise a "drop
-      # unused dep" change can pass locally because the existing
-      # venv still has the dep, then go red on CI which does a
-      # clean install. Found this via the httpx incident: removed
-      # from prod deps in 7e62ea6 but starlette.testclient needs
-      # it; local pytest passed because my venv kept it cached,
-      # CI failed on first install.
+    1_venv:
+      # When ``pyproject.toml`` or ``uv.lock`` is in the push, force a
+      # fresh ``uv sync`` before anything runs it — otherwise a "drop
+      # unused dep" change passes locally because the existing venv
+      # still has the dep, then goes red on CI, which installs clean.
+      # Found via the httpx incident: removed from prod deps in 7e62ea6
+      # but starlette.testclient needs it.
       run: |
         if git diff --name-only @{u}..HEAD 2>/dev/null | grep -qE '^(pyproject\.toml|uv\.lock)$'; then
           echo "lockfile changed — syncing venv to match"
           uv sync --frozen --quiet
         fi
-        uv run pytest --no-cov -q
-    schema-drift:
-      # CI's schema-drift job diffs ``openapi.json`` and
-      # ``frontend/src/api/schema.ts`` against a fresh regen and
-      # fails on any drift. Catching this locally avoids the
-      # red-CI-then-amend dance that's bitten us repeatedly when
-      # a route docstring or response_model change forgot to
-      # regenerate.
-      run: |
-        make openapi
-        if ! git diff --quiet openapi.json frontend/src/api/schema.ts; then
-          echo "openapi.json or frontend/src/api/schema.ts is out of date — 'make openapi' refreshed them, please commit"
-          exit 1
-        fi
-    frontend-build:
-      # The full frontend build (``vue-tsc --noEmit && vite
-      # build``), not just type-checking. The build step catches
-      # things vue-tsc alone misses, like duplicate operationIds
-      # in the generated openapi schema.ts that only blow up at
-      # bundle time.
+    2_checks:
+      # Backend suite, frontend build, vitest and the openapi
+      # drift check, concurrently. None of them holds a timeout, so
+      # they may fight each other for cores all they like.
+      run: make -j4 pre-push-checks
+    3_e2e:
+      # Playwright, with the machine to itself.
       #
-      # Built to ``dist-check`` rather than ``dist`` because these
-      # commands run in parallel and ``dist`` is not this job's
-      # alone: ``routers/spa.py`` serves the app shell out of it on
-      # every request, so the backend suite reads it while a build
-      # here is emptying it. That raced twice in a row, on two
-      # different dist-reading tests, which is exactly what a shared
-      # mutable directory looks like from the outside. Nothing
-      # downstream wants this output: prod builds in the Dockerfile
-      # and the e2e job runs its own dev server.
-      run: cd frontend && npm run build -- --outDir dist-check
-    frontend-tests:
-      # Vitest unit/composables suite — small, fast, was missed
-      # by the previous lefthook config.
-      run: cd frontend && npx vitest run
-    e2e:
-      # Playwright critical-path scenario. Two CI failures today
-      # came from the same shape: a frontend refactor changed
-      # the DOM (PrimeVue Select → BrandedSelect, then native
-      # select), the e2e selectors went stale, neither pre-commit
-      # nor pre-push caught it. Now they will.
-      #
-      # ``E2E_API_PORT=8001`` / ``E2E_FRONTEND_PORT=5174`` keep
-      # the test stack off the dev defaults so a developer with
-      # ``uvicorn --reload`` + ``vite dev`` already running
-      # doesn't get an "address in use" failure.
-      #
-      # ``CI=1`` forces playwright to spawn its own webServer
-      # block (otherwise it tries to reuse the existing dev
-      # server, which here we explicitly want isolated).
+      # ``E2E_API_PORT`` / ``E2E_FRONTEND_PORT`` keep the test stack off
+      # the dev defaults, so a developer with ``uvicorn --reload`` and
+      # ``vite dev`` already running doesn't get "address in use".
+      # ``CI=1`` forces playwright to spawn its own servers rather than
+      # reusing those.
       run: cd frontend && CI=1 E2E_API_PORT=8001 E2E_FRONTEND_PORT=5174 npx playwright test

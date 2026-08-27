@@ -26,15 +26,22 @@ const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT ?? "5173";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false, // share one DB
-  // Playwright's default is 30s, which is the budget of a suite running
-  // on a quiet machine. This one never does: lefthook's pre-push runs
-  // it beside the backend suite, the production build and the vitest
-  // run, all at once. Three specs have now failed there and passed on
-  // their own — the kompas editor, the agenda window, and a signup —
-  // each of them a page load or a dropdown animation slower than it is
-  // when nothing else is competing. One budget that matches how the
-  // suite is actually run beats widening them one spec at a time.
+  // Playwright's default is 30s, which is the budget of a suite on a
+  // quiet machine. This one gets the machine to itself at push time
+  // now (``lefthook.yml`` runs it after everything else rather than
+  // beside it), but "to itself" is still a laptop with a browser and an
+  // editor open, and a page load here compiles routes on demand. 60s is
+  // the budget that stops a slow dropdown animation from reading as a
+  // broken selector; widening them one spec at a time is how this was
+  // handled before, and it did not converge.
   timeout: 60_000,
+  // Nine specs, most of whose time is a page load against a dev server
+  // that compiles on demand. Six workers meant six cold compiles at
+  // once through one vite process, which is slower than three and much
+  // more sensitive to whatever else the machine is doing. Fixed rather
+  // than derived from the core count, so a run behaves the same on the
+  // laptop as in CI.
+  workers: 3,
   retries: 0,
   reporter: "list",
   use: {
@@ -50,13 +57,15 @@ export default defineConfig({
       // comes from the job-level env: block) without erroring.
       command: `cd .. && set -a && [ -f .env ] && . ./.env; set +a; export LOCAL_MODE=1 && uv run uvicorn backend.main:app --port ${API_PORT}`,
       url: `http://localhost:${API_PORT}/health`,
-      timeout: 30_000,
+      // Cold uvicorn: import the app, run migrations, reconcile
+      // tenants. 30s was enough on an idle machine and nothing else.
+      timeout: 90_000,
       reuseExistingServer: !process.env.CI,
     },
     {
       command: `npm run dev -- --port ${FRONTEND_PORT} --strictPort`,
       url: `http://localhost:${FRONTEND_PORT}`,
-      timeout: 30_000,
+      timeout: 90_000,
       reuseExistingServer: !process.env.CI,
     },
   ],

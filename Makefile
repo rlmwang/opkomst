@@ -1,6 +1,7 @@
 # Common dev tasks for opkomst. ``make help`` lists the targets.
 
-.PHONY: help db-up db-down db-reset db-shell test test-fast lint typecheck e2e openapi
+.PHONY: help db-up db-down db-reset db-shell test test-fast lint typecheck e2e openapi \
+	pre-push-checks pp-backend pp-frontend-build pp-frontend-tests pp-schema-drift
 
 help:
 	@echo "make db-up        Start postgres in docker (port 5433)."
@@ -13,6 +14,7 @@ help:
 	@echo "make typecheck    pyright + vue-tsc."
 	@echo "make e2e          Playwright critical-path on a fresh stack."
 	@echo "make openapi      Regenerate openapi.json + frontend/src/api/schema.ts."
+	@echo "make pre-push-checks  Everything git push runs except e2e (use -j4)."
 
 db-up:
 	docker compose up -d postgres
@@ -52,3 +54,30 @@ e2e:
 openapi:
 	uv run python scripts/generate_openapi.py
 	cd frontend && npx openapi-typescript ../openapi.json -o src/api/schema.ts
+
+# --- What ``git push`` runs (see lefthook.yml) ------------------------
+#
+# Everything that has no deadline, run concurrently with ``make -j``.
+# The e2e job is deliberately NOT in here: it boots two servers and
+# holds per-test timeouts, so it runs on its own afterwards rather than
+# fighting these four for cores.
+pre-push-checks: pp-backend pp-frontend-build pp-frontend-tests pp-schema-drift
+
+pp-backend:
+	uv run pytest --no-cov -q
+
+# Built to ``dist-check`` rather than ``dist``: ``routers/spa.py``
+# serves the app shell out of ``dist`` on every request, so the backend
+# suite reads it while a build here would be emptying it.
+pp-frontend-build:
+	cd frontend && npm run build -- --outDir dist-check
+
+pp-frontend-tests:
+	cd frontend && npx vitest run
+
+pp-schema-drift:
+	$(MAKE) openapi
+	@if ! git diff --quiet openapi.json frontend/src/api/schema.ts; then \
+		echo "openapi.json or frontend/src/api/schema.ts is out of date — 'make openapi' refreshed them, please commit"; \
+		exit 1; \
+	fi
