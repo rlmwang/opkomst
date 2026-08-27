@@ -16,6 +16,22 @@ import { expect, test } from "@playwright/test";
  * your answers" reopens the walk rather than starting a second one.
  */
 
+/** Kill the transitions on a page that is about to be driven through a
+ *  dozen PrimeVue Selects.
+ *
+ *  Each overlay animates in, and Playwright waits for a click target to
+ *  be *stable* before clicking it. On a quiet machine that costs
+ *  milliseconds; on a pre-push, where this runs beside the backend
+ *  suite and the production build, the animation stretches and the
+ *  waits add up until the test's own budget is gone. Removing the
+ *  animation removes the flake at its source rather than widening the
+ *  window it fits through. */
+async function stopAnimating(page: import("@playwright/test").Page) {
+  await page.addStyleTag({
+    content: "*, *::before, *::after { transition: none !important; animation: none !important; }",
+  });
+}
+
 /** Open one PrimeVue Select and choose an option by its label. The
  *  panel is a portal, so the option is found on the page rather than
  *  inside the select, and the panel has to be gone before the next one
@@ -44,13 +60,14 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
 }) => {
   const { token } = await organiserToken(request);
 
-  const context = await browser.newContext();
+  const context = await browser.newContext({ reducedMotion: "reduce" });
   // The app reads its session from localStorage, keyed per
   // organisation (``api/client.ts``), so it is placed before the first
   // navigation rather than logged in through the form.
   await context.addInitScript((t) => window.localStorage.setItem("token:rsp", t), token as string);
   const page = await context.newPage();
   await page.goto("/rsp/compasses/new");
+  await stopAnimating(page);
 
   await expect(page.getByRole("heading", { name: "Assen" })).toBeVisible({ timeout: 10_000 });
 

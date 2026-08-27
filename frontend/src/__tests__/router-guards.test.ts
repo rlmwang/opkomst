@@ -60,8 +60,10 @@ async function loadRouter() {
 // Each test does ``vi.resetModules()`` + a dynamic ``import("@/router/index")``,
 // which under parallel suite load can occasionally push past Vitest's 5s
 // default. Tests pass in well under a second in isolation, so the timeout
-// is just headroom.
-describe("router guards: requiresWhatsApp", { timeout: 15_000 }, () => {
+// is just headroom — and 15s of it was not enough on a pre-push, where
+// this runs beside the backend suite, the production build and Playwright
+// all at once. It took 18.6s there and blocked the push.
+describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
   it("redirects to /events when whatsappAvailable is false", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();

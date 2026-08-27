@@ -26,6 +26,15 @@ const FRONTEND_PORT = process.env.E2E_FRONTEND_PORT ?? "5173";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false, // share one DB
+  // Playwright's default is 30s, which is the budget of a suite running
+  // on a quiet machine. This one never does: lefthook's pre-push runs
+  // it beside the backend suite, the production build and the vitest
+  // run, all at once. Three specs have now failed there and passed on
+  // their own — the kompas editor, the agenda window, and a signup —
+  // each of them a page load or a dropdown animation slower than it is
+  // when nothing else is competing. One budget that matches how the
+  // suite is actually run beats widening them one spec at a time.
+  timeout: 60_000,
   retries: 0,
   reporter: "list",
   use: {
