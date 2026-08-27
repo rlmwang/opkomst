@@ -11,8 +11,8 @@ column.
 
 A visitor lands on `/e/amsterdam` and sees, at a glance, everything the
 Amsterdam chapter has coming up: a grid of event cards, each a 4:5
-poster with attribution, the date and time, the location, the title and
-optional topic, and an **Aanmelden** button that deep-links to the
+poster with attribution beside the date and time, the location, the title
+and optional topic, and an **Aanmelden** button that deep-links to the
 existing sign-up page (`/e/{slug}`). Scrolling past the upcoming grid
 reveals a quieter "recently" section: events that already happened,
 going back to the start of the last full calendar month, so someone who
@@ -53,17 +53,33 @@ disclosure for free.
 
 ### The card
 
-The card reuses the shared `PublicHero` (4:5 frame, Instagram
+**Poster left, words right.** The 4:5 poster takes a 38% column pinned to
+the top of the card; the rest of the card is the text. A poster running
+the full width of the card is 1.25 times as tall as it is wide and
+outweighs the four short lines under it, so the two sit side by side
+instead, at every width including phones. Two cards to a row in the
+container. Below 32rem the poster drops to a fixed 110px: 38% of a phone
+row leaves the title barely 220px, and the words need the rest.
+
+The poster column reuses the shared `PublicHero` frame (4:5, Instagram
 attribution, renders nothing when there is no image). A card whose event
 has no `image_url` gets a **default image**: a muted RSP logo, the
 existing `/rsp-logo.png` asset centred in the same 4:5 frame on a muted
 brand-tinted ground (desaturated + reduced opacity via CSS, so no second
-asset to maintain). This keeps the grid even instead of collapsing rows
-of different heights, and reads as "an RSP event" rather than a blank
-tile. It carries no attribution caption. Below the frame: date
-and time (`formatDate` + `formatTimeRange`, the sign-up page's
-formatters), the location line, the title (`name`), the optional `topic`
-as a subtitle, and the **Aanmelden** button linking to `/e/{slug}`.
+asset to maintain). It carries no attribution caption. Beside the frame:
+date and time (`formatDateShortWeekday` + `formatTimeRange` — the
+weekday abbreviated, because `donderdag` spends the room the time needs),
+the location line, the title (`name`) and the optional `topic` as a
+subtitle (two lines each, ellipsed past that — the card is a glance), and
+the **Aanmelden** button in the card's bottom-right corner,
+linking to `/e/{slug}`.
+
+**Title search.** Above the grid, one input filtering both sections on
+the title as the visitor reads it (accent- and case-insensitive
+substring, so the language toggle moves the search with the page). It is
+client-side: the agenda payload is already in the page in full, and a
+chapter's list is a page, not a corpus. The bar appears only once there
+is more than one card to narrow.
 
 Past cards are the same component in a `.past` modifier: dimmed, no
 prominent CTA (the whole card still links to `/e/{slug}`, which already

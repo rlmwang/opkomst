@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatTimeRange, localeTag } from "@/lib/format";
+import { formatDate, formatDateShortWeekday, formatDateTime, formatTimeRange, localeTag } from "@/lib/format";
 
 describe("localeTag", () => {
   it("maps en to en-GB so dates render in DMY order", () => {
@@ -24,6 +24,15 @@ describe("formatDate", () => {
     const out = formatDate("2026-04-27T18:00:00", "en");
     expect(out).toContain("April");
     expect(out).toContain("2026");
+  });
+});
+
+describe("formatDateShortWeekday", () => {
+  it("abbreviates the weekday and keeps the rest of the date", () => {
+    const out = formatDateShortWeekday("2026-04-27T18:00:00", "nl");
+    expect(out).toContain("ma");
+    expect(out).not.toContain("maandag");
+    expect(out).toContain("27 april 2026");
   });
 });
 

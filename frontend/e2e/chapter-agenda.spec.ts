@@ -46,6 +46,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   };
   const uniq = `${startsAt.getTime()}`;
   const listedName = `E2E Agenda Listed ${uniq}`;
+  const otherName = `E2E Agenda Verstopt ${uniq}`;
   const hiddenName = `E2E Agenda Hidden ${uniq}`;
 
   const listedRes = await request.post("/api/v1/events", {
@@ -59,6 +60,12 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
     headers: { Authorization: `Bearer ${token}` },
   });
   const listedOccSlug = (await listedOccRes.json()).occurrences[0].slug as string;
+
+  const otherRes = await request.post("/api/v1/events", {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { ...base, name_nl: otherName, listed: true },
+  });
+  expect(otherRes.ok()).toBeTruthy();
 
   const hiddenRes = await request.post("/api/v1/events", {
     headers: { Authorization: `Bearer ${token}` },
@@ -77,6 +84,14 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
     timeout: 5_000,
   });
   await expect(v.getByText(hiddenName)).toHaveCount(0);
+  await expect(v.getByRole("heading", { name: otherName })).toBeVisible();
+
+  // The title search narrows both lists to the matching cards.
+  await v.getByRole("searchbox").fill(`Verstopt ${uniq}`);
+  await expect(v.getByRole("heading", { name: otherName })).toBeVisible();
+  await expect(v.getByText(listedName)).toHaveCount(0);
+  await v.getByRole("searchbox").fill("");
+  await expect(v.getByRole("heading", { name: listedName })).toBeVisible();
 
   // The sign-up CTA in that card deep-links to the event's page.
   await v

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { brand } from "@/lib/branding";
-import { formatDate, formatTimeRange } from "@/lib/format";
+import { formatDateShortWeekday, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { resolveText } from "@/public_shared/bilingual";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
@@ -54,9 +54,9 @@ const sessionBadge = computed(() => {
       </figcaption>
     </div>
 
-    <div class="card-body">
+    <div class="card-meta">
       <p class="card-when">
-        {{ formatDate(event.starts_at, locale) }} ·
+        {{ formatDateShortWeekday(event.starts_at, locale) }} ·
         {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
       </p>
       <p v-if="event.location" class="card-where">
@@ -67,6 +67,9 @@ const sessionBadge = computed(() => {
           class="meta-link"
         >{{ event.location }}</a>
       </p>
+    </div>
+
+    <div class="card-body">
       <h2 class="card-title">
         <a :href="href">{{ title }}</a>
       </h2>
@@ -83,11 +86,14 @@ const sessionBadge = computed(() => {
 </template>
 
 <style scoped>
-/* No card padding: the poster is full-bleed to the top and sides, so we
- * pad the body instead and clip everything to the card's radius. */
+/* No card padding: the poster is flush to the card's edges, so we pad the
+ * body instead and clip everything to the card's radius. Poster left,
+ * words right — a 4:5 poster running the full width of the card outweighs
+ * the handful of lines under it, and this gives the two equal say. */
 .event-card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 38% 1fr;
+  grid-template-rows: auto 1fr;
   padding: 0;
   overflow: hidden;
   height: 100%;
@@ -95,11 +101,15 @@ const sessionBadge = computed(() => {
 .event-card.past {
   opacity: 0.72;
 }
-/* Full-width 4:5 poster; the positioning context for the session pill
- * and the artist credit that sit over it. */
+/* The poster column: a bit over a third of the card, its own 4:5, pinned
+ * to the top so a long topic grows the card without stretching the
+ * artwork. Also the positioning context for the session pill and the
+ * artist credit. */
 .card-media {
   position: relative;
-  width: 100%;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
   aspect-ratio: 4 / 5;
 }
 .card-media__img {
@@ -152,12 +162,23 @@ const sessionBadge = computed(() => {
 .card-credit a {
   color: #fff;
 }
-.card-body {
+/* Date and location sit beside the poster; the title and topic get their
+ * own row underneath, which on a phone is the full width of the card. */
+.card-meta {
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  flex: 1;
-  padding: 0.875rem 1.25rem 1.25rem;
+  min-width: 0;
+  padding: 1rem 1.25rem 0;
+}
+.card-body {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.5rem 1.25rem 1.25rem;
 }
 .card-when {
   margin: 0;
@@ -168,10 +189,18 @@ const sessionBadge = computed(() => {
   margin: 0;
   font-size: 0.9375rem;
 }
+/* Two lines each for the title and the topic, ellipsis past that: the
+ * card is a glance, and an even ceiling keeps a long title from pushing
+ * its neighbour's CTA out of line. */
 .card-title {
   margin: 0.125rem 0 0;
   font-size: 1.125rem;
   line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .card-title a {
   color: inherit;
@@ -181,22 +210,52 @@ const sessionBadge = computed(() => {
   text-decoration: underline;
   text-decoration-color: var(--brand-red);
 }
-/* Clamp the topic so cards keep even heights in the grid. */
 .card-topic {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Bottom-right: the CTA is the card's last word, and against the poster
+ * column the far corner is where the eye lands after the topic. */
 .card-foot {
   margin-top: auto;
-  padding-top: 0.25rem;
+  padding-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
 }
 .card-cta {
   display: inline-block;
   width: auto;
   text-decoration: none;
+}
+/* Poster beside the text at every width, phones included — stacking it
+ * back on top is the imbalance this layout exists to fix. A phone row is
+ * ~390px, and 38% of that leaves the title barely 220px, so here the
+ * poster takes a fixed 110px instead of a share and the words get the
+ * rest. */
+@media (max-width: 32rem) {
+  .event-card {
+    grid-template-columns: 96px 1fr;
+  }
+  .card-media {
+    grid-row: 1;
+    /* The poster's bottom-right corner floats inside the card here (the
+     * title row sits under it), so it gets the card's own radius rather
+     * than a raw edge. The other three touch a card edge or the grid. */
+    border-bottom-right-radius: 10px;
+    overflow: hidden;
+  }
+  .card-meta {
+    padding: 0.75rem 0.875rem 0;
+  }
+  /* Full width under the poster: a title beside a 4:5 thumbnail on a
+   * phone row has nowhere to go. */
+  .card-body {
+    grid-column: 1 / -1;
+    padding: 0.625rem 0.875rem 0.875rem;
+  }
 }
 .card-came {
   display: inline-block;

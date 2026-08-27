@@ -42,6 +42,18 @@ export function formatDate(iso: string, locale: string): string {
   });
 }
 
+/** The same date with the weekday abbreviated: ``do 27 april 2026``. For
+ *  the agenda cards, where the weekday is a glance on a line that also
+ *  carries the time and ``donderdag`` spends the room the time needs. */
+export function formatDateShortWeekday(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(localeTag(locale), {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 /** Hour:minute range: ``18:00-20:00``. */
 export function formatTimeRange(startIso: string, endIso: string, locale: string): string {
   const opts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };

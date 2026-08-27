@@ -5,6 +5,8 @@ import type { Locale } from "@/public_shared/strings";
 
 export interface Strings {
   pastHeading: string;
+  searchTitles: string;
+  searchNoMatches: string;
   signUp: string;
   emptyUpcoming: string;
   notFound: string;
@@ -15,6 +17,8 @@ export interface Strings {
 
 const nl: Strings = {
   pastHeading: "Geweest",
+  searchTitles: "Zoek op titel",
+  searchNoMatches: "Niets gevonden.",
   signUp: "Aanmelden",
   emptyUpcoming: "Er staan nog geen evenementen gepland.",
   notFound: "Deze afdeling bestaat niet (meer).",
@@ -25,6 +29,8 @@ const nl: Strings = {
 
 const en: Strings = {
   pastHeading: "Recently",
+  searchTitles: "Search by title",
+  searchNoMatches: "Nothing found.",
   signUp: "Sign up",
   emptyUpcoming: "Nothing planned right now.",
   notFound: "This chapter doesn't exist (anymore).",

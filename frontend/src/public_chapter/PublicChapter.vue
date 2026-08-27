@@ -5,7 +5,8 @@ import PublicIdentity from "@/public_shared/PublicIdentity.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
 import { chromeStrings, type Locale } from "@/public_shared/strings";
-import { ApiError, type ChapterAgenda, fetchChapterAgenda } from "./api";
+import { resolveText } from "@/public_shared/bilingual";
+import { ApiError, type ChapterAgenda, type EventCard as EventCardData, fetchChapterAgenda } from "./api";
 import EventCard from "./EventCard.vue";
 import { pickLocale, strings } from "./i18n";
 
@@ -26,6 +27,24 @@ const initial = window.__OPKOMST_CHAPTER__;
 const agenda = ref<ChapterAgenda | null>(initial ?? null);
 const notFound = ref(initial === null);
 const loadFailed = ref(false);
+
+// Title search over both lists. Accent- and case-insensitive substring
+// on the title as the visitor reads it (``resolveText``, so the language
+// toggle moves the search with the page). Client-side: the agenda is
+// already here in full, and a chapter's list is a page, not a corpus.
+const query = ref("");
+const fold = (v: string) =>
+  v
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+function matching(cards: EventCardData[]): EventCardData[] {
+  const needle = fold(query.value.trim());
+  if (!needle) return cards;
+  return cards.filter((e) => fold(resolveText(e.name_nl, e.name_en, locale.value) ?? "").includes(needle));
+}
+const upcoming = computed(() => matching(agenda.value?.upcoming ?? []));
+const past = computed(() => matching(agenda.value?.past ?? []));
 
 if (initial === undefined) {
   fetchChapterAgenda(b.slug, slug)
@@ -57,30 +76,44 @@ if (initial === undefined) {
     <PublicNotice v-else-if="notFound" :message="t.notFound" />
 
     <template v-else-if="agenda">
-      <section class="agenda-section">
-        <p v-if="!agenda.upcoming.length" class="muted">{{ t.emptyUpcoming }}</p>
-        <div v-else class="agenda-grid">
-          <EventCard
-            v-for="e in agenda.upcoming"
-            :key="e.slug"
-            :event="e"
-            :locale="locale"
-          />
-        </div>
-      </section>
+      <input
+        v-model="query"
+        type="search"
+        class="input agenda-search"
+        :placeholder="t.searchTitles"
+        :aria-label="t.searchTitles"
+      />
 
-      <section v-if="agenda.past.length" class="agenda-section">
-        <h2 class="section-heading">{{ t.pastHeading }}</h2>
-        <div class="agenda-grid past-grid">
-          <EventCard
-            v-for="e in agenda.past"
-            :key="e.slug"
-            :event="e"
-            :locale="locale"
-            past
-          />
-        </div>
-      </section>
+      <p v-if="query && !upcoming.length && !past.length" class="muted agenda-section">
+        {{ t.searchNoMatches }}
+      </p>
+
+      <template v-else>
+        <section class="agenda-section">
+          <p v-if="!query && !upcoming.length" class="muted">{{ t.emptyUpcoming }}</p>
+          <div v-else-if="upcoming.length" class="agenda-grid">
+            <EventCard
+              v-for="e in upcoming"
+              :key="e.slug"
+              :event="e"
+              :locale="locale"
+            />
+          </div>
+        </section>
+
+        <section v-if="past.length" class="agenda-section">
+          <h2 class="section-heading">{{ t.pastHeading }}</h2>
+          <div class="agenda-grid past-grid">
+            <EventCard
+              v-for="e in past"
+              :key="e.slug"
+              :event="e"
+              :locale="locale"
+              past
+            />
+          </div>
+        </section>
+      </template>
     </template>
   </PublicShell>
 </template>
@@ -89,6 +122,12 @@ if (initial === undefined) {
 .agenda-section {
   margin-top: 1.5rem;
 }
+/* Sits above the grid at the width of a single card, so it reads as one
+ * control over the list rather than a full-bleed banner. */
+.agenda-search {
+  margin-top: 0.5rem;
+  max-width: min(320px, 100%);
+}
 /* An ``h2`` at the app's own size (theme.css); only the spacing under
    it is this page's business. */
 .section-heading {
@@ -96,10 +135,10 @@ if (initial === undefined) {
 }
 .agenda-grid {
   display: grid;
-  /* Cap at three cards per row in the ~1120px container; drops to two,
-   * then one, as the viewport narrows. ``min(320px, 100%)`` keeps a
-   * single card from overflowing on very narrow phones. */
-  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  /* Two of the poster-beside-text cards per row in the ~1090px container,
+   * one as the viewport narrows. ``min(440px, 100%)`` keeps a single card
+   * from overflowing on very narrow phones. */
+  grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr));
   gap: 1rem;
   align-items: stretch;
 }
