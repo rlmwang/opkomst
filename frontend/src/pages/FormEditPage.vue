@@ -10,38 +10,40 @@ import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
-import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
+import CompassAxesEditor from "@/components/CompassAxesEditor.vue";
+import QuestionEditor, { type PoleOption, type QuestionDraft } from "@/components/QuestionEditor.vue";
 import RichTextField from "@/components/RichTextField.vue";
 import { ApiError } from "@/api/client";
 import StartAccountField from "@/components/StartAccountField.vue";
 import StartedPanel from "@/components/StartedPanel.vue";
 import { chapterList, useChapters } from "@/composables/useChapters";
-import { useStartMode } from "@/composables/useStartMode";
+import { type StartKind, useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useOrderedList } from "@/composables/useOrderedList";
 import { type FormCreate, type FormQuestionIn, type FormUpdate, useFormsApi } from "@/composables/useForms";
+import type { CompassAxisIn, Pole } from "@/api/types";
+import { useFormText } from "@/composables/useFormText";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ formId?: string }>();
 
-const { t, te, locale } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
 // The root's front door: see ``useStartMode``.
-// One page, two products (``docs/design-quizzes.md``). The route says
-// which; everything below that reads the same, because a quiz is a
-// questionnaire with an answer key.
+// One page, three products (``docs/design-quizzes.md``,
+// ``docs/design-kompas.md``). The route says which; everything below
+// that reads the same, because a quiz is a questionnaire with an
+// answer key and a kompas is one with a direction per answer.
 const api = useFormsApi();
-const isQuiz = computed(() => api.resource === "quizzes");
-/** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise. The
- *  two products share every string that is not about scoring. */
-const L = (key: string, params?: Record<string, unknown>) => {
-  const full = isQuiz.value && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
-  return params ? t(full, params) : t(full);
-};
+const { L, isQuiz: quizProduct, isCompass: compassProduct } = useFormText();
+/** The create body's wire name at the root's front door, per product. */
+const START_KIND: Record<string, StartKind> = { forms: "form", quizzes: "quiz", compasses: "compass" };
+const isQuiz = computed(() => quizProduct);
+const isCompass = computed(() => compassProduct);
 
 const {
   active: startActive,
@@ -52,7 +54,7 @@ const {
   submit: submitStart,
   chapterFor,
   cancel: cancelStart,
-} = useStartMode(api.resource === "quizzes" ? "quiz" : "form");
+} = useStartMode(START_KIND[api.resource]);
 const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
 const auth = useAuthStore();
@@ -60,6 +62,24 @@ const createMutation = api.useCreate();
 const updateMutation = api.useUpdate();
 
 const isEdit = computed(() => Boolean(props.formId));
+
+/** The four sides, labelled with what the organiser called them. Read
+ *  live off the axes block above, so renaming an axis renames every
+ *  select on the page. Before the axes are named they read "As X,
+ *  kant 1", which is a placeholder the save then refuses. */
+const poleOptions = computed<PoleOption[]>(() =>
+  (["x", "y"] as const).flatMap((axis) => {
+    const row = axes.value.find((a) => a.axis === axis);
+    const axisName = row?.name.trim() || t(`compasses.edit.axis${axis.toUpperCase()}`);
+    return (["low", "high"] as const).map((side) => {
+      const own = (side === "low" ? row?.low_name : row?.high_name)?.trim();
+      // Before a side is named, the select says where it lands, which
+      // is the same thing the axes block calls it.
+      const fallback = t(`compasses.edit.side${side === "low" ? "Low" : "High"}${axis.toUpperCase()}`);
+      return { value: `${axis}_${side}` as Pole, label: `${axisName}: ${own || fallback}` };
+    });
+  }),
+);
 
 /* Quiz only: whether the result screen names the right answers. An
  * organiser running the same quiz twice in one evening turns it off. */
@@ -85,6 +105,10 @@ const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const formLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
+/* Kompas only: the two axes and their four sides. Empty until the
+ * organiser names them, which the save refuses by name the moment
+ * there is a question to point at one (``docs/design-kompas.md`` 4.4). */
+const axes = ref<CompassAxisIn[]>([]);
 const questionList = useOrderedList<QuestionDraft>();
 const questions = questionList.items;
 const submitting = ref(false);
@@ -156,8 +180,11 @@ watch(
       correct_text: q.correct_text ?? null,
       correct_choices: q.correct_choices ? [...q.correct_choices] : null,
       tolerance: q.tolerance ?? null,
+      pole: (q.pole as Pole | null) ?? null,
+      option_poles: (q.option_poles as Pole[] | null) ?? null,
     }));
     revealAnswers.value = existing.reveal_answers ?? true;
+    axes.value = (existing.axes ?? []).map((a) => ({ ...a, axis: a.axis as "x" | "y" }));
     // Restore the mid-edit draft after server hydration so the
     // user's unsaved edits win over the stored form.
     if (draftReady) restoreDraftOnce();
@@ -169,7 +196,14 @@ watch(
 // Mirrors EventFormPage: mid-edit state survives a refresh or
 // accidental tab close. Keyed by form id (``new`` for create) so two
 // tabs don't clobber each other. Cleared on successful save + cancel.
-const draftKey = computed(() => `form-edit-draft:${props.formId ?? "new"}`);
+//
+// The resource is in the key because this page is three pages: without
+// it, ``/forms/new``, ``/quizzes/new`` and ``/compasses/new`` all wrote
+// to ``form-edit-draft:new``, so a half-typed questionnaire came back
+// on the kompas page — with a number question in it, which a kompas
+// cannot ask, so the kind select rendered blank and the body rendered a
+// number box.
+const draftKey = computed(() => `${api.resource}-edit-draft:${props.formId ?? "new"}`);
 
 interface FormEditDraft {
   nameNl: string;
@@ -180,6 +214,7 @@ interface FormEditDraft {
   chapterId: string | null;
   formLocale: "nl" | "en";
   questions: QuestionDraft[];
+  axes: CompassAxisIn[];
 }
 
 function snapshot(): FormEditDraft {
@@ -192,6 +227,7 @@ function snapshot(): FormEditDraft {
     chapterId: chapterId.value,
     formLocale: formLocale.value,
     questions: questions.value,
+    axes: axes.value,
   };
 }
 
@@ -204,13 +240,14 @@ function applyDraft(d: FormEditDraft): void {
   chapterId.value = d.chapterId ?? null;
   formLocale.value = d.formLocale ?? "nl";
   questions.value = (d.questions ?? []).map((q) => ({ ...q, options: [...(q.options ?? [])] }));
+  axes.value = (d.axes ?? []).map((a) => ({ ...a }));
 }
 
 const { loadDraft, clearDraft } = useFormDraft<FormEditDraft>({
   key: draftKey,
   snapshot,
   apply: applyDraft,
-  sources: [nameNl, nameEn, descNl, descEn, imageArtistInstagram, chapterId, formLocale, questions],
+  sources: [nameNl, nameEn, descNl, descEn, imageArtistInstagram, chapterId, formLocale, questions, axes],
 });
 
 // Restore at most once — the edit-mode hydration watch can fire more
@@ -229,9 +266,54 @@ function restoreDraftOnce(): void {
 draftReady = true;
 if (formQuery?.data.value) restoreDraftOnce();
 
+/** An axis with no name, or a side with none, in words. Only a kompas
+ *  has any, and only once there is something to name them for: a draft
+ *  with neither questions nor axes saves, which is what an organiser
+ *  coming back to it expects (``docs/design-kompas.md`` 4.4). */
+function firstAxisNamingProblem(): string | null {
+  if (!isCompass.value) return null;
+  if (!questions.value.length && !axes.value.length) return null;
+  for (const axis of ["x", "y"] as const) {
+    const row = axes.value.find((a) => a.axis === axis);
+    const name = row?.name.trim() ?? "";
+    if (!name) return t("compasses.edit.fillAxisName", { axis: axis.toUpperCase() });
+    if (!row?.low_name.trim() || !row?.high_name.trim()) {
+      return t("compasses.edit.fillPoleNames", { name });
+    }
+  }
+  return null;
+}
+
+/** An axis no question ever points at. Any of the four sides may go
+ *  unused, which is the organiser's choice and sometimes the honest
+ *  one; an axis nothing touches is a half-written kompas.
+ *
+ *  Checked after the per-question problems, and never before them:
+ *  a question whose direction is still empty makes its axis look unused
+ *  too, and being told "nobody can move on Economie" when the real
+ *  answer is "question 1 has no side yet" sends an organiser to the
+ *  wrong end of the page. Same order the server runs them in
+ *  (``services/compass.validate_questions``). */
+function axisCoverageProblem(): string | null {
+  if (!isCompass.value || !questions.value.length) return null;
+  const used = new Set(
+    questions.value
+      .flatMap((q) => (q.kind === "rating" ? [q.pole] : (q.option_poles ?? [])))
+      .filter(Boolean)
+      .map((pole) => (pole as string).split("_")[0]),
+  );
+  for (const axis of ["x", "y"] as const) {
+    if (used.has(axis)) continue;
+    const name = axes.value.find((a) => a.axis === axis)?.name.trim() ?? axis.toUpperCase();
+    return t("compasses.edit.axisUnused", { name });
+  }
+  return null;
+}
+
 /** The first thing wrong with the question list, in words, or null.
- *  Mirrors the rules in ``services/forms._validate_questions`` and
- *  ``services/quizzes.validate_keys``: the server is still the
+ *  Mirrors the rules in ``services/forms._validate_questions``,
+ *  ``services/quizzes.validate_keys`` and
+ *  ``services/compass.validate_questions``: the server is still the
  *  authority, this is so the answer arrives in Dutch and names the
  *  question. */
 function firstQuestionProblem(): string | null {
@@ -240,13 +322,23 @@ function firstQuestionProblem(): string | null {
     if (!q.prompt.trim()) return L("edit.questionNeedsPrompt", { n });
     const choice = q.kind === "single_choice" || q.kind === "multi_choice";
     if (choice && q.options.length < 2) return L("edit.questionNeedsOptions", { n });
+    if (isCompass.value) {
+      if (q.kind === "rating" && !q.pole) return t("compasses.edit.questionNeedsPole", { n });
+      if (q.kind === "single_choice") {
+        const poles = q.option_poles ?? [];
+        if (poles.length !== q.options.length || poles.some((pole) => !pole)) {
+          return t("compasses.edit.questionNeedsOptionPoles", { n });
+        }
+      }
+      continue;
+    }
     if (!isQuiz.value || q.points <= 0) continue;
-    if (choice && (q.correct_choices ?? []).length === 0) return L("edit.questionNeedsKey", { n });
+    if (choice && (q.correct_choices ?? []).length === 0) return t("quizzes.edit.questionNeedsKey", { n });
     if (q.kind === "single_choice" && (q.correct_choices ?? []).length !== 1) {
-      return L("edit.questionNeedsOneKey", { n });
+      return t("quizzes.edit.questionNeedsOneKey", { n });
     }
     if ((q.kind === "number" || q.kind === "rating") && q.correct_int === null) {
-      return L("edit.questionNeedsKey", { n });
+      return t("quizzes.edit.questionNeedsKey", { n });
     }
   }
   return null;
@@ -273,6 +365,8 @@ function addQuestion(): void {
     correct_text: null,
     correct_choices: null,
     tolerance: null,
+    pole: null,
+    option_poles: null,
   });
 }
 
@@ -307,7 +401,11 @@ async function submit() {
   // question's number in it. A 400 from the API is accurate and
   // English, and "saving failed" is neither: an organiser who left one
   // answer unmarked should be told which one.
-  const problem = firstQuestionProblem();
+  // In the server's own order: an unnamed axis first, because nothing
+  // can be rendered without the words; then each question, which names
+  // itself; then the axis nothing points at, which is only a real
+  // problem once every question is complete.
+  const problem = firstAxisNamingProblem() ?? firstQuestionProblem() ?? axisCoverageProblem();
   if (problem) {
     toasts.warn(problem);
     return;
@@ -352,8 +450,11 @@ async function submit() {
           correct_text: q.correct_text,
           correct_choices: q.correct_choices,
           tolerance: q.tolerance,
+          pole: q.pole,
+          option_poles: q.option_poles,
         }),
       ),
+      axes: isCompass.value ? axes.value : [],
     };
     if (startActive.value) {
       // No session: no details page to land on, and the public link
@@ -409,7 +510,7 @@ async function submit() {
   <FormPageShell
     v-else
     :title="isEdit ? L('edit.editTitle') : L('edit.newTitle')"
-    :submit-label="isEdit ? t('forms.edit.save') : t('forms.edit.create')"
+    :submit-label="isEdit ? L('edit.save') : L('edit.create')"
     :submitting="submitting"
     @submit="submit"
     @cancel="cancel"
@@ -418,7 +519,7 @@ async function submit() {
       <StartAccountField v-if="startActive" v-model="startEmail" />
       <InputText
         v-model="title"
-        :placeholder="titleFallback || t('forms.edit.namePlaceholder')"
+        :placeholder="titleFallback || L('edit.namePlaceholder')"
         fluid
       />
       <RichTextField
@@ -449,6 +550,18 @@ async function submit() {
       v-model:artist="imageArtistInstagram"
     />
 
+    <!-- Kompas only, and above the questions because every question
+         points at one of these: the words chosen here are the words
+         every pole select below then offers. -->
+    <section v-if="isCompass" class="form-section">
+      <h2 class="section-heading">{{ t("compasses.edit.axesHeading") }}</h2>
+      <!-- No explainer: the placeholders carry what to type and the
+           example to type it like, and the arrows say where each side
+           lands. A paragraph above them would repeat the boxes
+           underneath it. -->
+      <CompassAxesEditor v-model="axes" />
+    </section>
+
     <section class="form-section">
       <h2 class="section-heading">{{ L("edit.questionsHeading") }}</h2>
       <p class="muted section-explainer">{{ L("edit.questionsExplainer") }}</p>
@@ -461,6 +574,8 @@ async function submit() {
         <QuestionEditor
           v-for="(q, idx) in questions"
           :scored="isQuiz"
+          :pointed="isCompass"
+          :pole-options="poleOptions"
           :key="q.id ?? `new-${idx}`"
           :model-value="q"
           :can-move-up="idx > 0"

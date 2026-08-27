@@ -23,6 +23,7 @@ from .database import SessionLocal
 from .models import (
     Chapter,
     Chore,
+    CompassAxis,
     Datepoll,
     DatepollResponse,
     DatepollSlot,
@@ -452,6 +453,7 @@ def run_local_demo() -> None:
 
         _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
         _seed_forms(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
+        _seed_compasses(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
         _seed_datepolls(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
 
         db.commit()
@@ -828,6 +830,200 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
         _submit(evaluation.id, eqs, "Kampganger", [5, "Meer schaduwplekken."])
         _submit(evaluation.id, eqs, "Bo", [4, None])
         _submit(evaluation.id, eqs, None, [3, "Eten was te weinig voor de vegetariërs."])
+
+
+def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now: datetime) -> None:
+    """Three demo kompassen: one busy one whose map has something to
+    look at, one fresh (nobody has filled it in), and one archived.
+    Idempotent (keyed on ``(name, created_by)``).
+
+    The busy one is worth its length. A map is only testable against a
+    crowd: it needs dots in all four quadrants, two people who answered
+    identically so the clustering has something to cluster, somebody
+    who skipped an axis entirely so the "you said nothing" branch
+    renders, and an anonymous dot. Every one of those is below
+    (``docs/design-kompas.md`` 2.4)."""
+
+    def _compass(name: str, description: str, *, archived_at: datetime | None = None) -> Form | None:
+        if forms_svc.query(db, "compass").filter(Form.name_nl == name, Form.created_by == created_by).first():
+            return None
+        f = Form(
+            mode="compass",
+            slug=new_slug(),
+            name_nl=name,
+            description_nl=description,
+            created_by=created_by,
+            chapter_id=chapter_id,
+            locale="nl",
+            archived_at=archived_at,
+        )
+        db.add(f)
+        db.flush()
+        logger.info("seed_compass_created", form_id=f.id, name=name)
+        return f
+
+    def _axes(form_id: str, x: tuple[str, str, str, str], y: tuple[str, str, str, str]) -> None:
+        """The two axes, as ``(name, description, low, high)`` each.
+        ``low`` is drawn left and bottom."""
+        for axis, (name, description, low, high) in (("x", x), ("y", y)):
+            db.add(
+                CompassAxis(
+                    form_id=form_id,
+                    axis=axis,
+                    name=name,
+                    description=description,
+                    low_name=low,
+                    high_name=high,
+                )
+            )
+        db.flush()
+
+    def _statement(form_id: str, ordinal: int, prompt: str, pole: str, *, required: bool = True) -> FormQuestion:
+        q = FormQuestion(
+            form_id=form_id,
+            ordinal=ordinal,
+            kind="rating",
+            prompt=prompt,
+            required=required,
+            options=[],
+            low_label="Oneens",
+            high_label="Eens",
+            pole=pole,
+        )
+        db.add(q)
+        db.flush()
+        return q
+
+    def _choice(
+        form_id: str,
+        ordinal: int,
+        prompt: str,
+        pairs: list[tuple[str, str]],
+        *,
+        required: bool = True,
+    ) -> FormQuestion:
+        q = FormQuestion(
+            form_id=form_id,
+            ordinal=ordinal,
+            kind="single_choice",
+            prompt=prompt,
+            required=required,
+            options=[text for text, _ in pairs],
+            option_poles=[pole for _, pole in pairs],
+        )
+        db.add(q)
+        db.flush()
+        return q
+
+    def _fill(form_id: str, questions: list[FormQuestion], display_name: str | None, answers: list[object]) -> None:
+        """One person's fill-in. An answer is an int for a statement, a
+        string for a choice, and ``None`` for a question they skipped:
+        a kompas lets a question be optional, and the mean simply does
+        not count what nobody answered."""
+        _, token_hash = edit_token.new_edit_token()
+        sub = FormSubmission(form_id=form_id, display_name=display_name, edit_token_hash=token_hash)
+        db.add(sub)
+        db.flush()
+        for q, ans in zip(questions, answers, strict=True):
+            if ans is None:
+                continue
+            db.add(
+                FormResponse(
+                    form_id=form_id,
+                    question_id=q.id,
+                    submission_id=sub.id,
+                    answer_int=ans if isinstance(ans, int) else None,
+                    answer_choices=[ans] if isinstance(ans, str) else None,
+                )
+            )
+
+    # --- A. active, with a crowd on the map --------------------------
+    compass = _compass(
+        "Waar staat de afdeling?",
+        "Zeven vragen, en daarna zie je waar je staat ten opzichte van de rest.",
+    )
+    if compass is not None:
+        _axes(
+            compass.id,
+            ("Economie", "Wie betaalt en wie krijgt", "Links", "Rechts"),
+            ("Sociaal-cultureel", "Hoe we met elkaar samenleven", "Conservatief", "Progressief"),
+        )
+        qs = [
+            _statement(compass.id, 1, "De overheid moet zelf betaalbare woningen bouwen", "x_low"),
+            _statement(compass.id, 2, "Grote vermogens moeten zwaarder belast worden", "x_low"),
+            _statement(compass.id, 3, "Bedrijven moeten minder regels krijgen", "x_high"),
+            _choice(
+                compass.id,
+                4,
+                "Waar moet er als eerste geld bij?",
+                [("Zorg", "x_low"), ("Defensie", "x_high"), ("Cultuur", "y_high"), ("Politie", "y_low")],
+            ),
+            _statement(compass.id, 5, "Nederland moet ruimhartiger asiel verlenen", "y_high"),
+            _statement(compass.id, 6, "Tradities zijn het waard om te bewaren", "y_low"),
+            _choice(
+                compass.id,
+                7,
+                "Wat weegt zwaarder?",
+                [("Privacy", "y_high"), ("Veiligheid", "y_low")],
+                required=False,
+            ),
+        ]
+        # Linksom en progressief, twee keer hetzelfde ingevuld: die twee
+        # worden één dikkere stip op de kaart.
+        _fill(compass.id, qs, "Nore", [5, 5, 1, "Zorg", 5, 2, "Privacy"])
+        _fill(compass.id, qs, "Yara", [5, 5, 1, "Zorg", 5, 2, "Privacy"])
+        # Rechtsom en behoudend.
+        _fill(compass.id, qs, "Teun", [1, 2, 5, "Defensie", 1, 5, "Veiligheid"])
+        # De twee andere kwadranten.
+        _fill(compass.id, qs, "Bo", [5, 4, 2, "Zorg", 2, 5, "Veiligheid"])
+        _fill(compass.id, qs, "Sem", [2, 1, 4, "Defensie", 5, 1, "Privacy"])
+        # Middenin: alles een 3, wat iets anders is dan niets invullen.
+        _fill(compass.id, qs, "Fenna", [3, 3, 3, "Cultuur", 3, 3, None])
+        # Alleen over economie iets gezegd, dus op de andere as niks.
+        _fill(compass.id, qs, "Joris", [4, 5, 2, "Zorg", None, None, None])
+        # En iemand zonder naam.
+        _fill(compass.id, qs, None, [4, 3, 3, "Politie", 4, 2, "Privacy"])
+
+    # --- B. active, nobody has filled it in yet ----------------------
+    campaign = _compass(
+        "Welke kant op met de campagne?",
+        "Twee assen, vier vragen. Vul 'm in en zie waar de rest staat.",
+    )
+    if campaign is not None:
+        _axes(
+            campaign.id,
+            ("Toon", "Hoe we het brengen", "Rustig", "Fel"),
+            ("Bereik", "Op wie we ons richten", "De eigen achterban", "Iedereen"),
+        )
+        _statement(campaign.id, 1, "We moeten de straat op, niet de zaal in", "x_high")
+        _statement(campaign.id, 2, "Onze taal mag scherper", "x_high")
+        _choice(
+            campaign.id,
+            3,
+            "Waar zetten we op in?",
+            [("Leden werven", "y_low"), ("Nieuwe groepen aanspreken", "y_high")],
+        )
+        _statement(campaign.id, 4, "Eerst de eigen leden activeren", "y_low")
+
+    # --- C. archived, with a handful of dots -------------------------
+    weekend = _compass(
+        "Kompas ledenweekend",
+        "Ingevuld op het ledenweekend, als opwarmer voor de discussie.",
+        archived_at=now - timedelta(days=21),
+    )
+    if weekend is not None:
+        _axes(
+            weekend.id,
+            ("Tempo", "Hoe snel we willen", "Geduldig", "Ongeduldig"),
+            ("Schaal", "Waar we beginnen", "In de buurt", "Landelijk"),
+        )
+        wqs = [
+            _statement(weekend.id, 1, "We moeten nu doorpakken", "x_high"),
+            _statement(weekend.id, 2, "Verandering begint in de eigen straat", "y_low"),
+        ]
+        _fill(weekend.id, wqs, "Iris", [5, 5])
+        _fill(weekend.id, wqs, "Kees", [2, 1])
+        _fill(weekend.id, wqs, None, [4, 3])
 
 
 def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now: datetime) -> None:

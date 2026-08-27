@@ -20,6 +20,18 @@ export interface PublicFormQuestion {
   tolerance: number | null;
 }
 
+/** One axis of a kompas, as the public payload carries it. Lives here
+ *  rather than in ``public_compass`` because it is a field of
+ *  ``PublicFormOut``, which all three products share: the other two
+ *  send an empty list (``docs/design-kompas.md`` 1.3). */
+export interface PublicAxis {
+  axis: string;
+  name: string;
+  description: string | null;
+  low_name: string;
+  high_name: string;
+}
+
 export interface PublicForm {
   id: string;
   name_nl: string | null;
@@ -29,6 +41,10 @@ export interface PublicForm {
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: "nl" | "en";
+  /** Empty on a questionnaire and on a quiz. What the kompas places
+   *  people on is not a secret and the cover names it; which answer
+   *  points where is what waits for the result. */
+  axes: PublicAxis[];
   questions: PublicFormQuestion[];
 }
 

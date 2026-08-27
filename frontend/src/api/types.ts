@@ -30,6 +30,7 @@ export type ChapterRef = S["ChapterRef"];
 // --- Starting something without an account ---
 export type StartEvent = S["StartEvent"];
 export type StartForm = S["StartForm"];
+export type StartCompass = S["StartCompass"];
 export type StartDatepoll = S["StartDatepoll"];
 export type StartRoster = S["StartRoster"];
 export type Started = S["StartedOut"];
@@ -79,6 +80,18 @@ export type FormSubmitAck = S["FormSubmitAck"];
 export type FormQuestionSummary = S["FormQuestionSummary"];
 export type FormSummary = S["FormSummaryOut"];
 export type FormSubmission = S["FormSubmissionOut"];
+// --- Kompas (the forms table's third product) ---
+export type CompassAxisIn = S["CompassAxisIn"];
+export type CompassAxisOut = S["CompassAxisOut"];
+export type CompassAxisSummary = S["CompassAxisSummary"];
+export type CompassSummary = S["CompassSummary"];
+export type CompassPoint = S["CompassPoint"];
+export type CompassAnswerResult = S["CompassAnswerResult"];
+export type CompassResult = S["CompassResultOut"];
+/** One of two axes and a direction along it. The generated schema
+ *  inlines the literal per field, so the union is named once here and
+ *  imported wherever a pole is chosen or read. */
+export type Pole = "x_low" | "x_high" | "y_low" | "y_high";
 
 // --- Datepolls (date + time-slot availability polls) ---
 export type DatepollOut = S["DatepollOut"];

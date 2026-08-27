@@ -32,8 +32,12 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, Form, FormQuestion, FormResponse, FormSubmission
+from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
+    CompassAxisOut,
+    CompassAxisSummary,
+    CompassPoint,
+    CompassSummary,
     FormListOut,
     FormMode,
     FormOut,
@@ -45,12 +49,12 @@ from ..schemas.forms import (
     QuestionKind,
     QuizSubmissionOut,
 )
+from . import compass, numbers, public_access, quizzes, tenancy
 from . import image as image_svc
-from . import numbers, public_access, quizzes, tenancy
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
-    from ..schemas.forms import FormQuestionIn
+    from ..schemas.forms import CompassAxisIn, FormQuestionIn
 
 
 # Single source of truth for the supported kinds: the public
@@ -106,7 +110,7 @@ def resolve_public(db: Session, slug: str, mode: str) -> Form:
     )
 
 
-def _validate_questions(questions: list["FormQuestionIn"], mode: str) -> None:
+def _validate_questions(questions: list["FormQuestionIn"], mode: str, axes: list["CompassAxisIn"]) -> None:
     """Per-kind sanity on a question payload. Raises HTTPException(400)
     — the router lets it propagate so the validation message
     surfaces verbatim."""
@@ -151,6 +155,44 @@ def _validate_questions(questions: list["FormQuestionIn"], mode: str) -> None:
         # person looking at the screen.
         quizzes.validate_kinds(questions)
         quizzes.validate_keys(questions)
+    if mode == "compass":
+        # A draft kompas with neither questions nor axes is a thing an
+        # organiser saves and comes back to. The moment it has either,
+        # the axes have to be nameable: a question pointing at an
+        # unnamed side is a result screen with a hole in the sentence.
+        if questions or axes:
+            compass.validate_axes(axes)
+        if questions:
+            compass.validate_questions(questions, axes)
+
+
+def apply_axes(db: Session, form_id: str, axes: list["CompassAxisIn"]) -> None:
+    """Diff-apply a kompas's two axes. Matched by ``axis`` rather than
+    by id, because there are exactly two of them and which is which is
+    the whole of their identity: an organiser cannot add a third or
+    delete one, only rename what is there.
+
+    Caller commits the session."""
+    existing = {a.axis: a for a in db.query(CompassAxis).filter(CompassAxis.form_id == form_id).all()}
+    for payload in axes:
+        row = existing.pop(payload.axis, None)
+        fields = {
+            "name": payload.name.strip(),
+            "description": (payload.description or "").strip() or None,
+            "low_name": payload.low_name.strip(),
+            "high_name": payload.high_name.strip(),
+        }
+        if row is None:
+            db.add(CompassAxis(form_id=form_id, axis=payload.axis, **fields))
+        else:
+            for key, value in fields.items():
+                setattr(row, key, value)
+    # An axis on disk the payload did not name. Only reachable by
+    # switching a form's mode, which nothing does, so deleting is the
+    # honest handling of a row that no longer belongs to anything.
+    for row in existing.values():
+        db.delete(row)
+    db.flush()
 
 
 def apply_questions(
@@ -158,6 +200,7 @@ def apply_questions(
     form_id: str,
     questions: list["FormQuestionIn"],
     mode: str,
+    axes: list["CompassAxisIn"] | None = None,
 ) -> None:
     """Diff-apply a question payload against the form's current
     rows. Matches by id. Rows with no id (or an id not in the
@@ -166,8 +209,12 @@ def apply_questions(
     FK cascade takes their responses with them). Ordinals are
     re-numbered 1..N from input order.
 
+    ``axes`` is the kompas's axis payload, which the question
+    validation needs: a question's direction points at one of them, so
+    the two are only checkable together (``services/compass``).
+
     Caller commits the session."""
-    _validate_questions(questions, mode)
+    _validate_questions(questions, mode, list(axes or []))
 
     existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
     seen_ids: set[str] = set()
@@ -202,6 +249,15 @@ def apply_questions(
             else None
         )
         tolerance = payload.tolerance if scored and payload.kind == "number" else None
+        # The direction, on the same terms: only a kompas has one, and
+        # only on the half of the question its kind puts it on.
+        pointed = mode == "compass"
+        pole = payload.pole if pointed and payload.kind == "rating" else None
+        option_poles = (
+            [p for p, opt in zip(payload.option_poles or [], payload.options, strict=False) if opt.strip()]
+            if pointed and payload.kind == "single_choice"
+            else None
+        )
 
         if payload.id and payload.id in existing:
             row = existing[payload.id]
@@ -220,6 +276,8 @@ def apply_questions(
             row.correct_text = correct_text
             row.correct_choices = correct_choices
             row.tolerance = tolerance
+            row.pole = pole
+            row.option_poles = option_poles
             seen_ids.add(payload.id)
         else:
             # Insert. An id submitted that doesn't exist on disk is
@@ -244,6 +302,8 @@ def apply_questions(
                     correct_text=correct_text,
                     correct_choices=correct_choices,
                     tolerance=tolerance,
+                    pole=pole,
+                    option_poles=option_poles,
                 )
             )
 
@@ -303,6 +363,15 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
     ]
 
 
+def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
+    """The two axis rows, ``x`` first. Empty on the two products that
+    place nobody, which is one query they pay for and the shape every
+    caller already handles."""
+    if form.mode != "compass":
+        return []
+    return [CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)]
+
+
 def _questions(db: Session, form_id: str) -> list[FormQuestion]:
     return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
 
@@ -335,6 +404,7 @@ def to_out(db: Session, form: Form) -> FormOut:
         image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
         reveal_answers=form.reveal_answers,
+        axes=_axes_out(db, form),
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
 
@@ -353,6 +423,10 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
         image_artist_instagram=form.image_artist_instagram,
         locale=form.locale,
         mode=as_mode(form.mode),
+        # What the kompas places you on. Not a secret, and the cover
+        # page names it before anybody answers; which answer points
+        # where is the part that waits for the result.
+        axes=_axes_out(db, form),
         # ``PublicQuestionOut``, not ``FormQuestionOut``: this is the
         # shape that leaves out the answer key, and it is the only thing
         # standing between a quiz and being solved by view-source.
@@ -376,6 +450,12 @@ def _summary(q: FormQuestion, db: Session, form_id: str, **fields: object) -> Fo
         kind=q.kind,
         prompt=q.prompt,
         correct_share=quizzes.correct_share(db, form_id, q),
+        # Which way this question pushed. The organiser's page reads a
+        # count next to the direction that earned it, which is the
+        # difference between "34 picked Rotterdam" and "34 moved
+        # toward Rechts" (``docs/design-kompas.md`` 4.5).
+        pole=q.pole,
+        option_poles=list(q.option_poles) if q.option_poles else None,
         **fields,  # type: ignore[arg-type]
     )
 
@@ -499,6 +579,55 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
     return summaries
 
 
+def compass_points(
+    db: Session,
+    form: Form,
+    *,
+    you: str | None = None,
+) -> list[CompassPoint]:
+    """Every submission as a dot, in submission order.
+
+    ``you`` marks one of them as the reader's own; the organiser's copy
+    passes nothing, because on their page nobody is "you". The name is
+    the self-chosen pseudonym and the only identifier there is
+    (``docs/design-kompas.md`` 2.4)."""
+    questions = _questions(db, form.id)
+    places = compass.positions(db, questions, form.id)
+    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form.id).order_by(FormSubmission.created_at).all()
+    out: list[CompassPoint] = []
+    for sub in subs:
+        place = places.get(sub.id)
+        if place is None:
+            # A submission with no answer rows at all: it exists, so it
+            # is on the map, at the origin like anybody who said
+            # nothing.
+            place = compass.Position(0.0, 0.0, 0, 0)
+        out.append(CompassPoint(name=sub.display_name, x=place.x, y=place.y, you=sub.id == you))
+    return out
+
+
+def compass_summary(db: Session, form: Form) -> CompassSummary | None:
+    """The kompas half of the organiser's summary: the two axes with
+    where the room sits on each, and every dot. ``None`` on the two
+    products that place nobody."""
+    if form.mode != "compass":
+        return None
+    questions = _questions(db, form.id)
+    places = list(compass.positions(db, questions, form.id).values())
+    axes = []
+    for row in compass.axes_of(db, form.id):
+        stats = compass.axis_stats(places, row.axis)
+        axes.append(
+            CompassAxisSummary(
+                axis=CompassAxisOut.model_validate(row),
+                average=stats[0] if stats else None,
+                lowest=stats[1] if stats else None,
+                highest=stats[2] if stats else None,
+            )
+        )
+    return CompassSummary(axes=axes, points=compass_points(db, form))
+
+
 def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
     """The organiser's list of played quizzes: the survey projection
     plus what each one scored, marked against the quiz as it stands
@@ -516,11 +645,11 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
             answers=row.answers,
             link_recovered_at=row.link_recovered_at,
         )
-        for row in submissions(db, form_id)
+        for row in submissions(db, form_id, mode="quiz")
     ]
 
 
-def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
+def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[FormSubmissionOut]:
     """Per-submission rows for the CSV export, keyed by question id.
     One ``FormSubmissionOut`` per fill-out, carrying the pseudonym
     (``display_name``, NULL = anonymous); the answer value matches the
@@ -528,7 +657,11 @@ def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
-    kinds = {q.id: q.kind for q in _questions(db, form_id)}
+    questions = _questions(db, form_id)
+    kinds = {q.id: q.kind for q in questions}
+    # Two more CSV columns on a kompas, derived like everything else
+    # about a position (``services/compass``).
+    places = compass.positions(db, questions, form_id) if mode == "compass" else {}
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
     if not subs:
         return []
@@ -551,6 +684,8 @@ def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
             display_name=s.display_name,
             created_at=s.created_at,
             answers=answers[s.id],
+            x=places[s.id].x if s.id in places else None,
+            y=places[s.id].y if s.id in places else None,
             link_recovered_at=s.link_recovered_at,
         )
         for s in subs

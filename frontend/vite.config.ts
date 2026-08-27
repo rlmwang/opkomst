@@ -17,7 +17,7 @@ const HOUSE_BRAND = "opkomst";
 // misses it and falls through to the app's own router. Dev has to draw
 // the line in the same place, or the sign-up page swallows the feedback
 // questionnaire.
-const PUBLIC_MINI_APP = /^\/[efdcq]\/[^/?#]+\/?$/;
+const PUBLIC_MINI_APP = /^\/[efdcqk]\/[^/?#]+\/?$/;
 
 // Mirrors ``backend/services/content.py`` plus the privacy policy: the
 // top-level paths the backend renders itself. ``tests/test_content.py``
@@ -139,6 +139,20 @@ function publicQuizDevRoute(): Plugin {
   };
 }
 
+function publicCompassDevRoute(): Plugin {
+  return {
+    name: "opkomst-public-compass-dev-route",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = (req.url ?? "").split("?")[0];
+        if (path.startsWith("/k/") && PUBLIC_MINI_APP.test(path)) req.url = "/public-compass.html";
+        next();
+      });
+    },
+  };
+}
+
 function publicFormDevRoute(): Plugin {
   return {
     name: "opkomst-public-form-dev-route",
@@ -222,7 +236,7 @@ function organiserAppDevRoute(): Plugin {
   // ``services/slug.RESERVED_SLUGS`` keeps a real chapter from ever
   // being called one of these.
   const appRoutes = new Set([
-    "", "admin", "auth", "chapters", "chores", "datepolls",
+    "", "admin", "auth", "chapters", "chores", "compasses", "datepolls",
     "events", "forms", "login", "quizzes", "register", "settings", "users",
   ]);
   const isOrganisation = (segment: string) =>
@@ -389,6 +403,7 @@ export default defineConfig({
     publicEventDevRoute(),
     publicFormDevRoute(),
     publicQuizDevRoute(),
+    publicCompassDevRoute(),
     publicDatepollDevRoute(),
     publicChoreDevRoute(),
     contentPagesDevRoute(),
@@ -423,8 +438,9 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // Three HTML entry points → three independent bundle graphs.
-      // The two public mini-apps at ``/e/{slug}`` and ``/f/{slug}``
+      // One HTML entry point per app → independent bundle graphs.
+      // The public mini-apps at ``/e/{slug}``, ``/f/{slug}`` and the
+      // rest
       // ship only what their form needs (Vue + the form component
       // + a tiny inline i18n dict + raw fetch). No PrimeVue, no
       // Pinia, no Vue Query, no router. Target wire weight:
@@ -447,6 +463,11 @@ export default defineConfig({
         // question at a time, and shares every renderer with the form.
         publicQuiz: fileURLToPath(
           new URL("./public-quiz.html", import.meta.url),
+        ),
+        // And for ``/k/{slug}``: a kompas walks the same way and ends
+        // on a map instead of a score.
+        publicCompass: fileURLToPath(
+          new URL("./public-compass.html", import.meta.url),
         ),
         // Same split again: dedicated bundle graph for ``/d/{slug}``.
         publicDatepoll: fileURLToPath(

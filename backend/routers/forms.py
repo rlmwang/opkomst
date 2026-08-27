@@ -9,15 +9,16 @@ scoped to the user's chapter via ``access.get_form_for_user``
 Public-by-slug surfaces (the public form fetch + submit) live
 in ``routers/forms_public.py``.
 
-The ``forms`` table holds both products, surveys and quizzes
-(``docs/design-quizzes.md``), and they differ by an answer key, a score
-and how the questions are walked through: nothing an organiser's CRUD
-cares about. So this module is a factory and it is mounted twice, at
-``/api/v1/forms`` and ``/api/v1/quizzes``. ``mode`` is what each mount
-passes in, every read names it, and the log events and the ceiling kind
-come from the same argument.
+The ``forms`` table holds three products: surveys, quizzes
+(``docs/design-quizzes.md``) and kompassen (``docs/design-kompas.md``).
+They differ by what an answer means, what is derived from it and how
+the questions are walked through: nothing an organiser's CRUD cares
+about. So this module is a factory and it is mounted three times, at
+``/api/v1/forms``, ``/api/v1/quizzes`` and ``/api/v1/compasses``.
+``mode`` is what each mount passes in, every read names it, and the log
+events and the ceiling kind come from the same argument.
 
-Copying this file for quizzes would have been ten endpoints of
+Copying this file per product would have been ten endpoints of
 identical chapter scoping, image handling and archive semantics kept in
 step by hand.
 
@@ -165,7 +166,9 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         form.image_artist_instagram = data.image_artist_instagram
         form.chapter_id = data.chapter_id
         form.locale = data.locale
-        forms_svc.apply_questions(db, form.id, data.questions, _MODE)
+        if _MODE == "compass":
+            forms_svc.apply_axes(db, form.id, data.axes)
+        forms_svc.apply_questions(db, form.id, data.questions, _MODE, data.axes)
         db.commit()
         db.refresh(form)
         logger.info(f"{noun}_updated", form_id=form.id, actor_id=user.id)
@@ -282,17 +285,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormSummaryOut:
-        access.get_form_for_user(db, form_id, user, _MODE)
         average, best, out_of = (
             quizzes.score_stats(db, form_id, forms_svc.questions_of(db, form_id))
             if _MODE == "quiz"
             else (None, None, None)
         )
+        form = access.get_form_for_user(db, form_id, user, _MODE)
         return FormSummaryOut(
             submission_count=forms_svc.submission_count(db, form_id),
             score_average=average,
             score_best=best,
             max_score=out_of,
+            compass=forms_svc.compass_summary(db, form),
             questions=forms_svc.question_aggregates(db, form_id),
         )
 
@@ -343,11 +347,13 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         access.get_form_for_user(db, form_id, user, _MODE)
         if _MODE == "quiz":
             return forms_svc.quiz_submissions(db, form_id)
-        return forms_svc.submissions(db, form_id)
+        return forms_svc.submissions(db, form_id, mode=_MODE)
 
     return router
 
 
-# The two mounts. Surveys keep the URL they had; quizzes get their own.
+# The three mounts. Surveys keep the URL they had; the other two get
+# their own.
 router = build_router("survey", prefix="/api/v1/forms", tag="forms", kind="form", noun="form")
 quiz_router = build_router("quiz", prefix="/api/v1/quizzes", tag="quizzes", kind="quiz", noun="quiz")
+compass_router = build_router("compass", prefix="/api/v1/compasses", tag="compasses", kind="compass", noun="compass")

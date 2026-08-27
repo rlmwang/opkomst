@@ -45,6 +45,8 @@ _SITEMAP_PATHS = (
     "/datepolls/new",
     "/chores/new",
     "/forms/new",
+    "/quizzes/new",
+    "/compasses/new",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
 )

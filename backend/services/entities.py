@@ -70,9 +70,9 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
 
 
 def create_form(db: Session, data: FormCreate, user: User, mode: str = "survey") -> Form:
-    """A questionnaire or a quiz: one row shape, told apart by ``mode``
-    (``docs/design-quizzes.md``). Both doors, organiser and start, reach
-    this for both products."""
+    """A questionnaire, a quiz or a kompas: one row shape, told apart by
+    ``mode`` (``docs/design-quizzes.md``, ``docs/design-kompas.md``).
+    Both doors, organiser and start, reach this for all three."""
     form = Form(
         mode=mode,
         reveal_answers=data.reveal_answers,
@@ -87,9 +87,11 @@ def create_form(db: Session, data: FormCreate, user: User, mode: str = "survey")
         created_by=user.id,
     )
     db.add(form)
-    db.flush()  # Need form.id for the question rows below.
-    if data.questions:
-        forms_svc.apply_questions(db, form.id, data.questions, form.mode)
+    db.flush()  # Need form.id for the axis + question rows below.
+    if form.mode == "compass" and data.axes:
+        forms_svc.apply_axes(db, form.id, data.axes)
+    if data.questions or data.axes:
+        forms_svc.apply_questions(db, form.id, data.questions, form.mode, data.axes)
     logger.info("form_created", form_id=form.id, actor_id=user.id, chapter_id=data.chapter_id)
     return form
 

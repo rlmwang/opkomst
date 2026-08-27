@@ -81,6 +81,7 @@ _HEAD_INJECTION_MARKER = "<!-- OPKOMST_HEAD_INJECTION -->"
 # pages.
 _FORM_INJECTION_MARKER = "<!-- OPKOMST_FORM_INJECTION -->"
 _QUIZ_INJECTION_MARKER = "<!-- OPKOMST_QUIZ_INJECTION -->"
+_COMPASS_INJECTION_MARKER = "<!-- OPKOMST_COMPASS_INJECTION -->"
 _DATEPOLL_INJECTION_MARKER = "<!-- OPKOMST_DATEPOLL_INJECTION -->"
 _CHORE_INJECTION_MARKER = "<!-- OPKOMST_CHORE_INJECTION -->"
 _CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
@@ -189,6 +190,11 @@ def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) 
     )
 
 
+# The public prefix per product in the forms table, so a canonical URL
+# names the page it is actually on. Mirrors ``lib/form-urls.ts``.
+_FORM_PREFIX = {"survey": "f", "quiz": "q", "compass": "k"}
+
+
 def _build_form_head_meta(form: Form | None, slug: str, brand_slug: str) -> str:
     """Per-form link-preview ``<head>``. Forms have no topic /
     location / date, so the description is just the form name; the
@@ -199,7 +205,7 @@ def _build_form_head_meta(form: Form | None, slug: str, brand_slug: str) -> str:
     return _og_head(
         name=form_name,
         description=form_name,
-        canonical_url=f"{_PUBLIC_BASE}/f/{slug}",
+        canonical_url=f"{_PUBLIC_BASE}/{_FORM_PREFIX[form.mode]}/{slug}",
         image_url=image_svc.public_url(form.image_path),
         brand_slug=brand_slug,
     )
@@ -379,7 +385,7 @@ _APP_SURFACES = {
     "/chores/new": "create_chore",
 }
 
-# What a search result for each of those should say. The same five
+# What a search result for each of those should say. The same
 # paths, because they are the only ones a stranger can reach: an
 # organiser's dashboard has no business being described to a crawler,
 # and anything not named here keeps the bare title.
@@ -398,6 +404,16 @@ _APP_PAGE_META = {
         "Vragenlijst maken zonder Google Forms",
         "Stel je eigen vragen samen en deel één link. Geen account voor de "
         "invuller, geen cookies, en de antwoorden blijven bij jou.",
+    ),
+    "/quizzes/new": (
+        "Pubquiz maken zonder account",
+        "Schrijf je eigen quiz en deel één link. Iedereen speelt op de eigen "
+        "telefoon, ziet meteen de score, en hoeft nergens voor in te loggen.",
+    ),
+    "/compasses/new": (
+        "Kompas maken: waar staat jouw groep?",
+        "Stel vragen met twee assen en zie op één kaart waar iedereen staat. "
+        "Geen account voor de invuller, geen cookies, geen tracking.",
     ),
     "/datepolls/new": (
         "Datumprikker maken zonder account",
@@ -456,13 +472,16 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
     return "\n    ".join(tags)
 
 
-# The four tenant-free public URL prefixes, each with the resolver that
+# The tenant-free public URL prefixes, each with the resolver that
 # turns its slug back into the entity that owns it. ``brand_slug_for``
 # is the one question a caller outside this module asks of it.
 _PUBLIC_RESOLVERS: dict[str, Callable[[Session, str], Any]] = {
     "e": events_svc.get_occurrence_by_slug_any,
     "f": partial(forms_svc.get_form_by_slug_any, mode="survey"),
     "q": partial(forms_svc.get_form_by_slug_any, mode="quiz"),
+    # ``k`` for kompas, which is what the page calls itself: ``c`` is
+    # the chore roster (``docs/design-kompas.md`` 1.2).
+    "k": partial(forms_svc.get_form_by_slug_any, mode="compass"),
     "d": datepolls_svc.get_datepoll_by_slug_any,
     "c": chores_svc.get_roster_by_slug_any,
 }
@@ -562,6 +581,28 @@ def _serve_public_quiz(slug: str, db: Session, request: Request) -> HTMLResponse
     )
 
 
+def _serve_public_compass(slug: str, db: Session, request: Request) -> HTMLResponse:
+    """The third product in the forms table, on its own prefix. The
+    payload is the same shape the survey gets minus the directions:
+    which answer moves you where arrives with the result, not before
+    (``docs/design-kompas.md`` 5.2)."""
+    traffic.record("public_compass")
+    kompas = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="compass"))
+    payload = json.loads(forms_svc.to_public_out(db, kompas).model_dump_json()) if kompas is not None else None
+    brand_slug = _brand_slug_for(db, kompas)
+    return _serve_public_app(
+        html_name="public-compass.html",
+        window_var="__OPKOMST_COMPASS__",
+        payload_marker=_COMPASS_INJECTION_MARKER,
+        payload=payload,
+        head_meta=_build_form_head_meta(kompas, slug, brand_slug),
+        brand_slug=brand_slug,
+        request=request,
+        # A slug that resolved to nothing is a 404, not a page.
+        status_code=200 if kompas is not None else 404,
+    )
+
+
 def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResponse:
     traffic.record("public_datepoll")
     # Archived/unknown polls inline null, same as forms.
@@ -640,6 +681,10 @@ def mount(app: FastAPI) -> None:
     @app.get("/q/{slug}", include_in_schema=False)
     def _public_quiz(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_quiz(slug, db, request)
+
+    @app.get("/k/{slug}", include_in_schema=False)
+    def _public_compass(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+        return _serve_public_compass(slug, db, request)
 
     @app.get("/d/{slug}", include_in_schema=False)
     def _public_datepoll(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:

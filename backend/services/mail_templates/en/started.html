@@ -3,7 +3,7 @@
    type an address into the start form. The words for each kind live
    here because which noun to use is a translation. #}
 {% extends "base.html" %}
-{% set nouns = {"event": "event", "form": "form", "datepoll": "date poll", "roster": "chore roster", "quiz": "quiz"} %}
+{% set nouns = {"event": "event", "form": "form", "datepoll": "date poll", "roster": "chore roster", "quiz": "quiz", "compass": "compass"} %}
 {% set noun = nouns[kind] %}
 {% set subject = noun | capitalize + " created: " + name %}
 {% block content %}

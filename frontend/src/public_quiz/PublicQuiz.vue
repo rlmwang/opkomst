@@ -407,47 +407,6 @@ async function finish() {
   color: var(--brand-text-muted);
 }
 
-.answer-list {
-  list-style: none;
-  margin: 1.25rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-/* A rule between rows rather than a gap: the list is a table of what
- * happened, and rules are what keep a long one readable. */
-.answer-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--brand-border);
-}
-.row-number {
-  width: 1.5rem;
-  height: 1.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  border: 1px solid var(--brand-border);
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  align-self: start;
-}
-/* Neutral: the mark on the right says how it went, and a number that
- * also said it would be the same thing twice. */
-.answer-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-.answer-prompt {
-  line-height: 1.4;
-}
 .verdict {
   display: inline-flex;
   align-items: center;

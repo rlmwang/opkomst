@@ -80,6 +80,8 @@ describe("QuestionEditor kind switching", () => {
       correct_text: null,
       correct_choices: null,
       tolerance: null,
+    pole: null,
+    option_poles: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -108,6 +110,8 @@ describe("QuestionEditor kind switching", () => {
       correct_text: null,
       correct_choices: null,
       tolerance: null,
+    pole: null,
+    option_poles: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -135,6 +139,8 @@ describe("QuestionEditor kind switching", () => {
       correct_text: null,
       correct_choices: null,
       tolerance: null,
+    pole: null,
+    option_poles: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -162,6 +168,8 @@ describe("QuestionEditor kind switching", () => {
       correct_text: null,
       correct_choices: null,
       tolerance: null,
+    pole: null,
+    option_poles: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {
@@ -190,6 +198,8 @@ describe("QuestionEditor kind switching", () => {
       correct_text: null,
       correct_choices: ["A"],
       tolerance: null,
+    pole: null,
+    option_poles: null,
     };
     const { wrapper, get } = mountEditor(initial);
     const exposed = wrapper.vm as unknown as {

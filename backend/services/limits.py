@@ -47,11 +47,23 @@ MAX_PARTICIPANTS = 50
 # the unit to think in.
 MAX_MAIL_PER_DAY = 200
 
-_ENTITY_MODELS = {"event": Event, "form": Form, "datepoll": Datepoll, "roster": Roster, "quiz": Form}
-# The forms table holds two products, so its ceilings are per product:
-# a personal account's quizzes do not eat into its questionnaires
-# (``docs/design-quizzes.md``).
-_ENTITY_FILTERS = {"form": Form.mode == "survey", "quiz": Form.mode == "quiz"}
+_ENTITY_MODELS = {
+    "event": Event,
+    "form": Form,
+    "datepoll": Datepoll,
+    "roster": Roster,
+    "quiz": Form,
+    "compass": Form,
+}
+# The forms table holds three products, so its ceilings are per
+# product: a personal account's quizzes and kompassen do not eat into
+# its questionnaires (``docs/design-quizzes.md``,
+# ``docs/design-kompas.md``).
+_ENTITY_FILTERS = {
+    "form": Form.mode == "survey",
+    "quiz": Form.mode == "quiz",
+    "compass": Form.mode == "compass",
+}
 
 
 def assert_can_add_entity(db: Session, tenant: Tenant, kind: str) -> None:
@@ -85,7 +97,7 @@ def _participant_count(db: Session, kind: str, entity_id: str) -> int:
             .scalar()
         )
         return int(total or 0)
-    if kind in ("form", "quiz"):
+    if kind in ("form", "quiz", "compass"):
         return db.query(FormSubmission).filter(FormSubmission.form_id == entity_id).count()
     if kind == "datepoll":
         return db.query(DatepollSubmission).filter(DatepollSubmission.datepoll_id == entity_id).count()

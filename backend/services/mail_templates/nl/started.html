@@ -9,7 +9,7 @@
    The words for each kind live here rather than in the router: which
    noun to use is a translation, and this file is the Dutch one. #}
 {% extends "base.html" %}
-{% set nouns = {"event": "evenement", "form": "vragenlijst", "datepoll": "datumprikker", "roster": "takenrooster", "quiz": "quiz"} %}
+{% set nouns = {"event": "evenement", "form": "vragenlijst", "datepoll": "datumprikker", "roster": "takenrooster", "quiz": "quiz", "compass": "kompas"} %}
 {% set noun = nouns[kind] %}
 {% set subject = noun | capitalize + " aangemaakt: " + name %}
 {% block content %}

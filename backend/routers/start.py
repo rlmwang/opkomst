@@ -1,7 +1,8 @@
 """Starting something without an account.
 
-Four public endpoints — ``POST /api/v1/start/{events,forms,datepolls,
-chores}`` — that take an address plus the same body an organiser posts,
+Six public endpoints — ``POST /api/v1/start/{events,forms,quizzes,
+compasses,datepolls,chores}`` — that take an address plus the same body
+an organiser posts,
 and do three things in one transaction:
 
 1. **Resolve the account.** A live personal user with that address owns
@@ -30,7 +31,15 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import User
-from ..schemas.start import StartDatepoll, StartedOut, StartEvent, StartForm, StartQuiz, StartRoster
+from ..schemas.start import (
+    StartCompass,
+    StartDatepoll,
+    StartedOut,
+    StartEvent,
+    StartForm,
+    StartQuiz,
+    StartRoster,
+)
 from ..services import access, entities, event_stats, limits, tenancy
 from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
@@ -45,7 +54,7 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # The public path each kind's slug lives under. What the mail *calls*
 # each kind is in the templates, one set of words per language, because
 # that is what a translation is.
-_PREFIXES = {"event": "e", "form": "f", "datepoll": "d", "roster": "c", "quiz": "q"}
+_PREFIXES = {"event": "e", "form": "f", "datepoll": "d", "roster": "c", "quiz": "q", "compass": "k"}
 
 
 def _resolve_account(db: Session, email: str) -> User:
@@ -128,6 +137,17 @@ def start_quiz(request: Request, data: StartQuiz, db: Session = Depends(get_db))
     quiz = entities.create_form(db, data.quiz, user, mode="quiz")
     db.commit()
     return _finish(db, user, "quiz", quiz.slug, quiz.name_nl or quiz.name_en or "", quiz.locale)
+
+
+@router.post("/compasses", response_model=StartedOut, status_code=201)
+@limiter.limit(Limits.PUBLIC_WRITE)
+def start_compass(request: Request, data: StartCompass, db: Session = Depends(get_db)) -> StartedOut:
+    user = _resolve_account(db, data.email)
+    access.assert_user_can_assign_chapter(db, user, data.compass.chapter_id)
+    limits.assert_can_add_entity(db, user.tenant, "compass")
+    kompas = entities.create_form(db, data.compass, user, mode="compass")
+    db.commit()
+    return _finish(db, user, "compass", kompas.slug, kompas.name_nl or kompas.name_en or "", kompas.locale)
 
 
 @router.post("/datepolls", response_model=StartedOut, status_code=201)

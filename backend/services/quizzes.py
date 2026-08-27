@@ -115,7 +115,7 @@ def max_score(questions: list[FormQuestion]) -> int:
     return sum(q.points for q in questions if q.points > 0)
 
 
-def _as_fields(row: FormResponse) -> dict[str, Any]:
+def as_fields(row: FormResponse) -> dict[str, Any]:
     """A stored answer row in the shape ``grade`` compares against."""
     return {
         "answer_int": row.answer_int,
@@ -128,7 +128,7 @@ def score_of(questions: list[FormQuestion], rows: list[FormResponse]) -> int:
     """One submission's score: every stored answer marked against the
     quiz as it stands now."""
     by_id = {q.id: q for q in questions}
-    return sum(grade(by_id[r.question_id], _as_fields(r)) for r in rows if r.question_id in by_id)
+    return sum(grade(by_id[r.question_id], as_fields(r)) for r in rows if r.question_id in by_id)
 
 
 def rows_by_submission(db: Session, form_id: str) -> dict[str, list[FormResponse]]:
@@ -219,4 +219,4 @@ def correct_share(db: Session, form_id: str, question: FormQuestion) -> float | 
     # Full marks, not part marks: the question this answers is "how
     # many of them got it", and half a multiple-choice answer is not
     # getting it.
-    return round(sum(1 for r in rows if grade(question, _as_fields(r)) >= question.points) / len(rows), 2)
+    return round(sum(1 for r in rows if grade(question, as_fields(r)) >= question.points) / len(rows), 2)

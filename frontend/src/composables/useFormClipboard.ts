@@ -1,22 +1,15 @@
-import { formQrUrl, publicFormUrl, publicQuizUrl, quizQrUrl } from "@/lib/form-urls";
+import type { FormResource } from "@/composables/useForms";
 import { useShareClipboard } from "@/composables/useShareClipboard";
+import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 
-/** Copy the public fill-out URL or the QR PNG for a form. Thin
- * wrapper around the shared share-clipboard helper. */
-export function useFormClipboard() {
+/** Copy the public fill-out URL or the QR PNG for one of the forms
+ *  table's products. Thin wrapper around the shared share-clipboard
+ *  helper; the resource decides which public prefix the copied link
+ *  carries. */
+export function useFormClipboard(resource: FormResource) {
   return useShareClipboard({
-    publicUrlFor: publicFormUrl,
-    qrUrlFor: formQrUrl,
-    copyPrefix: "forms.share",
-  });
-}
-
-/** The same for a quiz, whose public page and QR live under their own
- *  prefix. */
-export function useQuizClipboard() {
-  return useShareClipboard({
-    publicUrlFor: publicQuizUrl,
-    qrUrlFor: quizQrUrl,
+    publicUrlFor: (slug: string) => publicFormUrl(resource, slug),
+    qrUrlFor: (slug: string) => formQrUrl(resource, slug),
     copyPrefix: "forms.share",
   });
 }

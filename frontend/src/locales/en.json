@@ -72,7 +72,8 @@
     "datepollsHint": "Pick a date with the group",
     "choresHint": "Share out recurring tasks",
     "adminHint": "Users and chapters",
-    "chapterAgendas": "Chapter pages"
+    "chapterAgendas": "Chapter pages",
+    "compassesHint": "Where does everyone stand?"
   },
   "header": {
     "events": "Events",
@@ -91,7 +92,8 @@
     "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} sign-ups awaiting approval",
     "logout": "Log out",
-    "settings": "Settings"
+    "settings": "Settings",
+    "compasses": "Compasses"
   },
   "whatsapp": {
     "title": "WhatsApp blast",
@@ -321,9 +323,7 @@
       "backToList": "← Back to forms",
       "descriptionPlaceholder": "Description (optional)",
       "questionNeedsPrompt": "Question {n}: write the question first.",
-      "questionNeedsOptions": "Question {n}: add at least two answers.",
-      "questionNeedsKey": "Question {n}: mark which answer is right.",
-      "questionNeedsOneKey": "Question {n}: multiple choice has exactly one right answer."
+      "questionNeedsOptions": "Question {n}: add at least two answers."
     },
     "question": {
       "promptPlaceholder": "Question",
@@ -919,7 +919,6 @@
       "submissionCount": "played {n} times",
       "archiveConfirmTitle": "Archive quiz",
       "archiveConfirmBody": "Archive \"{name}\"? The link stops working afterwards.",
-      "archive": "Archive",
       "archiveFail": "Archiving failed",
       "archived": "Archive",
       "loadFailed": "Could not load quizzes",
@@ -932,7 +931,14 @@
       "intro": "Quizzes you have archived.",
       "empty": "No archived quizzes yet.",
       "searchPlaceholder": "Search quizzes",
-      "noMatches": "No quizzes found."
+      "noMatches": "No quizzes found.",
+      "loadFailed": "Could not load archive",
+      "restored": "{name} restored",
+      "restoreFail": "Restore failed",
+      "deleteConfirmTitle": "Delete permanently?",
+      "deleteConfirmBody": "{name} and every answer given to it will be deleted. This cannot be undone.",
+      "deleteOk": "{name} deleted",
+      "deleteFail": "Delete failed"
     },
     "edit": {
       "notFoundTitle": "Quiz not found",
@@ -941,19 +947,17 @@
       "loadFailed": "Could not load the quiz",
       "saveFailed": "Saving failed",
       "fillName": "Give the quiz a name",
-      "questionsHeading": "Questions",
       "questionsExplainer": "Give each question its right answer and what it is worth. Everything is marked automatically, so open questions are not possible here.",
       "noQuestionsYet": "No questions yet.",
-      "addQuestion": "Add question",
       "revealHeading": "Show the answers",
       "revealExplainer": "Afterwards players see what was right for each question. Turn this off if you run the same quiz twice in one evening.",
       "editTitle": "Edit quiz",
       "newTitle": "New quiz",
       "create": "Create quiz",
-      "namePlaceholder": "Title"
+      "questionNeedsKey": "Question {n}: mark which answer is right.",
+      "questionNeedsOneKey": "Question {n}: multiple choice has exactly one right answer."
     },
     "details": {
-      "questionsHeading": "Questions",
       "responsesTitle": "Played",
       "responses": "plays",
       "noResponsesYet": "Nobody has played it yet.",
@@ -975,6 +979,89 @@
       "correctNumber": "Right answer",
       "tolerance": "Margin",
       "points": "points"
+    }
+  },
+  "compasses": {
+    "list": {
+      "title": "Compasses",
+      "intro": "Everyone who fills it in gets a spot on a map with two axes.",
+      "newForm": "New compass",
+      "submissionCount": "{n} filled in",
+      "empty": "No compasses yet.",
+      "noMatches": "No compass found.",
+      "loadFailed": "Could not load compasses",
+      "archiveConfirmTitle": "Archive compass",
+      "archiveConfirmBody": "Archive \"{name}\"? The link stops working after that.",
+      "archived": "Compass archived",
+      "archiveFail": "Archive failed"
+    },
+    "archived": {
+      "title": "Archived compasses",
+      "intro": "Restore a compass to open it again, or delete it for good.",
+      "empty": "No archived compasses.",
+      "searchPlaceholder": "Search compasses",
+      "noMatches": "No compass found.",
+      "loadFailed": "Could not load archive",
+      "restored": "{name} restored",
+      "restoreFail": "Restore failed",
+      "deleteConfirmTitle": "Delete permanently?",
+      "deleteConfirmBody": "{name} and every answer given to it will be deleted. This cannot be undone.",
+      "deleteOk": "{name} deleted",
+      "deleteFail": "Delete failed"
+    },
+    "edit": {
+      "newTitle": "New compass",
+      "editTitle": "Edit compass",
+      "create": "Create compass",
+      "fillName": "Give your compass a name",
+      "backToList": "Back to compasses",
+      "loadFailed": "Could not load the compass",
+      "saveFailed": "Saving failed",
+      "notFoundTitle": "Compass not found",
+      "notFoundBody": "This compass does not exist, or you cannot reach it.",
+      "noQuestionsYet": "No questions yet.",
+      "questionsExplainer": "Every question pushes someone one way.",
+      "axesHeading": "Axes",
+      "axisX": "Axis X",
+      "axisY": "Axis Y",
+      "fillAxisName": "Give axis {axis} a name.",
+      "fillPoleNames": "Name both sides of axis {name}.",
+      "axisUnused": "No question belongs to axis {name}, so everybody comes out at zero on it.",
+      "questionNeedsPole": "Question {n}: pick what a 5 means.",
+      "questionNeedsOptionPoles": "Question {n}: pick a side of an axis for every answer.",
+      "axisNamePlaceholderX": "Name, for example Economy",
+      "axisNamePlaceholderY": "Name, for example Social and cultural",
+      "lowNamePlaceholderX": "For example: Left",
+      "highNamePlaceholderX": "For example: Right",
+      "lowNamePlaceholderY": "For example: Conservative",
+      "highNamePlaceholderY": "For example: Progressive",
+      "axisDescriptionPlaceholderX": "What is this axis about?",
+      "axisDescriptionPlaceholderY": "What is this axis about?",
+      "sideLowX": "Left on the map",
+      "sideHighX": "Right on the map",
+      "sideLowY": "Bottom of the map",
+      "sideHighY": "Top of the map"
+    },
+    "details": {
+      "backToList": "Back to compasses",
+      "loadFailed": "Could not load the compass",
+      "notFoundTitle": "Compass not found",
+      "notFoundBody": "This compass does not exist, or you cannot reach it.",
+      "responsesTitle": "Filled in",
+      "responses": "times filled in",
+      "noResponsesYet": "Nobody has filled it in yet.",
+      "noTextResponses": "Nobody wrote anything here.",
+      "qResponses": "{n} answers",
+      "mapHeading": "The map",
+      "spread": "Average {avg}, from {min} to {max}",
+      "noPositions": "The map appears here once somebody fills it in.",
+      "ratingPole": "A 5 means {pole}",
+      "ratingContribution": "Average {avg} out of 5, which is {value} toward {pole}"
+    },
+    "question": {
+      "polePrompt": "A 5 means",
+      "pickPole": "Pick a side",
+      "pickOptionPoles": "Answers"
     }
   }
 }

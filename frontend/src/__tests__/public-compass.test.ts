@@ -1,0 +1,265 @@
+/**
+ * Filling in a kompas (``PublicCompass.vue``): the cover, the walk, and
+ * what the map says afterwards.
+ *
+ * The arithmetic is the server's and is tested in
+ * ``tests/test_compass.py``; what matters here is that the walk never
+ * shows a direction before the answering is over, that one POST carries
+ * every answer, that the coordinates come from the response rather than
+ * from anything the page worked out, and that "change your answers"
+ * reopens the walk with the answers still in it.
+ */
+import { flushPromises, mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import * as api from "@/public_compass/api";
+import PublicCompass from "@/public_compass/PublicCompass.vue";
+
+vi.mock("@/public_compass/api", () => ({
+  ApiError: class ApiError extends Error {},
+  fetchCompassBySlug: vi.fn(),
+  fetchCompassResult: vi.fn(),
+  postCompassAnswers: vi.fn(),
+  putCompassAnswers: vi.fn(),
+}));
+
+const AXES = [
+  {
+    axis: "x",
+    name: "Economie",
+    description: "Waar het geld heen gaat",
+    low_name: "Links",
+    high_name: "Rechts",
+  },
+  {
+    axis: "y",
+    name: "Cultuur",
+    description: null,
+    low_name: "Open",
+    high_name: "Behoud",
+  },
+];
+
+const COMPASS = {
+  id: "k1",
+  name_nl: "Waar sta jij?",
+  name_en: "Where do you stand?",
+  description_nl: null,
+  description_en: null,
+  image_url: null,
+  image_artist_instagram: null,
+  locale: "nl" as const,
+  mode: "compass" as const,
+  axes: AXES,
+  questions: [
+    {
+      id: "one",
+      ordinal: 1,
+      kind: "rating",
+      prompt: "De overheid moet meer huizen bouwen",
+      required: true,
+      options: [],
+      low_label: "Oneens",
+      high_label: "Eens",
+      min_value: null,
+      max_value: null,
+      step: null,
+      points: 0,
+    },
+    {
+      id: "two",
+      ordinal: 2,
+      kind: "single_choice",
+      prompt: "Waar moet het geld heen?",
+      required: true,
+      options: ["Zorg", "Defensie"],
+      low_label: null,
+      high_label: null,
+      min_value: null,
+      max_value: null,
+      step: null,
+      points: 0,
+    },
+  ],
+};
+
+const RESULT = {
+  submission_id: "s1",
+  edit_token: "tok",
+  display_name: "Sam",
+  link_recovered_at: null,
+  x: -0.5,
+  y: 1,
+  counted_x: 2,
+  counted_y: 1,
+  axes: AXES,
+  points: [
+    { name: "Sam", x: -0.5, y: 1, you: true },
+    { name: null, x: 0.5, y: -1, you: false },
+  ],
+  answers: [
+    {
+      question_id: "one",
+      kind: "rating",
+      pole: "x_high",
+      option_poles: null,
+      given_int: 2,
+      given_choices: null,
+      axis: "x",
+      value: -0.5,
+    },
+    {
+      question_id: "two",
+      kind: "single_choice",
+      pole: null,
+      option_poles: ["x_low", "y_high"],
+      given_int: null,
+      given_choices: ["Zorg"],
+      axis: "x",
+      value: -1,
+    },
+  ],
+};
+
+function mountCompass() {
+  window.__OPKOMST_COMPASS__ = structuredClone(COMPASS) as never;
+  return mount(PublicCompass, { global: { stubs: { PublicShell: { template: "<div><slot /></div>" } } } });
+}
+
+/** The cover, then the first question. */
+async function start(wrapper: ReturnType<typeof mountCompass>, name?: string) {
+  if (name) await wrapper.find("input[type=text]").setValue(name);
+  await wrapper.find("form").trigger("submit");
+  await flushPromises();
+}
+
+function buttonWith(wrapper: ReturnType<typeof mountCompass>, label: string) {
+  return wrapper.findAll("button").find((b) => b.text() === label);
+}
+
+/** A rating is five buttons, not five radios (``QuestionField``). */
+function rate(wrapper: ReturnType<typeof mountCompass>, value: number) {
+  return wrapper.findAll(".rating-row button")[value - 1].trigger("click");
+}
+
+function pick(wrapper: ReturnType<typeof mountCompass>, index: number) {
+  return wrapper.findAll("input[type=radio]")[index].setValue(true);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  window.history.replaceState(null, "", "/k/abc123");
+});
+
+describe("PublicCompass", () => {
+  it("says on the cover that the name goes on a shared map", async () => {
+    const wrapper = mountCompass();
+    await flushPromises();
+    // The privacy contract of this feature, above the box rather than
+    // after the submit (``docs/design-kompas.md`` 5.1).
+    expect(wrapper.text()).toContain("Je naam komt op de kaart");
+    // And what the kompas places people on, which is not a secret.
+    expect(wrapper.text()).toContain("Economie");
+  });
+
+  it("never shows which answer points where before the result", async () => {
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper);
+    // The rating's own side, and the two option sides, are all absent
+    // from the walk: the payload does not carry them at all.
+    expect(wrapper.text()).not.toContain("Rechts");
+    await rate(wrapper, 4);
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    expect(wrapper.text()).not.toContain("Links");
+  });
+
+  it("walks one question at a time and gates a required one", async () => {
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper);
+
+    expect(wrapper.text()).toContain("Vraag 1 van 2");
+    expect(wrapper.text()).toContain("De overheid moet meer huizen bouwen");
+    expect(wrapper.text()).not.toContain("Waar moet het geld heen?");
+
+    // Nothing answered: Next refuses rather than the submit doing it
+    // ten questions later.
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    expect(wrapper.text()).toContain("Geef eerst een antwoord");
+    expect(wrapper.text()).toContain("Vraag 1 van 2");
+  });
+
+  it("sends every answer in one call and takes the position from the response", async () => {
+    vi.mocked(api.postCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper, "Sam");
+
+    // A 2 on the first statement, the first option on the second.
+    await rate(wrapper, 2);
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    await pick(wrapper, 0);
+    await buttonWith(wrapper, "Klaar")?.trigger("click");
+    await flushPromises();
+
+    expect(api.postCompassAnswers).toHaveBeenCalledTimes(1);
+    const [, payload] = vi.mocked(api.postCompassAnswers).mock.calls[0];
+    expect(payload.display_name).toBe("Sam");
+    expect(payload.answers).toEqual([
+      { question_id: "one", answer_int: 2 },
+      { question_id: "two", answer_choices: ["Zorg"] },
+    ]);
+
+    // The map, and a sentence per axis built from the organiser's own
+    // words. Nothing here was computed by the page.
+    expect(wrapper.text()).toContain("Je staat aan de kant van Links");
+    expect(wrapper.text()).toContain("Je staat aan de kant van Behoud");
+    // And the direction each answer carried, hidden until now.
+    expect(wrapper.text()).toContain("Een 5 was Rechts, jij zei 2");
+  });
+
+  it("says which reason a zero on an axis has", async () => {
+    const nothingSaid = { ...structuredClone(RESULT), y: 0, counted_y: 0 };
+    vi.mocked(api.postCompassAnswers).mockResolvedValue(nothingSaid as never);
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper);
+    await rate(wrapper, 2);
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    await pick(wrapper, 0);
+    await buttonWith(wrapper, "Klaar")?.trigger("click");
+    await flushPromises();
+
+    // A dot on the centre line has two possible reasons and the screen
+    // says which one this is.
+    expect(wrapper.text()).toContain("Over deze as heb je niks ingevuld");
+    expect(wrapper.text()).not.toContain("Je staat in het midden");
+  });
+
+  it("reopens a finished fill-in and lets the answers change", async () => {
+    vi.mocked(api.fetchCompassResult).mockResolvedValue(structuredClone(RESULT) as never);
+    vi.mocked(api.putCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
+    window.history.replaceState(null, "", "/k/abc123?s=tok");
+
+    const wrapper = mountCompass();
+    await flushPromises();
+    expect(wrapper.text()).toContain("Waar je staat");
+
+    // Unlike a quiz, changing your mind is allowed, and the walk comes
+    // back with the answers still in it.
+    await buttonWith(wrapper, "Verander je antwoorden")?.trigger("click");
+    await flushPromises();
+    expect(wrapper.text()).toContain("Vraag 1 van 2");
+    // The 2 that was given is still the one marked.
+    expect(wrapper.findAll(".rating-row button")[1].classes()).toContain("active");
+
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    await buttonWith(wrapper, "Klaar")?.trigger("click");
+    await flushPromises();
+    // A second save is a correction of the same submission, not a new
+    // one.
+    expect(api.putCompassAnswers).toHaveBeenCalledTimes(1);
+    expect(api.postCompassAnswers).not.toHaveBeenCalled();
+  });
+});

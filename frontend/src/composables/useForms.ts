@@ -1,13 +1,15 @@
 /**
- * Form composables, for both products in the forms table.
+ * Form composables, for every product in the forms table.
  *
- * A questionnaire and a quiz differ by an answer key, a score and how
- * the questions are walked through (``docs/design-quizzes.md``), and by
+ * A questionnaire, a quiz and a kompas differ by what an answer means
+ * (nothing, a key, a pole) and by how the questions are walked through
+ * (``docs/design-quizzes.md``, ``docs/design-kompas.md``), and by
  * nothing at all at this layer: the same CRUD, the same summary, the
- * same by-slug read, against ``/api/v1/forms`` or ``/api/v1/quizzes``.
- * So this file builds the surface once and hands out two of them, and
- * the organiser pages ask ``useFormsApi()`` which one they are on
- * rather than importing one by name.
+ * same by-slug read, against ``/api/v1/forms``, ``/api/v1/quizzes`` or
+ * ``/api/v1/compasses``. So this file builds the surface once and
+ * hands out one per product, and the organiser pages ask
+ * ``useFormsApi()`` which one they are on rather than importing one by
+ * name.
  *
  * Reads (list, archived, single, summary, by-slug) ride
  * ``useApiQuery``. Writes (create, update, archive, restore,
@@ -50,8 +52,12 @@ export type {
   PublicFormOut,
 };
 
-/** The two products, and the API prefix each one lives under. */
-export type FormResource = "forms" | "quizzes";
+/** The products, and the API prefix each one lives under. */
+export type FormResource = "forms" | "quizzes" | "compasses";
+
+/** Every resource, so a caller that has to cover all of them (the
+ *  copy test, a route table) enumerates rather than remembers. */
+export const FORM_RESOURCES: readonly FormResource[] = ["forms", "quizzes", "compasses"];
 
 function makeApi(resource: FormResource) {
   // The chapter-scoped CRUD surface (list / archived / single / create /
@@ -104,13 +110,22 @@ function makeApi(resource: FormResource) {
 
 export const formsApi = makeApi("forms");
 export const quizzesApi = makeApi("quizzes");
+export const compassesApi = makeApi("compasses");
 
-/** Which of the two an organiser page is on. The route says so
- * (``meta.resource``); the four pages are registered twice, once per
- * product, because everything they render is the same. */
+const BY_RESOURCE: Record<FormResource, ReturnType<typeof makeApi>> = {
+  forms: formsApi,
+  quizzes: quizzesApi,
+  compasses: compassesApi,
+};
+
+/** Which product an organiser page is on. The route says so
+ * (``meta.resource``); the four pages are registered once per product,
+ * because everything they render is the same. An absent or unknown
+ * value is the questionnaire, which is the base vocabulary. */
 export function useFormsApi() {
   const route = useRoute();
-  return (route.meta.resource as FormResource | undefined) === "quizzes" ? quizzesApi : formsApi;
+  const resource = route.meta.resource as FormResource | undefined;
+  return (resource && BY_RESOURCE[resource]) || formsApi;
 }
 
 // --- Named exports, for the code that only ever means a questionnaire.

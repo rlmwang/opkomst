@@ -46,7 +46,9 @@ admin-driven change history.
 | `Event` | The **definition** — the shared content plus a recurrence rule (`first_starts_at`/`first_ends_at` anchor, `cadence_weeks`, `occurrence_count` span [null = open-ended, 1 = one-off], `horizon_days`). No single date: concrete dates are `Occurrence` rows. `archived_at` toggles for archive/restore. `created_by` is a real FK to `User.id` (`ON DELETE SET NULL`); `chapter_id` likewise FKs `Chapter.id`. The event's own slug is organiser-internal; the public slug lives on `Occurrence`. `listed` (default true) controls whether the event's occurrences show on its chapter's public agenda. `locale` drives the public sign-up page + feedback email language. |
 | `Occurrence` | A materialised, dated instance of an `Event` (`event_id` FK, `ON DELETE CASCADE`). Carries only what is its own: `index` (0-based, for "sessie i van N"), its own public `slug` (`/e/{slug}`), and `starts_at`/`ends_at` (materialised = anchor shifted `index * cadence_weeks` whole weeks). All content is read through `event_id`. Materialised over time by the `event-tick` cron inside `horizon_days`; a one-off's single occurrence is created at event-creation. `UNIQUE(event_id, index)`. |
 | `Registration` | One person's booking (the order header) against an event: `event_id` FK, `display_name` (optional pseudonym), `party_size`, and the single edit-link (`edit_token_hash` + `link_recovered_at` from `EditTokenMixin`). No email column — the address lives only on the per-occurrence `EmailDispatch` rows. |
-| `Form` | Standalone questionnaire. Same `archived_at` shape as `Event`; same chapter scoping. No relation to `Event`. `slug` is unique across the table; public fill-out lives at `/f/:slug`. |
+| `Form` | Standalone questionnaire, and the table three products share. `mode` says which: `survey`, `quiz` (`docs/design-quizzes.md`) or `compass` (`docs/design-kompas.md`). They differ by what an answer means — nothing, a right answer, a direction — and by nothing else at this layer. Same `archived_at` shape as `Event`; same chapter scoping. No relation to `Event`. `slug` is unique across the table; the public page lives at `/f/:slug`, `/q/:slug` or `/k/:slug`. Every read names the mode (`services/forms.query`), and `tests/test_form_modes.py` greps the tree for anyone reading the table elsewhere. |
+| `FormQuestion` | One question. Six kinds, and two halves that only one product uses each: the quiz's key (`points`, `correct_*`, `tolerance`) and the kompas's direction (`pole` on a rating, `option_poles` parallel to `options` on a choice). Both are dropped on write for the products they do not belong to, and neither reaches a respondent's browser before the submit (`schemas/forms.PublicQuestionOut`). |
+| `CompassAxis` | Exactly two rows per kompas, `x` and `y`, held to that by `UNIQUE(form_id, axis)` and a CHECK. What each axis is called and what each of its two sides stands for. Single-language, in the form's own locale, like a question prompt. |
 
 ### Append-only / row-id-stable
 
@@ -94,8 +96,8 @@ All under `/api/v1/`.
 | `events_public.py` | by-slug (occurrence), event.ics, qr.svg, feedback-preview, email-preview — all keyed by the public occurrence slug | none (public) |
 | `signups.py` | public multi-occurrence booking POST (by occurrence slug), booking edit + per-occurrence withdraw (by token), organiser edit-link recover + line-item delete | none on public paths (rate-limited); organiser paths scoped |
 | `feedback.py` | questions list, public form GET, public submit, organiser summary, organiser submissions list (CSV source) | mixed; rate-limited on public submit |
-| `forms.py` | list, list-archived, create, get, update (diff-applies the question payload), archive, restore, delete-only-when-archived, summary, submissions (CSV source) | scoped to user's chapter set; same lifecycle shape as events.py |
-| `forms_public.py` | public form fetch by slug, public submit | none (public); rate-limited on submit; archived forms 410 |
+| `forms.py` | list, list-archived, create, get, update (diff-applies the question payload, and a kompas's two axes), archive, restore, delete-only-when-archived, summary, submissions (CSV source) | scoped to user's chapter set; same lifecycle shape as events.py. A factory, mounted three times: `/api/v1/forms`, `/api/v1/quizzes`, `/api/v1/compasses`. `mode` is what each mount passes in |
+| `forms_public.py` | public fetch by slug, public submit, result / edit by token, withdraw, qr.svg | none (public); rate-limited on submit; archived 410. Mounted three times, same as above. A survey acknowledges the submit, a quiz answers with the score, a kompas with the map; a quiz submission is read-only afterwards and the other two stay editable |
 
 ## Frontend page graph
 
@@ -118,7 +120,10 @@ All under `/api/v1/`.
 | ArchivedFormsPage | `/forms/archived` | approved |
 | FormEditPage | `/forms/new`, `/forms/:id/edit` | approved (name + chapter + locale + question editor; reuses ``FormPageShell``) |
 | FormDetailsPage | `/forms/:id/details` | approved (overview + per-question response aggregates + CSV export; reuses ``DetailsPageShell``) |
+| (the same four) | `/quizzes/…`, `/compasses/…` | approved. The four pages above are registered once per product in the forms table, told apart by ``meta.resource``; ``useFormText().L`` resolves each string against the product's own block and falls back to the questionnaire's, enumerated by ``__tests__/form-copy.test.ts`` |
 | PublicFormPage | `/f/:slug` | public (separate mini-app; same inlined-payload + OG-meta shape as ``/e/:slug``) |
+| PublicQuizPage | `/q/:slug` | public (own mini-app: a cover, one question at a time, then the score) |
+| PublicCompassPage | `/k/:slug` | public (own mini-app: a cover naming the two axes, one question at a time, then the map, the sentence per axis, and every answer with the direction it carried) |
 
 ## Branding
 
@@ -217,7 +222,7 @@ URL prefix (`opkomst.nu/rsp/events`) and the brand-folder name.
   public pages stay tenant-free (`/e/`, `/f/`, `/d/`, `/c/`); `/e/`
   means an occurrence slug and nothing else. The bare root is the app
   itself, in the house brand: the personal accounts, where an address is
-  the account and the four create forms are the front door.
+  the account and the create forms are the front door.
 - **Chapter slugs** are unique per tenant and follow the name: renaming
   a chapter re-slugs it, and the old agenda URL stops resolving.
 

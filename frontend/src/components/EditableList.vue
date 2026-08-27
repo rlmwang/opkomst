@@ -32,9 +32,11 @@ function ask(item: T) {
 
 <template>
   <div class="editable-list">
-    <div v-for="item in items" :key="itemKey(item)" class="list-row">
+    <div v-for="(item, index) in items" :key="itemKey(item)" class="list-row">
       <div class="list-row-label">
-        <slot name="row" :item="item">
+        <!-- ``index`` is for rows whose value lives in a second array
+             kept parallel to this one (a kompas option's direction). -->
+        <slot name="row" :item="item" :index="index">
           <span>{{ itemLabel(item) }}</span>
         </slot>
       </div>

@@ -1,22 +1,16 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { useArchivedList } from "@/composables/useArchivedList";
 import { type FormListOut, useFormsApi } from "@/composables/useForms";
+import { useFormText } from "@/composables/useFormText";
 
-const { t, te } = useI18n();
 const lt = useLocalizedText();
-// One page, two products; the route says which (``useForms``).
+// One page, three products; the route says which (``useForms``).
 const api = useFormsApi();
-/** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise: the
- *  two products share every string that is not about scoring. */
-const L = (key: string, params?: Record<string, unknown>) => {
-  const full = api.resource === "quizzes" && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
-  return params ? t(full, params) : t(full);
-};
+const { L } = useFormText();
 
 const {
   chapterFilter,
@@ -30,7 +24,7 @@ const {
   query: (chapterId) => api.useArchived({ chapterId }),
   restore: api.useRestore(),
   remove: api.useDelete(),
-  prefix: `${api.resource === "quizzes" ? "quizzes" : "forms"}.archived`,
+  prefix: `${api.resource}.archived`,
 });
 </script>
 

@@ -12,26 +12,22 @@ import { get } from "@/api/client";
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
 import { useFormClipboard } from "@/composables/useFormClipboard";
 import { type FormListOut, formList, useFormsApi } from "@/composables/useForms";
+import { useFormText } from "@/composables/useFormText";
 import { useConfirms } from "@/lib/confirms";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
-const { t, te } = useI18n();
+const { t } = useI18n();
 const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
-// One page, two products; the route says which (``useForms``).
+// One page, three products; the route says which (``useForms``).
 const api = useFormsApi();
-/** ``quizzes.<key>`` when there is one, ``forms.<key>`` otherwise: the
- *  two products share every string that is not about scoring. */
-const L = (key: string, params?: Record<string, unknown>) => {
-  const full = api.resource === "quizzes" && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
-  return params ? t(full, params) : t(full);
-};
+const { L } = useFormText();
 const confirms = useConfirms();
 const qc = useQueryClient();
-const { copyLink, copyQr } = useFormClipboard();
+const { copyLink, copyQr } = useFormClipboard(api.resource);
 
 // Chapter filter — same URL-param shape as Events so the filter
 // survives navigation between active and archived list pages.
@@ -139,7 +135,7 @@ function askArchive(f: FormListOut) {
 
     <template #row="{ item: f }">
       <EntityCard
-        :qr-src="formQrUrl(f.slug)"
+        :qr-src="formQrUrl(api.resource, f.slug)"
         :qr-label="t('forms.share.copyQr')"
         @mouseenter="prefetchDetails(f.id)"
         @focusin="prefetchDetails(f.id)"
@@ -154,7 +150,7 @@ function askArchive(f: FormListOut) {
 
         <template #link>
           <div class="link-row">
-            <a :href="publicFormUrl(f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(f.slug) }}</a>
+            <a :href="publicFormUrl(api.resource, f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(api.resource, f.slug) }}</a>
             <Button
               icon="pi pi-copy"
               size="small"

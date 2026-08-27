@@ -35,10 +35,16 @@ class StartForm(StartBase):
 
 
 class StartQuiz(StartBase):
-    # Same payload as a questionnaire: the two products differ by an
-    # answer key and a score, not by what it takes to make one
+    # Same payload as a questionnaire: the products differ by what an
+    # answer means, not by what it takes to make one
     # (``docs/design-quizzes.md``).
     quiz: FormCreate
+
+
+class StartCompass(StartBase):
+    # Same again, with the two axes on the payload
+    # (``docs/design-kompas.md``).
+    compass: FormCreate
 
 
 class StartDatepoll(StartBase):

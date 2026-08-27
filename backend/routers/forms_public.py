@@ -20,17 +20,21 @@ Archived forms 410 on the JSON + submit endpoints; QR is served
 for any live form (archived forms aren't displayed anywhere
 that surfaces the QR).
 
-Mounted twice, once per product (``docs/design-quizzes.md``). The two
-differ in exactly three places and share the rest:
+Mounted once per product (``docs/design-quizzes.md``,
+``docs/design-kompas.md``). They differ in a handful of places and
+share the rest:
 
-* a quiz is graded on submit, so the response is a result rather than
-  an acknowledgement;
+* a quiz is graded on submit and a kompas is placed on submit, so the
+  response is a result rather than an acknowledgement;
 * a quiz submission cannot be edited at all, because changing an answer
   after seeing the score is a second attempt rather than a correction.
-  The token opens the result read-only. The name comes with the
-  submission, from the quiz's cover page;
-* withdrawing works on both: "delete what I sent" is a privacy right,
-  and it costs the withdrawer their score, so it is no loophole.
+  The token opens the result read-only. A kompas submission stays
+  editable like a questionnaire's, because changing your answer after
+  seeing the map is changing your mind. The name comes with the
+  submission, from the cover page, on both;
+* withdrawing works on all three: "delete what I sent" is a privacy
+  right. On a quiz it costs the withdrawer their score and on a kompas
+  it takes their dot off the map, so it is no loophole either way.
 """
 
 import structlog
@@ -42,6 +46,9 @@ from ..config import settings
 from ..database import get_db
 from ..models import Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
+    CompassAnswerResult,
+    CompassAxisOut,
+    CompassResultOut,
     FormAnswerIn,
     FormEditOut,
     FormSubmitAck,
@@ -50,7 +57,7 @@ from ..schemas.forms import (
     QuizAnswerResult,
     QuizResultOut,
 )
-from ..services import edit_token, limits, public_access, quizzes, traffic
+from ..services import compass, edit_token, limits, public_access, quizzes, traffic
 from ..services import forms as forms_svc
 from ..services.qr import render_qr
 from ..services.rate_limit import Limits, limiter
@@ -82,18 +89,21 @@ def _named(name: str):
 
 
 def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, public_prefix: str) -> APIRouter:
-    """The public surface for one of the two products.
+    """The public surface for one of the three products.
 
     ``surface`` is the traffic counter name, ``noun`` names the log
     events so a submission still says which product it was, and
     ``public_prefix`` is the one-letter path the QR code points at:
-    ``/f/{slug}`` for a questionnaire, ``/q/{slug}`` for a quiz."""
+    ``/f/{slug}`` for a questionnaire, ``/q/{slug}`` for a quiz,
+    ``/k/{slug}`` for a kompas."""
     _MODE = mode
     router = APIRouter(prefix=prefix, tags=[tag])
     is_quiz = mode == "quiz"
-    # The ceiling bucket in ``services/limits``: a personal account's
-    # quizzes and questionnaires each get their own.
-    _KIND = "quiz" if is_quiz else "form"
+    is_compass = mode == "compass"
+    # The ceiling bucket in ``services/limits``: each product gets its
+    # own, so a personal account's kompassen do not eat into its
+    # questionnaires.
+    _KIND = {"quiz": "quiz", "compass": "compass"}.get(mode, "form")
 
     def _resolve_form(db: Session, slug: str) -> Form:
         """Resolve a slug to a live form. Archived forms 410. Unknown
@@ -248,7 +258,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             q = questions.get(row.question_id)
             if q is None or q.points <= 0:
                 continue
-            fields = quizzes._as_fields(row)
+            fields = quizzes.as_fields(row)
             earned = quizzes.grade(q, fields)
             score += earned
             answers.append(
@@ -278,11 +288,59 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             answers=answers,
         )
 
+    def _compass_result(db: Session, form: Form, submission: FormSubmission, token: str) -> CompassResultOut:
+        """Where this submission landed, the room around it, and every
+        answer with the direction that was hidden until now.
+
+        Computed here rather than read from a stored coordinate: the
+        answers are what is kept, and an organiser who moves an option
+        to the other side means every dot to move
+        (``services/compass``). Reopening the link therefore also shows
+        the room as it stands, not as it was."""
+        questions = _form_questions(db, form.id)
+        by_id = {q.id: q for q in questions}
+        rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
+        place = compass.position_of(questions, rows)
+        answers: list[CompassAnswerResult] = []
+        for row in rows:
+            q = by_id.get(row.question_id)
+            if q is None:
+                continue
+            found = compass.contribution(q, compass.as_fields(row))
+            answers.append(
+                CompassAnswerResult(
+                    question_id=q.id,
+                    kind=q.kind,
+                    pole=q.pole,
+                    option_poles=list(q.option_poles) if q.option_poles else None,
+                    given_int=row.answer_int,
+                    given_choices=list(row.answer_choices) if row.answer_choices else None,
+                    axis=found[0] if found else None,
+                    value=found[1] if found else None,
+                )
+            )
+        answers.sort(key=lambda a: by_id[a.question_id].ordinal)
+        return CompassResultOut(
+            submission_id=submission.id,
+            edit_token=token,
+            display_name=submission.display_name,
+            link_recovered_at=submission.link_recovered_at,
+            x=place.x,
+            y=place.y,
+            counted_x=place.counted_x,
+            counted_y=place.counted_y,
+            axes=[CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)],
+            answers=answers,
+            points=forms_svc.compass_points(db, form, you=submission.id),
+        )
+
     @router.post(
         "/by-slug/{slug}/submit",
-        # A survey acknowledges; a quiz answers with the result, which
-        # is the first moment the key is allowed out of the server.
-        response_model=QuizResultOut if is_quiz else FormSubmitAck,
+        # A survey acknowledges. A quiz answers with the result, which
+        # is the first moment the key is allowed out of the server, and
+        # a kompas with the map, which is the first moment the
+        # directions are.
+        response_model=QuizResultOut if is_quiz else CompassResultOut if is_compass else FormSubmitAck,
         status_code=201,
     )
     @limiter.limit(Limits.PUBLIC_SUBMIT)
@@ -292,7 +350,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         slug: str,
         data: FormSubmitIn,
         db: Session = Depends(get_db),
-    ) -> QuizResultOut | FormSubmitAck:
+    ) -> QuizResultOut | CompassResultOut | FormSubmitAck:
         """Accept one public submission. Mints a secret edit-link token
         (raw returned once; only its hash stored) so the respondent can
         come back to it. Nothing in the response links the submission
@@ -312,6 +370,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         traffic.record(surface, "submit")
         if is_quiz:
             return _result(db, form, submission, raw_token)
+        if is_compass:
+            return _compass_result(db, form, submission, raw_token)
         return FormSubmitAck(submission_id=submission.id, edit_token=raw_token)
 
     if is_quiz:
@@ -326,6 +386,44 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             form = db.get(Form, sub.form_id)
             assert form is not None  # the token resolver already validated it
             return _result(db, form, sub, token)
+
+    elif is_compass:
+
+        @router.get("/by-token/{token}", response_model=CompassResultOut)
+        def get_compass_result(token: str, db: Session = Depends(get_db)) -> CompassResultOut:
+            """The map again, later, drawn against the room as it
+            stands. The per-answer rows carry what was given, so this
+            one shape both renders the result and refills the walk
+            behind the "change your answers" button."""
+            sub = _submission_by_token(db, token)
+            form = db.get(Form, sub.form_id)
+            assert form is not None  # the token resolver already validated it
+            return _compass_result(db, form, sub, token)
+
+        @router.put("/by-token/{token}", response_model=CompassResultOut)
+        @limiter.limit(Limits.PUBLIC_SUBMIT)
+        @_named(f"update_submission_{noun}")
+        def update_compass_submission(
+            request: Request,
+            token: str,
+            data: FormSubmitIn,
+            db: Session = Depends(get_db),
+        ) -> CompassResultOut:
+            """Change your mind. Unlike a quiz, this is a correction
+            rather than a second attempt: a kompas has nothing to score
+            and nothing to beat (``docs/design-kompas.md`` 5.4). The
+            answer rows and the pseudonym are replaced, and the map
+            comes back redrawn."""
+            sub = _submission_by_token(db, token)
+            form = db.get(Form, sub.form_id)
+            assert form is not None
+            submitted = _build_submitted(_form_questions(db, sub.form_id), data.answers)
+            db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
+            sub.display_name = data.display_name
+            _write_responses(db, sub.form_id, sub.id, submitted)
+            db.commit()
+            logger.info(f"{noun}_submission_edited", form_id=sub.form_id, submission_id=sub.id)
+            return _compass_result(db, form, sub, token)
 
     else:
 
@@ -386,4 +484,12 @@ router = build_router(
 )
 quiz_router = build_router(
     "quiz", prefix="/api/v1/quizzes", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
+)
+compass_router = build_router(
+    "compass",
+    prefix="/api/v1/compasses",
+    tag="compasses",
+    surface="public_compass",
+    noun="compass",
+    public_prefix="k",
 )

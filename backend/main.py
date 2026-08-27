@@ -146,11 +146,14 @@ app.include_router(feedback_router.router)
 # a form id and 404.
 app.include_router(forms_public_router.router)
 app.include_router(forms_router.router)
-# Quizzes are the same two routers built for the other product in the
-# forms table (docs/design-quizzes.md); public before organiser, so
-# ``/by-slug/{slug}`` wins over ``/{quiz_id}``.
+# Quizzes and kompassen are the same two routers built for the other
+# two products in the forms table (docs/design-quizzes.md,
+# docs/design-kompas.md); public before organiser in both cases, so
+# ``/by-slug/{slug}`` wins over ``/{form_id}``.
 app.include_router(forms_public_router.quiz_router)
 app.include_router(forms_router.quiz_router)
+app.include_router(forms_public_router.compass_router)
+app.include_router(forms_router.compass_router)
 app.include_router(datepolls_public_router.router)
 app.include_router(datepolls_router.router)
 # Public-by-slug routes mount BEFORE the organiser router (same reason

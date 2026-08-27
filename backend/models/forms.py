@@ -8,14 +8,16 @@ feedback flow. Forms get their own four-page organiser
 experience (active list, archive list, details, edit) on top of
 the page shells extracted in the previous phase.
 
-Three tables:
+Four tables:
 
 * ``forms`` — one row per questionnaire. ``mode`` says which of the
-  two products it is, ``survey`` or ``quiz``: they differ by an answer
-  key, a score and how the questions are walked through, and share
-  everything else (``docs/design-quizzes.md``). ``archived_at`` for
-  soft archive (mirrors Event); a fresh slug per form makes the public
-  URL bookmark-stable across restores.
+  three products it is, ``survey``, ``quiz`` or ``compass``: they
+  differ by what an answer means (nothing, a right answer, a
+  direction) and by how the questions are walked through, and share
+  everything else (``docs/design-quizzes.md``,
+  ``docs/design-kompas.md``). ``archived_at`` for soft archive
+  (mirrors Event); a fresh slug per form makes the public URL
+  bookmark-stable across restores.
 * ``form_questions`` — per-form question list, ordered. Six
   kinds: ``rating``, ``text``, ``short_text``, ``single_choice``,
   ``multi_choice``, ``number``. The kind enum is enforced at the
@@ -26,6 +28,15 @@ Three tables:
   null-or-zero on a survey, dropped on write rather than trusted from
   the payload. Nothing stores a score: an answer plus the current key
   is the score (``services/quizzes``).
+* ``form_questions`` carries the kompas half too: the direction an
+  answer moves somebody in. A rating poles the statement (``pole``,
+  the side a 5 means); a choice poles each option (``option_poles``,
+  parallel to ``options``). Null on the other two products, and no
+  position is stored anywhere: an answer plus the current poles is the
+  position (``services/compass``).
+* ``compass_axes`` — exactly two rows per kompas, in
+  ``models/compass.py``: what the two axes are called and what each of
+  their four sides stands for.
 * ``form_responses`` — one row per (submission, question). The
   random ``submission_id`` groups answers from one fill-out into
   one logical submission, with no link back to whoever sent it
@@ -50,7 +61,7 @@ from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin
 
 
 class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
-    """One questionnaire or one quiz, told apart by ``mode``.
+    """One questionnaire, quiz or kompas, told apart by ``mode``.
     ``archived_at`` flips for archive/restore;
     edits overwrite in place. The slug is unique across the table
     and stays attached to the row across archive/restore so a
@@ -61,7 +72,7 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
 
     # Spine (slug, name, image_url, image_artist_instagram, locale,
     # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
-    # ``survey`` or ``quiz``. Every read filters on it; the one place
+    # ``survey``, ``quiz`` or ``compass``. Every read filters on it; the one place
     # that does is ``services/forms.query``, and a test greps for
     # anyone else querying this table.
     mode: Mapped[str] = mapped_column(Text, nullable=False, default="survey", server_default="survey")
@@ -81,7 +92,7 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
         # anything else.
         Index("ix_forms_mode_archived_chapter", "mode", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_forms_name_present"),
-        CheckConstraint("mode IN ('survey', 'quiz')", name="ck_forms_mode"),
+        CheckConstraint("mode IN ('survey', 'quiz', 'compass')", name="ck_forms_mode"),
     )
 
 
@@ -129,6 +140,32 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     correct_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     correct_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     tolerance: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # The kompas half: which way an answer moves somebody. A pole is
+    # one of ``x_low`` / ``x_high`` / ``y_low`` / ``y_high``, naming an
+    # axis and a direction along it (``docs/design-kompas.md`` 1.4).
+    #
+    # Which thing carries it depends on the kind, because the two kinds
+    # put the choice in different places. A ``rating`` poles the
+    # statement: ``pole`` is the side a 5 means, a 1 is the other end
+    # of the same axis and a 3 is the middle. A ``single_choice`` poles
+    # each option: ``option_poles`` is index-parallel to ``options``,
+    # same length, so renaming an option keeps its direction and the
+    # options need not share an axis.
+    #
+    # Index-parallel rather than keyed by option text, which is what
+    # ``correct_choices`` does: a key by string is right for a
+    # reference into the options and wrong for an attribute of each of
+    # them.
+    #
+    # Both are null on a survey and on a quiz, dropped on write rather
+    # than trusted from the payload, and neither ever reaches a
+    # respondent's browser before they submit
+    # (``schemas/forms.PublicQuestionOut``): a kompas whose page says
+    # which button moves you where is one people answer to land
+    # somewhere.
+    pole: Mapped[str | None] = mapped_column(Text, nullable=True)
+    option_poles: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     # DB-level backstop for the kind vocabulary. The canonical set
     # is the ``QuestionKind`` literal in ``schemas/forms.py`` (the

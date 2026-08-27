@@ -46,7 +46,9 @@ def _datepoll(image_path):
 
 
 def _form(image_path):
-    return spa._build_form_head_meta(Form(name_nl="Aanmelden", image_path=image_path), "slug3", _BRAND)
+    return spa._build_form_head_meta(
+        Form(name_nl="Aanmelden", mode="survey", image_path=image_path), "slug3", _BRAND
+    )
 
 
 def _roster(image_path):
@@ -56,6 +58,18 @@ def _roster(image_path):
 
 
 _BUILDERS = [_event, _datepoll, _form, _roster]
+
+
+@pytest.mark.parametrize(
+    ("mode", "prefix"),
+    [("survey", "f"), ("quiz", "q"), ("compass", "k")],
+)
+def test_the_canonical_url_names_the_page_the_form_is_actually_on(mode, prefix):
+    """One head builder, three products: a quiz's preview card has to
+    link to ``/q/…`` and a kompas's to ``/k/…``, not to the
+    questionnaire's prefix (``docs/design-kompas.md`` 1.2)."""
+    head = spa._build_form_head_meta(Form(name_nl="Aanmelden", mode=mode), "slug3", _BRAND)
+    assert f'<meta property="og:url" content="{spa._PUBLIC_BASE}/{prefix}/slug3">' in head
 
 
 @pytest.mark.parametrize("build", _BUILDERS)

@@ -7,14 +7,16 @@ import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
+import CompassPlot from "@/public_shared/CompassPlot.vue";
 import StatBar from "@/components/StatBar.vue";
 import { ApiError } from "@/api/client";
-import { useFormClipboard, useQuizClipboard } from "@/composables/useFormClipboard";
+import { useFormClipboard } from "@/composables/useFormClipboard";
 import { type FormOut, useFormsApi } from "@/composables/useForms";
+import { useFormText } from "@/composables/useFormText";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { barWidth } from "@/lib/format";
-import { formQrUrl, publicFormUrl, publicQuizUrl, quizQrUrl } from "@/lib/form-urls";
+import { barWidth, formatAverage, formatDecimal } from "@/lib/format";
+import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
@@ -23,21 +25,55 @@ const props = defineProps<{ formId: string }>();
 // organisation has no ceiling, so the pill shows the bare count.
 const auth = useAuthStore();
 
-const { t, te } = useI18n();
+const { t, locale } = useI18n();
 const lt = useLocalizedText();
 const toasts = useToasts();
-// One page, two products; the route says which (``useForms``).
+// One page, three products; the route says which (``useForms``).
 const api = useFormsApi();
-const isQuiz = computed(() => api.resource === "quizzes");
-const { copyLink, copyQr } = isQuiz.value ? useQuizClipboard() : useFormClipboard();
-const publicPageUrl = isQuiz.value ? publicQuizUrl : publicFormUrl;
-const qrSrc = isQuiz.value ? quizQrUrl : formQrUrl;
-const L = (key: string, params?: Record<string, unknown>) => {
-  const full = isQuiz.value && te(`quizzes.${key}`) ? `quizzes.${key}` : `forms.${key}`;
-  return params ? t(full, params) : t(full);
-};
-
+const { L, isQuiz: quizProduct, isCompass: compassProduct } = useFormText();
+const isQuiz = computed(() => quizProduct);
+const isCompass = computed(() => compassProduct);
+const { copyLink, copyQr } = useFormClipboard(api.resource);
+const publicPageUrl = (slug: string) => publicFormUrl(api.resource, slug);
+const qrSrc = (slug: string) => formQrUrl(api.resource, slug);
 type Question = NonNullable<FormOut["questions"]>[number];
+
+/** The kompas half of the summary, or null on the other two products
+ *  (``docs/design-kompas.md`` 4.5). */
+const compass = computed(() => summary.value?.compass ?? null);
+
+/** One side of one axis, in the organiser's own words: the label every
+ *  count and every statement on this page is read next to. Falls back
+ *  to the bare token only if a kompas somehow saved without its axes,
+ *  which the server refuses. */
+function poleName(pole: string | null | undefined): string {
+  if (!pole) return "";
+  const [axis, side] = pole.split("_");
+  const row = compass.value?.axes.find((a) => a.axis.axis === axis)?.axis ?? form.value?.axes?.find((a) => a.axis === axis);
+  if (!row) return pole;
+  return `${row.name}: ${side === "low" ? row.low_name : row.high_name}`;
+}
+
+/** Which way one option of a choice question pushed. The poles are
+ *  index-parallel to the options, which is how the two arrive, and the
+ *  options are on the form's own question list: an aggregate row
+ *  carries the counts and not the order they were written in. */
+const questionById = computed(
+  () => new Map((form.value?.questions ?? []).map((q) => [q.id, q])),
+);
+
+function optionPoleName(questionId: string, option: string): string {
+  const question = questionById.value.get(questionId);
+  const index = (question?.options ?? []).indexOf(option);
+  return index < 0 ? "" : poleName(question?.option_poles?.[index]);
+}
+
+/** A rating's average restated as what it was worth on its axis: the
+ *  same arithmetic ``services/compass.contribution`` runs, so the page
+ *  and the map cannot disagree about which way the room leaned. */
+function ratingContribution(average: number, pole: string): string {
+  return formatDecimal(Math.round(((average - 3) / 2) * (pole.endsWith("_high") ? 1 : -1) * 100) / 100, locale.value);
+}
 
 /** What a number question accepts, in one line: the same rule the
  *  person answering it reads under the box. */
@@ -111,11 +147,15 @@ async function exportCsv() {
     const header = [
       L("details.csvName"),
       L("details.csvSubmittedAt"),
+      // A kompas's two derived columns, next to the answers that
+      // produced them.
+      ...(isCompass.value ? ["x", "y"] : []),
       ...prompts,
     ];
     const rows = submissions.map((s) => [
       s.display_name ?? L("details.anonymous"),
       s.created_at,
+      ...(isCompass.value ? [s.x ?? "", s.y ?? ""] : []),
       ...ids.map((id) => {
         const v = s.answers[id];
         return Array.isArray(v) ? v.join("; ") : (v ?? "");
@@ -161,6 +201,64 @@ async function exportCsv() {
       <!-- Defined questions overview — the questionnaire's structure,
            shown independently of any responses (mirrors the chore
            details "Taken" card listing the defined chores). -->
+      <!-- Kompas only, and first: the map is what the organiser opened
+           this page to see. No dot is ringed here, because on their
+           page nobody is "you". -->
+      <AppCard v-if="isCompass && compass">
+        <div class="summary-header">
+          <h2>{{ t("compasses.details.mapHeading") }}</h2>
+        </div>
+        <p v-if="!compass.points.length" class="muted">{{ t("compasses.details.noPositions") }}</p>
+        <template v-else>
+          <CompassPlot
+            :axes="compass.axes.map((a) => a.axis)"
+            :points="compass.points"
+            :anonymous-label="L('details.anonymous')"
+            :aria-label="t('compasses.details.mapHeading')"
+          />
+          <!-- Where the room sits on each axis. Not a histogram: the
+               coordinates are means of a handful of values, so a bar
+               chart of them would be a picture of the question count.
+               -->
+          <div class="axis-stats">
+            <div v-for="row in compass.axes" :key="row.axis.axis" class="axis-stat">
+              <p class="axis-stat-name">{{ row.axis.name }}</p>
+              <p v-if="row.axis.description" class="muted q-meta">{{ row.axis.description }}</p>
+              <div class="axis-track">
+                <span class="axis-end muted">{{ row.axis.low_name }}</span>
+                <span class="axis-bar">
+                  <!-- The spread behind the mean, so a room that agrees
+                       and a room that is split do not draw the same. -->
+                  <span
+                    v-if="row.lowest != null && row.highest != null"
+                    class="axis-spread"
+                    :style="{
+                      left: `${((row.lowest! + 1) / 2) * 100}%`,
+                      width: `${((row.highest! - row.lowest!) / 2) * 100}%`,
+                    }"
+                  />
+                  <span
+                    v-if="row.average != null"
+                    class="axis-marker"
+                    :style="{ left: `${((row.average! + 1) / 2) * 100}%` }"
+                  />
+                </span>
+                <span class="axis-end muted">{{ row.axis.high_name }}</span>
+              </div>
+              <p v-if="row.average !== null && row.average !== undefined" class="muted q-meta">
+                {{
+                  t("compasses.details.spread", {
+                    avg: formatDecimal(row.average!, locale),
+                    min: formatDecimal(row.lowest!, locale),
+                    max: formatDecimal(row.highest!, locale),
+                  })
+                }}
+              </p>
+            </div>
+          </div>
+        </template>
+      </AppCard>
+
       <AppCard v-if="form.questions?.length">
         <div class="summary-header">
           <h2>{{ L("details.questionsHeading") }}</h2>
@@ -180,9 +278,17 @@ async function exportCsv() {
             <!-- The options, with the right one marked on a quiz: an
                  overview that cannot say which answer was right is one
                  an organiser has to open the editor to read. -->
+            <!-- On a kompas the direction is what the option means, so
+                 it is read on the same row rather than looked up
+                 elsewhere. -->
+            <p v-if="isCompass && q.kind === 'rating' && q.pole" class="muted q-overview-rule">
+              {{ t("compasses.details.ratingPole", { pole: poleName(q.pole) }) }}
+            </p>
             <ul v-if="q.options.length" class="q-overview-options">
               <li v-for="o in q.options" :key="o" :class="{ 'is-key': isKeyOption(q, o) }">
-                {{ o }}
+                {{ o }}<template v-if="isCompass">
+                  <span class="option-pole">{{ optionPoleName(q.id, o) }}</span>
+                </template>
               </li>
             </ul>
             <p v-if="typedKey(q)" class="muted q-overview-rule">
@@ -252,8 +358,20 @@ async function exportCsv() {
               <p class="muted q-meta">
                 {{ t("forms.details.qResponses", { n: q.response_count }) }}
                 <template v-if="q.rating_average">
-                  · {{ t("forms.details.qAverage", { avg: q.rating_average.toFixed(1) }) }}
+                  · {{ t("forms.details.qAverage", { avg: formatAverage(q.rating_average, locale) }) }}
                 </template>
+              </p>
+              <!-- The average restated as what it was worth: "3,8 van 5"
+                   says how people answered, and "0,4 richting Links"
+                   says what it did to the map. -->
+              <p v-if="isCompass && q.pole && q.rating_average" class="muted q-meta">
+                {{
+                  t("compasses.details.ratingContribution", {
+                    avg: formatAverage(q.rating_average, locale),
+                    value: ratingContribution(q.rating_average, q.pole),
+                    pole: poleName(q.pole),
+                  })
+                }}
               </p>
               <!-- ``.bars`` is the single grid container so all
                    bar tracks within a block share the same width
@@ -280,7 +398,7 @@ async function exportCsv() {
               <p class="muted q-meta">
                 {{ L("details.qResponses", { n: q.response_count }) }}
                 <template v-if="q.number_average !== null && q.number_average !== undefined">
-                  · {{ t("forms.details.qAverage", { avg: q.number_average.toFixed(1) }) }}
+                  · {{ t("forms.details.qAverage", { avg: formatAverage(q.number_average, locale) }) }}
                   · {{ t("forms.details.qRange", { low: q.number_min, high: q.number_max }) }}
                 </template>
               </p>
@@ -310,7 +428,12 @@ async function exportCsv() {
               <p class="muted q-meta">{{ t("forms.details.qResponses", { n: q.response_count }) }}</p>
               <div class="bars">
                 <template v-for="(count, label) in q.choice_counts" :key="label">
-                  <span class="bar-label choice-label">{{ label }}</span>
+                  <span class="bar-label choice-label">
+                    {{ label }}
+                    <!-- The difference between "34 picked Rotterdam"
+                         and "34 moved toward Rechts". -->
+                    <span v-if="isCompass" class="option-pole">{{ optionPoleName(q.id, String(label)) }}</span>
+                  </span>
                   <StatBar :segments="[{ width: barWidth(Object.values(q.choice_counts), count) }]" />
                   <span class="bar-count">{{ count }}</span>
                 </template>
@@ -326,6 +449,62 @@ async function exportCsv() {
 <style scoped>
 /* The overview card (.overview*, .detail-image, .qr*) and the
  * .summary-header / .header-actions row are shared from theme.css. */
+
+/* Kompas: the map card's two axis readouts. */
+.axis-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+.axis-stat-name {
+  margin: 0;
+  font-weight: 600;
+}
+.axis-track {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.375rem 0;
+}
+.axis-end {
+  font-size: 0.8125rem;
+  flex: 0 0 auto;
+}
+.axis-bar {
+  position: relative;
+  flex: 1 1 auto;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--brand-border);
+}
+.axis-spread {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--brand-red);
+  opacity: 0.28;
+  /* A room that all answered the same has no width to draw, so it
+   * still gets a sliver rather than disappearing under the marker. */
+  min-width: 2px;
+}
+.axis-marker {
+  position: absolute;
+  top: -0.125rem;
+  width: 0.25rem;
+  height: 0.75rem;
+  margin-left: -0.125rem;
+  border-radius: 2px;
+  background: var(--brand-red);
+}
+/* The direction an option or a statement carried, read on the same
+ * row as the thing it belongs to. */
+.option-pole {
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--brand-text-muted);
+}
 
 /* Defined-questions overview card: one row per question — the prompt with
  * a small kind label, plus the choice options as pills. */

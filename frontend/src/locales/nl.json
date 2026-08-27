@@ -72,7 +72,8 @@
     "datepollsHint": "Prik een datum met de groep",
     "choresHint": "Terugkerende taken verdelen",
     "adminHint": "Gebruikers en afdelingen",
-    "chapterAgendas": "Afdelingspagina's"
+    "chapterAgendas": "Afdelingspagina's",
+    "compassesHint": "Waar staat iedereen?"
   },
   "header": {
     "events": "Evenementen",
@@ -91,7 +92,8 @@
     "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen",
-    "settings": "Instellingen"
+    "settings": "Instellingen",
+    "compasses": "Kompassen"
   },
   "whatsapp": {
     "title": "WhatsApp-blast",
@@ -321,9 +323,7 @@
       "backToList": "← Terug naar vragenlijsten",
       "descriptionPlaceholder": "Beschrijving (optioneel)",
       "questionNeedsPrompt": "Vraag {n}: vul de vraag nog in.",
-      "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe.",
-      "questionNeedsKey": "Vraag {n}: geef aan welk antwoord goed is.",
-      "questionNeedsOneKey": "Vraag {n}: bij meerkeuze is er precies één goed antwoord."
+      "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe."
     },
     "question": {
       "promptPlaceholder": "Vraag",
@@ -919,7 +919,6 @@
       "submissionCount": "{n}x gespeeld",
       "archiveConfirmTitle": "Quiz archiveren",
       "archiveConfirmBody": "Weet je zeker dat je \"{name}\" wilt archiveren? De link doet het daarna niet meer.",
-      "archive": "Archiveren",
       "archiveFail": "Archiveren ging mis",
       "archived": "Archief",
       "loadFailed": "Quizzen ophalen ging mis",
@@ -932,7 +931,14 @@
       "intro": "Herstel een quiz om 'm weer speelbaar te maken, of gooi 'm definitief weg.",
       "empty": "Geen gearchiveerde quizzen.",
       "searchPlaceholder": "Zoek een quiz",
-      "noMatches": "Geen quiz gevonden."
+      "noMatches": "Geen quiz gevonden.",
+      "loadFailed": "Kon archief niet laden",
+      "restored": "{name} hersteld",
+      "restoreFail": "Herstellen mislukt",
+      "deleteConfirmTitle": "Definitief verwijderen?",
+      "deleteConfirmBody": "{name} en alle antwoorden worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "deleteOk": "{name} verwijderd",
+      "deleteFail": "Verwijderen mislukt"
     },
     "edit": {
       "notFoundTitle": "Quiz niet gevonden",
@@ -941,19 +947,17 @@
       "loadFailed": "Quiz ophalen ging mis",
       "saveFailed": "Opslaan ging mis",
       "fillName": "Geef je quiz een naam",
-      "questionsHeading": "Vragen",
       "questionsExplainer": "Zet bij elke vraag het goede antwoord en wat 'ie waard is. Alles wordt automatisch nagekeken, dus open vragen kunnen hier niet.",
       "noQuestionsYet": "Nog geen vragen.",
-      "addQuestion": "Vraag toevoegen",
       "revealHeading": "Antwoorden laten zien",
       "revealExplainer": "Na afloop ziet iedereen bij welke vragen ze goed zaten. Zet dit uit als je dezelfde quiz op één avond nog een keer speelt.",
       "editTitle": "Quiz bewerken",
       "newTitle": "Nieuwe quiz",
       "create": "Quiz aanmaken",
-      "namePlaceholder": "Titel"
+      "questionNeedsKey": "Vraag {n}: geef aan welk antwoord goed is.",
+      "questionNeedsOneKey": "Vraag {n}: bij meerkeuze is er precies één goed antwoord."
     },
     "details": {
-      "questionsHeading": "Vragen",
       "responsesTitle": "Gespeeld",
       "responses": "keer gespeeld",
       "noResponsesYet": "Nog niemand heeft 'm gespeeld.",
@@ -975,6 +979,89 @@
       "correctNumber": "Goede antwoord",
       "tolerance": "Marge",
       "points": "punten"
+    }
+  },
+  "compasses": {
+    "list": {
+      "title": "Kompassen",
+      "intro": "Iedereen die 'm invult krijgt een plek op een kaart met twee assen.",
+      "newForm": "Nieuw kompas",
+      "submissionCount": "{n}x ingevuld",
+      "empty": "Nog geen kompassen.",
+      "noMatches": "Geen kompas gevonden.",
+      "loadFailed": "Kompassen ophalen ging mis",
+      "archiveConfirmTitle": "Kompas archiveren",
+      "archiveConfirmBody": "Weet je zeker dat je \"{name}\" wilt archiveren? De link doet het daarna niet meer.",
+      "archived": "Kompas gearchiveerd",
+      "archiveFail": "Archiveren mislukt"
+    },
+    "archived": {
+      "title": "Gearchiveerde kompassen",
+      "intro": "Herstel een kompas om 'm weer open te stellen, of gooi 'm definitief weg.",
+      "empty": "Geen gearchiveerde kompassen.",
+      "searchPlaceholder": "Zoek een kompas",
+      "noMatches": "Geen kompas gevonden.",
+      "loadFailed": "Kon archief niet laden",
+      "restored": "{name} hersteld",
+      "restoreFail": "Herstellen mislukt",
+      "deleteConfirmTitle": "Definitief verwijderen?",
+      "deleteConfirmBody": "{name} en alle antwoorden worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "deleteOk": "{name} verwijderd",
+      "deleteFail": "Verwijderen mislukt"
+    },
+    "edit": {
+      "newTitle": "Nieuw kompas",
+      "editTitle": "Kompas bewerken",
+      "create": "Kompas aanmaken",
+      "fillName": "Geef je kompas een naam",
+      "backToList": "Terug naar kompassen",
+      "loadFailed": "Kompas ophalen ging mis",
+      "saveFailed": "Opslaan ging mis",
+      "notFoundTitle": "Kompas niet gevonden",
+      "notFoundBody": "Dit kompas bestaat niet, of je mag er niet bij.",
+      "noQuestionsYet": "Nog geen vragen.",
+      "questionsExplainer": "Elke vraag duwt iemand een kant op.",
+      "axesHeading": "Assen",
+      "axisX": "As X",
+      "axisY": "As Y",
+      "fillAxisName": "Geef as {axis} een naam.",
+      "fillPoleNames": "Geef allebei de kanten van as {name} een naam.",
+      "axisUnused": "Er hoort geen enkele vraag bij as {name}, dus daar komt iedereen op nul uit.",
+      "questionNeedsPole": "Vraag {n}: kies wat een 5 betekent.",
+      "questionNeedsOptionPoles": "Vraag {n}: kies bij elk antwoord een kant van een as.",
+      "axisNamePlaceholderX": "Naam, bijvoorbeeld Economie",
+      "axisNamePlaceholderY": "Naam, bijvoorbeeld Sociaal-cultureel",
+      "lowNamePlaceholderX": "Bijvoorbeeld: Links",
+      "highNamePlaceholderX": "Bijvoorbeeld: Rechts",
+      "lowNamePlaceholderY": "Bijvoorbeeld: Conservatief",
+      "highNamePlaceholderY": "Bijvoorbeeld: Progressief",
+      "axisDescriptionPlaceholderX": "Waar gaat deze as over?",
+      "axisDescriptionPlaceholderY": "Waar gaat deze as over?",
+      "sideLowX": "Links op de kaart",
+      "sideHighX": "Rechts op de kaart",
+      "sideLowY": "Onderaan de kaart",
+      "sideHighY": "Bovenaan de kaart"
+    },
+    "details": {
+      "backToList": "Terug naar kompassen",
+      "loadFailed": "Kompas ophalen ging mis",
+      "notFoundTitle": "Kompas niet gevonden",
+      "notFoundBody": "Dit kompas bestaat niet, of je mag er niet bij.",
+      "responsesTitle": "Ingevuld",
+      "responses": "keer ingevuld",
+      "noResponsesYet": "Nog niemand heeft 'm ingevuld.",
+      "noTextResponses": "Niemand heeft hier iets ingevuld.",
+      "qResponses": "{n} antwoorden",
+      "mapHeading": "De kaart",
+      "spread": "Gemiddeld {avg}, van {min} tot {max}",
+      "noPositions": "Zodra iemand 'm invult, staat de kaart hier.",
+      "ratingPole": "Een 5 betekent {pole}",
+      "ratingContribution": "Gemiddeld {avg} van 5, dat is {value} richting {pole}"
+    },
+    "question": {
+      "polePrompt": "Een 5 betekent",
+      "pickPole": "Kies een kant",
+      "pickOptionPoles": "Antwoorden"
     }
   }
 }

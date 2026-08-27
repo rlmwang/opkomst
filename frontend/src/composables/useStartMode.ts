@@ -1,7 +1,7 @@
 /**
  * Making something at the root, with no account.
  *
- * The four create pages are reached two ways. An organiser opens one
+ * The create pages are reached two ways. An organiser opens one
  * from inside their app and it saves through the organiser endpoint.
  * A visitor opens the same page from the root's landing tiles, having
  * never signed in — that is *start mode*: one extra field for their
@@ -9,7 +9,7 @@
  * target. The form itself is the same form; nothing about it is a
  * lesser version.
  *
- * The composable is what keeps the four pages from each growing their
+ * The composable is what keeps those pages from each growing their
  * own version of that: they ask it whether they are in start mode,
  * whether to show a chapter picker at all, and hand it the create body
  * they already assembled.
@@ -27,13 +27,14 @@ import type { Started } from "@/api/types";
 
 /** The wire name of the create body, which is also the key the start
  * endpoint expects it under. */
-export type StartKind = "event" | "form" | "datepoll" | "roster" | "quiz";
+export type StartKind = "event" | "form" | "datepoll" | "roster" | "quiz" | "compass";
 
 // The endpoint path per kind. Rosters are "chores" everywhere in the
 // URL space, so the two names differ here and nowhere else.
 const PATHS: Record<StartKind, string> = {
   event: "events",
   quiz: "quizzes",
+  compass: "compasses",
   form: "forms",
   datepoll: "datepolls",
   roster: "chores",

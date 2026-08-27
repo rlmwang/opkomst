@@ -53,6 +53,16 @@ const routes = [
   { path: "/quizzes/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "quizzes" } },
   { path: "/quizzes/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
   { path: "/quizzes/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+  // Kompassen — the third product in the same table, registered the
+  // same way. A kompas differs by a direction on every answer and a
+  // map at the end, and none of that is on this side of the app
+  // either (``docs/design-kompas.md``). The public walk lives at
+  // /k/:slug.
+  { path: "/compasses", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
+  { path: "/compasses/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
+  { path: "/compasses/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "compasses" } },
+  { path: "/compasses/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
+  { path: "/compasses/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
 
   // Datepolls — dates-only availability polls (no relation to
   // Events/Forms). Same chapter-scoped four-page experience; the
@@ -119,7 +129,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   if ((needsAuth || getToken()) && !auth.loaded) await auth.fetchMe();
 
   // The root's front door: no session, and the route is one of the
-  // four create forms. The page posts to ``/api/v1/start/…`` instead
+  // create forms. The page posts to ``/api/v1/start/…`` instead
   // of the organiser endpoint and asks for an address on the way out,
   // so there is nothing here to send the visitor to /login for.
   if (isPersonalApp() && to.meta.startable && !auth.isAuthenticated) return true;

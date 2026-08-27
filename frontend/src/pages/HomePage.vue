@@ -66,6 +66,7 @@ const tiles: Tile[] = [
   { key: "chores", to: "/chores", label: t("header.chores"), hint: t("home.choresHint") },
   { key: "forms", to: "/forms", label: t("header.forms"), hint: t("home.formsHint") },
   { key: "quizzes", to: "/quizzes", label: t("header.quizzes"), hint: t("home.quizzesHint") },
+  { key: "compasses", to: "/compasses", label: t("header.compasses"), hint: t("home.compassesHint") },
 ];
 </script>
 

@@ -78,6 +78,12 @@ const workspaceItems = computed<MenuItem[]>(() => {
       label: t("header.quizzes"),
       isActive: (p) => p === "/quizzes" || p.startsWith("/quizzes/"),
     },
+    {
+      key: "compasses",
+      to: "/compasses",
+      label: t("header.compasses"),
+      isActive: (p) => p === "/compasses" || p.startsWith("/compasses/"),
+    },
   ];
 });
 
@@ -86,7 +92,7 @@ const workspaceItems = computed<MenuItem[]>(() => {
 // tool itself rather than on a chapter's programme.
 // A personal account has no second group: nobody to approve, no
 // chapters to sort them into, and no WhatsApp blast. The menu then
-// holds the four workspaces and the sign-out, which is all of it.
+// holds the workspaces and the sign-out, which is all of it.
 const adminItems = computed<MenuItem[]>(() => {
   const items: MenuItem[] = [];
   if (auth.isPersonal) return items;

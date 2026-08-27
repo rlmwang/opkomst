@@ -34,16 +34,17 @@ interface Tile {
  * date, put the event up, share out the work, then ask people
  * something, and last the one that is for the evening itself.
  *
- * Five tiles in two columns is three rows with the last one alone,
- * which is a gap rather than a problem: the grid is two columns at
- * every width and this is that rule continuing (docs/design-quizzes.md
- * part 4). */
+ * Six tiles in two columns is three full rows: the gap the fifth tile
+ * left is what the sixth fills, and the grid is two columns at every
+ * width either way (docs/design-quizzes.md part 4,
+ * docs/design-kompas.md part 0). */
 const tiles = computed<Tile[]>(() => [
   { key: "events", to: "/events/new", label: t("header.events"), hint: t("home.eventsHint") },
   { key: "datepolls", to: "/datepolls/new", label: t("header.datepolls"), hint: t("home.datepollsHint") },
   { key: "chores", to: "/chores/new", label: t("header.chores"), hint: t("home.choresHint") },
   { key: "forms", to: "/forms/new", label: t("header.forms"), hint: t("home.formsHint") },
   { key: "quizzes", to: "/quizzes/new", label: t("header.quizzes"), hint: t("home.quizzesHint") },
+  { key: "compasses", to: "/compasses/new", label: t("header.compasses"), hint: t("home.compassesHint") },
 ]);
 </script>
 

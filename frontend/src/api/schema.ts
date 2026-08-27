@@ -986,6 +986,318 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/compasses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Forms */
+        get: operations["list_forms_api_v1_compasses_get"];
+        put?: never;
+        /**
+         * Create Compass
+         * @description Create a new form. Questions are optional — a blank form
+         *     can be saved and the question list filled in on the edit
+         *     page afterwards. Caller-supplied ``chapter_id`` must be in
+         *     the user's live membership set.
+         */
+        post: operations["create_compass_api_v1_compasses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/archived": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Archived Forms */
+        get: operations["list_archived_forms_api_v1_compasses_archived_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Public Form */
+        get: operations["get_public_form_api_v1_compasses_by_slug__slug__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/by-slug/{slug}/qr.svg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Form Qr
+         * @description QR SVG for one slug. Resolves the form first so a typo'd
+         *     slug 410s rather than 200ing with a wrong-target QR.
+         */
+        get: operations["get_form_qr_api_v1_compasses_by_slug__slug__qr_svg_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/by-slug/{slug}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit Compass
+         * @description Accept one public submission. Mints a secret edit-link token
+         *     (raw returned once; only its hash stored) so the respondent can
+         *     come back to it. Nothing in the response links the submission
+         *     back to a person beyond the self-chosen pseudonym.
+         */
+        post: operations["submit_compass_api_v1_compasses_by_slug__slug__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Compass Result
+         * @description The map again, later, drawn against the room as it
+         *     stands. The per-answer rows carry what was given, so this
+         *     one shape both renders the result and refills the walk
+         *     behind the "change your answers" button.
+         */
+        get: operations["get_compass_result_api_v1_compasses_by_token__token__get"];
+        /**
+         * Update Submission Compass
+         * @description Change your mind. Unlike a quiz, this is a correction
+         *     rather than a second attempt: a kompas has nothing to score
+         *     and nothing to beat (``docs/design-kompas.md`` 5.4). The
+         *     answer rows and the pseudonym are replaced, and the map
+         *     comes back redrawn.
+         */
+        put: operations["update_submission_compass_api_v1_compasses_by_token__token__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/by-token/{token}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw Submission Compass
+         * @description Withdraw a submission via its edit-link token — the respondent
+         *     deleting their own answers. Removes the response rows and the
+         *     submission; nothing else references either (pseudonymous, no email).
+         */
+        post: operations["withdraw_submission_compass_api_v1_compasses_by_token__token__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Form */
+        get: operations["get_form_api_v1_compasses__form_id__get"];
+        /**
+         * Update Compass
+         * @description Update a form. Chapter changes are allowed (organiser might
+         *     have picked the wrong chapter at create time) but the new one
+         *     still has to be in the user's set. Questions are diff-applied
+         *     by id — see ``services/forms.apply_questions``.
+         */
+        put: operations["update_compass_api_v1_compasses__form_id__put"];
+        post?: never;
+        /**
+         * Delete Compass
+         * @description Hard-delete an archived form. Refuses if the form isn't
+         *     archived first — accidentally hard-deleting a live form with
+         *     responses would be a data-loss footgun. Cascades through
+         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
+         *     CASCADEs in the schema.
+         */
+        delete: operations["delete_compass_api_v1_compasses__form_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive Compass */
+        post: operations["archive_compass_api_v1_compasses__form_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Image Compass
+         * @description Upload (or replace) the form's hero image — same 4:5 GitHub
+         *     pipeline as events (``services/image.py``).
+         */
+        post: operations["upload_image_compass_api_v1_compasses__form_id__image_post"];
+        /**
+         * Delete Image Compass
+         * @description Clear the reference and delete the file: nothing else points at
+         *     it.
+         */
+        delete: operations["delete_image_compass_api_v1_compasses__form_id__image_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Compass */
+        post: operations["restore_compass_api_v1_compasses__form_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions
+         * @description Per-submission rows, keyed by question id. CSV consumers
+         *     map columns by question id; a separate lookup against the
+         *     questions list gives them the prompt text.
+         *
+         *     Privacy: ``submission_id`` is a random per-submission token
+         *     with no link back to whoever submitted — same contract as
+         *     the post-event feedback CSV.
+         */
+        get: operations["form_submissions_api_v1_compasses__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/submissions/{submission_id}/edit-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recover Edit Link Compass
+         * @description Organiser recovery of a respondent's lost magic link — rotates
+         *     the token (never reveals it) and permanently stamps
+         *     ``link_recovered_at``; see ``services/edit_token.recover``.
+         */
+        post: operations["recover_edit_link_compass_api_v1_compasses__form_id__submissions__submission_id__edit_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compasses/{form_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Form Summary */
+        get: operations["form_summary_api_v1_compasses__form_id__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepolls": {
         parameters: {
             query?: never;
@@ -2532,6 +2844,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/start/compasses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Compass */
+        post: operations["start_compass_api_v1_start_compasses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/start/datepolls": {
         parameters: {
             query?: never;
@@ -2847,6 +3176,11 @@ export interface components {
         };
         /** Body_upload_event_image_api_v1_events__event_id__image_post */
         Body_upload_event_image_api_v1_events__event_id__image_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_image_compass_api_v1_compasses__form_id__image_post */
+        Body_upload_image_compass_api_v1_compasses__form_id__image_post: {
             /** File */
             file: string;
         };
@@ -3193,6 +3527,158 @@ export interface components {
             picked_up: number;
             /** Regular Turns */
             regular_turns: number;
+        };
+        /**
+         * CompassAnswerResult
+         * @description One answered question on the result screen, with the direction
+         *     that was hidden until now. The page already has the prompt and the
+         *     options from the walk, so this carries what it did not have.
+         */
+        CompassAnswerResult: {
+            /** Axis */
+            axis?: string | null;
+            /** Given Choices */
+            given_choices?: string[] | null;
+            /** Given Int */
+            given_int?: number | null;
+            /** Kind */
+            kind: string;
+            /** Option Poles */
+            option_poles?: string[] | null;
+            /** Pole */
+            pole?: string | null;
+            /** Question Id */
+            question_id: string;
+            /** Value */
+            value?: number | null;
+        };
+        /**
+         * CompassAxisIn
+         * @description One axis on the create / update payload. Both are always sent:
+         *     a kompas with one axis is not a kompas, and the server refuses a
+         *     payload that says otherwise (``services/compass.validate_axes``).
+         *
+         *     Single-language, in the form's own locale, exactly like a question
+         *     prompt — the bilingual pair stops at the entity spine.
+         */
+        CompassAxisIn: {
+            /**
+             * Axis
+             * @enum {string}
+             */
+            axis: "x" | "y";
+            /** Description */
+            description?: string | null;
+            /** High Name */
+            high_name: string;
+            /** Low Name */
+            low_name: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CompassAxisOut
+         * @description An axis on the wire. Not a secret: what the two axes are called
+         *     is the description of the kompas, and it is on the cover before
+         *     anybody answers. Which option points where is the part that waits
+         *     for the result (``PublicQuestionOut``).
+         */
+        CompassAxisOut: {
+            /** Axis */
+            axis: string;
+            /** Description */
+            description?: string | null;
+            /** High Name */
+            high_name: string;
+            /** Low Name */
+            low_name: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CompassAxisSummary
+         * @description One axis on the organiser's page: what it is called, and where
+         *     the room sits on it. The three numbers are null before anybody has
+         *     filled it in.
+         */
+        CompassAxisSummary: {
+            /** Average */
+            average?: number | null;
+            axis: components["schemas"]["CompassAxisOut"];
+            /** Highest */
+            highest?: number | null;
+            /** Lowest */
+            lowest?: number | null;
+        };
+        /**
+         * CompassPoint
+         * @description One dot on the map. The only identifier is the self-chosen
+         *     pseudonym, which is why the cover page says the name is going here
+         *     before it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is
+         *     somebody who left the box empty, and their dot counts like anyone
+         *     else's.
+         *
+         *     No submission id: knowing which opaque id is which dot buys a
+         *     reader nothing and costs the pseudonymity that the rest of the app
+         *     keeps.
+         */
+        CompassPoint: {
+            /** Name */
+            name?: string | null;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /**
+             * You
+             * @default false
+             */
+            you: boolean;
+        };
+        /**
+         * CompassResultOut
+         * @description What a respondent sees when they finish: where they landed, the
+         *     room around them, and every answer with the direction it carried.
+         *
+         *     ``edit_token`` opens the same result again later and, unlike a
+         *     quiz, still opens the answers for editing: changing your mind after
+         *     seeing the map is not a second attempt (``docs/design-kompas.md``
+         *     5.4).
+         */
+        CompassResultOut: {
+            /** Answers */
+            answers: components["schemas"]["CompassAnswerResult"][];
+            /** Axes */
+            axes: components["schemas"]["CompassAxisOut"][];
+            /** Counted X */
+            counted_x: number;
+            /** Counted Y */
+            counted_y: number;
+            /** Display Name */
+            display_name?: string | null;
+            /** Edit Token */
+            edit_token: string;
+            /** Link Recovered At */
+            link_recovered_at?: string | null;
+            /** Points */
+            points: components["schemas"]["CompassPoint"][];
+            /** Submission Id */
+            submission_id: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        };
+        /**
+         * CompassSummary
+         * @description The kompas half of the summary endpoint. Null on the other two
+         *     products, which have no map.
+         */
+        CompassSummary: {
+            /** Axes */
+            axes: components["schemas"]["CompassAxisSummary"][];
+            /** Points */
+            points: components["schemas"]["CompassPoint"][];
         };
         /**
          * CompleteRegistrationRequest
@@ -4030,6 +4516,8 @@ export interface components {
          * @description Organiser create payload.
          */
         FormCreate: {
+            /** Axes */
+            axes?: components["schemas"]["CompassAxisIn"][];
             /** Chapter Id */
             chapter_id?: string | null;
             /** Description En */
@@ -4105,7 +4593,7 @@ export interface components {
              * Mode
              * @enum {string}
              */
-            mode: "survey" | "quiz";
+            mode: "survey" | "quiz" | "compass";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
@@ -4124,6 +4612,8 @@ export interface components {
         FormOut: {
             /** Archived */
             archived: boolean;
+            /** Axes */
+            axes?: components["schemas"]["CompassAxisOut"][];
             /** Chapter Id */
             chapter_id: string | null;
             /** Chapter Name */
@@ -4152,7 +4642,7 @@ export interface components {
              * Mode
              * @enum {string}
              */
-            mode: "survey" | "quiz";
+            mode: "survey" | "quiz" | "compass";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
@@ -4201,10 +4691,14 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Option Poles */
+            option_poles?: ("x_low" | "x_high" | "y_low" | "y_high")[] | null;
             /** Options */
             options?: string[];
             /** Points */
             points?: number | null;
+            /** Pole */
+            pole?: ("x_low" | "x_high" | "y_low" | "y_high") | null;
             /** Prompt */
             prompt: string;
             /**
@@ -4243,6 +4737,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
+            /** Option Poles */
+            option_poles?: string[] | null;
             /** Options */
             options: string[];
             /** Ordinal */
@@ -4252,6 +4748,8 @@ export interface components {
              * @default 0
              */
             points: number;
+            /** Pole */
+            pole?: string | null;
             /** Prompt */
             prompt: string;
             /** Required */
@@ -4293,8 +4791,12 @@ export interface components {
             number_max?: number | null;
             /** Number Min */
             number_min?: number | null;
+            /** Option Poles */
+            option_poles?: string[] | null;
             /** Ordinal */
             ordinal: number;
+            /** Pole */
+            pole?: string | null;
             /** Prompt */
             prompt: string;
             /** Rating Average */
@@ -4333,6 +4835,10 @@ export interface components {
             link_recovered_at?: string | null;
             /** Submission Id */
             submission_id: string;
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
         };
         /**
          * FormSubmitAck
@@ -4362,6 +4868,7 @@ export interface components {
          *     survey, which has no score.
          */
         FormSummaryOut: {
+            compass?: components["schemas"]["CompassSummary"] | null;
             /** Max Score */
             max_score?: number | null;
             /** Questions */
@@ -4380,6 +4887,8 @@ export interface components {
          *     the body is identical.
          */
         FormUpdate: {
+            /** Axes */
+            axes?: components["schemas"]["CompassAxisIn"][];
             /** Chapter Id */
             chapter_id?: string | null;
             /** Description En */
@@ -4777,6 +5286,8 @@ export interface components {
          *     description + image + locale + questions in display order.
          */
         PublicFormOut: {
+            /** Axes */
+            axes?: components["schemas"]["CompassAxisOut"][];
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -4796,7 +5307,7 @@ export interface components {
              * Mode
              * @enum {string}
              */
-            mode: "survey" | "quiz";
+            mode: "survey" | "quiz" | "compass";
             /** Name En */
             name_en: string | null;
             /** Name Nl */
@@ -4834,10 +5345,12 @@ export interface components {
          * PublicQuestionOut
          * @description What a respondent's browser is allowed to know about a question.
          *
-         *     Everything ``FormQuestionOut`` has except the answer key. This is
-         *     the one class standing between a quiz and being solved by
-         *     view-source, so it lists its fields rather than excluding: a field
-         *     added to the question model does not silently appear here.
+         *     Everything ``FormQuestionOut`` has except the answer key and the
+         *     directions. This is the one class standing between a quiz and being
+         *     solved by view-source, and between a kompas and being answered by
+         *     reading which button moves you where, so it lists its fields rather
+         *     than excluding: a field added to the question model does not
+         *     silently appear here.
          */
         PublicQuestionOut: {
             /** High Label */
@@ -5386,6 +5899,15 @@ export interface components {
             party_size: number;
             /** Registration Id */
             registration_id: string;
+        };
+        /** StartCompass */
+        StartCompass: {
+            compass: components["schemas"]["FormCreate"];
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /** StartDatepoll */
         StartDatepoll: {
@@ -7266,6 +7788,636 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_forms_api_v1_compasses_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_compass_api_v1_compasses_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_archived_forms_api_v1_compasses_archived_get: {
+        parameters: {
+            query?: {
+                chapter_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormListOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_form_api_v1_compasses_by_slug__slug__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicFormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_qr_api_v1_compasses_by_slug__slug__qr_svg_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_compass_api_v1_compasses_by_slug__slug__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompassResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_compass_result_api_v1_compasses_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompassResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_submission_compass_api_v1_compasses_by_token__token__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormSubmitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompassResultOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_submission_compass_api_v1_compasses_by_token__token__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_form_api_v1_compasses__form_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_compass_api_v1_compasses__form_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FormUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_compass_api_v1_compasses__form_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_compass_api_v1_compasses__form_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_image_compass_api_v1_compasses__form_id__image_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_image_compass_api_v1_compasses__form_id__image_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_image_compass_api_v1_compasses__form_id__image_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_compass_api_v1_compasses__form_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_submissions_api_v1_compasses__form_id__submissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSubmissionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recover_edit_link_compass_api_v1_compasses__form_id__submissions__submission_id__edit_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditLinkRecoverOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_summary_api_v1_compasses__form_id__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FormSummaryOut"];
                 };
             };
             /** @description Validation Error */
@@ -10234,6 +11386,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["StartRoster"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_compass_api_v1_start_compasses_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartCompass"];
             };
         };
         responses: {

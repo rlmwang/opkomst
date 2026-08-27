@@ -13,6 +13,7 @@ directly, because what is under test is the read.
 
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -250,19 +251,20 @@ def test_slug_validator_rejects_a_page_name():
 
 
 def test_reserved_slugs_cover_every_first_level_route(db):
-    """The dev server splits ``/{tenant}/{second}`` on the same set. If
-    a route is added to the SPA without adding it here, a chapter can
-    already be holding that slug and would shadow the new page."""
-    assert {
-        "events",
-        "forms",
-        "datepolls",
-        "chores",
-        "users",
-        "chapters",
-        "settings",
-        "login",
-    } <= RESERVED_SLUGS
+    """The dev server splits ``/{tenant}/{second}`` on the same set, so
+    the two lists have to agree. If a route is added to the SPA without
+    adding it here, a chapter can already be holding that slug and would
+    shadow the new page.
+
+    Read out of ``vite.config.ts`` rather than repeated here: a
+    hand-copied list is a list that drifts, and this one had already
+    lost ``quizzes`` before the sixth product arrived to notice."""
+    config = (Path(__file__).resolve().parents[1] / "frontend" / "vite.config.ts").read_text()
+    block = re.search(r"const appRoutes = new Set\(\[(.*?)\]\);", config, re.S)
+    assert block is not None, "appRoutes moved; this test is the only thing keeping the two lists in step"
+    app_routes = {name for name in re.findall(r'"([^"]*)"', block.group(1)) if name}
+    assert app_routes, "appRoutes parsed empty"
+    assert app_routes <= RESERVED_SLUGS, sorted(app_routes - RESERVED_SLUGS)
 
 
 def test_two_organisations_may_each_have_an_amsterdam(db):
