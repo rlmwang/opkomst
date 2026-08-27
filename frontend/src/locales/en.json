@@ -516,7 +516,6 @@
       "recurrenceHeading": "Recurrence",
       "recurrenceExplainer": "Choose how many weeks the cycle lasts. The chores below repeat on this rhythm.",
       "periodWeeks": "Cycle (weeks)",
-      "cycleStartsOn": "week 1 of the cycle starts on {date}",
       "reminderEnabled": "Email reminders",
       "reminderDaysBefore": "Days before",
       "advanced": "Advanced",

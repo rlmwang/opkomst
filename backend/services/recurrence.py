@@ -14,10 +14,13 @@ from collections.abc import Sequence
 from datetime import date, timedelta
 
 
-def first_cycle_monday(starts_on: date) -> date:
-    """The Monday cycle index 0 anchors on: the first Monday on or after
-    the roster's ``starts_on``. Derived from the interval, never stored."""
-    return starts_on + timedelta(days=(7 - starts_on.weekday()) % 7)
+def cycle_anchor_monday(starts_on: date) -> date:
+    """The Monday cycle index 0 anchors on: the Monday of the week that
+    contains ``starts_on``. The start date is always inside cycle week 0,
+    so the first week of a k-week cycle is the week the thing begins and a
+    weekday ticked in the grid's first row means the one in that week.
+    Derived from the interval, never stored."""
+    return starts_on - timedelta(days=starts_on.weekday())
 
 
 def occurs_on(
@@ -31,16 +34,15 @@ def occurs_on(
     cycle occurs on date ``d``.
 
     - k <= 1: weekly — ``d.weekday() in cycle_slots``.
-    - k > 1: the cycle anchors on ``first_cycle_monday(starts_on)`` (the
-      first Monday within the interval), which is cycle week 0. The offset
-      is ``(d - anchor).days % (7 * k)``; Python's modulo wraps negatives,
-      so the partial week between ``starts_on`` and that first Monday
-      takes the pattern of the cycle's *last* week.
+    - k > 1: the cycle anchors on ``cycle_anchor_monday(starts_on)`` (the
+      Monday of the starting week), which is cycle week 0. The offset is
+      ``(d - anchor).days % (7 * k)``. Callers enumerate from ``starts_on``
+      onwards, so the days before it in that first week never come up.
     """
     if not cycle_slots:
         return False
     if period_weeks <= 1:
         return d.weekday() in cycle_slots
-    anchor = first_cycle_monday(starts_on)
+    anchor = cycle_anchor_monday(starts_on)
     offset = (d - anchor).days % (7 * period_weeks)
     return offset in cycle_slots

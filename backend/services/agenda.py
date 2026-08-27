@@ -40,7 +40,7 @@ def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
         image_url=image_svc.public_url(event.image_path),
         image_artist_instagram=event.image_artist_instagram,
         attendee_count=totals.get(occ.id, 0),
-        index=event_recurrence.session_index(event, occ.starts_at.date()),
+        index=event_recurrence.session_index(event, occ),
         total_sessions=event_recurrence.total_sessions(event),
     )
 
@@ -56,7 +56,10 @@ def build_agenda(db: Session, chapter: Chapter) -> ChapterAgendaOut:
 
     base = (
         db.query(Occurrence)
-        .options(joinedload(Occurrence.event))
+        # The card's "sessie i van N" is the row's rank among its event's
+        # occurrences, so the sibling list is loaded with the event rather
+        # than one query per card.
+        .options(joinedload(Occurrence.event).selectinload(Event.occurrences))
         .join(Event, Event.id == Occurrence.event_id)
         .filter(
             # The tenant, not only the chapter. ``chapter_id`` is a bare

@@ -182,7 +182,7 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
             BookingOccurrenceOut(
                 occurrence_id=occ.id,
                 slug=occ.slug,
-                index=event_recurrence.session_index(event, occ.starts_at.date()),
+                index=event_recurrence.session_index(event, occ),
                 starts_at=occ.starts_at,
                 ends_at=occ.ends_at,
                 is_past=occ.starts_at <= now,

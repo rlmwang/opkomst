@@ -116,17 +116,6 @@ const notFound = computed(
 );
 const otherError = computed(() => isEdit.value && rosterQuery?.error.value && !notFound.value);
 
-// The concrete date cycle week 0 anchors on: the first Monday on/after the
-// start date (mirrors ``recurrence.first_cycle_monday`` on the backend).
-// Only meaningful for a multi-week cycle with a start date set.
-const cycleStartsOn = computed<string | null>(() => {
-  if (periodWeeks.value <= 1 || !startsOn.value) return null;
-  const s = startsOn.value;
-  const pyWeekday = (s.getDay() + 6) % 7; // JS Sun=0 -> Python Mon=0
-  const monday = new Date(s.getFullYear(), s.getMonth(), s.getDate() + ((7 - pyWeekday) % 7));
-  return `${String(monday.getDate()).padStart(2, "0")}-${String(monday.getMonth() + 1).padStart(2, "0")}-${monday.getFullYear()}`;
-});
-
 // Shrinking k drops now-out-of-range cycle slots, warning which chores
 // lost days (the server clamps too — this keeps the UI honest).
 watch(periodWeeks, (next, prev) => {
@@ -481,9 +470,6 @@ async function submit() {
 
       <div class="stepper-row">
         <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
-        <span v-if="cycleStartsOn" class="muted">
-          {{ t("chores.edit.cycleStartsOn", { date: cycleStartsOn }) }}
-        </span>
       </div>
 
       <div class="date-row">

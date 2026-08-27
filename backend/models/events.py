@@ -82,9 +82,9 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     answers_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
     # The recurrence rule (roster's k-week cycle + a time of day).
-    # ``starts_on`` anchors cycle week 0 (first Monday on/after it, derived by
-    # ``recurrence.first_cycle_monday``) and is the earliest date an
-    # occurrence may fall on. ``start_time`` / ``end_time`` are the shared
+    # ``starts_on`` sits inside cycle week 0 (which runs from the Monday of
+    # its week, derived by ``recurrence.cycle_anchor_monday``) and is the
+    # earliest date an occurrence may fall on. ``start_time`` / ``end_time`` are the shared
     # naive Europe/Amsterdam wall-clock time applied to every occurrence date.
     # ``period_weeks`` is the cycle length k (1 = weekly). ``cycle_slots`` are
     # the selected weekday offsets (``week*7 + weekday``, Mon=0, 0..7k-1);
@@ -118,9 +118,10 @@ class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
     + the event's time of day) and its own public sign-up slug. All content
     (name, location, questions, ...) is read through ``event_id`` — nothing is
     copied, so editing the event updates every occurrence at once. Its
-    "sessie i van N" ordinal is not stored; it is the occurrence's date rank,
-    derived at read time, so a rule edit that changes which dates recur can't
-    leave a stale ordinal behind."""
+    "sessie i van N" ordinal is not stored; it is the row's rank among the
+    event's occurrences, derived at read time, so a rule edit that changes
+    which dates recur can't leave a stale ordinal behind and can't strand a
+    frozen past session without a number of its own."""
 
     __tablename__ = "occurrences"
 

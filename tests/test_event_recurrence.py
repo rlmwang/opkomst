@@ -35,18 +35,20 @@ def _rule(starts_on, cycle_slots, *, period_weeks=1, span_weeks=None, horizon_da
 # --- pure enumeration -----------------------------------------------------
 
 
+def _dates(specs):
+    return [s.starts_at.date() for s in specs]
+
+
 def test_one_off_yields_single_date_at_starts_on():
     e = _rule(date(2026, 8, 3), cycle_slots=[])
-    assert event_recurrence.total_sessions(e) == 1
-    assert event_recurrence.session_index(e, date(2026, 8, 3)) == 0
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 7, 1, 9, 0))) == [date(2026, 8, 3)]
 
 
 def test_weekly_span_counts_one_session_per_week():
     mon = date(2026, 8, 3)  # a Monday
     e = _rule(mon, cycle_slots=[mon.weekday()], span_weeks=6)
-    assert event_recurrence.total_sessions(e) == 6  # 6 weekly sessions
-    assert event_recurrence.session_index(e, mon) == 0
-    assert event_recurrence.session_index(e, mon + timedelta(weeks=3)) == 3
+    dates = _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 7, 1, 9, 0)))
+    assert dates == [mon + timedelta(weeks=i) for i in range(6)]
 
 
 def test_two_week_cycle_alternates_weekdays():
@@ -54,17 +56,22 @@ def test_two_week_cycle_alternates_weekdays():
     # Week A: Tuesday (offset 1); week B: Thursday (offset 1*7+3 = 10).
     e = _rule(mon, cycle_slots=[1, 10], period_weeks=2, span_weeks=4)
     # 4 weeks = 2 cycles → Tue, Thu, Tue, Thu = 4 sessions.
-    assert event_recurrence.total_sessions(e) == 4
-    tue_w0 = mon + timedelta(days=1)
-    thu_w1 = mon + timedelta(days=10)
-    assert event_recurrence.session_index(e, tue_w0) == 0
-    assert event_recurrence.session_index(e, thu_w1) == 1
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 7, 1, 9, 0))) == [
+        mon + timedelta(days=1),
+        mon + timedelta(days=10),
+        mon + timedelta(days=15),
+        mon + timedelta(days=24),
+    ]
 
 
-def test_open_ended_recurring_has_no_total():
-    mon = date(2026, 8, 3)
-    e = _rule(mon, cycle_slots=[mon.weekday()], span_weeks=None)
-    assert event_recurrence.total_sessions(e) is None
+def test_cycle_week_one_is_the_week_the_event_starts():
+    # "Every other Thursday, starting this Thursday" means this Thursday,
+    # not the one in the week after: the start date sits in cycle week 0.
+    thu = date(2026, 8, 27)  # a Thursday
+    e = _rule(thu, cycle_slots=[thu.weekday()], period_weeks=2, span_weeks=10)
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 8, 1, 9, 0))) == [
+        thu + timedelta(weeks=2 * i) for i in range(5)
+    ]
 
 
 # --- materialise ----------------------------------------------------------
@@ -98,7 +105,11 @@ def test_open_ended_materialises_within_horizon_only(db):
     dates = sorted(o.starts_at.date() for o in db.query(Occurrence).filter(Occurrence.event_id == event.id))
     assert dates == [start, start + timedelta(weeks=1), start + timedelta(weeks=2)]  # day 1, 8, 15 in horizon
     projected = event_recurrence.projected_future_specs(event, now_wallclock())
-    assert [s.index for s in projected][:3] == [3, 4, 5]  # weeks beyond the horizon
+    # The dates pick up where the materialised rows stop, and the ordinals
+    # the DTOs give them carry on from the row count.
+    assert [s.starts_at.date() for s in projected][:3] == [start + timedelta(weeks=w) for w in (3, 4, 5)]
+    assert event_recurrence.session_count(event) == 3
+    assert event_recurrence.total_sessions(event) is None  # open-ended: the list never closes
     assert event_recurrence.is_finite(event) is False
 
 
@@ -109,6 +120,22 @@ def test_materialise_is_idempotent_and_freezes_existing(db):
     event_recurrence.materialise(db, event, now_wallclock())
     after = {o.id: o.starts_at for o in db.query(Occurrence).filter(Occurrence.event_id == event.id)}
     assert before == after  # no new rows, same ids
+
+
+def test_ordinals_number_the_rows_including_a_stranded_past_session(db):
+    # "Sessie i van N" is the row's rank, not the rule's. A past session the
+    # rule no longer produces (the organiser moved the weekday after it ran)
+    # is frozen, keeps its own number, and counts towards N.
+    start = now_wallclock().date() - timedelta(days=3)
+    event = make_event(db, starts_on=start, cycle_slots=weekly_slots(start), span_weeks=4)
+    event.cycle_slots = [(start.weekday() + 1) % 7]  # a different weekday from here on
+    db.flush()
+    event_recurrence.reconcile(db, event, now_wallclock())
+    db.refresh(event)
+    occs = list(event.occurrences)
+    assert occs[0].starts_at.date() == start  # the session that already ran, off-pattern
+    assert [event_recurrence.session_index(event, o) for o in occs] == list(range(len(occs)))
+    assert event_recurrence.total_sessions(event) == len(occs)
 
 
 def test_far_future_one_off_still_gets_its_first_page(db):

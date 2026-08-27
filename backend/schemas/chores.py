@@ -9,7 +9,8 @@ public ``/by-slug`` projection (consumed in task 05).
 Recurrence is a k-week cycle (``period_weeks``), set once per roster. A
 chore's ``cycle_slots`` are flat offsets ``week*7 + weekday`` into that
 cycle, range ``0 .. 7*period_weeks - 1``, Mon=0. When k>1 the cycle
-anchors on the first Monday on/after ``starts_on`` (derived, not stored).
+anchors on the Monday of the week ``starts_on`` falls in (derived, not
+stored), so the start date is always inside cycle week 0.
 
 Out-of-range ``cycle_slots`` are rejected on **create** (422) but
 **clamped** (dropped) on **update**, so shrinking k drops the now-orphan

@@ -356,7 +356,7 @@ def event_occurrences(
             OccurrenceOut(
                 id=o.id,
                 slug=o.slug,
-                index=event_recurrence.session_index(event, o.starts_at.date()),
+                index=event_recurrence.session_index(event, o),
                 starts_at=o.starts_at,
                 ends_at=o.ends_at,
                 attendee_count=int(totals.get(o.id, 0)),
@@ -364,7 +364,14 @@ def event_occurrences(
             )
             for o in occs
         ],
-        projected=[ProjectedOccurrenceOut(index=s.index, starts_at=s.starts_at, ends_at=s.ends_at) for s in projected],
+        # Numbered on from the last materialised session: a projected date
+        # is the next session, it just has no row yet.
+        projected=[
+            ProjectedOccurrenceOut(
+                index=event_recurrence.session_count(event) + i, starts_at=s.starts_at, ends_at=s.ends_at
+            )
+            for i, s in enumerate(projected)
+        ],
     )
 
 

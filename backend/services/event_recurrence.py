@@ -2,7 +2,7 @@
 
 An ``Event`` is a definition: shared content plus a recurrence rule that is
 the chores roster's k-week cycle, reused. The pure date math lives in
-``services/recurrence.py`` (``occurs_on`` / ``first_cycle_monday``); this
+``services/recurrence.py`` (``occurs_on`` / ``cycle_anchor_monday``); this
 module enumerates the rule's dates and turns the ones inside the horizon
 into ``Occurrence`` rows.
 
@@ -16,7 +16,9 @@ The rule:
 
 Each occurrence's concrete datetimes are the pattern date combined with the
 event's shared ``start_time`` / ``end_time``. The "sessie i van N" ordinal
-is not stored; it is the date rank (``session_index`` / ``total_sessions``).
+is not stored; it is the rank of the row among the event's occurrences
+(``session_index`` / ``total_sessions``), so it describes the sessions that
+exist rather than the ones the rule would produce today.
 """
 
 from collections.abc import Iterator
@@ -33,10 +35,9 @@ from .slug import new_slug
 
 @dataclass(frozen=True, slots=True)
 class OccurrenceSpec:
-    """One dated instance the rule produces: its date rank and its
-    materialised wall-clock datetimes. Pure — no row, no slug."""
+    """One dated instance the rule produces, as materialised wall-clock
+    datetimes. Pure — no row, no slug, no ordinal (that is a row's rank)."""
 
-    index: int
     starts_at: datetime
     ends_at: datetime
 
@@ -83,23 +84,32 @@ def occurrence_datetimes(event, on_date: date) -> tuple[datetime, datetime]:
     )
 
 
-def session_index(event, on_date: date) -> int:
-    """The 0-based "sessie i" ordinal of an occurrence: how many of the
-    rule's dates fall strictly before ``on_date``. Derived, never stored."""
-    n = 0
-    for d in _iter_dates(event):
-        if d >= on_date:
-            break
-        n += 1
-    return n
+def session_index(event, occurrence) -> int:
+    """The 0-based "sessie i" ordinal of an occurrence: its rank among the
+    event's occurrences, ordered by date. Read off the rows and never
+    stored, so a rule edit that strands a past session still leaves every
+    session with its own number.
+
+    An occurrence that isn't the event's is a programming error, not a
+    fallback: it raises."""
+    for i, o in enumerate(event.occurrences):
+        if o.id == occurrence.id:
+            return i
+    raise ValueError(f"occurrence {occurrence.id} does not belong to event {event.id}")
+
+
+def session_count(event) -> int:
+    """How many sessions the event has materialised. The ordinal the next
+    projected date would take, and the "van N" total wherever there is one."""
+    return len(event.occurrences)
 
 
 def total_sessions(event) -> int | None:
-    """The "van N" total: the rule's finite session count, or ``None`` for an
-    open-ended recurring event. A one-off is 1."""
+    """The "van N" total: the event's session count, or ``None`` for an
+    open-ended recurring event, whose list never closes. A one-off is 1."""
     if event.cycle_slots and event.span_weeks is None:
         return None
-    return sum(1 for _ in _iter_dates(event))
+    return session_count(event)
 
 
 def _horizon_date(event, now: datetime) -> date:
@@ -119,13 +129,13 @@ def specs_to_materialise(event, now: datetime) -> list[OccurrenceSpec]:
     horizon_end = _horizon_date(event, now)
     specs: list[OccurrenceSpec] = []
     first: date | None = None
-    for index, d in enumerate(_iter_dates(event)):
+    for d in _iter_dates(event):
         if first is None:
             first = d
         if not finite and d > horizon_end and d != first:
             break
         starts_at, ends_at = occurrence_datetimes(event, d)
-        specs.append(OccurrenceSpec(index=index, starts_at=starts_at, ends_at=ends_at))
+        specs.append(OccurrenceSpec(starts_at=starts_at, ends_at=ends_at))
     return specs
 
 
@@ -138,11 +148,11 @@ def projected_future_specs(event, now: datetime, *, limit: int = 12) -> list[Occ
         return []
     horizon_end = _horizon_date(event, now)
     out: list[OccurrenceSpec] = []
-    for index, d in enumerate(_iter_dates(event)):
+    for d in _iter_dates(event):
         if d <= horizon_end:
             continue
         starts_at, ends_at = occurrence_datetimes(event, d)
-        out.append(OccurrenceSpec(index=index, starts_at=starts_at, ends_at=ends_at))
+        out.append(OccurrenceSpec(starts_at=starts_at, ends_at=ends_at))
         if len(out) >= limit:
             break
     return out

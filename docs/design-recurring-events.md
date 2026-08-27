@@ -62,9 +62,11 @@ The rule has four parts, all lifted from the roster:
   pattern. k=2 is a two-week cycle, so the grid can say "week A: Tuesday,
   week B: Thursday". Set once for the event.
 - **``starts_on``** (a ``date``): the anchor and the earliest date an
-  occurrence may fall on. Cycle week 0 anchors on the first Monday on or
-  after ``starts_on``, derived by ``recurrence.first_cycle_monday`` and
-  never stored, identical to the roster.
+  occurrence may fall on. Cycle week 0 runs from the Monday of the week
+  ``starts_on`` falls in, derived by ``recurrence.cycle_anchor_monday`` and
+  never stored, identical to the roster. The start date is therefore always
+  in week 0: "every other Thursday, starting Thursday" means that Thursday
+  and the one a fortnight later.
 - **``cycle_slots``** (``list[int]``): the selected weekday cells, each a
   flat offset ``week_index * 7 + weekday`` (Mon=0), range
   ``0 .. 7*period_weeks - 1``. This is the exact ``cycle_slots`` shape the
@@ -185,13 +187,15 @@ but a visitor can only find 4 (because the last two sit beyond a horizon):
   open-ended events.
 
 The date math is the shared pure ``recurrence.occurs_on`` /
-``recurrence.first_cycle_monday`` in
+``recurrence.cycle_anchor_monday`` in
 ``backend/services/event_recurrence.py`` (no bespoke week-shift). Enumerate
 the pattern's dates from ``starts_on`` forward; for a finite event take them
 all, for an open-ended one stop at the horizon. Insert an ``Occurrence``
 (keyed on its date) for each **future** date that doesn't exist yet. The
-"sessie i van N" ordinal is the date's rank in the pattern, derived at read
-time (``session_index`` / ``total_sessions``), never stored.
+"sessie i van N" ordinal is the occurrence's rank among the event's rows,
+derived at read time (``session_index`` / ``total_sessions``) and never
+stored, so a rule edit that strands a frozen past session still leaves every
+session with a number of its own.
 
 **A recurring pattern's history is immutable: it only ever materialises
 future occurrences.** A past occurrence of a recurring event exists on disk
@@ -562,7 +566,7 @@ feedback summary below stays as it is.
 Backend:
 
 - ``backend/services/recurrence.py`` (``occurs_on`` and
-  ``first_cycle_monday``), the pure date math, shared with the roster.
+  ``cycle_anchor_monday``), the pure date math, shared with the roster.
   ``event_recurrence.py`` calls these; it does not re-derive cadence.
 - The ``cycle_slots`` flat-offset representation and its normalise /
   dedupe / range-check validation (reject on create, clamp on update),

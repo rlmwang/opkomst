@@ -516,7 +516,6 @@
       "recurrenceHeading": "Herhaling",
       "recurrenceExplainer": "Kies hoeveel weken de cyclus duurt. De taken hieronder herhalen zich met dit ritme.",
       "periodWeeks": "Cyclus (weken)",
-      "cycleStartsOn": "week 1 van de cyclus begint op {date}",
       "reminderEnabled": "Herinneringen per e-mail",
       "reminderDaysBefore": "Dagen van tevoren",
       "advanced": "Geavanceerd",

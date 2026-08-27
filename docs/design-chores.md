@@ -29,9 +29,9 @@ and Form.
 An organiser creates a **roster** of **recurring chores**. Each chore is tied to one or
 more days within a repeating **k-week cycle** — weekly by default (k=1, "every Wednesday
 and Friday"), or biweekly / k-weekly (k>1, e.g. "the bins, every *other* Wednesday").
-k is set once for the whole roster, and when k>1 the cycle anchors on the first Monday
-on or after the roster's `starts_on` (derived, never stored), so "week 1" means a concrete
-calendar week across the whole roster. The roster gets a public link. Anyone with the link
+k is set once for the whole roster, and when k>1 the cycle anchors on the Monday of the
+week the roster's `starts_on` falls in (derived, never stored), so "week 1" is the week the
+roster begins and means a concrete calendar week across the whole roster. The roster gets a public link. Anyone with the link
 **enrols** as a volunteer (a name, real or not, optionally an email) and ticks the chores
 they're willing to do. The system then **assigns** volunteers to concrete dated
 occurrences ("shifts") with a deterministic fairness rule. Assignments are a *projection*
@@ -117,10 +117,10 @@ Roster-specific additions:
   the whole roster** (every chore shares the same k). k=1 is plain weekly; k=2 biweekly;
   etc.
 - `starts_on : Date` — first date shifts may be generated, and (for k > 1) the **derived
-  cycle anchor**: cycle week 0 is the first Monday on or after `starts_on`
-  (`recurrence.first_cycle_monday`, computed, never stored). There is no separate anchor
-  field; one date does both jobs. Python's negative modulo wraps the partial week between
-  `starts_on` and that first Monday onto the cycle's last week.
+  cycle anchor**: cycle week 0 runs from the Monday of the week `starts_on` falls in
+  (`recurrence.cycle_anchor_monday`, computed, never stored). There is no separate anchor
+  field; one date does both jobs. The start date is always inside week 0, so a weekday
+  ticked in the grid's first row means the one in the week the roster begins.
 - `ends_on : Date | None` — last date; `NULL` = open-ended.
 - `commit_horizon_days : int` (default e.g. 21) — how far ahead the schedule is **pinned
   and reliable** (§7). Occurrences within `[today, today + commit_horizon_days]` are
@@ -434,7 +434,7 @@ test each judgement in isolation and reason locally about the system.
 
 | Pure function | Minimal inputs | Output |
 |---|---|---|
-| `first_cycle_monday` | `starts_on` | the anchor Monday |
+| `cycle_anchor_monday` | `starts_on` | the anchor Monday |
 | `occurs_on` | `d, cycle_slots, period_weeks, starts_on` | bool |
 | `occurrences_between` | chores (slots + count), `period_weeks, starts_on, ends_on`, window `[start, end]` | list of `Occurrence(chore_id, on_date, slot_index)` |
 | `resolve_available` | enrolled ids, unavailability ranges, date | eligible **set** |
@@ -829,10 +829,9 @@ pass unedited*:
 
 **Recurrence controls (roster-level, top of the edit page).** `period_weeks` is a single
 control for the whole roster (a stepper, k = 1..8). There is **no** anchor-Monday input:
-when k > 1 the cycle anchors on the first Monday on or after `starts_on` (derived), and the
-form shows a live, read-only hint next to the stepper ("week 1 van de cyclus begint op
-{date}") computed from the chosen start date, so the organiser can see which calendar week
-is week 1 without entering a second date. Because k is roster-wide, changing it reshapes
+when k > 1 the cycle anchors on the Monday of the week `starts_on` falls in (derived), so
+week 1 of the grid is the week the roster begins and there is nothing extra to show or to
+enter. Because k is roster-wide, changing it reshapes
 every `CycleGridPicker` at once: growing k adds empty week-rows; shrinking k drops slots
 whose offset is now `≥ 7k` (warn-toast naming the affected chores, then clear: no silent
 data loss, no stale out-of-range slots). Add a `commit_horizon_days` control here too (the
@@ -870,8 +869,8 @@ cascades clean up everything.
   clocks (a volunteer with many materialised turns is rested); same-day de-collision +
   shortfall double-booking; availability ranges exclude a volunteer on those dates.
 - `tests/test_chore_recurrence.py`: the cycle-membership function — k=1 weekday match; k>1
-  modulo-`7k` anchoring on the derived first Monday (biweekly hits alternating weeks), the
-  partial-week wrap, `cycle_slots` validated `< 7k`.
+  modulo-`7k` anchoring on the derived start-week Monday (biweekly hits alternating weeks),
+  the start date landing in week 1, `cycle_slots` validated `< 7k`.
 - `tests/test_chore_tick.py`: pinning is idempotent and additive; the window-only prune
   drops un-acted stale pins but keeps reminded/acted ones and never touches the past; past
   `scheduled` → `missed` reconciliation; **no pinning while a roster is `forming`**; a new
