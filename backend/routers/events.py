@@ -185,6 +185,8 @@ def update_event(
     user: User = Depends(require_approved),
 ) -> EventOut:
     event = access.get_event_for_user(db, event_id, user)
+    if data.reminder_enabled or data.feedback_enabled:
+        limits.assert_can_send_participant_mail(user.tenant)
     was_feedback = event.feedback_enabled
     was_reminder = event.reminder_enabled
 

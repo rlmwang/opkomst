@@ -73,6 +73,11 @@ const periodWeeks = ref(1);
 const startsOn = ref<Date | null>(null);
 const endsOn = ref<Date | null>(null);
 const reminderEnabled = ref(true);
+// Rosters usually remind, so the switch starts on. Whether this
+// account may is a separate question, and it is the one the payload
+// asks: a free account has no reminder section on the form and sends
+// no reminders (docs/design-paywall.md).
+const sendsReminders = computed(() => reminderEnabled.value && auth.participantMail);
 const reminderDaysBefore = ref(1);
 const commitHorizonDays = ref(21);
 const choreListState = useOrderedList<ChoreDraft>();
@@ -360,7 +365,7 @@ async function submit() {
       period_weeks: periodWeeks.value,
       starts_on: isoDate(startsOn.value) as string,
       ends_on: isoDate(endsOn.value),
-      reminder_enabled: reminderEnabled.value,
+      reminder_enabled: sendsReminders.value,
       reminder_days_before: reminderDaysBefore.value,
       commit_horizon_days: commitHorizonDays.value,
       chores: chores.value.map(
@@ -542,8 +547,10 @@ async function submit() {
       />
     </section>
 
-    <!-- Reminders -->
-    <section class="form-section">
+    <!-- Reminders. Mailing volunteers is the paid plan
+         (docs/design-paywall.md); a free roster keeps the personal page
+         and the month calendar, so the section is not here at all. -->
+    <section v-if="auth.participantMail" class="form-section">
       <label class="toggle-row" for="reminderToggle">
         <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
         <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>

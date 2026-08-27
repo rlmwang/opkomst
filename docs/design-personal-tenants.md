@@ -32,6 +32,7 @@ class Tenant(...):
 | chapters | yes | no |
 | admin pages | yes | no |
 | WhatsApp blast | admin-only | no |
+| plan | paid | free until lifted (`docs/design-paywall.md`) |
 | public pages | `/e/{slug}` etc. | identical |
 
 The slug still exists and is still unique — it names the row, and the

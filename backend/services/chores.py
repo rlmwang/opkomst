@@ -668,5 +668,6 @@ def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:
         period_weeks=roster.period_weeks,
         starts_on=roster.starts_on,
         ends_on=roster.ends_on,
+        reminder_enabled=roster.reminder_enabled,
         chores=[ChoreOut.model_validate(c) for c in _chores(db, roster.id)],
     )

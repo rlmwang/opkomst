@@ -58,7 +58,7 @@ def _event_payload(**over: Any) -> dict[str, Any]:
         "source_enabled": True,
         "help_options": [],
         "feedback_enabled": False,
-        "reminder_enabled": True,
+        "reminder_enabled": False,
         "listed": True,
         "locale": "nl",
         "image_artist_instagram": None,

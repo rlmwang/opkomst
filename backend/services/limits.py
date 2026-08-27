@@ -1,4 +1,10 @@
-"""What a personal account may do, and how much of it.
+"""What an account may do, and how much of it.
+
+Two questions live here. **How much** is a property of a *personal*
+tenant: the ceilings below. **What at all** is the plan: whether this
+account may make us mail the people it collects
+(``can_send_participant_mail``, ``docs/design-paywall.md``). They are
+separate axes on purpose: a paid personal account still has ceilings.
 
 Every ceiling here is a property of a *personal* tenant. An organisation
 is in ``TENANTS`` because an operator put it there and committed its
@@ -6,9 +12,9 @@ brand: it is trusted and unbounded. These exist because the root page
 hands an account to anyone who types an address, and an unbounded
 stranger costs real money in mail and real space in the database.
 
-Each check is one question about ``tenant.kind``, so an organisation
+Each ceiling is one question about ``tenant.kind``, so an organisation
 never pays for the code that bounds a stranger. Every refusal names the
-limit and how to make room — none of them fail silently.
+limit and how to make room; none of them fail silently.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -64,6 +70,33 @@ _ENTITY_FILTERS = {
     "quiz": Form.mode == "quiz",
     "compass": Form.mode == "compass",
 }
+
+
+def can_send_participant_mail(tenant: Tenant) -> bool:
+    """Whether this account may make us mail the people it collects.
+
+    Mail is the only thing the app does that scales with how many people
+    an organiser signs up, so it is the only thing behind a plan
+    (``docs/design-paywall.md``). What this gates is the fan-out:
+    event reminders, feedback mail, chore reminders. What it never
+    touches is the one-send-per-action mail (sign-in links, the
+    "here is what you made" mail, approvals), which is bounded by the
+    rate limiter on the endpoint that causes it and which a free
+    account needs to be able to use the app at all.
+
+    A free account keeps every feature. What it loses is the app
+    sending mail on its behalf."""
+    return tenant.is_paid
+
+
+def assert_can_send_participant_mail(tenant: Tenant) -> None:
+    """Called by the organiser write paths before a mail toggle is
+    switched on. Hidden in the UI on a free account, refused here."""
+    if not can_send_participant_mail(tenant):
+        raise HTTPException(
+            status_code=422,
+            detail="Sending email to the people who sign up is part of the paid plan.",
+        )
 
 
 def assert_can_add_entity(db: Session, tenant: Tenant, kind: str) -> None:

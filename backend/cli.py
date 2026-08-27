@@ -233,6 +233,69 @@ def _roster_tick() -> int:
         db.close()
 
 
+def _tenant_plan(email: str, plan: str) -> int:
+    """Move one account between ``free`` and ``paid``
+    (``docs/design-paywall.md``). Platform-level, like the tenant list
+    and the brand folders, so it is a command and not a page.
+
+    Dropping to ``free`` is not just a flag: an account that may not
+    mail its participants may not have the toggles on either, so this
+    switches them off and deletes the pending dispatch rows behind them,
+    the same cleanup an organiser's own toggle-off does. Without that a
+    downgraded account keeps ciphertext on file for mail that will never
+    be sent.
+
+    Personal accounts only, found by the address they were created with:
+    an organisation is paid because an operator put it in ``TENANTS``,
+    and the boot reconcile holds it there."""
+    from .database import SessionLocal
+    from .models import EmailChannel, Event, Roster, Tenant
+    from .services import mail_lifecycle, tenancy
+
+    db = SessionLocal()
+    try:
+        tenant = (
+            db.query(Tenant)
+            .filter(Tenant.deleted_at.is_(None), (Tenant.name == email) | (Tenant.slug == email))
+            .first()
+        )
+        if tenant is None:
+            print(f"No live account for {email!r}.")
+            return 1
+        if not tenant.is_personal:
+            print(
+                f"{tenant.name} is an organisation, and an organisation is paid because it is in TENANTS. "
+                "Take the slug out of TENANTS to retire it; there is nothing to set here."
+            )
+            return 1
+        # Spelled out rather than assigned through: the column is two
+        # literals, and argparse hands over a plain string.
+        tenant.plan = "paid" if plan == "paid" else "free"
+        if plan == "free":
+            # The rows carry ``tenant_id``, so the write guard wants the
+            # account bound the same way a request would bind it.
+            with tenancy.use(tenant.id, tenant.brand_slug):
+                for event in db.query(Event).filter(Event.tenant_id == tenant.id).all():
+                    channels: set[EmailChannel] = set()
+                    if event.reminder_enabled:
+                        channels.add(EmailChannel.REMINDER)
+                        event.reminder_enabled = False
+                    if event.feedback_enabled:
+                        channels.add(EmailChannel.FEEDBACK)
+                        event.feedback_enabled = False
+                    mail_lifecycle.retire_event_channels(db, event_id=event.id, channels=channels)
+                db.query(Roster).filter(Roster.tenant_id == tenant.id).update(
+                    {Roster.reminder_enabled: False}, synchronize_session=False
+                )
+                db.flush()
+        db.commit()
+        logger.info("cli_tenant_plan", tenant_id=tenant.id, plan=plan)
+        print(f"{tenant.name} is now {plan}.")
+        return 0
+    finally:
+        db.close()
+
+
 def _traffic_report(days: int) -> None:
     """Print what each surface did, per day totals collapsed.
 
@@ -339,6 +402,12 @@ def main(argv: list[str] | None = None) -> int:
         "seed-demo",
         help="Local-mode only: insert two demo accounts + an upcoming and a past event.",
     )
+    p_plan = sub.add_parser(
+        "tenant-plan",
+        help="Move one personal account between free and paid, by the address it was created with.",
+    )
+    p_plan.add_argument("tenant", help="The address a personal account was created with.")
+    p_plan.add_argument("plan", choices=["free", "paid"])
     p_traffic = sub.add_parser(
         "traffic-report",
         help="Print page views and submissions per surface. There is no dashboard "
@@ -397,6 +466,8 @@ def main(argv: list[str] | None = None) -> int:
             # explicitly. The body is intentionally empty: the work
             # already happened.
             logger.info("cli_migrate_done")
+        elif args.cmd == "tenant-plan":
+            return _tenant_plan(args.tenant, args.plan)
         elif args.cmd == "traffic-report":
             _traffic_report(args.days)
         elif args.cmd == "seed-demo":

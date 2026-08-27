@@ -67,6 +67,12 @@ class UserOut(BaseModel):
     # their count against it on the detail pages; an organisation has
     # none, so the number simply isn't there to show.
     participant_cap: int | None
+    # Whether this account may mail the people it collects. What the
+    # organiser forms read to decide whether the reminder and feedback
+    # controls exist at all; a free account's forms don't show them
+    # (``docs/design-paywall.md``). Hiding is not the enforcement, the
+    # write paths are.
+    participant_mail: bool
     # Live chapters the user belongs to, sorted by name. Soft-deleted
     # chapters are filtered out at the DTO layer so a user re-acquires
     # them automatically when an admin restores the chapter.

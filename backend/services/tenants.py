@@ -72,7 +72,11 @@ def sync_from_env(db: Session) -> dict[str, list[str]]:
     A slug is an identity, never a rename: changing ``rsp`` to ``rood``
     in the env retires one organisation and creates another, which is
     the honest reading — the URLs, the brand folder and every row point
-    at the slug. Only the display name is editable in place."""
+    at the slug. Only the display name is editable in place.
+
+    Being in the list is also what makes an organisation ``paid``: the
+    plan is read off the kind when the row is created
+    (``docs/design-paywall.md``)."""
     wanted = dict(tenants_list())
     for slug in wanted:
         if slug in RESERVED_SLUGS:

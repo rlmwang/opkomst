@@ -451,6 +451,13 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .all()
         )
         for dispatch_id, ciphertext, dispatch_locale, occurrence, event in rows:
+            # A free account never sends participant mail. The toggles
+            # are refused on write and cleared when a plan is dropped,
+            # so a row here means one of those raced the other; skipping
+            # is the backstop, and ``reap-expired`` takes the ciphertext.
+            if not limits.can_send_participant_mail(event.tenant):
+                logger.info("mail_plan_blocked", tenant_id=event.tenant_id, channel=channel.value)
+                continue
             # A personal account has a daily send budget. Over it, the
             # row is left pending and picked up on a later sweep once
             # the rolling day has moved on: skipping is the whole
@@ -595,6 +602,12 @@ def run_chore_reminders() -> int:
             due = shift.on_date - timedelta(days=roster.reminder_days_before)
             if now < datetime.combine(due, time(hour=CHORE_REMINDER_SEND_HOUR)):
                 continue  # reminder day/hour not reached yet
+            # Same plan gate as the event channels: a free account's
+            # rosters keep the personal page and the calendar, and send
+            # nothing.
+            if not limits.can_send_participant_mail(roster.tenant):
+                logger.info("mail_plan_blocked", tenant_id=roster.tenant_id, channel="chore_reminder")
+                continue
             # Same daily budget as the event channels, and the same
             # answer when it is spent: leave the stamp null and let a
             # later sweep send it, bounded by the shift date.

@@ -36,6 +36,7 @@ const ROSTER = {
   period_weeks: 1,
   starts_on: "2026-01-05",
   ends_on: null,
+  reminder_enabled: true,
   chores: [
     { id: "c1", name: "Bins", description: null, cycle_slots: [2], people_per_shift: 1, emoji: null },
     { id: "c2", name: "Sweep", description: null, cycle_slots: [4], people_per_shift: 1, emoji: null },

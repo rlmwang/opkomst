@@ -35,14 +35,17 @@ def truncate_all() -> None:
     Every other table's ``tenant_id`` points at ``tenants``, so a wipe
     that dropped the tenant too would leave the next insert with no
     parent. A clean database is an empty organisation, not no
-    organisation."""
+    organisation, and an organisation is on the paid plan
+    (``docs/design-paywall.md``): the raw INSERT names it because it
+    doesn't pass through the model default that would read the kind.
+    """
     table_names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
     with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
         conn.execute(
             text(
-                "INSERT INTO tenants (id, slug, name, kind, created_at, updated_at) "
-                "VALUES (:id, 'rsp', 'RSP', 'organisation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+                "INSERT INTO tenants (id, slug, name, kind, plan, created_at, updated_at) "
+                "VALUES (:id, 'rsp', 'RSP', 'organisation', 'paid', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
             ).bindparams(id=TEST_TENANT_ID)
         )
     tenancy.bind(TEST_TENANT_ID, "rsp")

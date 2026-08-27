@@ -6134,6 +6134,10 @@
             "title": "Period Weeks",
             "type": "integer"
           },
+          "reminder_enabled": {
+            "title": "Reminder Enabled",
+            "type": "boolean"
+          },
           "starts_on": {
             "format": "date",
             "title": "Starts On",
@@ -6146,7 +6150,8 @@
           "name_en",
           "locale",
           "period_weeks",
-          "starts_on"
+          "starts_on",
+          "reminder_enabled"
         ],
         "title": "PublicRosterOut",
         "type": "object"
@@ -7702,6 +7707,10 @@
             ],
             "title": "Participant Cap"
           },
+          "participant_mail": {
+            "title": "Participant Mail",
+            "type": "boolean"
+          },
           "role": {
             "title": "Role",
             "type": "string"
@@ -7719,6 +7728,7 @@
           "is_approved",
           "tenant_kind",
           "participant_cap",
+          "participant_mail",
           "chapters",
           "created_at"
         ],

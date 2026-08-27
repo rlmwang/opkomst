@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from sqlalchemy import CheckConstraint, DateTime, Index, Integer, Text, text
+from sqlalchemy.engine.default import DefaultExecutionContext
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -17,6 +18,12 @@ AGENDA_PAST_DAYS_DEFAULT = 60
 # widest that still reads as an agenda rather than an archive.
 AGENDA_WINDOW_MIN_DAYS = 1
 AGENDA_WINDOW_MAX_DAYS = 365
+
+
+def _plan_for_kind(context: DefaultExecutionContext) -> str:
+    """The plan a tenant is born with, read off its ``kind``. Declared
+    after ``kind`` on the model so the parameter is already resolved."""
+    return "paid" if context.get_current_parameters()["kind"] == "organisation" else "free"
 
 
 class Tenant(UUIDMixin, TimestampMixin, Base):
@@ -58,6 +65,20 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
     kind: Mapped[Literal["organisation", "personal"]] = mapped_column(
         Text, nullable=False, default="organisation", index=True
     )
+    # What this account may make us send. Mail is the only thing the app
+    # does that scales with how many people an organiser collects, so it
+    # is the only thing behind a plan (``docs/design-paywall.md``).
+    #
+    # An organisation is in ``TENANTS`` because an operator put it there,
+    # which is also where money changes hands, so it is born ``paid``. A
+    # personal tenant is a stranger who typed an address at the root, so
+    # it is born ``free`` and is lifted with ``python -m backend.cli
+    # tenant-plan <address> paid``; there is no self-serve payment yet.
+    # The kind decides the starting plan, which is why this default reads
+    # the row being inserted rather than being a constant.
+    plan: Mapped[Literal["free", "paid"]] = mapped_column(
+        Text, nullable=False, default=_plan_for_kind, server_default=text("'free'")
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     # The two ends of the public agenda's rolling window. An
@@ -95,6 +116,7 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
             postgresql_where=text("deleted_at IS NULL"),
         ),
         CheckConstraint("kind IN ('organisation', 'personal')", name="ck_tenants_kind"),
+        CheckConstraint("plan IN ('free', 'paid')", name="ck_tenants_plan"),
         CheckConstraint(
             f"agenda_future_days BETWEEN {AGENDA_WINDOW_MIN_DAYS} AND {AGENDA_WINDOW_MAX_DAYS}",
             name="ck_tenants_agenda_future_days",
@@ -113,6 +135,14 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
         itself, so a third kind can never mean "personal" to one caller
         and "organisation" to another."""
         return self.kind == "personal"
+
+    @property
+    def is_paid(self) -> bool:
+        """Whether this account may make us mail its participants. The
+        single spelling of that question, like ``is_personal``: nothing
+        compares ``plan`` itself. What it gates and what stays free is
+        ``services/limits.py`` and ``docs/design-paywall.md``."""
+        return self.plan == "paid"
 
     @property
     def brand_slug(self) -> str:

@@ -5419,6 +5419,8 @@ export interface components {
             name_nl: string | null;
             /** Period Weeks */
             period_weeks: number;
+            /** Reminder Enabled */
+            reminder_enabled: boolean;
             /**
              * Starts On
              * Format: date
@@ -6033,6 +6035,8 @@ export interface components {
             name: string;
             /** Participant Cap */
             participant_cap: number | null;
+            /** Participant Mail */
+            participant_mail: boolean;
             /** Role */
             role: string;
             /** Tenant Kind */

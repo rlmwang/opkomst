@@ -109,9 +109,13 @@ def enroll(
 
     raw, token_hash = edit_token.new_edit_token()
     email = data.email
-    # Retain the address only if the volunteer wants reminders; otherwise
-    # it's used once for the welcome link and never stored (§6).
-    retain = email is not None and data.email_reminders
+    # Retain the address only if the volunteer wants reminders and this
+    # roster sends them; otherwise it's used once for the welcome link
+    # and never stored (§6). A roster on a free account sends nothing, so
+    # it stores nothing: the enrol page doesn't offer the checkbox
+    # (``reminder_enabled`` on the public payload) and a stale page that
+    # ticks it anyway still leaves no ciphertext behind.
+    retain = email is not None and data.email_reminders and roster.reminder_enabled
     volunteer = Volunteer(
         roster_id=roster.id,
         display_name=data.display_name,
@@ -201,8 +205,11 @@ def update_enrolment(
 
     # Reminder/email transitions (§6). The invariant held on every path:
     # email_reminders on ⇒ a ciphertext is on file; off ⇒ ciphertext NULL.
+    # A roster that sends nothing keeps nothing, same as at enrolment.
+    roster = db.query(Roster).filter(Roster.id == volunteer.roster_id).one()
     email = data.email
-    if data.email_reminders and (email is not None or volunteer.encrypted_email is not None):
+    wants_reminders = data.email_reminders and roster.reminder_enabled
+    if wants_reminders and (email is not None or volunteer.encrypted_email is not None):
         volunteer.email_reminders = True
         if email is not None:
             volunteer.encrypted_email = encryption.encrypt(email)

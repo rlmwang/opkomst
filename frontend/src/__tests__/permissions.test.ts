@@ -21,6 +21,7 @@ function user(over: Partial<User> = {}): User {
     created_at: "2026-01-01T00:00:00Z",
     tenant_kind: "organisation",
     participant_cap: null,
+    participant_mail: true,
     ...over,
   };
 }

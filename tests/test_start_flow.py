@@ -35,7 +35,7 @@ def _event_body() -> dict[str, Any]:
         "source_options": ["Van een vriend"],
         "help_options": [],
         "feedback_enabled": False,
-        "reminder_enabled": True,
+        "reminder_enabled": False,
         "listed": True,
         "locale": "nl",
         "image_artist_instagram": None,
@@ -94,7 +94,7 @@ def _roster_body() -> dict[str, Any]:
         "period_weeks": 1,
         "starts_on": date.today().isoformat(),
         "ends_on": None,
-        "reminder_enabled": True,
+        "reminder_enabled": False,
         "reminder_days_before": 1,
         "commit_horizon_days": 28,
         "chores": [

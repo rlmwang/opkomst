@@ -298,6 +298,8 @@ def update_roster(
     ``period_weeks`` clamps now-out-of-range ``cycle_slots`` (the schema
     validator handles the clamp)."""
     roster = access.get_roster_for_user(db, roster_id, user)
+    if data.reminder_enabled:
+        limits.assert_can_send_participant_mail(user.tenant)
     if data.chapter_id != roster.chapter_id:
         access.assert_user_can_assign_chapter(db, user, data.chapter_id)
 

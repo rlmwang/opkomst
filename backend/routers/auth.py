@@ -70,6 +70,7 @@ def _user_out(db: Session, user: User) -> UserOut:
         is_approved=user.is_approved,
         tenant_kind=user.tenant.kind,
         participant_cap=limits.participant_cap(user.tenant),
+        participant_mail=limits.can_send_participant_mail(user.tenant),
         chapters=[ChapterRef(id=c.id, name=c.name) for c in live_chapters],
         created_at=user.created_at,
     )

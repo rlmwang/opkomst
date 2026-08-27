@@ -31,6 +31,11 @@ export const useAuthStore = defineStore("auth", () => {
     () => isApproved.value && !isPersonal.value && (user.value?.chapters?.length ?? 0) === 0,
   );
   const isApproved = computed(() => user.value?.is_approved === true);
+  // Whether this account may make the app mail the people it collects.
+  // The reminder and feedback controls exist on the forms only when it
+  // does (docs/design-paywall.md). Signed out is a visitor at the start
+  // door, whose account will be a free one, so it is false there too.
+  const participantMail = computed(() => user.value?.participant_mail === true);
   // Admin must also be approved, keep this in lock-step with the
   // backend's require_admin so a nav link can't 403 when clicked.
   const isAdmin = computed(
@@ -123,6 +128,7 @@ export const useAuthStore = defineStore("auth", () => {
     isApproved,
     isAdmin,
     isPersonal,
+    participantMail,
     needsChapters,
     whatsappAvailable,
     fetchMe,

@@ -762,21 +762,27 @@ async function submit() {
         </EditableList>
       </section>
 
-      <section class="form-section">
-        <label class="toggle-row" for="reminderToggle">
-          <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
-          <h2 class="section-heading">{{ t("event.reminderToggle") }}</h2>
-        </label>
-        <p class="muted section-explainer">{{ t("event.reminderHelp") }}</p>
-      </section>
+      <!-- Mailing the people who sign up is the paid plan
+           (docs/design-paywall.md). Hidden, not disabled: a switch
+           somebody cannot use is an advertisement on every form they
+           fill in. -->
+      <template v-if="auth.participantMail">
+        <section class="form-section">
+          <label class="toggle-row" for="reminderToggle">
+            <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+            <h2 class="section-heading">{{ t("event.reminderToggle") }}</h2>
+          </label>
+          <p class="muted section-explainer">{{ t("event.reminderHelp") }}</p>
+        </section>
 
-      <section class="form-section">
-        <label class="toggle-row" for="questionnaireToggle">
-          <ToggleSwitch v-model="feedbackEnabled" inputId="questionnaireToggle" />
-          <h2 class="section-heading">{{ t("event.questionnaireToggle") }}</h2>
-        </label>
-        <p class="muted section-explainer">{{ t("event.questionnaireHelp") }}</p>
-      </section>
+        <section class="form-section">
+          <label class="toggle-row" for="questionnaireToggle">
+            <ToggleSwitch v-model="feedbackEnabled" inputId="questionnaireToggle" />
+            <h2 class="section-heading">{{ t("event.questionnaireToggle") }}</h2>
+          </label>
+          <p class="muted section-explainer">{{ t("event.questionnaireHelp") }}</p>
+        </section>
+      </template>
 
       <!-- The agenda this lists on is a chapter's. An account with no
            chapters has no agenda to be on, so there is no choice to

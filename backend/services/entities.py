@@ -10,6 +10,10 @@ written.
 Each function assumes the tenant is already bound (``services.tenancy``)
 and leaves the commit to its caller's transaction boundary, except where
 a follow-on step needs the id, which is what the flushes are for.
+
+Both doors also share the plan check: asking for reminder or feedback
+mail on a free account is refused here rather than in each router
+(``docs/design-paywall.md``).
 """
 
 import structlog
@@ -22,7 +26,7 @@ from ..schemas.events import EventCreate
 from ..schemas.forms import FormCreate
 from . import chores as chores_svc
 from . import datepolls as datepolls_svc
-from . import event_recurrence
+from . import event_recurrence, limits
 from . import forms as forms_svc
 from .events import now_wallclock
 from .slug import new_slug
@@ -31,6 +35,8 @@ logger = structlog.get_logger()
 
 
 def create_event(db: Session, data: EventCreate, user: User) -> Event:
+    if data.reminder_enabled or data.feedback_enabled:
+        limits.assert_can_send_participant_mail(user.tenant)
     event = Event(
         slug=new_slug(),
         name_nl=data.name_nl,
@@ -120,6 +126,8 @@ def create_datepoll(db: Session, data: DatepollCreate, user: User) -> Datepoll:
 
 
 def create_roster(db: Session, data: RosterCreate, user: User) -> Roster:
+    if data.reminder_enabled:
+        limits.assert_can_send_participant_mail(user.tenant)
     roster = Roster(
         slug=new_slug(),
         name_nl=data.name_nl,

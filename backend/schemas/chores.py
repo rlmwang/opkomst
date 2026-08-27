@@ -172,6 +172,11 @@ class PublicRosterOut(BaseModel):
     period_weeks: int
     starts_on: date
     ends_on: date | None = None
+    # Whether this roster mails its volunteers. The enrol page offers to
+    # keep an address only when something is going to use it, the same
+    # rule the public event page follows, so a roster that sends nothing
+    # asks for nothing (``docs/design-paywall.md``).
+    reminder_enabled: bool
     chores: list[ChoreOut] = Field(default_factory=list)
 
 

@@ -17,6 +17,7 @@ export interface ChoreStrings {
   emailClear: string;
   emailKeep: string;
   emailDisclosureBody: string;
+  emailDisclosureBodyLinkOnly: string;
   enrolButton: string;
   myTurns: string;
   noUpcoming: string;
@@ -58,6 +59,8 @@ const dict: Record<Locale, ChoreStrings> = {
     emailKeep: "E-mail behouden",
     emailDisclosureBody:
       "Je e-mailadres gebruiken we alleen om je op tijd aan een taak te herinneren. We bewaren het versleuteld zolang je meedoet en verwijderen het zodra je je afmeldt.",
+    emailDisclosureBodyLinkOnly:
+      "Je e-mailadres gebruiken we één keer, om je je persoonlijke link te sturen. We bewaren het niet.",
     enrolButton: "Aanmelden",
     myTurns: "Mijn taken",
     noUpcoming: "Je hebt geen komende taken.",
@@ -97,6 +100,8 @@ const dict: Record<Locale, ChoreStrings> = {
     emailKeep: "Keep email",
     emailDisclosureBody:
       "We only use your email to send you a reminder before your shift. It's stored encrypted while you're taking part and deleted as soon as you leave.",
+    emailDisclosureBodyLinkOnly:
+      "We use your email once, to send you your personal link. We don't keep it.",
     enrolButton: "Sign up",
     myTurns: "My shifts",
     noUpcoming: "You have no upcoming shifts.",

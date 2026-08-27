@@ -31,6 +31,9 @@ export interface PublicRoster {
   period_weeks: number;
   starts_on: string;
   ends_on: string | null;
+  /** Whether this roster mails its volunteers. False means the address
+   * is used once for the personal link and never stored. */
+  reminder_enabled: boolean;
   chores: PublicChore[];
 }
 

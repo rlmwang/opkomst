@@ -62,6 +62,14 @@ const errorMsg = ref("");
 
 // Placeholder reflects the email state: hidden-on-file, being-removed, or
 // none. Avoids the password-like dots.
+// What the address is actually for on this roster. One that sends no
+// reminders uses it once for the personal link and stores nothing, so
+// the disclosure says that instead of promising a reminder.
+const emailDisclosure = computed(() =>
+  roster.value?.reminder_enabled === false
+    ? ch.value.emailDisclosureBodyLinkOnly
+    : ch.value.emailDisclosureBody,
+);
 const emailPlaceholder = computed(() => {
   if (clearEmail.value) return ch.value.emailClearing;
   if (personal.value?.has_email) return ch.value.emailHidden;
@@ -524,7 +532,7 @@ async function leave(): Promise<void> {
       <div class="card">
         <details class="disclosure">
           <summary>{{ c.explainerTitle }}</summary>
-          <p class="muted">{{ ch.emailDisclosureBody }}</p>
+          <p class="muted">{{ emailDisclosure }}</p>
           <p class="muted">
             {{ c.explainerBody }}
             <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ c.explainerLink }}</a>

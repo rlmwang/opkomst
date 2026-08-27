@@ -76,6 +76,7 @@ describe("auth store", () => {
       created_at: "2026-01-01T00:00:00Z",
       tenant_kind: "organisation",
       participant_cap: null,
+      participant_mail: true,
     };
 
     // Logged in but unapproved.
@@ -97,6 +98,34 @@ describe("auth store", () => {
     // require_admin).
     store.user = { ...baseUser, role: "admin", is_approved: false };
     expect(store.isAdmin).toBe(false);
+  });
+
+  it("participantMail is false when signed out and follows the account when signed in", async () => {
+    // What the event and roster forms read to decide whether the
+    // reminder and feedback controls exist at all. Signed out is the
+    // start door, whose account will be a free one.
+    const { useAuthStore } = await import("@/stores/auth");
+    const store = useAuthStore();
+    const baseUser = {
+      id: "u1",
+      email: "x@y",
+      name: "X",
+      role: "organiser" as const,
+      is_approved: true,
+      chapters: [],
+      created_at: "2026-01-01T00:00:00Z",
+      tenant_kind: "personal",
+      participant_cap: 50,
+      participant_mail: false,
+    };
+
+    expect(store.participantMail).toBe(false);
+
+    store.user = { ...baseUser };
+    expect(store.participantMail).toBe(false);
+
+    store.user = { ...baseUser, participant_mail: true };
+    expect(store.participantMail).toBe(true);
   });
 
   it("hydrates whatsappAvailable from /whatsapp/status when an admin loads", async () => {
