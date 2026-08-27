@@ -140,10 +140,14 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
   min-width: 0;
 }
 /* Fixed width so the two rows' boxes line up under each other, and the
- * arrow reads as a gutter rather than as part of the first field. */
+ * arrow reads as a gutter rather than as part of the first field. Big
+ * enough to read as a direction: at body size it looked like
+ * punctuation. */
 .side-arrow {
-  flex: 0 0 1rem;
+  flex: 0 0 1.25rem;
   text-align: center;
+  font-size: 1.375rem;
+  line-height: 1;
   color: var(--brand-text-muted);
   cursor: default;
 }
