@@ -184,13 +184,13 @@ async function submit() {
   line-height: 1.4;
 }
 .preview-banner {
-  border: 1px dashed var(--brand-primary);
-  background: color-mix(in srgb, var(--brand-primary) 6%, transparent);
+  border: 1px dashed var(--brand-red);
+  background: color-mix(in srgb, var(--brand-red) 6%, transparent);
 }
 .preview-banner p {
   margin: 0;
   font-size: 0.9375rem;
-  color: var(--brand-primary);
+  color: var(--brand-red);
 }
 /* Submit aligned right, matching the public sign-up form. */
 .submit-row {

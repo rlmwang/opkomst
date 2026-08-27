@@ -350,7 +350,7 @@ function dateWindow(): string {
 .people-chip {
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.05));
+  background: var(--brand-surface-100);
   color: var(--brand-text-muted);
   font-size: 0.75rem;
 }

@@ -25,7 +25,7 @@ import { useGuardedMutation } from "@/composables/useGuardedMutation";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { barWidth, formatDate, formatDateTime, formatTimeRange } from "@/lib/format";
+import { barWidth, formatAverage, formatDate, formatDateTime, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { recurrenceHint } from "@/lib/recurrence";
 import { useToasts } from "@/lib/toasts";
@@ -475,7 +475,7 @@ function askTriggerNow(channel: EmailChannel) {
               <p class="muted q-meta">
                 {{ t("feedback.summary.responses", { n: q.response_count }) }}
                 <template v-if="q.rating_average">
-                  · {{ t("feedback.summary.average", { avg: q.rating_average.toFixed(1) }) }}
+                  · {{ t("feedback.summary.average", { avg: formatAverage(q.rating_average, locale) }) }}
                 </template>
               </p>
               <div class="bars">
@@ -650,7 +650,7 @@ function askTriggerNow(channel: EmailChannel) {
   font-size: 0.75rem;
   padding: 0.05rem 0.4rem;
   border-radius: 0.75rem;
-  background: var(--brand-surface-muted, rgba(0, 0, 0, 0.05));
+  background: var(--brand-surface-100);
   color: var(--brand-text-muted);
   white-space: nowrap;
 }

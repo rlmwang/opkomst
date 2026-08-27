@@ -13,6 +13,25 @@ export function localeTag(locale: string): string {
   return locale === "en" ? "en-GB" : "nl-NL";
 }
 
+/** A small decimal in the reader's own notation: ``-0,38`` in Dutch,
+ *  ``-0.38`` in English. Every coordinate a kompas produces sits
+ *  between -1 and 1, so two places is the whole of it, and a trailing
+ *  zero says nothing (``docs/design-kompas.md`` 4.5). */
+export function formatDecimal(value: number, locale: string): string {
+  return new Intl.NumberFormat(localeTag(locale), { maximumFractionDigits: 2 }).format(value);
+}
+
+/** An average, to one place, in the reader's own notation: ``3,5`` in
+ *  Dutch and ``3.5`` in English. A dot where a Dutch reader expects a
+ *  comma reads as a typo in a number, which is the one place a typo
+ *  cannot be shrugged off. */
+export function formatAverage(value: number, locale: string): string {
+  return new Intl.NumberFormat(localeTag(locale), {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 /** Long human-readable date: ``maandag 27 april 2026``. */
 export function formatDate(iso: string, locale: string): string {
   return new Date(iso).toLocaleDateString(localeTag(locale), {

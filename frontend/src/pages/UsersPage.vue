@@ -433,7 +433,7 @@ async function submitUserEdit() {
   transition: background 120ms ease;
 }
 .account-row:hover {
-  background: var(--brand-surface-subtle, rgba(0, 0, 0, 0.03));
+  background: var(--brand-surface-100);
 }
 .account-main {
   display: flex;
