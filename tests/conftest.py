@@ -121,6 +121,29 @@ if _ROOT not in sys.path:
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _plain_logs():
+    """Log lines with no colour in them, whatever the shell says.
+
+    structlog's default console renderer colourises when it thinks the
+    terminal supports it, and ``FORCE_COLOR`` in a developer's
+    environment is enough to make it think so. The tests that read a log
+    line back (``test_observability``, the console-backend assertions)
+    then look for ``channel=reminder`` in a string where an escape
+    sequence sits between the two, and fail for a reason that has
+    nothing to do with the code under test."""
+    import structlog
+
+    structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.dev.ConsoleRenderer(colors=False),
+        ]
+    )
+    yield
+    structlog.reset_defaults()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _bootstrap_schema():
     """Run alembic migrations once per test session so the
     ``alembic_version`` table exists at HEAD.
