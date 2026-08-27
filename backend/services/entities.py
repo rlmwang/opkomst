@@ -60,6 +60,8 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
         feedback_enabled=data.feedback_enabled,
         reminder_enabled=data.reminder_enabled,
         listed=data.listed,
+        name_required=data.name_required,
+        answers_editable=data.answers_editable,
         locale=data.locale,
         chapter_id=data.chapter_id,
         created_by=user.id,
@@ -82,6 +84,8 @@ def create_form(db: Session, data: FormCreate, user: User, mode: str = "survey")
     form = Form(
         mode=mode,
         reveal_answers=data.reveal_answers,
+        answers_editable=data.answers_editable,
+        name_required=data.name_required,
         slug=new_slug(),
         name_nl=data.name_nl,
         name_en=data.name_en,
@@ -96,8 +100,10 @@ def create_form(db: Session, data: FormCreate, user: User, mode: str = "survey")
     db.flush()  # Need form.id for the axis + question rows below.
     if form.mode == "compass" and data.axes:
         forms_svc.apply_axes(db, form.id, data.axes)
-    if data.questions or data.axes:
-        forms_svc.apply_questions(db, form.id, data.questions, form.mode, data.axes)
+    # Always, including an empty list: a questionnaire with nothing to
+    # answer is a public page whose only button does nothing, so the
+    # save that would make one is refused here rather than published.
+    forms_svc.apply_questions(db, form.id, data.questions, form.mode, data.axes)
     logger.info("form_created", form_id=form.id, actor_id=user.id, chapter_id=data.chapter_id)
     return form
 
@@ -114,6 +120,8 @@ def create_datepoll(db: Session, data: DatepollCreate, user: User) -> Datepoll:
         longitude=data.longitude,
         image_artist_instagram=data.image_artist_instagram,
         locale=data.locale,
+        name_required=data.name_required,
+        answers_editable=data.answers_editable,
         chapter_id=data.chapter_id,
         created_by=user.id,
     )
@@ -142,6 +150,7 @@ def create_roster(db: Session, data: RosterCreate, user: User) -> Roster:
         period_weeks=data.period_weeks,
         starts_on=data.starts_on,
         ends_on=data.ends_on,
+        name_required=data.name_required,
         reminder_enabled=data.reminder_enabled,
         reminder_days_before=data.reminder_days_before,
         commit_horizon_days=data.commit_horizon_days,

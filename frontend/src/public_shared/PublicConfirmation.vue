@@ -17,10 +17,16 @@ import { computed } from "vue";
 import EditLink from "./EditLink.vue";
 import { type Locale, chromeStrings } from "./strings";
 
-const props = defineProps<{
-  url: string;
-  locale: Locale;
-}>();
+const props = withDefaults(
+  defineProps<{
+    url: string;
+    locale: Locale;
+    /** Passed through to ``EditLink``: whether the link leads back to
+     *  something the visitor may still change. */
+    canEdit?: boolean;
+  }>(),
+  { canEdit: true },
+);
 
 const c = computed(() => chromeStrings(props.locale));
 </script>
@@ -28,7 +34,7 @@ const c = computed(() => chromeStrings(props.locale));
 <template>
   <div class="card confirmation">
     <h2 class="title">{{ c.thanks }}</h2>
-    <EditLink :url="url" :locale="locale" />
+    <EditLink :url="url" :locale="locale" :can-edit="canEdit" />
   </div>
 </template>
 

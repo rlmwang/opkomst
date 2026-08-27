@@ -3597,18 +3597,23 @@ export interface components {
         };
         /**
          * CompassAxisSummary
-         * @description One axis on the organiser's page: what it is called, and where
-         *     the room sits on it. The three numbers are null before anybody has
+         * @description One axis, and where the room sits on it. Read by the organiser's
+         *     page and by every respondent's result, so the two cannot disagree. The three numbers are null before anybody has
          *     filled it in.
+         *
+         *     ``ci_low`` / ``ci_high`` are the ends of the 95% confidence interval
+         *     around ``average``, not the lowest and highest anybody scored: the
+         *     question the page answers is where the room sits, and the interval
+         *     is what says how sure that is (``services/compass.axis_stats``).
          */
         CompassAxisSummary: {
             /** Average */
             average?: number | null;
             axis: components["schemas"]["CompassAxisOut"];
-            /** Highest */
-            highest?: number | null;
-            /** Lowest */
-            lowest?: number | null;
+            /** Ci High */
+            ci_high?: number | null;
+            /** Ci Low */
+            ci_low?: number | null;
         };
         /**
          * CompassPoint
@@ -3649,7 +3654,7 @@ export interface components {
             /** Answers */
             answers: components["schemas"]["CompassAnswerResult"][];
             /** Axes */
-            axes: components["schemas"]["CompassAxisOut"][];
+            axes: components["schemas"]["CompassAxisSummary"][];
             /** Counted X */
             counted_x: number;
             /** Counted Y */
@@ -3731,6 +3736,11 @@ export interface components {
          * @description Organiser create payload.
          */
         DatepollCreate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Chapter Id */
             chapter_id?: string | null;
             /** Description En */
@@ -3755,6 +3765,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotIn"][];
         };
@@ -3824,6 +3839,8 @@ export interface components {
          *     full candidate-slot list (sorted by date then start time).
          */
         DatepollOut: {
+            /** Answers Editable */
+            answers_editable: boolean;
             /** Archived */
             archived: boolean;
             /** Chapter Id */
@@ -3866,6 +3883,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotOut"][];
             /** Slug */
@@ -4002,6 +4021,11 @@ export interface components {
          *     the two endpoints even though the body is identical.
          */
         DatepollUpdate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Chapter Id */
             chapter_id?: string | null;
             /** Description En */
@@ -4026,6 +4050,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /** Slots */
             slots?: components["schemas"]["DatepollSlotIn"][];
         };
@@ -4113,6 +4142,11 @@ export interface components {
          *     ``Occurrence`` rows the tick materialises.
          */
         EventCreate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Chapter Id */
             chapter_id?: string | null;
             /** Cycle Slots */
@@ -4163,6 +4197,11 @@ export interface components {
             /** Name Nl */
             name_nl?: string | null;
             /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
+            /**
              * Period Weeks
              * @default 1
              */
@@ -4202,6 +4241,8 @@ export interface components {
          *     couple of derived read-model fields (next occurrence, headcount).
          */
         EventOut: {
+            /** Answers Editable */
+            answers_editable: boolean;
             /** Archived */
             archived: boolean;
             /** Attendee Count */
@@ -4248,6 +4289,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Next Slug */
             next_slug: string | null;
             /** Next Starts At */
@@ -4305,6 +4348,11 @@ export interface components {
          *     clamps now-out-of-range ``cycle_slots`` away instead of 422-ing.
          */
         EventUpdate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Chapter Id */
             chapter_id?: string | null;
             /** Cycle Slots */
@@ -4354,6 +4402,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /**
              * Period Weeks
              * @default 1
@@ -4516,6 +4569,11 @@ export interface components {
          * @description Organiser create payload.
          */
         FormCreate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Axes */
             axes?: components["schemas"]["CompassAxisIn"][];
             /** Chapter Id */
@@ -4536,6 +4594,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
             /**
@@ -4610,6 +4673,11 @@ export interface components {
          *     without an extra round-trip.
          */
         FormOut: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Archived */
             archived: boolean;
             /** Axes */
@@ -4647,6 +4715,11 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /** Questions */
             questions?: components["schemas"]["FormQuestionOut"][];
             /**
@@ -4887,6 +4960,11 @@ export interface components {
          *     the body is identical.
          */
         FormUpdate: {
+            /**
+             * Answers Editable
+             * @default true
+             */
+            answers_editable: boolean;
             /** Axes */
             axes?: components["schemas"]["CompassAxisIn"][];
             /** Chapter Id */
@@ -4907,6 +4985,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /** Questions */
             questions?: components["schemas"]["FormQuestionIn"][];
             /**
@@ -5198,6 +5281,8 @@ export interface components {
          * @description What the public fill-out page (``/d/{slug}``) reads.
          */
         PublicDatepollOut: {
+            /** Answers Editable */
+            answers_editable: boolean;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */
@@ -5223,6 +5308,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Slots */
             slots: components["schemas"]["DatepollSlotOut"][];
         };
@@ -5234,6 +5321,8 @@ export interface components {
          *     future dates shown as not-yet-open.
          */
         PublicEventOut: {
+            /** Answers Editable */
+            answers_editable: boolean;
             /** Archived */
             archived: boolean;
             current: components["schemas"]["PublicOccurrenceOut"];
@@ -5264,6 +5353,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Projected */
             projected: components["schemas"]["ProjectedOccurrenceOut"][];
             /** Reminder Enabled */
@@ -5286,6 +5377,8 @@ export interface components {
          *     description + image + locale + questions in display order.
          */
         PublicFormOut: {
+            /** Answers Editable */
+            answers_editable: boolean;
             /** Axes */
             axes?: components["schemas"]["CompassAxisOut"][];
             /** Description En */
@@ -5312,6 +5405,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Questions */
             questions: components["schemas"]["PublicQuestionOut"][];
         };
@@ -5417,6 +5512,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Period Weeks */
             period_weeks: number;
             /** Reminder Enabled */
@@ -5565,6 +5662,11 @@ export interface components {
             /** Name Nl */
             name_nl?: string | null;
             /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
+            /**
              * Period Weeks
              * @default 1
              */
@@ -5674,6 +5776,8 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
+            /** Name Required */
+            name_required: boolean;
             /** Period Weeks */
             period_weeks: number;
             /** Reminder Days Before */
@@ -5729,6 +5833,11 @@ export interface components {
             name_en?: string | null;
             /** Name Nl */
             name_nl?: string | null;
+            /**
+             * Name Required
+             * @default false
+             */
+            name_required: boolean;
             /**
              * Period Weeks
              * @default 1

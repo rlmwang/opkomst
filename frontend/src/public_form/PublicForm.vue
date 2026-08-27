@@ -138,7 +138,7 @@ function describeSubmitError(e: unknown): string {
 
 async function submit() {
   if (!form.value) return;
-  if (!displayName.value.trim()) {
+  if (form.value.name_required && !displayName.value.trim()) {
     showToast(c.value.nameRequired);
     return;
   }
@@ -206,7 +206,12 @@ async function withdraw() {
          (the top card is dropped) so nothing competes with saving the
          secret link. -->
     <template v-else-if="form">
-      <PublicConfirmation v-if="status === 'submitted'" :url="editUrl" :locale="locale" />
+      <PublicConfirmation
+        v-if="status === 'submitted'"
+        :url="editUrl"
+        :locale="locale"
+        :can-edit="form.answers_editable"
+      />
 
       <template v-else>
         <PublicTopCard
@@ -220,6 +225,10 @@ async function withdraw() {
         <Disclosure :locale="locale" />
 
         <form class="card stack form-card" novalidate @submit.prevent="submit">
+        <!-- Closed for changes: the fields are still readable, because
+             seeing what you said is the other half of what the link is
+             for, but nothing here can be typed into. -->
+        <fieldset class="fields" :disabled="editToken != null && !form.answers_editable">
         <!-- Pseudonym first, mirroring the events sign-up form. -->
         <input
           v-model="displayName"
@@ -243,6 +252,8 @@ async function withdraw() {
           @update="(value) => (answers[q.id] = value)"
         />
 
+        </fieldset>
+
         <p v-if="submitError" class="error" role="alert">{{ submitError }}</p>
 
         <div v-if="!editToken" class="submit-row">
@@ -254,6 +265,7 @@ async function withdraw() {
         </form>
         <PublicEditBar
           v-if="editToken"
+          :can-edit="form.answers_editable"
           :dirty="dirty"
           :saving="submitting"
           :just-saved="justSaved"
@@ -268,6 +280,14 @@ async function withdraw() {
 </template>
 
 <style scoped>
+/* The fieldset is a grouping for the disabled state, not a layout box:
+ * it hands its own children straight to the card's column. */
+.fields {
+  display: contents;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
 .form-card { display: flex; flex-direction: column; gap: 1.25rem; }
 .error { color: var(--brand-red); margin: 0; }
 

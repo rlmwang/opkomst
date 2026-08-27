@@ -50,6 +50,8 @@ const COMPASS = {
   image_artist_instagram: null,
   locale: "nl" as const,
   mode: "compass" as const,
+  name_required: false,
+  answers_editable: true,
   axes: AXES,
   questions: [
     {
@@ -92,7 +94,9 @@ const RESULT = {
   y: 1,
   counted_x: 2,
   counted_y: 1,
-  axes: AXES,
+  // The result carries each axis with where the whole room sits on it,
+  // which is the band the reader's own marker is drawn against.
+  axes: AXES.map((axis) => ({ axis, average: 0, ci_low: -0.6, ci_high: 0.6 })),
   points: [
     { name: "Sam", x: -0.5, y: 1, you: true },
     { name: null, x: 0.5, y: -1, you: false },
@@ -121,8 +125,8 @@ const RESULT = {
   ],
 };
 
-function mountCompass() {
-  window.__OPKOMST_COMPASS__ = structuredClone(COMPASS) as never;
+function mountCompass(over: Record<string, unknown> = {}) {
+  window.__OPKOMST_COMPASS__ = { ...structuredClone(COMPASS), ...over } as never;
   return mount(PublicCompass, { global: { stubs: { PublicShell: { template: "<div><slot /></div>" } } } });
 }
 
@@ -235,6 +239,68 @@ describe("PublicCompass", () => {
     // says which one this is.
     expect(wrapper.text()).toContain("Over deze as heb je niks ingevuld");
     expect(wrapper.text()).not.toContain("Je staat in het midden");
+  });
+
+  it("draws the room's band behind your own marker", async () => {
+    vi.mocked(api.postCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper);
+    await rate(wrapper, 2);
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    await pick(wrapper, 0);
+    await buttonWith(wrapper, "Klaar")?.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.findAll(".axis-room")).toHaveLength(2);
+    expect(wrapper.text()).toContain("waar de groep staat");
+  });
+
+  it("draws no band when the room is a point rather than a range", async () => {
+    // Nobody else has filled it in, or only one person has: there is a
+    // mean and no interval, so there is nothing to draw and nothing to
+    // explain.
+    const noRoom = structuredClone(RESULT);
+    noRoom.axes = noRoom.axes.map((row) => ({ ...row, ci_low: 0, ci_high: 0 }));
+    vi.mocked(api.postCompassAnswers).mockResolvedValue(noRoom as never);
+    const wrapper = mountCompass();
+    await flushPromises();
+    await start(wrapper);
+    await rate(wrapper, 2);
+    await buttonWith(wrapper, "Volgende")?.trigger("click");
+    await pick(wrapper, 0);
+    await buttonWith(wrapper, "Klaar")?.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find(".axis-room").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("waar de groep staat");
+  });
+
+  it("shows the secret link back to this fill-in, with a way to copy it", async () => {
+    // The token lives only in that URL and nobody can re-send it, so the
+    // result page says so out loud rather than leaving it in the
+    // address bar (the same card every other mini-app shows).
+    vi.mocked(api.fetchCompassResult).mockResolvedValue(structuredClone(RESULT) as never);
+    window.history.replaceState(null, "", "/k/abc123?s=tok");
+    const wrapper = mountCompass();
+    await flushPromises();
+
+    const link = wrapper.find("a.link");
+    expect(link.attributes("href")).toContain("/k/abc123?s=tok");
+    expect(wrapper.find("button.copy-btn").exists()).toBe(true);
+  });
+
+  it("offers no way back into the answers when the organiser closed them", async () => {
+    vi.mocked(api.fetchCompassResult).mockResolvedValue(structuredClone(RESULT) as never);
+    window.history.replaceState(null, "", "/k/abc123?s=tok");
+    const wrapper = mountCompass({ answers_editable: false });
+    await flushPromises();
+
+    expect(buttonWith(wrapper, "Verander je antwoorden")).toBeUndefined();
+    // The link still opens the result: seeing what you said is the
+    // other half of what it is for.
+    expect(wrapper.find("a.link").exists()).toBe(true);
+    expect(wrapper.text()).toContain("terug te zien");
   });
 
   it("reopens a finished fill-in and lets the answers change", async () => {

@@ -2,6 +2,7 @@
 import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
+import ToggleSwitch from "primevue/toggleswitch";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -87,6 +88,11 @@ const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const pollLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
+const nameRequired = ref(false);
+const answersEditable = ref(true);
+/* The switches live behind one fold, the same one every other edit page
+ * ends with, and it starts closed every time. */
+const advancedOpen = ref(false);
 // Candidate dates as ``Date`` objects (PrimeVue multiple-select).
 const selectedDates = ref<Date[]>([]);
 // Time-slots per day, keyed by ISO date. A day absent here (or with an
@@ -349,6 +355,8 @@ watch(
     imageUrl.value = existing.image_url ?? null;
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     pollLocale.value = existing.locale;
+    nameRequired.value = existing.name_required;
+    answersEditable.value = existing.answers_editable;
     chapterId.value = existing.chapter_id;
     set(existing.location ?? null, existing.latitude ?? null, existing.longitude ?? null);
     const existingSlots = existing.slots ?? [];
@@ -509,6 +517,8 @@ async function submit() {
       longitude: longitude.value,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: pollLocale.value,
+      name_required: nameRequired.value,
+      answers_editable: answersEditable.value,
       slots: slotsPayload,
     };
     if (startActive.value) {
@@ -741,6 +751,32 @@ async function submit() {
         </ul>
       </div>
     </section>
+
+
+    <!-- Every switch, folded away: above it is the thing itself, under
+         it the page language. One fold on all six products. -->
+    <details class="advanced" :open="advancedOpen" @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ advancedOpen ? t("common.advancedHide") : t("common.advancedShow") }}</summary>
+
+      <!-- Off by default: a name real or not is what the contract
+           offers, so an empty box is an answer. On when the answers are
+           only useful attached to somebody. -->
+      <section class="form-section">
+        <label class="toggle-row" for="nameRequiredToggle">
+          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
+      </section>
+
+      <section class="form-section">
+        <label class="toggle-row" for="editableToggle">
+          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+      </section>
+    </details>
 
     <section class="form-section">
       <h2 class="section-heading">{{ t("datepolls.edit.localeHeading") }}</h2>

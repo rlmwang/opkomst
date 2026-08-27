@@ -46,9 +46,7 @@ def _datepoll(image_path):
 
 
 def _form(image_path):
-    return spa._build_form_head_meta(
-        Form(name_nl="Aanmelden", mode="survey", image_path=image_path), "slug3", _BRAND
-    )
+    return spa._build_form_head_meta(Form(name_nl="Aanmelden", mode="survey", image_path=image_path), "slug3", _BRAND)
 
 
 def _roster(image_path):

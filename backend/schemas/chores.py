@@ -79,6 +79,10 @@ class RosterCreate(BilingualTitleMixin):
     period_weeks: int = Field(default=1, ge=1, le=8)
     starts_on: date
     ends_on: date | None = None
+    # Whether the public page insists on a (pseudo)name. Off by default
+    # (``docs/design-public-pages-ux.md``): a name real or not is what
+    # the contract offers, so an empty box is an answer.
+    name_required: bool = False
     reminder_enabled: bool = True
     reminder_days_before: int = Field(default=1, ge=0, le=14)
     # How far ahead the schedule is pinned and reliable (design §7). Must
@@ -147,6 +151,7 @@ class RosterOut(RosterListOut):
     image_artist_instagram: str | None = None
     starts_on: date
     ends_on: date | None = None
+    name_required: bool
     reminder_enabled: bool
     reminder_days_before: int
     commit_horizon_days: int
@@ -172,6 +177,8 @@ class PublicRosterOut(BaseModel):
     period_weeks: int
     starts_on: date
     ends_on: date | None = None
+    # Whether the enrol page insists on a (pseudo)name.
+    name_required: bool
     # Whether this roster mails its volunteers. The enrol page offers to
     # keep an address only when something is going to use it, the same
     # rule the public event page follows, so a roster that sends nothing

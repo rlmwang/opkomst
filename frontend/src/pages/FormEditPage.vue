@@ -85,6 +85,14 @@ const poleOptions = computed<PoleOption[]>(() =>
  * organiser running the same quiz twice in one evening turns it off. */
 const revealAnswers = ref(true);
 
+/* Whether somebody may reopen their own link and change what they
+ * said. A quiz never offers it, so the switch is not drawn there. */
+const answersEditable = ref(true);
+const nameRequired = ref(false);
+/* The switches live behind one fold, the same one every other edit page
+ * ends with, and it starts closed every time. */
+const advancedOpen = ref(false);
+
 // Chapter assignment. Same pattern as EventFormPage: pre-fill on
 // create from ``?chapter=`` if it matches a live membership; if
 // the user has exactly one chapter, lock to it; otherwise leave
@@ -184,6 +192,8 @@ watch(
       option_poles: (q.option_poles as Pole[] | null) ?? null,
     }));
     revealAnswers.value = existing.reveal_answers ?? true;
+    answersEditable.value = existing.answers_editable ?? true;
+    nameRequired.value = existing.name_required ?? false;
     axes.value = (existing.axes ?? []).map((a) => ({ ...a, axis: a.axis as "x" | "y" }));
     // Restore the mid-edit draft after server hydration so the
     // user's unsaved edits win over the stored form.
@@ -317,6 +327,9 @@ function axisCoverageProblem(): string | null {
  *  authority, this is so the answer arrives in Dutch and names the
  *  question. */
 function firstQuestionProblem(): string | null {
+  // Nothing to answer is a public page whose only button does nothing,
+  // so it is refused here and again on the server.
+  if (questions.value.length === 0) return L("edit.needsAQuestion");
   for (const [index, q] of questions.value.entries()) {
     const n = index + 1;
     if (!q.prompt.trim()) return L("edit.questionNeedsPrompt", { n });
@@ -433,6 +446,8 @@ async function submit() {
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
       locale: formLocale.value,
       reveal_answers: revealAnswers.value,
+      answers_editable: answersEditable.value,
+      name_required: nameRequired.value,
       questions: questions.value.map(
         (q): FormQuestionIn => ({
           id: q.id,
@@ -596,15 +611,41 @@ async function submit() {
       />
     </section>
 
-    <!-- Quiz only. Under the questions because it is about what
-         happens after they are answered. -->
-    <section v-if="isQuiz" class="form-section">
-      <label class="toggle-row" for="revealToggle">
-        <ToggleSwitch v-model="revealAnswers" inputId="revealToggle" />
-        <h2 class="section-heading">{{ t("quizzes.edit.revealHeading") }}</h2>
-      </label>
-      <p class="muted section-explainer">{{ t("quizzes.edit.revealExplainer") }}</p>
-    </section>
+
+    <!-- Every switch, folded away: above it is the thing itself, under
+         it the page language. One fold on all six products. -->
+    <details class="advanced" :open="advancedOpen" @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ advancedOpen ? t("common.advancedHide") : t("common.advancedShow") }}</summary>
+
+      <!-- Off by default: a name real or not is what the contract
+           offers, so an empty box is an answer. On when the answers are
+           only useful attached to somebody. -->
+      <section class="form-section">
+        <label class="toggle-row" for="nameRequiredToggle">
+          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
+      </section>
+
+      <!-- What happens after the questions are answered. A quiz has no
+           edit at all, so it gets the reveal switch instead. -->
+      <section v-if="!isQuiz" class="form-section">
+        <label class="toggle-row" for="editableToggle">
+          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+      </section>
+
+      <section v-if="isQuiz" class="form-section">
+        <label class="toggle-row" for="revealToggle">
+          <ToggleSwitch v-model="revealAnswers" inputId="revealToggle" />
+          <h2 class="section-heading">{{ t("quizzes.edit.revealHeading") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("quizzes.edit.revealExplainer") }}</p>
+      </section>
+    </details>
 
     <section class="form-section">
       <h2 class="section-heading">{{ L("edit.localeHeading") }}</h2>

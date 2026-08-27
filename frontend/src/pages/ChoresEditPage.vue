@@ -69,6 +69,10 @@ const imageUrl = ref<string | null>(null);
 const imageArtistInstagram = ref("");
 const imageField = ref<InstanceType<typeof ImageField> | null>(null);
 const rosterLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
+const nameRequired = ref(false);
+/* The switches live behind one fold, the same one every other edit page
+ * ends with, and it starts closed every time. */
+const advancedOpen = ref(false);
 const periodWeeks = ref(1);
 const startsOn = ref<Date | null>(null);
 const endsOn = ref<Date | null>(null);
@@ -170,6 +174,7 @@ watch(
     imageUrl.value = existing.image_url ?? null;
     imageArtistInstagram.value = existing.image_artist_instagram ?? "";
     rosterLocale.value = existing.locale;
+    nameRequired.value = existing.name_required;
     chapterId.value = existing.chapter_id;
     periodWeeks.value = existing.period_weeks;
     startsOn.value = parseDate(existing.starts_on);
@@ -365,6 +370,7 @@ async function submit() {
       period_weeks: periodWeeks.value,
       starts_on: isoDate(startsOn.value) as string,
       ends_on: isoDate(endsOn.value),
+      name_required: nameRequired.value,
       reminder_enabled: sendsReminders.value,
       reminder_days_before: reminderDaysBefore.value,
       commit_horizon_days: commitHorizonDays.value,
@@ -500,18 +506,6 @@ async function submit() {
         </div>
       </div>
 
-      <details class="advanced">
-        <summary>{{ t("chores.edit.advanced") }}</summary>
-        <div class="field">
-          <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
-          <NumberStepper
-            v-model="commitHorizonDays"
-            :min="reminderEnabled ? reminderDaysBefore : 1"
-            :max="365"
-            :aria-label="t('chores.edit.commitHorizonDays')"
-          />
-        </div>
-      </details>
     </section>
 
     <!-- Chores -->
@@ -547,26 +541,60 @@ async function submit() {
       />
     </section>
 
-    <!-- Reminders. Mailing volunteers is the paid plan
-         (docs/design-paywall.md); a free roster keeps the personal page
-         and the month calendar, so the section is not here at all. -->
-    <section v-if="auth.participantMail" class="form-section">
-      <label class="toggle-row" for="reminderToggle">
-        <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
-        <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>
-      </label>
-      <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
 
-      <div v-if="reminderEnabled" class="field">
-        <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
+    <!-- Every switch, folded away: above it is the thing itself, under
+         it the page language. One fold on all six products. -->
+    <details class="advanced" :open="advancedOpen" @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open">
+      <summary>{{ advancedOpen ? t("common.advancedHide") : t("common.advancedShow") }}</summary>
+
+      <!-- Off by default: a name real or not is what the contract
+           offers, so an empty box is an answer. A roster is the one
+           place a nameless sign-up is hard to use, so this is the one
+           an organiser is likeliest to switch on. -->
+      <section class="form-section">
+        <label class="toggle-row" for="nameRequiredToggle">
+          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
+      </section>
+
+      <!-- Reminders. Mailing volunteers is the paid plan
+           (docs/design-paywall.md); a free roster keeps the personal
+           page and the month calendar, so the section is not here at
+           all. -->
+      <section v-if="auth.participantMail" class="form-section">
+        <label class="toggle-row" for="reminderToggle">
+          <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+          <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
+
+        <div v-if="reminderEnabled" class="field">
+          <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
+          <NumberStepper
+            v-model="reminderDaysBefore"
+            :min="0"
+            :max="14"
+            :aria-label="t('chores.edit.reminderDaysBefore')"
+          />
+        </div>
+      </section>
+
+      <!-- How far ahead the schedule is pinned. A setting rather than
+           part of the roster, so it belongs in here with the switches
+           rather than in a fold of its own inside the dates. -->
+      <section class="form-section">
+        <h2 class="section-heading">{{ t("chores.edit.commitHorizonDays") }}</h2>
+        <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
         <NumberStepper
-          v-model="reminderDaysBefore"
-          :min="0"
-          :max="14"
-          :aria-label="t('chores.edit.reminderDaysBefore')"
+          v-model="commitHorizonDays"
+          :min="reminderEnabled ? reminderDaysBefore : 1"
+          :max="365"
+          :aria-label="t('chores.edit.commitHorizonDays')"
         />
-      </div>
-    </section>
+      </section>
+    </details>
 
     <!-- Language -->
     <section class="form-section">
@@ -613,15 +641,5 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-.advanced > summary {
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--brand-text-muted);
-  width: fit-content;
-}
-.advanced[open] > summary {
-  margin-bottom: 0.5rem;
 }
 </style>

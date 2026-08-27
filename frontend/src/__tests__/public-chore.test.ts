@@ -37,6 +37,7 @@ const ROSTER = {
   starts_on: "2026-01-05",
   ends_on: null,
   reminder_enabled: true,
+  name_required: false,
   chores: [
     { id: "c1", name: "Bins", description: null, cycle_slots: [2], people_per_shift: 1, emoji: null },
     { id: "c2", name: "Sweep", description: null, cycle_slots: [4], people_per_shift: 1, emoji: null },
@@ -80,6 +81,32 @@ describe("PublicChore enrol mode", () => {
     // The standardized confirmation card (shared across all four entity
     // types) is shown, with the edit link.
     expect(w.text()).toContain("Thank you!");
+  });
+
+  it("takes a nameless enrolment by default and refuses one when the organiser asked", async () => {
+    // The name is optional on all six products unless the organiser
+    // switched it on; the enrol page reads that off the roster.
+    setUrl("/c/abc12345");
+    vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
+    let w = mount(PublicChore);
+    await flushPromises();
+    await w.findAll('input[type="checkbox"]')[0].setValue(true);
+    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
+    await flushPromises();
+    expect(api.postEnrolment).toHaveBeenCalledWith(
+      "abc12345",
+      expect.objectContaining({ display_name: null }),
+    );
+
+    vi.mocked(api.postEnrolment).mockClear();
+    window.__OPKOMST_CHORE__ = { ...structuredClone(ROSTER), name_required: true };
+    setUrl("/c/abc12345");
+    w = mount(PublicChore);
+    await flushPromises();
+    await w.findAll('input[type="checkbox"]')[0].setValue(true);
+    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
+    await flushPromises();
+    expect(api.postEnrolment).not.toHaveBeenCalled();
   });
 
   it("giving an email turns reminders on (no separate opt-in)", async () => {

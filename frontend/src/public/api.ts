@@ -44,6 +44,11 @@ export interface PublicEvent {
   archived: boolean;
   /** Which mails this event sends. The page asks for an address only
    *  when one of them will use it. */
+  /** Whether the page insists on a (pseudo)name before it will accept
+   *  anything, and whether a booking may still be changed through its
+   *  own link. Both the organiser's. */
+  name_required: boolean;
+  answers_editable: boolean;
   reminder_enabled: boolean;
   feedback_enabled: boolean;
   is_recurring: boolean;

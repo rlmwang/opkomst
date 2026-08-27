@@ -218,6 +218,8 @@ def update_event(
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled
     event.listed = data.listed
+    event.name_required = data.name_required
+    event.answers_editable = data.answers_editable
     event.locale = data.locale
     event.image_artist_instagram = data.image_artist_instagram
 

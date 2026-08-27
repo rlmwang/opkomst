@@ -68,6 +68,18 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     listed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Whether the public page insists on a (pseudo)name before it will
+    # accept anything. Off by default: a name real or not is what the
+    # contract offers, and a page that refuses an empty box asks for an
+    # identity the organiser may not need. On when the answers are only
+    # useful attached to somebody.
+    name_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Whether somebody may reopen their own link and change what they
+    # booked. On by default: plans change, and a sign-up nobody can
+    # correct becomes a sign-up nobody cancels either. Off when the
+    # headcount is being acted on and has to stop moving. Withdrawing
+    # is never closed by it (``docs/design-edit-link.md``).
+    answers_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
 
     # The recurrence rule (roster's k-week cycle + a time of day).
     # ``starts_on`` anchors cycle week 0 (first Monday on/after it, derived by

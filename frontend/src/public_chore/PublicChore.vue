@@ -260,7 +260,7 @@ function removeAvailRange(index: number): void {
 
 // Client-side validation shared by enrol + save; specific reasons toast.
 function validateForm(): boolean {
-  if (!displayName.value.trim()) {
+  if (roster.value?.name_required && !displayName.value.trim()) {
     showToast(c.value.nameRequired);
     return false;
   }

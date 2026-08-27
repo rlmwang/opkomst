@@ -67,4 +67,29 @@
     font-size: 0.875rem;
     color: var(--brand-text-muted);
   }
+
+  /* The fold every edit form ends with. One rule for all six products:
+   * above it is what the thing *is* (its name, its words, its picture,
+   * its dates, its questions); inside it is every switch that changes
+   * how it behaves; under it sits the page language. An organiser
+   * making their first event should not have to walk past eight
+   * switches to reach Save.
+   *
+   * ``.form-section + .form-section`` cannot see across a ``details``,
+   * so both edges of the block carry the section gap explicitly. */
+  .advanced,
+  .advanced + .form-section {
+    margin-top: 2.5rem;
+  }
+  .advanced > summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--brand-text-muted);
+    width: fit-content;
+    padding: 0.5rem 0;
+  }
+  .advanced[open] > summary {
+    margin-bottom: 0.5rem;
+  }
 }

@@ -17,7 +17,11 @@
     "invalidEmail": "Dit e-mailadres lijkt niet te kloppen",
     "copyLink": "Kopieer link",
     "copyQr": "Kopieer QR",
-    "imageCredit": "Ontwerp:"
+    "imageCredit": "Ontwerp:",
+    "nameRequired": "Naam verplicht",
+    "nameRequiredExplainer": "Mensen moeten een (schuil)naam invullen.",
+    "advancedShow": "Geavanceerde opties tonen",
+    "advancedHide": "Geavanceerde opties verbergen"
   },
   "recoverLink": {
     "open": "Aanmeldingen bekijken",
@@ -323,7 +327,10 @@
       "backToList": "← Terug naar vragenlijsten",
       "descriptionPlaceholder": "Beschrijving (optioneel)",
       "questionNeedsPrompt": "Vraag {n}: vul de vraag nog in.",
-      "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe."
+      "questionNeedsOptions": "Vraag {n}: voeg minstens twee antwoorden toe.",
+      "editableHeading": "Antwoorden later aanpassen",
+      "editableExplainer": "Met hun eigen link komen mensen terug en veranderen ze wat ze hebben ingevuld.",
+      "needsAQuestion": "Voeg minstens één vraag toe."
     },
     "question": {
       "promptPlaceholder": "Vraag",
@@ -708,8 +715,6 @@
     "imageCredit": "Ontwerp:",
     "sourcesHeading": "Hoe heb je ons gevonden?",
     "sourcesExplainer": "Deze opties verschijnen op het openbare aanmeldformulier.",
-    "advancedShow": "Geavanceerde opties tonen",
-    "advancedHide": "Geavanceerde opties verbergen",
     "localeHeading": "Taal",
     "localeExplainer": "De taal van de openbare aanmeldpagina en de feedbackmail na afloop.",
     "localeNl": "Nederlands",
@@ -1053,7 +1058,8 @@
       "noTextResponses": "Niemand heeft hier iets ingevuld.",
       "qResponses": "{n} antwoorden",
       "mapHeading": "De kaart",
-      "spread": "Gemiddeld {avg}, van {min} tot {max}",
+      "interval": "Gemiddeld {avg}, met 95% zekerheid tussen {low} en {high}",
+      "axesHeading": "Assen",
       "noPositions": "Zodra iemand 'm invult, staat de kaart hier.",
       "ratingPole": "Een 5 betekent {pole}",
       "ratingContribution": "Gemiddeld {avg} van 5, dat is {value} richting {pole}"

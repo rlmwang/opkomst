@@ -84,6 +84,19 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # question or only says the score. An organiser running the same
     # quiz twice in one evening turns it off.
     reveal_answers: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # Whether somebody who has answered may open their own link and
+    # change what they said. A survey and a kompas are opinions, and an
+    # opinion is allowed to change; an organiser closing a vote turns
+    # this off. A quiz never offers it at all, score first and edit
+    # after being the definition of cheating, so the column sits unread
+    # on a quiz row (``docs/design-quizzes.md``).
+    answers_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    # Whether the public page insists on a (pseudo)name before it will
+    # accept anything. Off by default: a name real or not is what the
+    # contract offers, and a page that refuses an empty box asks for an
+    # identity the organiser may not need. On when the answers are only
+    # useful attached to somebody.
+    name_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.

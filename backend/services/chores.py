@@ -188,6 +188,7 @@ def to_out(db: Session, roster: Roster) -> RosterOut:
         image_artist_instagram=roster.image_artist_instagram,
         starts_on=roster.starts_on,
         ends_on=roster.ends_on,
+        name_required=roster.name_required,
         reminder_enabled=roster.reminder_enabled,
         reminder_days_before=roster.reminder_days_before,
         commit_horizon_days=roster.commit_horizon_days,
@@ -668,6 +669,7 @@ def to_public_out(db: Session, roster: Roster) -> PublicRosterOut:
         period_weeks=roster.period_weeks,
         starts_on=roster.starts_on,
         ends_on=roster.ends_on,
+        name_required=roster.name_required,
         reminder_enabled=roster.reminder_enabled,
         chores=[ChoreOut.model_validate(c) for c in _chores(db, roster.id)],
     )

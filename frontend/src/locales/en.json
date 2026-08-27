@@ -17,7 +17,11 @@
     "invalidEmail": "That email address looks wrong",
     "copyLink": "Copy link",
     "copyQr": "Copy QR",
-    "imageCredit": "Design:"
+    "imageCredit": "Design:",
+    "nameRequired": "Name required",
+    "nameRequiredExplainer": "Nothing can be sent in without a (pseudo)name.",
+    "advancedShow": "Show advanced options",
+    "advancedHide": "Hide advanced options"
   },
   "recoverLink": {
     "open": "View signups",
@@ -323,7 +327,10 @@
       "backToList": "← Back to forms",
       "descriptionPlaceholder": "Description (optional)",
       "questionNeedsPrompt": "Question {n}: write the question first.",
-      "questionNeedsOptions": "Question {n}: add at least two answers."
+      "questionNeedsOptions": "Question {n}: add at least two answers.",
+      "editableHeading": "Answers can be changed later",
+      "editableExplainer": "With their own link people come back and change what they said.",
+      "needsAQuestion": "Add at least one question."
     },
     "question": {
       "promptPlaceholder": "Question",
@@ -708,8 +715,6 @@
     "imageCredit": "Artwork by",
     "sourcesHeading": "How did you find us?",
     "sourcesExplainer": "These options will appear on the public sign-up form.",
-    "advancedShow": "Show advanced options",
-    "advancedHide": "Hide advanced options",
     "localeHeading": "Language",
     "localeExplainer": "The language of the public sign-up page and the post-event feedback email.",
     "localeNl": "Dutch",
@@ -1053,7 +1058,8 @@
       "noTextResponses": "Nobody wrote anything here.",
       "qResponses": "{n} answers",
       "mapHeading": "The map",
-      "spread": "Average {avg}, from {min} to {max}",
+      "interval": "Average {avg}, between {low} and {high} with 95% confidence",
+      "axesHeading": "Axes",
       "noPositions": "The map appears here once somebody fills it in.",
       "ratingPole": "A 5 means {pole}",
       "ratingContribution": "Average {avg} out of 5, which is {value} toward {pole}"

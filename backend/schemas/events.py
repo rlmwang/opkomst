@@ -60,6 +60,13 @@ class EventCreate(BilingualTitleMixin):
     feedback_enabled: bool = False
     reminder_enabled: bool = False
     listed: bool = False
+    # Whether the public page insists on a (pseudo)name. Off by default
+    # (``docs/design-public-pages-ux.md``): a name real or not is what
+    # the contract offers, so an empty box is an answer.
+    name_required: bool = False
+    # Whether somebody may reopen their own link and change what they
+    # sent in. On by default; withdrawing is never closed by it.
+    answers_editable: bool = True
     locale: Locale = "nl"
 
     # On create an out-of-range cycle slot is a client bug and 422s; on
@@ -158,6 +165,8 @@ class EventOut(BaseModel):
     feedback_enabled: bool
     reminder_enabled: bool
     listed: bool
+    name_required: bool
+    answers_editable: bool
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
@@ -286,6 +295,10 @@ class PublicEventOut(BaseModel):
     # of them are switched on.
     reminder_enabled: bool
     feedback_enabled: bool
+    # Whether the sign-up form insists on a (pseudo)name, and whether a
+    # booking may still be changed through its own link.
+    name_required: bool
+    answers_editable: bool
     # Whether the event recurs (drives the calendar date picker vs a single
     # date on the public page). ``total_sessions`` is the "van N" for the
     # "sessie i van N" labels; null = open-ended.

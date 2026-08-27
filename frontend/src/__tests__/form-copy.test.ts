@@ -55,6 +55,7 @@ const SHARED = [
   "edit.localeExplainer",
   "edit.localeHeading",
   "edit.namePlaceholder",
+  "edit.needsAQuestion",
   "edit.questionNeedsOptions",
   "edit.questionNeedsPrompt",
   "edit.questionsHeading",

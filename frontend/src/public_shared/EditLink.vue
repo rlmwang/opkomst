@@ -13,7 +13,17 @@
 import { computed, ref } from "vue";
 import { type Locale, chromeStrings } from "./strings";
 
-const props = defineProps<{ url: string; locale: Locale }>();
+const props = withDefaults(
+  defineProps<{
+    url: string;
+    locale: Locale;
+    /** Whether the link leads back to something changeable. False on a
+     *  quiz, and on a form whose answers the organiser has closed: the
+     *  link still opens, it just does not promise an edit. */
+    canEdit?: boolean;
+  }>(),
+  { canEdit: true },
+);
 const c = computed(() => chromeStrings(props.locale));
 
 const copied = ref(false);
@@ -32,7 +42,7 @@ async function copy(): Promise<void> {
 </script>
 
 <template>
-  <p class="prompt">{{ c.editPrompt }}</p>
+  <p class="prompt">{{ canEdit ? c.editPrompt : c.editPromptReadonly }}</p>
   <div class="link-row">
     <a class="link" :href="url" target="_blank" rel="noopener">{{ url }}</a>
     <button

@@ -92,6 +92,8 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         archived=event.archived_at is not None,
         reminder_enabled=event.reminder_enabled,
         feedback_enabled=event.feedback_enabled,
+        name_required=event.name_required,
+        answers_editable=event.answers_editable,
         is_recurring=bool(event.cycle_slots),
         total_sessions=event_recurrence.total_sessions(event),
         current=PublicOccurrenceOut(

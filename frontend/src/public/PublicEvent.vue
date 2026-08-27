@@ -379,7 +379,7 @@ async function submit() {
   errorMsg.value = null;
   if (!event.value) return;
   const trimmedName = displayName.value.trim();
-  if (!trimmedName) {
+  if (event.value.name_required && !trimmedName) {
     showToast(c.value.nameRequired);
     return;
   }
@@ -428,7 +428,7 @@ async function submit() {
 async function saveBooking() {
   errorMsg.value = null;
   const trimmedName = displayName.value.trim();
-  if (!trimmedName) {
+  if (event.value?.name_required && !trimmedName) {
     showToast(c.value.nameRequired);
     return;
   }
@@ -741,6 +741,7 @@ watchEffect(() => {
 
         <PublicEditBar
           v-if="booking"
+          :can-edit="event?.answers_editable ?? true"
           :dirty="dirty"
           :saving="submitting"
           :just-saved="justSaved"

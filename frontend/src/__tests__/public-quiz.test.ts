@@ -170,6 +170,26 @@ describe("playing a quiz", () => {
     expect(wrapper.text()).toContain("12");
   });
 
+  it("shows the link back to the attempt, and does not promise an edit", async () => {
+    // A quiz has no edit path at all, so the link is how you see the
+    // score again and the copy says exactly that.
+    window.history.replaceState(null, "", "/q/abc12345?s=tok");
+    vi.mocked(api.fetchQuizResult).mockResolvedValue({
+      submission_id: "s1",
+      edit_token: "tok",
+      score: 5,
+      max_score: 5,
+      reveal_answers: false,
+      answers: [],
+    });
+    const wrapper = mountQuiz();
+    await flushPromises();
+
+    expect(wrapper.find("a.link").attributes("href")).toContain("/q/abc12345?s=tok");
+    expect(wrapper.find("button.copy-btn").exists()).toBe(true);
+    expect(wrapper.text()).toContain("terug te zien");
+  });
+
   it("reopens a finished attempt read-only from its token", async () => {
     window.history.replaceState(null, "", "/q/abc12345?s=tok");
     vi.mocked(api.fetchQuizResult).mockResolvedValue({

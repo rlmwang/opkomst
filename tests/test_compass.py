@@ -337,9 +337,87 @@ def test_the_summary_says_where_the_room_sits_on_each_axis(client, organiser_hea
     summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
     x_axis = summary["compass"]["axes"][0]
     assert x_axis["axis"]["name"] == "Economie"
-    assert (x_axis["average"], x_axis["lowest"], x_axis["highest"]) == (0.5, 0.0, 1.0)
+    # Two people, one at 1.0 and one at 0.0: the mean is 0.5 and two
+    # answers say almost nothing about where the room is, so the
+    # interval runs the whole axis (clamped: there is no outside).
+    assert (x_axis["average"], x_axis["ci_low"], x_axis["ci_high"]) == (0.5, -1.0, 1.0)
     # And every question carries the direction that earned its counts.
     assert summary["questions"][0]["pole"] == "x_high"
+
+
+def test_the_interval_narrows_as_the_room_agrees(client, organiser_headers) -> None:
+    """It is a confidence interval and not a range, so more people who
+    answer the same make it tighter rather than leaving it where the
+    two extremes are."""
+    kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
+    ids = [q["id"] for q in kompas["questions"]]
+
+    def x_axis() -> dict:
+        summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+        return summary["compass"]["axes"][0]
+
+    for i in range(4):
+        _fill(
+            client,
+            kompas,
+            [{"question_id": ids[0], "answer_int": 5 if i % 2 else 4}, {"question_id": ids[1], "answer_int": 5}],
+            f"P{i}",
+        )
+    narrow = x_axis()
+    for i in range(4, 12):
+        _fill(
+            client,
+            kompas,
+            [{"question_id": ids[0], "answer_int": 5 if i % 2 else 4}, {"question_id": ids[1], "answer_int": 5}],
+            f"P{i}",
+        )
+    narrower = x_axis()
+
+    width = narrow["ci_high"] - narrow["ci_low"]
+    assert narrower["ci_high"] - narrower["ci_low"] < width
+    # The mean stays inside its own interval, on both counts.
+    for row in (narrow, narrower):
+        assert row["ci_low"] <= row["average"] <= row["ci_high"]
+
+
+def test_one_answer_has_a_mean_and_no_interval(client, organiser_headers) -> None:
+    kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
+    ids = [q["id"] for q in kompas["questions"]]
+    _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 5}], "Sam")
+    x_axis = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()["compass"][
+        "axes"
+    ][0]
+    assert (x_axis["average"], x_axis["ci_low"], x_axis["ci_high"]) == (1.0, 1.0, 1.0)
+
+
+def test_the_result_carries_the_room_as_well_as_you(client, organiser_headers) -> None:
+    """The respondent's own bar is drawn against where the room sits, so
+    the result carries the same axis stats the organiser's page reads."""
+    kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
+    ids = [q["id"] for q in kompas["questions"]]
+    for given, name in ((5, "Sam"), (4, "Kim"), (4, "Ash")):
+        _fill(
+            client,
+            kompas,
+            [{"question_id": ids[0], "answer_int": given}, {"question_id": ids[1], "answer_int": 5}],
+            name,
+        )
+    reply = _fill(
+        client,
+        kompas,
+        [{"question_id": ids[0], "answer_int": 1}, {"question_id": ids[1], "answer_int": 5}],
+        "Robin",
+    )
+    assert reply.status_code == 201, reply.text
+    mine = reply.json()
+
+    x_axis = next(row for row in mine["axes"] if row["axis"]["axis"] == "x")
+    assert x_axis["axis"]["name"] == "Economie"
+    assert x_axis["ci_low"] < x_axis["average"] < x_axis["ci_high"]
+    # And it is the room, not the reader: they sit at -1 and the mean
+    # does not.
+    assert mine["x"] == -1.0
+    assert x_axis["average"] > -1.0
 
 
 def test_the_csv_rows_carry_the_coordinates(client, organiser_headers) -> None:
@@ -392,12 +470,13 @@ def test_an_unnamed_side_is_refused(client, organiser_headers) -> None:
     assert r.status_code in (400, 422)
 
 
-def test_a_draft_with_no_questions_and_no_axes_saves(client, organiser_headers) -> None:
-    """An organiser saves a kompas and comes back to it. The axes are
-    refused the moment it has a question, not before."""
+def test_a_kompas_with_nothing_to_answer_is_refused(client, organiser_headers) -> None:
+    """There is no empty draft. A kompas with no questions is a public
+    page whose only button does nothing, so the save is refused rather
+    than published, and the message says what to do about it."""
     r = _create(client, organiser_headers, [], axes=[])
-    assert r.status_code == 201, r.text
-    assert r.json()["axes"] == []
+    assert r.status_code == 400, r.text
+    assert "at least one question" in r.json()["detail"]
 
 
 def test_a_kompas_is_not_reachable_through_the_forms_urls(client, organiser_headers) -> None:

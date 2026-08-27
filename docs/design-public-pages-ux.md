@@ -68,6 +68,25 @@ page has that the other two must match.
 
 **Events** — the reference; unchanged.
 
+## The organiser form's fold
+
+Every edit page (event, form, quiz, kompas, datepoll, roster) ends the
+same way, and the line is the same on all six:
+
+* **Above the fold** — what the thing *is*: its name, its words, its
+  picture, its chapter, its when and where, its questions or chores or
+  dates. The event's "show on the chapter agenda" switch is up here too:
+  it is about where the event appears, not about how the form behaves.
+* **Inside `<details class="advanced">`** — every switch that changes
+  behaviour, plus the fields one of them reveals. The summary is
+  `common.advancedShow` / `common.advancedHide` on all six, and it
+  **starts closed every time**: a form that decides for itself when to
+  unfold is a form whose length changes for reasons nobody asked for.
+* **Below the fold** — the page language.
+
+The `.advanced` rules live in `src/assets/forms.css` with the rest of
+the shared form chrome, so no page carries its own copy.
+
 ## Shared-code note
 
 The three mini-apps deliberately ship without vue-i18n and re-declare

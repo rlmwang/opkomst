@@ -84,6 +84,7 @@ def create_signup(
     # organisation's has no ceiling. A party counts for everyone it
     # brings. The visitor is told only that it is full, never how full
     # and never whose account it is.
+    public_access.assert_name_given(event, data.display_name)
     limits.assert_has_room_for_participant(db, event.tenant, "event", event.id, data.party_size)
 
     # One booking (order header) holding the single edit link, pseudonym
@@ -216,6 +217,7 @@ def update_booking(
     # ceiling is checked on the difference. Shrinking passes trivially:
     # a negative delta always leaves room.
     booked_event = db.query(Event).filter(Event.id == registration.event_id).one()
+    public_access.assert_answers_editable(booked_event)
     limits.assert_has_room_for_participant(
         db,
         booked_event.tenant,
@@ -223,6 +225,7 @@ def update_booking(
         booked_event.id,
         data.party_size - registration.party_size,
     )
+    public_access.assert_name_given(booked_event, data.display_name)
     registration.display_name = data.display_name
     registration.party_size = data.party_size
     db.commit()
@@ -287,6 +290,7 @@ def set_booking_occurrences(
     reachable from a booking (principle #2), so reminder/feedback mail only
     ever covers sessions signed up for with an email at sign-up time."""
     registration = _registration_by_token(db, token)
+    public_access.assert_answers_editable(db.query(Event).filter(Event.id == registration.event_id).one())
     now = now_wallclock()
 
     live = db.query(Occurrence).filter(Occurrence.event_id == registration.event_id, Occurrence.starts_at > now)

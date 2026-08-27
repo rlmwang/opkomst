@@ -104,6 +104,7 @@ def enroll(
     db: Session = Depends(get_db),
 ) -> EnrollAck:
     roster = public_access.resolve_by_slug(db, Roster, slug, gone_detail=_GONE)
+    public_access.assert_name_given(roster, data.display_name)
     limits.assert_has_room_for_participant(db, roster.tenant, "roster", roster.id)
     _validate_chore_ids(db, roster.id, data.chore_ids)
 
@@ -207,6 +208,7 @@ def update_enrolment(
     # email_reminders on ⇒ a ciphertext is on file; off ⇒ ciphertext NULL.
     # A roster that sends nothing keeps nothing, same as at enrolment.
     roster = db.query(Roster).filter(Roster.id == volunteer.roster_id).one()
+    public_access.assert_name_given(roster, data.display_name)
     email = data.email
     wants_reminders = data.email_reminders and roster.reminder_enabled
     if wants_reminders and (email is not None or volunteer.encrypted_email is not None):

@@ -24,6 +24,9 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = 
         "chapter_id": _chapter_id(client, headers),
         "name_nl": "Test form",
         "locale": "nl",
+        # A form with no questions is refused, so the default here is
+        # one throwaway question the caller can replace.
+        "questions": [{"kind": "short_text", "prompt": "Waarom?", "required": False}],
     }
     if questions is not None:
         body["questions"] = questions

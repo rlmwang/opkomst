@@ -186,6 +186,8 @@ def to_out(db: Session, poll: Datepoll) -> DatepollOut:
         longitude=poll.longitude,
         image_url=image_svc.public_url(poll.image_path),
         image_artist_instagram=poll.image_artist_instagram,
+        name_required=poll.name_required,
+        answers_editable=poll.answers_editable,
         slots=[DatepollSlotOut.model_validate(s) for s in slots],
     )
 
@@ -205,6 +207,8 @@ def to_public_out(db: Session, poll: Datepoll) -> PublicDatepollOut:
         image_url=image_svc.public_url(poll.image_path),
         image_artist_instagram=poll.image_artist_instagram,
         locale=poll.locale,
+        name_required=poll.name_required,
+        answers_editable=poll.answers_editable,
         slots=[DatepollSlotOut.model_validate(s) for s in _slots(db, poll.id)],
     )
 

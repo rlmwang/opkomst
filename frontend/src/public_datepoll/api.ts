@@ -16,6 +16,11 @@ export interface PublicDatepollSlot {
 }
 
 export interface PublicDatepoll {
+  /** Whether the page insists on a (pseudo)name before it will accept
+   *  anything, and whether an answer may still be changed through its
+   *  own link. Both the organiser's. */
+  name_required: boolean;
+  answers_editable: boolean;
   id: string;
   name_nl: string | null;
   name_en: string | null;

@@ -184,24 +184,19 @@ const imageArtistInstagram = ref("");
 const feedbackEnabled = ref(false);
 const reminderEnabled = ref(false);
 const listed = ref(false);
+const nameRequired = ref(false);
+const answersEditable = ref(true);
 
-/* The six switched sections are folded away behind one summary. A new
- * event is a name, a date, a place and a picture; everything below that
- * is a choice most events never make, and six switches in front of
- * somebody filling in their first one reads as six decisions they have
- * to take before they can save.
+/* The switched sections are folded away behind one summary. A new event
+ * is a name, a date, a place and a picture; everything in the fold is a
+ * choice most events never make, and a row of switches in front of
+ * somebody filling in their first one reads as decisions they have to
+ * take before they can save.
  *
- * Open from the start when any of them is already on, which is what
- * editing a recurring event or a restored draft means: hiding a setting
- * somebody has switched on is how it gets forgotten. */
+ * Closed on arrival, always: an organiser opens it when they are
+ * looking for a setting, and a form that decides for itself when to
+ * unfold is a form whose length changes for reasons nobody asked for. */
 const advancedOpen = ref(false);
-const anyAdvancedOn = () =>
-  repeats.value ||
-  helpEnabled.value ||
-  sourceEnabled.value ||
-  reminderEnabled.value ||
-  feedbackEnabled.value ||
-  listed.value;
 // Default to the organiser's UI locale — they can override per-event
 // (e.g. an English-language event in NL).
 const eventLocale = ref<"nl" | "en">((locale.value as "nl" | "en") ?? "nl");
@@ -446,6 +441,8 @@ onMounted(async () => {
     helpOptions.value = [...existing.help_options];
     helpEnabled.value = existing.help_enabled;
     feedbackEnabled.value = existing.feedback_enabled;
+    nameRequired.value = existing.name_required;
+    answersEditable.value = existing.answers_editable;
     reminderEnabled.value = existing.reminder_enabled;
     listed.value = existing.listed;
     eventLocale.value = existing.locale;
@@ -469,7 +466,6 @@ onMounted(async () => {
   // user's most recent edits should win over the stored event.
   const draft = loadDraft();
   if (draft) applyDraft(draft);
-  advancedOpen.value = anyAdvancedOn();
 });
 
 async function submit() {
@@ -541,6 +537,8 @@ async function submit() {
       help_enabled: helpEnabled.value,
       feedback_enabled: feedbackEnabled.value,
       reminder_enabled: reminderEnabled.value,
+      name_required: nameRequired.value,
+      answers_editable: answersEditable.value,
       listed: listed.value,
       locale: eventLocale.value,
       image_artist_instagram: imageArtistInstagram.value.trim() || null,
@@ -657,12 +655,24 @@ async function submit() {
         v-model:artist="imageArtistInstagram"
       />
 
-      <!-- Everything with a switch on it lives in here. ``details`` and
+      <!-- The agenda this lists on is a chapter's. An account with no
+           chapters has no agenda to be on, so there is no choice to
+           offer. -->
+      <section v-if="hasChapters" class="form-section">
+        <label class="toggle-row" for="listedToggle">
+          <ToggleSwitch v-model="listed" inputId="listedToggle" />
+          <h2 class="section-heading">{{ t("event.listedToggle") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("event.listedHelp") }}</p>
+      </section>
+
+      <!-- Everything else with a switch on it lives in here. ``details`` and
            not a button plus a v-if: it is a disclosure, the browser
            already knows how to open and close one, and it carries the
            expanded state to a screen reader without any aria of ours. -->
       <details class="advanced" :open="advancedOpen" @toggle="advancedOpen = ($event.target as HTMLDetailsElement).open">
-        <summary>{{ advancedOpen ? t("event.advancedHide") : t("event.advancedShow") }}</summary>
+        <summary>{{ advancedOpen ? t("common.advancedHide") : t("common.advancedShow") }}</summary>
+
 
       <section class="form-section">
         <!-- The switch turns the whole block on, so it sits in front of
@@ -784,16 +794,28 @@ async function submit() {
         </section>
       </template>
 
-      <!-- The agenda this lists on is a chapter's. An account with no
-           chapters has no agenda to be on, so there is no choice to
-           offer. -->
-      <section v-if="hasChapters" class="form-section">
-        <label class="toggle-row" for="listedToggle">
-          <ToggleSwitch v-model="listed" inputId="listedToggle" />
-          <h2 class="section-heading">{{ t("event.listedToggle") }}</h2>
+      <!-- Off by default: a name real or not is what the contract
+           offers, so an empty box is an answer. On when the sign-ups
+           are only useful attached to somebody. -->
+      <section class="form-section">
+        <label class="toggle-row" for="nameRequiredToggle">
+          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("event.listedHelp") }}</p>
+        <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
       </section>
+
+      <!-- A sign-up nobody can correct becomes a sign-up nobody
+           cancels either, so this starts on. Off when the headcount is
+           being acted on and has to stop moving. -->
+      <section class="form-section">
+        <label class="toggle-row" for="editableToggle">
+          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+        </label>
+        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+      </section>
+
       </details>
 
       <section class="form-section">
@@ -818,29 +840,6 @@ async function submit() {
 /* Shared form chrome (.form-section, .section-heading,
  * .section-explainer, .toggle-row, .toggle-label) lives in
  * ``src/assets/forms.css``. Only event-specific rules stay here. */
-
-/* ``.form-section + .form-section`` cannot see across the disclosure:
- * the language section's previous sibling is now the ``details``, not a
- * section, so it lost the 2.5rem every other boundary has. Both edges
- * of the block carry it explicitly instead. */
-.advanced,
-.advanced + .form-section {
-  margin-top: 2.5rem;
-}
-
-/* The same muted summary ``ChoresEditPage`` uses for its own advanced
- * block, so the two forms open the same way. */
-.advanced > summary {
-  cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--brand-text-muted);
-  width: fit-content;
-  padding: 0.5rem 0;
-}
-.advanced[open] > summary {
-  margin-bottom: 0.5rem;
-}
 .time-row {
   display: flex;
   gap: 0.5rem;

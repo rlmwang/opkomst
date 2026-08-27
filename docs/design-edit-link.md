@@ -141,6 +141,46 @@ which email" answerable from the schema). We will not add it. The
 public edit page therefore hides the email field + email explainer in
 edit mode; a respondent who needs a different email re-signs-up.
 
+## The organiser's two switches
+
+Added after the first four products shipped, and now on all six.
+
+**`answers_editable`** (Event, Form, Datepoll; default on). Whether
+somebody may reopen their own link and change what they said. On by
+default because an answer nobody can correct is an answer nobody
+updates, and a sign-up nobody can correct becomes one nobody cancels.
+Off when the headcount or the date is being acted on and has to stop
+moving. Enforced in `services/public_access.assert_answers_editable`,
+called from every `PUT by-token`; the public pages drop Save and Revert
+(`PublicEditBar`'s `canEdit`) and the kompas result drops its "change
+your answers" button.
+
+Three things it deliberately does not touch:
+
+* **Withdrawing.** Taking your answers back is a different right and not
+  the organiser's to close, so `POST by-token/withdraw` never asks.
+* **Reading.** The link still opens: seeing what you said is the other
+  half of what it is for. The copy changes instead
+  (`chromeStrings.editPromptReadonly`).
+* **Quizzes and rosters.** A quiz has no edit path at all (score first,
+  edit after, is the definition of cheating) and a roster's by-token
+  page is the product rather than a submission to reopen. Neither
+  carries the column.
+
+**`name_required`** (all six; default off). Whether a public write is
+refused without a (pseudo)name. Off everywhere, because a name real or
+not is what the contract offers and an empty box is an answer; on when
+the answers are only useful attached to somebody, which is most often a
+chore roster. Enforced in
+`services/public_access.assert_name_given` on every public create *and*
+edit path, and carried on the public payload so the mini-app knows
+whether to insist. `DisplayName` collapses whitespace to null before
+the check, so a spacebar is not a name.
+
+**The link is shown, not implied.** Every mini-app ends on the secret
+link with a copy button (`public_shared/EditLink.vue`), including the
+quiz and the kompas, whose result screens are their confirmation.
+
 ## Privacy analysis
 
 This intentionally introduces the one thing the submission-shapes

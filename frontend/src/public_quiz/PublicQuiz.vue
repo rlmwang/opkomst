@@ -31,7 +31,9 @@ import PublicShell from "@/public_shared/PublicShell.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import MarkedAnswer from "./MarkedAnswer.vue";
 import QuestionField from "@/public_shared/QuestionField.vue";
+import EditLink from "@/public_shared/EditLink.vue";
 import SupportButtons from "@/public_shared/SupportButtons.vue";
+import { useEditLink } from "@/public_shared/useEditLink";
 import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import {
@@ -50,6 +52,10 @@ const slug = window.location.pathname.replace(/^\/q\//, "").split("/")[0];
 /** ``?s={token}`` reopens a finished attempt. Read-only: there is no
  *  PUT on a quiz submission. */
 const resultToken = new URLSearchParams(window.location.search).get("s");
+// The secret link back to this attempt. ``confirmSaved`` records the
+// token and routes the URL onto it in one step, the same contract the
+// other mini-apps use (``public_shared/useEditLink``).
+const { editUrl, confirmSaved } = useEditLink("q", () => slug);
 
 const quiz = ref<PublicQuiz | null>(null);
 const result = ref<QuizResult | null>(null);
@@ -107,6 +113,7 @@ onMounted(async () => {
     if (resultToken) {
       // Came back to a finished attempt: the score, not the questions.
       result.value = await fetchQuizResult(resultToken);
+      confirmSaved(result.value.edit_token);
       status.value = "done";
       return;
     }
@@ -166,7 +173,7 @@ async function finish() {
     });
     // The token in the URL, so a refresh reopens the result instead of
     // starting the quiz again.
-    window.history.replaceState(null, "", `/q/${slug}?s=${result.value.edit_token}`);
+    confirmSaved(result.value.edit_token);
     status.value = "done";
   } catch {
     stepError.value = c.value.submitFail;
@@ -315,6 +322,15 @@ async function finish() {
             </li>
           </ol>
         </div>
+
+        <!-- The link back to this attempt, said out loud rather than
+             left in the address bar: it is the only way back, and
+             nobody can re-send it. Same card on every mini-app. -->
+        <div class="card link-card">
+          <!-- A quiz is never editable: seeing the score and then
+               changing the answers is the definition of cheating. -->
+          <EditLink :url="editUrl" :locale="locale" :can-edit="false" />
+        </div>
         <SupportButtons :locale="locale" />
       </template>
     </template>
@@ -342,6 +358,13 @@ async function finish() {
  * One loud thing and everything else quiet. The score is the loud
  * thing: the number you got, the number there was, and the word for
  * what they are, on one baseline. */
+/* Matches ``PublicConfirmation``: EditLink renders as a fragment, so
+ * the card owns the column and its gap. */
+.link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
 .result-card {
   gap: 0.75rem;
 }

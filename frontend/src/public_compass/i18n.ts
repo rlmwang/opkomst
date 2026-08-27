@@ -30,6 +30,8 @@ export interface CompassStrings {
   youAreAt: (pole: string) => string;
   youAreCentre: string;
   youSaidNothing: string;
+  /** What the grey band behind your marker is. */
+  roomBand: string;
   answersHeading: string;
   yourAnswer: string;
   noAnswer: string;
@@ -65,6 +67,7 @@ const dict: Record<Locale, CompassStrings> = {
     youAreAt: (pole) => `Je staat aan de kant van ${pole}.`,
     youAreCentre: "Je staat in het midden.",
     youSaidNothing: "Over deze as heb je niks ingevuld.",
+    roomBand: "De grijze balk is waar de groep staat, met 95% zekerheid.",
     answersHeading: "Je antwoorden",
     yourAnswer: "jouw antwoord",
     noAnswer: "niets ingevuld",
@@ -90,6 +93,7 @@ const dict: Record<Locale, CompassStrings> = {
     youAreAt: (pole) => `You are on the ${pole} side.`,
     youAreCentre: "You are in the middle.",
     youSaidNothing: "You did not answer any question on this axis.",
+    roomBand: "The grey band is where the group sits, with 95% confidence.",
     answersHeading: "Your answers",
     yourAnswer: "your answer",
     noAnswer: "left empty",

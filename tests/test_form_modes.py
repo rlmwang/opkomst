@@ -56,7 +56,13 @@ def _make_form(client: Any, headers: Any, name: str) -> dict[str, Any]:
     r = client.post(
         "/api/v1/forms",
         headers=headers,
-        json={"chapter_id": _chapter_id(client, headers), "name_nl": name, "locale": "nl", "questions": []},
+        json={
+            "chapter_id": _chapter_id(client, headers),
+            "name_nl": name,
+            "locale": "nl",
+            # Every product needs at least one question to be savable.
+            "questions": [{"kind": "short_text", "prompt": "Waarom?", "required": False}],
+        },
     )
     assert r.status_code == 201, r.text
     return r.json()

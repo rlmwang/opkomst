@@ -47,7 +47,6 @@ from ..database import get_db
 from ..models import Form, FormQuestion, FormResponse, FormSubmission
 from ..schemas.forms import (
     CompassAnswerResult,
-    CompassAxisOut,
     CompassResultOut,
     FormAnswerIn,
     FormEditOut,
@@ -329,7 +328,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             y=place.y,
             counted_x=place.counted_x,
             counted_y=place.counted_y,
-            axes=[CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)],
+            axes=forms_svc.compass_axis_summaries(db, form),
             answers=answers,
             points=forms_svc.compass_points(db, form, you=submission.id),
         )
@@ -356,6 +355,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         come back to it. Nothing in the response links the submission
         back to a person beyond the self-chosen pseudonym."""
         form = _resolve_form(db, slug)
+        public_access.assert_name_given(form, data.display_name)
         limits.assert_has_room_for_participant(db, form.tenant, _KIND, form.id)
         questions = _form_questions(db, form.id)
         submitted = _build_submitted(questions, data.answers)
@@ -417,6 +417,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             sub = _submission_by_token(db, token)
             form = db.get(Form, sub.form_id)
             assert form is not None
+            public_access.assert_answers_editable(form)
+            public_access.assert_name_given(form, data.display_name)
             submitted = _build_submitted(_form_questions(db, sub.form_id), data.answers)
             db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
             sub.display_name = data.display_name
@@ -450,6 +452,10 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             """Update a submission in place via its edit-link token.
             Replaces the submission's answer rows and the pseudonym."""
             sub = _submission_by_token(db, token)
+            form = db.get(Form, sub.form_id)
+            assert form is not None
+            public_access.assert_answers_editable(form)
+            public_access.assert_name_given(form, data.display_name)
             submitted = _build_submitted(_form_questions(db, sub.form_id), data.answers)
             db.query(FormResponse).filter(FormResponse.submission_id == sub.id).delete()
             sub.display_name = data.display_name

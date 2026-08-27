@@ -166,6 +166,9 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         form.image_artist_instagram = data.image_artist_instagram
         form.chapter_id = data.chapter_id
         form.locale = data.locale
+        form.reveal_answers = data.reveal_answers
+        form.answers_editable = data.answers_editable
+        form.name_required = data.name_required
         if _MODE == "compass":
             forms_svc.apply_axes(db, form.id, data.axes)
         forms_svc.apply_questions(db, form.id, data.questions, _MODE, data.axes)

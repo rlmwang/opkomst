@@ -24,6 +24,8 @@
  */
 import { computed, onMounted, ref } from "vue";
 import CompassPlot from "@/public_shared/CompassPlot.vue";
+import EditLink from "@/public_shared/EditLink.vue";
+import { useEditLink } from "@/public_shared/useEditLink";
 import Disclosure from "@/public_shared/Disclosure.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
@@ -53,6 +55,10 @@ const slug = window.location.pathname.replace(/^\/k\//, "").split("/")[0];
 /** ``?s={token}`` reopens a finished fill-in: the map, and the answers
  *  behind the "change your answers" button. */
 const resultToken = new URLSearchParams(window.location.search).get("s");
+// The secret link back to this fill-in. ``confirmSaved`` records the
+// token and routes the URL onto it in one step
+// (``public_shared/useEditLink``).
+const { editUrl, confirmSaved } = useEditLink("k", () => slug);
 
 const kompas = ref<PublicCompass | null>(null);
 const result = ref<CompassResult | null>(null);
@@ -89,7 +95,37 @@ const byId = computed(() => Object.fromEntries(questions.value.map((item) => [it
 /** The axes, in the order the plot draws them. Taken from the result
  *  when there is one, because that is the copy the map was built from,
  *  and from the cover payload before that. */
-const axes = computed<CompassAxis[]>(() => result.value?.axes ?? kompas.value?.axes ?? []);
+const axes = computed<CompassAxis[]>(
+  () => result.value?.axes.map((row) => row.axis) ?? kompas.value?.axes ?? [],
+);
+
+/** Where the whole room sits on one axis, by axis name. The band the
+ *  reader's own marker is drawn against: "you are here" says more next
+ *  to where everyone else is. */
+const room = computed(
+  () => new Map((result.value?.axes ?? []).map((row) => [row.axis.axis, row])),
+);
+
+/** The room's band as a left/width pair, or null when there is nothing
+ *  to draw: nobody has filled it in, or one person has, and one person
+ *  is a point rather than an interval. */
+function roomBand(axis: CompassAxis): { left: string; width: string } | null {
+  const row = room.value.get(axis.axis);
+  if (!row || row.ci_low == null || row.ci_high == null || row.ci_high === row.ci_low) return null;
+  return {
+    left: `${((row.ci_low + 1) / 2) * 100}%`,
+    width: `${((row.ci_high - row.ci_low) / 2) * 100}%`,
+  };
+}
+
+/** The room's mean as a position along the same bar. */
+function roomMeanLeft(axis: CompassAxis): string | null {
+  const row = room.value.get(axis.axis);
+  return row?.average == null ? null : `${((row.average + 1) / 2) * 100}%`;
+}
+
+/** Whether there is a band to explain at all. */
+const anyRoomBand = computed(() => axes.value.some((axis) => roomBand(axis) !== null));
 
 function blankAnswers(loaded: PublicCompass): void {
   for (const item of loaded.questions) {
@@ -124,6 +160,9 @@ onMounted(async () => {
     if (resultToken) {
       const found = await fetchCompassResult(resultToken);
       result.value = found;
+      // Reopened from the link: the page shows that link back, so the
+      // token has to be recorded here too and not only on a save.
+      confirmSaved(found.edit_token);
       fillFrom(found);
       status.value = "done";
       return;
@@ -184,7 +223,7 @@ async function finish() {
     token.value = found.edit_token;
     // The token in the URL, so a refresh reopens the map instead of
     // starting the kompas again.
-    window.history.replaceState(null, "", `/k/${slug}?s=${found.edit_token}`);
+    confirmSaved(found.edit_token);
     status.value = "done";
     step.value = 0;
   } catch {
@@ -357,6 +396,10 @@ function startWalk() {
             <p class="axis-sentence">{{ axisSentence(axis) }}</p>
             <div class="axis-track">
               <span class="axis-bar">
+                <!-- Where the room sits, with 95% confidence, behind
+                     the reader's own marker. -->
+                <span v-if="roomBand(axis)" class="axis-room" :style="roomBand(axis)!" />
+                <span v-if="roomMeanLeft(axis)" class="axis-room-mean" :style="{ left: roomMeanLeft(axis)! }" />
                 <span class="axis-marker" :style="{ left: markerLeft(axis) }" />
               </span>
             </div>
@@ -365,6 +408,7 @@ function startWalk() {
               <span class="axis-end-right">{{ axis.high_name }}</span>
             </div>
           </div>
+          <p v-if="anyRoomBand" class="axis-room-note muted">{{ k.roomBand }}</p>
         </div>
 
         <!-- Every question redrawn as it was asked, with the direction
@@ -418,7 +462,15 @@ function startWalk() {
           </ol>
 
           <RecoveredNotice :recovered-at="result.link_recovered_at" :locale="locale" />
-          <div class="step-row">
+        </div>
+
+        <!-- The link back to this fill-in, said out loud rather than
+             left in the address bar: it is the only way back, and
+             nobody can re-send it. Changing the answers is offered in
+             the same place, when the organiser allows it. -->
+        <div class="card link-card">
+          <EditLink :url="editUrl" :locale="locale" :can-edit="kompas?.answers_editable ?? false" />
+          <div v-if="kompas?.answers_editable" class="step-row">
             <button type="button" class="btn-secondary" @click="startWalk">{{ k.changeAnswers }}</button>
           </div>
         </div>
@@ -430,6 +482,13 @@ function startWalk() {
 </template>
 
 <style scoped>
+/* Matches ``PublicConfirmation``: EditLink renders as a fragment, so
+ * the card owns the column and its gap. */
+.link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
 .progress {
   margin: 0;
   font-size: 0.875rem;
@@ -504,6 +563,29 @@ function startWalk() {
   margin-left: -0.15625rem;
   border-radius: 2px;
   background: var(--brand-red);
+}
+/* The room, behind the reader: a band rather than a marker, because it
+ * is a range the mean sits somewhere in, and drawn in the muted text
+ * colour so the red marker stays the thing being read. */
+.axis-room {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: var(--brand-text-muted);
+  opacity: 0.35;
+}
+.axis-room-mean {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--brand-text-muted);
+}
+.axis-room-note {
+  margin: 1.25rem 0 0;
+  font-size: 0.875rem;
 }
 .axis-ends-row {
   display: flex;

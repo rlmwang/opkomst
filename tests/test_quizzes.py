@@ -489,7 +489,7 @@ def test_a_quiz_is_a_row_in_the_forms_table(client, organiser_headers) -> None:
     """Stated once, here, because everything else in this file reads as
     if quizzes had their own tables. They do not, and the mode is what
     keeps the two products apart (docs/design-quizzes.md part 1)."""
-    quiz = _quiz(client, organiser_headers, [])
+    quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 1, "correct_int": 7}])
     with SessionLocal() as db:
         assert db.get(Form, quiz["id"]).mode == "quiz"
 
@@ -499,7 +499,7 @@ def test_the_qr_points_at_the_quiz_and_not_at_a_form(client, organiser_headers) 
     products share the endpoint, so the prefix has to come from the
     mount rather than from a constant: it pointed at /f/{slug} for
     everything, which for a quiz is a page that does not exist."""
-    quiz = _quiz(client, organiser_headers, [])
+    quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 1, "correct_int": 7}])
     response = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}/qr.svg")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("image/svg")
@@ -516,7 +516,7 @@ def test_the_qr_points_at_the_quiz_and_not_at_a_form(client, organiser_headers) 
 
 
 def test_ticking_nothing_is_an_answer_on_a_quiz(client, organiser_headers) -> None:
-    """"None of these" is a position. Every quiz question is required,
+    """ "None of these" is a position. Every quiz question is required,
     so refusing an empty multiple-choice answer would leave somebody
     stuck on a question they have answered; it is accepted and marked
     like any other, which here is zero."""

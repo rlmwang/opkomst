@@ -8,6 +8,11 @@
  *
  * Save is disabled with nothing pending or during the transient "saved"
  * flash; Revert is disabled with nothing pending.
+ *
+ * ``canEdit`` false drops Save and Revert entirely: the organiser has
+ * closed the answers for changes, so there is nothing to save. Withdraw
+ * stays, because taking your answers back is a different right and not
+ * the organiser's to close.
  */
 import { computed } from "vue";
 import { type Locale, chromeStrings } from "./strings";
@@ -20,8 +25,10 @@ const props = withDefaults(
     locale: Locale;
     /** Whether the withdraw button shows (default true). */
     canWithdraw?: boolean;
+    /** Whether saving is offered at all (default true). */
+    canEdit?: boolean;
   }>(),
-  { canWithdraw: true },
+  { canWithdraw: true, canEdit: true },
 );
 
 const emit = defineEmits<{
@@ -45,7 +52,7 @@ const c = computed(() => chromeStrings(props.locale));
       {{ c.withdraw }}
     </button>
     <span v-else />
-    <div class="bar-right">
+    <div v-if="canEdit" class="bar-right">
       <button type="button" class="bar-btn" :disabled="saving || !dirty" @click="emit('revert')">
         {{ c.revert }}
       </button>
@@ -53,10 +60,15 @@ const c = computed(() => chromeStrings(props.locale));
         {{ justSaved ? c.saved : c.save }}
       </button>
     </div>
+    <span v-else class="closed-note">{{ c.answersClosed }}</span>
   </div>
 </template>
 
 <style scoped>
+.closed-note {
+  font-size: 0.875rem;
+  color: var(--brand-text-muted);
+}
 .edit-bar {
   display: flex;
   justify-content: space-between;

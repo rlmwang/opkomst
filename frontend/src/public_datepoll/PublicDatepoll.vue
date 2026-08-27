@@ -192,7 +192,7 @@ function toggle(slotId: string): void {
 
 async function submit(): Promise<void> {
   errorMsg.value = "";
-  if (!displayName.value.trim()) {
+  if (poll.value?.name_required && !displayName.value.trim()) {
     showToast(c.value.nameRequired);
     return;
   }
@@ -340,6 +340,7 @@ async function withdraw(): Promise<void> {
           </button>
           <PublicEditBar
             v-else
+            :can-edit="poll?.answers_editable ?? true"
             :dirty="dirty"
             :saving="submitting"
             :just-saved="justSaved"

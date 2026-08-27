@@ -41,6 +41,11 @@ export interface PublicForm {
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: "nl" | "en";
+  /** Whether the page insists on a (pseudo)name before it will accept
+   *  anything, and whether somebody may come back through their own
+   *  link and change what they said. Both are the organiser's. */
+  name_required: boolean;
+  answers_editable: boolean;
   /** Empty on a questionnaire and on a quiz. What the kompas places
    *  people on is not a secret and the cover names it; which answer
    *  points where is what waits for the result. */

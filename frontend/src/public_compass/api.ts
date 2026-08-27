@@ -22,6 +22,18 @@ export { ApiError };
 
 export type Pole = "x_low" | "x_high" | "y_low" | "y_high";
 
+/** One axis with where the whole room sits on it. ``ci_low`` /
+ *  ``ci_high`` are the ends of the 95% confidence interval around the
+ *  mean, so a room that agrees draws a narrow band and a room that is
+ *  split draws a wide one. All three are null before anybody has
+ *  filled it in. */
+export interface CompassAxisRoom {
+  axis: PublicAxis;
+  average: number | null;
+  ci_low: number | null;
+  ci_high: number | null;
+}
+
 export interface CompassPoint {
   name: string | null;
   x: number;
@@ -56,7 +68,7 @@ export interface CompassResult {
    *  this", and the screen says which. */
   counted_x: number;
   counted_y: number;
-  axes: PublicAxis[];
+  axes: CompassAxisRoom[];
   answers: CompassAnswerResult[];
   points: CompassPoint[];
 }

@@ -25,6 +25,9 @@ export interface ChromeStrings {
   displayName: string;
   /** Shown when the (pseudo)name field is left blank on submit. */
   nameRequired: string;
+  /** Shown where Save would be, when the organiser has closed the
+   *  answers for changes. */
+  answersClosed: string;
   /** Shown when a typed email address is malformed. */
   invalidEmail: string;
   submit: string;
@@ -65,6 +68,9 @@ export interface ChromeStrings {
   supportHeading: string;
   imageCredit: string;
   editPrompt: string;
+  /** The same link when there is nothing left to change: a quiz, or a
+   *  form whose organiser has closed the answers. */
+  editPromptReadonly: string;
   editWarning: string;
   /** Permanent notice on the edit page once an organiser has copied
    *  (re-minted) this submission's secret link — ``{date}`` is the most
@@ -81,6 +87,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     loadFailed: "Kon de pagina niet laden",
     displayName: "(Schuil)naam",
     nameRequired: "Vul een (schuil)naam in.",
+    answersClosed: "Aanpassen kan niet meer.",
     invalidEmail: "Ongeldig e-mailadres.",
     submit: "Versturen",
     submitting: "Versturen…",
@@ -102,6 +109,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     supportHeading: "Help je mee dit advertentievrij te houden?",
     imageCredit: "Ontwerp:",
     editPrompt: "Bewaar deze link om dit later aan te passen:",
+    editPromptReadonly: "Bewaar deze link om dit later terug te zien:",
     editWarning:
       "Sla 'm op voordat je deze pagina sluit. Kwijt? Een organisator kan een nieuwe maken.",
     linkRecovered:
@@ -115,6 +123,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     loadFailed: "Could not load the page",
     displayName: "(Pseudo)name",
     nameRequired: "Enter a (pseudo)name.",
+    answersClosed: "Changes are closed.",
     invalidEmail: "Invalid email address.",
     submit: "Submit",
     submitting: "Submitting…",
@@ -136,6 +145,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     supportHeading: "Want to help us keep this ad free?",
     imageCredit: "Design:",
     editPrompt: "Save this link to change this later:",
+    editPromptReadonly: "Save this link to see this again later:",
     editWarning: "Save it before you close this page. Lost it? An organiser can mint a new one.",
     linkRecovered:
       "An organiser copied this entry's secret link on {date} (the previous link stopped working). Not at your request? Withdraw and sign up again for a fresh link.",

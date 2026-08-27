@@ -73,6 +73,12 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Whether the public page insists on a (pseudo)name before it will
+    # accept anything. Off by default: a name real or not is what the
+    # contract offers, and a page that refuses an empty box asks for an
+    # identity the organiser may not need. On when the answers are only
+    # useful attached to somebody.
+    name_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     # Optional location (free text) + resolved coordinates, same optional
     # shape as Datepoll — chores often have a fixed venue but needn't.
     location: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1118,7 +1118,7 @@
         "type": "object"
       },
       "CompassAxisSummary": {
-        "description": "One axis on the organiser's page: what it is called, and where\nthe room sits on it. The three numbers are null before anybody has\nfilled it in.",
+        "description": "One axis, and where the room sits on it. Read by the organiser's\npage and by every respondent's result, so the two cannot disagree. The three numbers are null before anybody has\nfilled it in.\n\n``ci_low`` / ``ci_high`` are the ends of the 95% confidence interval\naround ``average``, not the lowest and highest anybody scored: the\nquestion the page answers is where the room sits, and the interval\nis what says how sure that is (``services/compass.axis_stats``).",
         "properties": {
           "average": {
             "anyOf": [
@@ -1134,7 +1134,7 @@
           "axis": {
             "$ref": "#/components/schemas/CompassAxisOut"
           },
-          "highest": {
+          "ci_high": {
             "anyOf": [
               {
                 "type": "number"
@@ -1143,9 +1143,9 @@
                 "type": "null"
               }
             ],
-            "title": "Highest"
+            "title": "Ci High"
           },
-          "lowest": {
+          "ci_low": {
             "anyOf": [
               {
                 "type": "number"
@@ -1154,7 +1154,7 @@
                 "type": "null"
               }
             ],
-            "title": "Lowest"
+            "title": "Ci Low"
           }
         },
         "required": [
@@ -1210,7 +1210,7 @@
           },
           "axes": {
             "items": {
-              "$ref": "#/components/schemas/CompassAxisOut"
+              "$ref": "#/components/schemas/CompassAxisSummary"
             },
             "title": "Axes",
             "type": "array"
@@ -1398,6 +1398,11 @@
       "DatepollCreate": {
         "description": "Organiser create payload.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "chapter_id": {
             "anyOf": [
               {
@@ -1515,6 +1520,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "slots": {
             "items": {
@@ -1709,6 +1719,10 @@
       "DatepollOut": {
         "description": "Single-poll DTO \u2014 the list fields plus the description and the\nfull candidate-slot list (sorted by date then start time).",
         "properties": {
+          "answers_editable": {
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -1879,6 +1893,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "slots": {
             "items": {
               "$ref": "#/components/schemas/DatepollSlotOut"
@@ -1906,7 +1924,9 @@
           "archived",
           "created_at",
           "date_count",
-          "submission_count"
+          "submission_count",
+          "name_required",
+          "answers_editable"
         ],
         "title": "DatepollOut",
         "type": "object"
@@ -2208,6 +2228,11 @@
       "DatepollUpdate": {
         "description": "Same shape as create. Distinct class so OpenAPI distinguishes\nthe two endpoints even though the body is identical.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "chapter_id": {
             "anyOf": [
               {
@@ -2325,6 +2350,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "slots": {
             "items": {
@@ -2501,6 +2531,11 @@
       "EventCreate": {
         "description": "Create/edit payload for an event definition. Carries the shared\ncontent and the recurrence rule (the roster's k-week cycle) \u2014 never a\nsingle concrete date. A one-off is ``cycle_slots = []``; a recurring\nevent picks weekday slots on a ``period_weeks`` cycle, running for\n``span_weeks`` weeks (``None`` = open-ended). Concrete dates are\n``Occurrence`` rows the tick materialises.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "chapter_id": {
             "anyOf": [
               {
@@ -2637,6 +2672,11 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "period_weeks": {
             "default": 1,
             "maximum": 8.0,
@@ -2720,6 +2760,10 @@
       "EventOut": {
         "description": "Organiser-side event DTO: the definition + its recurrence rule + a\ncouple of derived read-model fields (next occurrence, headcount).",
         "properties": {
+          "answers_editable": {
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -2874,6 +2918,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "next_slug": {
             "anyOf": [
               {
@@ -2988,6 +3036,8 @@
           "feedback_enabled",
           "reminder_enabled",
           "listed",
+          "name_required",
+          "answers_editable",
           "locale",
           "chapter_id",
           "chapter_name",
@@ -3039,6 +3089,11 @@
       "EventUpdate": {
         "description": "Edit payload. Same shape as create, but a lowered ``period_weeks``\nclamps now-out-of-range ``cycle_slots`` away instead of 422-ing.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "chapter_id": {
             "anyOf": [
               {
@@ -3174,6 +3229,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "period_weeks": {
             "default": 1,
@@ -3561,6 +3621,11 @@
       "FormCreate": {
         "description": "Organiser create payload.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "axes": {
             "items": {
               "$ref": "#/components/schemas/CompassAxisIn"
@@ -3648,6 +3713,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "questions": {
             "items": {
@@ -3824,6 +3894,11 @@
       "FormOut": {
         "description": "Single-form DTO. The list-row fields plus the description and\nthe full question list, so the details / edit pages pre-populate\nwithout an extra round-trip.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -3948,6 +4023,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "questions": {
             "items": {
@@ -4744,6 +4824,11 @@
       "FormUpdate": {
         "description": "Same shape as create. Kept as a distinct class so the\nOpenAPI schema distinguishes the two endpoints even though\nthe body is identical.",
         "properties": {
+          "answers_editable": {
+            "default": true,
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "axes": {
             "items": {
               "$ref": "#/components/schemas/CompassAxisIn"
@@ -4831,6 +4916,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "questions": {
             "items": {
@@ -5399,6 +5489,10 @@
       "PublicDatepollOut": {
         "description": "What the public fill-out page (``/d/{slug}``) reads.",
         "properties": {
+          "answers_editable": {
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "description_en": {
             "anyOf": [
               {
@@ -5510,6 +5604,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "slots": {
             "items": {
               "$ref": "#/components/schemas/DatepollSlotOut"
@@ -5523,6 +5621,8 @@
           "name_nl",
           "name_en",
           "locale",
+          "name_required",
+          "answers_editable",
           "slots"
         ],
         "title": "PublicDatepollOut",
@@ -5531,6 +5631,10 @@
       "PublicEventOut": {
         "description": "The JSON the public per-occurrence sign-up page reads: the event\ncontent (read through the parent), the landing occurrence, the\nupcoming occurrences the visitor can also book, and the projected\nfuture dates shown as not-yet-open.",
         "properties": {
+          "answers_editable": {
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "archived": {
             "title": "Archived",
             "type": "boolean"
@@ -5642,6 +5746,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "projected": {
             "items": {
               "$ref": "#/components/schemas/ProjectedOccurrenceOut"
@@ -5718,6 +5826,8 @@
           "archived",
           "reminder_enabled",
           "feedback_enabled",
+          "name_required",
+          "answers_editable",
           "is_recurring",
           "total_sessions",
           "current",
@@ -5730,6 +5840,10 @@
       "PublicFormOut": {
         "description": "What the public fill-out page (``/f/{slug}``) reads. No\nchapter id, no internal timestamps \u2014 just the form name +\ndescription + image + locale + questions in display order.",
         "properties": {
+          "answers_editable": {
+            "title": "Answers Editable",
+            "type": "boolean"
+          },
           "axes": {
             "items": {
               "$ref": "#/components/schemas/CompassAxisOut"
@@ -5824,6 +5938,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "questions": {
             "items": {
               "$ref": "#/components/schemas/PublicQuestionOut"
@@ -5838,6 +5956,8 @@
           "name_en",
           "locale",
           "mode",
+          "name_required",
+          "answers_editable",
           "questions"
         ],
         "title": "PublicFormOut",
@@ -6130,6 +6250,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "period_weeks": {
             "title": "Period Weeks",
             "type": "integer"
@@ -6151,6 +6275,7 @@
           "locale",
           "period_weeks",
           "starts_on",
+          "name_required",
           "reminder_enabled"
         ],
         "title": "PublicRosterOut",
@@ -6566,6 +6691,11 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "period_weeks": {
             "default": 1,
             "maximum": 8.0,
@@ -6883,6 +7013,10 @@
             ],
             "title": "Name Nl"
           },
+          "name_required": {
+            "title": "Name Required",
+            "type": "boolean"
+          },
           "period_weeks": {
             "title": "Period Weeks",
             "type": "integer"
@@ -6923,6 +7057,7 @@
           "chore_count",
           "volunteer_count",
           "starts_on",
+          "name_required",
           "reminder_enabled",
           "reminder_days_before",
           "commit_horizon_days"
@@ -7077,6 +7212,11 @@
               }
             ],
             "title": "Name Nl"
+          },
+          "name_required": {
+            "default": false,
+            "title": "Name Required",
+            "type": "boolean"
           },
           "period_weeks": {
             "default": 1,

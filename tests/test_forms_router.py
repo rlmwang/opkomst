@@ -34,6 +34,9 @@ def _create_form(
         "chapter_id": chapter_id or _chapter_id(client, headers),
         "name_nl": name,
         "locale": locale,
+        # A form with no questions is refused, so the default here is
+        # one throwaway question the caller can replace.
+        "questions": [{"kind": "short_text", "prompt": "Waarom?", "required": False}],
     }
     if questions is not None:
         body["questions"] = questions
@@ -50,9 +53,21 @@ def test_create_form_minimal(client, organiser_headers):
     assert form["name_nl"] == "Demo form"
     assert form["locale"] == "nl"
     assert form["archived"] is False
-    assert form["questions"] == []
+    assert len(form["questions"]) == 1
     assert len(form["slug"]) == 8
     assert "id" in form
+
+
+def test_a_form_with_nothing_to_answer_is_refused(client, organiser_headers):
+    """There is no empty draft: a questionnaire with no questions is a
+    public page whose only button does nothing."""
+    r = client.post(
+        "/api/v1/forms",
+        headers=organiser_headers,
+        json={"chapter_id": _chapter_id(client, organiser_headers), "name_nl": "Leeg", "locale": "nl", "questions": []},
+    )
+    assert r.status_code == 400, r.text
+    assert "at least one question" in r.json()["detail"]
 
 
 def test_create_form_with_initial_questions(client, organiser_headers):
@@ -221,12 +236,14 @@ def test_delete_only_after_archive(client, organiser_headers):
 
 
 def test_summary_empty_form(client, organiser_headers):
+    """Nobody has answered yet: a question with no responses is still on
+    the summary, with nothing counted against it."""
     form = _create_form(client, organiser_headers)
     r = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers)
     assert r.status_code == 200
     body = r.json()
     assert body["submission_count"] == 0
-    assert body["questions"] == []
+    assert [q["response_count"] for q in body["questions"]] == [0]
 
 
 def test_submissions_empty_form(client, organiser_headers):

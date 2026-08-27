@@ -12,7 +12,7 @@ are only true when an answer has a direction:
   anybody at all, checked when the organiser saves rather than when
   somebody submits.
 * ``axis_stats`` — the one aggregate a kompas has that a questionnaire
-  cannot: how the room sits on each axis.
+  cannot: how the room sits on each axis, and how sure that is.
 
 **Positions are derived, never stored.** What is kept is what somebody
 answered; the position is that answer read against the kompas as it
@@ -191,13 +191,70 @@ def axes_of(db: Session, form_id: str) -> list[CompassAxis]:
     return sorted(rows, key=lambda a: a.axis)
 
 
+# Two-sided 95% critical values of Student's t, by degrees of freedom.
+# The interval is about a mean of a handful of numbers, so the normal
+# approximation is wrong exactly where a kompas lives: at n = 3 it is
+# out by a factor of two. Beyond 30 the two agree to the second decimal
+# and the table stops.
+_T95: Final[dict[int, float]] = {
+    1: 12.706,
+    2: 4.303,
+    3: 3.182,
+    4: 2.776,
+    5: 2.571,
+    6: 2.447,
+    7: 2.365,
+    8: 2.306,
+    9: 2.262,
+    10: 2.228,
+    11: 2.201,
+    12: 2.179,
+    13: 2.160,
+    14: 2.145,
+    15: 2.131,
+    16: 2.120,
+    17: 2.110,
+    18: 2.101,
+    19: 2.093,
+    20: 2.086,
+    21: 2.080,
+    22: 2.074,
+    23: 2.069,
+    24: 2.064,
+    25: 2.060,
+    26: 2.056,
+    27: 2.052,
+    28: 2.048,
+    29: 2.045,
+    30: 2.042,
+}
+_T95_LARGE: Final[float] = 1.96
+
+
 def axis_stats(places: list[Position], axis: str) -> tuple[float, float, float] | None:
-    """The room on one axis: mean, lowest, highest. ``None`` before
-    anybody has filled it in."""
+    """The room on one axis: the mean, and the 95% confidence interval
+    around it. ``None`` before anybody has filled it in.
+
+    The interval, not the range. The range is a picture of the two most
+    extreme people in the room and it widens as more of them arrive,
+    which reads as the answer getting less certain the more of it you
+    have. What an organiser is actually asking is "where does this room
+    sit, and how sure is that", and the interval narrows with the count
+    the way an answer should.
+
+    One respondent has a mean and no interval to speak of, so both ends
+    are the mean itself: a point, which is the honest drawing of it.
+    The ends are clamped to [-1, 1] because the axis has no outside."""
     if not places:
         return None
     values = [p.value(axis) for p in places]
-    return _round(sum(values) / len(values)), min(values), max(values)
+    n = len(values)
+    mean = sum(values) / n
+    if n == 1:
+        return _round(mean), _round(mean), _round(mean)
+    variance = sum((v - mean) ** 2 for v in values) / (n - 1)
+    half = _T95.get(n - 1, _T95_LARGE) * (variance / n) ** 0.5
+    return _round(mean), _round(max(-1.0, mean - half)), _round(min(1.0, mean + half))
 
 
 # --- What the organiser is refused ------------------------------------

@@ -69,7 +69,9 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
   await page.goto("/rsp/compasses/new");
   await stopAnimating(page);
 
-  await expect(page.getByRole("heading", { name: "Assen" })).toBeVisible({ timeout: 10_000 });
+  // ``exact``: the accessible-name match is a substring by default, and
+  // the page has other headings with "assen" inside a longer word.
+  await expect(page.getByRole("heading", { name: "Assen", exact: true })).toBeVisible({ timeout: 10_000 });
 
   await page.getByPlaceholder("Titel").fill("E2E Kompas");
   // An organiser in more than one chapter has to say which, the same

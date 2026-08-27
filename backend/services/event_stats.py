@@ -154,6 +154,8 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             feedback_enabled=e.feedback_enabled,
             reminder_enabled=e.reminder_enabled,
             listed=e.listed,
+            name_required=e.name_required,
+            answers_editable=e.answers_editable,
             locale=e.locale,
             chapter_id=e.chapter_id,
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,

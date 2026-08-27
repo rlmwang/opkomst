@@ -316,6 +316,7 @@ def update_roster(
     roster.period_weeks = data.period_weeks
     roster.starts_on = data.starts_on
     roster.ends_on = data.ends_on
+    roster.name_required = data.name_required
     roster.reminder_enabled = data.reminder_enabled
     roster.reminder_days_before = data.reminder_days_before
     roster.commit_horizon_days = data.commit_horizon_days

@@ -38,6 +38,7 @@ of a submission id.
 from datetime import date, time
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     Float,
@@ -46,6 +47,7 @@ from sqlalchemy import (
     Text,
     Time,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -64,6 +66,18 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # created_by, chapter_id, archived_at) comes from OrgEntityMixin.
     description_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_en: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Whether the public page insists on a (pseudo)name before it will
+    # accept anything. Off by default: a name real or not is what the
+    # contract offers, and a page that refuses an empty box asks for an
+    # identity the organiser may not need. On when the answers are only
+    # useful attached to somebody.
+    name_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    # Whether somebody may reopen their own link and change what they
+    # answered. On by default: plans change, and an answer nobody can
+    # correct is an answer nobody updates when their week changes. Off
+    # once the date is being picked and the answers have to stop moving.
+    # Withdrawing is never closed by it (``docs/design-edit-link.md``).
+    answers_editable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
     # Optional location (free text) + resolved coordinates, same shape
     # as Event — but optional here, since a poll often settles the time
     # before the place. Coords drive the public map link.

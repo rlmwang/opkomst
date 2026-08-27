@@ -68,6 +68,22 @@ function optionPoleName(questionId: string, option: string): string {
   return index < 0 ? "" : poleName(question?.option_poles?.[index]);
 }
 
+/** The same direction, in one word rather than two. Read on a counted
+ *  row next to the option itself, where the axis it belongs to is
+ *  already the subject of the question and is spelled out in full in
+ *  the axes overview above. */
+function optionPoleSide(questionId: string, option: string): string {
+  const question = questionById.value.get(questionId);
+  const index = (question?.options ?? []).indexOf(option);
+  const pole = index < 0 ? null : question?.option_poles?.[index];
+  if (!pole) return "";
+  const [axis, side] = pole.split("_");
+  const row =
+    compass.value?.axes.find((a) => a.axis.axis === axis)?.axis ?? form.value?.axes?.find((a) => a.axis === axis);
+  if (!row) return pole;
+  return side === "low" ? row.low_name : row.high_name;
+}
+
 /** A rating's average restated as what it was worth on its axis: the
  *  same arithmetic ``services/compass.contribution`` runs, so the page
  *  and the map cannot disagree about which way the room leaned. */
@@ -198,67 +214,27 @@ async function exportCsv() {
         @copy-link="copyLink(form.slug)"
       />
 
+      <!-- Kompas only: what the two axes are and what each side of them
+           is called. Every pole named further down this page is one of
+           these four words, so the page says them once, above the
+           questions that place people on them, rather than sending the
+           organiser to the editor to look them up. -->
+      <AppCard v-if="isCompass && (form.axes ?? []).length">
+        <div class="summary-header">
+          <h2>{{ t("compasses.details.axesHeading") }}</h2>
+        </div>
+        <ul class="axis-defs">
+          <li v-for="axis in form.axes ?? []" :key="axis.axis">
+            <span class="axis-def-name">{{ axis.name }}</span>
+            <span v-if="axis.description" class="muted axis-def-desc">{{ axis.description }}</span>
+            <span class="muted axis-def-poles">{{ axis.low_name }} &middot; {{ axis.high_name }}</span>
+          </li>
+        </ul>
+      </AppCard>
+
       <!-- Defined questions overview — the questionnaire's structure,
            shown independently of any responses (mirrors the chore
            details "Taken" card listing the defined chores). -->
-      <!-- Kompas only, and first: the map is what the organiser opened
-           this page to see. No dot is ringed here, because on their
-           page nobody is "you". -->
-      <AppCard v-if="isCompass && compass">
-        <div class="summary-header">
-          <h2>{{ t("compasses.details.mapHeading") }}</h2>
-        </div>
-        <p v-if="!compass.points.length" class="muted">{{ t("compasses.details.noPositions") }}</p>
-        <template v-else>
-          <CompassPlot
-            :axes="compass.axes.map((a) => a.axis)"
-            :points="compass.points"
-            :anonymous-label="L('details.anonymous')"
-            :aria-label="t('compasses.details.mapHeading')"
-          />
-          <!-- Where the room sits on each axis. Not a histogram: the
-               coordinates are means of a handful of values, so a bar
-               chart of them would be a picture of the question count.
-               -->
-          <div class="axis-stats">
-            <div v-for="row in compass.axes" :key="row.axis.axis" class="axis-stat">
-              <p class="axis-stat-name">{{ row.axis.name }}</p>
-              <p v-if="row.axis.description" class="muted q-meta">{{ row.axis.description }}</p>
-              <div class="axis-track">
-                <span class="axis-end muted">{{ row.axis.low_name }}</span>
-                <span class="axis-bar">
-                  <!-- The spread behind the mean, so a room that agrees
-                       and a room that is split do not draw the same. -->
-                  <span
-                    v-if="row.lowest != null && row.highest != null"
-                    class="axis-spread"
-                    :style="{
-                      left: `${((row.lowest! + 1) / 2) * 100}%`,
-                      width: `${((row.highest! - row.lowest!) / 2) * 100}%`,
-                    }"
-                  />
-                  <span
-                    v-if="row.average != null"
-                    class="axis-marker"
-                    :style="{ left: `${((row.average! + 1) / 2) * 100}%` }"
-                  />
-                </span>
-                <span class="axis-end muted">{{ row.axis.high_name }}</span>
-              </div>
-              <p v-if="row.average !== null && row.average !== undefined" class="muted q-meta">
-                {{
-                  t("compasses.details.spread", {
-                    avg: formatDecimal(row.average!, locale),
-                    min: formatDecimal(row.lowest!, locale),
-                    max: formatDecimal(row.highest!, locale),
-                  })
-                }}
-              </p>
-            </div>
-          </div>
-        </template>
-      </AppCard>
-
       <AppCard v-if="form.questions?.length">
         <div class="summary-header">
           <h2>{{ L("details.questionsHeading") }}</h2>
@@ -296,6 +272,72 @@ async function exportCsv() {
             </p>
           </li>
         </ol>
+      </AppCard>
+
+      <!-- Kompas only: what the answers add up to, under the overview
+           of what was asked, the same order every other product's
+           details page reads in. No dot is ringed here, because on the
+           organiser's page nobody is "you". -->
+      <AppCard v-if="isCompass && compass">
+        <div class="summary-header">
+          <h2>{{ t("compasses.details.mapHeading") }}</h2>
+        </div>
+        <p v-if="!compass.points.length" class="muted">{{ t("compasses.details.noPositions") }}</p>
+        <template v-else>
+          <CompassPlot
+            :axes="compass.axes.map((a) => a.axis)"
+            :points="compass.points"
+            :anonymous-label="L('details.anonymous')"
+            :aria-label="t('compasses.details.mapHeading')"
+          />
+          <!-- Where the room sits on each axis. Not a histogram: the
+               coordinates are means of a handful of values, so a bar
+               chart of them would be a picture of the question count.
+               -->
+          <div class="axis-stats">
+            <div v-for="row in compass.axes" :key="row.axis.axis" class="axis-stat">
+              <p class="axis-stat-name">{{ row.axis.name }}</p>
+              <p v-if="row.axis.description" class="muted q-meta">{{ row.axis.description }}</p>
+              <!-- The bar is the axis, so it runs the full width and
+                   the two side names sit under its ends: a name beside
+                   the track shortens it by however long that word is,
+                   and the two axes then draw at different lengths. -->
+              <div class="axis-track">
+                <span class="axis-bar">
+                  <!-- How sure the mean is, drawn behind it: a room
+                       that agrees and a room that is split do not
+                       draw the same. -->
+                  <span
+                    v-if="row.ci_low != null && row.ci_high != null"
+                    class="axis-spread"
+                    :style="{
+                      left: `${((row.ci_low! + 1) / 2) * 100}%`,
+                      width: `${((row.ci_high! - row.ci_low!) / 2) * 100}%`,
+                    }"
+                  />
+                  <span
+                    v-if="row.average != null"
+                    class="axis-marker"
+                    :style="{ left: `${((row.average! + 1) / 2) * 100}%` }"
+                  />
+                </span>
+              </div>
+              <div class="axis-ends-row muted">
+                <span>{{ row.axis.low_name }}</span>
+                <span class="axis-end-right">{{ row.axis.high_name }}</span>
+              </div>
+              <p v-if="row.average !== null && row.average !== undefined" class="muted q-meta">
+                {{
+                  t("compasses.details.interval", {
+                    avg: formatDecimal(row.average!, locale),
+                    low: formatDecimal(row.ci_low!, locale),
+                    high: formatDecimal(row.ci_high!, locale),
+                  })
+                }}
+              </p>
+            </div>
+          </div>
+        </template>
       </AppCard>
 
       <AppCard>
@@ -429,10 +471,13 @@ async function exportCsv() {
               <div class="bars">
                 <template v-for="(count, label) in q.choice_counts" :key="label">
                   <span class="bar-label choice-label">
-                    {{ label }}
-                    <!-- The difference between "34 picked Rotterdam"
-                         and "34 moved toward Rechts". -->
-                    <span v-if="isCompass" class="option-pole">{{ optionPoleName(q.id, String(label)) }}</span>
+                    <!-- The option's own words, and on a kompas the
+                         side it pushed toward, held to the right so
+                         the poles line up down the block. The axis is
+                         named once in the overview above, so the row
+                         carries the side and not both. -->
+                    <span class="choice-text" :title="String(label)">{{ label }}</span>
+                    <span v-if="isCompass" class="option-pole">{{ optionPoleSide(q.id, String(label)) }}</span>
                   </span>
                   <StatBar :segments="[{ width: barWidth(Object.values(q.choice_counts), count) }]" />
                   <span class="bar-count">{{ count }}</span>
@@ -464,12 +509,19 @@ async function exportCsv() {
 .axis-track {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
   margin: 0.375rem 0;
 }
-.axis-end {
+/* Both side names under the track's own ends, which is what keeps the
+ * two axes the same length as each other. Same shape as the
+ * respondent's result page (``public_compass/PublicCompass.vue``). */
+.axis-ends-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
   font-size: 0.8125rem;
-  flex: 0 0 auto;
+}
+.axis-end-right {
+  text-align: right;
 }
 .axis-bar {
   position: relative;
@@ -504,6 +556,25 @@ async function exportCsv() {
   margin-left: 0.5rem;
   font-size: 0.8125rem;
   color: var(--brand-text-muted);
+}
+
+/* Kompas: what the two axes are, above the questions that place
+ * people on them. */
+.axis-defs {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.axis-def-name {
+  font-weight: 600;
+}
+.axis-def-desc,
+.axis-def-poles {
+  margin-left: 0.5rem;
+  font-size: 0.8125rem;
 }
 
 /* Defined-questions overview card: one row per question — the prompt with
@@ -592,11 +663,27 @@ async function exportCsv() {
 }
 .bar-label { color: var(--brand-text-muted); }
 .choice-label {
-  /* Long option labels wrap rather than ellipsis-truncate — the
-   * organiser wrote them, the respondent picked them, and
-   * hiding part of a label undermines what the bar is showing. */
-  overflow-wrap: anywhere;
-  max-width: 14rem;
+  /* Option on the left, the side it pushed toward on the right, so the
+   * poles read as a column down the block. A long option is clipped
+   * rather than wrapped: a label two lines tall pushes its own bar out
+   * of line with the ones above it, and the full text is on the
+   * element's title. */
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  max-width: 18rem;
+}
+.choice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.choice-label .option-pole {
+  margin-left: auto;
+  flex: 0 0 auto;
+  text-align: right;
 }
 .bar-count { text-align: right; color: var(--brand-text-muted); }
 .texts {

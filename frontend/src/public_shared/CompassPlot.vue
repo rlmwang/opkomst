@@ -181,7 +181,11 @@ const active = ref<number | null>(null);
 
 <style scoped>
 .compass-plot {
-  margin: 0;
+  /* Centred in whatever card holds it. The square is narrower than the
+   * page on every screen that isn't a phone, and a map pinned to the
+   * left edge of a wide card reads as a stray illustration rather than
+   * as the subject. */
+  margin: 0 auto;
   width: 100%;
   max-width: 32rem;
 }

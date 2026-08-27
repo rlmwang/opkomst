@@ -124,6 +124,8 @@ def update_datepoll(
     poll.image_artist_instagram = data.image_artist_instagram
     poll.chapter_id = data.chapter_id
     poll.locale = data.locale
+    poll.name_required = data.name_required
+    poll.answers_editable = data.answers_editable
     datepolls_svc.apply_slots(db, poll.id, data.slots)
     db.commit()
     db.refresh(poll)

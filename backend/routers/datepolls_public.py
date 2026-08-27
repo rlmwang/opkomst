@@ -122,6 +122,7 @@ def submit_datepoll(
     (raw returned once; only its hash stored) so the respondent can
     revisit and edit."""
     poll = _resolve_datepoll(db, slug)
+    public_access.assert_name_given(poll, data.display_name)
     limits.assert_has_room_for_participant(db, poll.tenant, "datepoll", poll.id)
     by_slot = _build_by_slot(db, poll.id, data)
 
@@ -164,6 +165,9 @@ def update_datepoll_submission(
     """Update a submission in place via its edit-link token. Replaces
     the per-slot answers, the pseudonym, and the note."""
     sub = _submission_by_token(db, token)
+    poll = db.query(Datepoll).filter(Datepoll.id == sub.datepoll_id).one()
+    public_access.assert_answers_editable(poll)
+    public_access.assert_name_given(poll, data.display_name)
     by_slot = _build_by_slot(db, sub.datepoll_id, data)
     db.query(DatepollResponse).filter(DatepollResponse.submission_id == sub.id).delete()
     sub.display_name = data.display_name

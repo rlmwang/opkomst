@@ -67,6 +67,13 @@ class DatepollCreate(BilingualTitleMixin):
     longitude: float | None = Field(default=None, ge=-180, le=180)
     image_artist_instagram: InstagramHandle
     locale: Locale = "nl"
+    # Whether the public page insists on a (pseudo)name. Off by default
+    # (``docs/design-public-pages-ux.md``): a name real or not is what
+    # the contract offers, so an empty box is an answer.
+    name_required: bool = False
+    # Whether somebody may reopen their own link and change what they
+    # sent in. On by default; withdrawing is never closed by it.
+    answers_editable: bool = True
     slots: list[DatepollSlotIn] = Field(default_factory=list, max_length=200)
 
 
@@ -108,6 +115,8 @@ class DatepollOut(DatepollListOut):
     longitude: float | None = None
     image_url: str | None = None
     image_artist_instagram: str | None = None
+    name_required: bool
+    answers_editable: bool
     slots: list[DatepollSlotOut] = Field(default_factory=list)
 
 
@@ -125,6 +134,10 @@ class PublicDatepollOut(BaseModel):
     image_url: str | None = None
     image_artist_instagram: str | None = None
     locale: Locale
+    # The public page asks for a name only as hard as this says, and
+    # offers a way back into the answers only when this allows it.
+    name_required: bool
+    answers_editable: bool
     slots: list[DatepollSlotOut]
 
 

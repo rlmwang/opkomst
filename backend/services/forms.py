@@ -114,6 +114,12 @@ def _validate_questions(questions: list["FormQuestionIn"], mode: str, axes: list
     """Per-kind sanity on a question payload. Raises HTTPException(400)
     — the router lets it propagate so the validation message
     surfaces verbatim."""
+    # A questionnaire with nothing to answer is not a draft, it is a
+    # public page whose only button does nothing. All three products
+    # need at least one question to be a thing at all, so the save that
+    # would leave none is refused rather than published.
+    if not questions:
+        raise HTTPException(status_code=400, detail="Add at least one question before saving.")
     for idx, q in enumerate(questions, start=1):
         if q.kind not in ALLOWED_KINDS:
             raise HTTPException(
@@ -404,6 +410,8 @@ def to_out(db: Session, form: Form) -> FormOut:
         image_url=image_svc.public_url(form.image_path),
         image_artist_instagram=form.image_artist_instagram,
         reveal_answers=form.reveal_answers,
+        answers_editable=form.answers_editable,
+        name_required=form.name_required,
         axes=_axes_out(db, form),
         questions=[FormQuestionOut.model_validate(q) for q in _questions(db, form.id)],
     )
@@ -423,6 +431,8 @@ def to_public_out(db: Session, form: Form) -> PublicFormOut:
         image_artist_instagram=form.image_artist_instagram,
         locale=form.locale,
         mode=as_mode(form.mode),
+        name_required=form.name_required,
+        answers_editable=form.answers_editable,
         # What the kompas places you on. Not a secret, and the cover
         # page names it before anybody answers; which answer points
         # where is the part that waits for the result.
@@ -606,26 +616,36 @@ def compass_points(
     return out
 
 
+def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
+    """The two axes, each with where the room sits on it.
+
+    Read by the organiser's summary and by every respondent's result,
+    so the band under one person's marker and the band on the
+    organiser's page are the same number rather than two computations
+    that can drift apart."""
+    questions = _questions(db, form.id)
+    places = list(compass.positions(db, questions, form.id).values())
+    out: list[CompassAxisSummary] = []
+    for row in compass.axes_of(db, form.id):
+        stats = compass.axis_stats(places, row.axis)
+        out.append(
+            CompassAxisSummary(
+                axis=CompassAxisOut.model_validate(row),
+                average=stats[0] if stats else None,
+                ci_low=stats[1] if stats else None,
+                ci_high=stats[2] if stats else None,
+            )
+        )
+    return out
+
+
 def compass_summary(db: Session, form: Form) -> CompassSummary | None:
     """The kompas half of the organiser's summary: the two axes with
     where the room sits on each, and every dot. ``None`` on the two
     products that place nobody."""
     if form.mode != "compass":
         return None
-    questions = _questions(db, form.id)
-    places = list(compass.positions(db, questions, form.id).values())
-    axes = []
-    for row in compass.axes_of(db, form.id):
-        stats = compass.axis_stats(places, row.axis)
-        axes.append(
-            CompassAxisSummary(
-                axis=CompassAxisOut.model_validate(row),
-                average=stats[0] if stats else None,
-                lowest=stats[1] if stats else None,
-                highest=stats[2] if stats else None,
-            )
-        )
-    return CompassSummary(axes=axes, points=compass_points(db, form))
+    return CompassSummary(axes=compass_axis_summaries(db, form), points=compass_points(db, form))
 
 
 def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:

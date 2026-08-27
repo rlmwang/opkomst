@@ -561,7 +561,7 @@ def test_a_step_no_number_can_land_on_is_refused(client, organiser_headers):
 
 
 def test_a_number_question_gets_a_bar_per_value_when_there_are_few(client, organiser_headers):
-    """"How many are you bringing" collects 1, 2, 3: binning that into
+    """ "How many are you bringing" collects 1, 2, 3: binning that into
     ranges throws away the only thing it says. The gaps are drawn too,
     so a value nobody picked reads as an empty bar."""
     form = _number_form(client, organiser_headers)

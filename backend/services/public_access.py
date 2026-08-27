@@ -31,6 +31,27 @@ from . import edit_token, tenancy
 _TOKEN_INVALID = "This edit link is not valid."
 
 
+def assert_name_given(entity: Any, display_name: str | None) -> None:
+    """Refuse a public write with no (pseudo)name when the organiser
+    asked for one.
+
+    Off by default on all six products, so this passes silently unless
+    somebody switched it on. ``display_name`` has already been through
+    ``DisplayName``, which turns a box of spaces into ``None``, so an
+    empty answer cannot arrive as a name made of whitespace."""
+    if entity.name_required and not display_name:
+        raise HTTPException(status_code=422, detail="This one asks for a name. Any name will do.")
+
+
+def assert_answers_editable(form: Any) -> None:
+    """Refuse a public edit of answers the organiser has closed.
+
+    The link still opens: seeing what you said is not changing it, and
+    withdrawing is a separate right that this never blocks."""
+    if not form.answers_editable:
+        raise HTTPException(status_code=409, detail="This one is closed for changes.")
+
+
 def resolve_by_slug(db: Session, model: Any, slug: str, *, gone_detail: str, where: Any | None = None) -> Any:
     """Resolve a slug to a live (non-archived) entity. Unknown or
     archived both raise 410 with ``gone_detail``.

@@ -191,12 +191,17 @@ class FormCreate(BilingualTitleMixin):
     # only gives the score. Ignored on a survey, which has no answers to
     # reveal.
     reveal_answers: bool = True
+    # Whether somebody may reopen their own link and change what they
+    # said. A quiz never offers it, so the flag sits unread there.
+    answers_editable: bool = True
+    # Whether the public page insists on a (pseudo)name. Off by default
+    # (``docs/design-public-pages-ux.md``): a name real or not is what
+    # the contract offers, so an empty box is an answer.
+    name_required: bool = False
     # Kompas only: the two axes and their four sides, dropped on the
-    # other two products. Empty is allowed on create for the same
-    # reason an empty question list is: a draft is a thing an organiser
-    # saves and comes back to. It is refused on the save that first
-    # gives the kompas a question, because a question that points at an
-    # unnamed axis cannot be rendered.
+    # other two products. A save always carries at least one question
+    # (``services/forms._validate_questions``), and a question points
+    # at an axis, so in practice a kompas save always carries both.
     axes: list[CompassAxisIn] = Field(default_factory=list, max_length=2)
     # Optional on create — an organiser can save a draft form with
     # no questions and add them on the edit page afterwards. On
@@ -244,6 +249,8 @@ class FormOut(FormListOut):
     image_url: str | None = None
     image_artist_instagram: str | None = None
     reveal_answers: bool = True
+    answers_editable: bool = True
+    name_required: bool = False
     axes: list[CompassAxisOut] = Field(default_factory=list)
     questions: list[FormQuestionOut] = Field(default_factory=list)
 
@@ -262,6 +269,10 @@ class PublicFormOut(BaseModel):
     image_artist_instagram: str | None = None
     locale: Locale
     mode: FormMode
+    # Whether this page insists on a (pseudo)name, and whether somebody
+    # who has answered may come back and change it.
+    name_required: bool
+    answers_editable: bool
     # A kompas says what it places you on before you answer; the other
     # two products send an empty list.
     axes: list[CompassAxisOut] = Field(default_factory=list)
@@ -365,6 +376,22 @@ class CompassAnswerResult(BaseModel):
     value: float | None = None
 
 
+class CompassAxisSummary(BaseModel):
+    """One axis, and where the room sits on it. Read by the organiser's
+    page and by every respondent's result, so the two cannot disagree. The three numbers are null before anybody has
+    filled it in.
+
+    ``ci_low`` / ``ci_high`` are the ends of the 95% confidence interval
+    around ``average``, not the lowest and highest anybody scored: the
+    question the page answers is where the room sits, and the interval
+    is what says how sure that is (``services/compass.axis_stats``)."""
+
+    axis: CompassAxisOut
+    average: float | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+
+
 class CompassResultOut(BaseModel):
     """What a respondent sees when they finish: where they landed, the
     room around them, and every answer with the direction it carried.
@@ -390,22 +417,14 @@ class CompassResultOut(BaseModel):
     # this", and the screen says which.
     counted_x: int
     counted_y: int
-    axes: list[CompassAxisOut]
+    # The axes, each with where the room sits on it: the reader's own
+    # marker is drawn against that band, which is what turns "you are
+    # here" into "you are here, and this is where everyone else is".
+    axes: list[CompassAxisSummary]
     answers: list[CompassAnswerResult]
     # Everybody, including this submission. Derived on every read, so a
     # reopened result shows the room as it stands rather than as it was.
     points: list[CompassPoint]
-
-
-class CompassAxisSummary(BaseModel):
-    """One axis on the organiser's page: what it is called, and where
-    the room sits on it. The three numbers are null before anybody has
-    filled it in."""
-
-    axis: CompassAxisOut
-    average: float | None = None
-    lowest: float | None = None
-    highest: float | None = None
 
 
 class CompassSummary(BaseModel):
