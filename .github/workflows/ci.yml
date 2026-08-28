@@ -220,23 +220,28 @@ jobs:
           ignore-unfixed: true
           severity: HIGH,CRITICAL
           vuln-type: os,library
-      - name: It boots and answers /health
-        # A container that builds but dies on import is a deploy
-        # outage. ``OPKOMST_SKIP_BOOT`` keeps it off the (absent) DB;
-        # ``/health`` is the same endpoint Coolify's healthcheck uses.
+      - name: It migrates, boots and answers /health
+        # The image's CMD runs ``cli migrate`` before uvicorn, so this
+        # exercises the real first-deploy path: migrations onto an empty
+        # schema from inside the built image, then the app. ``/health``
+        # is the endpoint Coolify's own healthcheck uses. ``--network
+        # host`` is how the container reaches the postgres service.
         run: |
-          docker run -d --name smoke -p 8000:8000 \
-            -e JWT_SECRET=ci \
-            -e EMAIL_ENCRYPTION_KEY=19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA= \
+          # Minted here rather than written down: a literal 32-byte
+          # base64 key in a workflow is a secret-scanner hit forever,
+          # and this container only has to boot.
+          docker run -d --name smoke --network host \
+            -e JWT_SECRET="$(openssl rand -hex 16)" \
+            -e EMAIL_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
             -e EMAIL_BACKEND=console \
             -e MESSAGE_ID_DOMAIN=ci.opkomst.local \
             -e PUBLIC_BASE_URL=http://localhost:8000 \
             -e CORS_ORIGINS=http://localhost:8000 \
             -e TENANTS=rsp:RSP \
+            -e WEB_CONCURRENCY=1 \
             -e DATABASE_URL=postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst \
-            -e OPKOMST_SKIP_BOOT=1 \
             opkomst:ci
-          for i in $(seq 1 30); do
+          for i in $(seq 1 60); do
             if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
               echo "healthy after ${i}s"; exit 0
             fi

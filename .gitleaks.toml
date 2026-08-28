@@ -1,0 +1,14 @@
+# gitleaks configuration.
+#
+# The default rules, plus one allowlist entry: the throwaway AES key the
+# CI jobs and the local dev stack boot with. It is a real 32-byte
+# base64 value, so every scanner sees a key — but it is published in
+# ``.env.example``, guards nothing, and CI needs *some* valid key or
+# ``Settings`` refuses to construct. Anything else that looks like a
+# secret is a finding.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The published test-only EMAIL_ENCRYPTION_KEY, in workflows and docs"
+regexes = ['''19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=''']

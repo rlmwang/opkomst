@@ -96,6 +96,15 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # folder here, not a rebuild.
 COPY brands/ ./brands/
 
+# A runtime container has no business carrying a package manager. The
+# venv is built above and nothing installs anything at run time, while
+# pip vendors its own dependency tree (msgpack, setuptools) — which is
+# the entire source of this image's HIGH CVEs. Removing it fixes them
+# properly rather than suppressing them, and takes an install path away
+# from anyone who gets a shell in here.
+RUN python -m pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip*
+
 # Non-root user for the runtime.
 RUN useradd --create-home --uid 1000 opkomst \
     && mkdir -p /app/data \
