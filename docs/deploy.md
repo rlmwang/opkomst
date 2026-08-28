@@ -283,8 +283,10 @@ SUPPORT_PATREON_URL=
 # consent dialog links to that page as "learn more", so set the
 # contact before pointing AdSense at it: without one the page
 # says no contact is configured.
-PRIVACY_CONTACT_EMAIL=
-PRIVACY_CONTROLLER=
+PROVIDER_NAME=
+PROVIDER_EMAIL=
+PROVIDER_ADDRESS=
+PROVIDER_KVK=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module

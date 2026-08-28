@@ -37,6 +37,18 @@ _TEMPLATES = Jinja2Templates(directory=str(pathlib.Path(__file__).resolve().pare
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
 
+def _provider() -> dict[str, str | None]:
+    """Who runs this installation, for the two pages that have to say
+    so. Empty fields stay empty: a page that invents an address is
+    worse than one that admits it has none."""
+    return {
+        "name": settings.provider_name,
+        "email": settings.provider_email,
+        "address": settings.provider_address,
+        "kvk": settings.provider_kvk,
+    }
+
+
 def _render(request: Request, template: str, **context: object) -> HTMLResponse:
     """One chrome for every page here: the brand, the footer built from
     the page list, and the canonical URL."""
@@ -110,8 +122,7 @@ def terms(request: Request) -> HTMLResponse:
     return _render(
         request,
         "terms.html",
-        contact_email=settings.privacy_contact_email,
-        controller=settings.privacy_controller,
+        provider=_provider(),
         page_title="Algemene voorwaarden",
         page_description=(
             "De regels voor het gebruik van opkomst.nu: wat we beloven, wat we niet "
@@ -131,8 +142,7 @@ def privacy(request: Request) -> HTMLResponse:
     return _render(
         request,
         "privacy.html",
-        contact_email=settings.privacy_contact_email,
-        controller=settings.privacy_controller,
+        provider=_provider(),
         page_title="Privacyverklaring",
         page_description=(
             "Wat opkomst.nu met gegevens doet: welke velden er gevraagd worden, "
