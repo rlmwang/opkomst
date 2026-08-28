@@ -31,6 +31,7 @@ checks immediately.
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytest
 from hypothesis import settings
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
@@ -48,6 +49,17 @@ from backend.services import encryption, mail_lifecycle
 from tests._helpers.db_reset import truncate_all
 
 _NOW = datetime(2026, 4, 28, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _clean_up_after_the_examples():
+    """These tests write committed rows outside the transactional ``db``
+    fixture, so they wipe the table on the way out: everything after
+    them rolls back its own work, not theirs."""
+    from tests._helpers.db_reset import truncate_all
+
+    yield
+    truncate_all()
 
 
 def _reset_db() -> None:

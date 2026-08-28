@@ -181,53 +181,107 @@ def _bootstrap_schema():
     yield
 
 
+@pytest.fixture(scope="session")
+def _seeded_tenant(_bootstrap_schema):
+    """An empty database with the one organisation in it, committed
+    once for the whole session.
+
+    Every test runs inside a transaction that is rolled back at the
+    end, so this row has to live outside those transactions: a rollback
+    would otherwise take the tenant with it and leave the next test
+    with no organisation to belong to."""
+    from tests._helpers.db_reset import TEST_TENANT_ID, truncate_all
+
+    truncate_all()
+    return TEST_TENANT_ID
+
+
 @pytest.fixture()
-def db(_bootstrap_schema):
-    """Per-test clean slate via ``TRUNCATE ... CASCADE``.
+def db(_seeded_tenant):
+    """Per-test clean slate: one transaction, rolled back at the end.
 
-    The previous implementation dropped and re-created the entire
-    schema between every test; on a 250-test suite that was the
-    dominant cost (~120 ms × N from re-running CREATE TABLE).
-    ``TRUNCATE`` keeps the schema in place, leaves the alembic
-    version stamp intact, and is one round-trip per test instead
-    of dozens — roughly 10× faster end-to-end.
+    It used to be ``TRUNCATE ... CASCADE`` over every table, once per
+    test. That is an ACCESS EXCLUSIVE lock and a round of WAL work per
+    test, against the one postgres every xdist worker shares, and it
+    was the reason the suite got *slower* with more workers: at twelve
+    it took 76s, at four 40s. The work being parallelised was on the
+    client, the queue was on the server.
 
-    ``RESTART IDENTITY CASCADE`` resets any sequences and follows
-    FKs so we don't have to truncate in dependency order. The
-    ``alembic_version`` table is never in ``Base.metadata`` and
-    is deliberately excluded from the truncate set."""
+    A rollback costs nothing on disk. Every session the app makes is
+    bound to this test's connection, so ``SessionLocal()`` inside a
+    router, a worker sweep or a CLI command sees the same uncommitted
+    data the test wrote, and its own ``commit()`` lands on a savepoint
+    inside the outer transaction (``join_transaction_mode``).
+
+    A test that genuinely needs committed rows on disk, or that spawns
+    threads with sessions of their own, asks for ``truncating_db``,
+    which cleans up after itself so its rows cannot leak into the tests
+    that follow."""
+    from backend.database import SessionLocal, engine
+    from backend.routers.health import _reset_health_full_cache
+    from backend.services import tenancy
+    from tests._helpers.db_reset import TEST_TENANT_ID
+
+    connection = engine.connect()
+    transaction = connection.begin()
+    SessionLocal.configure(bind=connection, join_transaction_mode="create_savepoint")
+    # ``/health/full`` caches its introspection payload for ~15 s
+    # in-process; clear between tests so a prior healthy run can't mask
+    # a monkeypatched-DB-down assertion or a stale schema_head.
+    _reset_health_full_cache()
+    tenancy.bind(TEST_TENANT_ID, "rsp")
+
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        transaction.rollback()
+        connection.close()
+        SessionLocal.configure(bind=engine, join_transaction_mode="conditional_savepoint")
+
+
+@pytest.fixture()
+def truncating_db(_bootstrap_schema):
+    """The old clean slate, for the tests that cannot live inside one
+    transaction: anything that starts a thread with a session of its
+    own, because a second connection cannot see an open transaction.
+
+    Truncates on the way in *and* on the way out. Everything this test
+    writes is committed for real, and the transactional tests that
+    follow roll back their own work but not somebody else's."""
     from backend.database import SessionLocal
+    from backend.routers.health import _reset_health_full_cache
     from tests._helpers.db_reset import truncate_all
 
     truncate_all()
-    # ``/health/full`` caches its introspection payload for ~15 s
-    # in-process; clear between tests so a prior healthy run can't
-    # mask a monkeypatched-DB-down assertion or stale schema_head.
-    from backend.routers.health import _reset_health_full_cache
-
     _reset_health_full_cache()
     session = SessionLocal()
     try:
         yield session
     finally:
         session.close()
+        truncate_all()
 
 
 @pytest.fixture(autouse=True)
-def tenant_id(db) -> str:
-    """The id of the organisation every test runs inside.
+def tenant_id() -> str:
+    """The id of the organisation every test runs inside, bound as the
+    current tenant the way the auth dependency binds it on a request.
 
-    The row itself comes from ``truncate_all`` — a clean database is an
-    empty organisation, not no organisation — which also binds it as
-    the current tenant, the same thing the auth dependency does for a
-    request. Fixtures that insert rows straight through the session
-    therefore get a ``tenant_id`` without naming it.
+    Autouse, and deliberately free of the database: two thirds of the
+    suite never reads a row (copy checks, recurrence arithmetic, the
+    rate-limit audit), and they used to pay for a full TRUNCATE anyway
+    because this fixture asked for ``db``. Binding is a context
+    variable and costs nothing.
 
     Deliberately a plain string and not an ORM object: holding a
     ``Tenant`` row open in the session would keep a read lock on the
     table, and the property tests truncate mid-test."""
+    from backend.services import tenancy
     from tests._helpers.db_reset import TEST_TENANT_ID
 
+    tenancy.bind(TEST_TENANT_ID, "rsp")
     return TEST_TENANT_ID
 
 
@@ -235,6 +289,20 @@ def tenant_id(db) -> str:
 def client(db, tenant_id) -> Iterator:
     """TestClient bound to the per-test DB. Rate-limit storage is
     in-process so each test starts with a clean budget."""
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+    from backend.services.rate_limit import limiter
+
+    limiter.reset()
+    yield TestClient(app)
+
+
+@pytest.fixture()
+def truncating_client(truncating_db, tenant_id) -> Iterator:
+    """The same client, over ``truncating_db``. For a test that needs a
+    second real connection to the database: a race between two sessions
+    is not a race if both of them are the same transaction."""
     from fastapi.testclient import TestClient
 
     from backend.main import app

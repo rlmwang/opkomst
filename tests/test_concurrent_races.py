@@ -25,12 +25,13 @@ from backend.models import EmailChannel, EmailDispatch, EmailStatus, Signup
 from backend.services import mail_lifecycle
 
 
-def test_reaper_during_send_does_not_double_finalise(db: Any, fake_email: Any) -> None:
+def test_reaper_during_send_does_not_double_finalise(truncating_db: Any, fake_email: Any) -> None:
     """Reaper running concurrently with the dispatcher. Both touch
     the same dispatch row; only one transition can win. The
     conditional UPDATE filtered on ``status='pending'`` is the
     serialisation point — whichever flushes first sticks; the
     second one's filter no longer matches and it's a no-op."""
+    db = truncating_db
     e = make_event(db, starts_in=timedelta(hours=24), feedback_enabled=False)
     s = make_signup(db, e, email="reaprace@example.test", feedback=False)
     commit(db)
@@ -72,12 +73,13 @@ def test_reaper_during_send_does_not_double_finalise(db: Any, fake_email: Any) -
         fresh.close()
 
 
-def test_parallel_reapers_do_not_double_finalise(db: Any, fake_email: Any) -> None:
+def test_parallel_reapers_do_not_double_finalise(truncating_db: Any, fake_email: Any) -> None:
     """Two reapers fire at the same moment. The bulk UPDATE is
     a single SQL statement; Postgres locks each row before
     re-evaluating the WHERE filter, so the second reaper sees
     rows already FAILED and skips them. Result count of the
     second reaper is 0."""
+    db = truncating_db
     e = make_event(db, starts_in=timedelta(hours=24), feedback_enabled=False)
     for i in range(3):
         make_signup(

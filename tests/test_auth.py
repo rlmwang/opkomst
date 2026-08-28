@@ -373,7 +373,7 @@ def test_soft_deleted_email_restores_via_complete_registration(client, admin_hea
 # ---- Race recovery on the partial-unique index -------------------
 
 
-def test_complete_registration_race_against_concurrent_completion(client, monkeypatch):
+def test_complete_registration_race_against_concurrent_completion(truncating_client, monkeypatch):
     """Two concurrent /complete-registration calls for the same
     email must not both succeed: the partial-unique
     ``uq_users_email_live`` index serialises them. The loser sees
@@ -381,7 +381,10 @@ def test_complete_registration_race_against_concurrent_completion(client, monkey
 
     Simulated by having ``_create_fresh_with_race_recovery`` commit
     a rival User row from a separate session right before its own
-    INSERT, forcing the IntegrityError fallback."""
+    INSERT, forcing the IntegrityError fallback. On ``truncating_client``
+    because that rival session has to be a real second connection: two
+    sessions inside one test transaction cannot race each other."""
+    client = truncating_client
     import backend.routers.auth as auth_module
 
     monkeypatch.setattr(auth_module, "send_email", lambda **kw: None)
