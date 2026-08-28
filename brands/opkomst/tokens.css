@@ -5,18 +5,19 @@
  *
  * Built around the logo rather than beside it. The surfaces are the
  * mark's own cream (``#fff8e9``) opened up into a page: warm, not the
- * cool grey a default palette gives you, so the red square in the
- * corner reads as part of the page instead of pasted onto it. Text is a
- * warm near-black for the same reason.
+ * cool grey a default palette gives you, so the mark in the corner
+ * reads as part of the page instead of pasted onto it. Text is a warm
+ * near-black for the same reason.
  *
- * The accent is petrol, a near-complement of the logo's red. It has to
- * be a different colour from the mark, because it is on every button
- * and link and a page of red buttons under a red logo is a page with no
- * hierarchy left. Complementary rather than merely different, so the
- * two read as chosen together. It is also nothing like the red an
- * organisation in ``brands/`` uses, and nothing like the blue most
- * display advertising uses, which matters on the only pages that carry
- * any.
+ * The accent is petrol, and so is the logo: the square carries
+ * ``#0f4c5c`` with the same cream lettering it always had. The mark
+ * used to be red, which made it the loudest thing on a page it had
+ * nothing to do with, and read as a different brand from the buttons
+ * under it. One colour, used for the mark and for every button and
+ * link, and hierarchy comes from size and placement instead. It is also
+ * nothing like the red an organisation in ``brands/`` uses, and nothing
+ * like the blue most display advertising uses, which matters on the
+ * only pages that carry any.
  *
  * Contrast, all above the AAA threshold for body text:
  *
@@ -24,7 +25,7 @@
  *   accent on bg      8.8:1
  *   text on bg       15.1:1
  *   muted on bg       5.5:1
- *   the logo's red on bg 5.2:1
+ *   the logo on bg      8.8:1
  *
  * Same token set as any tenant, so nothing in the app has to know it is
  * a fallback, and the folder carries its own logo, icons and strapline
