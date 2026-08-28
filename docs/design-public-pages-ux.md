@@ -1,104 +1,40 @@
-# Design: aligning the three public pages (events · forms · datepolls)
+# The public pages
 
-Status: proposed → implementing. The public sign-up/fill-out pages for
-Events, Forms, and Datepolls drifted apart. **Events is the golden
-standard**; Forms and Datepolls converge on it. This plan is the
-checklist for that convergence — every row is a property the events
-page has that the other two must match.
+Six products, one public page grammar. A visitor who has seen one has
+seen them all, and the shared parts live in `frontend/src/public_shared/`
+rather than in six copies.
 
-## The shared skeleton (from `src/public/PublicEvent.vue`)
+## The skeleton
 
-```
-<div class="container stack">              ← global theme classes, 720px, vertical rhythm
-  <header class="public-header">           ← BrandMark (left) + language switcher (right)
-    <BrandMark />
-    <lang-switcher>🇳🇱 🇬🇧</lang-switcher>
-  </header>
+Every public page is: a header with the brand and a language toggle, a
+top card with the title, the image and the description, the
+open-source disclosure, then one card with the form in it.
 
-  <!-- state cards: load-failed / not-found / unavailable -->
+The pseudonym field comes first, above the questions, because it is the
+one thing the page asks about the person rather than about the thing.
+It is optional unless the organiser said otherwise.
 
-  <div class="card …">  title + description (+ event meta)        </div>
-  <div class="card …">  open-source / privacy disclosure (details) </div>
-  <form class="card stack">
-     pseudonym (top)  →  the body  →  error  →  submit (btn-primary + spinner)
-  </form>
-  <!-- on success: a single "thanks" card replaces the form -->
-</div>
-```
+After a submit the page collapses to a single confirmation card:
+a thank-you, the secret link, a copy button and the warning that nobody
+can re-send it (`docs/design-edit-link.md`). The quiz and the kompas
+show their result instead, with the same link card at the end.
 
-## Convergence checklist
-
-| Property | Events (standard) | Forms (before) | Datepolls (before) |
-|---|---|---|---|
-| Root layout | `.container.stack` (global) | `.page` + own `.container` | `.wrap` (own) |
-| Content width | 720px | 720px ✓ (just fixed) | 720px ✓ (just fixed) |
-| Header | `public-header`: BrandMark **+ language switcher** | BrandMark, **no switcher** | **no BrandMark, no switcher** |
-| Language switcher | 🇳🇱/🇬🇧 flag toggle, `setLocale` | ✗ | ✗ |
-| Title block | name + description/topic in a card | name only, no description | name + description, but outside cards |
-| Open-source disclosure | `details` card + GitHub link (**invariant**) | **absent** | one-liner, **no link** |
-| Pseudonym field | `(Schuil)naam`, **at the top** of the form | **absent** | present but **at the bottom** |
-| Cards | title card · disclosure card · one form card | card-per-question | ad-hoc `.card`/`.wrap` |
-| Submit | `.btn-primary`, label+spinner, no resize | `.primary`, no spinner | `.submit`, no spinner |
-| Success state | single "thanks" card | ✓ | ✓ |
-
-## What each page changes
-
-**Forms** (`src/public_form/`)
-- Add the language switcher (flags + `setLocale`) to `public-header`.
-- Show the form **description** under the name (new field, see
-  `design-forms.md`).
-- Add an optional **pseudonym field at the top** of the form
-  (`(Schuil)naam`), posted as `display_name`.
-- Add the **open-source disclosure** (a `details` card with the GitHub
-  link) — currently missing entirely; the disclosure is a project
-  invariant.
-- Card usage: a title card, a disclosure card, and the questions +
-  pseudonym + submit inside the form, matching the events grouping
-  rather than a card-per-question.
-- Submit button → the events `btn-primary` + spinner pattern.
-
-**Datepolls** (`src/public_datepoll/`)
-- Add `BrandMark` + the language switcher to a real `public-header`.
-- Move the **pseudonym field to the top** (currently bottom).
-- Title + description in a card; legend + calendar + date list + submit
-  follow, using the same `.card` treatment as events.
-- Add the **open-source disclosure** with the GitHub link (currently a
-  link-less one-liner).
-- Submit button → `btn-primary` + spinner.
-
-**Events** — the reference; unchanged.
+Nothing on a public page loads a third-party script.
 
 ## The organiser form's fold
 
-Every edit page (event, form, quiz, kompas, datepoll, roster) ends the
-same way, and the line is the same on all six:
+Every edit page ends the same way, on all six products:
 
-* **Above the fold** — what the thing *is*: its name, its words, its
+* **Above the fold**, what the thing *is*: its name, its words, its
   picture, its chapter, its when and where, its questions or chores or
-  dates. The event's "show on the chapter agenda" switch is up here too:
-  it is about where the event appears, not about how the form behaves.
-* **Inside `<details class="advanced">`** — every switch that changes
-  behaviour, plus the fields one of them reveals. The summary is
-  `common.advancedShow` / `common.advancedHide` on all six, and it
-  **starts closed every time**: a form that decides for itself when to
-  unfold is a form whose length changes for reasons nobody asked for.
-* **Below the fold** — the page language.
+  dates. The event's "show on the chapter agenda" switch is up here
+  too, because it is about where the event appears rather than about
+  how the form behaves.
+* **Inside `details.advanced`**, every switch that changes behaviour,
+  plus the fields a switch reveals. It starts closed, always: a form
+  that decides for itself when to unfold is a form whose length changes
+  for reasons nobody asked for.
+* **Below it**, the page language.
 
 The `.advanced` rules live in `src/assets/forms.css` with the rest of
 the shared form chrome, so no page carries its own copy.
-
-## Shared-code note
-
-The three mini-apps deliberately ship without vue-i18n and re-declare
-small chrome (`public-header`, `lang-switcher`, `flag`, `btn-primary`,
-`.input`) per app. Two reasonable end-states:
-
-1. **Hand-aligned** (this pass): copy the events markup + CSS into the
-   other two. Fast, but consistency is maintained by vigilance.
-2. **Extracted** (follow-up): a shared `PublicShell.vue` (header +
-   lang switcher + disclosure slot) and a `usePublicLocale()` helper
-   that all three import. Removes the drift structurally.
-
-This pass does (1) to reach parity now; (2) is the clean follow-up once
-the shape has settled, and is the recommended next step so a fourth
-public page can't drift again.

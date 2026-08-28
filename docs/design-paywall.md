@@ -39,27 +39,18 @@ distinction with a harder lever.
 
 ## The rule
 
-**Gate the push channel, never the product.**
+Gate the push channel, never the product. No feature disappears on the
+free tier; what disappears is the app sending mail on the organiser's
+behalf. Everything gated has a pull-based path that is already built:
+attendees get a calendar link, volunteers get their personal page and
+the month calendar, and the feedback form is reached from the event
+page and its QR instead of from an inbox.
 
-No feature disappears on the free tier. What disappears is us sending
-mail on the organiser's behalf. Every gated feature already has a
-pull-based path in the codebase, and the free tier keeps all of it:
+The organiser's own outbound channel stays free: the WhatsApp blast
+tool is push that costs nothing per recipient.
 
-| Gated | What the free tier gets instead | Already built |
-| --- | --- | --- |
-| event reminder mail | "add to your calendar" on the public page; their calendar reminds them | `GET /api/v1/events/by-slug/{slug}/event.ics` |
-| feedback mail | the feedback form, reached from the event page after the date and from a QR the organiser shows at the meeting | `services/qr.py`, the feedback token flow |
-| chore reminder mail | the volunteer's personal page and the month calendar | `GET /api/v1/chores/by-token/{token}`, `/by-token/{token}/calendar` |
-
-The organiser's own outbound channel stays free and always has: the
-WhatsApp blast tool (`docs/plan-whatsapp-blast.md`) is push that costs us
-nothing per recipient.
-
-`chore_welcome.html` stays free on purpose. It is one send per
-volunteer, already bounded by `MAX_PARTICIPANTS`, and it carries the
-only link back to that volunteer's page. `EnrollAck` returns the token
-once on screen, so the mail is a safety net rather than the only copy,
-but losing that net is how a volunteer becomes unreachable.
+The chore welcome mail stays free too. It is one send per volunteer and
+it carries the only link back to their page.
 
 ## The privacy dividend
 
@@ -81,66 +72,22 @@ paths reads it.
 
 ## Mechanism
 
-**One column.**
+`Tenant.plan` is `free` or `paid`, and its default reads the kind: an
+organisation is in `TENANTS` because an operator put it there, which is
+the same decision as paying for it, so it is born paid. Everything else
+is born free. `Tenant.is_paid` is the only spelling of the question.
 
-```python
-class Tenant(...):
-    plan: Mapped[Literal["free", "paid"]]
-```
+`limits.can_send_participant_mail` is the one place that asks it,
+beside the ceilings it belongs with. It is enforced where a mail toggle
+is set (both create doors and both update routes), again in the worker
+as a backstop, and on the public payloads, so a free page does not
+offer a reminders checkbox and does not keep an address it will never
+use.
 
-NOT NULL, no nullable "unset" state, and its default reads the row being
-inserted (`_plan_for_kind`): an organisation is in `TENANTS` because an
-operator put it there, which is the same decision as paying for it, so
-it is born `paid`; everything else is born `free`. `Tenant.is_paid` is
-the single spelling of the question, beside `is_personal`.
-
-**One question**, in `limits.py`, beside the ceilings it belongs with:
-
-```python
-def can_send_participant_mail(tenant: Tenant) -> bool
-def assert_can_send_participant_mail(tenant: Tenant) -> None
-```
-
-The refusal is a 422 that names the plan and what a free account gets
-instead, like every other refusal in that file.
-
-**Where it is enforced:**
-
-1. **`services/entities.py`**, which is where both doors create an event
-   or a roster. Asking for `reminder_enabled` / `feedback_enabled` on a
-   free account is refused there once, for the organiser route and the
-   anonymous start endpoint together.
-2. **The two update routes** (`PUT /events/{id}`, `PUT /chores/{id}`),
-   which are the other way a toggle gets switched on.
-3. **`mail_lifecycle`**, in both sweeps, as a backstop. A pending row for
-   a free account means a write raced a downgrade; the send is skipped,
-   logged as `mail_plan_blocked`, and `reap-expired` takes the
-   ciphertext on its normal schedule.
-4. **The public surfaces.** `PublicRosterOut` carries `reminder_enabled`
-   so the enrol page knows whether an address has a use, and both the
-   enrol and the edit path refuse to retain one for a roster that sends
-   nothing. `PublicEventOut` needed no change: it already sends the two
-   toggles, and on a free event they are false, so the sign-up form has
-   no email field at all.
-
-`MAX_MAIL_PER_DAY` is unchanged and still applies to a paid personal
-tenant. Paying opens the gate; it does not remove the ceiling.
-
-**Moving an account:**
-
-```
-python -m backend.cli tenant-plan <address> paid
-python -m backend.cli tenant-plan <address> free
-```
-
-Personal accounts only, by the address the account was created with: an
-organisation's plan follows `TENANTS`, so there is nothing to set. The
-downgrade is not just a flag. An account that may not mail its
-participants may not have the toggles on either, so the command switches
-them off across the account's events and rosters and deletes the pending
-dispatch rows behind them, the same cleanup an organiser's own
-toggle-off does. Without it a downgraded account would keep ciphertext
-on file for mail that is never going to be sent.
+Moving an account is a CLI command. Dropping to free is not just a
+flag: it switches the toggles off across that account's events and
+rosters and deletes the pending dispatch rows behind them, so nothing
+is left holding ciphertext for mail that will never be sent.
 
 ## What the UI does
 
