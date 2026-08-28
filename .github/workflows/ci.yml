@@ -224,13 +224,21 @@ jobs:
         # The image's CMD runs ``cli migrate`` before uvicorn, so this
         # exercises the real first-deploy path: migrations onto an empty
         # schema from inside the built image, then the app. ``/health``
-        # is the endpoint Coolify's own healthcheck uses. ``--network
-        # host`` is how the container reaches the postgres service.
+        # is the endpoint Coolify's own healthcheck uses.
+        #
+        # The container joins the service container's own network rather
+        # than the host's: a service's published port is reachable from
+        # the runner, but not from inside a container sharing the
+        # runner's network namespace. On that network the service
+        # answers to its own name, on its real port.
         run: |
+          NET=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' \
+            "$(docker ps --filter ancestor=postgres:16-alpine --format '{{.ID}}' | head -1)")
+          echo "joining $NET"
           # Minted here rather than written down: a literal 32-byte
           # base64 key in a workflow is a secret-scanner hit forever,
           # and this container only has to boot.
-          docker run -d --name smoke --network host \
+          docker run -d --name smoke --network "$NET" -p 8000:8000 \
             -e JWT_SECRET="$(openssl rand -hex 16)" \
             -e EMAIL_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
             -e EMAIL_BACKEND=console \
@@ -239,7 +247,7 @@ jobs:
             -e CORS_ORIGINS=http://localhost:8000 \
             -e TENANTS=rsp:RSP \
             -e WEB_CONCURRENCY=1 \
-            -e DATABASE_URL=postgresql+psycopg://opkomst:opkomst@localhost:5433/opkomst \
+            -e DATABASE_URL=postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst \
             opkomst:ci
           for i in $(seq 1 60); do
             if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
