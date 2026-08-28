@@ -32,6 +32,9 @@ const CONTENT_PATHS = [
   "/pubquiz-maken-zonder-account",
   "/kieskompas-maken-zonder-onderzoeksbureau",
   "/vrijwilligers-inroosteren",
+  "/wat-mag-je-bewaren-van-deelnemers",
+  "/ledenvergadering-voorbereiden",
+  "/gratis-alternatief-voor-eventbrite",
 ];
 
 /**

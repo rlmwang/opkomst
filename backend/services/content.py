@@ -109,6 +109,36 @@ PAGES: tuple[Page, ...] = (
         cta_path="/chores/new",
         cta_label="Maak een rooster",
     ),
+    Page(
+        slug="wat-mag-je-bewaren-van-deelnemers",
+        title="Wat mag je bewaren van je deelnemers?",
+        description=(
+            "Vraag niet meer dan je nodig hebt, zeg waarvoor je het gebruikt, en "
+            "bewaar het niet langer dan dat. Wat dat betekent voor een aanmeldlijst."
+        ),
+        cta_path="/events/new",
+        cta_label="Maak een evenement",
+    ),
+    Page(
+        slug="ledenvergadering-voorbereiden",
+        title="Een ledenvergadering voorbereiden",
+        description=(
+            "Een datum kiezen, weten wie er komt, de stemming peilen en achteraf "
+            "vragen hoe het ging. Vier stappen, vier links."
+        ),
+        cta_path="/datepolls/new",
+        cta_label="Maak een datumplanner",
+    ),
+    Page(
+        slug="gratis-alternatief-voor-eventbrite",
+        title="Gratis alternatief voor Eventbrite",
+        description=(
+            "Voor een bijeenkomst zonder kaartverkoop: één aanmeldlink, geen account "
+            "voor je bezoekers, en geen marktplaats die ze daarna zelf mailt."
+        ),
+        cta_path="/events/new",
+        cta_label="Maak een evenement",
+    ),
 )
 
 BY_SLUG: dict[str, Page] = {page.slug: page for page in PAGES}

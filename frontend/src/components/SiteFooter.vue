@@ -43,6 +43,9 @@ const PAGES = [
   { slug: "pubquiz-maken-zonder-account", title: "Pubquiz maken zonder account of abonnement" },
   { slug: "kieskompas-maken-zonder-onderzoeksbureau", title: "Een kieskompas maken voor je eigen groep" },
   { slug: "vrijwilligers-inroosteren", title: "Vrijwilligers inroosteren zonder spreadsheet" },
+  { slug: "wat-mag-je-bewaren-van-deelnemers", title: "Wat mag je bewaren van je deelnemers?" },
+  { slug: "ledenvergadering-voorbereiden", title: "Een ledenvergadering voorbereiden" },
+  { slug: "gratis-alternatief-voor-eventbrite", title: "Gratis alternatief voor Eventbrite" },
 ];
 
 // The landing page and the four things it offers to make. The same
