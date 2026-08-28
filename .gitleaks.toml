@@ -1,22 +1,24 @@
 # gitleaks configuration.
 #
-# The default rules, plus one allowlist entry: the throwaway AES key the
-# CI jobs and the local dev stack boot with. It is a real 32-byte
-# base64 value, so every scanner sees a key — but it is published in
+# The default rules, plus one allowlist: the throwaway AES key the CI
+# jobs and the local dev stack boot with. It is a real 32-byte base64
+# value, so every scanner sees a key — but it is published in
 # ``.env.example``, guards nothing, and CI needs *some* valid key or
 # ``Settings`` refuses to construct. Anything else that looks like a
 # secret is a finding.
+#
+# ``[allowlist]``, singular, on purpose: the plural ``[[allowlists]]``
+# array is ignored by gitleaks 8.24.3, which is the version
+# ``gitleaks-action`` installs, and a config that is silently ignored
+# looks exactly like a config that does not work.
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "The published test-only EMAIL_ENCRYPTION_KEY, in workflows and docs"
+[allowlist]
+description = "The published test-only EMAIL_ENCRYPTION_KEY, and the commit that briefly inlined it"
 regexes = ['''19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=''']
-
-[[allowlists]]
-# A pull request is scanned over its whole range, so a commit that
-# carried the key still reports even after a later commit removed it.
-# Naming the commit is the narrow way to retire a finding history
-# cannot be rid of.
-description = "The same key, in the commit that briefly inlined it into the image smoke-test"
+# A pull request is scanned over its whole range, so the commit that
+# carried the key still reports even though a later commit removed it.
+# Naming it is the narrow way to retire a finding history cannot be rid
+# of; a real key committed beside it still fails.
 commits = ["57fb75f0e590c4637ecf605e63c4a625a1087ddb"]
