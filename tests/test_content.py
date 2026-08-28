@@ -148,4 +148,6 @@ def test_the_dev_server_proxies_every_written_page() -> None:
     source = _VITE_CONFIG.read_text(encoding="utf-8")
     block = source.split("const CONTENT_PATHS = [", 1)[1].split("]", 1)[0]
     proxied = re.findall(r'"([^"]+)"', block)
-    assert proxied == ["/privacy", *(f"/{p.slug}" for p in PAGES)]
+    # The two pages that are read rather than used come first, then the
+    # written pages in the order ``services/content.py`` lists them.
+    assert proxied == ["/privacy", "/voorwaarden", *(f"/{p.slug}" for p in PAGES)]

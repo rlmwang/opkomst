@@ -66,6 +66,7 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
     <div :class="column">
       <nav class="footer-links" :aria-label="t('footer.label')">
         <a href="/privacy">{{ t("footer.privacy") }}</a>
+        <a href="/voorwaarden">{{ t("footer.terms") }}</a>
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
         <a :href="GITHUB_ISSUE_URL" target="_blank" rel="noopener">{{ t("footer.feedback") }}</a>
         <!-- Numbered rather than named, and last: the footer is here so

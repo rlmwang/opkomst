@@ -920,8 +920,9 @@
     "label": "Read more",
     "privacy": "Privacy",
     "source": "Source",
-      "feedback": "Feedback",
-    "blogs": "Blogs:"
+    "feedback": "Feedback",
+    "blogs": "Blogs:",
+    "terms": "Terms"
   },
   "quizzes": {
     "list": {

@@ -100,6 +100,27 @@ for _page in PAGES:
     )
 
 
+@router.head("/voorwaarden", include_in_schema=False)
+@router.get("/voorwaarden", response_class=HTMLResponse)
+def terms(request: Request) -> HTMLResponse:
+    """The terms. Same shape as the policy next door, and the same two
+    settings behind them: whoever runs an installation is named once,
+    in the environment, and both pages read it."""
+    traffic.record("privacy")
+    return _render(
+        request,
+        "terms.html",
+        contact_email=settings.privacy_contact_email,
+        controller=settings.privacy_controller,
+        page_title="Algemene voorwaarden",
+        page_description=(
+            "De regels voor het gebruik van opkomst.nu: wat we beloven, wat we niet "
+            "beloven, wie verantwoordelijk is voor de inhoud, en hoe je stopt."
+        ),
+        canonical_url=f"{_PUBLIC_BASE}/voorwaarden",
+    )
+
+
 @router.head("/privacy", include_in_schema=False)
 @router.get("/privacy", response_class=HTMLResponse)
 def privacy(request: Request) -> HTMLResponse:

@@ -30,7 +30,10 @@
     h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
     h2 { font-size: 1.125rem; line-height: 1.3; margin: 2rem 0 0.5rem; }
     h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
-    p, li { max-width: 34rem; }
+    /* The column is 720px and the text used to stop at 34rem, which
+     * left a third of it empty. It fills the column now; the ad
+     * rails are measured off that same 720 (``AdSlot.vue``). */
+    p, li { max-width: 42rem; }
     ul { padding-left: 1.25rem; }
     a { color: var(--brand-red); }
     .muted { color: var(--brand-text-muted); font-size: 0.875rem; }

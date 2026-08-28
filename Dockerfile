@@ -62,7 +62,13 @@ ENV PYTHONUNBUFFERED=1 \
 # redactor pipeline starts and writes silently mangled backups),
 # ``curl`` for the Dockerfile HEALTHCHECK, ``tini`` for PID 1
 # (see the ENTRYPOINT note below).
+# ``upgrade`` before ``install``: the base image is rebuilt on its own
+# schedule, so between rebuilds it carries whatever Debian security
+# patches have landed since — openssl is the usual one. Taking them at
+# build time is what keeps the Trivy gate in CI honest without pinning
+# the gate lower than HIGH.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         postgresql-client \

@@ -24,6 +24,7 @@ const PUBLIC_MINI_APP = /^\/[efdcqk]\/[^/?#]+\/?$/;
 // fails if this list and the server's ever disagree.
 const CONTENT_PATHS = [
   "/privacy",
+  "/voorwaarden",
   "/aanmeldpagina-voor-je-evenement",
   "/datumplanner-zonder-account",
   "/aanmeldformulier-zonder-google",

@@ -920,8 +920,9 @@
     "label": "Meer lezen",
     "privacy": "Privacy",
     "source": "Broncode",
-      "feedback": "Feedback",
-    "blogs": "Blogs:"
+    "feedback": "Feedback",
+    "blogs": "Blogs:",
+    "terms": "Voorwaarden"
   },
   "quizzes": {
     "list": {
