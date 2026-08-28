@@ -160,5 +160,5 @@ def warmup() -> None:
             attendee_count=0,
             archived=False,
         ).model_dump_json()
-    except Exception:
+    except Exception:  # noqa: S110 — warm-up only; a failure here must not touch boot
         pass

@@ -693,13 +693,46 @@ If the tab is there but the QR never appears: see
 ``docs/runbook.md`` § "QR code won't scan / pairing won't
 complete".
 
-## 14. Day-to-day
+## 14. The deploy gate
+
+Coolify deploys every push to ``main``. That is the whole pipeline and
+it is fine — the only thing it was missing is a reason to believe the
+commit works. So protect the branch instead of rewiring the deploy:
+
+**GitHub → Settings → Branches → Add branch ruleset** for ``main``:
+
+* **Require a pull request before merging** (approvals: 0 is fine for
+  a solo repo).
+* **Require status checks to pass**, and pick ``backend``,
+  ``frontend``, ``schema-drift``, ``image`` and ``e2e``.
+* **Require branches to be up to date before merging** — without this
+  a PR can go green against a stale base and merge something no run
+  ever saw.
+
+Work lands on ``develop``, which CI also builds. When it is ready,
+open a PR into ``main`` and merge it when the checks are green;
+Coolify picks up the merge commit and deploys it, exactly as it does
+now. Nothing to configure on the Coolify side, and no deploy
+credentials in GitHub.
+
+If a deploy goes wrong anyway: Coolify → application → Deployments →
+**Rollback** restores the previous image, and the uptime monitor from
+§ 12 is what tells you it happened.
+
+## 15. Day-to-day
 
 Once setup is complete, the system runs on its own:
 
-* **Code changes** → push to ``main`` → Coolify auto-deploys.
-* **CI** runs ruff, pyright, pytest (with coverage gate),
-  schema-drift, migration idempotency, e2e on every PR.
+* **Code changes** → PR into ``main`` → green CI → deploy (above).
+* **CI** runs ruff (with flake8-bandit), pyright, pytest (with
+  coverage gate), schema-drift, migration idempotency, a Docker build
+  with a Trivy scan and a boot smoke-test, and e2e — on ``develop``,
+  on every PR, and on ``main``.
+* **Security** is its own workflow: pip-audit, ``npm audit``,
+  dependency-review, CodeQL, gitleaks and zizmor, on every PR and
+  every Monday morning. It does not gate the deploy — a fresh
+  advisory in a transitive dep is not a reason to block a hotfix —
+  but a red run there is a job for that week, not next quarter.
 * **Dependabot** opens grouped weekly PRs for uv, npm, and
   github-actions. Click green, merge.
 * **Quarterly**: run the restore drill (``docs/runbook.md``).

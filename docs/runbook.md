@@ -135,6 +135,50 @@ curl https://opkomst.nu/health/full | jq .status   # "degraded"
 
 ---
 
+## "The Security workflow is red"
+
+It runs on every PR and every Monday at 05:00 UTC, and it does not
+gate the deploy — so a red run is a task for the week, not an
+incident. Which job failed says what to do:
+
+* **dependencies** (``pip-audit`` / ``npm audit``) — an advisory
+  landed against something in the lock. Dependabot usually has a PR
+  open already; merge it. If not: ``uv lock --upgrade-package <name>``
+  or ``cd frontend && npm audit fix``, then push. If there is no fix
+  version yet, judge the exposure (does the vulnerable code path run
+  in this app at all?) and, if it is genuinely unreachable, ignore it
+  explicitly — ``pip-audit --ignore-vuln <ID>`` with the reason in the
+  workflow, never by lowering the severity gate.
+* **codeql** — findings land in the repo's **Security → Code scanning**
+  tab with the taint path. Treat a high as a bug, not a lint.
+* **secrets** (gitleaks) — assume the key is burned. Rotate it first
+  (``JWT_SECRET`` and ``EMAIL_ENCRYPTION_KEY`` both have procedures in
+  this runbook), *then* rewrite the history. Removing the commit alone
+  is not a fix; it was pushed.
+* **workflows** (zizmor) — usually an unpinned action after a
+  Dependabot bump, or a ``${{ }}`` interpolation in a ``run:`` block.
+  Pin the SHA, or move the value into ``env:`` and reference it as
+  ``$VAR``.
+
+## "A deploy did not happen"
+
+``main`` moved but the site is on the old version. Coolify deploys on
+push to ``main``, so the question is whether it saw the push:
+
+* **Coolify → application → Deployments** — a failed build shows its
+  log here, and **Rollback** puts the previous image back while you
+  read it. The same page shows nothing at all if the webhook never
+  arrived; re-trigger with **Deploy**.
+* **Did it merge?** A PR that is green but unmerged deploys nothing.
+  ``main`` takes pull requests only (``docs/deploy.md`` § 14).
+* **Is the image the problem?** CI's ``image`` job builds the same
+  Dockerfile and boots it. If that job is green and Coolify's build
+  is red, the difference is the environment — env vars, the build
+  cache, or the VPS running out of memory. If ``vue-tsc`` appears in
+  the log, something has reintroduced type-checking into the image
+  build: that is the OOM killer on a 1.9 GB box, and the Dockerfile
+  uses ``build-only`` precisely to avoid it.
+
 ## "The email queue is stuck"
 
 Symptom: `/health/full` reports `oldest_pending_dispatch_age_seconds`

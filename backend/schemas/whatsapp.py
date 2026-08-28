@@ -22,7 +22,7 @@ class QrResponse(BaseModel):
     frontend renders both shapes."""
 
     qr: str | None = None
-    pairingCode: str | None = None  # noqa: N815. mirrors Evolution's field name
+    pairingCode: str | None = None  # noqa: N815 (mirrors Evolution's field name)
 
 
 class HeartbeatResponse(BaseModel):

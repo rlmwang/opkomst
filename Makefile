@@ -14,7 +14,7 @@ help:
 	@echo "make typecheck    pyright + vue-tsc."
 	@echo "make e2e          Playwright critical-path on a fresh stack."
 	@echo "make openapi      Regenerate openapi.json + frontend/src/api/schema.ts."
-	@echo "make pre-push-checks  Everything git push runs except e2e (use -j4)."
+	@echo "make pre-push-checks  What git push runs: build, vitest, schema drift (use -j3)."
 
 db-up:
 	docker compose up -d postgres
@@ -57,14 +57,15 @@ openapi:
 
 # --- What ``git push`` runs (see lefthook.yml) ------------------------
 #
-# Everything that has no deadline, run concurrently with ``make -j``.
-# The e2e job is deliberately NOT in here: it boots two servers and
-# holds per-test timeouts, so it runs on its own afterwards rather than
-# fighting these four for cores.
-pre-push-checks: pp-backend pp-frontend-build pp-frontend-tests pp-schema-drift
-
-pp-backend:
-	uv run pytest --no-cov -q
+# The fast half of the pipeline, run concurrently with ``make -j``:
+# the checks that answer in seconds and catch the mistakes worth
+# catching before a push. pytest and the e2e suite are deliberately NOT
+# here — CI owns those now that a green CI run is what releases the
+# deploy, and re-running them locally bought a second implementation of
+# the pipeline that drifted from the real one (the missing SPA build in
+# CI survived for weeks because ``frontend/dist`` happened to exist on
+# a developer machine). ``make test`` still runs the suite on demand.
+pre-push-checks: pp-frontend-build pp-frontend-tests pp-schema-drift
 
 # Built to ``dist-check`` rather than ``dist``: ``routers/spa.py``
 # serves the app shell out of ``dist`` on every request, so the backend

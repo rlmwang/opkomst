@@ -138,10 +138,10 @@ def health_full() -> JSONResponse:
         if oldest is not None:
             age = datetime.now(UTC) - oldest[0]
             oldest_pending_age_seconds = int(age.total_seconds())
-    except Exception:
-        # Best-effort introspection: ``SELECT 1`` already passed
-        # so ``status`` stays "ok"; a transient failure on the
-        # follow-up queries leaves their fields ``None``.
+    except Exception:  # noqa: S110 — best-effort introspection, explained below
+        # ``SELECT 1`` already passed so ``status`` stays "ok"; a
+        # transient failure on the follow-up queries leaves their
+        # fields ``None``.
         pass
     finally:
         db.close()

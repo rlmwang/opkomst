@@ -24,31 +24,21 @@ pre-commit:
       # to a CI run that's already failed somewhere else.
       run: uv run pyright backend
 
-# Pre-push runs the full validation pipeline so a green ``git push``
-# matches what CI is going to do. Every CI failure so far has been
-# something a local pipeline would have caught: a stale openapi schema,
-# a vue-tsc duplicate-operationId, e2e selectors mismatched to a
-# refactored DOM.
+# Pre-push runs the fast half of the pipeline: a type-checked build, the
+# vitest suite and the openapi drift check. It is a courtesy, not a gate.
 #
-# **The order is the point.** ``piped: true`` runs these in sequence and
-# stops at the first failure, and the sequence exists because only one
-# of these jobs has deadlines. The four checks in ``make -j4
-# pre-push-checks`` run concurrently and take as long as they take;
-# ``pytest -n auto`` alone claims every core. The e2e job boots a
-# uvicorn and a vite dev server, holds a 30s boot timeout and a 60s
-# per-test timeout, and compiles routes on demand while it runs, so
-# under that load it does not fail on the code, it fails on the clock.
-# Six specs timed out at once when it ran beside the others; alone it
-# finishes in eleven seconds. Wall-clock costs about a minute; a push
-# that fails for a reason nobody can act on costs more.
+# The gate is CI, and since the ``deploy`` job hangs off it, a red CI run
+# now stops a deploy instead of merely reporting one. Running pytest and
+# Playwright here as well bought a second implementation of the same
+# pipeline that drifted from the real one — CI had no SPA build for
+# weeks and nobody noticed, because ``frontend/dist`` exists on a
+# developer machine and the local run passed. One pipeline, in the place
+# that can actually stop a release.
 #
-# It also matches CI, where the e2e job carries ``needs: [backend,
-# frontend]`` for the same reason: a red backend explains the e2e
-# symptom, so running both is a waste of a Playwright boot.
+# Run the rest on demand: ``make test`` for the backend suite, ``make
+# e2e`` for Playwright.
 #
-# Skip with ``LEFTHOOK=0 git push`` (or use ``--no-verify`` when you
-# genuinely know better — e.g. fixing a CI-only flake on main). Don't
-# make a habit of it.
+# Skip with ``LEFTHOOK=0 git push`` (or ``--no-verify``).
 pre-push:
   piped: true
   commands:
@@ -65,16 +55,7 @@ pre-push:
           uv sync --frozen --quiet
         fi
     2_checks:
-      # Backend suite, frontend build, vitest and the openapi
-      # drift check, concurrently. None of them holds a timeout, so
-      # they may fight each other for cores all they like.
-      run: make -j4 pre-push-checks
-    3_e2e:
-      # Playwright, with the machine to itself.
-      #
-      # ``E2E_API_PORT`` / ``E2E_FRONTEND_PORT`` keep the test stack off
-      # the dev defaults, so a developer with ``uvicorn --reload`` and
-      # ``vite dev`` already running doesn't get "address in use".
-      # ``CI=1`` forces playwright to spawn its own servers rather than
-      # reusing those.
-      run: cd frontend && CI=1 E2E_API_PORT=8001 E2E_FRONTEND_PORT=5174 npx playwright test
+      # Frontend build (vue-tsc + vite), vitest and the openapi drift
+      # check, concurrently. None of them holds a timeout, so they may
+      # fight each other for cores all they like.
+      run: make -j3 pre-push-checks
