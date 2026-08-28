@@ -7,7 +7,7 @@ home IP, and immunity to a dynamic residential IP).
 
 It replaces the Coolify/VPS setup in [`deploy.md`](deploy.md). The two
 docs share the same secrets, Scaleway TEM, bootstrap-admin and cron
-*concepts* — this one is the concrete recipe for a Pi using plain
+*concepts*, this one is the concrete recipe for a Pi using plain
 `docker compose` instead of Coolify. Where a step is identical, it
 points back to `deploy.md` rather than repeating the prose.
 
@@ -30,7 +30,7 @@ One `docker compose` project, four containers:
 | `api`         | built from this repo's `Dockerfile` | FastAPI + the built Vue SPA (served by the SPA fallback) + the one-shot cron CLI |
 | `postgres`    | `postgres:16-alpine`           | the application database                        |
 | `cloudflared` | `cloudflare/cloudflared`       | outbound-only tunnel; publishes `opkomst.nu` → `api:8000` |
-| `evolution-*` | optional                       | WhatsApp blast tool (see §11) — only if you use it |
+| `evolution-*` | optional                       | WhatsApp blast tool (see §11), only if you use it |
 
 The Pi never opens an inbound port. `cloudflared` makes an **outbound**
 connection to Cloudflare's edge; Cloudflare terminates TLS for
@@ -58,7 +58,7 @@ Pi itself (8 GB is plenty for `npm run build` + `uv sync`).
 - A reliable PSU (the official 27 W USB-C) and ideally a small UPS so
   a flicker doesn't corrupt Postgres.
 
-**OS** — **Raspberry Pi OS Lite (64-bit, Bookworm)** or Ubuntu Server
+**OS**, **Raspberry Pi OS Lite (64-bit, Bookworm)** or Ubuntu Server
 24.04 arm64. Headless. Flash with Raspberry Pi Imager; in the imager's
 advanced settings preset the hostname, your SSH public key (disable
 password login), and Wi-Fi/locale. Then:
@@ -67,7 +67,7 @@ password login), and Wi-Fi/locale. Then:
 sudo apt update && sudo apt full-upgrade -y
 
 # Enable cgroup v2 memory accounting so docker can enforce limits.
-# (Raspberry Pi OS only — Ubuntu has it on already.)
+# (Raspberry Pi OS only, Ubuntu has it on already.)
 sudo sed -i 's/$/ cgroup_enable=memory cgroup_memory=1/' /boot/firmware/cmdline.txt
 # ^ append to the SINGLE existing line; verify it's still one line.
 
@@ -86,7 +86,7 @@ sudo dpkg-reconfigure -plow unattended-upgrades   # automatic security updates
 sudo sshd -T | grep -E 'passwordauthentication|permitrootlogin'
 ```
 
-There is **no inbound firewall rule to open** — the tunnel is
+There is **no inbound firewall rule to open**, the tunnel is
 outbound-only. Keep your router's port-forwarding empty. A default-deny
 `ufw` that still allows outbound + your LAN SSH is fine.
 
@@ -117,7 +117,7 @@ git checkout main
 
 Same as `deploy.md` §1. **If you are migrating an existing
 deployment, copy the live `JWT_SECRET` and `EMAIL_ENCRYPTION_KEY`
-verbatim from the old `.env`** — the encryption key decrypts the
+verbatim from the old `.env`**, the encryption key decrypts the
 `encrypted_email` ciphertext of any pending reminder/feedback
 dispatches, so a fresh key silently breaks every queued email. Only
 generate new ones for a brand-new install:
@@ -148,7 +148,7 @@ EMAIL_ENCRYPTION_KEY=<from step 4 / copied from old box>
 
 # Talk to the compose postgres service by name. (docker-compose.prod
 # also injects this, so it can't accidentally inherit a localhost dev
-# value — but set it correctly here too.)
+# value, but set it correctly here too.)
 DATABASE_URL=postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst
 
 # The public origin every email link + QR code resolves against.
@@ -162,7 +162,7 @@ EMAIL_BACKEND=smtp
 SMTP_HOST=smtp.tem.scw.cloud
 # Residential ISPs almost always block outbound port 25 but allow 587
 # (STARTTLS). Use 587. The VPS used 2587 only because Scaleway blocks
-# 587 from *their* instances — that constraint does not apply on a
+# 587 from *their* instances, that constraint does not apply on a
 # home line. If your ISP also blocks 587, fall back to 2587 (same host,
 # same creds, same STARTTLS).
 SMTP_PORT=587
@@ -178,7 +178,7 @@ LOCAL_MODE=                 # MUST stay empty in production
 DISABLE_SCHEDULER=          # leave empty; cron is host-driven (§9)
 RATE_LIMIT_STORAGE_URI=memory://   # single replica → in-process is correct
 # The Pi 5 has 4 cores and real RAM. 2 workers is a sane start
-# (~150–200 MB each); bump to 3 if you like. Don't run 4+ on 8 GB
+# (~150-200 MB each); bump to 3 if you like. Don't run 4+ on 8 GB
 # alongside Postgres + Evolution.
 WEB_CONCURRENCY=2
 
@@ -198,7 +198,7 @@ GITHUB_IMAGES_REPO_NAME=
 GITHUB_IMAGES_BRANCH=main
 GITHUB_IMAGES_TOKEN=
 
-# --- Optional: WhatsApp blast (Evolution API) — see §11 ---
+# --- Optional: WhatsApp blast (Evolution API), see §11 ---
 EVOLUTION_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=opkomst-blast
@@ -213,7 +213,7 @@ CLOUDFLARE_TUNNEL_TOKEN=
 ```
 
 `backend/config.py::Settings` validates this at boot and **fails fast**
-on anything missing or malformed — a bad `.env` stops the container
+on anything missing or malformed, a bad `.env` stops the container
 rather than booting half-configured. You can dry-run the check before
 starting anything:
 
@@ -285,7 +285,7 @@ volumes:
   postgres-data:
 ```
 
-This file is **self-contained** — it redefines `postgres`/`api` with
+This file is **self-contained**, it redefines `postgres`/`api` with
 production settings (restart policy, no host-published port, the
 backups volume) rather than layering on the dev `docker-compose.yml`,
 so use it alone, not merged with the dev file:
@@ -304,7 +304,7 @@ migration step.)
 
 Prereq: your domain's DNS is managed by Cloudflare (free plan is fine).
 Move the `opkomst.nu` nameservers to Cloudflare first if they aren't
-already, and remove any old A/AAAA record pointing at the VPS — the
+already, and remove any old A/AAAA record pointing at the VPS, the
 tunnel creates its own.
 
 1. **Cloudflare dashboard → Zero Trust → Networks → Tunnels →
@@ -321,7 +321,7 @@ tunnel creates its own.
    the origin is plain HTTP inside the compose network, which is fine).
 
 The public hostname maps to the **compose service name** `api`, which
-`cloudflared` resolves on the shared compose network — no host ports,
+`cloudflared` resolves on the shared compose network, no host ports,
 no `localhost`.
 
 ---
@@ -350,7 +350,7 @@ matching that address lands as `role=admin, is_approved=true`.
 
 ## 9. Cron (scheduled tasks)
 
-No Coolify scheduler — the host crontab fires the same one-shot CLI
+No Coolify scheduler, the host crontab fires the same one-shot CLI
 subcommands `deploy.md` §6 lists, via `docker compose exec` into the
 running `api` container. `crontab -e`:
 
@@ -370,7 +370,7 @@ DC=docker compose -f /opt/opkomst/docker-compose.prod.yml
 `-T` disables TTY allocation (required from cron). Each subcommand
 exits non-zero on failure; with Sentry wired the exceptions land in the
 same project as request errors. The Pi runs on local time unless you
-set it to UTC — `sudo timedatectl set-timezone UTC` so these schedules
+set it to UTC, `sudo timedatectl set-timezone UTC` so these schedules
 match the comments (the app stores timestamps in UTC).
 
 ---
@@ -383,7 +383,7 @@ which the §6 volume maps to `/opt/opkomst/data/backups` on the SSD. The
 §9 cron runs it daily. Two things to add at home:
 
 - **Off-Pi copies.** A home SSD is a single point of failure. Push the
-  dumps somewhere else nightly — e.g. `rclone copy
+  dumps somewhere else nightly, e.g. `rclone copy
   /opt/opkomst/data/backups remote:opkomst-backups` to any cloud
   remote, or `scp` to another machine. Add it after the backup line in
   cron.
@@ -391,7 +391,7 @@ which the §6 volume maps to `/opt/opkomst/data/backups` on the SSD. The
   restore path; run it once so you trust it.
 
 **Migrating the live data off the VPS** (one-time, at cutover): the
-redacted backup is for routine snapshots, not migration — you want the
+redacted backup is for routine snapshots, not migration, you want the
 *real* rows including pending `encrypted_email` ciphertext. With the
 app **stopped on the VPS** (so no new writes), dump the full DB there
 and restore here:
@@ -437,7 +437,7 @@ Then set in `.env`: `EVOLUTION_URL=http://evolution:8080`,
 and create an `evolution` database in the same Postgres
 (`dc exec postgres createdb -U $POSTGRES_USER evolution`). Leave all
 three unset and the WhatsApp tab stays hidden, the route guard
-redirects, and the API returns 503 — exactly as on the VPS. Full tool
+redirects, and the API returns 503, exactly as on the VPS. Full tool
 walkthrough: `docs/plan-whatsapp-blast.md`.
 
 ---
@@ -455,7 +455,7 @@ dc image prune -f          # reclaim old image layers
 
 Wrap it in `/opt/opkomst/deploy.sh` if you like. For push-button
 deploys you can later add a Cloudflare Tunnel webhook or a tiny
-`git pull && dc up -d --build` on a cron/systemd-path watch — but
+`git pull && dc up -d --build` on a cron/systemd-path watch, but
 manual is fine for this traffic and avoids building unattended.
 
 ---
@@ -499,11 +499,11 @@ cleanly on outage is cheap insurance for the DB.
 
 - **Health**: `https://opkomst.nu/health` returns `{"status":"ok"}`.
   Point an external uptime check (UptimeRobot, Cloudflare Health
-  Checks) at it — a home line *will* blip, and you want to know.
+  Checks) at it, a home line *will* blip, and you want to know.
 - **Sentry**: backend exceptions and frontend errors land in the same
   project (step 5). Cron failures surface here too.
 - **Cloudflare** dashboard shows tunnel up/down and request analytics.
-- **Resources**: `docker stats` and `free -h` — on an 8 GB Pi you
+- **Resources**: `docker stats` and `free -h`, on an 8 GB Pi you
   should see **zero swap in use**. If swap creeps up, that's the signal
   to drop `WEB_CONCURRENCY` or move Evolution off.
 
@@ -517,7 +517,7 @@ cleanly on outage is cheap insurance for the DB.
 3. Dump + restore the full DB (§10).
 4. Point the tunnel's `opkomst.nu` public hostname at the Pi's `api`
    (it already is, if you built the tunnel on the Pi) and delete the
-   old VPS A/AAAA record. Propagation is seconds — it's Cloudflare's
+   old VPS A/AAAA record. Propagation is seconds, it's Cloudflare's
    own record.
 5. Send yourself a test sign-up + confirm the feedback/reminder cron
    fires (check `data/cron.log`).

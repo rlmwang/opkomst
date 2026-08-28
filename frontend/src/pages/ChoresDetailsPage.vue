@@ -321,8 +321,8 @@ function dateWindow(): string {
 </template>
 
 <style scoped>
-/* Overview chrome (.overview, .overview-body, .overview-text,
- * .overview-meta, .detail-image, .link-row, .qr*) is shared from
+/* The overview card is ``DetailHeaderCard`` and owns its own layout;
+ * ``.overview-meta`` (the slot line this page writes) comes from
  * theme.css. Only chore-specific list/stat styles stay here. */
 .chore-list {
   list-style: none;

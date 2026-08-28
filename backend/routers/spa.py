@@ -392,7 +392,7 @@ _APP_SURFACES = {
 _APP_PAGE_META = {
     "/": (
         "opkomst.nu, aanmelden zonder gedoe",
-        "Maak een aanmeldpagina, een vragenlijst, een datumprikker of een rooster. "
+        "Maak een aanmeldpagina, een vragenlijst, een datumplanner of een rooster. "
         "Eén link, geen account voor je deelnemers, geen cookies en geen tracking.",
     ),
     "/events/new": (
@@ -416,7 +416,7 @@ _APP_PAGE_META = {
         "Geen account voor de invuller, geen cookies, geen tracking.",
     ),
     "/datepolls/new": (
-        "Datumprikker maken zonder account",
+        "Datumplanner maken zonder account",
         "Prik een datum met je groep via één link. Niemand hoeft een account te maken en er worden geen cookies gezet.",
     ),
     "/chores/new": (

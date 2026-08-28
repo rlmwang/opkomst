@@ -62,7 +62,13 @@ ENV PYTHONUNBUFFERED=1 \
 # redactor pipeline starts and writes silently mangled backups),
 # ``curl`` for the Dockerfile HEALTHCHECK, ``tini`` for PID 1
 # (see the ENTRYPOINT note below).
+# ``upgrade`` before ``install``: the base image is rebuilt on its own
+# schedule, so between rebuilds it carries whatever Debian security
+# patches have landed since — openssl is the usual one. Taking them at
+# build time is what keeps the Trivy gate in CI honest without pinning
+# the gate lower than HIGH.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         postgresql-client \
@@ -95,6 +101,15 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 # Not part of the Vite bundle by design: adding an organisation is a
 # folder here, not a rebuild.
 COPY brands/ ./brands/
+
+# A runtime container has no business carrying a package manager. The
+# venv is built above and nothing installs anything at run time, while
+# pip vendors its own dependency tree (msgpack, setuptools) — which is
+# the entire source of this image's HIGH CVEs. Removing it fixes them
+# properly rather than suppressing them, and takes an install path away
+# from anyone who gets a shell in here.
+RUN python -m pip uninstall -y pip \
+    && rm -rf /usr/local/lib/python3.13/site-packages/pip*
 
 # Non-root user for the runtime.
 RUN useradd --create-home --uid 1000 opkomst \

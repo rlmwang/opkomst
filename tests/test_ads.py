@@ -213,12 +213,12 @@ def test_a_written_page_carries_the_slot_once_configured(client, configured) -> 
     (``docs/ads.md``). The tag, the publisher id and the unit ids all
     have to arrive in the HTML, because there is no bundle here to
     fetch them later."""
-    body = client.get("/datumprikker-zonder-account").text
+    body = client.get("/datumplanner-zonder-account").text
     assert "pagead2.googlesyndication.com" in body
     assert "ca-pub-0000000000000000" in body
     assert '"1111111111"' in body or "1111111111" in body
     assert "2222222222" in body
-    csp = client.get("/datumprikker-zonder-account").headers["content-security-policy"]
+    csp = client.get("/datumplanner-zonder-account").headers["content-security-policy"]
     assert "https://pagead2.googlesyndication.com" in csp
 
 

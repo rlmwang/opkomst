@@ -30,7 +30,10 @@
     h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
     h2 { font-size: 1.125rem; line-height: 1.3; margin: 2rem 0 0.5rem; }
     h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
-    p, li { max-width: 34rem; }
+    /* The column is 720px and the text used to stop at 34rem, which
+     * left a third of it empty. It fills the column now; the ad
+     * rails are measured off that same 720 (``AdSlot.vue``). */
+    p, li { max-width: 42rem; }
     ul { padding-left: 1.25rem; }
     a { color: var(--brand-red); }
     .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
@@ -134,13 +137,20 @@
   <h2>Je rechten</h2>
   <p>Je mag opvragen wat we van je hebben, en je mag vragen het te laten
     verwijderen.</p>
-  {% if contact_email %}
-  <p>Mail daarvoor naar <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  {% if provider.name or provider.email %}
+  <p>Verwerkingsverantwoordelijke, en het adres waar je daarvoor terecht
+    kunt:</p>
+  <p>
+    {% if provider.name %}{{ provider.name }}<br>{% endif %}
+    {% if provider.address %}{{ provider.address }}<br>{% endif %}
+    {% if provider.kvk %}KvK {{ provider.kvk }}<br>{% endif %}
+    {% if provider.email %}<a href="mailto:{{ provider.email }}">{{ provider.email }}</a>{% endif %}
+  </p>
   {% else %}
-  <p class="note">Er is nog geen contactadres ingesteld voor deze
-    installatie. Zet <code>PRIVACY_CONTACT_EMAIL</code> in de omgeving.</p>
+  <p class="note">Deze installatie zegt niet wie hem aanbiedt. Zet
+    <code>PROVIDER_NAME</code> en <code>PROVIDER_EMAIL</code> in de
+    omgeving.</p>
   {% endif %}
-  {% if controller %}<p class="muted">Verwerkingsverantwoordelijke: {{ controller }}.</p>{% endif %}
 
   <h2>De code</h2>
   <p>Deze app is open source. Alles wat hierboven staat, staat ook in de
@@ -229,14 +239,19 @@
   <h2>Your rights</h2>
   <p>You may ask what we hold about you, and you may ask us to delete
     it.</p>
-  {% if contact_email %}
-  <p>Write to <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+  {% if provider.name or provider.email %}
+  <p>The data controller, and where to write:</p>
+  <p>
+    {% if provider.name %}{{ provider.name }}<br>{% endif %}
+    {% if provider.address %}{{ provider.address }}<br>{% endif %}
+    {% if provider.kvk %}KvK {{ provider.kvk }}<br>{% endif %}
+    {% if provider.email %}<a href="mailto:{{ provider.email }}">{{ provider.email }}</a>{% endif %}
+  </p>
   {% else %}
-  <p class="note">No contact address is configured for this
-    installation. Set <code>PRIVACY_CONTACT_EMAIL</code> in the
+  <p class="note">This installation does not say who offers it. Set
+    <code>PROVIDER_NAME</code> and <code>PROVIDER_EMAIL</code> in the
     environment.</p>
   {% endif %}
-  {% if controller %}<p class="muted">Data controller: {{ controller }}.</p>{% endif %}
 
   <h2>The code</h2>
   <p>This app is open source. Everything above is also in the code:

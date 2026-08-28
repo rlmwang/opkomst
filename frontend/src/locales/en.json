@@ -77,7 +77,13 @@
     "choresHint": "Share out recurring tasks",
     "adminHint": "Users and chapters",
     "chapterAgendas": "Chapter pages",
-    "compassesHint": "Where does everyone stand?"
+    "compassesHint": "Where does everyone stand?",
+    "eventsTile": "Event",
+    "datepollsTile": "Date poll",
+    "choresTile": "Chore roster",
+    "formsTile": "Form",
+    "quizzesTile": "Quiz",
+    "compassesTile": "Compass"
   },
   "header": {
     "events": "Events",
@@ -914,7 +920,9 @@
     "label": "Read more",
     "privacy": "Privacy",
     "source": "Source",
-    "blogs": "Blogs:"
+    "feedback": "Feedback",
+    "blogs": "Blogs:",
+    "terms": "Terms"
   },
   "quizzes": {
     "list": {

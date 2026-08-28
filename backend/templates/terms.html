@@ -1,0 +1,221 @@
+{#- The terms. Served by ``routers/privacy.py`` outside the SPA, next to
+    the privacy statement and for the same reasons: no bundle, no ad
+    tag, no consent dialog in front of a page somebody opened to read
+    the rules.
+
+    Written for a free service used by volunteers. Everything it claims
+    the app does is something the app does; the privacy statement next
+    door carries the data half and this page points at it rather than
+    repeating it. -#}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Algemene voorwaarden · {{ brand.app_name }}</title>
+  <meta name="robots" content="index, follow">
+  <link rel="stylesheet" href="/brand/{{ brand.slug }}/tokens.css">
+  {% if brand.favicon_url %}<link rel="icon" type="image/png" sizes="192x192" href="{{ brand.favicon_url }}">{% endif %}
+  <style>
+    body {
+      margin: 0;
+      background: var(--brand-bg);
+      color: var(--brand-text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+    header img { width: 48px; height: 48px; display: block; }
+    header a { color: var(--brand-text); text-decoration: none; font-weight: 600; font-size: 1.125rem; }
+    h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 0.5rem; }
+    h2 { font-size: 1.125rem; line-height: 1.3; margin: 2rem 0 0.5rem; }
+    h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+    /* The column is 720px and the text used to stop at 34rem, which
+     * left a third of it empty. It fills the column now; the ad
+     * rails are measured off that same 720 (``AdSlot.vue``). */
+    p, li { max-width: 42rem; }
+    ul { padding-left: 1.25rem; }
+    a { color: var(--brand-red); }
+    .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+    .note {
+      border: 1px dashed var(--brand-border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      background: var(--brand-surface);
+    }
+    hr { border: 0; border-top: 1px solid var(--brand-border); margin: 3rem 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="">{% endif %}
+    <a href="/">{{ brand.wordmark }}</a>
+  </header>
+
+  <h1>Algemene voorwaarden</h1>
+  <p class="muted">De regels voor het gebruik van {{ brand.app_name }}.
+    <a href="#en">In English below.</a></p>
+
+  <h2>Wie dit aanbiedt</h2>
+  <p>{{ brand.app_name }} wordt aangeboden door:</p>
+  {% if provider.name or provider.email %}
+  <p>
+    {% if provider.name %}{{ provider.name }}<br>{% endif %}
+    {% if provider.address %}{{ provider.address }}<br>{% endif %}
+    {% if provider.kvk %}KvK {{ provider.kvk }}<br>{% endif %}
+    {% if provider.email %}<a href="mailto:{{ provider.email }}">{{ provider.email }}</a>{% endif %}
+  </p>
+  {% else %}
+  <p class="note">Deze installatie zegt niet wie hem aanbiedt. Zet
+    <code>PROVIDER_NAME</code> en <code>PROVIDER_EMAIL</code> in de
+    omgeving.</p>
+  {% endif %}
+  <p>Op dat adres kun je terecht met vragen, klachten en meldingen.</p>
+  <p>Het gebruik is gratis. De code is open source (EUPL 1.2) en staat
+    op <a href="https://github.com/rlmwang/opkomst">GitHub</a>.</p>
+
+  <h2>Waar deze voorwaarden over gaan</h2>
+  <p>Ze gelden voor iedereen die {{ brand.app_name }} gebruikt. Dat zijn
+    twee rollen. Een <strong>organisator</strong> maakt iets aan en
+    deelt de link. Een <strong>deelnemer</strong> opent die link en vult
+    hem in. Voor een deelnemer geldt alleen wat hieronder over invullen
+    staat.</p>
+
+  <h2>Wat we wel en niet beloven</h2>
+  <p>We doen ons best om de app te laten werken, maar we beloven geen
+    ononderbroken beschikbaarheid. We kunnen functies wijzigen of
+    stoppen. Als we ergens mee stoppen, zeggen we dat van tevoren en
+    kun je je gegevens als CSV downloaden.</p>
+  <p>Maak zelf een kopie van wat je niet kwijt wilt.</p>
+
+  <h2>Wat je niet doet</h2>
+  <ul>
+    <li>Iets aanmaken of versturen dat in strijd is met de wet, of dat
+      bedoeld is om iemand te bedreigen, op te lichten of lastig te
+      vallen.</li>
+    <li>Meer persoonsgegevens van anderen vragen dan je voor je eigen
+      bijeenkomst nodig hebt.</li>
+    <li>De app of onze server overbelasten, of proberen om bij gegevens
+      te komen die niet van jou zijn.</li>
+  </ul>
+
+  <h2>De inhoud is van de organisator</h2>
+  <p>Wat een organisator aanmaakt, is van die organisator. Wij bewaren
+    en tonen het; we controleren het niet vooraf. Klopt er iets niet,
+    of staat er iets dat niet mag, meld het dan op het adres hierboven.
+    We halen onrechtmatige inhoud weg als we die tegenkomen of als
+    iemand ons erop wijst, en we kunnen een account sluiten dat deze
+    voorwaarden overtreedt. We leggen uit waarom, tenzij dat wettelijk
+    niet mag.</p>
+
+  <h2>Persoonsgegevens</h2>
+  <p>Wat wij met gegevens doen staat in de
+    <a href="/privacy">privacyverklaring</a>. Voor de antwoorden die
+    deelnemers invullen bepaalt de organisator wat er gevraagd wordt en
+    waarvoor de antwoorden gebruikt worden; wij bewaren ze namens die
+    organisator en gebruiken ze niet voor iets anders.</p>
+
+  <h2>Aansprakelijkheid</h2>
+  <p>Deze dienst is gratis en zonder garanties. We zijn niet
+    aansprakelijk voor schade door het gebruik ervan, en niet voor wat
+    een organisator of een deelnemer invult of doet. Waar de wet
+    aansprakelijkheid niet laat uitsluiten, geldt de wet.</p>
+
+  <h2>Stoppen</h2>
+  <p>Je kunt op elk moment stoppen. Verwijder wat je gemaakt hebt, of
+    vraag ons je account te verwijderen. Deelnemers kunnen hun eigen
+    antwoorden intrekken via de link die ze na het invullen kregen.</p>
+
+  <h2>Wijzigingen</h2>
+  <p>We kunnen deze voorwaarden aanpassen, bijvoorbeeld als de app
+    verandert. De nieuwe versie geldt vanaf het moment dat hij hier
+    staat, en niet met terugwerkende kracht. Ben je het er niet mee
+    eens, dan stop je met het gebruik.</p>
+
+  <h2>Welk recht geldt</h2>
+  <p>Nederlands recht. Ben je consument, dan mag je een geschil ook
+    voorleggen aan de rechter van je eigen woonplaats.</p>
+
+  <hr>
+
+  <h1 id="en">Terms of use</h1>
+  <p class="muted">The rules for using {{ brand.app_name }}.</p>
+
+  <h2>Who offers this</h2>
+  <p>{{ brand.app_name }} is offered by:</p>
+  {% if provider.name or provider.email %}
+  <p>
+    {% if provider.name %}{{ provider.name }}<br>{% endif %}
+    {% if provider.address %}{{ provider.address }}<br>{% endif %}
+    {% if provider.kvk %}KvK {{ provider.kvk }}<br>{% endif %}
+    {% if provider.email %}<a href="mailto:{{ provider.email }}">{{ provider.email }}</a>{% endif %}
+  </p>
+  {% else %}
+  <p class="note">This installation does not say who offers it. Set
+    <code>PROVIDER_NAME</code> and <code>PROVIDER_EMAIL</code> in the
+    environment.</p>
+  {% endif %}
+  <p>Questions, complaints and reports go to that address.</p>
+  <p>Using it is free. The code is open source (EUPL 1.2) and lives on
+    <a href="https://github.com/rlmwang/opkomst">GitHub</a>.</p>
+
+  <h2>Who these terms are for</h2>
+  <p>Everybody who uses {{ brand.app_name }}, in one of two roles. An
+    <strong>organiser</strong> makes something and shares the link. A
+    <strong>participant</strong> opens that link and fills it in. For a
+    participant, only the part about filling things in applies.</p>
+
+  <h2>What we do and do not promise</h2>
+  <p>We do our best to keep the app running, but we do not promise
+    uninterrupted availability, and we may change or discontinue
+    features. If we stop something, we say so beforehand and you can
+    download your data as CSV. Keep your own copy of anything you
+    cannot lose.</p>
+
+  <h2>What you do not do</h2>
+  <ul>
+    <li>Anything unlawful, or meant to threaten, defraud or harass.</li>
+    <li>Ask people for more personal data than your own gathering
+      needs.</li>
+    <li>Overload the service, or try to reach data that is not
+      yours.</li>
+  </ul>
+
+  <h2>The content belongs to the organiser</h2>
+  <p>What an organiser makes is theirs. We store it and show it; we do
+    not review it in advance. If something is wrong or unlawful, report
+    it to the address above. We remove unlawful content when we find it
+    or are told about it, and we can close an account that breaks these
+    terms. We explain why, unless the law says we may not.</p>
+
+  <h2>Personal data</h2>
+  <p>What we do with data is in the
+    <a href="/privacy">privacy statement</a>. For the answers
+    participants give, the organiser decides what is asked and what it
+    is for; we hold those answers on their behalf and use them for
+    nothing else.</p>
+
+  <h2>Liability</h2>
+  <p>The service is free and comes without warranties. We are not
+    liable for damage arising from its use, or for what an organiser or
+    a participant writes or does. Where the law does not allow that to
+    be excluded, the law applies.</p>
+
+  <h2>Stopping</h2>
+  <p>You can stop at any time. Delete what you made, or ask us to
+    delete your account. Participants can withdraw their own answers
+    through the link they received.</p>
+
+  <h2>Changes</h2>
+  <p>We may change these terms, for instance when the app changes. A new
+    version applies from the moment it appears here, never
+    retroactively. If you disagree with it, stop using the app.</p>
+
+  <h2>Which law applies</h2>
+  <p>Dutch law. If you are a consumer, you may also bring a dispute
+    before the court where you live.</p>
+</div>
+</body>
+</html>

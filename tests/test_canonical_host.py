@@ -26,12 +26,12 @@ def test_the_redirect_keeps_the_path_and_the_query(client) -> None:
     would send every inbound www link to the front door, which is worse
     than the split it is fixing."""
     response = client.get(
-        "/datumprikker-zonder-account?utm_source=x",
+        "/datumplanner-zonder-account?utm_source=x",
         headers={"host": f"www.{_HOST}"},
         follow_redirects=False,
     )
     assert response.status_code == 301
-    assert response.headers["location"].endswith("/datumprikker-zonder-account?utm_source=x")
+    assert response.headers["location"].endswith("/datumplanner-zonder-account?utm_source=x")
 
 
 def test_the_apex_is_served_rather_than_redirected(client) -> None:

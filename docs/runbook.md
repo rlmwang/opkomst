@@ -1,7 +1,7 @@
 # Runbook
 
 Operational scenarios with concrete commands. Optimised for "it's
-01:00 and something is wrong" — short, copy-paste, no prose.
+01:00 and something is wrong", short, copy-paste, no prose.
 
 ## Monitoring & alerting
 
@@ -32,18 +32,18 @@ having to dig.
 Tick these off in order. Until **#1** is done, you have no
 guarantee.
 
-#### 1. UptimeRobot (load-bearing — do this first)
+#### 1. UptimeRobot (load-bearing, do this first)
 
 - Sign up at https://uptimerobot.com (free tier, no card).
 - Add Monitor → HTTP(s):
-  - URL: `https://opkomst.nu/health/full` — must be `/full`, not
+  - URL: `https://opkomst.nu/health/full`, must be `/full`, not
     the cheap `/health`. Only the full route runs `SELECT 1` and
     returns **HTTP 503** when the DB is unreachable. Cheap
     `/health` always returns 200 (for Coolify's container
     healthcheck) and would never trip an uptime alert on a
     degraded DB.
   - Monitoring interval: 5 minutes (free plan minimum)
-  - No keyword setup — UptimeRobot's free tier no longer offers
+  - No keyword setup, UptimeRobot's free tier no longer offers
     keyword monitoring, and the 503-on-degraded design means a
     plain HTTP-status check is enough.
 - Alert Contacts → add your email + (optional) push to the
@@ -51,7 +51,7 @@ guarantee.
 - Test by sending the API a deliberate 500: stop the container
   via Coolify; you should get an email within 5 min.
 
-#### 2. Sentry — exception alerts
+#### 2. Sentry, exception alerts
 
 - Already wired in code via `SENTRY_DSN`. Confirm it's set in
   Coolify env: `echo $SENTRY_DSN | wc -c` returns >1 inside
@@ -60,36 +60,36 @@ guarantee.
   first seen this week" → action: send email to you.
 - Test by hitting an endpoint that throws (fastest:
   `curl https://opkomst.nu/api/v1/events/by-slug/<garbage>`
-  returns 404, not 500 — instead force one with `gh issue` or
+  returns 404, not 500, instead force one with `gh issue` or
   a temporary throw in a sandbox deploy).
 
-#### 3. Sentry — cron heartbeat monitors
+#### 3. Sentry, cron heartbeat monitors
 
 `cli.py` sends `capture_checkin` for every invocation under
 slugs `opkomst-cli-{cmd}`. Tells Sentry "I ran" so it can page
 you when a job is missing.
 
 - Sentry UI → Crons → Add Monitor for each cron slug:
-  - `opkomst-cli-dispatch-reminder` — schedule `0 * * * *`,
+  - `opkomst-cli-dispatch-reminder`, schedule `0 * * * *`,
     checkin-margin 5 min, max-runtime 10 min
-  - `opkomst-cli-dispatch-feedback` — same
-  - `opkomst-cli-dispatch-chore-reminder` — schedule `0 * * * *`
+  - `opkomst-cli-dispatch-feedback`, same
+  - `opkomst-cli-dispatch-chore-reminder`, schedule `0 * * * *`
     (day-before chore shift reminders, sent at 18:00 local; only to
     volunteers who opted in, address decrypted in the worker)
-  - `opkomst-cli-reap-partial` — schedule `30 * * * *`
-  - `opkomst-cli-roster-tick` — schedule `0 2 * * *`,
+  - `opkomst-cli-reap-partial`, schedule `30 * * * *`
+  - `opkomst-cli-roster-tick`, schedule `0 2 * * *`,
     checkin-margin 30 min (materialises + fairly assigns chore
     shifts on the 28-day horizon; flips past-due `scheduled`
     shifts to `missed`)
-  - `opkomst-cli-reap-expired` — schedule `0 3 * * *`,
+  - `opkomst-cli-reap-expired`, schedule `0 3 * * *`,
     checkin-margin 30 min (also handles the 7-day post-event
     ciphertext backstop for the FEEDBACK channel, and force-wipes
-    retained volunteer email on rosters archived >7 days — the
+    retained volunteer email on rosters archived >7 days, the
     chore-side equivalent, since mute/leave clear it earlier)
-  - `opkomst-cli-reap-auth-tokens` — schedule `45 3 * * *`
+  - `opkomst-cli-reap-auth-tokens`, schedule `45 3 * * *`
     (login + registration tokens; replaced
-    `opkomst-cli-reap-login-tokens` — see deploy notes if upgrading)
-  - `opkomst-cli-pending-digest` — schedule `0 9 * * 1`
+    `opkomst-cli-reap-login-tokens`, see deploy notes if upgrading)
+  - `opkomst-cli-pending-digest`, schedule `0 9 * * 1`
     (Monday 09:00 UTC; emails every admin a list of accounts
     awaiting approval, skipped silently when there are none)
 
@@ -105,7 +105,7 @@ you when a job is missing.
 ### Why three layers
 
 * **External uptime monitor** is the only thing that catches
-  "the whole VPS is unreachable" — Sentry + Coolify both run
+  "the whole VPS is unreachable", Sentry + Coolify both run
   *adjacent to* the failed container or rely on the container
   itself reporting in.
 * **Sentry exception alerts** catch "the process is up and
@@ -130,10 +130,54 @@ curl https://opkomst.nu/health/full | jq .status   # "degraded"
 
 # 3. Sentry cron: skip a tick. Easiest is to disable one
 #    Coolify cron job and wait for its checkin-margin window
-#    to elapse — Sentry pages.
+#    to elapse, Sentry pages.
 ```
 
 ---
+
+## "The Security workflow is red"
+
+It runs on every PR and every Monday at 05:00 UTC, and it does not
+gate the deploy, so a red run is a task for the week, not an
+incident. Which job failed says what to do:
+
+* **dependencies** (``pip-audit`` / ``npm audit``), an advisory
+  landed against something in the lock. Dependabot usually has a PR
+  open already; merge it. If not: ``uv lock --upgrade-package <name>``
+  or ``cd frontend && npm audit fix``, then push. If there is no fix
+  version yet, judge the exposure (does the vulnerable code path run
+  in this app at all?) and, if it is genuinely unreachable, ignore it
+  explicitly, ``pip-audit --ignore-vuln <ID>`` with the reason in the
+  workflow, never by lowering the severity gate.
+* **codeql**, findings land in the repo's **Security → Code scanning**
+  tab with the taint path. Treat a high as a bug, not a lint.
+* **secrets** (gitleaks), assume the key is burned. Rotate it first
+  (``JWT_SECRET`` and ``EMAIL_ENCRYPTION_KEY`` both have procedures in
+  this runbook), *then* rewrite the history. Removing the commit alone
+  is not a fix; it was pushed.
+* **workflows** (zizmor), usually an unpinned action after a
+  Dependabot bump, or a ``${{ }}`` interpolation in a ``run:`` block.
+  Pin the SHA, or move the value into ``env:`` and reference it as
+  ``$VAR``.
+
+## "A deploy did not happen"
+
+``main`` moved but the site is on the old version. Coolify deploys on
+push to ``main``, so the question is whether it saw the push:
+
+* **Coolify → application → Deployments**, a failed build shows its
+  log here, and **Rollback** puts the previous image back while you
+  read it. The same page shows nothing at all if the webhook never
+  arrived; re-trigger with **Deploy**.
+* **Did it merge?** A PR that is green but unmerged deploys nothing.
+  ``main`` takes pull requests only (``docs/deploy.md`` § 14).
+* **Is the image the problem?** CI's ``image`` job builds the same
+  Dockerfile and boots it. If that job is green and Coolify's build
+  is red, the difference is the environment, env vars, the build
+  cache, or the VPS running out of memory. If ``vue-tsc`` appears in
+  the log, something has reintroduced type-checking into the image
+  build: that is the OOM killer on a 1.9 GB box, and the Dockerfile
+  uses ``build-only`` precisely to avoid it.
 
 ## "The email queue is stuck"
 
@@ -149,7 +193,7 @@ psql "$DATABASE_URL" -c "
   GROUP BY channel;
 "
 
-# Try a manual sweep — exits non-zero on failure with a Sentry
+# Try a manual sweep, exits non-zero on failure with a Sentry
 # event captured.
 docker compose exec api python -m backend.cli dispatch reminder
 docker compose exec api python -m backend.cli dispatch feedback
@@ -166,12 +210,12 @@ psql "$DATABASE_URL" -c "
 "
 ```
 
-A reminder dispatch whose event already started won't fire — the
+A reminder dispatch whose event already started won't fire, the
 reaper will mark it expired on the next daily tick.
 
 ## "A reminder fired twice"
 
-Shouldn't happen — the conditional UPDATE filtered on
+Shouldn't happen, the conditional UPDATE filtered on
 ``status='pending'`` is the atomic claim. But if it does:
 
 ```bash
@@ -185,27 +229,27 @@ psql "$DATABASE_URL" -c "
 
 Two rows with the same `(signup_id, channel)` would mean the
 unique constraint `uq_dispatches_signup_channel` is missing or was
-dropped — check the migration history. One row that flipped
+dropped, check the migration history. One row that flipped
 `pending → sent → pending` would mean the conditional UPDATE
-stopped working — file a bug.
+stopped working, file a bug.
 
 ## Backups
 
 Daily ``scripts/backup.sh`` runs from cron at 04:00 UTC. It pipes
 ``pg_dump`` through ``scripts/_backup_redact.py`` which NULLs
-``Signup.encrypted_email`` at dump time — even though the column
+``Signup.encrypted_email`` at dump time, even though the column
 is AES-GCM ciphertext, the privacy stance is "addresses don't
 sit in cold storage". Trade-off: a restore loses the ability to
 send any pending feedback emails. Acceptable; those have a 24h
 shelf life anyway.
 
 Output: ``$BACKUP_DIR/opkomst-<UTC-stamp>.sql.gz`` (default
-``/app/data/backups`` — the Coolify Persistent Volume mount inside
+``/app/data/backups``, the Coolify Persistent Volume mount inside
 the container). Files older than ``$RETENTION_DAYS``
 (default 30) are pruned at the end of each run.
 
 The wrapper aborts the backup if the redactor didn't emit its
-``-- opkomst-redacted: signups`` marker — that catches the
+``-- opkomst-redacted: signups`` marker, that catches the
 "schema rename made the redactor pass through unchanged"
 failure mode loudly.
 
@@ -224,7 +268,7 @@ DB. Non-zero exit means the backup didn't restore cleanly.
 
 ## "Encryption key rotation"
 
-`EMAIL_ENCRYPTION_KEY` rotation is destructive — the AES-GCM key
+`EMAIL_ENCRYPTION_KEY` rotation is destructive, the AES-GCM key
 is the only way to decrypt outstanding ciphertexts. Procedure:
 
 1. **Drain the queue first.** Run dispatcher sweeps until
@@ -235,7 +279,7 @@ is the only way to decrypt outstanding ciphertexts. Procedure:
 3. New signups encrypt under the new key from that moment.
 
 If you have to rotate without draining, you'll lose the ability
-to send any pending email — old ciphertexts are unreadable.
+to send any pending email, old ciphertexts are unreadable.
 
 ## "Schema head mismatch"
 
@@ -248,7 +292,7 @@ docker compose exec api uv run alembic -c backend/alembic.ini upgrade head
 
 `cli.py` runs migrations on every cron tick, so a missed
 migration usually self-heals within an hour. If it doesn't, the
-migration itself is failing — check the cron log / Sentry.
+migration itself is failing, check the cron log / Sentry.
 
 ## "Reputation issues with the SMTP provider"
 
@@ -256,153 +300,18 @@ Opkomst doesn't ingest webhook delivery feedback (we used to;
 Scaleway TEM moved its webhooks behind a paid Cockpit topic and
 we pulled the integration). The SMTP provider's own dashboard is
 the source of truth for bounce / complaint rates and reputation
-warnings — check there if mail starts disappearing.
+warnings, check there if mail starts disappearing.
 
 ## WhatsApp blast tool
 
-A self-contained admin page at ``/admin/whatsapp`` that proxies
-to a self-hosted **Evolution API** instance for one-off
-personalised WhatsApp blasts. Designed in
-``docs/plan-whatsapp-blast.md``; this section is the ops view.
+An admin page at `/admin/whatsapp` that proxies to a self-hosted
+Evolution API for one-off personalised blasts. Stateless: no database
+writes, no numbers at rest, and the session forgets itself when the tab
+closes. `docs/plan-whatsapp-blast.md` has the design.
 
-**Where things live**
-- Backend proxy: ``backend/services/whatsapp.py`` +
-  ``backend/routers/whatsapp.py``. Stateless, no DB writes, no
-  PII at rest.
-- Frontend page: ``frontend/src/pages/AdminWhatsAppPage.vue``.
-- The CSV-input parser, country-code normaliser, and merge-tag
-  engine are in ``frontend/src/lib/csv.ts``. Markdown preview
-  is ``frontend/src/lib/whatsappFormat.ts``. Emoji button is
-  ``frontend/src/components/EmojiPicker.vue``.
-
-**Enabling the tool.** Three env vars on the Opkomst app
-(``EVOLUTION_URL``, ``EVOLUTION_API_KEY``, ``EVOLUTION_INSTANCE``)
-plus a Coolify Docker-Compose resource for the Evolution
-sidecar. The full from-zero setup walkthrough lives in
-``docs/deploy.md`` § 13. Leave any of the three env vars unset
-and the tool is silently disabled: the nav tab is hidden, the
-route guard redirects ``/admin/whatsapp`` to ``/events``, and
-the proxy routes return 503.
-
-**Privacy contract.** This is the only piece of the app that
-holds phone numbers in memory at all, and it does so only for
-the lifetime of the page. None reach the database. The proxy
-layer logs ``route + outcome`` only — never numbers, never
-message bodies. ``tests/test_whatsapp.py::test_no_pii_in_whatsapp_logs``
-greps the service module to keep it that way.
-
-**The "forget when the user leaves" guarantee.** Three layers:
-1. Closing the page fires ``navigator.sendBeacon`` to
-   ``/api/v1/whatsapp/logout`` which deletes the Evolution
-   instance entirely (logout + remove session keys).
-2. Browser crash leaves the beacon undelivered, so the page also
-   heartbeats ``/api/v1/whatsapp/heartbeat`` every 15 s; if the
-   server stops hearing for >60 s and Evolution still reports an
-   ``open`` session, a lazy watchdog tears it down on the next
-   inbound request.
-3. App-level logout (``POST /api/v1/auth/logout``) also tears the
-   instance down before the JWT is cleared.
-
-Restart of the Opkomst container resets the watchdog's
-in-memory ``_last_seen``, which is fine: a fresh process means
-no live page = nothing to keep.
-
-## "WhatsApp tab is hidden after enabling the env vars"
-
-Symptoms: the three ``EVOLUTION_*`` env vars are set on the
-Opkomst app and the Evolution stack is running, but the admin
-header still doesn't show the WhatsApp tab.
-
-The frontend only renders the tab when ``/api/v1/whatsapp/status``
-returns something other than ``not_configured`` and the call
-itself succeeds. Most common cause is a Docker network gap: the
-two Coolify resources sit on different bridge networks and
-Opkomst can't resolve ``evolution-api``.
-
-```bash
-# 1. From the Coolify host: confirm both containers exist and
-#    note their network attachments.
-docker ps --format 'table {{.Names}}\t{{.Networks}}' \
-  | grep -iE 'opkomst|evolution'
-
-# 2. From inside the Opkomst container: does the hostname
-#    resolve?
-docker exec <opkomst-container-name> getent hosts evolution-api
-# Expect: <ip>  evolution-api
-# If empty, the container isn't on the Evolution network.
-
-# 3. Quick smoke test that doesn't need curl/wget in the image.
-docker exec <opkomst-container-name> python3 -c "import urllib.request; \
-  print(urllib.request.urlopen('http://evolution-api:8080/').read()[:200])"
-# Expect: a "Welcome to the Evolution API" JSON blob.
-```
-
-If step 2 fails, the persistent fix is to attach
-``evolution-api`` to the shared ``coolify`` network in the
-Evolution Compose YAML, which Opkomst already sits on. See
-``docs/deploy.md`` § 13a for the exact ``networks:`` block.
-Manually ``docker network connect``-ing the container works as a
-hotfix but doesn't survive the next redeploy.
-
-After fixing the network, hard-refresh the admin browser tab so
-``auth.fetchMe`` re-runs and re-probes ``/whatsapp/status``.
-
-## "QR code won't scan / pairing won't complete"
-
-Symptoms: visiting ``/admin/whatsapp`` shows the QR but scanning
-times out, or the linked-device list on the phone doesn't show
-the new device.
-
-```bash
-# 1. Confirm the Evolution instance exists and isn't stuck.
-curl -s -H "apikey: $EVOLUTION_API_KEY" \
-  "$EVOLUTION_URL/instance/connectionState/$EVOLUTION_INSTANCE"
-# state: "close" / "connecting" / "open"
-
-# 2. If it's "connecting" but never advances, force a clean
-#    re-scan: delete and re-create the instance.
-curl -s -X DELETE -H "apikey: $EVOLUTION_API_KEY" \
-  "$EVOLUTION_URL/instance/delete/$EVOLUTION_INSTANCE"
-# Reload /admin/whatsapp; the page calls /instance/create
-# itself when it asks for a fresh QR.
-
-# 3. If even the create call fails, Evolution's own DB is the
-#    most likely culprit. Check the service's logs in Coolify
-#    and confirm CACHE_REDIS_URI / DATABASE_CONNECTION_URI both
-#    resolve from inside the Evolution container.
-```
-
-The QR rotates every ~20 s. The page auto-refreshes; if it
-seems frozen, hard-refresh the browser tab.
-
-If ``/instance/connect`` keeps returning ``{"count":0}`` and
-the Evolution log shows ``Browser: ... / Baileys version env:
-...`` looping every few seconds with no QR-update events, the
-Baileys library shipped with that Evolution version is broken
-against the current WhatsApp protocol. Symptom on the page is a
-permanently-empty QR placeholder. Fix is to upgrade the image.
-``deploy.md`` § 13a pins ``evoapicloud/evolution-api:v2.3.7``;
-older tags (especially anything from the abandoned ``atendai``
-namespace, last touched Feb 2025) hit this exact failure.
-
-## "WhatsApp linked but messages stop arriving mid-blast"
-
-Most likely the linked phone went offline (WhatsApp linked
-devices piggy-back on the primary phone for ~14 days of grace,
-but a temporarily-offline phone stalls live messages
-immediately). The blast loop will see ``send`` fail per row and
-mark them ``failed`` in the page's status table; the user can
-download the CSV and replay the failed-only subset.
-
-If individual sends fail with a 4xx and the linked phone is
-clearly online, the recipient's number probably isn't on
-WhatsApp; Evolution returns ``404`` for unknown numbers. That's
-expected; mark them as such in the source list.
-
-## "Evolution session expired and we can't tell"
-
-WhatsApp auto-unlinks inactive linked devices after about two
-weeks. The Evolution API will keep reporting ``state: "close"``
-in that case. The page's status poll surfaces this as "not
-linked", prompting the operator to re-scan. No alarm needed
-beyond what the page already shows.
+Operationally it is one thing to know: the linked phone is the whole
+dependency. WhatsApp unlinks an inactive device after about two weeks,
+Evolution then reports the session as closed, and the page shows "not
+linked" until somebody re-scans the QR. Sends fail one by one with a
+4xx when a number is not on WhatsApp, which is expected rather than an
+outage.

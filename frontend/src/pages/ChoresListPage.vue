@@ -129,10 +129,13 @@ function askArchive(r: RosterListOut) {
 
     <template #row="{ item: r }">
       <EntityCard
+        :public-url="publicChoreUrl(r.slug)"
         :qr-src="choreQrUrl(r.slug)"
+        :copy-link-label="t('chores.share.copyLink')"
         :qr-label="t('chores.share.copyQr')"
         @mouseenter="prefetchDetails(r.id)"
         @focusin="prefetchDetails(r.id)"
+        @copy-link="copyLink(r.slug)"
         @copy-qr="copyQr(r.slug)"
       >
         <template #title>
@@ -146,20 +149,6 @@ function askArchive(r: RosterListOut) {
           <p class="muted">{{ summary(r) }}</p>
         </template>
 
-        <template #link>
-          <div class="link-row">
-            <a :href="publicChoreUrl(r.slug)" target="_blank" rel="noopener">{{ publicChoreUrl(r.slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              v-tooltip.top="t('chores.share.copyLink')"
-              :aria-label="t('chores.share.copyLink')"
-              @click="copyLink(r.slug)"
-            />
-          </div>
-        </template>
 
         <template #actions>
           <router-link :to="`/chores/${r.id}/details`">

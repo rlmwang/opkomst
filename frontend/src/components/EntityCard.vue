@@ -1,80 +1,80 @@
 <script setup lang="ts">
 import AppCard from "@/components/AppCard.vue";
+import ShareStub from "@/components/ShareStub.vue";
 
 /**
  * The list-page card for a public-facing entity — Events, Forms,
- * Datepolls, Chores. All four rendered the same three-part shape
- * (title + meta + public link, an actions row, and a count above a
- * QR thumbnail) as four separate copies of the same grid; this is
- * that shape, once.
+ * Datepolls, Chores. All four rendered the same shape as four separate
+ * copies of the same grid; this is that shape, once.
  *
- * The layout reads top-down: what it is, where it lives publicly,
- * then what you can do with it.
+ *   ┌───────────────────────┊──────────────┐
+ *   │ Title  [Chapter]      ┊ https://…/e/…│
+ *   │ meta lines            ┊    ┌────┐    │
+ *   │                       ┊    │ QR │    │
+ *   │ [Details] [Archive]   ┊    └────┘    │
+ *   └───────────────────────┊──────────────┘
  *
- *   ┌──────────────────────────────────────┐
- *   │ Title  [Chapter]              ┌────┐ │
- *   │ meta lines                    │ QR │ │
- *   │ https://…/e/abc12345    copy  └────┘ │
- *   │                                      │
- *   │ [Details] [Archive]      12 attendees │
- *   └──────────────────────────────────────┘
- *
- * The QR is a share artifact rather than list content, so it takes
- * the corner instead of a share of the reading width, and it drops
- * out entirely on phones (see the media query).
+ * Two columns: the card's own text (what it is, then what you can do
+ * with it) and the tear-off ``ShareStub`` — the same component the
+ * details header uses, so a list card and a details page perforate
+ * alike.
  */
 defineProps<{
-  /** QR thumbnail source. Absent on cards with no public URL yet —
-   * an event whose occurrences have all passed, say. */
+  /** The public URL. Absent on an entity with no live page yet — an
+   * event whose occurrences have all passed, say. */
+  publicUrl?: string;
+  /** QR thumbnail source. */
   qrSrc?: string;
-  /** Tooltip + aria-label for the QR copy button. */
-  qrLabel?: string;
+  /** Tooltip + aria-label for the copy-link button. */
+  copyLinkLabel: string;
+  /** Tooltip + aria-label for the QR. */
+  qrLabel: string;
 }>();
 
-defineEmits<{ "copy-qr": [] }>();
+defineEmits<{ "copy-link": []; "copy-qr": [] }>();
 </script>
 
 <template>
   <AppCard :stack="false" class="entity-card">
-    <div class="entity-body">
+    <div class="entity-main">
       <div class="entity-text">
         <div class="entity-title"><slot name="title" /></div>
         <div v-if="$slots.meta" class="entity-meta"><slot name="meta" /></div>
-        <div v-if="$slots.link" class="entity-link"><slot name="link" /></div>
       </div>
-      <button
-        v-if="qrSrc"
-        type="button"
-        class="qr-button"
-        v-tooltip.top="qrLabel"
-        :aria-label="qrLabel"
-        @click="$emit('copy-qr')"
-      >
-        <img :src="qrSrc" alt="" class="qr" />
-      </button>
+
+      <div class="entity-footer">
+        <div class="entity-actions"><slot name="actions" /></div>
+        <div v-if="$slots.count" class="entity-count muted"><slot name="count" /></div>
+      </div>
     </div>
 
-    <div class="entity-footer">
-      <div class="entity-actions"><slot name="actions" /></div>
-      <div v-if="$slots.count" class="entity-count muted"><slot name="count" /></div>
-    </div>
+    <ShareStub
+      v-if="publicUrl || qrSrc"
+      :public-url="publicUrl"
+      :qr-src="qrSrc"
+      :copy-link-label="copyLinkLabel"
+      :copy-qr-label="qrLabel"
+      @copy-link="$emit('copy-link')"
+      @copy-qr="$emit('copy-qr')"
+    />
   </AppCard>
 </template>
 
 <style scoped>
+/* Text column + stub column, one row, so the stub stretches to the
+ * card's full height and its tear-line with it. */
 .entity-card {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-/* Text column + QR. ``align-items: start`` anchors the QR to the
- * top-right corner rather than stretching it down a card whose
- * height it doesn't control. */
-.entity-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 1.25rem;
-  align-items: start;
+}
+/* The card's own content: what it is on top, what you can do with it at
+ * the bottom, whatever height the stub turns out to set. */
+.entity-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
 .entity-text {
   display: flex;
@@ -83,9 +83,9 @@ defineEmits<{ "copy-qr": [] }>();
   min-width: 0;
 }
 /* Slot content carries the calling page's scope id, not this
- * component's, so the heading / paragraph resets have to reach
- * through ``:deep``. Scoped to the wrapper element so they can't
- * touch anything else on the card. */
+ * component's, so the heading / paragraph resets have to reach through
+ * ``:deep``. Scoped to the wrapper element so they can't touch anything
+ * else on the card. */
 .entity-title :deep(h3) {
   margin: 0;
 }
@@ -98,15 +98,11 @@ defineEmits<{ "copy-qr": [] }>();
   margin: 0;
   font-size: 0.875rem;
 }
-.entity-link {
-  margin-top: 0.125rem;
-}
 
-/* One baseline for everything actionable, with the count as the
- * right-hand summary figure. Wraps on the narrowest screens; the
- * ``margin-left: auto`` keeps the count right-aligned either way,
- * so the card never grows a third alignment. */
+/* One baseline for everything actionable, at the bottom of the column,
+ * with the count as the right-hand summary figure. */
 .entity-footer {
+  margin-top: auto;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -122,19 +118,11 @@ defineEmits<{ "copy-qr": [] }>();
   white-space: nowrap;
 }
 
-/* The QR is 96px of the highest-contrast pixels on the page, and
- * on a phone it is also the least useful thing there: you cannot
- * scan it with the device already displaying it, and pasting an
- * image out of the clipboard is a desktop job. Stacked under the
- * text it left a block dangling in a corner with nothing aligned
- * to it, which is what made these cards read as disorganised. The
- * same QR, full size, is on the entity's details page. */
-@media (max-width: 540px) {
-  .entity-body {
+/* One column on a phone; the stub's own media query flips it to the
+ * bottom strip. */
+@media (max-width: 480px) {
+  .entity-card {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .qr-button {
-    display: none;
   }
 }
 </style>

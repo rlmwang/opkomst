@@ -123,12 +123,21 @@ class Settings(BaseSettings):
     support_coffee_url: _OptionalStr = None
     support_patreon_url: _OptionalStr = None
 
-    # Who answers a privacy question, named on ``/privacy``. Optional
-    # only so the app boots without it; a deployment that shows the page
-    # to the public should set it, and the page says as much when it is
-    # missing rather than pretending there is nobody to ask.
-    privacy_contact_email: _OptionalStr = None
-    privacy_controller: _OptionalStr = None
+    # Who runs this installation. Named on ``/privacy`` and on
+    # ``/voorwaarden``, and in the footer of the written pages, because
+    # a service has to say who is behind it and where to reach them
+    # (art. 3:15d BW).
+    #
+    # Four fields rather than one sentence: what has to be shown differs
+    # per deployment. A private person running it for free is a name and
+    # an address to write to; a registered entity adds a place of
+    # business and a chamber-of-commerce number. Each is rendered only
+    # when it is set, so nothing is invented and nothing is a
+    # placeholder.
+    provider_name: _OptionalStr = None
+    provider_email: _OptionalStr = None
+    provider_address: _OptionalStr = None
+    provider_kvk: _OptionalStr = None
 
     sentry_dsn: _OptionalStr = None
     sentry_environment: str = "production"

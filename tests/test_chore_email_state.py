@@ -36,7 +36,11 @@ def _roster(client: Any, headers: Any) -> dict[str, Any]:
 
 
 def _volunteer(db: Any, roster_id: str) -> Volunteer | None:
-    db.rollback()  # fresh READ COMMITTED snapshot of what the API committed
+    # Drop what this session has cached and read the request's writes
+    # again. It used to be ``rollback()``, back when the request
+    # committed for real; inside the test transaction that would throw
+    # the request's work away with it.
+    db.expire_all()
     return db.query(Volunteer).filter(Volunteer.roster_id == roster_id).first()
 
 

@@ -1,275 +1,30 @@
-# Design: respondent edit link (magic link to revisit a submission)
+# The edit link
 
-Status: proposed. Lets a public respondent go back and change what they
-submitted, for all three entity types (event sign-up, form submission,
-datepoll submission), via a per-submission magic link shown on the
-confirmation page.
+Somebody who fills in a public page gets a secret link back to what they
+sent. It is the only way back, and it is shown once, on the
+confirmation screen, with a copy button.
 
-## Goal & UX
+There are no accounts on the public side, so the link is the identity.
+The token is stored hashed; the plaintext exists in that URL and
+nowhere else. Nobody can re-send it, and the page says so.
 
-After submitting, the confirmation card shows a **magic edit link** with
-a **copy button** (the same copy affordance used elsewhere), a one-line
-explainer, and a warning that the link can't be recovered once the page
-is closed.
+What the link opens depends on the product. A sign-up, a questionnaire
+answer, a date-poll answer and a kompas result open for editing. A quiz
+result opens read-only, because seeing the score and then changing the
+answers is the definition of cheating. A roster's link opens the
+volunteer's own page, which is the product rather than a submission.
 
-```
-┌───────────────────────────────────────────────┐
-│  Bedankt!                                       │
-│  Je reactie is binnen.                          │
-│                                                 │
-│  Wil je je antwoord later aanpassen?            │
-│  https://opkomst.nu/d/ab12cd34?s=…   [Kopieer]  │
-│  Bewaar deze link — we kunnen 'm niet opnieuw   │
-│  sturen nadat je deze pagina sluit.             │
-└───────────────────────────────────────────────┘
-```
+Two switches the organiser owns:
 
-Opening the link reloads the same public page **pre-filled** with the
-prior answers, in "edit" mode; submitting updates the existing
-submission in place (no second row) and shows the confirmation again
-(with the same link — it stays valid for repeat edits).
+* **`answers_editable`** decides whether the link may still change
+  anything. Off when the headcount or the date has to stop moving. It
+  never closes the link itself, and it never blocks withdrawing:
+  taking your answers back is a different right.
+* **`name_required`** decides whether a public write is refused without
+  a name. Off by default on all six products: a name real or not is
+  what the contract offers, so an empty box is an answer.
 
-## URL scheme
-
-Reuse the existing public mini-apps; the token rides as a query param so
-no new server route or HTML entry is needed:
-
-```
-/e/{slug}?s={token}    event sign-up
-/f/{slug}?s={token}    form
-/d/{slug}?s={token}    datepoll
-```
-
-The mini-app reads `?s=`; if present it fetches the submission by token,
-pre-fills, and switches submit → update. The token is globally unique
-(it identifies the submission on its own); the slug just routes to the
-right bundle.
-
-## Token
-
-- A secret `secrets.token_urlsafe(32)` (~256 bits — brute force
-  infeasible), minted when the submission is created.
-- **Stored hashed.** Only `sha256(token)` (hex) is persisted, in an
-  `edit_token_hash` column on the submission row. The raw token lives
-  only in the user's URL, so a DB dump can't reconstruct working edit
-  links. (This diverges from the plaintext `LoginToken` /
-  `FeedbackToken` tables; the stronger posture is warranted for a
-  long-lived capability secret.)
-- **Returned exactly once**, in the submit response, so the
-  confirmation page can render the link. Never stored raw, never in any
-  other endpoint, never recoverable — matches the "can't be recovered"
-  copy.
-- **Reusable, not single-use** (unlike the feedback token): the same
-  link edits repeatedly. It stops working when the public page does —
-  410 once the entity is archived (events: also once the event is past,
-  matching the public page's own cutoff). No expiry table, no reaper:
-  the hash lives on the submission row and is cascade-deleted with it.
-
-## Data model
-
-One nullable column per submission row — no new tables, no polymorphic
-discriminator:
-
-```
-signups.edit_token_hash              text null   -- + unique partial index (where not null)
-form_submissions.edit_token_hash     text null   -- + unique partial index
-datepoll_submissions.edit_token_hash text null   -- + unique partial index
-```
-
-`new()` shape lives in a shared helper so the three sites can't drift:
-
-```python
-# backend/services/edit_token.py
-def new_edit_token() -> tuple[str, str]:
-    """Return (raw, sha256-hex). Store the hash; hand the raw to the
-    client once."""
-def hash_edit_token(raw: str) -> str: ...
-```
-
-One migration adds the three columns + their unique partial indexes.
-Existing rows get `NULL` (their links never existed — fine).
-
-## API
-
-Per resource, three touch-points:
-
-| Method | Path | Change |
-|---|---|---|
-| POST | `…/signups` · `…/by-slug/{slug}/submit` | mint token on create; return raw `edit_token` in the response |
-| GET | `/api/v1/{resource}/by-token/{token}` | the submission's current values for pre-fill (+ the entity context the page already needs) |
-| PUT | `/api/v1/{resource}/by-token/{token}` | update the submission in place |
-
-- The by-token endpoints are **unauthenticated** — the token *is* the
-  capability. Lookup is `WHERE edit_token_hash = sha256(token)`.
-- `404` for an unknown/empty token; `410` when the entity is no longer
-  live (archived; events also past), same predicate the public page
-  uses.
-- Rate-limited with `Limits.PUBLIC_SUBMIT` (GET and PUT) — token entropy
-  makes brute force pointless, but cap it anyway.
-- The submit response carries the raw token. Shapes:
-  - Forms: `FormSubmitAck` gains `edit_token`.
-  - Datepolls: the bare-201 submit now returns `{ edit_token }`.
-  - Events: the sign-up response returns `{ edit_token }`.
-
-## Per-entity edit semantics
-
-**Forms** (simplest): `GET by-token` returns `display_name` + answers
-keyed by question id, plus the `PublicFormOut` shape so the page renders.
-`PUT` re-runs the submit logic against the existing submission: replace
-its `FormResponse` rows (delete + re-insert from the payload) and update
-`display_name`. Same per-kind validation as submit.
-
-**Datepolls**: `GET by-token` returns `display_name` + per-date
-availability/comments + the `PublicDatepollOut`. `PUT` replaces the
-submission's `DatepollResponse` rows and updates `display_name`.
-
-**Events** (non-email fields): `GET by-token` returns `display_name`,
-`party_size`, `source_choice`, `help_choices` (+ the `EventOut` the page
-needs). `PUT` updates those four fields on the `Signup` row with the
-same validation as sign-up (e.g. `help_choices` ⊆ event's
-`help_options`).
-
-**Email cannot be edited through the link — structurally, not as a
-deferral.** `EmailDispatch` carries no `signup_id` (principle #2: the
-signup graph and the dispatch graph share only `Event`, never each
-other). So a `Signup` reached via the edit token has **no key to its
-pending email record** — there is no way to find, replace, or even
-confirm the address from the submission side. Enabling email editing
-would mean adding that `signup_id` link, which is exactly the
-cross-reference the decoupling forbids (it would make "which signup got
-which email" answerable from the schema). We will not add it. The
-public edit page therefore hides the email field + email explainer in
-edit mode; a respondent who needs a different email re-signs-up.
-
-## The organiser's two switches
-
-Added after the first four products shipped, and now on all six.
-
-**`answers_editable`** (Event, Form, Datepoll; default on). Whether
-somebody may reopen their own link and change what they said. On by
-default because an answer nobody can correct is an answer nobody
-updates, and a sign-up nobody can correct becomes one nobody cancels.
-Off when the headcount or the date is being acted on and has to stop
-moving. Enforced in `services/public_access.assert_answers_editable`,
-called from every `PUT by-token`; the public pages drop Save and Revert
-(`PublicEditBar`'s `canEdit`) and the kompas result drops its "change
-your answers" button.
-
-Three things it deliberately does not touch:
-
-* **Withdrawing.** Taking your answers back is a different right and not
-  the organiser's to close, so `POST by-token/withdraw` never asks.
-* **Reading.** The link still opens: seeing what you said is the other
-  half of what it is for. The copy changes instead
-  (`chromeStrings.editPromptReadonly`).
-* **Quizzes and rosters.** A quiz has no edit path at all (score first,
-  edit after, is the definition of cheating) and a roster's by-token
-  page is the product rather than a submission to reopen. Neither
-  carries the column.
-
-**`name_required`** (all six; default off). Whether a public write is
-refused without a (pseudo)name. Off everywhere, because a name real or
-not is what the contract offers and an empty box is an answer; on when
-the answers are only useful attached to somebody, which is most often a
-chore roster. Enforced in
-`services/public_access.assert_name_given` on every public create *and*
-edit path, and carried on the public payload so the mini-app knows
-whether to insist. `DisplayName` collapses whitespace to null before
-the check, so a spacebar is not a name.
-
-**The link is shown, not implied.** Every mini-app ends on the secret
-link with a copy button (`public_shared/EditLink.vue`), including the
-quiz and the kompas, whose result screens are their confirmation.
-
-## Privacy analysis
-
-This intentionally introduces the one thing the submission-shapes
-principle (§17) called out as absent — a **read-back path from an id to
-a submission**. It's safe because:
-
-- The read-back is **capability-gated by a secret the server can't
-  reproduce** (only the hash is stored). Knowing a slug, or dumping the
-  DB, yields no working edit link.
-- The token is **never exposed to the organiser** — it's excluded from
-  every organiser/public DTO and appears only in the one-time submit
-  response to the submitter. So it does not let anyone map submissions
-  back to people; only the submitter, holding their own secret, can
-  revisit their own submission.
-- **Email is never read back or editable** (events). This isn't a
-  policy choice the edit endpoint enforces — it falls out of the schema:
-  `EmailDispatch` has no `signup_id`, so the `Signup` the token resolves
-  to simply has no path to its pending email record. The encryption /
-  wipe / no-email-to-organiser invariants are untouched, and the edit
-  feature adds no new cross-link.
-- `FeedbackResponse` still has no `signup_id`; nothing here adds a
-  cross-link.
-
-Static tests to add: the organiser + public list/detail DTOs never carry
-`edit_token`/`edit_token_hash`; the events by-token GET response has no
-email field; a tampered/absent token 404s.
-
-## Frontend
-
-- **Shared `EditLink.vue`** (in `public_shared/`): renders the link +
-  copy button (inline `navigator.clipboard.writeText`, the public
-  mini-apps' lightweight pattern) + explainer + "not recoverable"
-  warning. Used by all three confirmation cards. Copy/explainer strings
-  go in `public_shared/strings.ts` (`chromeStrings`) so the three read
-  identically.
-- Each mini-app: on mount, read `?s=`; if present, `GET by-token` →
-  pre-fill state + set an `editing` flag; the submit handler targets
-  `PUT by-token` instead of POST. On success, show the confirmation with
-  the (unchanged) link again.
-- The submit/PUT response's `edit_token` is stored in component state and
-  passed to `EditLink` to build `${location.origin}${path}?s=${token}`.
-- Hand-written `public_*/api.ts` types gain `edit_token` on the submit
-  response + the by-token fetch/update calls.
-
-## Migration / tests / rollout
-
-- One Alembic migration: three nullable `edit_token_hash` columns + unique
-  partial indexes; `downgrade base; upgrade head` idempotent.
-- `make openapi` for the ack + by-token schema changes.
-- Backend tests: mint → GET by-token pre-fill → PUT → values updated, one
-  row only (per resource); wrong/absent token 404; archived entity 410;
-  rate limit fires; organiser DTOs exclude the token; events edit leaves
-  email + dispatches untouched.
-- e2e: submit → copy link → open link → change an answer → resubmit →
-  confirmation reflects the change.
-- Pre-launch, no backfill. No new cron.
-
-## Recovery by organisers
-
-A participant who loses their link can ask an organiser to recover it —
-shared infrastructure across all four submission rows (Signup,
-FormSubmission, DatepollSubmission, Volunteer) via `EditTokenMixin` +
-`edit_token.recover`:
-
-- **Rotate, never reveal.** Only the hash is stored, so the server cannot
-  show the existing link. Recovery mints a fresh token over the old hash:
-  the old link stops working and the new raw token is returned to the
-  organiser exactly once (`POST .../{child_id}/edit-link`,
-  organiser-scoped, rate-limited).
-- **Permanent transparency stamp.** Every recovery sets
-  `link_recovered_at` (latest copy wins; never cleared). Non-NULL means
-  "an organiser has held this row's secret link at least once", and the
-  public edit page renders a permanent notice banner
-  (`public_shared/RecoveredNotice.vue`) with the date and what to do if
-  the copy wasn't requested (withdraw + resubmit mints a fresh, unshared
-  link).
-- **UI**: each details page's participants count-pill opens the shared
-  `RecoverLinksPill` popover — one row per participant with a copy
-  button, confirm-gated (the action invalidates the old link and brands
-  the participant's page, so no silent one-click), then the new public
-  URL lands on the organiser's clipboard.
-
-## Decisions taken
-
-1. **Hashed at rest** (sha256), raw returned once. (confirmed)
-2. **Events: non-email fields only** — email is *structurally*
-   un-editable (no `signup_id` on `EmailDispatch`; principle #2), not a
-   deferred feature. (confirmed)
-3. **Reusable link, live-while-entity-is-live**, 410 when archived/past;
-   no expiry table, no reaper. (confirmed)
-4. **URL form** — query param `?s={token}` vs path `/…/edit/{token}`.
-   See "URL form trade-offs" below. (recommendation: query param)
+An organiser can mint a fresh link for somebody who lost theirs. That
+is recorded on the submission and shown on the respondent's page, so a
+link that was handed over does not look like a link that was never
+touched.

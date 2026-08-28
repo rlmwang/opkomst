@@ -492,8 +492,9 @@ async function exportCsv() {
 </template>
 
 <style scoped>
-/* The overview card (.overview*, .detail-image, .qr*) and the
- * .summary-header / .header-actions row are shared from theme.css. */
+/* The overview card is ``DetailHeaderCard`` and owns its own layout;
+ * ``.overview-meta`` and the .summary-header / .header-actions row come
+ * from theme.css. */
 
 /* Kompas: the map card's two axis readouts. */
 .axis-stats {

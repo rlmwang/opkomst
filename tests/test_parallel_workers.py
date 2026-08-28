@@ -19,7 +19,8 @@ from backend.models import EmailChannel, EmailStatus, Registration, Signup
 from backend.services import mail_lifecycle
 
 
-def test_parallel_reminder_sweeps_send_each_row_once(db: Any, fake_email: Any) -> None:
+def test_parallel_reminder_sweeps_send_each_row_once(truncating_db: Any, fake_email: Any) -> None:
+    db = truncating_db
     e = make_event(db, starts_in=timedelta(hours=24))
     signups = [
         make_signup(
@@ -55,10 +56,11 @@ def test_parallel_reminder_sweeps_send_each_row_once(db: Any, fake_email: Any) -
         fresh.close()
 
 
-def test_parallel_feedback_sweeps_send_each_row_once(db: Any, fake_email: Any) -> None:
+def test_parallel_feedback_sweeps_send_each_row_once(truncating_db: Any, fake_email: Any) -> None:
     """Same conditional-UPDATE atomic-claim contract on the
     feedback channel. Event ended ≥24h ago so the channel applies;
     two simultaneous sweeps must not double-send."""
+    db = truncating_db
     e = make_event(db, starts_in=timedelta(hours=-30), duration=timedelta(hours=2))
     signups = [
         make_signup(

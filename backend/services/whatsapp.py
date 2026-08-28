@@ -228,7 +228,7 @@ async def delete_instance() -> None:
     # Evolution requires logout before delete on a connected session.
     try:
         await logout()
-    except Exception:
+    except Exception:  # noqa: S110 — logout is a courtesy; the delete below is the point
         pass
     res = await _request("DELETE", f"/instance/delete/{instance}")
     logger.info("whatsapp.delete", outcome="ok" if res.status_code < 400 else "error", status=res.status_code)
@@ -288,7 +288,7 @@ async def send_text(number: str, text: str) -> dict[str, Any]:
             _consecutive_send_failures = 0
             try:
                 await delete_instance()
-            except Exception:
+            except Exception:  # noqa: S110 — tearing down a zombie; the original error re-raises
                 pass
         raise err
 

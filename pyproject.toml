@@ -9,9 +9,9 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "sqlalchemy>=2.0",
-    "psycopg[binary]>=3.2",
+    "psycopg[binary]>=3.3.4",
     "alembic>=1.13",
-    "pydantic[email]>=2.11",
+    "pydantic[email]>=2.13.4",
     "pydantic-settings>=2.6",
     # JWT signing/verifying. ``pyjwt`` is the canonical library
     # and is actively maintained; ``python-jose`` has had security
@@ -63,12 +63,25 @@ line-length = 120
 extend-exclude = ["backend/alembic/versions"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP"]
+# ``S`` is flake8-bandit: the cheap half of SAST, run by the linter we
+# already run on every commit (weak crypto, shell injection, unsafe
+# deserialisation, bound-to-all-interfaces). CodeQL in the security
+# workflow does the taint analysis this can't.
+select = ["E", "F", "W", "I", "B", "UP", "S"]
 # B008 fires on every FastAPI ``Depends(...)`` default — that's the
 # canonical pattern, not a bug. UP047 wants PEP 695 generics, but
 # we're staying on classic ``TypeVar`` for compatibility with
-# SQLAlchemy mapper introspection.
-ignore = ["B008", "UP047"]
+# SQLAlchemy mapper introspection. S101 is ``assert``, which this
+# codebase uses to narrow a type for pyright, never to validate input.
+# S105/S106 flag any constant whose *name* contains "token" — every hit
+# is a sentinel or a fixture, and real leaked secrets are gitleaks'
+# and GitHub push-protection's job.
+ignore = ["B008", "UP047", "S101", "S105", "S106"]
+
+[tool.ruff.lint.per-file-ignores]
+# A test suite asserts, seeds fake credentials, and writes literal SQL
+# on purpose. Bandit rules describe production code.
+"tests/**" = ["S"]
 
 [tool.pyright]
 include = ["backend", "tests"]
@@ -87,7 +100,14 @@ pythonVersion = "3.13"
 # collected via pytest-cov's xdist integration. Override at the
 # CLI with ``-n 0`` for single-process runs (handy when debugging
 # a fixture).
-addopts = "-n auto --dist=worksteal --cov=backend --cov-report=term-missing --cov-fail-under=64"
+# Eight workers, not ``auto`` (twelve here). Back when every test began
+# with a TRUNCATE the suite queued on the one postgres and got *slower*
+# with more workers: 40s at four, 64s at eight, 76s at twelve. Tests run
+# in a transaction now (``tests/conftest.py``), the queue is gone, and
+# the curve points the right way again: 38s at four, 22s at eight. Eight
+# rather than twelve leaves cores for the frontend build that runs
+# beside it at push time.
+addopts = "-n 8 --dist=worksteal --cov=backend --cov-report=term-missing --cov-fail-under=64"
 testpaths = ["tests"]
 
 [tool.coverage.run]

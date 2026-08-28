@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { brand } from "@/lib/branding";
-import { type Locale, GITHUB_URL, chromeStrings } from "./strings";
+import { type Locale, GITHUB_ISSUE_URL, GITHUB_URL, chromeStrings } from "./strings";
 
 /** The open-source / privacy disclosure card, shared by the public
  *  mini-apps. Collapsible ``<details>`` with the GitHub link — the
@@ -22,7 +22,11 @@ const advertising = Boolean(brand().ads?.client_id);
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ c.explainerLink }}</a>
       </p>
       <p v-if="advertising" class="body">{{ c.adDisclosure }}</p>
-      <p class="body"><a href="/privacy">{{ c.privacyLink }}</a></p>
+      <p class="body">
+        <a href="/privacy">{{ c.privacyLink }}</a>
+        ·
+        <a :href="GITHUB_ISSUE_URL" target="_blank" rel="noopener">{{ c.feedbackLink }}</a>
+      </p>
     </details>
   </div>
 </template>

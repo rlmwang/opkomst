@@ -134,10 +134,13 @@ function askArchive(p: DatepollListOut) {
 
     <template #row="{ item: p }">
       <EntityCard
+        :public-url="publicDatepollUrl(p.slug)"
         :qr-src="datepollQrUrl(p.slug)"
+        :copy-link-label="t('datepolls.share.copyLink')"
         :qr-label="t('datepolls.share.copyQr')"
         @mouseenter="prefetchDetails(p.id)"
         @focusin="prefetchDetails(p.id)"
+        @copy-link="copyLink(p.slug)"
         @copy-qr="copyQr(p.slug)"
       >
         <template #title>
@@ -151,20 +154,6 @@ function askArchive(p: DatepollListOut) {
           <p class="muted">{{ dateRange(p) }}</p>
         </template>
 
-        <template #link>
-          <div class="link-row">
-            <a :href="publicDatepollUrl(p.slug)" target="_blank" rel="noopener">{{ publicDatepollUrl(p.slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              v-tooltip.top="t('datepolls.share.copyLink')"
-              :aria-label="t('datepolls.share.copyLink')"
-              @click="copyLink(p.slug)"
-            />
-          </div>
-        </template>
 
         <template #actions>
           <router-link :to="`/datepolls/${p.id}/details`">

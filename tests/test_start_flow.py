@@ -188,7 +188,7 @@ def test_the_mail_is_written_in_the_language_the_form_was(db) -> None:
     for kind, nl_noun, en_noun in [
         ("event", "evenement", "event"),
         ("form", "vragenlijst", "form"),
-        ("datepoll", "datumprikker", "date poll"),
+        ("datepoll", "datumplanner", "date poll"),
         ("roster", "takenrooster", "chore roster"),
     ]:
         context = {

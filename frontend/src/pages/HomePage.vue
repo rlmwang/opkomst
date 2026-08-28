@@ -61,12 +61,12 @@ interface Tile {
 // date, put the event up, share out the work, ask people something,
 // and the one that is for the evening itself.
 const tiles: Tile[] = [
-  { key: "events", to: "/events", label: t("header.events"), hint: t("home.eventsHint") },
-  { key: "datepolls", to: "/datepolls", label: t("header.datepolls"), hint: t("home.datepollsHint") },
-  { key: "chores", to: "/chores", label: t("header.chores"), hint: t("home.choresHint") },
-  { key: "forms", to: "/forms", label: t("header.forms"), hint: t("home.formsHint") },
-  { key: "quizzes", to: "/quizzes", label: t("header.quizzes"), hint: t("home.quizzesHint") },
-  { key: "compasses", to: "/compasses", label: t("header.compasses"), hint: t("home.compassesHint") },
+  { key: "events", to: "/events", label: t("home.eventsTile"), hint: t("home.eventsHint") },
+  { key: "datepolls", to: "/datepolls", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
+  { key: "chores", to: "/chores", label: t("home.choresTile"), hint: t("home.choresHint") },
+  { key: "forms", to: "/forms", label: t("home.formsTile"), hint: t("home.formsHint") },
+  { key: "quizzes", to: "/quizzes", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
+  { key: "compasses", to: "/compasses", label: t("home.compassesTile"), hint: t("home.compassesHint") },
 ];
 </script>
 

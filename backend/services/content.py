@@ -50,14 +50,14 @@ PAGES: tuple[Page, ...] = (
         cta_label="Maak een evenement",
     ),
     Page(
-        slug="datumprikker-zonder-account",
-        title="Datumprikker zonder account of cookies",
+        slug="datumplanner-zonder-account",
+        title="Datumplanner zonder account of cookies",
         description=(
             "Een datum prikken met een groep, zonder dat iemand een account maakt "
-            "en zonder cookies. Wat andere datumprikkers opslaan, en wat wij niet doen."
+            "en zonder cookies. Wat andere datumplanners opslaan, en wat wij niet doen."
         ),
         cta_path="/datepolls/new",
-        cta_label="Maak een datumprikker",
+        cta_label="Maak een datumplanner",
     ),
     Page(
         slug="aanmeldformulier-zonder-google",
@@ -88,6 +88,16 @@ PAGES: tuple[Page, ...] = (
         ),
         cta_path="/quizzes/new",
         cta_label="Maak een quiz",
+    ),
+    Page(
+        slug="kieskompas-maken-zonder-onderzoeksbureau",
+        title="Een kieskompas maken voor je eigen groep",
+        description=(
+            "Twee assen die je zelf benoemt, een stuk of tien stellingen en één link. "
+            "Iedereen ziet waar diegene staat en waar de groep staat."
+        ),
+        cta_path="/compasses/new",
+        cta_label="Maak een kompas",
     ),
     Page(
         slug="vrijwilligers-inroosteren",

@@ -1,63 +1,41 @@
 # Deploying opkomst
 
-End-to-end production setup. One pass top-to-bottom and you have
-a working, monitored, backed-up opkomst deployment. The
-"Operations" section at the end covers everything that comes
-after the first green deploy.
+End-to-end production setup: one pass top to bottom leaves you with a
+working, monitored, backed-up deployment. The operations sections at the
+end cover what comes after the first green deploy.
 
-## Upgrade notes — magic-link registration unification
+For a home server rather than a VPS, `docs/deploy-raspberry-pi.md` is
+the same thing over a Cloudflare tunnel.
 
-If you're upgrading an already-deployed instance to the
-"unified magic-link sign-up" change:
-
-1. **Coolify → Scheduled Tasks**: rename the daily token-reap
-   job's command from ``python -m backend.cli reap-login-tokens``
-   to ``python -m backend.cli reap-auth-tokens`` (same `45 3 * * *`
-   schedule). The old subcommand is gone — leaving the task as-is
-   will cause cron failures.
-2. **Sentry → Crons**: the slug emitted by the new command is
-   ``opkomst-cli-reap-auth-tokens`` and is upserted automatically
-   on the first run. The old ``opkomst-cli-reap-login-tokens``
-   monitor will go silent and eventually self-archive — safe to
-   delete it manually after the new monitor records its first
-   green check-in.
-3. **No data migration needed.** The new ``registration_tokens``
-   table is empty on first deploy; the alembic migration creates
-   it. Existing ``login_tokens`` rows keep working unchanged.
-4. **No frontend route to redirect.** ``/register`` is gone; the
-   single entry point is ``/login``. Any bookmarks fall through
-   to the SPA's NotFound page. If a redirect matters for SEO,
-   add it at the proxy layer.
-
-Replace ``opkomst.nu`` with whatever domain you actually own.
-Replace ``203.0.113.42`` with your Coolify host's IP.
+Replace `opkomst.nu` with the domain you own, and the example IP with
+your host's.
 
 ## Architecture
 
 Opkomst runs as **one image, two invocation patterns** behind
 Coolify:
 
-* **API** — uvicorn behind Coolify's reverse proxy, serving both
+* **API**, uvicorn behind Coolify's reverse proxy, serving both
   the FastAPI routes (``/api/v1/*``, ``/health``) and the Vue
   SPA (every other path). Stateless.
-* **Cron jobs** — same image, different ``python -m backend.cli
+* **Cron jobs**, same image, different ``python -m backend.cli
   <verb>`` per cadence, invoked by Coolify's "Scheduled Tasks"
   feature. Each invocation does one sweep and exits. No
   long-running scheduler container.
 
 Multi-replica safety is structural: only the cron host fires
 sweeps, so scaling the API up doesn't double-send any email. We
-deliberately run a **single API replica** anyway — see "Rate
+deliberately run a **single API replica** anyway, see "Rate
 limiting" under Operations for why.
 
 **Organisations.** The app is multi-tenant: the organiser app lives at
 ``/{tenant}`` and every row carries its tenant. Which organisations
-exist is configuration, not data — the ``TENANTS`` env var
+exist is configuration, not data, the ``TENANTS`` env var
 (``rsp:RSP,rood:ROOD``) is the source of truth, and the database is
 reconciled to it in the same one-shot that runs the migrations, before
 uvicorn starts. Adding one is:
 
-1. commit ``brands/{slug}/`` — ``brand.json``, ``tokens.css``, logo and
+1. commit ``brands/{slug}/``, ``brand.json``, ``tokens.css``, logo and
    the two icons;
 2. add ``{slug}:{Name}`` to ``TENANTS`` in Coolify;
 3. deploy.
@@ -66,7 +44,7 @@ The boot creates it. A slug with no brand folder stops the boot rather
 than serving pages with no palette, so step 1 can't be skipped. Removing
 a slug from ``TENANTS`` soft-deletes that organisation: its URLs stop
 serving, every row keeps its ``tenant_id``, and putting the slug back
-brings the same rows online again. A slug is an identity — editing one
+brings the same rows online again. A slug is an identity, editing one
 in place retires an organisation and creates another, so only the
 display name is safe to change.
 
@@ -119,7 +97,7 @@ time you hit step 5.
    → click the key you just minted → add the
    ``TransactionalEmailEmailFullAccess`` permission set. Without
    it, SMTP auth fails with ``535 5.7.8 Permission denied``
-   even though the domain is verified — the key authenticates
+   even though the domain is verified, the key authenticates
    to Scaleway but isn't authorised against the TEM service.
 
 **If your VPS is on Scaleway**, use port **2587**, not 587.
@@ -127,7 +105,7 @@ Scaleway's anti-abuse policy blocks outbound 587 / 465 / 25 at
 the instance network level; their TEM service exposes submission
 on the alternate port 2587 with the same STARTTLS protocol. The
 ``smtplib.connect timed out`` you'd otherwise hit on first
-register is exactly this — port 587 is reachable from anywhere
+register is exactly this, port 587 is reachable from anywhere
 *else*, so the failure looks magical until you realise it's a
 provider-level block. Other VPS providers (Hetzner, OVH, etc.)
 generally allow 587; if you're not on Scaleway, leave it at 587.
@@ -168,16 +146,16 @@ In Coolify:
      The numbers (rationale below) cap PG's resident set at
      roughly ``shared_buffers + (max_connections × ~10 MB)`` ≈
      265 MB worst case, vs. 400+ MB on defaults.
-     * ``shared_buffers=64MB`` — main page cache. Default
+     * ``shared_buffers=64MB``, main page cache. Default
        ``128MB`` is a quarter of a 512 MB VPS on its own.
-     * ``effective_cache_size=128MB`` — planner hint, not an
+     * ``effective_cache_size=128MB``, planner hint, not an
        allocation. Default 4 GB lies to the planner about how
        much OS-level disk cache it can count on.
-     * ``work_mem=2MB`` — per-sort/-hash budget. We run
+     * ``work_mem=2MB``, per-sort/-hash budget. We run
        small SELECTs; 2 MB is plenty and caps the worst case
        (a dashboard load with several joins) at single-digit
        MB.
-     * ``max_connections=20`` — each backend process eats
+     * ``max_connections=20``, each backend process eats
        ~10 MB resident. With ``WEB_CONCURRENCY=1`` the app
        opens ≤5; the cron sweeps add 1 each, peaking around 7.
        20 leaves room for ``psql`` debugging without anyone
@@ -194,7 +172,7 @@ In Coolify:
    (the configurable ``BACKUP_DIR`` defaults to that path).
    Without the volume, backups land in ephemeral container
    storage and disappear on the next deploy. Postgres data lives
-   in its own Coolify-managed volume — that's separate.
+   in its own Coolify-managed volume, that's separate.
 
 ## 5. Application env vars
 
@@ -211,7 +189,7 @@ PUBLIC_BASE_URL=https://opkomst.nu
 CORS_ORIGINS=https://opkomst.nu
 MESSAGE_ID_DOMAIN=opkomst.nu
 
-# Email — note port 2587, not the SMTP-standard 587. Scaleway
+# Email, note port 2587, not the SMTP-standard 587. Scaleway
 # blocks outbound 587 / 465 / 25 from their VPS instances at the
 # network level (anti-abuse) and exposes TEM submission on the
 # alternate port 2587 with the same STARTTLS protocol. Same host,
@@ -227,7 +205,7 @@ SMTP_FROM=noreply@opkomst.nu
 # auto-promotes to admin. Set to your own email.
 BOOTSTRAP_ADMIN_EMAIL=you@example.com
 
-# Sentry — fill in after step 9. Both backend and frontend read
+# Sentry, fill in after step 9. Both backend and frontend read
 # the same DSN; the frontend reads VITE_-prefixed copies because
 # Vite only injects those into the client bundle.
 SENTRY_DSN=
@@ -237,7 +215,7 @@ VITE_SENTRY_DSN=
 VITE_SENTRY_ENVIRONMENT=production
 VITE_SENTRY_TRACES_SAMPLE_RATE=0
 
-# Backups — used by scripts/backup.sh in step 7. Default
+# Backups, used by scripts/backup.sh in step 7. Default
 # /app/data/backups maps to a Coolify Persistent Volume mounted at
 # /app/data; without that mount the cron writes to ephemeral
 # container storage and the file vanishes on the next deploy.
@@ -248,7 +226,7 @@ RETENTION_DAYS=30
 RATE_LIMIT_STORAGE_URI=memory://
 # One uvicorn worker. The Dockerfile default is also 1; this is
 # here so the deployer can bump it if the VPS gets RAM to spare.
-# Each worker holds ~150–200 MB of Python + SQLAlchemy +
+# Each worker holds ~150-200 MB of Python + SQLAlchemy +
 # Pydantic + Sentry state, so on a 512 MB VPS doubling workers
 # halves your effective free memory.
 WEB_CONCURRENCY=1
@@ -305,8 +283,10 @@ SUPPORT_PATREON_URL=
 # consent dialog links to that page as "learn more", so set the
 # contact before pointing AdSense at it: without one the page
 # says no contact is configured.
-PRIVACY_CONTACT_EMAIL=
-PRIVACY_CONTROLLER=
+PROVIDER_NAME=
+PROVIDER_EMAIL=
+PROVIDER_ADDRESS=
+PROVIDER_KVK=
 ```
 
 Click **Deploy**. The container builds, the bootstrap module
@@ -316,7 +296,7 @@ SPA on ``https://opkomst.nu``. The Dockerfile ships a built-in
 automatically.
 
 Verify cheap healthcheck: ``curl https://opkomst.nu/health``
-returns ``{"status":"ok"}`` (Coolify pings this every 30 s — kept
+returns ``{"status":"ok"}`` (Coolify pings this every 30 s, kept
 constant-time on purpose). For the full introspection payload
 (``schema_head``, ``oldest_pending_dispatch_age_seconds``,
 ``disk_free_gb``, ``email_executor_max_workers``, DB connectivity),
@@ -352,7 +332,7 @@ tick's hiccup never silently masks a real bug.
 
 The very first completion matching ``BOOTSTRAP_ADMIN_EMAIL``
 gets ``role=admin, is_approved=true``. Requires SMTP from step 3
-to be live — the magic link goes out over the same TEM hop.
+to be live, the magic link goes out over the same TEM hop.
 
 1. Open ``https://opkomst.nu/login``.
 2. Enter the email you set as ``BOOTSTRAP_ADMIN_EMAIL``. Submit.
@@ -381,7 +361,7 @@ script:
 
 Make sure the cron host has ``pg_dump`` available and a writable
 ``BACKUP_DIR``. Coolify by default runs Scheduled Tasks inside
-the application container — both apply.
+the application container, both apply.
 
 **Verify once, manually:**
 
@@ -402,13 +382,13 @@ restore. ``docs/runbook.md`` → "Backups" has the command.
 Free tier is more than enough for opkomst's scale.
 
 1. Sign up at https://sentry.io. Create a project, select **Vue**
-   (or **FastAPI** — either works; we set both).
+   (or **FastAPI**, either works; we set both).
 2. **Settings → Client Keys (DSN)** → copy the DSN.
 3. Coolify env: set both ``SENTRY_DSN`` and ``VITE_SENTRY_DSN``
    to the DSN. Redeploy.
 4. **Alerts → Create Alert** → "An issue is first seen this
    week" → Action: send email to you.
-5. **Crons** — no manual setup. Each cron run sends a
+5. **Crons**, no manual setup. Each cron run sends a
    ``capture_checkin`` start + finish, and the in-progress
    check-in carries a ``monitor_config`` (schedule + margin +
    max_runtime) that upserts the monitor on first run.
@@ -432,13 +412,13 @@ Free tier is more than enough for opkomst's scale.
    appears in Sentry → **Crons** (or Insights → Crons,
    depending on UI version) and starts paging on missed
    schedule + margin windows. The ``migrate`` and ``seed-demo``
-   subcommands deliberately do *not* send check-ins — neither
+   subcommands deliberately do *not* send check-ins, neither
    is a scheduled cron.
 6. **Sentry → Insights → Uptime** (or **Crons → Uptime**
    depending on UI version) → **Add Monitor**. Pure UI, no SDK
    side; Sentry uptime checks are independent of
    ``capture_checkin``.
-   - URL: ``https://opkomst.nu/health/full`` — same target as
+   - URL: ``https://opkomst.nu/health/full``, same target as
      UptimeRobot below for the same reason: ``/health/full`` runs
      ``SELECT 1`` and returns **HTTP 503** when the DB is
      unreachable, so a plain HTTP-status check catches it. Cheap
@@ -451,28 +431,28 @@ Free tier is more than enough for opkomst's scale.
      issue alert in step 4.
 
    Why both Sentry Uptime *and* UptimeRobot in step 10? Different
-   failure modes. UptimeRobot is independent and off-network — it
+   failure modes. UptimeRobot is independent and off-network, it
    catches "the whole VPS is dead, including Sentry". Sentry
    Uptime correlates failures with Sentry's exception + cron
    view, so a check failure shows you "the 500 that fired one
    minute earlier" in the same UI. Free Developer tier currently
    includes one uptime monitor; one is plenty for opkomst.
 
-## 10. UptimeRobot (load-bearing — do this even if you skip Sentry)
+## 10. UptimeRobot (load-bearing, do this even if you skip Sentry)
 
 This is the only channel that catches "the whole VPS is dead".
 Free tier, 5-min interval, takes 3 minutes.
 
 1. Sign up at https://uptimerobot.com (no credit card).
 2. **+ Add Monitor → HTTP(s)**:
-   - URL: ``https://opkomst.nu/health/full`` — must use ``/full``
+   - URL: ``https://opkomst.nu/health/full``, must use ``/full``
      here, not the cheap ``/health``: only the full route runs
      ``SELECT 1`` and returns **HTTP 503** when the DB is
      unreachable. Cheap ``/health`` always returns 200 (for
      Coolify's container healthcheck) and would never trip an
      uptime alert on a degraded DB.
    - Monitoring interval: 5 minutes.
-   - No keyword/advanced setup needed — UptimeRobot's free tier
+   - No keyword/advanced setup needed, UptimeRobot's free tier
      no longer includes keyword monitoring, and the 503-on-
      degraded design means a plain HTTP-status check is enough.
 3. **Alert Contacts** → add your email + (optional) push to
@@ -496,7 +476,7 @@ Catches crash loops between UptimeRobot's 5-min pings.
 Run through this in order:
 
 ```bash
-# 1. App is up (introspection payload — cheap /health just
+# 1. App is up (introspection payload, cheap /health just
 # returns {"status":"ok"} and is for Coolify, not humans)
 curl -fsS https://opkomst.nu/health/full | jq .
 # {"status":"ok","db_connectivity":true,"schema_head":"<rev>",...}
@@ -518,7 +498,7 @@ curl -fsS https://opkomst.nu/health/full | jq .
 # a token → 401, doesn't fire Sentry; instead force a 500
 # during initial QA via a sandbox deploy).
 
-# 5. Backups land — exec into the API container and check the
+# 5. Backups land, exec into the API container and check the
 # Persistent Volume mount.
 ls -la /app/data/backups/
 # At least one file from the last 24h.
@@ -693,13 +673,46 @@ If the tab is there but the QR never appears: see
 ``docs/runbook.md`` § "QR code won't scan / pairing won't
 complete".
 
-## 14. Day-to-day
+## 14. The deploy gate
+
+Coolify deploys every push to ``main``. That is the whole pipeline and
+it is fine, the only thing it was missing is a reason to believe the
+commit works. So protect the branch instead of rewiring the deploy:
+
+**GitHub → Settings → Branches → Add branch ruleset** for ``main``:
+
+* **Require a pull request before merging** (approvals: 0 is fine for
+  a solo repo).
+* **Require status checks to pass**, and pick ``backend``,
+  ``frontend``, ``schema-drift``, ``image`` and ``e2e``.
+* **Require branches to be up to date before merging**, without this
+  a PR can go green against a stale base and merge something no run
+  ever saw.
+
+Work lands on ``develop``, which CI also builds. When it is ready,
+open a PR into ``main`` and merge it when the checks are green;
+Coolify picks up the merge commit and deploys it, exactly as it does
+now. Nothing to configure on the Coolify side, and no deploy
+credentials in GitHub.
+
+If a deploy goes wrong anyway: Coolify → application → Deployments →
+**Rollback** restores the previous image, and the uptime monitor from
+§ 12 is what tells you it happened.
+
+## 15. Day-to-day
 
 Once setup is complete, the system runs on its own:
 
-* **Code changes** → push to ``main`` → Coolify auto-deploys.
-* **CI** runs ruff, pyright, pytest (with coverage gate),
-  schema-drift, migration idempotency, e2e on every PR.
+* **Code changes** → PR into ``main`` → green CI → deploy (above).
+* **CI** runs ruff (with flake8-bandit), pyright, pytest (with
+  coverage gate), schema-drift, migration idempotency, a Docker build
+  with a Trivy scan and a boot smoke-test, and e2e, on ``develop``,
+  on every PR, and on ``main``.
+* **Security** is its own workflow: pip-audit, ``npm audit``,
+  dependency-review, CodeQL, gitleaks and zizmor, on every PR and
+  every Monday morning. It does not gate the deploy, a fresh
+  advisory in a transitive dep is not a reason to block a hotfix 
+  but a red run there is a job for that week, not next quarter.
 * **Dependabot** opens grouped weekly PRs for uv, npm, and
   github-actions. Click green, merge.
 * **Quarterly**: run the restore drill (``docs/runbook.md``).
@@ -713,7 +726,7 @@ Once setup is complete, the system runs on its own:
 
 Opkomst uses ``slowapi`` for per-IP rate limits. The default
 storage backend is in-process memory (``memory://``), which means
-each replica counts independently — running ``N`` replicas would
+each replica counts independently, running ``N`` replicas would
 multiply effective limits by ``N``.
 
 **Decision: opkomst runs as a single API replica**, behind
@@ -731,9 +744,9 @@ multi-replica still won't double-send any email.
 
 ## Rotating secrets
 
-* **``JWT_SECRET``** — invalidates every existing session. Users
+* **``JWT_SECRET``**, invalidates every existing session. Users
   get re-prompted to log in. No data loss.
-* **``EMAIL_ENCRYPTION_KEY``** — invalidates every encrypted
+* **``EMAIL_ENCRYPTION_KEY``**, invalidates every encrypted
   email blob currently in flight. Any signup whose email hasn't
   been decrypted yet (status: ``pending``) loses the ability to
   receive a feedback email; the worker will mark them ``failed``
@@ -774,5 +787,5 @@ docker run --rm -p 8000:8000 --env-file .env opkomst:latest
 ```
 
 For *development* (Vite hot-reload + uvicorn ``--reload``), see
-the README — that's a different mode and not what this doc
+the README, that's a different mode and not what this doc
 covers.
