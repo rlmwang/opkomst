@@ -194,7 +194,7 @@ klopt elke versie; naast elkaar is het een sjabloon met andere
 zelfstandige naamwoorden erin.
 
 Wat we deden: de uitleg over inloggen zonder wachtwoord staat nu één
-keer helemaal uitgeschreven, op de datumprikker-pagina. De
+keer helemaal uitgeschreven, op de datumplanner-pagina. De
 formulierpagina zegt het in twee kortere zinnen, de roosterpagina
 verwijst ernaar.
 

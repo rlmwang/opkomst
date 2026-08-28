@@ -25,10 +25,11 @@ const PUBLIC_MINI_APP = /^\/[efdcqk]\/[^/?#]+\/?$/;
 const CONTENT_PATHS = [
   "/privacy",
   "/aanmeldpagina-voor-je-evenement",
-  "/datumprikker-zonder-account",
+  "/datumplanner-zonder-account",
   "/aanmeldformulier-zonder-google",
   "/wat-gebeurt-er-met-je-mailadres",
   "/pubquiz-maken-zonder-account",
+  "/kieskompas-maken-zonder-onderzoeksbureau",
   "/vrijwilligers-inroosteren",
 ];
 

@@ -1096,7 +1096,7 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
         _respond(meeting.id, slots, "Anoniem", None, ["maybe", "yes", "maybe"])
 
     # --- B. active, no responses yet ---------------------------------
-    outing = _poll("Teamuitje datumprikker", "Zoek een zaterdag voor het teamuitje.")
+    outing = _poll("Teamuitje datumplanner", "Zoek een zaterdag voor het teamuitje.")
     if outing is not None:
         _slot(outing.id, today + timedelta(days=12))
         _slot(outing.id, today + timedelta(days=19))
@@ -1105,7 +1105,7 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
     # --- C. archived, with responses ---------------------------------
     visit = _poll(
         "Locatiebezoek",
-        "Datumprikker voor het locatiebezoek — inmiddels geweest.",
+        "Datumplanner voor het locatiebezoek — inmiddels geweest.",
         archived_at=now - timedelta(days=5),
     )
     if visit is not None:

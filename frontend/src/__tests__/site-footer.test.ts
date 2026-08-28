@@ -59,7 +59,7 @@ describe("SiteFooter", () => {
   it.each(INDEXED)("renders on %s, the pages a stranger lands on", async (path) => {
     const wrapper = await mountAt(path);
     const hrefs = wrapper.findAll("a").map((a) => a.attributes("href"));
-    expect(hrefs).toContain("/datumprikker-zonder-account");
+    expect(hrefs).toContain("/datumplanner-zonder-account");
     expect(hrefs).toContain("/aanmeldformulier-zonder-google");
     expect(hrefs).toContain("/wat-gebeurt-er-met-je-mailadres");
     expect(hrefs).toContain("/vrijwilligers-inroosteren");

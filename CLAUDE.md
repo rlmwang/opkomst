@@ -6,6 +6,48 @@
 
 **#2 Rule: Never contradict the user's direct instructions.** When the user gives an explicit directive, implement it. Do not argue, defer, or propose alternatives unless asked. Do not claim work is done without actually testing it end-to-end.
 
+## Working rules
+
+Standing feedback, all of it earned the hard way. Same weight as the two
+rules above.
+
+**Answering**
+
+- **Be terse.** A sentence or two. A side note is one sentence: "I accidentally committed some other work, but restored it." Never recount what you did, how you verified it, or what you considered.
+- **Plain english.** State what is true, what it costs, what the options are. No imagined consequences, no rhetorical flourishes, no moralizing.
+- **Never an emdash or en-dash.** Anywhere: chat, code, comments, docs, commit messages, i18n strings, email templates. Use a comma, parens, a colon, or a period.
+- **Ask with `AskUserQuestion`**, as concrete options. Not a paragraph ending in a question mark.
+
+**Working**
+
+- **No verification theater.** Make the edit and stop. No screenshot scripts, no re-running suites to prove a CSS or copy change. The user runs the app.
+- **Build exactly what was asked.** No invented gates, thresholds, smart empty states, or extra breakpoints. "A search bar" means always there.
+- **Write product code inline.** Never hand a whole implementation to one background agent. Read-only research fan-out is fine.
+- **A UI complaint is about one screen.** Fix the viewport the user was looking at; leave the other pixel-identical. Ask if it is ambiguous.
+- **"Still showing" / "never loads" is a logic bug**, not a slow request. Read the `v-if` chain and the state resets before reaching for telemetry.
+
+**Copy**
+
+- **Write native Dutch**, not a translation of the English string. Everyday phrasing over calqued structure.
+- **One line means one sentence.** No second clause smuggled back in with a semicolon or "daarna".
+- **Minimize explainers above inputs.** The placeholder carries what to type and the example; no label repeating it.
+- **Public copy never mentions the organisation version.** No "voor afdelingen", no chapter agendas, no limits that differ per account kind. The written pages describe one product.
+
+**Design**
+
+- **Few font sizes.** Reuse what the file already uses (`0.6875`, `0.8125`, `0.875`, `1`, `1.125rem`) or set none. No new intermediate values.
+- **Row action buttons are always visible.** No `opacity: 0` hover-reveal; nothing else in the app does it.
+- **Recurring events reuse the roster pattern**: the k-week cycle and its components (`CycleGridPicker`, `NumberStepper`, `WeekdayGrid`, `MonthGrid`, `services/recurrence.py`). No parallel scheme, no renamed sections.
+- **Every organiser edit page ends the same way**: content above, switches inside the `details.advanced` fold (closed on arrival), page language below (`docs/design-public-pages-ux.md`).
+
+**Before pushing**
+
+- `uv run ruff check backend tests` on any backend change. CI is strict on import order.
+- `make openapi` after any route or schema change, docstrings included. CI fails on drift.
+- Re-seed the dev DB after a `DROP SCHEMA`: the pre-push e2e logs in as the seeded organiser.
+- Dropping a dependency does not prune `.venv`. `rm -rf .venv && uv sync` when in doubt.
+- `git add` the paths you touched, never `-A`: a second session may be editing this worktree.
+
 ## Project identity
 
 Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organising. Attendees give a name (real or not), party size, and how they heard about the event. Optional email is encrypted at rest, used **once** to send a feedback form the day after the event, and then deleted. Everything in the codebase serves that contract.

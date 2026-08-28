@@ -37,10 +37,11 @@ const route = useRoute();
 
 const PAGES = [
   { slug: "aanmeldpagina-voor-je-evenement", title: "Aanmeldpagina voor je evenement, zonder kosten per aanmelding" },
-  { slug: "datumprikker-zonder-account", title: "Datumprikker zonder account of cookies" },
+  { slug: "datumplanner-zonder-account", title: "Datumplanner zonder account of cookies" },
   { slug: "aanmeldformulier-zonder-google", title: "Aanmeldformulier maken zonder Google Forms" },
   { slug: "wat-gebeurt-er-met-je-mailadres", title: "Wat er met je e-mailadres gebeurt" },
   { slug: "pubquiz-maken-zonder-account", title: "Pubquiz maken zonder account of abonnement" },
+  { slug: "kieskompas-maken-zonder-onderzoeksbureau", title: "Een kieskompas maken voor je eigen groep" },
   { slug: "vrijwilligers-inroosteren", title: "Vrijwilligers inroosteren zonder spreadsheet" },
 ];
 

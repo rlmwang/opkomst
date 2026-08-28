@@ -39,12 +39,12 @@ interface Tile {
  * width either way (docs/design-quizzes.md part 4,
  * docs/design-kompas.md part 0). */
 const tiles = computed<Tile[]>(() => [
-  { key: "events", to: "/events/new", label: t("header.events"), hint: t("home.eventsHint") },
-  { key: "datepolls", to: "/datepolls/new", label: t("header.datepolls"), hint: t("home.datepollsHint") },
-  { key: "chores", to: "/chores/new", label: t("header.chores"), hint: t("home.choresHint") },
-  { key: "forms", to: "/forms/new", label: t("header.forms"), hint: t("home.formsHint") },
-  { key: "quizzes", to: "/quizzes/new", label: t("header.quizzes"), hint: t("home.quizzesHint") },
-  { key: "compasses", to: "/compasses/new", label: t("header.compasses"), hint: t("home.compassesHint") },
+  { key: "events", to: "/events/new", label: t("home.eventsTile"), hint: t("home.eventsHint") },
+  { key: "datepolls", to: "/datepolls/new", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
+  { key: "chores", to: "/chores/new", label: t("home.choresTile"), hint: t("home.choresHint") },
+  { key: "forms", to: "/forms/new", label: t("home.formsTile"), hint: t("home.formsHint") },
+  { key: "quizzes", to: "/quizzes/new", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
+  { key: "compasses", to: "/compasses/new", label: t("home.compassesTile"), hint: t("home.compassesHint") },
 ]);
 </script>
 

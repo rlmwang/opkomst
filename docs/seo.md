@@ -38,7 +38,7 @@ _APP_PAGES = {
     "/":              ("opkomst.nu", "Aanmeldingen zonder gedoe. …"),
     "/events/new":    ("Evenement aanmaken", "…"),
     "/forms/new":     ("Vragenlijst maken", "…"),
-    "/datepolls/new": ("Datumprikker maken", "…"),
+    "/datepolls/new": ("Datumplanner maken", "…"),
     "/chores/new":    ("Takenrooster maken", "…"),
 }
 ```
@@ -149,12 +149,12 @@ the part that is not a code change.
 
 | Query shape | Who ranks now | Our angle |
 |---|---|---|
-| "datumprikker" | datumprikker.nl, Doodle | no account, no cookies, no ads on the poll itself |
+| "datumplanner" | datumplanner.nl, Doodle | no account, no cookies, no ads on the poll itself |
 | "aanmeldformulier evenement" | Google Forms, Eventbrite, Aanmelder.nl | free, Dutch, no Google account, deletes the address |
 | "vrijwilligersrooster maken" | spreadsheets, Sign-up genius | fair rotation built in |
 | "gratis aanmeldpagina" | a long tail of builders | one link, thirty seconds, nothing to install |
 
-We are not going to outrank Doodle for "datumprikker". We can rank for
+We are not going to outrank Doodle for "datumplanner". We can rank for
 the qualified long tail, where the qualifier is the thing we actually
 do differently: without an account, without cookies, without Google,
 privacy-first, in Dutch.
@@ -164,8 +164,8 @@ privacy-first, in Dutch.
 Each of these is one page, answering one question, linking to the
 create page that solves it:
 
-1. **Datumprikker zonder account of cookies.** The comparison page.
-   What datumprikker.nl and Doodle store, what we do not.
+1. **Datumplanner zonder account of cookies.** The comparison page.
+   What datumplanner.nl and Doodle store, what we do not.
 2. **Aanmeldformulier maken zonder Google Forms.** The migration page,
    for people who know what they want and dislike where it lives.
 3. **Wat gebeurt er met je e-mailadres.** The privacy story as a page

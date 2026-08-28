@@ -51,7 +51,7 @@ Uit onze eigen pagina's, dezelfde regel toegepast:
 | Passief | Actief |
 |---|---|
 | Zodra de mails die voor jou klaarstonden verstuurd zijn, wordt het adres verwijderd. | Zodra de mails die voor jou klaarstonden de deur uit zijn, halen we het adres weg. |
-| Meer heeft een datumprikker niet nodig, dus meer wordt er niet gevraagd. | Meer heeft een datumprikker niet nodig, dus meer vragen we niet. |
+| Meer heeft een datumplanner niet nodig, dus meer wordt er niet gevraagd. | Meer heeft een datumplanner niet nodig, dus meer vragen we niet. |
 
 Let ook op stapels hulpwerkwoorden: *worden*, *kunnen*, *zullen*,
 *dienen te*.
