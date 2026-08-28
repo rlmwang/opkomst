@@ -12,3 +12,11 @@ useDefault = true
 [[allowlists]]
 description = "The published test-only EMAIL_ENCRYPTION_KEY, in workflows and docs"
 regexes = ['''19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=''']
+
+[[allowlists]]
+# A pull request is scanned over its whole range, so a commit that
+# carried the key still reports even after a later commit removed it.
+# Naming the commit is the narrow way to retire a finding history
+# cannot be rid of.
+description = "The same key, in the commit that briefly inlined it into the image smoke-test"
+commits = ["57fb75f0e590c4637ecf605e63c4a625a1087ddb"]
