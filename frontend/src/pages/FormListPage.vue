@@ -135,10 +135,13 @@ function askArchive(f: FormListOut) {
 
     <template #row="{ item: f }">
       <EntityCard
+        :public-url="publicFormUrl(api.resource, f.slug)"
         :qr-src="formQrUrl(api.resource, f.slug)"
+        :copy-link-label="t('forms.share.copyLink')"
         :qr-label="t('forms.share.copyQr')"
         @mouseenter="prefetchDetails(f.id)"
         @focusin="prefetchDetails(f.id)"
+        @copy-link="copyLink(f.slug)"
         @copy-qr="copyQr(f.slug)"
       >
         <template #title>
@@ -148,20 +151,6 @@ function askArchive(f: FormListOut) {
           </h3>
         </template>
 
-        <template #link>
-          <div class="link-row">
-            <a :href="publicFormUrl(api.resource, f.slug)" target="_blank" rel="noopener">{{ publicFormUrl(api.resource, f.slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              v-tooltip.top="t('forms.share.copyLink')"
-              :aria-label="t('forms.share.copyLink')"
-              @click="copyLink(f.slug)"
-            />
-          </div>
-        </template>
 
         <template #actions>
           <router-link :to="`/${api.resource}/${f.id}/details`">

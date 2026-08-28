@@ -159,59 +159,6 @@
     vertical-align: baseline;
   }
 
-  /* Share cluster: the public URL row + copy button, and the clickable
-   * QR thumbnail. Repeated on every list / details / dashboard card that
-   * surfaces a public link (was copy-pasted into ~8 pages each). The
-   * AdminWhatsApp join QR is a different, larger control and keeps its
-   * own scoped ``.qr``. */
-  .link-row {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    min-width: 0;
-  }
-  .link-row a {
-    font-size: 0.9375rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .qr-button {
-    /* Floated ``right`` but placed late in source order (after the meta +
-     * description, just before the link + edit rows) so it settles into
-     * the bottom-right corner of the card, at its natural padding, while
-     * those trailing rows wrap to its left. See ``.overview-body`` for the
-     * float containment context. */
-    float: right;
-    margin: 0 0 0.25rem 1.25rem;
-    line-height: 0;
-    background: none;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-    border-radius: 6px;
-    transition: transform 120ms ease, box-shadow 120ms ease;
-  }
-  .qr-button:hover {
-    transform: scale(1.03);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  }
-  .qr-button:focus-visible {
-    outline: 2px solid var(--brand-red);
-    outline-offset: 2px;
-    border-radius: 8px;
-  }
-  .qr {
-    width: 96px;
-    height: 96px;
-    background: white;
-    border: 1px solid var(--brand-border);
-    border-radius: 6px;
-    padding: 4px;
-    display: block;
-  }
-
   /* "Back to list" link under a not-found / error card. */
   .back-link {
     display: inline-block;
@@ -219,50 +166,12 @@
     color: var(--brand-red);
   }
 
-  /* Details-page overview card: title, optional image, then a body grid
-   * with text (public URL + copy + edit + meta) on the left and the QR
-   * thumbnail on the right. Shared by the Event / Form / Chore details
-   * pages (Datepoll's overview holds a calendar and keeps its own). */
-  .overview {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .overview h1 {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-  /* A block (flow-root) so the floated ``.qr-button`` is contained and the
-   * text below wraps around it — no reserved column, no orphaned gap. */
-  .overview-body {
-    display: flow-root;
-  }
-  /* Normal flow (not flex) so the meta / link / action lines wrap around
-   * the floated QR rather than sitting in a shrunk BFC column beside it.
-   * Vertical rhythm comes from margins instead of a flex gap. */
-  .overview-text {
-    min-width: 0;
-  }
-  .overview-text > * + * {
-    margin-top: 0.5rem;
-  }
+  /* The meta line a details page writes into ``DetailHeaderCard``'s
+   * ``#meta`` slot. Slot content carries the page's scope, not the
+   * card's, so this one stays global; the card's own layout lives in
+   * ``DetailHeaderCard.vue``. */
   .overview-meta {
     margin: 0;
-  }
-  .detail-image {
-    margin: 0;
-  }
-  .detail-image img {
-    display: block;
-    max-width: 200px;
-    aspect-ratio: 4 / 5;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid var(--brand-border);
-  }
-  .detail-image figcaption {
-    margin-top: 0.375rem;
-    font-size: 0.8125rem;
   }
   /* A details-card header: the section title on the left, optional
    * actions / a count pill on the right. Shared by the Event / Form /

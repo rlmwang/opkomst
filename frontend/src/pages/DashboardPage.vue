@@ -9,6 +9,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import EntityCard from "@/components/EntityCard.vue";
+import EventMetaLines from "@/components/EventMetaLines.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { get } from "@/api/client";
 import { useSetUserChapters } from "@/composables/useAdmin";
@@ -22,12 +23,10 @@ import {
 import { useEventClipboard } from "@/composables/useEventClipboard";
 import { useConfirms } from "@/lib/confirms";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
-import { formatDateTime } from "@/lib/format";
-import { recurrenceHint } from "@/lib/recurrence";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const lt = useLocalizedText();
 const auth = useAuthStore();
 const toasts = useToasts();
@@ -35,12 +34,6 @@ const confirms = useConfirms();
 const router = useRouter();
 const route = useRoute();
 const { copyLink, copyQr } = useEventClipboard();
-
-// Per-row recurrence hint ("Wekelijks · 6 sessies"); a thin wrapper so
-// the template can call it with the row's rule.
-function hint(e: EventOut): string {
-  return recurrenceHint(t, e);
-}
 
 // Chapter filter — backed by the ``?chapter=`` URL param so a
 // reload or shared link reproduces the view. ``null`` is the
@@ -242,11 +235,16 @@ function askArchive(e: EventOut) {
     </template>
 
     <template #row="{ item: e }">
+      <!-- The stub links the first upcoming occurrence (falling back to
+           the most recent past one), matching the other entity cards. -->
       <EntityCard
+        :public-url="e.next_slug ? publicEventUrl(e.next_slug) : undefined"
         :qr-src="e.next_slug ? eventQrUrl(e.next_slug) : undefined"
+        :copy-link-label="t('event.share.copyLink')"
         :qr-label="t('event.share.copyQr')"
         @mouseenter="prefetchDetails(e.id)"
         @focusin="prefetchDetails(e.id)"
+        @copy-link="e.next_slug && copyLink(e.next_slug)"
         @copy-qr="e.next_slug && copyQr(e.next_slug)"
       >
         <template #title>
@@ -257,29 +255,7 @@ function askArchive(e: EventOut) {
         </template>
 
         <template #meta>
-          <p class="muted">
-            <template v-if="e.location">{{ e.location }} · </template>
-            <template v-if="e.next_starts_at">{{ formatDateTime(e.next_starts_at, locale) }}</template>
-            <template v-else>{{ t("dashboard.noUpcoming") }}</template>
-          </p>
-          <p class="muted">{{ hint(e) }}</p>
-        </template>
-
-        <!-- Link to the first upcoming occurrence (falls back to the
-             most recent past one), matching the other entity cards. -->
-        <template v-if="e.next_slug" #link>
-          <div class="link-row">
-            <a :href="publicEventUrl(e.next_slug)" target="_blank" rel="noopener">{{ publicEventUrl(e.next_slug) }}</a>
-            <Button
-              icon="pi pi-copy"
-              size="small"
-              severity="secondary"
-              text
-              v-tooltip.top="t('event.share.copyLink')"
-              :aria-label="t('event.share.copyLink')"
-              @click="copyLink(e.next_slug)"
-            />
-          </div>
+          <EventMetaLines :event="e" />
         </template>
 
         <template #actions>

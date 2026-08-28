@@ -7,6 +7,7 @@ import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";
 import AppSkeleton from "@/components/AppSkeleton.vue";
 import DetailsPageShell from "@/components/DetailsPageShell.vue";
+import EventMetaLines from "@/components/EventMetaLines.vue";
 import MonthGrid from "@/components/MonthGrid.vue";
 import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinksPill.vue";
 import StatBar from "@/components/StatBar.vue";
@@ -25,9 +26,7 @@ import { useGuardedMutation } from "@/composables/useGuardedMutation";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { downloadCsv } from "@/lib/csv-export";
 import { filenameSlug } from "@/lib/filename-slug";
-import { barWidth, formatAverage, formatDate, formatDateTime, formatTimeRange } from "@/lib/format";
-import { mapLink } from "@/lib/map-link";
-import { recurrenceHint } from "@/lib/recurrence";
+import { barWidth, formatAverage, formatDate, formatTimeRange } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
 import {
@@ -64,10 +63,6 @@ const primaryOccurrence = computed(() => {
   const now = Date.now();
   return list.find((o) => new Date(o.ends_at).getTime() > now) ?? list[list.length - 1];
 });
-
-const recurrenceSummary = computed(() =>
-  event.value ? recurrenceHint(t, event.value) : "",
-);
 
 // --- "Aanmeldingen" calendar day switcher ---------------------------
 // Occurrences keyed by their date; the calendar highlights those days,
@@ -305,25 +300,7 @@ function askTriggerNow(channel: EmailChannel) {
         @copy-link="primaryOccurrence && copyLink(primaryOccurrence.slug)"
       >
         <template #meta>
-          <p class="muted overview-meta">
-            <template v-if="event.location">
-              <a
-                :href="mapLink({
-                  location: event.location,
-                  latitude: event.latitude,
-                  longitude: event.longitude,
-                })"
-                target="_blank"
-                rel="noopener"
-                class="meta-link"
-              >{{ event.location }}</a>
-              ·
-            </template>
-            {{ recurrenceSummary }}
-            <template v-if="event.next_starts_at">
-              · {{ t("event.nextSession") }} {{ formatDateTime(event.next_starts_at, locale) }}
-            </template>
-          </p>
+          <EventMetaLines :event="event" />
         </template>
       </DetailHeaderCard>
 
