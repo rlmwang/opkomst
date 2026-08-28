@@ -30,7 +30,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 import { isPersonalApp } from "@/lib/branding";
-import { GITHUB_URL } from "@/public_shared/strings";
+import { GITHUB_ISSUE_URL, GITHUB_URL } from "@/public_shared/strings";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -82,6 +82,7 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
       </span>
         <a href="/privacy">{{ t("footer.privacy") }}</a>
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
+        <a :href="GITHUB_ISSUE_URL" target="_blank" rel="noopener">{{ t("footer.feedback") }}</a>
       </nav>
     </div>
   </footer>

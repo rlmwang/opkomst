@@ -13,6 +13,11 @@
 export type Locale = "nl" | "en";
 
 export const GITHUB_URL = "https://github.com/rlmwang/opkomst";
+/** Where "something is wrong / I have an idea" goes: a new issue on the
+ *  same repository the source link points at. No form of our own to
+ *  build, moderate or store, and the report is public the way the code
+ *  is. */
+export const GITHUB_ISSUE_URL = `${GITHUB_URL}/issues/new`;
 
 export interface ChromeStrings {
   loading: string;
@@ -58,6 +63,9 @@ export interface ChromeStrings {
   adDisclosure: string;
   /** What the slot says when it is not showing an ad and there is
    *  nothing to ask for either. */
+  /** "Report something", linked from the disclosure beside the privacy
+   *  policy: it opens a new issue on the repository. */
+  feedbackLink: string;
   /** The privacy policy, linked from the disclosure on every public
    *  page. */
   privacyLink: string;
@@ -104,6 +112,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     adLabel: "Advertentie",
     adDisclosure:
       "Op deze pagina staat één advertentie van Google. Die zet cookies, en je kunt zelf kiezen wat je toestaat.",
+    feedbackLink: "Iets melden",
     privacyLink: "Privacyverklaring",
     adNone: "Geen advertenties",
     supportHeading: "Help je mee dit advertentievrij te houden?",
@@ -140,6 +149,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     adLabel: "Advertisement",
     adDisclosure:
       "This page carries one advertisement from Google. It sets cookies, and you choose what you allow.",
+    feedbackLink: "Report something",
     privacyLink: "Privacy policy",
     adNone: "No ads",
     supportHeading: "Want to help us keep this ad free?",
