@@ -65,24 +65,24 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
   <footer v-if="show" class="site-footer">
     <div :class="column">
       <nav class="footer-links" :aria-label="t('footer.label')">
-        <!-- Numbered rather than named. The footer is here so a crawler
-           finds the written pages from every app page; a reader who
-           wants them reads the pages themselves, and five sentence
-           titles under a landing page is the noise this used to be.
-           The title still travels, as the link's own label. -->
-      <span class="blogs">
-        {{ t("footer.blogs") }}
-        <a
-          v-for="(page, i) in PAGES"
-          :key="page.slug"
-          :href="`/${page.slug}`"
-          :title="page.title"
-          :aria-label="page.title"
-        >{{ i + 1 }}</a>
-      </span>
         <a href="/privacy">{{ t("footer.privacy") }}</a>
         <a :href="GITHUB_URL" target="_blank" rel="noopener">{{ t("footer.source") }}</a>
         <a :href="GITHUB_ISSUE_URL" target="_blank" rel="noopener">{{ t("footer.feedback") }}</a>
+        <!-- Numbered rather than named, and last: the footer is here so
+           a crawler finds the written pages from every app page, while
+           a reader wants the policy, the source and the way to report
+           something. The title still travels, as the link's own
+           label. -->
+        <span class="blogs">
+          {{ t("footer.blogs") }}
+          <a
+            v-for="(page, i) in PAGES"
+            :key="page.slug"
+            :href="`/${page.slug}`"
+            :title="page.title"
+            :aria-label="page.title"
+          >{{ i + 1 }}</a>
+        </span>
       </nav>
     </div>
   </footer>
@@ -105,7 +105,11 @@ const column = computed(() => (route.path === "/" ? "container-wide" : "containe
   padding-top: 1rem;
   border-top: 1px solid var(--brand-border);
 }
+/* Right-hand end of the row: the named links are what a reader is
+ * looking for, the numbered list is for a crawler. Wrapping on a narrow
+ * screen drops it onto its own line, still at the right. */
 .blogs {
+  margin-left: auto;
   display: inline-flex;
   align-items: baseline;
   gap: 0.5rem;
