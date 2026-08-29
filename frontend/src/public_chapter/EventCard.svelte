@@ -43,7 +43,6 @@ const sessionBadge = $derived.by(() => {
         <img src={b.logo_url} alt="" />
       </div>
     {/if}
-    {#if sessionBadge}<span class="session-badge">{sessionBadge}</span>{/if}
     {#if event.image_url && event.image_artist_instagram}
       <figcaption class="card-credit">
         {c.imageCredit}
@@ -80,6 +79,7 @@ const sessionBadge = $derived.by(() => {
     {#if topic}<div class="richtext card-topic">{@html topic}</div>{/if}
 
     <div class="card-foot">
+      {#if sessionBadge}<span class="session-badge">{sessionBadge}</span>{/if}
       {#if past}
         <span class="muted card-came">
           {event.attendee_count ? t.attendees(event.attendee_count) : ""}
@@ -97,6 +97,7 @@ const sessionBadge = $derived.by(() => {
  * words right — a 4:5 poster running the full width of the card outweighs
  * the handful of lines under it, and this gives the two equal say. */
 .event-card {
+  position: relative;
   display: grid;
   grid-template-columns: 38% 1fr;
   grid-template-rows: auto 1fr;
@@ -144,7 +145,11 @@ const sessionBadge = $derived.by(() => {
   filter: grayscale(1);
 }
 /* Session pill, top-left over the poster — a red tag that never wraps or
- * spills the way the old inline "sessie i van n" chip did. */
+ * spills the way the old inline "sessie i van n" chip did. It is written
+ * in the card's footer and lifted onto the poster from there, so the
+ * phone layout below can simply put it down again. Positioned against
+ * the card rather than the poster, which is the same corner: the poster
+ * starts at the card's top-left. */
 .session-badge {
   position: absolute;
   top: 0.5rem;
@@ -264,6 +269,17 @@ const sessionBadge = $derived.by(() => {
   .card-body {
     grid-column: 1 / -1;
     padding: 0.625rem 0.875rem 0.875rem;
+  }
+  /* The poster is 96px wide here, and a pill over it covers most of the
+   * artwork. It goes back into the footer it is written in, at the far
+   * end from the button. */
+  .session-badge {
+    position: static;
+  }
+  .card-foot {
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
   }
 }
 .card-came {
