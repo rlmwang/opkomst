@@ -1,5 +1,5 @@
 import { createQuery, type QueryKey } from "@tanstack/svelte-query";
-import { toStore } from "svelte/store";
+import { fromStore, toStore } from "svelte/store";
 
 import { get } from "@/api/client";
 import { queryClient } from "@/lib/query-client";
@@ -12,8 +12,12 @@ import { queryClient } from "@/lib/query-client";
  *
  * Reactive inputs are functions, which is Svelte 5's shape. This
  * adapter's version of svelte-query still speaks the store contract, so
- * ``toStore`` turns the getter into one: the options are re-read
- * whenever the state they touch changes, and the query re-runs.
+ * the getter goes in through ``toStore`` and the result comes back out
+ * through ``fromStore``: the options are re-read whenever the state they
+ * touch changes, and a page reads ``query.data`` like any other reactive
+ * value instead of carrying a store's ``$`` through every template. The
+ * two conversions are the whole of the adapter, and both go away if the
+ * library grows a runes API.
  */
 export interface ApiQueryOpts {
   enabled?: () => boolean;
@@ -21,19 +25,45 @@ export interface ApiQueryOpts {
   retry?: number | boolean;
 }
 
+export interface ApiQuery<T> {
+  readonly data: T | undefined;
+  readonly isPending: boolean;
+  readonly isError: boolean;
+  readonly error: Error | null;
+  refetch: () => void;
+}
+
 export function apiQuery<T>(
   key: () => QueryKey,
   path: () => string,
   opts: ApiQueryOpts = {},
-) {
-  return createQuery(
-    toStore(() => ({
-      queryKey: key(),
-      queryFn: () => get<T>(path()),
-      enabled: opts.enabled ? opts.enabled() : true,
-      staleTime: opts.staleTime,
-      retry: opts.retry,
-    })),
-    queryClient,
+): ApiQuery<T> {
+  const store = fromStore(
+    createQuery<T>(
+      toStore(() => ({
+        queryKey: key(),
+        queryFn: () => get<T>(path()),
+        enabled: opts.enabled ? opts.enabled() : true,
+        staleTime: opts.staleTime,
+        retry: opts.retry,
+      })),
+      queryClient,
+    ),
   );
+
+  return {
+    get data() {
+      return store.current.data;
+    },
+    get isPending() {
+      return store.current.isPending;
+    },
+    get isError() {
+      return store.current.isError;
+    },
+    get error() {
+      return store.current.error;
+    },
+    refetch: () => void store.current.refetch(),
+  };
 }

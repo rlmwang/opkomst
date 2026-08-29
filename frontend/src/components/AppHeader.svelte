@@ -16,7 +16,7 @@ import { go, route } from "@/router/navigation.svelte";
 // staleTime cadence so a new sign-up shows up within ~30s on
 // any open admin tab.
 const pendingQuery = pendingCountQuery(() => auth.isAdmin && !auth.isPersonal);
-const pendingCount = $derived($pendingQuery.data?.count ?? 0);
+const pendingCount = $derived(pendingQuery.data?.count ?? 0);
 const showPendingBadge = $derived(auth.isAdmin && pendingCount > 0);
 
 // Every top-level destination lives in one dropdown. Each item

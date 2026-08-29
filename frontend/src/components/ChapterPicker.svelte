@@ -60,7 +60,7 @@ let local = $state<Chapter | string | null>(null);
 const chapters = chaptersQuery({ includeArchived: true });
 
 function onComplete(e: AutoCompleteCompleteEvent) {
-  const list = $chapters.data ?? [];
+  const list = chapters.data ?? [];
   const q = e.query.trim().toLowerCase();
   const matched = q ? list.filter((a) => a.name.toLowerCase().includes(q)) : list;
   suggestions = archivedOnly ? matched.filter((a) => a.archived) : matched;

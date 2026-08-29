@@ -71,7 +71,7 @@ const query = untrack(() => preview)
 const daysByIso = $derived.by<Record<string, RosterDay>>(() => {
   const today = todayIso();
   const map: Record<string, RosterDay> = {};
-  for (const chore of $query.data ?? []) {
+  for (const chore of query.data ?? []) {
     for (const day of chore.days) {
       const d = (map[day.on_date] ??= { assignments: [], tentative: false, changed: false });
       if (day.tentative) d.tentative = true;
@@ -97,7 +97,7 @@ const hasChanges = $derived(Object.values(daysByIso).some((d) => d.changed));
 // The hand-over picker: every volunteer enrolled in the shift's chore.
 const volunteers = volunteersQuery(() => rosterId);
 function candidates(a: RosterAssignment) {
-  return ($volunteers.data ?? []).filter(
+  return (volunteers.data ?? []).filter(
     (v) => a.choreId && v.enrolled_chore_ids.includes(a.choreId),
   );
 }

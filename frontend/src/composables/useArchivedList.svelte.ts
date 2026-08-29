@@ -25,12 +25,18 @@ interface BilingualName {
   name_en: string | null;
 }
 
+export interface ArchivedList<T> {
+  chapter: { value: string | null; readonly options: { id: string; name: string }[] };
+  restoreItem: (item: T) => Promise<void>;
+  askDelete: (item: T) => void;
+}
+
 export function archivedList<T extends { id: string } & BilingualName>(opts: {
   restore: (id: string) => Promise<unknown>;
   remove: (id: string) => Promise<unknown>;
   /** i18n key prefix, ``"archived"`` or ``"form.archived"``. */
   prefix: string;
-}) {
+}): ArchivedList<T> {
   const toasts = useToasts();
   const chapter = chapterUrlFilter();
 
