@@ -383,6 +383,17 @@ async function submit(): Promise<void> {
 .account-identity > strong {
   flex-shrink: 0;
 }
+/* The row is one line that truncates, which is what the rules above
+ * ask for and never got: ``.muted`` is ``white-space: pre-line``
+ * globally, so the address wrapped to a second line, ran under the
+ * buttons and pushed the chapter chips down. The ellipsis belongs on
+ * the element that overflows, not on the flex container holding it. */
+.account-identity > .muted {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .account-actions {
   display: flex;
   align-items: center;
@@ -403,6 +414,9 @@ async function submit(): Promise<void> {
 }
 .admin-chip {
   display: inline-flex;
+  /* Never squeezed: a chip narrower than its word is a smear of colour
+   * that says nothing. The address gives way instead. */
+  flex-shrink: 0;
   align-items: center;
   padding: 0.25rem 0.625rem;
   border-radius: 999px;
