@@ -8,6 +8,7 @@ from backend.config import settings  # noqa: E402
 
 # Import models so Alembic sees them.
 from backend.database import Base  # noqa: E402
+from backend.models.archive import archive_metadata  # noqa: E402
 
 config = context.config
 if config.config_file_name is not None:
@@ -16,7 +17,11 @@ if config.config_file_name is not None:
 # Pull DATABASE_URL from settings (overrides any value in alembic.ini).
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-target_metadata = Base.metadata
+# Both schemas: the live tables, and the archive twins generated from
+# them. Autogenerate then emits a column change for a table and its twin
+# from the one model definition, which is the whole point of generating
+# them — a hand-written mirror drifts the first time somebody forgets.
+target_metadata = [Base.metadata, archive_metadata]
 
 
 def run_migrations_offline() -> None:
