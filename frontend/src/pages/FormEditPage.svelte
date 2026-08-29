@@ -117,6 +117,10 @@ let axes = $state<CompassAxisIn[]>([]);
 const questionList = orderedList<QuestionDraft>();
 let submitting = $state(false);
 
+// Armed by a 409 and spent on the next Save. An edit that destroys
+// answers is refused once with a count; saying Save again is the
+// organiser confirming they meant it.
+let confirmDestructive = $state(false);
 /** The four sides, labelled with what the organiser called them. Read
  *  live off the axes block above, so renaming an axis renames every
  *  select on the page. Before the axes are named they read "As X, kant
@@ -180,7 +184,16 @@ function applyDraft(d: FormEditDraft): void {
   formLocale = d.formLocale ?? "nl";
   questionList.items = (d.questions ?? []).map((q) => ({
     ...q,
-    options: [...(q.options ?? [])],
+    // Each option keeps the id it came back with. That id is the only
+    // thing tying an answer to the choice it named, so a draft that
+    // dropped it would delete every answer on save
+    // (``docs/design-question-edits.md``).
+    options: (q.options ?? []).map((o) => ({
+      id: o.id,
+      label: o.label,
+      pole: (o.pole as Pole | null) ?? null,
+      is_correct: o.is_correct ?? false,
+    })),
   }));
   axes = (d.axes ?? []).map((a) => ({ ...a }));
 }
@@ -216,12 +229,21 @@ $effect(() => {
   imageArtistInstagram = existing.image_artist_instagram ?? "";
   formLocale = existing.locale;
   chapterId = existing.chapter_id;
-  questionList.items = (existing.questions ?? []).map((q) => ({
+  questionList.items = (existing.questions ?? []).map((q): QuestionDraft => ({
     id: q.id,
     kind: q.kind as QuestionDraft["kind"],
     prompt: q.prompt,
     required: q.required,
-    options: [...(q.options ?? [])],
+    // Each option keeps the id the server sent. That id is the only
+    // thing tying an answer to the choice it named, so a draft that
+    // dropped it would delete every answer on save
+    // (``docs/design-question-edits.md``).
+    options: (q.options ?? []).map((o) => ({
+      id: o.id,
+      label: o.label,
+      pole: (o.pole as Pole | null) ?? null,
+      is_correct: o.is_correct ?? false,
+    })),
     low_label: q.low_label ?? null,
     high_label: q.high_label ?? null,
     min_value: q.min_value ?? null,
@@ -230,10 +252,8 @@ $effect(() => {
     points: q.points ?? 0,
     correct_int: q.correct_int ?? null,
     correct_text: q.correct_text ?? null,
-    correct_choices: q.correct_choices ? [...q.correct_choices] : null,
     tolerance: q.tolerance ?? null,
     pole: (q.pole as Pole | null) ?? null,
-    option_poles: (q.option_poles as Pole[] | null) ?? null,
   }));
   revealAnswers = existing.reveal_answers ?? true;
   answersEditable = existing.answers_editable ?? true;
@@ -294,7 +314,7 @@ function axisCoverageProblem(): string | null {
   if (!isCompass || !questionList.items.length) return null;
   const used = new Set(
     questionList.items
-      .flatMap((q) => (q.kind === "rating" ? [q.pole] : (q.option_poles ?? [])))
+      .flatMap((q) => (q.kind === "rating" ? [q.pole] : q.options.map((o) => o.pole)))
       .filter(Boolean)
       .map((pole) => (pole as string).split("_")[0]),
   );
@@ -320,19 +340,18 @@ function firstQuestionProblem(): string | null {
     if (choice && q.options.length < 2) return L("edit.questionNeedsOptions", { n });
     if (isCompass) {
       if (q.kind === "rating" && !q.pole) return t("compass.edit.questionNeedsPole", { n });
-      if (q.kind === "single_choice") {
-        const poles = q.option_poles ?? [];
-        if (poles.length !== q.options.length || poles.some((pole) => !pole)) {
-          return t("compass.edit.questionNeedsOptionPoles", { n });
-        }
+      // Each option carries its own side, so there is no second list to
+      // fall out of step with this one.
+      if (q.kind === "single_choice" && q.options.some((o) => !o.pole)) {
+        return t("compass.edit.questionNeedsOptionPoles", { n });
       }
       continue;
     }
     if (!isQuiz || q.points <= 0) continue;
-    if (choice && (q.correct_choices ?? []).length === 0) {
+    if (choice && !q.options.some((o) => o.is_correct)) {
       return t("quiz.edit.questionNeedsKey", { n });
     }
-    if (q.kind === "single_choice" && (q.correct_choices ?? []).length !== 1) {
+    if (q.kind === "single_choice" && q.options.filter((o) => o.is_correct).length !== 1) {
       return t("quiz.edit.questionNeedsOneKey", { n });
     }
     if ((q.kind === "number" || q.kind === "rating") && q.correct_int === null) {
@@ -359,10 +378,8 @@ function addQuestion(): void {
     points: isQuiz ? 1 : 0,
     correct_int: null,
     correct_text: null,
-    correct_choices: null,
     tolerance: null,
     pole: null,
-    option_poles: null,
   });
 }
 
@@ -413,7 +430,12 @@ async function submit(): Promise<void> {
           kind: q.kind,
           prompt: q.prompt,
           required: q.required,
-          options: q.options,
+          options: q.options.map((o) => ({
+            id: o.id,
+            label: o.label,
+            pole: o.pole,
+            is_correct: o.is_correct,
+          })),
           low_label: q.low_label,
           high_label: q.high_label,
           min_value: q.min_value,
@@ -422,13 +444,15 @@ async function submit(): Promise<void> {
           points: q.points,
           correct_int: q.correct_int,
           correct_text: q.correct_text,
-          correct_choices: q.correct_choices,
           tolerance: q.tolerance,
           pole: q.pole,
-          option_poles: q.option_poles,
         }),
       ),
       axes: isCompass ? axes : [],
+      // Set on the second attempt: the first is refused with a 409 and
+      // a count, which is shown as the error above the form
+      // (``docs/design-question-edits.md``).
+      confirm_destructive: confirmDestructive,
     };
 
     if (start.active) {
@@ -445,8 +469,17 @@ async function submit(): Promise<void> {
     await imageField?.flushPendingUpload(result.id);
     draft.clear();
     void go(`/${api.resource}/${result.id}/details`);
-  } catch {
-    toasts.error(L("edit.saveFailed"));
+  } catch (err) {
+    // 409 is the one refusal the organiser can answer: the save would
+    // delete answers people gave, and the server says how many. Showing
+    // its words and arming the flag turns the next Save into the
+    // confirmation (``docs/design-question-edits.md``).
+    if (err instanceof ApiError && err.status === 409) {
+      confirmDestructive = true;
+      toasts.error(err.message);
+    } else {
+      toasts.error(L("edit.saveFailed"));
+    }
   } finally {
     submitting = false;
   }

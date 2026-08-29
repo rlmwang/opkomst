@@ -22,7 +22,7 @@ import { formDraft } from "@/composables/useFormDraft.svelte";
 import { locationField } from "@/composables/useLocationField.svelte";
 import { startMode } from "@/composables/useStartMode.svelte";
 import { loadLocale, locale, t, te, tIn } from "@/i18n.svelte";
-import { firstFieldError } from "@/api/client";
+import { ApiError, firstFieldError } from "@/api/client";
 import { go, route } from "@/router/navigation.svelte";
 import { useToasts } from "@/lib/toasts";
 import { auth } from "@/stores/auth.svelte";
@@ -141,21 +141,39 @@ void loadLocale("en");
 
 /** Ordered by how often they actually happen at a grassroots event:
  *  word of mouth dominates, posters are the long tail. */
-function defaultSources(loc: "nl" | "en"): string[] {
+/**
+ * An option somebody can pick on the public form.
+ *
+ * It carries an id once it has been saved, because an answer points at
+ * the row and not at the words: renaming "Flyer" to "Folder" has to
+ * keep the people who picked it. A new one has no id yet, and the
+ * server gives it one.
+ */
+interface EventOption {
+  id?: string | null;
+  label: string;
+}
+
+function defaultSources(loc: "nl" | "en"): EventOption[] {
   return [
-    tIn(loc, "event.sourceDefaults.wordOfMouth"),
-    tIn(loc, "event.sourceDefaults.socialMedia"),
-    tIn(loc, "event.sourceDefaults.flyer"),
-    tIn(loc, "event.sourceDefaults.poster"),
+    { label: tIn(loc, "event.sourceDefaults.wordOfMouth") },
+    { label: tIn(loc, "event.sourceDefaults.socialMedia") },
+    { label: tIn(loc, "event.sourceDefaults.flyer") },
+    { label: tIn(loc, "event.sourceDefaults.poster") },
   ];
 }
 
-function defaultHelp(loc: "nl" | "en"): string[] {
-  return [tIn(loc, "event.helpDefaults.setup"), tIn(loc, "event.helpDefaults.teardown")];
+function defaultHelp(loc: "nl" | "en"): EventOption[] {
+  return [
+    { label: tIn(loc, "event.helpDefaults.setup") },
+    { label: tIn(loc, "event.helpDefaults.teardown") },
+  ];
 }
 
-function arraysEqual(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
+/** The same words in the same order. Ids are not compared: what makes
+ *  a list "still the default one" is what it says. */
+function sameLabels(a: EventOption[], b: EventOption[]): boolean {
+  return a.length === b.length && a.every((o, i) => o.label === b[i].label);
 }
 
 const startLocale: "nl" | "en" = locale() === "en" ? "en" : "nl";
@@ -164,10 +182,10 @@ const startLocale: "nl" | "en" = locale() === "en" ? "en" : "nl";
 // switch. Off means the question is not asked at all; the options stay
 // where they are, so switching one back on brings the organiser's own
 // list back rather than an empty one.
-let sources = $state<string[]>(defaultSources(startLocale));
+let sources = $state<EventOption[]>(defaultSources(startLocale));
 let newSource = $state("");
 let sourceEnabled = $state(false);
-let helpOptions = $state<string[]>(defaultHelp(startLocale));
+let helpOptions = $state<EventOption[]>(defaultHelp(startLocale));
 let newHelp = $state("");
 let helpEnabled = $state(false);
 
@@ -192,6 +210,11 @@ let answersEditable = $state(true);
 let advancedOpen = $state(false);
 let eventLocale = $state<"nl" | "en">(startLocale);
 let submitting = $state(false);
+// Armed by a 409 and spent on the next Save. Removing an option people
+// already answered destroys those answers, so the server refuses once
+// with a count and the second Save is the organiser confirming
+// (``docs/design-question-edits.md``).
+let confirmDestructive = $state(false);
 
 // Flipping the event's language swaps the seeded options with it, but
 // only while they are still the seeded ones. An organiser who has added
@@ -203,8 +226,8 @@ $effect(() => {
   const prev = lastEventLocale;
   if (next === prev) return;
   lastEventLocale = next;
-  if (arraysEqual(sources, defaultSources(prev))) sources = defaultSources(next);
-  if (arraysEqual(helpOptions, defaultHelp(prev))) helpOptions = defaultHelp(next);
+  if (sameLabels(sources, defaultSources(prev))) sources = defaultSources(next);
+  if (sameLabels(helpOptions, defaultHelp(prev))) helpOptions = defaultHelp(next);
 });
 
 // --- Times on the wire ------------------------------------------------
@@ -247,10 +270,10 @@ interface EventFormDraft {
   cycleSlots: number[];
   spanWeeks: number;
   openEnded: boolean;
-  sources: string[];
+  sources: EventOption[];
   newSource: string;
   sourceEnabled: boolean;
-  helpOptions: string[];
+  helpOptions: EventOption[];
   newHelp: string;
   helpEnabled: boolean;
   feedbackEnabled: boolean;
@@ -278,10 +301,10 @@ function snapshot(): EventFormDraft {
     cycleSlots: [...cycleSlots],
     spanWeeks,
     openEnded,
-    sources: [...sources],
+    sources: sources.map((o) => ({ ...o })),
     newSource,
     sourceEnabled,
-    helpOptions: [...helpOptions],
+    helpOptions: helpOptions.map((o) => ({ ...o })),
     newHelp,
     helpEnabled,
     feedbackEnabled,
@@ -307,10 +330,10 @@ function applyDraft(d: EventFormDraft): void {
   cycleSlots = [...(d.cycleSlots ?? [])];
   spanWeeks = d.spanWeeks ?? 6;
   openEnded = d.openEnded ?? false;
-  sources = [...d.sources];
+  sources = (d.sources ?? []).map((o) => ({ ...o }));
   newSource = d.newSource;
   sourceEnabled = d.sourceEnabled ?? false;
-  helpOptions = [...(d.helpOptions ?? [])];
+  helpOptions = (d.helpOptions ?? []).map((o) => ({ ...o }));
   newHelp = d.newHelp ?? "";
   helpEnabled = d.helpEnabled ?? false;
   feedbackEnabled = d.feedbackEnabled;
@@ -358,9 +381,9 @@ $effect(() => {
   cycleSlots = [...existing.cycle_slots];
   openEnded = existing.span_weeks === null;
   spanWeeks = existing.span_weeks ?? 6;
-  sources = [...existing.source_options];
+  sources = existing.source_options.map((o) => ({ ...o }));
   sourceEnabled = existing.source_enabled;
-  helpOptions = [...existing.help_options];
+  helpOptions = existing.help_options.map((o) => ({ ...o }));
   helpEnabled = existing.help_enabled;
   feedbackEnabled = existing.feedback_enabled;
   nameRequired = existing.name_required;
@@ -397,16 +420,18 @@ untrack(() => {
 
 // --- The two option lists ---------------------------------------------
 function addSource(): void {
-  const v = newSource.trim();
-  if (!v || sources.includes(v)) return;
-  sources.push(v);
+  const label = newSource.trim();
+  if (!label || sources.some((o) => o.label === label)) return;
+  // No id: the server mints one, and from then on the option keeps its
+  // answers through a rename.
+  sources.push({ label });
   newSource = "";
 }
 
 function addHelp(): void {
-  const v = newHelp.trim();
-  if (!v || helpOptions.includes(v)) return;
-  helpOptions.push(v);
+  const label = newHelp.trim();
+  if (!label || helpOptions.some((o) => o.label === label)) return;
+  helpOptions.push({ label });
   newHelp = "";
 }
 
@@ -494,6 +519,7 @@ async function submit(): Promise<void> {
       listed,
       locale: eventLocale,
       image_artist_instagram: imageArtistInstagram.trim() || null,
+      confirm_destructive: confirmDestructive,
     };
 
     if (start.active) {
@@ -517,6 +543,13 @@ async function submit(): Promise<void> {
     // Nearly everything is caught above. A field-level refusal that
     // still gets through, a paste over the length cap say, is named in
     // the organiser's own language rather than in Pydantic's English.
+    // The one refusal the organiser can answer: this save would delete
+    // answers people gave, and the server says how many.
+    if (err instanceof ApiError && err.status === 409) {
+      confirmDestructive = true;
+      toasts.error(err.message);
+      return;
+    }
     const fe = firstFieldError(err);
     const label = fe && te(`event.fields.${fe.field}`) ? t(`event.fields.${fe.field}`) : null;
     if (fe && label && fe.type === "string_too_long" && fe.limit != null) {
@@ -692,9 +725,9 @@ async function submit(): Promise<void> {
         {#if helpEnabled}
           <EditableList
             items={helpOptions}
-            itemLabel={(s: string) => s}
-            itemKey={(s: string) => s}
-            onremove={(s: string) => helpOptions.splice(helpOptions.indexOf(s), 1)}
+            itemLabel={(o) => o.label}
+            itemKey={(o) => o.id ?? o.label}
+            onremove={(o) => helpOptions.splice(helpOptions.indexOf(o), 1)}
           >
             {#snippet add()}
               <AppInput
@@ -729,9 +762,9 @@ async function submit(): Promise<void> {
         {#if sourceEnabled}
           <EditableList
             items={sources}
-            itemLabel={(s: string) => s}
-            itemKey={(s: string) => s}
-            onremove={(s: string) => sources.splice(sources.indexOf(s), 1)}
+            itemLabel={(o) => o.label}
+            itemKey={(o) => o.id ?? o.label}
+            onremove={(o) => sources.splice(sources.indexOf(o), 1)}
           >
             {#snippet add()}
               <AppInput

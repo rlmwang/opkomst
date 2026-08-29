@@ -17,12 +17,28 @@ export type QuestionKind =
   | "multi_choice"
   | "number";
 
+/**
+ * One choice on a question. ``id`` is null for a newly typed option and
+ * carries the server's uuid for one that already exists, which is what
+ * keeps the answers to it attached across a rename or a reorder. An
+ * editor that drops the id is asking for the option to be replaced and
+ * its answers deleted (``docs/design-question-edits.md``).
+ */
+export interface OptionDraft {
+  id: string | null;
+  label: string;
+  /** Kompas only: which way picking this moves somebody. */
+  pole: Pole | null;
+  /** Quiz only: part of the answer key. */
+  is_correct: boolean;
+}
+
 export interface QuestionDraft {
   id: string | null;
   kind: QuestionKind;
   prompt: string;
   required: boolean;
-  options: string[];
+  options: OptionDraft[];
   low_label: string | null;
   high_label: string | null;
   /** ``number`` only, and all three say which numbers count as an
@@ -36,14 +52,12 @@ export interface QuestionDraft {
   points: number;
   correct_int: number | null;
   correct_text: string | null;
-  correct_choices: string[] | null;
   tolerance: number | null;
   /** Kompas only: which way this question moves somebody. A rating
-   *  poles the statement (``pole``, the side a 5 means); a choice poles
-   *  each option (``option_poles``, index-parallel to ``options``). The
-   *  server drops both on the other two products. */
+   *  poles the statement, and that is this field: the side a 5 means. A
+   *  choice poles each option, so its side rides on the option itself.
+   *  The server drops both on the other two products. */
   pole: Pole | null;
-  option_poles: Pole[] | null;
 }
 
 /** The four sides, offered as the organiser's own words. Built by the
@@ -171,82 +185,63 @@ function patch<K extends keyof QuestionDraft>(key: K, patched: QuestionDraft[K])
     // rating's number as a text question's answer.
     next.correct_int = null;
     next.correct_text = null;
-    next.correct_choices = null;
     // So is the direction, and for the same reason one level up: the
-    // thing it was attached to did not survive the switch.
+    // thing it was attached to did not survive the switch. Both live on
+    // the options now, so they are cleared there.
     next.pole = null;
-    next.option_poles = patched === "single_choice" ? next.options.map(() => null as unknown as Pole) : null;
+    next.options = next.options.map((o) => ({ ...o, pole: null, is_correct: false }));
   }
   value = next;
 }
 
-/** The key for a choice question is a subset of its own options, so it
- *  is picked rather than typed. Single choice replaces; multi toggles. */
-function toggleCorrect(opt: string) {
-  const current = value.correct_choices ?? [];
+/** Patch one option in place, leaving its id alone. Every edit to a
+ *  choice goes through here, which is what keeps the answers to it
+ *  attached: a rename is a new ``label`` on the same row, never a new
+ *  row. */
+function patchOption(index: number, fields: Partial<OptionDraft>): void {
+  patch(
+    "options",
+    value.options.map((o, i) => (i === index ? { ...o, ...fields } : o)),
+  );
+}
+
+/** The key for a choice question is which of its options are right, so
+ *  it is picked rather than typed. Single choice replaces; multi
+ *  toggles. */
+function toggleCorrect(index: number) {
   if (value.kind === "single_choice") {
-    patch("correct_choices", [opt]);
+    patch(
+      "options",
+      value.options.map((o, i) => ({ ...o, is_correct: i === index })),
+    );
     return;
   }
-  patch("correct_choices", current.includes(opt) ? current.filter((o) => o !== opt) : [...current, opt]);
-}
-
-function isCorrectOption(opt: string): boolean {
-  return (value.correct_choices ?? []).includes(opt);
-}
-
-/** The direction of one option, by its place in the list: the two
- *  arrays travel together and are filtered together on write, so the
- *  index is the link between an answer and where it points. */
-function poleAt(index: number): Pole | null {
-  return value.option_poles?.[index] ?? null;
-}
-
-function setPoleAt(index: number, pole: Pole): void {
-  const next = [...(value.option_poles ?? [])];
-  while (next.length < value.options.length) next.push(null as unknown as Pole);
-  next[index] = pole;
-  patch("option_poles", next);
+  patchOption(index, { is_correct: !value.options[index].is_correct });
 }
 
 function addOption() {
-  const opt = newOption.trim();
-  if (!opt) return;
-  if (value.options.includes(opt)) {
+  const label = newOption.trim();
+  if (!label) return;
+  if (value.options.some((o) => o.label === label)) {
     newOption = "";
     return;
   }
-  const next: QuestionDraft = {
+  // No id: this one is new, and the server mints it. A new option
+  // starts without a direction, which the save refuses by name until
+  // the organiser picks one.
+  value = {
     ...value,
-    options: [...value.options, opt],
+    options: [...value.options, { id: null, label, pole: null, is_correct: false }],
   };
-  if (pointed) {
-    // A new option starts without a direction, which the save refuses
-    // by name until the organiser picks one.
-    next.option_poles = [...(value.option_poles ?? []), null as unknown as Pole];
-  }
-  value = next;
   newOption = "";
 }
 
-function removeOption(opt: string) {
-  const index = value.options.indexOf(opt);
-  const next: QuestionDraft = {
-    ...value,
-    options: value.options.filter((o) => o !== opt),
-  };
-  if (pointed && index >= 0) {
-    next.option_poles = (value.option_poles ?? []).filter((_, i) => i !== index);
-  }
-  // An option that no longer exists cannot be the right answer: the
-  // server would refuse the save, and the organiser would have to work
-  // out why. Patched into the same object rather than emitted after
-  // it: a second emit reads the props this one has not landed in yet,
-  // and puts the removed option back.
-  if (isCorrectOption(opt)) {
-    next.correct_choices = (value.correct_choices ?? []).filter((o) => o !== opt);
-  }
-  value = next;
+function removeOption(option: OptionDraft) {
+  // Removing an option removes what was answered with it. The save says
+  // so and asks again (``docs/design-question-edits.md``); nothing has
+  // to be untangled here, because the key and the direction went with
+  // the row.
+  value = { ...value, options: value.options.filter((o) => o !== option) };
 }
 </script>
 
@@ -417,8 +412,8 @@ function removeOption(opt: string) {
       </p>
       <EditableList
         items={value.options}
-        itemLabel={(s: string) => s}
-        itemKey={(s: string) => s}
+        itemLabel={(o: OptionDraft) => o.label}
+        itemKey={(o: OptionDraft) => o.id ?? o.label}
         onremove={removeOption}
       >
         <!-- On a quiz the option list is also where the right answer is
@@ -430,9 +425,9 @@ function removeOption(opt: string) {
         {#snippet row({ item, index })}
           {#if pointed}
             <span class="option-row option-row-pointed">
-              <span class="option-text">{item}</span>
+              <span class="option-text">{item.label}</span>
               <SelectField
-                bind:value={() => poleAt(index), (v) => setPoleAt(index, v as Pole)}
+                bind:value={() => item.pole, (v) => patchOption(index, { pole: v as Pole })}
                 options={poles}
                 optionLabel="label"
                 optionValue="value"
@@ -445,20 +440,20 @@ function removeOption(opt: string) {
               <button
                 type="button"
                 class="correct-mark"
-                class:is-correct={isCorrectOption(item)}
-                aria-pressed={isCorrectOption(item)}
+                class:is-correct={item.is_correct}
+                aria-pressed={item.is_correct}
                 aria-label={t("quiz.question.markCorrect")}
-                onclick={() => toggleCorrect(item)}
+                onclick={() => toggleCorrect(index)}
               >
                 <!-- Hidden rather than removed: a tick on every option
                      says every option is right, and an icon that leaves
                      the DOM takes the row's height with it. -->
-                <AppIcon name="check" class={isCorrectOption(item) ? "" : "is-blank"} />
+                <AppIcon name="check" class={item.is_correct ? "" : "is-blank"} />
               </button>
-              <span>{item}</span>
+              <span>{item.label}</span>
             </span>
           {:else}
-            <span>{item}</span>
+            <span>{item.label}</span>
           {/if}
         {/snippet}
         {#snippet add()}

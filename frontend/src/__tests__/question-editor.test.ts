@@ -99,10 +99,8 @@ describe("QuestionEditor kind switching", () => {
       points: 0,
       correct_int: null,
       correct_text: null,
-      correct_choices: null,
       tolerance: null,
     pole: null,
-    option_poles: null,
     };
     const q = editor(initial);
     await q.setKind(KIND_LABEL.text);
@@ -117,7 +115,7 @@ describe("QuestionEditor kind switching", () => {
       kind: "single_choice",
       prompt: "Pick one",
       required: true,
-      options: ["A", "B", "C"],
+      options: [{ id: null, label: "A", pole: null, is_correct: false }, { id: null, label: "B", pole: null, is_correct: false }, { id: null, label: "C", pole: null, is_correct: false }],
       low_label: null,
       high_label: null,
       min_value: null,
@@ -126,10 +124,8 @@ describe("QuestionEditor kind switching", () => {
       points: 0,
       correct_int: null,
       correct_text: null,
-      correct_choices: null,
       tolerance: null,
     pole: null,
-    option_poles: null,
     };
     const q = editor(initial);
     await q.setKind(KIND_LABEL.rating);
@@ -143,7 +139,7 @@ describe("QuestionEditor kind switching", () => {
       kind: "single_choice",
       prompt: "Pick one",
       required: false,
-      options: ["A", "B"],
+      options: [{ id: null, label: "A", pole: null, is_correct: false }, { id: null, label: "B", pole: null, is_correct: false }],
       low_label: null,
       high_label: null,
       min_value: null,
@@ -152,14 +148,14 @@ describe("QuestionEditor kind switching", () => {
       points: 0,
       correct_int: null,
       correct_text: null,
-      correct_choices: null,
       tolerance: null,
     pole: null,
-    option_poles: null,
     };
     const q = editor(initial);
     await q.setKind(KIND_LABEL.multi_choice);
-    expect(q.get().options).toEqual(["A", "B"]);
+    // The choices survive the switch between the two choice kinds:
+    // same rows, same ids, so the answers to them stay attached.
+    expect(q.get().options.map((o) => o.label)).toEqual(["A", "B"]);
     expect(q.get().kind).toBe("multi_choice");
   });
 
@@ -178,10 +174,8 @@ describe("QuestionEditor kind switching", () => {
       points: 0,
       correct_int: null,
       correct_text: null,
-      correct_choices: null,
       tolerance: null,
     pole: null,
-    option_poles: null,
     };
     const q = editor(initial);
     await q.setKind(KIND_LABEL.short_text);
@@ -196,7 +190,10 @@ describe("QuestionEditor kind switching", () => {
       kind: "single_choice",
       prompt: "Welke?",
       required: true,
-      options: ["A", "B"],
+      options: [
+        { id: "opt-a", label: "A", pole: null, is_correct: true },
+        { id: "opt-b", label: "B", pole: null, is_correct: false },
+      ],
       low_label: null,
       high_label: null,
       min_value: null,
@@ -205,14 +202,14 @@ describe("QuestionEditor kind switching", () => {
       points: 2,
       correct_int: null,
       correct_text: null,
-      correct_choices: ["A"],
       tolerance: null,
-    pole: null,
-    option_poles: null,
+      pole: null,
     };
     const q = editor(initial);
     await q.setKind(KIND_LABEL.number);
-    expect(q.get().correct_choices).toBeNull();
+    // The key went with the shape it belonged to: a number question has
+    // no options to be right.
+    expect(q.get().options.every((o) => !o.is_correct)).toBe(true);
     // What it is worth survives: the points are about the question,
     // not about the shape of its answer.
     expect(q.get().points).toBe(2);

@@ -75,19 +75,16 @@ function poleName(pole: string | null | undefined): string {
  *  the order they were written in. */
 const questionById = $derived(new Map((form?.questions ?? []).map((q) => [q.id, q])));
 
-function optionPoleName(questionId: string, option: string): string {
-  const question = questionById.get(questionId);
-  const index = (question?.options ?? []).indexOf(option);
-  return index < 0 ? "" : poleName(question?.option_poles?.[index]);
+function optionPoleName(questionId: string, label: string): string {
+  const option = questionById.get(questionId)?.options?.find((o) => o.label === label);
+  return poleName(option?.pole ?? null);
 }
 
 /** The same direction in one word instead of two. Read on a counted
  *  row, where the axis is already the subject of the question and is
  *  spelled out in full in the overview above. */
-function optionPoleSide(questionId: string, option: string): string {
-  const question = questionById.get(questionId);
-  const index = (question?.options ?? []).indexOf(option);
-  const pole = index < 0 ? null : question?.option_poles?.[index];
+function optionPoleSide(questionId: string, label: string): string {
+  const pole = questionById.get(questionId)?.options?.find((o) => o.label === label)?.pole;
   if (!pole) return "";
   const [axis, side] = pole.split("_");
   const row =
@@ -121,9 +118,10 @@ function numberRule(q: Question): string | null {
   return parts.length ? parts.join(", ") : null;
 }
 
-/** Is this the right answer? Only a quiz has one. */
-function isKeyOption(q: Question, option: string): boolean {
-  return isQuiz && (q.correct_choices ?? []).includes(option);
+/** Is this the right answer? Only a quiz has one, and it is a flag on
+ *  the option rather than a list of labels beside it. */
+function isKeyOption(q: Question, label: string): boolean {
+  return isQuiz && (q.options ?? []).some((o) => o.label === label && o.is_correct);
 }
 
 /** The right answer for the kinds that list no options to mark. */
@@ -262,9 +260,10 @@ async function exportCsv(): Promise<void> {
                    the organiser has to open the editor to read. -->
               {#if q.options.length}
                 <ul class="q-overview-options">
-                  {#each q.options as o (o)}
-                    <li class:is-key={isKeyOption(q, o)}>
-                      {o}{#if isCompass}<span class="option-pole">{optionPoleName(q.id, o)}</span
+                  {#each q.options as o (o.id)}
+                    <li class:is-key={isKeyOption(q, o.label)}>
+                      {o.label}{#if isCompass}<span class="option-pole"
+                          >{optionPoleName(q.id, o.label)}</span
                         >{/if}
                     </li>
                   {/each}

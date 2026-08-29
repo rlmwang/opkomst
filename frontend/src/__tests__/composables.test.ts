@@ -194,7 +194,7 @@ describe("the event writes", () => {
       cycle_slots: [4],
       span_weeks: 6,
       horizon_days: 90,
-      source_options: ["F"],
+      source_options: [{ id: null, label: "F" }],
       source_enabled: true,
       help_options: [],
       help_enabled: false,
