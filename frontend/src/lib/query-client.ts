@@ -1,19 +1,12 @@
-import { QueryClient } from "@tanstack/query-core";
+import { QueryClient } from "@tanstack/svelte-query";
 
 import { ApiError } from "@/api/client";
 
 /**
  * The one query cache.
  *
- * Was built inside ``main.ts`` and handed to Vue Query's plugin. It
- * moved here when the organiser app started crossing to Svelte
- * (``docs/tasks/svelte``): a bridged Svelte component and the Vue page
- * around it read the same rows, and two clients would mean two copies of
- * every list, two fetches for one screen, and an invalidation on one
- * side that the other never hears.
- *
- * Both adapters wrap this same ``query-core`` client, which is why they
- * are pinned to one major.
+ * One module rather than something built in the entry, so a composable
+ * can reach it without being handed it.
  *
  * Defaults: 60 s stale-time so a dialog opening from a list (and
  * same-list navigation roundtrips) doesn't refetch on mount; retry only

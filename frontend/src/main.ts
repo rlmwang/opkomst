@@ -1,8 +1,7 @@
-import { VueQueryPlugin } from "@tanstack/vue-query";
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import { createApp } from "vue";
-import { queryClient } from "@/lib/query-client";
-import { connectRouter } from "@/lib/router-bridge";
+import { ApiError } from "@/api/client";
 import * as sentry from "@/lib/sentry";
 import { tooltip } from "@/lib/tooltip";
 import App from "./App.vue";
@@ -21,15 +20,27 @@ sentry.arm(app);
 
 app.use(createPinia());
 
-// Vue Query owns server state. The client itself is
-// ``lib/query-client``, shared with the Svelte half so both read one
-// cache while the app crosses over.
+// Vue Query owns server state. Defaults: 60 s stale-time so a dialog
+// opening from a list (and same-list navigation roundtrips) doesn't
+// refetch on mount; retry only on transient (network / 5xx) errors,
+// never on 4xx, which by definition won't become 2xx in the next second
+// and only delays surfacing the real error; no refetch-on-window-focus,
+// because organiser tabs sit open all afternoon.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+        return failureCount < 1;
+      },
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 app.use(VueQueryPlugin, { queryClient });
 
 app.use(router);
-// The Svelte half reads this same router rather than running its own
-// (``lib/router-bridge``), until the route table itself crosses.
-connectRouter(router);
 app.directive("tooltip", tooltip);
 
 // The active language is fetched, not bundled, so it has to be in hand

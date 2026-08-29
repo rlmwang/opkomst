@@ -19,8 +19,10 @@
     "src/public/**/*",
     "src/public_chore/**/*",
     "src/components/*.svelte",
-    "src/lib/router.svelte.ts",
     "src/i18n.svelte.ts",
-    "src/lib/svelte-bridge.svelte.ts"
+    "src/stores/auth.svelte.ts",
+    "src/router/*.svelte.ts",
+    "src/router/*.svelte",
+    "src/api/queries.svelte.ts"
   ]
 }
