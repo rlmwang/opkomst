@@ -32,6 +32,7 @@ const {
   count,
   oncopyLink,
   oncopyQr,
+  ...rest
 }: {
   /** The public URL. Absent on an entity with no live page yet, an
    *  event whose occurrences have all passed say. */
@@ -48,10 +49,13 @@ const {
   count?: Snippet;
   oncopyLink: () => void;
   oncopyQr: () => void;
+  /** Pointer and focus handlers, which the list page uses to warm the
+   *  details queries for the row somebody has settled on. */
+  [key: string]: unknown;
 } = $props();
 </script>
 
-<AppCard stack={false} class="entity-card">
+<AppCard stack={false} class="entity-card" {...rest}>
   <div class="entity-main">
     <div class="entity-text">
       <div class="entity-title">{@render title()}</div>
