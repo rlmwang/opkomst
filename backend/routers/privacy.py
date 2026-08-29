@@ -84,7 +84,7 @@ def _written_page(slug: str, request: Request) -> HTMLResponse:
     request.state.ads_allowed = ads is not None
     return _render(
         request,
-        f"content/{page.slug}.html",
+        "content.html",
         page=page,
         ads=ads,
         csp_nonce=request.state.csp_nonce,

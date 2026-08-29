@@ -163,6 +163,11 @@ scripts/
   restore_drill.sh            quarterly restore-from-backup smoke
   backup.sh                   daily redacted pg_dump (encrypted_email NULL'd)
 
+backend/content/            one markdown file per written page: front
+                            matter (title, description, call to action)
+                            plus the prose. Rendered once at import by
+                            ``services/content.py``.
+
 docs/
   architecture.md             current-state design
   deploy.md                   end-to-end go-live walkthrough + ops

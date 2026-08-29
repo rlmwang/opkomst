@@ -1,4 +1,4 @@
-{#- Shared chrome for the written pages and the privacy policy.
+{#- The written pages: chrome, and the markdown body rendered into it.
 
     Server-rendered and carrying no bundle: a page written to be found
     should be readable in the HTML that arrives, not after a bundle has
@@ -51,7 +51,10 @@
     p, li { max-width: 42rem; }
     ul { padding-left: 1.25rem; }
     a { color: var(--brand-red); }
-    .lede { font-size: 1.0625rem; color: var(--brand-text-muted); }
+    /* The first paragraph of a page is its lede. A selector rather
+     * than a class in the markdown, because it is true of every page
+     * and a writer should not have to remember it. */
+    h1 + p, .lede { font-size: 1.0625rem; color: var(--brand-text-muted); }
     .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
     .cta {
       display: inline-block;
@@ -124,7 +127,13 @@
     </a>
   </header>
 
-  {% block content %}{% endblock %}
+  {#- The page itself: a heading, the prose from ``backend/content``
+      already rendered to HTML, and the call to action every written
+      page ends on. The first paragraph is the lede, styled by
+      ``h1 + p`` rather than by a class somebody has to remember. -#}
+  <h1>{{ page.title }}</h1>
+  {{ page.html | safe }}
+  <a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
 
   {%- if ads %}
   {#- Advertising. Only where ``ads`` is passed, which is the written

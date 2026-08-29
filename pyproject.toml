@@ -42,6 +42,13 @@ dependencies = [
     # ``TestClient`` so tests would see it regardless.
     "httpx>=0.28",
     "nh3>=0.2",
+    # The written pages are markdown files in ``backend/content``,
+    # rendered once at import (``services/content.py``). Python-Markdown
+    # rather than a bigger toolchain: it is pure Python, it ships the
+    # two extensions these pages need (tables, and a class on a
+    # paragraph), and the input is our own repository rather than
+    # anything a user typed.
+    "markdown>=3.7",
 ]
 
 [dependency-groups]

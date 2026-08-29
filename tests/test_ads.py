@@ -241,13 +241,13 @@ def test_an_unconfigured_deployment_keeps_the_written_pages_clean(client) -> Non
 
 def test_the_written_pages_and_the_component_agree_on_the_slot() -> None:
     """The rails, the banner and the breakpoint exist twice: once in
-    ``AdSlot.vue`` for the app, once inline in ``templates/_page.html``
+    ``AdSlot.vue`` for the app, once inline in ``templates/content.html``
     because these pages carry no bundle to reach the component. Nothing
     but this test stops the two shapes from drifting."""
     root = pathlib.Path(__file__).resolve().parent.parent
     component = (root / "frontend" / "src" / "public_shared" / "AdSlot.vue").read_text(encoding="utf-8")
     unit = (root / "frontend" / "src" / "public_shared" / "AdUnit.vue").read_text(encoding="utf-8")
-    page = (root / "backend" / "templates" / "_page.html").read_text(encoding="utf-8")
+    page = (root / "backend" / "templates" / "content.html").read_text(encoding="utf-8")
     assert "(min-width: 1236px)" in component and "(min-width: 1236px)" in page
     for size in ("width: 160px;", "height: 600px;", "width: 320px;", "height: 50px;"):
         assert size in component, size

@@ -151,3 +151,22 @@ def test_the_dev_server_proxies_every_written_page() -> None:
     # The two pages that are read rather than used come first, then the
     # written pages in the order ``services/content.py`` lists them.
     assert proxied == ["/privacy", "/voorwaarden", *(f"/{p.slug}" for p in PAGES)]
+
+
+def test_every_page_is_one_markdown_file_with_complete_front_matter() -> None:
+    """A page is a file in ``backend/content``. The loader refuses a
+    file that is missing a front-matter key, so this asserts the shape
+    the loader produced rather than re-parsing it: every page has the
+    five fields, a body, and a unique place in the order."""
+    from backend.services.content import CONTENT_DIR
+
+    files = sorted(p.stem for p in CONTENT_DIR.glob("*.md"))
+    assert files == sorted(p.slug for p in PAGES)
+    for page in PAGES:
+        assert page.title and page.description and page.cta_label
+        assert page.cta_path.startswith("/")
+        assert page.body.strip()
+        # Rendered markdown, not the source: a page that renders to
+        # nothing would still have passed every check above.
+        assert "<p>" in page.html
+    assert len({p.order for p in PAGES}) == len(PAGES)

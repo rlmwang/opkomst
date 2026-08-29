@@ -17,10 +17,13 @@ and often a chapter, and none of that is ours to publish.
 
 ## The written pages
 
-`backend/templates/content/` holds one page per question somebody
+`backend/content/` holds one markdown file per question somebody
 actually types: how to run a sign-up without per-ticket fees, how to
-plan a date without an account, and so on. They are server-rendered
-with no bundle, so the text is in the HTML that arrives.
+plan a date without an account, and so on. One file
+carries the front matter and the prose; the shared chrome, the heading
+and the closing call to action come from the template around it. They
+are server-rendered with no bundle, so the text is in the HTML that
+arrives.
 
 Each one is written to be read rather than to rank, carries its own
 title, description and canonical, and ends by pointing at the thing in
