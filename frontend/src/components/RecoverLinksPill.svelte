@@ -77,9 +77,14 @@ async function confirmCopy() {
   busy = true;
   try {
     const ack = await post<{ edit_token: string }>(recoverPath(row.id));
-    await navigator.clipboard.writeText(publicUrl(ack.edit_token));
+    const url = publicUrl(ack.edit_token);
+    await navigator.clipboard.writeText(url);
     row.recoveredAt = new Date().toISOString();
     toasts.success(t("recoverLink.copied"));
+    // Straight to the participant's fresh edit page, in a new tab so
+    // the organiser keeps their place. It lets them check it or hand
+    // the open page over directly.
+    window.open(url, "_blank", "noopener");
   } catch {
     toasts.error(t("recoverLink.failed"));
   } finally {

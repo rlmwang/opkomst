@@ -4,16 +4,25 @@
  * Two wrong answers this pins down. One is an organisation's page
  * carrying a list of our essays, which is the same mistake as putting
  * an ad there. The other is quieter: the footer is mounted once in
- * ``App.vue``, so without a route test it silently returns to every
+ * ``App.svelte``, so without a route test it silently returns to every
  * page in the organiser app, which is where the noise complaint came
  * from in the first place.
  */
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
-import { useTestMessages } from "@/__tests__/i18n-harness";
-import { createMemoryHistory, createRouter } from "vue-router";
+import { render } from "@testing-library/svelte";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import SiteFooter from "@/components/SiteFooter.vue";
+import { useTestMessages } from "@/__tests__/i18n-harness";
+import SiteFooter from "@/components/SiteFooter.svelte";
+
+// The footer asks the router two things: where we are, and whether this
+// route is one of the create pages. Both come from one module, so the
+// test sets them directly rather than driving a real navigation.
+const here = { path: "/", meta: {} as Record<string, unknown> };
+vi.mock("@/router/navigation.svelte", () => ({
+  get route() {
+    return here;
+  },
+}));
 
 const BRAND = {
   slug: "opkomst",
@@ -32,31 +41,24 @@ const BRAND = {
 const CREATE = ["/event/new", "/form/new", "/datepoll/new", "/chore/new", "/quiz/new", "/compass/new"];
 const INDEXED = ["/", ...CREATE];
 
-const blank = { template: "<div />" };
-
 useTestMessages("nl", { footer: { label: "Meer lezen", privacy: "Privacy", source: "Broncode" } });
 
-async function mountAt(path: string) {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      ...["/", "/event", "/chore/abc/edit"].map((p) => ({ path: p, component: blank })),
-      ...CREATE.map((p) => ({ path: p, component: blank, meta: { startable: true } })),
-    ],
-  });
-  router.push(path);
-  await router.isReady();
-  return mount(SiteFooter, { global: { plugins: [router] } });
+function renderAt(path: string) {
+  here.path = path;
+  here.meta = CREATE.includes(path) ? { startable: true } : {};
+  return render(SiteFooter).container;
 }
+
+const hrefsIn = (root: HTMLElement) =>
+  [...root.querySelectorAll("a")].map((a) => a.getAttribute("href"));
 
 beforeEach(() => {
   window.__OPKOMST_BRAND__ = { ...BRAND } as typeof window.__OPKOMST_BRAND__;
 });
 
 describe("SiteFooter", () => {
-  it.each(INDEXED)("renders on %s, the pages a stranger lands on", async (path) => {
-    const wrapper = await mountAt(path);
-    const hrefs = wrapper.findAll("a").map((a) => a.attributes("href"));
+  it.each(INDEXED)("renders on %s, the pages a stranger lands on", (path) => {
+    const hrefs = hrefsIn(renderAt(path));
     expect(hrefs).toContain("/datumplanner-zonder-account");
     expect(hrefs).toContain("/aanmeldformulier-zonder-google");
     expect(hrefs).toContain("/wat-gebeurt-er-met-je-mailadres");
@@ -65,15 +67,14 @@ describe("SiteFooter", () => {
     expect(hrefs.some((h) => h?.includes("github.com"))).toBe(true);
   });
 
-  it("stays off the organiser's working pages", async () => {
-    expect((await mountAt("/event")).find("footer").exists()).toBe(false);
-    expect((await mountAt("/chore/abc/edit")).find("footer").exists()).toBe(false);
+  it("stays off the organiser's working pages", () => {
+    expect(renderAt("/event").querySelector("footer")).toBeNull();
+    expect(renderAt("/chore/abc/edit").querySelector("footer")).toBeNull();
   });
 
-  it("drops the blogs on a brand an organisation owns", async () => {
+  it("drops the blogs on a brand an organisation owns", () => {
     window.__OPKOMST_BRAND__ = { ...BRAND, slug: "rsp", app_base: "/rsp/" } as typeof window.__OPKOMST_BRAND__;
-    const wrapper = await mountAt("/");
-    const hrefs = wrapper.findAll("a").map((a) => a.attributes("href"));
+    const hrefs = hrefsIn(renderAt("/"));
     // The policy, the source and the way to report something belong on
     // every page; our essays are not part of their identity.
     expect(hrefs).toContain("/privacy");

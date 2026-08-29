@@ -1,5 +1,5 @@
 /**
- * The advertising slot's gates (``AdSlot.vue`` / ``AdUnit.vue``).
+ * The advertising slot's gates (``AdSlot.svelte`` / ``AdUnit.svelte``).
  *
  * Three questions decide what renders, and each has a wrong answer that
  * would be noticed by somebody else: an organisation whose members are
@@ -10,10 +10,10 @@
  * ``window.__OPKOMST_BRAND__`` the way a shell would and mounts the
  * component fresh.
  */
-import { mount } from "@vue/test-utils";
+import { render } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import AdSlot from "@/public_shared/AdSlot.vue";
+import AdSlot from "@/public_shared/AdSlot.svelte";
 import type { BrandAds } from "@/lib/branding";
 
 const BASE_BRAND = {
@@ -115,38 +115,40 @@ afterEach(() => {
 describe("whose page this is", () => {
   it("renders nothing at all on a brand an organisation owns", () => {
     setBrand(null);
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    expect(w.html()).toBe("<!--v-if-->");
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    expect(root.textContent).toBe("");
+    expect(root.querySelector("ins.adsbygoogle")).toBeNull();
   });
 
   it("loads no ad script on an organisation's page even when one is configured", () => {
     // The server sends null for an organisation whatever the
     // environment says, so this is the belt to that braces.
     setBrand(null);
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
     expect(document.getElementById("adsense-tag")).toBeNull();
   });
 
   it("renders nothing on a page that has to stand alone", () => {
     setBrand(UNCONFIGURED);
-    const w = mount(AdSlot, { props: { locale: "nl", hide: true } });
-    expect(w.html()).toBe("<!--v-if-->");
+    const root = render(AdSlot, { props: { locale: "nl", hide: true } }).container;
+    expect(root.textContent).toBe("");
+    expect(root.querySelector("ins.adsbygoogle")).toBeNull();
   });
 });
 
 describe("with no network configured", () => {
   it("says so, and loads nothing from Google", () => {
     setBrand(UNCONFIGURED);
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    expect(w.text()).toContain("Geen advertenties");
-    expect(w.find("ins.adsbygoogle").exists()).toBe(false);
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    expect(root.textContent).toContain("Geen advertenties");
+    expect(root.querySelector("ins.adsbygoogle")).toBeNull();
     expect(document.getElementById("adsense-tag")).toBeNull();
   });
 
   it("carries no advertisement label, because there is no advertisement", () => {
     setBrand(UNCONFIGURED);
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    expect(w.find(".ad-label").exists()).toBe(false);
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    expect(root.querySelector(".ad-label")).toBeNull();
   });
 
   it("offers the support buttons when their URLs are set", () => {
@@ -154,19 +156,19 @@ describe("with no network configured", () => {
     // width there are two rails and each carries the same pair.
     setViewport(false);
     setBrand({ ...UNCONFIGURED, coffee_url: "https://buymeacoffee.com/x", patreon_url: "https://patreon.com/x" });
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    const links = w.findAll("a.support-link");
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    const links = [...root.querySelectorAll("a.support-link")];
     expect(links).toHaveLength(2);
-    expect(links[0].attributes("href")).toBe("https://buymeacoffee.com/x");
+    expect(links[0].getAttribute("href")).toBe("https://buymeacoffee.com/x");
     // Their own artwork, served from this app rather than their CDNs.
-    expect(links[0].find("img").attributes("src")).toContain("/brand/opkomst/");
+    expect(links[0].querySelector("img")?.getAttribute("src")).toContain("/brand/opkomst/");
   });
 
   it("shows only the service that is configured", () => {
     setViewport(false);
     setBrand({ ...UNCONFIGURED, coffee_url: "https://buymeacoffee.com/x" });
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    expect(w.findAll("a.support-link")).toHaveLength(1);
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    expect(root.querySelectorAll("a.support-link")).toHaveLength(1);
   });
 });
 
@@ -180,18 +182,18 @@ describe("with a network configured", () => {
 
   it("renders the unit and labels it", () => {
     setBrand(CONFIGURED);
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    const units = w.findAll("ins.adsbygoogle");
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    const units = [...root.querySelectorAll("ins.adsbygoogle")];
     expect(units).toHaveLength(2); // one rail either side
-    expect(units[0].attributes("data-ad-client")).toBe("ca-pub-0000000000000000");
-    expect(units[0].attributes("data-ad-slot")).toBe("1111111111");
-    expect(w.findAll(".ad-label")).toHaveLength(2);
+    expect(units[0].getAttribute("data-ad-client")).toBe("ca-pub-0000000000000000");
+    expect(units[0].getAttribute("data-ad-slot")).toBe("1111111111");
+    expect(root.querySelectorAll(".ad-label")).toHaveLength(2);
   });
 
   it("loads the tag once however many units are on the page", () => {
     setBrand(CONFIGURED);
-    mount(AdSlot, { props: { locale: "nl" } });
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
     runIdleCallbacks();
     expect(document.querySelectorAll("script#adsense-tag")).toHaveLength(1);
   });
@@ -201,7 +203,7 @@ describe("with a network configured", () => {
     // the seconds after that, while the app is hydrating and an async
     // script is still competing for bandwidth and the main thread.
     setBrand(CONFIGURED);
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
     expect(document.getElementById("adsense-tag")).toBeNull();
 
     runIdleCallbacks();
@@ -217,7 +219,7 @@ describe("with a network configured", () => {
     // an ad slot never stays empty for ever.
     setBrand(CONFIGURED);
     delete (window as unknown as { requestIdleCallback?: unknown }).requestIdleCallback;
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(document.getElementById("adsense-tag")).not.toBeNull();
   });
@@ -225,7 +227,7 @@ describe("with a network configured", () => {
   it("asks for no ad until the slot comes near the viewport", () => {
     setViewport(false); // the phone banner, at the foot of the page
     setBrand(CONFIGURED);
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
 
     expect(observed).toHaveLength(1);
     expect(adRequests()).toBe(0);
@@ -239,7 +241,7 @@ describe("with a network configured", () => {
     // never render, which is the thing that gets lazy loading flagged.
     setViewport(false);
     setBrand(CONFIGURED);
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
 
     observed[0].fire(true);
     observed[0].fire(true);
@@ -249,7 +251,7 @@ describe("with a network configured", () => {
   it("never asks while the slot stays away from the viewport", () => {
     setViewport(false);
     setBrand(CONFIGURED);
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
 
     observed[0].fire(false);
     expect(adRequests()).toBe(0);
@@ -259,16 +261,16 @@ describe("with a network configured", () => {
     setViewport(false);
     setBrand(CONFIGURED);
     removeIntersectionObserver();
-    mount(AdSlot, { props: { locale: "nl" } });
+    render(AdSlot, { props: { locale: "nl" } });
     expect(adRequests()).toBe(1);
   });
 
   it("uses the banner unit below the rail breakpoint", () => {
     setViewport(false);
     setBrand(CONFIGURED);
-    const w = mount(AdSlot, { props: { locale: "nl" } });
-    const units = w.findAll("ins.adsbygoogle");
+    const root = render(AdSlot, { props: { locale: "nl" } }).container;
+    const units = [...root.querySelectorAll("ins.adsbygoogle")];
     expect(units).toHaveLength(1);
-    expect(units[0].attributes("data-ad-slot")).toBe("2222222222");
+    expect(units[0].getAttribute("data-ad-slot")).toBe("2222222222");
   });
 });

@@ -1,143 +1,168 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { cleanup, render } from "@testing-library/svelte";
+import { afterEach, describe, expect, it } from "vitest";
 
-import DatePicker from "@/components/DatePicker.vue";
+import { bindable } from "@/__tests__/bind.svelte";
+import DatePicker from "@/components/DatePicker.svelte";
 
 // The picker replaced PrimeVue's, whose behaviour four call sites rely
 // on: the dd-mm-yyyy format, a six-week grid that never changes height,
 // single vs multiple selection, and the time spinner's step.
 
-type Props = InstanceType<typeof DatePicker>["$props"];
+// An inline calendar and a panel both outlive their test otherwise, and
+// the panel is moved to the body, so the next test's query would find
+// the last test's calendar.
+afterEach(cleanup);
 
-const mountAt = (props: Props) => mount(DatePicker, { props, attachTo: document.body });
+/** The picker with its value bound, so a test reads back what it wrote.
+ *  The panel is moved to the body, so panel queries go through
+ *  ``document``; everything the field owns is in the container. */
+function picker(value: Date | Date[] | null, rest: Record<string, unknown> = {}) {
+  const model = bindable("modelValue", value, rest);
+  const { container, unmount } = render(DatePicker, { props: model.props });
+  const input = container.querySelector("input") as HTMLInputElement;
+  return {
+    model,
+    container,
+    unmount,
+    input,
+    all: (selector: string) => [...document.querySelectorAll(selector)] as HTMLElement[],
+    async type(text: string) {
+      input.value = text;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      await Promise.resolve();
+    },
+    async focus() {
+      input.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+      await Promise.resolve();
+    },
+    async click(el: HTMLElement) {
+      el.click();
+      await Promise.resolve();
+    },
+  };
+}
 
 describe("date input", () => {
   it("formats the value the way dd-mm-yy means in this vocabulary", () => {
     // ``yy`` is the four-digit year, not the last two.
-    const w = mountAt({ modelValue: new Date(2026, 2, 5) });
-    expect((w.get("input").element as HTMLInputElement).value).toBe("05-03-2026");
+    const p = picker(new Date(2026, 2, 5));
+    expect(p.input.value).toBe("05-03-2026");
   });
 
   it("parses what the user types back into a date", async () => {
-    const w = mountAt({ modelValue: null });
-    const input = w.get("input");
-    await input.setValue("09-04-2026");
-    const emitted = w.emitted("update:modelValue")!.at(-1)![0] as Date;
-    expect([emitted.getFullYear(), emitted.getMonth(), emitted.getDate()]).toEqual([2026, 3, 9]);
+    const p = picker(null);
+    await p.type("09-04-2026");
+    const out = p.model.current as Date;
+    expect([out.getFullYear(), out.getMonth(), out.getDate()]).toEqual([2026, 3, 9]);
   });
 
   it("leaves the value alone while a date is half-typed", async () => {
-    const w = mountAt({ modelValue: new Date(2026, 2, 5) });
-    await w.get("input").setValue("09-04");
-    expect(w.emitted("update:modelValue")).toBeUndefined();
+    const p = picker(new Date(2026, 2, 5));
+    await p.type("09-04");
+    expect(p.model.writes).toHaveLength(0);
   });
 
   it("clears when the field is emptied", async () => {
-    const w = mountAt({ modelValue: new Date(2026, 2, 5) });
-    await w.get("input").setValue("");
-    expect(w.emitted("update:modelValue")!.at(-1)![0]).toBeNull();
+    const p = picker(new Date(2026, 2, 5));
+    await p.type("");
+    expect(p.model.current).toBeNull();
   });
 
   it("opens on focus and closes once a day is picked", async () => {
-    const w = mountAt({ modelValue: new Date(2026, 2, 5) });
+    const p = picker(new Date(2026, 2, 5));
     expect(document.querySelector(".dp-panel")).toBeNull();
-    await w.get("input").trigger("focus");
+    await p.focus();
     expect(document.querySelector(".dp-panel")).not.toBeNull();
-    const days = document.querySelectorAll(".dp-day:not(.dp-day-other)");
-    (days[10] as HTMLElement).click();
-    await w.vm.$nextTick();
+    await p.click(p.all(".dp-day:not(.dp-day-other)")[10]);
     expect(document.querySelector(".dp-panel")).toBeNull();
-    w.unmount();
+    p.unmount();
   });
 });
 
 describe("the calendar grid", () => {
-  it("always draws six weeks, so the panel height never shifts", async () => {
+  it("always draws six weeks, so the panel height never shifts", () => {
     // February 2026 fits in five rows; May 2026 needs six.
     for (const month of [new Date(2026, 1, 10), new Date(2026, 4, 10)]) {
-      const w = mountAt({ modelValue: month, inline: true });
-      expect(w.findAll("tbody tr")).toHaveLength(6);
-      w.unmount();
+      const p = picker(month, { inline: true });
+      expect(p.container.querySelectorAll("tbody tr")).toHaveLength(6);
+      p.unmount();
     }
   });
 
   it("starts the week on Monday in the page language", () => {
-    const w = mountAt({ modelValue: new Date(2026, 2, 5), inline: true, locale: "nl" });
-    const heads = w.findAll(".dp-weekday").map((n) => n.text());
+    const p = picker(new Date(2026, 2, 5), { inline: true, locale: "nl" });
+    const heads = [...p.container.querySelectorAll(".dp-weekday")].map((n) => n.textContent);
     expect(heads[0]).toBe("ma");
     expect(heads[6]).toBe("zo");
-    expect(w.get(".dp-title-month").text()).toBe("maart");
-    w.unmount();
+    expect(p.container.querySelector(".dp-title-month")?.textContent).toBe("maart");
+    p.unmount();
   });
 
   it("shows the neighbouring months' days but does not select them", async () => {
     // 1 March 2026 is a Sunday, so the row leads with six February days.
-    const w = mountAt({ modelValue: new Date(2026, 2, 5), inline: true });
-    const others = w.findAll(".dp-day-other");
+    const p = picker(new Date(2026, 2, 5), { inline: true });
+    const others = [...p.container.querySelectorAll(".dp-day-other")] as HTMLElement[];
     expect(others.length).toBeGreaterThan(0);
-    await others[0].trigger("click");
-    expect(w.emitted("update:modelValue")).toBeUndefined();
-    w.unmount();
+    await p.click(others[0]);
+    expect(p.model.writes).toHaveLength(0);
+    p.unmount();
   });
 
   it("marks today and the selected day", () => {
-    const w = mountAt({ modelValue: new Date(), inline: true });
-    expect(w.findAll(".dp-today")).toHaveLength(1);
-    expect(w.findAll(".dp-day-selected")).toHaveLength(1);
-    w.unmount();
+    const p = picker(new Date(), { inline: true });
+    expect(p.container.querySelectorAll(".dp-today")).toHaveLength(1);
+    expect(p.container.querySelectorAll(".dp-day-selected")).toHaveLength(1);
+    p.unmount();
   });
 });
 
 describe("multiple selection", () => {
   it("adds a day, and removes one already chosen", async () => {
     const first = new Date(2026, 2, 5);
-    const w = mountAt({ modelValue: [first], inline: true, selectionMode: "multiple" });
-    const days = w.findAll(".dp-day:not(.dp-day-other)");
+    const p = picker([first], { inline: true, selectionMode: "multiple" });
+    const days = [...p.container.querySelectorAll(".dp-day:not(.dp-day-other)")] as HTMLElement[];
 
-    await days[9].trigger("click"); // 10 March
-    let out = w.emitted("update:modelValue")!.at(-1)![0] as Date[];
-    expect(out).toHaveLength(2);
+    await p.click(days[9]); // 10 March
+    expect(p.model.current as Date[]).toHaveLength(2);
 
-    await days[4].trigger("click"); // 5 March again
-    out = w.emitted("update:modelValue")!.at(-1)![0] as Date[];
-    expect(out).toHaveLength(0);
-    w.unmount();
+    await p.click(days[4]); // 5 March again, off
+    const left = p.model.current as Date[];
+    expect(left).toHaveLength(1);
+    expect(left[0].getDate()).toBe(10);
+    p.unmount();
   });
 });
 
 describe("time only", () => {
   it("shows hours and minutes, and no calendar", async () => {
-    const at = new Date(2026, 2, 5, 18, 30);
-    const w = mountAt({ modelValue: at, timeOnly: true });
-    expect((w.get("input").element as HTMLInputElement).value).toBe("18:30");
-    await w.get("input").trigger("focus");
+    const p = picker(new Date(2026, 2, 5, 18, 30), { timeOnly: true });
+    expect(p.input.value).toBe("18:30");
+    await p.focus();
     expect(document.querySelector(".dp-dayview")).toBeNull();
     expect(document.querySelectorAll(".dp-timepicker span")[0].textContent).toBe("18");
-    w.unmount();
+    p.unmount();
   });
 
   it("steps minutes by stepMinute and wraps the hour", async () => {
-    const w = mountAt({ modelValue: new Date(2026, 2, 5, 23, 45), timeOnly: true, stepMinute: 15 });
-    await w.get("input").trigger("focus");
-    const buttons = document.querySelectorAll(".dp-timepicker .dp-navbtn");
-    (buttons[2] as HTMLElement).click(); // minute up
-    let out = w.emitted("update:modelValue")!.at(-1)![0] as Date;
-    expect(out.getMinutes()).toBe(0);
-    (buttons[0] as HTMLElement).click(); // hour up, 23 -> 0
-    out = w.emitted("update:modelValue")!.at(-1)![0] as Date;
-    expect(out.getHours()).toBe(0);
-    w.unmount();
+    const p = picker(new Date(2026, 2, 5, 23, 45), { timeOnly: true, stepMinute: 15 });
+    await p.focus();
+    const buttons = p.all(".dp-timepicker .dp-navbtn");
+    await p.click(buttons[2]); // minute up
+    expect((p.model.current as Date).getMinutes()).toBe(0);
+    await p.click(buttons[0]); // hour up, 23 -> 0
+    expect((p.model.current as Date).getHours()).toBe(0);
+    p.unmount();
   });
 });
 
 describe("button bar", () => {
   it("offers today and clear in the page language", async () => {
-    const w = mountAt({ modelValue: null, showButtonBar: true, locale: "nl" });
-    await w.get("input").trigger("focus");
-    const bar = document.querySelectorAll(".dp-barbtn");
-    expect([...bar].map((b) => b.textContent)).toEqual(["Vandaag", "Wissen"]);
-    (bar[1] as HTMLElement).click();
-    expect(w.emitted("update:modelValue")!.at(-1)![0]).toBeNull();
-    w.unmount();
+    const p = picker(null, { showButtonBar: true, locale: "nl" });
+    await p.focus();
+    const bar = p.all(".dp-barbtn");
+    expect(bar.map((b) => b.textContent)).toEqual(["Vandaag", "Wissen"]);
+    await p.click(bar[1]);
+    expect(p.model.current).toBeNull();
+    p.unmount();
   });
 });

@@ -1,80 +1,122 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { render } from "@testing-library/svelte";
+import { describe, expect, it, vi } from "vitest";
 
-import AppButton from "@/components/AppButton.vue";
-import AppTextarea from "@/components/AppTextarea.vue";
-import AppToggle from "@/components/AppToggle.vue";
+import AppButton from "@/components/AppButton.svelte";
+import AppTextarea from "@/components/AppTextarea.svelte";
+import AppToggle from "@/components/AppToggle.svelte";
 
 // The ones of the four with behaviour to get wrong. AppInput is a
 // styled input and needs no test.
 
+/** The component's own outermost element, not the container the test
+ *  renderer wraps it in. */
+const classesOf = (container: HTMLElement) => [
+  ...(container.firstElementChild as HTMLElement).classList,
+];
+
 describe("AppButton", () => {
   it("does not fire while disabled or loading", async () => {
     for (const props of [{ disabled: true }, { loading: true }]) {
-      const w = mount(AppButton, { props: { label: "Opslaan", ...props } });
-      expect(w.get("button").attributes("disabled")).toBeDefined();
-      await w.get("button").trigger("click");
-      expect(w.emitted("click")).toBeUndefined();
-      w.unmount();
+      const onclick = vi.fn();
+      const { container, unmount } = render(AppButton, {
+        props: { label: "Opslaan", onclick, ...props },
+      });
+      const button = container.querySelector("button") as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      button.click();
+      expect(onclick).not.toHaveBeenCalled();
+      unmount();
     }
   });
 
   it("shows a spinner instead of the icon while loading", () => {
-    const w = mount(AppButton, { props: { label: "x", icon: "send", loading: true } });
-    expect(w.find(".app-btn-spin").exists()).toBe(true);
-    expect(w.find(".app-icon").exists()).toBe(false);
+    const { container } = render(AppButton, {
+      props: { label: "x", icon: "send", loading: true },
+    });
+    expect(container.querySelector(".app-btn-spin")).not.toBeNull();
+    expect(container.querySelector(".app-icon")).toBeNull();
   });
 
   it("is a square when it carries an icon and no label", () => {
-    expect(mount(AppButton, { props: { icon: "trash" } }).classes()).toContain("app-btn-icon-only");
-    expect(mount(AppButton, { props: { icon: "trash", label: "Weg" } }).classes()).not.toContain(
-      "app-btn-icon-only",
-    );
+    const bare = render(AppButton, { props: { icon: "trash" } });
+    expect(classesOf(bare.container)).toContain("app-btn-icon-only");
+    bare.unmount();
+    const labelled = render(AppButton, { props: { icon: "trash", label: "Weg" } });
+    expect(classesOf(labelled.container)).not.toContain("app-btn-icon-only");
   });
 
   it("carries the severity and variant the call site asked for", () => {
-    const w = mount(AppButton, { props: { label: "x", severity: "secondary", text: true, size: "small" } });
-    expect(w.classes()).toEqual(expect.arrayContaining(["app-btn-secondary", "app-btn-text", "app-btn-sm"]));
+    const { container } = render(AppButton, {
+      props: { label: "x", severity: "secondary", text: true, size: "small" },
+    });
+    expect(classesOf(container)).toEqual(
+      expect.arrayContaining(["app-btn-secondary", "app-btn-text", "app-btn-sm"]),
+    );
   });
 });
 
+/** Flip the box the way a person does: the DOM flag, then the event. */
+async function flip(container: HTMLElement, on: boolean) {
+  const box = container.querySelector("input") as HTMLInputElement;
+  box.checked = on;
+  box.dispatchEvent(new Event("change", { bubbles: true }));
+  await Promise.resolve();
+}
+
 describe("AppToggle", () => {
-  it("reflects the model and emits the flip", async () => {
-    const w = mount(AppToggle, { props: { modelValue: false } });
-    expect(w.classes()).not.toContain("app-toggle-checked");
-    await w.get("input").setValue(true);
-    expect(w.emitted("update:modelValue")!.at(-1)).toEqual([true]);
+  it("follows the box, so a bound caller sees the flip", async () => {
+    const { container } = render(AppToggle, { props: { checked: false } });
+    expect(classesOf(container)).not.toContain("app-toggle-checked");
+    await flip(container, true);
+    // The class is driven by the same value ``bind:checked`` writes
+    // back, so it moving is the binding working.
+    expect(classesOf(container)).toContain("app-toggle-checked");
   });
 
-  it("shows as on when the model is true", () => {
-    expect(mount(AppToggle, { props: { modelValue: true } }).classes()).toContain("app-toggle-checked");
+  it("shows as on when it is checked", () => {
+    const { container } = render(AppToggle, { props: { checked: true } });
+    expect(classesOf(container)).toContain("app-toggle-checked");
   });
 
-  it("emits a boolean, never undefined, so a caller can patch with it", async () => {
-    const w = mount(AppToggle, { props: { modelValue: true } });
-    await w.get("input").setValue(false);
-    expect(w.emitted("update:modelValue")!.at(-1)![0]).toBe(false);
+  it("goes off again, so a caller can patch with either value", async () => {
+    const { container } = render(AppToggle, { props: { checked: true } });
+    await flip(container, false);
+    expect(classesOf(container)).not.toContain("app-toggle-checked");
   });
 
   it("cannot be flipped while disabled", () => {
-    const w = mount(AppToggle, { props: { modelValue: false, disabled: true } });
-    expect(w.get("input").attributes("disabled")).toBeDefined();
-    expect(w.classes()).toContain("app-toggle-disabled");
+    const { container } = render(AppToggle, { props: { checked: false, disabled: true } });
+    expect((container.querySelector("input") as HTMLInputElement).disabled).toBe(true);
+    expect(classesOf(container)).toContain("app-toggle-disabled");
   });
 });
 
 describe("AppTextarea", () => {
-  it("exposes the real field, so a caller can read the caret", () => {
-    // AdminWhatsAppPage inserts emoji at the selection through $el.
-    const w = mount(AppTextarea, { props: { modelValue: "hallo" } });
-    expect((w.vm.$el as HTMLTextAreaElement).tagName).toBe("TEXTAREA");
-    expect((w.vm.$el as HTMLTextAreaElement).selectionStart).toBeDefined();
+  it("hands back the real field, so a caller can read the caret", async () => {
+    // AdminWhatsAppPage inserts emoji at the selection through this.
+    let element: HTMLTextAreaElement | undefined;
+    render(AppTextarea, {
+      props: {
+        value: "hallo",
+        // ``bind:element`` from a call site; here the same write, by hand.
+        get element() {
+          return element;
+        },
+        set element(el: HTMLTextAreaElement | undefined) {
+          element = el;
+        },
+      },
+    });
+    await Promise.resolve();
+    expect(element?.tagName).toBe("TEXTAREA");
+    expect(element?.selectionStart).toBeDefined();
   });
 
   it("only takes over the height when asked to", () => {
-    expect(mount(AppTextarea, { props: { modelValue: "" } }).classes()).not.toContain("app-textarea-auto");
-    expect(mount(AppTextarea, { props: { modelValue: "", autoResize: true } }).classes()).toContain(
-      "app-textarea-auto",
-    );
+    const plain = render(AppTextarea, { props: { value: "" } });
+    expect(classesOf(plain.container)).not.toContain("app-textarea-auto");
+    plain.unmount();
+    const growing = render(AppTextarea, { props: { value: "", autoResize: true } });
+    expect(classesOf(growing.container)).toContain("app-textarea-auto");
   });
 });

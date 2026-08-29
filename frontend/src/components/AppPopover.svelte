@@ -43,7 +43,6 @@ function placeArrow(): void {
 
 export function show(event: Event): void {
   overlay.show((event.currentTarget ?? event.target) as HTMLElement);
-  onshow?.();
   // ``tick`` and not a frame: it resolves once the DOM is updated and
   // before the browser paints, so the panel is never drawn unplaced.
   void tick().then(() => {
@@ -55,7 +54,6 @@ export function show(event: Event): void {
 export function hide(): void {
   if (!overlay.open) return;
   overlay.hide();
-  onhide?.();
 }
 
 export function toggle(event: Event): void {
@@ -70,10 +68,13 @@ function styleOf(style: Record<string, string>): string {
     .join("; ");
 }
 
-// A press outside closes the panel from inside the composable, so the
-// host has to hear about that too.
+// Both told from the one place the panel opens and closes, because it
+// closes from more than one: this component's own ``hide``, a press
+// outside, and Escape, the last two from inside the composable.
+// Announcing it from ``hide`` as well told the host twice.
 let wasOpen = overlay.open;
 $effect(() => {
+  if (overlay.open && !wasOpen) onshow?.();
   if (wasOpen && !overlay.open) onhide?.();
   wasOpen = overlay.open;
 });

@@ -35,14 +35,26 @@ window.__OPKOMST_BRAND__ = {
 // asserts on an animation, so a stub that reports a finished one is
 // enough; without it the toast's fly-in throws past every assertion and
 // fails the run on an error rather than on a test.
+//
+// It has to finish, not merely say it has. An out-transition removes
+// its element when the animation ends, so a stub that never ends is an
+// element that never goes away, and a test asking whether the toast
+// left waits forever.
 if (typeof Element !== "undefined" && !Element.prototype.animate) {
   Element.prototype.animate = function animate(): Animation {
-    return {
+    const animation = {
       cancel() {},
-      finish() {},
-      onfinish: null,
+      finish() {
+        animation.onfinish?.(new Event("finish") as AnimationPlaybackEvent);
+      },
+      onfinish: null as ((event: AnimationPlaybackEvent) => void) | null,
+      finished: Promise.resolve(),
       currentTime: 0,
       playState: "finished",
-    } as unknown as Animation;
+    };
+    // On the next turn, so a caller that assigns ``onfinish`` after
+    // calling this is still heard.
+    queueMicrotask(() => animation.finish());
+    return animation as unknown as Animation;
   };
 }
