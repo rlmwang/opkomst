@@ -462,15 +462,15 @@ def run_local_demo() -> None:
             )
             db.add(course_reg)
             db.flush()
+            # The stored answer is the option's id, so resolve the label
+            # against the course's own list.
+            social = (
+                db.query(EventSourceOption.id)
+                .filter(EventSourceOption.event_id == course.id, EventSourceOption.label == "Social media")
+                .scalar()
+            )
             for occ in course_occs:
-                db.add(
-                    Signup(
-                        registration_id=course_reg.id,
-                        occurrence_id=occ.id,
-                        source_choice="Social media",
-                        help_choices=[],
-                    )
-                )
+                db.add(Signup(registration_id=course_reg.id, occurrence_id=occ.id, source_option_id=social))
 
         _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
         _seed_forms(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
@@ -955,15 +955,19 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
         for q, ans in zip(questions, answers, strict=True):
             if ans is None:
                 continue
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=q.id,
-                    submission_id=sub.id,
-                    answer_int=ans if isinstance(ans, int) else None,
-                    answer_choices=[ans] if isinstance(ans, str) else None,
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=q.id,
+                submission_id=sub.id,
+                answer_int=ans if isinstance(ans, int) else None,
             )
+            db.add(response)
+            db.flush()
+            # A choice is named here by its label and stored as the
+            # option's id.
+            if isinstance(ans, str):
+                by_label = {o.label: o.id for o in q.options}
+                db.add(FormResponseChoice(response_id=response.id, option_id=by_label[ans]))
 
     # --- A. active, with a crowd on the map --------------------------
     compass = _compass(
