@@ -119,7 +119,7 @@ let focused = $state(false);
 // The panel's placement, teleporting and dismissal
 // (``composables/useOverlayPanel``), shared with the other overlays.
 // Held whole, not destructured: every field is a getter.
-const overlay = useOverlayPanel({ onEscape: () => input?.focus() });
+const overlay = useOverlayPanel({ onEscape: () => input?.focus({ preventScroll: true }) });
 const openPanel = overlay.show;
 const hide = overlay.hide;
 

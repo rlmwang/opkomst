@@ -13,6 +13,7 @@
 import { tick, type Snippet } from "svelte";
 
 import { t } from "@/i18n.svelte";
+import { scrollRowIntoView } from "@/composables/overlay-panel";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 import "@/assets/overlay-list.css";
 
@@ -95,13 +96,13 @@ function show(): void {
   // somewhere to go.
   focusIndex = 0;
   overlay.show();
-  void tick().then(() => filterInput?.focus());
+  void tick().then(() => filterInput?.focus({ preventScroll: true }));
 }
 
 function close(refocus = true): void {
   if (!overlay.open) return;
   overlay.hide();
-  if (refocus) overlay.anchor?.focus();
+  if (refocus) overlay.anchor?.focus({ preventScroll: true });
 }
 
 function toggleOpen(): void {
@@ -120,8 +121,7 @@ function removeAt(index: number): void {
 }
 
 function scrollFocusedIntoView(): void {
-  const row = listEl?.children[focusIndex] as HTMLElement | undefined;
-  row?.scrollIntoView({ block: "nearest" });
+  scrollRowIntoView(listEl, focusIndex);
 }
 
 function moveFocus(to: number): void {

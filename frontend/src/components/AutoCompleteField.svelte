@@ -29,6 +29,7 @@ export interface AutoCompleteOptionSelectEvent {
 import { tick, type Snippet } from "svelte";
 
 import { t } from "@/i18n.svelte";
+import { scrollRowIntoView } from "@/composables/overlay-panel";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 import "@/assets/overlay-list.css";
 
@@ -74,7 +75,7 @@ const optionId = (i: number) => `${uid}-opt-${i}`;
 const overlay = useOverlayPanel({
   onEscape: () => {
     typing = false;
-    input?.focus();
+    input?.focus({ preventScroll: true });
   },
 });
 
@@ -136,12 +137,11 @@ function choose(option: T, event: Event): void {
   onoptionSelect?.({ originalEvent: event, value: option });
   typing = false;
   overlay.hide();
-  input?.focus();
+  input?.focus({ preventScroll: true });
 }
 
 function scrollFocusedIntoView(): void {
-  const row = listEl?.children[focusIndex] as HTMLElement | undefined;
-  row?.scrollIntoView({ block: "nearest" });
+  scrollRowIntoView(listEl, focusIndex);
 }
 
 function moveFocus(to: number): void {

@@ -32,6 +32,7 @@ const {
   count,
   oncopyLink,
   oncopyQr,
+  class: className,
   ...rest
 }: {
   /** The public URL. Absent on an entity with no live page yet, an
@@ -49,13 +50,14 @@ const {
   count?: Snippet;
   oncopyLink: () => void;
   oncopyQr: () => void;
+  class?: string;
   /** Pointer and focus handlers, which the list page uses to warm the
    *  details queries for the row somebody has settled on. */
   [key: string]: unknown;
 } = $props();
 </script>
 
-<AppCard stack={false} class="entity-card" {...rest}>
+<AppCard stack={false} class="entity-card {className ?? ''}" {...rest}>
   <div class="entity-main">
     <div class="entity-text">
       <div class="entity-title">{@render title()}</div>

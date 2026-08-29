@@ -15,6 +15,7 @@
  */
 import type { Snippet } from "svelte";
 
+import { tick } from "svelte";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 
 const {
@@ -43,7 +44,9 @@ function placeArrow(): void {
 export function show(event: Event): void {
   overlay.show((event.currentTarget ?? event.target) as HTMLElement);
   onshow?.();
-  requestAnimationFrame(() => {
+  // ``tick`` and not a frame: it resolves once the DOM is updated and
+  // before the browser paints, so the panel is never drawn unplaced.
+  void tick().then(() => {
     overlay.place();
     placeArrow();
   });

@@ -1,4 +1,4 @@
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 
 import { type PlacementOptions, placePanel } from "./overlay-panel";
 
@@ -18,13 +18,35 @@ import { type PlacementOptions, placePanel } from "./overlay-panel";
  * ``onEscape`` says where focus goes; without one it goes to the anchor,
  * which is right whenever the anchor is the thing the user was on.
  */
+
+/**
+ * What the panel wears between rendering and being measured.
+ *
+ * It has to be out of the document's flow from the very first frame.
+ * The panel is moved to the end of ``<body>``, so with no ``position``
+ * it is laid out there, at the bottom of the page: the document grows
+ * by its height, and a panel that takes focus, which the ones with a
+ * filter box do, is scrolled into view by the browser. That is a jump
+ * of about a screen, and putting the real placement on a frame later
+ * does not undo it, because the scroll has already happened.
+ *
+ * Hidden rather than merely offscreen, so nothing is drawn in the wrong
+ * place, and ``visibility`` rather than ``display`` because a panel
+ * with no layout has no height to measure.
+ */
+const UNPLACED: Record<string, string> = {
+  position: "absolute",
+  top: "0",
+  insetInlineStart: "0",
+  visibility: "hidden",
+};
 export function useOverlayPanel(options: PlacementOptions & { onEscape?: () => void } = {}) {
   const { onEscape, ...placement } = options;
 
   let anchor = $state<HTMLElement | undefined>();
   let panel = $state<HTMLElement | undefined>();
   let open = $state(false);
-  let style = $state<Record<string, string>>({});
+  let style = $state<Record<string, string>>(UNPLACED);
   let flipped = $state(false);
 
   function place(): void {
@@ -37,10 +59,15 @@ export function useOverlayPanel(options: PlacementOptions & { onEscape?: () => v
   function show(target?: HTMLElement): void {
     if (open) return;
     if (target) anchor = target;
+    // Re-armed for this opening: the last one left its own placement
+    // behind, and the field may have moved since.
+    style = UNPLACED;
     open = true;
     // The panel has no size until it has rendered, and its height is
-    // what decides whether it opens upward.
-    requestAnimationFrame(place);
+    // what decides whether it opens upward. ``tick`` rather than a
+    // frame: it resolves once the DOM is updated and before the browser
+    // paints, so the panel is never drawn unplaced.
+    void tick().then(place);
   }
 
   function hide(): void {
@@ -64,7 +91,7 @@ export function useOverlayPanel(options: PlacementOptions & { onEscape?: () => v
     event.preventDefault();
     hide();
     if (onEscape) onEscape();
-    else anchor?.focus();
+    else anchor?.focus({ preventScroll: true });
   }
 
   onMount(() => {

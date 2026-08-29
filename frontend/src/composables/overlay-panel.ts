@@ -49,3 +49,21 @@ export function placePanel(
     },
   };
 }
+
+/**
+ * Bring a row into view inside its own list, and nowhere else.
+ *
+ * ``scrollIntoView`` scrolls every scrollable ancestor, the document
+ * included, so a panel hanging below the fold took the whole page with
+ * it: the list moved by a row and the page moved by a screen. The panel
+ * is positioned against the viewport, so scrolling the document is
+ * never what this wants.
+ */
+export function scrollRowIntoView(list: HTMLElement | null | undefined, index: number): void {
+  const row = list?.children[index] as HTMLElement | undefined;
+  if (!list || !row) return;
+  const top = row.offsetTop;
+  const bottom = top + row.offsetHeight;
+  if (top < list.scrollTop) list.scrollTop = top;
+  else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+}

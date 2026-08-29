@@ -1,4 +1,5 @@
 <script lang="ts">
+import { scrollRowIntoView } from "@/composables/overlay-panel";
 /**
  * Brand-styled single-select dropdown for the public mini-app.
  *
@@ -111,8 +112,10 @@ function onKeydown(ev: KeyboardEvent) {
   }
 }
 function scrollActiveIntoView() {
-  const el = listEl?.children[activeIndex] as HTMLElement | undefined;
-  el?.scrollIntoView({ block: "nearest" });
+  // The list, and nothing above it: ``scrollIntoView`` scrolls every
+  // scrollable ancestor, so a select near the bottom edge took the page
+  // with it.
+  scrollRowIntoView(listEl, activeIndex);
 }
 
 // Click-outside dismiss.
