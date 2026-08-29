@@ -49,7 +49,7 @@ def _event(client: Any, headers: Any, **over: Any) -> dict[str, Any]:
     return made
 
 
-def _form(client: Any, headers: Any, mode: str = "forms", **over: Any) -> dict[str, Any]:
+def _form(client: Any, headers: Any, mode: str = "form", **over: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
         "chapter_id": _chapter_id(client, headers),
         "name_nl": "Demo",
@@ -57,7 +57,7 @@ def _form(client: Any, headers: Any, mode: str = "forms", **over: Any) -> dict[s
         "questions": [{"kind": "short_text", "prompt": "Waarom?", "required": False}],
         **over,
     }
-    if mode == "compasses":
+    if mode == "compass":
         body["axes"] = [
             {"axis": "x", "name": "Economie", "low_name": "Links", "high_name": "Rechts"},
             {"axis": "y", "name": "Cultuur", "low_name": "Open", "high_name": "Behoud"},
@@ -67,7 +67,7 @@ def _form(client: Any, headers: Any, mode: str = "forms", **over: Any) -> dict[s
             {"kind": "rating", "prompt": "Stelling", "required": False, "pole": "x_high"},
             {"kind": "rating", "prompt": "Tweede", "required": False, "pole": "y_high"},
         ]
-    if mode == "quizzes":
+    if mode == "quiz":
         # A quiz can only mark an answer it can compare, so its one
         # question is a rating rather than an open box.
         body["questions"] = [{"kind": "rating", "prompt": "Hoeveel?", "required": False, "points": 1, "correct_int": 4}]
@@ -112,7 +112,7 @@ def _event_submit(client: Any, made: dict[str, Any], name: str | None) -> Any:
     )
 
 
-def _form_submit(client: Any, made: dict[str, Any], name: str | None, *, mode: str = "forms") -> Any:
+def _form_submit(client: Any, made: dict[str, Any], name: str | None, *, mode: str = "form") -> Any:
     public = client.get(f"/api/v1/{mode}/by-slug/{made['slug']}").json()
     answers = [{"question_id": q["id"], "answer_int": 4} for q in public["questions"] if q["kind"] == "rating"]
     return client.post(
@@ -144,9 +144,9 @@ def _roster_submit(client: Any, made: dict[str, Any], name: str | None) -> Any:
 # back the personal-page token rather than creating a page of its own).
 PRODUCTS = [
     (_event, _event_submit, 201),
-    (lambda c, h, **o: _form(c, h, "forms", **o), _form_submit, 201),
-    (lambda c, h, **o: _form(c, h, "quizzes", **o), lambda c, m, n: _form_submit(c, m, n, mode="quizzes"), 201),
-    (lambda c, h, **o: _form(c, h, "compasses", **o), lambda c, m, n: _form_submit(c, m, n, mode="compasses"), 201),
+    (lambda c, h, **o: _form(c, h, "form", **o), _form_submit, 201),
+    (lambda c, h, **o: _form(c, h, "quiz", **o), lambda c, m, n: _form_submit(c, m, n, mode="quiz"), 201),
+    (lambda c, h, **o: _form(c, h, "compass", **o), lambda c, m, n: _form_submit(c, m, n, mode="compass"), 201),
     (_datepoll, _datepoll_submit, 201),
     (_roster, _roster_submit, 200),
 ]
@@ -216,8 +216,8 @@ def test_a_closed_form_refuses_the_change_and_still_opens_the_link(client, organ
 
 
 def test_a_closed_kompas_refuses_the_change(client, organiser_headers) -> None:
-    made = _form(client, organiser_headers, "compasses", answers_editable=False)
-    token = _form_submit(client, made, "Sam", mode="compasses").json()["edit_token"]
+    made = _form(client, organiser_headers, "compass", answers_editable=False)
+    token = _form_submit(client, made, "Sam", mode="compass").json()["edit_token"]
     r = client.put(f"/api/v1/compass/by-token/{token}", json={"display_name": "Kim", "answers": []})
     assert r.status_code == 409, r.text
 
@@ -263,7 +263,7 @@ def test_the_toggles_survive_an_edit(client, organiser_headers) -> None:
     """Both flags are on the update payload, not just create. The quiz's
     ``reveal_answers`` sat in this same gap and was silently dropped on
     every save."""
-    made = _form(client, organiser_headers, "quizzes")
+    made = _form(client, organiser_headers, "quiz")
     body = {
         "chapter_id": made["chapter_id"],
         "name_nl": "Demo",

@@ -129,7 +129,7 @@ def test_store_puts_to_contents_api_and_returns_a_path(github_enabled) -> None:
     # is kept.
     assert path == "events/ev1/1700000000000.jpg"
     assert captured["url"] == (
-        "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/event/ev1/1700000000000.jpg"
+        "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/events/ev1/1700000000000.jpg"
     )
     assert captured["headers"]["Authorization"] == "Bearer ghp_test"
     assert captured["json"]["branch"] == "main"
@@ -139,7 +139,7 @@ def test_store_puts_to_contents_api_and_returns_a_path(github_enabled) -> None:
 def test_public_url_is_this_app_and_never_the_storage_host() -> None:
     url = event_image.public_url("events/ev1/1700000000000.jpg")
     assert url is not None
-    assert url.endswith("/i/event/ev1/1700000000000.jpg")
+    assert url.endswith("/i/events/ev1/1700000000000.jpg")
     assert "github" not in url
     assert event_image.public_url(None) is None
 

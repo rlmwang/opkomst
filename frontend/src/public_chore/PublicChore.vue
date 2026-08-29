@@ -476,7 +476,7 @@ async function leave(): Promise<void> {
       <div class="card stack">
         <h2>{{ ch.chooseChores }}</h2>
         <p v-if="status === 'enrol'" class="muted">{{ ch.enrolIntro }}</p>
-        <p v-if="chore.length === 0" class="empty muted">{{ ch.noChores }}</p>
+        <p v-if="chores.length === 0" class="empty muted">{{ ch.noChores }}</p>
         <label v-for="chore in chores" :key="chore.id" class="chore-check">
           <input type="checkbox" class="check" v-model="picked[chore.id]" />
           <span class="chore-label">

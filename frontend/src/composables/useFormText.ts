@@ -31,5 +31,5 @@ export function useFormText(): {
     const full = te(own) ? own : `form.${key}`;
     return params ? t(full, params) : t(full);
   };
-  return { resource, isQuiz: resource === "quizzes", isCompass: resource === "compasses", L };
+  return { resource, isQuiz: resource === "quiz", isCompass: resource === "compass", L };
 }

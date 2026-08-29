@@ -241,8 +241,8 @@ function organiserAppDevRoute(): Plugin {
   // ``services/slug.RESERVED_SLUGS`` keeps a real chapter from ever
   // being called one of these.
   const appRoutes = new Set([
-    "", "admin", "auth", "chapters", "chores", "compasses", "datepolls",
-    "events", "forms", "login", "quizzes", "register", "settings", "users",
+    "", "admin", "auth", "chapters", "chore", "compass", "datepoll",
+    "event", "form", "login", "quiz", "register", "settings", "users",
   ]);
   const isOrganisation = (segment: string) =>
     segment !== "" && segment !== HOUSE_BRAND && existsSync(`${BRANDS_DIR}/${segment}/brand.json`);

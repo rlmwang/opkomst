@@ -33,9 +33,9 @@ function pageSource(page: string): string {
 }
 
 /** The products, mirroring ``FORM_RESOURCES`` in ``useForms``.
- *  ``forms`` is the base vocabulary, so it is the fallback rather than
+ *  ``form`` is the base vocabulary, so it is the fallback rather than
  *  an override. */
-const OVERRIDING = ["quizzes", "compasses"] as const;
+const OVERRIDING = ["quiz", "compass"] as const;
 
 /** Keys about none of the products: the page furniture, the CSV
  *  headers, the chapter and language fields, the two validation
@@ -150,16 +150,20 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
 
 /** Literal keys under the three product namespaces, wherever they are
  *  written: a component resolving one of these is as capable of
- *  shipping a ``[compasses.question.pickOptionPoles]`` onto the page as
+ *  shipping a ``[compass.question.pickOptionPoles]`` onto the page as
  *  a page is, and one of them did. Interpolated keys
  *  (``compass.edit.axis${axis}``) are skipped: the literal half of
- *  them is not a key. So is ``form.css``, which is a stylesheet. */
+ *  them is not a key.
+ *
+ *  Matched at the call rather than anywhere in the file, because the
+ *  namespaces are also ordinary variable names: ``form.image_url`` in a
+ *  template is a property, not a key. */
 function literalKeys(): string[] {
   const keys = new Set<string>();
   for (const file of sourceFiles(resolve(process.cwd(), "src"))) {
     const src = readFileSync(file, "utf8");
-    for (const m of src.matchAll(/["'`]((?:forms|quizzes|compasses)\.[\w.]+)["'`]/g)) {
-      if (!/\.(css|ts|vue|json)$/.test(m[1])) keys.add(m[1]);
+    for (const m of src.matchAll(/\b(?:t|te|tm|L)\(\s*["'`]((?:form|quiz|compass)\.[\w.]+)["'`]/g)) {
+      keys.add(m[1]);
     }
   }
   return [...keys].sort();
@@ -233,7 +237,7 @@ describe("shared organiser-page copy", () => {
 
     it(`defines every product key for every product (${locale})`, () => {
       const messages = LOCALES[locale];
-      const missing = ["forms", ...OVERRIDING].flatMap((r) =>
+      const missing = ["form", ...OVERRIDING].flatMap((r) =>
         PRODUCT.filter((k) => typeof lookup(messages, `${r}.${k}`) !== "string").map((k) => `${r}.${k}`),
       );
       expect(missing).toEqual([]);

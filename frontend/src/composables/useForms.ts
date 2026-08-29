@@ -108,9 +108,9 @@ function makeApi(resource: FormResource) {
   };
 }
 
-export const formsApi = makeApi("forms");
-export const quizzesApi = makeApi("quizzes");
-export const compassesApi = makeApi("compasses");
+export const formsApi = makeApi("form");
+export const quizzesApi = makeApi("quiz");
+export const compassesApi = makeApi("compass");
 
 const BY_RESOURCE: Record<FormResource, ReturnType<typeof makeApi>> = {
   form: formsApi,

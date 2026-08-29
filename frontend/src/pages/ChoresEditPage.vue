@@ -501,7 +501,7 @@ async function submit() {
       <h2 class="section-heading">{{ t("chore.edit.choresHeading") }}</h2>
       <p class="muted section-explainer">{{ t("chore.edit.choresExplainer") }}</p>
 
-      <div v-if="chore.length === 0" class="empty muted">
+      <div v-if="chores.length === 0" class="empty muted">
         {{ t("chore.edit.noChoresYet") }}
       </div>
 

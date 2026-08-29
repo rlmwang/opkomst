@@ -211,9 +211,9 @@ def test_every_kind_has_a_door(client, db) -> None:
     """Forms, datepolls and rosters take the same route as events, each
     landing on its own public prefix."""
     cases = [
-        ("forms", "form", _form_body(), "f", Form),
-        ("datepolls", "datepoll", _datepoll_body(), "d", Datepoll),
-        ("chores", "roster", _roster_body(), "c", Roster),
+        ("form", "form", _form_body(), "f", Form),
+        ("datepoll", "datepoll", _datepoll_body(), "d", Datepoll),
+        ("chore", "roster", _roster_body(), "c", Roster),
     ]
     for path, key, body, prefix, model in cases:
         resp = client.post(f"/api/v1/start/{path}", json={"email": f"{path}@example.org", key: body})
