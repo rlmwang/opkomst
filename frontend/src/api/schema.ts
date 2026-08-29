@@ -715,10 +715,9 @@ export interface paths {
         post?: never;
         /**
          * Delete Roster
-         * @description Hard-delete an archived roster. Refuses unless archived first —
-         *     deleting a live roster with volunteers/shifts would be a data-loss
-         *     footgun. Cascades through chores / volunteers / enrollments / shifts
-         *     via the FK ON DELETE CASCADEs.
+         * @description Delete an archived roster for good, with its chores, volunteers,
+         *     enrollments and shifts, and the image it owned. A live roster is not
+         *     found here at all, so deleting one still means archiving it first.
          */
         delete: operations["delete_roster_api_v1_chores__roster_id__delete"];
         options?: never;
@@ -1161,11 +1160,10 @@ export interface paths {
         post?: never;
         /**
          * Delete Compass
-         * @description Hard-delete an archived form. Refuses if the form isn't
-         *     archived first — accidentally hard-deleting a live form with
-         *     responses would be a data-loss footgun. Cascades through
-         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
-         *     CASCADEs in the schema.
+         * @description Delete an archived form for good, with its questions,
+         *     submissions and responses, and the image it owned. A live form is
+         *     not found here at all, so deleting one still means archiving it
+         *     first.
          */
         delete: operations["delete_compass_api_v1_compasses__form_id__delete"];
         options?: never;
@@ -1465,10 +1463,9 @@ export interface paths {
         post?: never;
         /**
          * Delete Datepoll
-         * @description Hard-delete an archived poll. Refuses unless archived first —
-         *     deleting a live poll with responses would be a data-loss footgun.
-         *     Cascades through dates / submissions / responses via the FK
-         *     ON DELETE CASCADEs.
+         * @description Delete an archived poll for good, with its dates, submissions and
+         *     responses, and the image it owned. A live poll is not found here at
+         *     all, so deleting one still means archiving it first.
          */
         delete: operations["delete_datepoll_api_v1_datepolls__datepoll_id__delete"];
         options?: never;
@@ -1881,12 +1878,10 @@ export interface paths {
         post?: never;
         /**
          * Delete Event
-         * @description Hard-delete an archived event. Refuses if the event isn't
-         *     archived first — accidentally hard-deleting a live event
-         *     with sign-ups would be a data-loss footgun. Cascades through
-         *     ``signups`` / ``email_dispatches`` / ``feedback_responses`` /
-         *     ``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the
-         *     schema; the row + its dependents go with one DELETE.
+         * @description Delete an archived event for good. A live event is not found
+         *     here at all — it is in ``events``, and this reads the archive — so
+         *     deleting one still means archiving it first. The item's whole graph
+         *     goes, plus the image it owned.
          */
         delete: operations["delete_event_api_v1_events__event_id__delete"];
         options?: never;
@@ -2368,11 +2363,10 @@ export interface paths {
         post?: never;
         /**
          * Delete Form
-         * @description Hard-delete an archived form. Refuses if the form isn't
-         *     archived first — accidentally hard-deleting a live form with
-         *     responses would be a data-loss footgun. Cascades through
-         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
-         *     CASCADEs in the schema.
+         * @description Delete an archived form for good, with its questions,
+         *     submissions and responses, and the image it owned. A live form is
+         *     not found here at all, so deleting one still means archiving it
+         *     first.
          */
         delete: operations["delete_form_api_v1_forms__form_id__delete"];
         options?: never;
@@ -2672,11 +2666,10 @@ export interface paths {
         post?: never;
         /**
          * Delete Quiz
-         * @description Hard-delete an archived form. Refuses if the form isn't
-         *     archived first — accidentally hard-deleting a live form with
-         *     responses would be a data-loss footgun. Cascades through
-         *     ``form_questions`` / ``form_responses`` via the FK ON DELETE
-         *     CASCADEs in the schema.
+         * @description Delete an archived form for good, with its questions,
+         *     submissions and responses, and the image it owned. A live form is
+         *     not found here at all, so deleting one still means archiving it
+         *     first.
          */
         delete: operations["delete_quiz_api_v1_quizzes__form_id__delete"];
         options?: never;

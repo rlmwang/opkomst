@@ -9929,7 +9929,7 @@
     },
     "/api/v1/chores/{roster_id}": {
       "delete": {
-        "description": "Hard-delete an archived roster. Refuses unless archived first \u2014\ndeleting a live roster with volunteers/shifts would be a data-loss\nfootgun. Cascades through chores / volunteers / enrollments / shifts\nvia the FK ON DELETE CASCADEs.",
+        "description": "Delete an archived roster for good, with its chores, volunteers,\nenrollments and shifts, and the image it owned. A live roster is not\nfound here at all, so deleting one still means archiving it first.",
         "operationId": "delete_roster_api_v1_chores__roster_id__delete",
         "parameters": [
           {
@@ -11408,7 +11408,7 @@
     },
     "/api/v1/compasses/{form_id}": {
       "delete": {
-        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
         "operationId": "delete_compass_api_v1_compasses__form_id__delete",
         "parameters": [
           {
@@ -12476,7 +12476,7 @@
     },
     "/api/v1/datepolls/{datepoll_id}": {
       "delete": {
-        "description": "Hard-delete an archived poll. Refuses unless archived first \u2014\ndeleting a live poll with responses would be a data-loss footgun.\nCascades through dates / submissions / responses via the FK\nON DELETE CASCADEs.",
+        "description": "Delete an archived poll for good, with its dates, submissions and\nresponses, and the image it owned. A live poll is not found here at\nall, so deleting one still means archiving it first.",
         "operationId": "delete_datepoll_api_v1_datepolls__datepoll_id__delete",
         "parameters": [
           {
@@ -13774,7 +13774,7 @@
     },
     "/api/v1/events/{event_id}": {
       "delete": {
-        "description": "Hard-delete an archived event. Refuses if the event isn't\narchived first \u2014 accidentally hard-deleting a live event\nwith sign-ups would be a data-loss footgun. Cascades through\n``signups`` / ``email_dispatches`` / ``feedback_responses`` /\n``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the\nschema; the row + its dependents go with one DELETE.",
+        "description": "Delete an archived event for good. A live event is not found\nhere at all \u2014 it is in ``events``, and this reads the archive \u2014 so\ndeleting one still means archiving it first. The item's whole graph\ngoes, plus the image it owned.",
         "operationId": "delete_event_api_v1_events__event_id__delete",
         "parameters": [
           {
@@ -15269,7 +15269,7 @@
     },
     "/api/v1/forms/{form_id}": {
       "delete": {
-        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
         "operationId": "delete_form_api_v1_forms__form_id__delete",
         "parameters": [
           {
@@ -16286,7 +16286,7 @@
     },
     "/api/v1/quizzes/{form_id}": {
       "delete": {
-        "description": "Hard-delete an archived form. Refuses if the form isn't\narchived first \u2014 accidentally hard-deleting a live form with\nresponses would be a data-loss footgun. Cascades through\n``form_questions`` / ``form_responses`` via the FK ON DELETE\nCASCADEs in the schema.",
+        "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
         "operationId": "delete_quiz_api_v1_quizzes__form_id__delete",
         "parameters": [
           {
