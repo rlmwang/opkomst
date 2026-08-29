@@ -138,7 +138,7 @@ function navigate(to: string) {
 async function logout() {
   navMenu.value?.hide();
   await auth.logout();
-  void router.push("/login");
+  void router.push("/");
 }
 
 // Subtabs derived from the current route. Empty array on routes

@@ -82,7 +82,7 @@ def test_robots_points_at_the_sitemap(client) -> None:
 
 @pytest.mark.parametrize(
     ("path", "expected"),
-    [("/", 200), ("/events/new", 200), ("/login", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
+    [("/", 200), ("/events/new", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
 )
 def test_a_path_nothing_serves_is_a_404(client, path: str, expected: int) -> None:
     """A soft 404 is a 200 on a page that does not exist. Google flags

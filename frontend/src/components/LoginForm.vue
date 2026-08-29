@@ -11,18 +11,11 @@ import { useAuthStore } from "@/stores/auth";
  * The magic-link door: an address, a button, and the "check your inbox"
  * state that replaces them.
  *
- * One component because it appears twice — on ``/login`` as the page,
- * and under the chapter grid on an organisation's public front page,
- * where signing in is the thing an organiser does and browsing is what
- * everyone else does. The two must not drift.
+ * One component because it appears on both landing pages: under the
+ * chapter grid on an organisation's public front page, and under the
+ * tiles at the root. Signing in is the thing an organiser does there;
+ * browsing is what everyone else does. The two must not drift.
  */
-
-defineProps<{
-  /** Heading for the "check your inbox" state. The login page has room
-   * for one; the organisation's front page, where the form sits under
-   * the chapter grid, does not. */
-  sentTitle?: string;
-}>();
 
 // Lets the host swap its own heading and intro for the sent state.
 const emit = defineEmits<{ sent: [] }>();
@@ -62,10 +55,7 @@ async function submit() {
 </script>
 
 <template>
-  <template v-if="sent">
-    <h1 v-if="sentTitle">{{ sentTitle }}</h1>
-    <p class="muted">{{ t("auth.linkSentBody", { email }) }}</p>
-  </template>
+  <p v-if="sent" class="muted">{{ t("auth.linkSentBody", { email }) }}</p>
   <!-- Magic-link forms don't get a "save login" doorhanger from any
        browser: there's no password to store and no webauthn ceremony to
        bind to. The only autofill path that actually engages is

@@ -34,7 +34,6 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "datepolls",
         "events",
         "forms",
-        "login",
         "quizzes",
         "logout",
         "register",

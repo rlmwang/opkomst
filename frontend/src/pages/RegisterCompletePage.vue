@@ -43,7 +43,7 @@ async function submit() {
   } catch (e) {
     // 410 means the token was already used or expired between
     // page-load and submit — surface the same "link expired" card
-    // the redeem flow uses, with a route back to /login.
+    // the redeem flow uses, with a route back to the landing page.
     if (e instanceof ApiError && e.status === 410) {
       linkInvalid.value = true;
     } else {
@@ -62,7 +62,7 @@ async function submit() {
       <h1>{{ t("auth.linkExpiredTitle") }}</h1>
       <p class="muted">{{ t("auth.linkExpired") }}</p>
       <p>
-        <router-link to="/login">{{ t("auth.requestNewLink") }}</router-link>
+        <router-link to="/">{{ t("auth.requestNewLink") }}</router-link>
       </p>
     </AppCard>
 

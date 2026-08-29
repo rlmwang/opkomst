@@ -6,10 +6,9 @@ import { useAuthStore } from "@/stores/auth";
 const routes = [
   // ``/{tenant}``: the organiser's landing page when signed in, the
   // organisation's public chapter index when not. Deliberately no
-  // ``requiresAuth`` — a visitor with no session gets the public face
-  // rather than a redirect to the login page.
+  // ``requiresAuth`` — a visitor with no session gets the public face,
+  // which is also where the sign-in form lives.
   { path: "/", component: () => import("@/pages/HomePage.vue") },
-  { path: "/login", component: () => import("@/pages/LoginPage.vue") },
   { path: "/register/complete", component: () => import("@/pages/RegisterCompletePage.vue") },
   { path: "/auth/redeem", component: () => import("@/pages/RedeemPage.vue") },
   // Every workspace requires an approved account. An account still
@@ -117,7 +116,7 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   const auth = useAuthStore();
   // Only routes that gate on auth state need to know whether the
   // visitor is logged in. Public routes (``/e/:slug``,
-  // ``/e/:slug/feedback``, ``/login``, ``/register/complete``) skip the
+  // ``/e/:slug/feedback``, ``/register/complete``) skip the
   // ``auth/me`` round-trip entirely — visitors don't have a JWT
   // and shouldn't pay a network hop to confirm that.
   const needsAuth =
@@ -131,10 +130,12 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   // The root's front door: no session, and the route is one of the
   // create forms. The page posts to ``/api/v1/start/…`` instead
   // of the organiser endpoint and asks for an address on the way out,
-  // so there is nothing here to send the visitor to /login for.
+  // so there is nothing here to send the visitor back to the door for.
   if (isPersonalApp() && to.meta.startable && !auth.isAuthenticated) return true;
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/login", query: { next: to.fullPath } };
+  // The landing page is the door: signed out, it renders the sign-in
+  // form itself, so there is no separate login page to send anyone to.
+  if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/" };
   if (to.meta.requiresOrganisation && auth.isPersonal) return { path: "/events" };
   if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/events" };
   // Not to /events: that is itself approval-gated now, and the landing

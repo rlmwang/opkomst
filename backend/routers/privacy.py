@@ -96,7 +96,7 @@ def _written_page(slug: str, request: Request) -> HTMLResponse:
 
 # One route per page, not ``/{slug}``. A single-segment path parameter
 # here would sit in front of the SPA fallback and swallow every
-# one-segment URL in the app: ``/rsp``, ``/login``, ``/events``. Naming
+# one-segment URL in the app: ``/rsp``, ``/events``, ``/settings``. Naming
 # each path means only these four are taken.
 for _page in PAGES:
 

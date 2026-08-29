@@ -39,7 +39,7 @@ describe("i18n missing-key handler", () => {
 
   it("known keys still resolve to the actual translation", () => {
     // Sanity: the strict handler doesn't break normal lookups.
-    expect(t("auth.login")).not.toMatch(/^\[/);
-    expect(t("auth.login")).not.toBe("");
+    expect(t("auth.sendLink")).not.toMatch(/^\[/);
+    expect(t("auth.sendLink")).not.toBe("");
   });
 });

@@ -48,7 +48,7 @@ brings the same rows online again. A slug is an identity, editing one
 in place retires an organisation and creates another, so only the
 display name is safe to change.
 
-The first person to sign in at ``/{slug}/login`` with
+The first person to sign in at ``/{slug}`` with
 ``BOOTSTRAP_ADMIN_EMAIL`` becomes that organisation's admin, per
 organisation, so the same address bootstraps each one. The bare root and
 any first segment no organisation owns is the personal app, where
@@ -362,7 +362,7 @@ The very first completion matching ``BOOTSTRAP_ADMIN_EMAIL``
 gets ``role=admin, is_approved=true``. Requires SMTP from step 3
 to be live, the magic link goes out over the same TEM hop.
 
-1. Open ``https://opkomst.nu/login``.
+1. Open ``https://opkomst.nu``.
 2. Enter the email you set as ``BOOTSTRAP_ADMIN_EMAIL``. Submit.
 3. Check your inbox for the "finish setting up your account"
    link. Click.
@@ -510,7 +510,7 @@ curl -fsS https://opkomst.nu/health/full | jq .
 # {"status":"ok","db_connectivity":true,"schema_head":"<rev>",...}
 
 # 2. SMTP works (check your inbox after each)
-# - submit a fresh email at /login
+# - submit a fresh email on the landing page
 # - the "finish setting up your account" link should arrive within 30 sec
 # - click through and submit a name → you should land on /events
 

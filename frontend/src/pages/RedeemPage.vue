@@ -39,7 +39,7 @@ onMounted(async () => {
       <h1>{{ t("auth.linkExpiredTitle") }}</h1>
       <p class="muted">{{ error }}</p>
       <p>
-        <router-link to="/login">{{ t("auth.requestNewLink") }}</router-link>
+        <router-link to="/">{{ t("auth.requestNewLink") }}</router-link>
       </p>
     </AppCard>
     <AppCard v-else>

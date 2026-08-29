@@ -175,12 +175,9 @@
     }
   },
   "auth": {
-    "login": "Log in",
     "email": "Email address",
     "name": "Name",
     "sendLink": "Send link",
-    "linkIntro": "Enter your email. We'll send you a link to sign in, or to create an account if you don't have one yet.",
-    "linkSentTitle": "Check your inbox",
     "linkSentBody": "We sent a link to {email}. Open it to sign in or to create your account. The link works once and expires in 30 minutes.",
     "linkExpiredTitle": "Link expired",
     "linkExpired": "This link is invalid or has already been used.",

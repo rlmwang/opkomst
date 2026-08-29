@@ -175,12 +175,9 @@
     }
   },
   "auth": {
-    "login": "Inloggen",
     "email": "E-mailadres",
     "name": "Naam",
     "sendLink": "Stuur link",
-    "linkIntro": "Vul je e-mailadres in. We sturen je een link om in te loggen, of om een account aan te maken als je er nog geen hebt.",
-    "linkSentTitle": "Check je inbox",
     "linkSentBody": "We hebben een link gestuurd naar {email}. Open hem om in te loggen of om je account aan te maken. De link werkt één keer en verloopt na 30 minuten.",
     "linkExpiredTitle": "Link verlopen",
     "linkExpired": "Deze link is ongeldig of al gebruikt.",

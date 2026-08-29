@@ -726,7 +726,7 @@ def mount(app: FastAPI) -> None:
         if tenant is None:
             # No organisation owns this path, so it belongs to the app
             # itself: the personal side, in the house brand, based at
-            # ``/``. Its router resolves ``/events``, ``/login`` and the
+            # ``/``. Its router resolves ``/events``, ``/settings`` and the
             # rest, and renders its own not-found page for anything it
             # doesn't know.
             #
