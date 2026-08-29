@@ -110,13 +110,15 @@ defineEmits<{ "copy-link": []; "copy-qr": [] }>();
 }
 
 /* Column 2 of the card's grid, stretched to the single row the card
- * lays out, so the tear-line runs its full height. No block padding of
- * its own: the negative margins already carry the border to the card's
- * edges, and padding here would only make every card taller than its
- * contents need. */
+ * lays out, so the tear-line runs its full height. The negative block
+ * margins carry the border out to the card's edges; the matching block
+ * padding puts the card's own inset back inside, so on a short card,
+ * where the stub is what sets the height, the QR doesn't sit on the
+ * card's bottom edge. */
 .share-stub {
   align-self: stretch;
   margin-block: -1.25rem;
+  padding-block: 1.25rem;
   padding-left: 1.25rem;
   border-left: 1px dashed var(--brand-border);
   display: flex;
