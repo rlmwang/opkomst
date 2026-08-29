@@ -99,6 +99,9 @@ ignore = ["B008", "UP047", "S101", "S105", "S106"]
 # that module constant: no value from a request reaches the SQL, which
 # is parameterised throughout.
 "backend/services/compass.py" = ["S608"]
+# Same shape: the quiz's marking rules are one CTE, shared by the three
+# statements that read it.
+"backend/services/quizzes.py" = ["S608"]
 
 [tool.pyright]
 include = ["backend", "tests"]

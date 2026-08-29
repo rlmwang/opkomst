@@ -28,15 +28,18 @@ from backend.services.security_headers import CSP_ADS_TEMPLATE, CSP_TEMPLATE
 
 
 def _script_hosts(html: str) -> set[str]:
-    """The host of every ``<script src>`` on the page.
+    """The host of every absolute URL written into the page.
 
-    Matched on the parsed host rather than by searching the HTML for a
-    domain: a page mentioning ``pagead2.googlesyndication.com.evil.test``
-    contains the string and loads nothing from Google."""
+    The ad loader's URL is assembled in the inline script rather than
+    sitting in a ``src`` attribute, so this reads the quoted URLs out of
+    the HTML and parses each one. Matched on the parsed host rather than
+    by searching for a domain: a page naming
+    ``pagead2.googlesyndication.com.evil.test`` contains the string and
+    loads nothing from Google."""
     return {
         host
-        for src in re.findall(r'<script[^>]+src="([^"]+)"', html)
-        if (host := urlparse(src if "//" in src else f"//{src}").hostname)
+        for url in re.findall(r'["\'](https?://[^"\'\s]+)["\']', html)
+        if (host := urlparse(url).hostname)
     }
 
 

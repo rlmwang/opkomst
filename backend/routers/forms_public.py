@@ -274,14 +274,16 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         the score cannot disagree about what was in the quiz."""
         questions = {q.id: q for q in _form_questions(db, form.id)}
         rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
+        # Marked by the database, against the same rules the organiser's
+        # page reads, so a score here and a score there cannot differ.
+        awarded = quizzes.earned_points(db, form.id, submission.id)
         answers = []
         score = 0
         for row in rows:
             q = questions.get(row.question_id)
             if q is None or q.points <= 0:
                 continue
-            fields = quizzes.as_fields(row)
-            earned = quizzes.grade(q, fields)
+            earned = awarded.get(row.question_id, 0)
             score += earned
             answers.append(
                 QuizAnswerResult(
@@ -350,8 +352,6 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 )
             )
         answers.sort(key=lambda a: by_id[a.question_id].ordinal)
-        # The axes and the dots place the same people: read where
-        # everybody sits once and hand it to both.
         places = forms_svc.compass_places(db, form, questions)
         return CompassResultOut(
             submission_id=submission.id,
@@ -362,7 +362,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             y=place.y,
             counted_x=place.counted_x,
             counted_y=place.counted_y,
-            axes=forms_svc.compass_axis_summaries(db, form, places),
+            axes=forms_svc.compass_axis_summaries(db, form),
             answers=answers,
             points=forms_svc.compass_points(db, form, places, you=submission.id),
         )

@@ -47,7 +47,7 @@ from ..schemas.forms import (
     FormUpdate,
     QuizSubmissionOut,
 )
-from ..services import access, crud, edit_token, entities, form_answers, limits, quizzes
+from ..services import access, crud, edit_token, entities, limits, quizzes
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -293,24 +293,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         # page is about the same questions, and each used to fetch its
         # own copy of them.
         questions = forms_svc.questions_of(db, form_id)
-        # A quiz reads its answers once and folds them twice: per
-        # submission for the scores, per question for the share who got
-        # it right. They were two reads of the same table.
-        answers = form_answers.all_of(db, form_id) if _MODE == "quiz" else None
-        average, best, out_of = (
-            quizzes.score_stats(db, form_id, questions, answers) if _MODE == "quiz" else (None, None, None)
-        )
+        marks = quizzes.summary_stats(db, form_id, questions) if _MODE == "quiz" else None
         compass = forms_svc.compass_summary(db, form, questions)
         return FormSummaryOut(
             # A kompas already read every submission to place it, and
             # there is exactly one dot per fill-out, so counting them
             # again is a round trip for a number in hand.
             submission_count=len(compass.points) if compass is not None else forms_svc.submission_count(db, form_id),
-            score_average=average,
-            score_best=best,
-            max_score=out_of,
+            score_average=marks.average if marks else None,
+            score_best=marks.best if marks else None,
+            max_score=marks.out_of if marks else None,
             compass=compass,
-            questions=forms_svc.question_aggregates(db, form_id, questions, answers),
+            questions=forms_svc.question_aggregates(db, form_id, questions, marks.shares if marks else {}),
         )
 
     @router.post("/{form_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)

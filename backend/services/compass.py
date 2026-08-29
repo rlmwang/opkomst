@@ -208,70 +208,76 @@ def axes_of(db: Session, form_id: str) -> list[Any]:
     return sorted(rows, key=lambda a: a.axis)
 
 
-# Two-sided 95% critical values of Student's t, by degrees of freedom.
-# The interval is about a mean of a handful of numbers, so the normal
-# approximation is wrong exactly where a kompas lives: at n = 3 it is
-# out by a factor of two. Beyond 30 the two agree to the second decimal
-# and the table stops.
-_T95: Final[dict[int, float]] = {
-    1: 12.706,
-    2: 4.303,
-    3: 3.182,
-    4: 2.776,
-    5: 2.571,
-    6: 2.447,
-    7: 2.365,
-    8: 2.306,
-    9: 2.262,
-    10: 2.228,
-    11: 2.201,
-    12: 2.179,
-    13: 2.160,
-    14: 2.145,
-    15: 2.131,
-    16: 2.120,
-    17: 2.110,
-    18: 2.101,
-    19: 2.093,
-    20: 2.086,
-    21: 2.080,
-    22: 2.074,
-    23: 2.069,
-    24: 2.064,
-    25: 2.060,
-    26: 2.056,
-    27: 2.052,
-    28: 2.048,
-    29: 2.045,
-    30: 2.042,
-}
-_T95_LARGE: Final[float] = 1.96
+# Where the room sits on each axis: the mean, and the 95% confidence
+# interval around it.
+#
+# The interval, not the range. The range is a picture of the two most
+# extreme people in the room and it widens as more of them arrive,
+# which reads as the answer getting less certain the more of it you
+# have. What an organiser is actually asking is "where does this room
+# sit, and how sure is that", and the interval narrows with the count
+# the way an answer should.
+#
+# The critical values are two-sided 95% Student's t by degrees of
+# freedom, written out as a table the statement joins. The interval is
+# about a mean of a handful of numbers, so the normal approximation is
+# wrong exactly where a kompas lives: at n = 3 it is out by a factor of
+# two. Beyond 30 the two agree to the second decimal and 1.96 takes
+# over.
+#
+# One respondent has a mean and no interval to speak of, so both ends
+# are the mean itself: a point, which is the honest drawing of it.
+# ``stddev_samp`` is null at n = 1, and coalescing the half-width to
+# zero says the same thing. The ends are clamped to [-1, 1] because the
+# axis has no outside.
+_AXIS_STATS_SQL = text(
+    f"""
+WITH contribution AS ({_CONTRIBUTION_CTE}),
+place AS (
+    SELECT s.id,
+           coalesce(avg(k.value) FILTER (WHERE k.axis = 'x'), 0) AS x,
+           coalesce(avg(k.value) FILTER (WHERE k.axis = 'y'), 0) AS y
+    FROM form_submissions s
+    LEFT JOIN contribution k ON k.submission_id = s.id
+    WHERE s.form_id = :form_id
+    GROUP BY s.id
+),
+value AS (
+    SELECT 'x' AS axis, x AS v FROM place
+    UNION ALL
+    SELECT 'y' AS axis, y AS v FROM place
+),
+room AS (
+    SELECT axis, count(*) AS n, avg(v) AS mean, stddev_samp(v) AS sd
+    FROM value GROUP BY axis
+),
+t95 (df, crit) AS (
+    VALUES (1, 12.706), (2, 4.303), (3, 3.182), (4, 2.776), (5, 2.571),
+           (6, 2.447), (7, 2.365), (8, 2.306), (9, 2.262), (10, 2.228),
+           (11, 2.201), (12, 2.179), (13, 2.160), (14, 2.145), (15, 2.131),
+           (16, 2.120), (17, 2.110), (18, 2.101), (19, 2.093), (20, 2.086),
+           (21, 2.080), (22, 2.074), (23, 2.069), (24, 2.064), (25, 2.060),
+           (26, 2.056), (27, 2.052), (28, 2.048), (29, 2.045), (30, 2.042)
+)
+SELECT room.axis,
+       round(room.mean, 3)::float AS average,
+       round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
+       round(least(1, room.mean + half.width), 3)::float AS ci_high
+FROM room
+LEFT JOIN t95 ON t95.df = room.n - 1
+CROSS JOIN LATERAL (
+    SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
+) half
+"""
+)
 
 
-def axis_stats(places: list[Position], axis: str) -> tuple[float, float, float] | None:
-    """The room on one axis: the mean, and the 95% confidence interval
-    around it. ``None`` before anybody has filled it in.
-
-    The interval, not the range. The range is a picture of the two most
-    extreme people in the room and it widens as more of them arrive,
-    which reads as the answer getting less certain the more of it you
-    have. What an organiser is actually asking is "where does this room
-    sit, and how sure is that", and the interval narrows with the count
-    the way an answer should.
-
-    One respondent has a mean and no interval to speak of, so both ends
-    are the mean itself: a point, which is the honest drawing of it.
-    The ends are clamped to [-1, 1] because the axis has no outside."""
-    if not places:
-        return None
-    values = [p.value(axis) for p in places]
-    n = len(values)
-    mean = sum(values) / n
-    if n == 1:
-        return _round(mean), _round(mean), _round(mean)
-    variance = sum((v - mean) ** 2 for v in values) / (n - 1)
-    half = _T95.get(n - 1, _T95_LARGE) * (variance / n) ** 0.5
-    return _round(mean), _round(max(-1.0, mean - half)), _round(min(1.0, mean + half))
+def axis_stats(db: Session, form_id: str) -> dict[str, tuple[float, float, float]]:
+    """Axis name to the room's mean and the two ends of the interval
+    around it. Empty before anybody has filled the kompas in."""
+    return {
+        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, _params(form_id)).all()
+    }
 
 
 # --- What the organiser is refused ------------------------------------

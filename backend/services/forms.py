@@ -852,7 +852,7 @@ def question_aggregates(
     db: Session,
     form_id: str,
     questions: Sequence[Any],
-    answers: Sequence[Any] | None = None,
+    shares: Mapping[str, float],
 ) -> list[FormQuestionSummary]:
     """One ``FormQuestionSummary`` per question, ordinal-ordered.
     Per-kind shape:
@@ -863,19 +863,15 @@ def question_aggregates(
     * ``single_choice`` / ``multi_choice`` — option → count map.
 
     Every tally comes from one statement (``_AGGREGATES_SQL``) whatever
-    the form asks and however many questions it has. Grading is the one
-    thing left over: it reads the stored key in Python (tolerance
-    windows, part marks) and so cannot be a ``GROUP BY``.
+    the form asks and however many questions it has. ``shares`` is the
+    marking half, which a quiz reads alongside its scores
+    (``quizzes.summary_stats``) and every other mode leaves empty.
 
-    ``answers`` is the quiz's own answers when the caller already holds
-    them, which the summary does: it scores every submission from the
-    same rows this marks per question.
     """
     if not questions:
         return []
 
     tallies = {r.question_id: r for r in db.execute(_AGGREGATES_SQL, {"form_id": form_id}).all()}
-    shares = quizzes.correct_shares(db, form_id, questions, answers)
 
     summaries: list[FormQuestionSummary] = []
     for q in questions:
@@ -974,17 +970,17 @@ def compass_points(
     return out
 
 
-def compass_axis_summaries(db: Session, form: Form, places: dict[str, compass.Position]) -> list[CompassAxisSummary]:
+def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
     """The two axes, each with where the room sits on it.
 
     Read by the organiser's summary and by every respondent's result,
     so the band under one person's marker and the band on the
     organiser's page are the same number rather than two computations
     that can drift apart."""
-    placed = list(places.values())
+    rooms = compass.axis_stats(db, form.id)
     out: list[CompassAxisSummary] = []
     for row in compass.axes_of(db, form.id):
-        stats = compass.axis_stats(placed, row.axis)
+        stats = rooms.get(row.axis)
         out.append(
             CompassAxisSummary(
                 axis=CompassAxisOut.model_validate(row),
@@ -1004,7 +1000,7 @@ def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> Compass
         return None
     places = compass_places(db, form, questions)
     return CompassSummary(
-        axes=compass_axis_summaries(db, form, places),
+        axes=compass_axis_summaries(db, form),
         points=compass_points(db, form, places),
     )
 
@@ -1014,14 +1010,15 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
     plus what each one scored, marked against the quiz as it stands
     now (``services/quiz``)."""
     questions = _questions(db, form_id)
-    rows, grouped = _submissions_with_answers(db, form_id, questions, mode="quiz")
+    rows = _submissions_with_answers(db, form_id, questions, mode="quiz")
     out_of = quizzes.max_score(questions)
+    marked = quizzes.scores(db, form_id)
     return [
         QuizSubmissionOut(
             submission_id=row.submission_id,
             display_name=row.display_name,
             created_at=row.created_at,
-            score=quizzes.score_of(questions, grouped.get(row.submission_id, [])),
+            score=marked.get(row.submission_id, 0),
             max_score=out_of,
             answers=row.answers,
             link_recovered_at=row.link_recovered_at,
@@ -1038,24 +1035,20 @@ def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[Form
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
-    return _submissions_with_answers(db, form_id, _questions(db, form_id), mode=mode)[0]
+    return _submissions_with_answers(db, form_id, _questions(db, form_id), mode=mode)
 
 
 def _submissions_with_answers(
     db: Session, form_id: str, questions: Sequence[Any], *, mode: str
-) -> tuple[list[FormSubmissionOut], dict[str, list[Any]]]:
-    """The rows, and the answers they were built from.
-
-    A quiz marks the same answers the CSV cells came from, so it takes
-    both and reads the table once. Handing back the grouping is what
-    stops ``quiz_submissions`` from repeating this function's work."""
+) -> list[FormSubmissionOut]:
+    """Every submission on the form, with its answers as CSV cells."""
     kinds = {q.id: q.kind for q in questions}
     # The CSV writes what people saw, so a tick is exported as its
     # option's current label rather than the id it is stored as.
     labels = {o.id: o.label for q in questions for o in q.options}
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
     if not subs:
-        return [], {}
+        return []
     sub_ids = [s.id for s in subs]
     # Every answer on the form, grouped by who gave it, read once. The
     # CSV cells and a kompas' two coordinate columns are the same rows
@@ -1087,4 +1080,4 @@ def _submissions_with_answers(
             link_recovered_at=s.link_recovered_at,
         )
         for s in subs
-    ], grouped
+    ]
