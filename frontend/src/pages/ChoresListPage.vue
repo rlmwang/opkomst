@@ -21,6 +21,7 @@ import { useConfirms } from "@/lib/confirms";
 import { choreQrUrl, publicChoreUrl } from "@/lib/chore-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
+import { useHoverPrefetch } from "@/composables/useHoverPrefetch";
 
 const { t } = useI18n();
 const lt = useLocalizedText();
@@ -59,15 +60,12 @@ function summary(r: RosterListOut): string {
   return `${cadence} · ${chores}`;
 }
 
-const prefetched = new Set<string>();
-function prefetchDetails(rosterId: string) {
-  if (prefetched.has(rosterId)) return;
-  prefetched.add(rosterId);
+const hover = useHoverPrefetch((rosterId: string) => {
   void qc.prefetchQuery({
     queryKey: ["chore", "single", rosterId],
     queryFn: () => get(`/api/v1/chore/${rosterId}`),
   });
-}
+});
 
 function askArchive(r: RosterListOut) {
   confirms.ask({
@@ -133,8 +131,9 @@ function askArchive(r: RosterListOut) {
         :qr-src="choreQrUrl(r.slug)"
         :copy-link-label="t('chore.share.copyLink')"
         :qr-label="t('chore.share.copyQr')"
-        @mouseenter="prefetchDetails(r.id)"
-        @focusin="prefetchDetails(r.id)"
+        @mouseenter="hover.enter(r.id)"
+        @mouseleave="hover.leave()"
+        @focusin="hover.enter(r.id)"
         @copy-link="copyLink(r.slug)"
         @copy-qr="copyQr(r.slug)"
       >

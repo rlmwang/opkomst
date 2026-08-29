@@ -17,6 +17,7 @@ function user(over: Partial<User> = {}): User {
     name: "U",
     role: "organiser",
     is_approved: true,
+    whatsapp_available: false,
     chapters: [],
     created_at: "2026-01-01T00:00:00Z",
     tenant_kind: "organisation",

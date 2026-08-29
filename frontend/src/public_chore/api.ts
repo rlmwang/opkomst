@@ -6,6 +6,7 @@
  */
 
 import type { Locale } from "@/public_shared/strings";
+import { inlinedSubmission } from "@/public_shared/submission";
 
 export interface PublicChore {
   id: string;
@@ -151,6 +152,14 @@ export async function postEnrolment(slug: string, payload: EnrollPayload): Promi
 }
 
 export async function fetchPersonalPage(token: string): Promise<PersonalPage> {
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<PersonalPage>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
   return readJson(await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}`), "fetch");
 }
 

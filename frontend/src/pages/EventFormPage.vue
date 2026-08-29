@@ -20,12 +20,7 @@ import { chapterList, useChapters } from "@/composables/useChapters";
 import { useStartMode } from "@/composables/useStartMode";
 import { useBilingualField } from "@/composables/useBilingualField";
 import { useLocationField } from "@/composables/useLocationField";
-import {
-  eventList,
-  useCreateEvent,
-  useEventList,
-  useUpdateEvent,
-} from "@/composables/useEvents";
+import { useCreateEvent, useEvent, useUpdateEvent } from "@/composables/useEvents";
 import { firstFieldError } from "@/api/client";
 import { useFormDraft } from "@/composables/useFormDraft";
 import { useToasts } from "@/lib/toasts";
@@ -54,11 +49,10 @@ const {
 const chaptersQuery = useChapters({ enabled: hasChapters });
 const chapters = chapterList(chaptersQuery);
 const isEdit = computed(() => Boolean(props.eventId));
-// The list is read for one thing only: pulling the row being edited
-// out of the cache. Create mode never needs it, and at the root there
-// is no session to read it with.
-const eventsQuery = useEventList({ enabled: isEdit });
-const events = eventList(eventsQuery);
+// The row being edited. Create mode has no id to ask for, so it does
+// not ask; the query is per-event-id, so arriving from the dashboard's
+// hover prefetch costs nothing.
+const eventQuery = isEdit.value ? useEvent(computed(() => props.eventId ?? "")) : null;
 const createMutation = useCreateEvent();
 const updateMutation = useUpdateEvent();
 const auth = useAuthStore();
@@ -404,22 +398,21 @@ onMounted(async () => {
   // organiser's home city for address suggestions.
   // chaptersQuery auto-fetches on first use; nothing to do here.
   if (isEdit.value) {
-    // Wait for the events list to settle so we can pull the existing
-    // row out of the cache. ``isPending`` is true on first fetch and
-    // false once the query has resolved (success or failure).
+    // Wait for the event to settle. ``isPending`` is true on first
+    // fetch and false once the query has resolved (success or failure).
     await new Promise<void>((resolve) => {
-      if (!eventsQuery.isPending.value) {
+      if (!eventQuery || !eventQuery.isPending.value) {
         resolve();
         return;
       }
-      const stop = watch(eventsQuery.isPending, (pending) => {
+      const stop = watch(eventQuery.isPending, (pending) => {
         if (!pending) {
           stop();
           resolve();
         }
       });
     });
-    const existing = events.value.find((e) => e.id === props.eventId);
+    const existing = eventQuery?.data.value;
     if (!existing) {
       toasts.error(t("event.notFound"));
       return;

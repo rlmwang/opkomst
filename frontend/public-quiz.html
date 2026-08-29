@@ -30,8 +30,8 @@
       body {
         margin: 0;
         font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        background: var(--boot-bg);
-        color: var(--boot-fg);
+        background: var(--brand-bg);
+        color: var(--brand-text);
         line-height: 1.5;
       }
       .app-boot {
@@ -41,12 +41,12 @@
       }
       .app-boot-ring {
         width: 36px; height: 36px;
-        border: 3px solid var(--boot-border);
-        border-top-color: var(--boot-accent);
+        border: 3px solid var(--brand-border);
+        border-top-color: var(--brand-red);
         border-radius: 50%;
         animation: app-boot-spin 0.8s linear infinite;
       }
-      .app-boot-text { color: var(--boot-fg-muted); font-size: 0.9375rem; }
+      .app-boot-text { color: var(--brand-text-muted); font-size: 0.9375rem; }
       @keyframes app-boot-spin { to { transform: rotate(360deg); } }
     </style>
   </head>
@@ -60,6 +60,7 @@
       do not remove.
     -->
     <!-- OPKOMST_QUIZ_INJECTION -->
+    <!-- OPKOMST_SUBMISSION_INJECTION -->
     <div id="app">
       <div class="app-boot" aria-hidden="true">
         <div class="app-boot-ring"></div>

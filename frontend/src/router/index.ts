@@ -112,6 +112,18 @@ const router = createRouter({
   routes,
 });
 
+/** Start downloading the chunks the target route is made of. Errors are
+ *  swallowed: this is a head start, and a failed import is the router's
+ *  to report when it does the real one (``router.onError`` below). */
+function preload(to: RouteLocationNormalized): void {
+  for (const record of to.matched) {
+    const component = record.components?.default;
+    if (typeof component === "function") {
+      void Promise.resolve((component as () => unknown)()).catch(() => {});
+    }
+  }
+}
+
 router.beforeEach(async (to: RouteLocationNormalized) => {
   const auth = useAuthStore();
   // Only routes that gate on auth state need to know whether the
@@ -125,7 +137,20 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   // depending on whether there's a session, so a held token has to be
   // resolved even on routes that don't require one. No token, no
   // round-trip — visitors still pay nothing.
-  if ((needsAuth || getToken()) && !auth.loaded) await auth.fetchMe();
+  //
+  // The route's chunk starts downloading alongside the ``/me`` call
+  // rather than after it. vue-router resolves a lazy component only
+  // once every guard has returned, so awaiting the round-trip here
+  // used to hold the ``import()`` back: two serial hops before the
+  // page could paint, on a connection where they cost the same and
+  // depend on nothing of each other. Kicking the import off here is
+  // just a warm module cache by the time the router asks for it; if
+  // the guard redirects, the chunk was a few kB nobody needed, which
+  // is cheaper than the wait it replaces.
+  if ((needsAuth || getToken()) && !auth.loaded) {
+    void preload(to);
+    await auth.fetchMe();
+  }
 
   // The root's front door: no session, and the route is one of the
   // create forms. The page posts to ``/api/v1/start/…`` instead

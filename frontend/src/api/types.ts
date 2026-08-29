@@ -46,6 +46,7 @@ export type ChapterArchiveRequest = S["ChapterArchiveRequest"];
 export type ChapterUsage = S["ChapterUsageOut"];
 
 // --- Events ---
+export type EventListOut = S["EventListOut"];
 export type EventOut = S["EventOut"];
 export type EventCreate = S["EventCreate"];
 export type EventStats = S["EventStatsOut"];

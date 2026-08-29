@@ -5,6 +5,7 @@
  * missing (dev workflow without the backend in front of Vite).
  */
 
+import { inlinedSubmission } from "@/public_shared/submission";
 export interface PublicFormQuestion {
   id: string;
   ordinal: number;
@@ -113,6 +114,14 @@ export async function postSubmission(
 }
 
 export async function fetchSubmission(token: string): Promise<FormSubmissionValues> {
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<FormSubmissionValues>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
   const r = await fetch(`/api/v1/form/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as FormSubmissionValues;

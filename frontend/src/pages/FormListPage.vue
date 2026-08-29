@@ -17,6 +17,7 @@ import { useConfirms } from "@/lib/confirms";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
+import { useHoverPrefetch } from "@/composables/useHoverPrefetch";
 
 const { t } = useI18n();
 const lt = useLocalizedText();
@@ -58,20 +59,20 @@ const sortedForms = computed(() =>
 // hovers a row. Same pattern Dashboard uses for its event cards
 // — by the time the click resolves and FormDetailsPage mounts,
 // both queries are already in cache so the page paints without
-// a skeleton flash.
-const prefetched = new Set<string>();
-function prefetchDetails(formId: string) {
-  if (prefetched.has(formId)) return;
-  prefetched.add(formId);
+// a skeleton flash. The keys are ``api.resource``-first, exactly
+// as ``useFormsApi`` builds them: this page serves all three
+// products, so a literal would both miss the cache and put a
+// quiz under a form's key.
+const hover = useHoverPrefetch((formId: string) => {
   void qc.prefetchQuery({
-    queryKey: ["forms", "single", formId],
+    queryKey: [api.resource, "single", formId],
     queryFn: () => get(`/api/v1/${api.resource}/${formId}`),
   });
   void qc.prefetchQuery({
-    queryKey: ["forms", formId, "summary"],
+    queryKey: [api.resource, formId, "summary"],
     queryFn: () => get(`/api/v1/${api.resource}/${formId}/summary`),
   });
-}
+});
 
 function askArchive(f: FormListOut) {
   confirms.ask({
@@ -139,8 +140,9 @@ function askArchive(f: FormListOut) {
         :qr-src="formQrUrl(api.resource, f.slug)"
         :copy-link-label="t('form.share.copyLink')"
         :qr-label="t('form.share.copyQr')"
-        @mouseenter="prefetchDetails(f.id)"
-        @focusin="prefetchDetails(f.id)"
+        @mouseenter="hover.enter(f.id)"
+        @mouseleave="hover.leave()"
+        @focusin="hover.enter(f.id)"
         @copy-link="copyLink(f.slug)"
         @copy-qr="copyQr(f.slug)"
       >

@@ -1771,7 +1771,6 @@ export interface paths {
         /**
          * Get Booking
          * @description The whole booking behind an edit-link token, for the edit page.
-         *     Email is never returned (it isn't reachable from a booking).
          */
         get: operations["get_booking_api_v1_event_by_token__token__get"];
         /**
@@ -1872,7 +1871,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get Event
+         * @description One event. The detail and edit pages read the event they are
+         *     about from here; they used to filter it out of the full list, which
+         *     made opening either one cost every event in the chapter.
+         */
+        get: operations["get_event_api_v1_event__event_id__get"];
         /** Update Event */
         put: operations["update_event_api_v1_event__event_id__put"];
         post?: never;
@@ -4229,9 +4234,64 @@ export interface components {
             topic_nl?: string | null;
         };
         /**
+         * EventListOut
+         * @description List-row DTO: what a dashboard card or an archive row draws, and
+         *     nothing else. The sign-up form's own configuration (its questions,
+         *     its toggles, its horizon, its image) belongs to the event's own page;
+         *     shipping it per row put a whole edit form behind every card. Same
+         *     split the other five products already make.
+         */
+        EventListOut: {
+            /** Archived */
+            archived: boolean;
+            /** Attendee Count */
+            attendee_count: number;
+            /** Chapter Id */
+            chapter_id: string | null;
+            /** Chapter Name */
+            chapter_name: string | null;
+            /** Cycle Slots */
+            cycle_slots: number[];
+            /** Id */
+            id: string;
+            /** Latitude */
+            latitude: number | null;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "nl" | "en";
+            /** Location */
+            location: string | null;
+            /** Longitude */
+            longitude: number | null;
+            /** Name En */
+            name_en: string | null;
+            /** Name Nl */
+            name_nl: string | null;
+            /** Next Slug */
+            next_slug: string | null;
+            /** Next Starts At */
+            next_starts_at: string | null;
+            /** Period Weeks */
+            period_weeks: number;
+            /** Span Weeks */
+            span_weeks: number | null;
+            /**
+             * Start Time
+             * Format: time
+             */
+            start_time: string;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+        };
+        /**
          * EventOut
-         * @description Organiser-side event DTO: the definition + its recurrence rule + a
-         *     couple of derived read-model fields (next occurrence, headcount).
+         * @description Organiser-side event DTO: everything a row carries, plus the
+         *     definition of the sign-up form itself.
          */
         EventOut: {
             /** Answers Editable */
@@ -6143,6 +6203,8 @@ export interface components {
             role: string;
             /** Tenant Kind */
             tenant_kind: string;
+            /** Whatsapp Available */
+            whatsapp_available: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -9186,7 +9248,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventOut"][];
+                    "application/json": components["schemas"]["EventListOut"][];
                 };
             };
             /** @description Validation Error */
@@ -9254,7 +9316,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventOut"][];
+                    "application/json": components["schemas"]["EventListOut"][];
                 };
             };
             /** @description Validation Error */
@@ -9607,6 +9669,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_api_v1_event__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOut"];
+                };
             };
             /** @description Validation Error */
             422: {

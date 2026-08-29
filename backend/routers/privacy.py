@@ -57,6 +57,7 @@ def _render(request: Request, template: str, **context: object) -> HTMLResponse:
         template,
         {
             "brand": brand_svc.payload(brand_svc.HOUSE_BRAND),
+            "palette_css": brand_svc.palette_css(brand_svc.HOUSE_BRAND),
             "pages": PAGES,
             **context,
         },

@@ -35,13 +35,15 @@ const qc = useQueryClient();
 
 const canManageChapters = computed(() => permCan(auth.user, "create_chapter"));
 
-const chaptersQuery = useChapters({ includeArchived: false });
-const chapters = chapterList(chaptersQuery);
-// Includes-archived list, used by ``onCreateFromAddBar`` to find a
-// soft-deleted chapter whose name the admin just retyped — without
-// it the restore branch couldn't see the candidate and Enter would
-// 409 with "name already exists" forever.
-const chaptersWithArchivedQuery = useChapters({ includeArchived: true });
+// One list, archived rows included. ``onCreateFromAddBar`` needs them
+// to find a soft-deleted chapter whose name the admin just retyped —
+// without that the restore branch couldn't see the candidate and Enter
+// would 409 with "name already exists" forever. The table wants only
+// the live ones, and every row carries ``archived``, so that is a
+// filter rather than a second request for a subset of what is already
+// in hand.
+const chaptersQuery = useChapters({ includeArchived: true });
+const chapters = computed(() => chapterList(chaptersQuery).value.filter((c) => !c.archived));
 const createChapter = useCreateChapter();
 const updateChapter = useUpdateChapter();
 const archiveChapter = useArchiveChapter();
@@ -131,10 +133,10 @@ async function onCreateFromAddBar(name: string) {
   // would be permanently unreachable from the keyboard.
   try {
     const normalised = normaliseChapterName(name);
-    // Refresh the include-archived cache and search it for a
-    // soft-deleted match — the active-only list (``chaptersQuery``)
-    // never carries archived rows.
-    const withArchived = await chaptersWithArchivedQuery.refetch();
+    // Refresh the list and search it for a soft-deleted match: the
+    // table renders the live rows, but the archived ones are in the
+    // same response.
+    const withArchived = await chaptersQuery.refetch();
     const lower = normalised.toLowerCase();
     const archivedMatch = (withArchived.data ?? []).find(
       (a) => a.archived && a.name.toLowerCase() === lower,

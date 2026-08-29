@@ -142,9 +142,10 @@ def submit_datepoll(
     return DatepollSubmitAck(edit_token=raw_token)
 
 
-@router.get("/by-token/{token}", response_model=DatepollEditOut)
-def get_datepoll_submission(token: str, db: Session = Depends(get_db)) -> DatepollEditOut:
-    """Current values of a submission, for pre-filling the edit form."""
+def submission_for_token(db: Session, token: str) -> DatepollEditOut:
+    """Current values of a submission. Shared by the ``by-token`` route
+    and ``routers/spa.py``, which inlines this into the HTML for a
+    ``?s=`` link so the edit page paints without a round-trip."""
     sub = _submission_by_token(db, token)
     return DatepollEditOut(
         display_name=sub.display_name,
@@ -152,6 +153,12 @@ def get_datepoll_submission(token: str, db: Session = Depends(get_db)) -> Datepo
         answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
         link_recovered_at=sub.link_recovered_at,
     )
+
+
+@router.get("/by-token/{token}", response_model=DatepollEditOut)
+def get_datepoll_submission(token: str, db: Session = Depends(get_db)) -> DatepollEditOut:
+    """Current values of a submission, for pre-filling the edit form."""
+    return submission_for_token(db, token)
 
 
 @router.put("/by-token/{token}", response_model=DatepollEditOut)

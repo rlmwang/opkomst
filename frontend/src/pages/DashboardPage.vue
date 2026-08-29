@@ -15,7 +15,7 @@ import { get } from "@/api/client";
 import { useSetUserChapters } from "@/composables/useAdmin";
 import { type Chapter, chapterList, useChapters } from "@/composables/useChapters";
 import {
-  type EventOut,
+  type EventListOut,
   eventList,
   useArchiveEvent,
   useEventList,
@@ -25,6 +25,7 @@ import { useConfirms } from "@/lib/confirms";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
+import { useHoverPrefetch } from "@/composables/useHoverPrefetch";
 
 const { t } = useI18n();
 const lt = useLocalizedText();
@@ -107,28 +108,25 @@ async function submitOnboardingChapters() {
   }
 }
 
-// Prefetch the per-event reads (stats / signups / feedback-summary)
-// when an organiser hovers a card. By the time the click resolves
-// and EventDetailsPage mounts, those queries are already in cache
-// — no skeleton flash. Idempotent: prefetchQuery is a no-op when
-// the data is already fresh under the default staleTime.
-const prefetched = new Set<string>();
-function prefetchDetails(eventId: string) {
-  if (prefetched.has(eventId)) return;
-  prefetched.add(eventId);
+// Prefetch what EventDetailsPage reads on mount, when an organiser
+// hovers a card. By the time the click resolves and the page mounts,
+// both queries are already in cache — no skeleton flash. Idempotent:
+// prefetchQuery is a no-op when the data is already fresh under the
+// default staleTime. The keys are the ones ``useEventOccurrences``
+// and ``useFeedbackSummary`` use; a key that doesn't match is a
+// request nobody ever reads. The per-day signups and stats are not
+// prefetched: they hang off an occurrence id that only exists once
+// the occurrence list has landed.
+const hover = useHoverPrefetch((eventId: string) => {
   void qc.prefetchQuery({
-    queryKey: ["event", eventId, "stats"],
-    queryFn: () => get(`/api/v1/event/${eventId}/stats`),
-  });
-  void qc.prefetchQuery({
-    queryKey: ["event", eventId, "signups"],
-    queryFn: () => get(`/api/v1/event/${eventId}/signups`),
+    queryKey: ["event", eventId, "occurrences"],
+    queryFn: () => get(`/api/v1/event/${eventId}/occurrences`),
   });
   void qc.prefetchQuery({
     queryKey: ["feedback", "summary", eventId],
     queryFn: () => get(`/api/v1/event/${eventId}/feedback-summary`),
   });
-}
+});
 
 watch(eventsQuery.isError, (isError) => {
   if (isError) toasts.error(t("dashboard.loadFailed"));
@@ -149,7 +147,7 @@ const sortedEvents = computed(() =>
   }),
 );
 
-function askArchive(e: EventOut) {
+function askArchive(e: EventListOut) {
   confirms.ask({
     header: t("dashboard.archiveConfirmTitle"),
     message: t("dashboard.archiveConfirmBody", { name: lt(e.name_nl, e.name_en) ?? "" }),
@@ -217,7 +215,7 @@ function askArchive(e: EventOut) {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('dashboard.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
+    :search-keys="(e: EventListOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
     :empty-copy="t('dashboard.empty')"
     :no-matches-copy="t('dashboard.noMatches')"
     :skeleton-rows="3"
@@ -242,8 +240,9 @@ function askArchive(e: EventOut) {
         :qr-src="e.next_slug ? eventQrUrl(e.next_slug) : undefined"
         :copy-link-label="t('event.share.copyLink')"
         :qr-label="t('event.share.copyQr')"
-        @mouseenter="prefetchDetails(e.id)"
-        @focusin="prefetchDetails(e.id)"
+        @mouseenter="hover.enter(e.id)"
+        @mouseleave="hover.leave()"
+        @focusin="hover.enter(e.id)"
         @copy-link="e.next_slug && copyLink(e.next_slug)"
         @copy-qr="e.next_slug && copyQr(e.next_slug)"
       >

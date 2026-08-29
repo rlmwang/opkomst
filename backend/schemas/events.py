@@ -138,40 +138,33 @@ class EventUpdate(EventCreate):
     _clamp_out_of_range_slots: ClassVar[bool] = True
 
 
-class EventOut(BaseModel):
-    """Organiser-side event DTO: the definition + its recurrence rule + a
-    couple of derived read-model fields (next occurrence, headcount)."""
+class EventListOut(BaseModel):
+    """List-row DTO: what a dashboard card or an archive row draws, and
+    nothing else. The sign-up form's own configuration (its questions,
+    its toggles, its horizon, its image) belongs to the event's own page;
+    shipping it per row put a whole edit form behind every card. Same
+    split the other five products already make."""
 
     id: str
-    slug: str
     name_nl: str | None
     name_en: str | None
-    topic_nl: str | None
-    topic_en: str | None
-    location: str | None
-    latitude: float | None
-    longitude: float | None
-    starts_on: date
-    start_time: time
-    end_time: time
-    period_weeks: int
-    cycle_slots: list[int]
-    span_weeks: int | None
-    horizon_days: int
-    source_options: list[str]
-    source_enabled: bool
-    help_options: list[str]
-    help_enabled: bool
-    feedback_enabled: bool
-    reminder_enabled: bool
-    listed: bool
-    name_required: bool
-    answers_editable: bool
     locale: Locale
     chapter_id: str | None
     chapter_name: str | None
-    image_url: str | None
-    image_artist_instagram: str | None
+    archived: bool
+    # The card's meta line: where it is, and the map link behind it.
+    location: str | None
+    latitude: float | None
+    longitude: float | None
+    # An archived event has no next occurrence, so its row falls back to
+    # the day the series began.
+    starts_on: date
+    start_time: time
+    # The recurrence, in the three numbers the "weekly, 6 weeks" hint
+    # reads. An empty ``cycle_slots`` is a one-off.
+    period_weeks: int
+    cycle_slots: list[int]
+    span_weeks: int | None
     # Start of the soonest occurrence that hasn't ended yet — drives the
     # dashboard's "next: …" line and ordering. Null when every occurrence
     # is in the past (a finished course).
@@ -184,8 +177,29 @@ class EventOut(BaseModel):
     # many people have signed up for the course, each booking counted once
     # regardless of how many sessions it covers.
     attendee_count: int
-    archived: bool
     model_config = {"from_attributes": True}
+
+
+class EventOut(EventListOut):
+    """Organiser-side event DTO: everything a row carries, plus the
+    definition of the sign-up form itself."""
+
+    slug: str
+    topic_nl: str | None
+    topic_en: str | None
+    end_time: time
+    horizon_days: int
+    source_options: list[str]
+    source_enabled: bool
+    help_options: list[str]
+    help_enabled: bool
+    feedback_enabled: bool
+    reminder_enabled: bool
+    listed: bool
+    name_required: bool
+    answers_editable: bool
+    image_url: str | None
+    image_artist_instagram: str | None
 
 
 class OccurrenceOut(BaseModel):

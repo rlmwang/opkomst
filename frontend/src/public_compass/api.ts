@@ -11,6 +11,7 @@
 
 import type { PublicAxis, PublicForm, PublicFormQuestion, SubmitAnswer } from "@/public_form/api";
 import { ApiError } from "@/public_form/api";
+import { inlinedSubmission } from "@/public_shared/submission";
 
 export type {
   PublicForm as PublicCompass,
@@ -96,6 +97,14 @@ export async function postCompassAnswers(
  *  per-answer rows carry what was given, so this one call both renders
  *  the result and refills the walk behind "change your answers". */
 export async function fetchCompassResult(token: string): Promise<CompassResult> {
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<CompassResult>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
   const r = await fetch(`/api/v1/compass/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as CompassResult;

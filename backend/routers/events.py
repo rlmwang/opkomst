@@ -26,6 +26,7 @@ from ..database import get_db
 from ..models import EmailChannel, Event, Occurrence, User
 from ..schemas.events import (
     EventCreate,
+    EventListOut,
     EventOut,
     EventStatsOut,
     EventUpdate,
@@ -64,32 +65,32 @@ def create_event(
     return event_stats.to_out(db, event)
 
 
-@router.get("", response_model=list[EventOut])
+@router.get("", response_model=list[EventListOut])
 def list_events(
     chapter_id: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventOut]:
+) -> list[EventListOut]:
     rows = (
         db.query(Event)
         .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
         .order_by(Event.starts_on.desc())
         .all()
     )
-    return event_stats.enrich(db, rows)
+    return event_stats.list_enrich(db, rows)
 
 
-@router.get("/archived", response_model=list[EventOut])
+@router.get("/archived", response_model=list[EventListOut])
 def list_archived_events(
     chapter_id: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventOut]:
+) -> list[EventListOut]:
     # Archived events are not in ``events`` any more; they are in its
     # twin, with ``archive_index`` holding when each left. The rows come
     # back as mappings rather than ORM objects, because there is no live
     # row for the ORM to be about.
-    return [event_stats.archived_to_out(db, row) for row in access.archived_rows(db, "events", user, chapter_id)]
+    return event_stats.archived_enrich(db, access.archived_rows(db, "events", user, chapter_id))
 
 
 @router.post("/{event_id}/archive", response_model=EventOut)
@@ -333,6 +334,18 @@ def delete_event_image(
     db.refresh(event)
     logger.info("event_image_deleted", event_id=event.id, actor_id=user.id)
     return event_stats.to_out(db, event)
+
+
+@router.get("/{event_id}", response_model=EventOut)
+def get_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    """One event. The detail and edit pages read the event they are
+    about from here; they used to filter it out of the full list, which
+    made opening either one cost every event in the chapter."""
+    return event_stats.to_out(db, access.get_event_for_user(db, event_id, user))
 
 
 @router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)

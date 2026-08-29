@@ -2,9 +2,11 @@
 
 Helpers the events routers compose:
 
-* ``enrich`` — batched chapter-name + booking headcount + next-occurrence
-  lookup that turns ORM ``Event`` rows into ``EventOut`` DTOs. Used by
-  every list endpoint and the single-event paths via ``to_out``.
+* ``list_enrich`` / ``enrich`` — batched chapter-name + booking headcount
+  + next-occurrence lookup, turning ORM ``Event`` rows into the list DTO
+  and the full one. ``archived_enrich`` does the same from the archive
+  twin. All three are batched: one query per fact for the whole page,
+  never one per row.
 * ``occurrence_totals`` / ``occurrence_signup_counts`` — per-occurrence
   headcount + line-item counts, for the organiser occurrence panel and
   the public agenda.
@@ -23,7 +25,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event, Occurrence, Registration, Signup
-from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
+from ..schemas.events import EventListOut, EventOut, EventStatsOut, SignupSummaryOut
 from . import archive
 from . import image as image_svc
 from .events import now_wallclock
@@ -116,21 +118,65 @@ def link_slug(db: Session, event_id: str) -> str:
     return _next_occurrence(db, [event_id], now_wallclock())[event_id][1]
 
 
-def enrich(db: Session, events: list[Event]) -> list[EventOut]:
-    """Build ``EventOut`` DTOs with batched lookups for chapter names,
-    booking headcount, and next-occurrence start. Single-event endpoints
-    wrap a 1-list and unwrap the result."""
+def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
+    """Live chapter id → name, batched. Soft-deleted chapters drop out,
+    so the name is then ``None`` at the call site — the same rule every
+    other list obeys."""
+    if not chapter_ids:
+        return {}
+    rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids), Chapter.deleted_at.is_(None)).all()
+    return {cid: name for cid, name in rows}
+
+
+def _derived(db: Session, events: list[Event]) -> tuple[dict[str, str], dict[str, int], dict]:
+    """The three batched lookups both enrichers need: chapter names,
+    booking headcount, and the next occurrence."""
+    event_ids = [e.id for e in events]
+    return (
+        _chapter_names(db, {e.chapter_id for e in events if e.chapter_id}),
+        registration_totals(db, event_ids),
+        _next_occurrence(db, event_ids, now_wallclock()),
+    )
+
+
+def list_enrich(db: Session, events: list[Event]) -> list[EventListOut]:
+    """The list DTO: what a dashboard card draws. Same batched lookups as
+    ``enrich``, minus every field only the event's own page reads."""
     if not events:
         return []
-    event_ids = [e.id for e in events]
-    chapter_ids = sorted({e.chapter_id for e in events if e.chapter_id})
+    names, totals, next_occ = _derived(db, events)
+    return [
+        EventListOut(
+            id=e.id,
+            name_nl=e.name_nl,
+            name_en=e.name_en,
+            locale=e.locale,
+            chapter_id=e.chapter_id,
+            chapter_name=names.get(e.chapter_id) if e.chapter_id else None,
+            archived=e.archived_at is not None,
+            location=e.location,
+            latitude=e.latitude,
+            longitude=e.longitude,
+            starts_on=e.starts_on,
+            start_time=e.start_time,
+            period_weeks=e.period_weeks,
+            cycle_slots=e.cycle_slots,
+            span_weeks=e.span_weeks,
+            next_starts_at=next_occ.get(e.id, (None, None))[0],
+            next_slug=next_occ.get(e.id, (None, None))[1],
+            attendee_count=int(totals.get(e.id, 0)),
+        )
+        for e in events
+    ]
 
-    totals = registration_totals(db, event_ids)
-    next_occ = _next_occurrence(db, event_ids, now_wallclock())
-    chapter_names: dict[str, str] = {}
-    if chapter_ids:
-        rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids)).all()
-        chapter_names = {cid: name for cid, name in rows}
+
+def enrich(db: Session, events: list[Event]) -> list[EventOut]:
+    """The full DTO: the list fields plus the sign-up form's own
+    definition. Single-event endpoints wrap a 1-list and unwrap the
+    result."""
+    if not events:
+        return []
+    chapter_names, totals, next_occ = _derived(db, events)
 
     return [
         EventOut(
@@ -173,60 +219,51 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
     ]
 
 
-def archived_to_out(db: Session, row: Mapping[str, Any]) -> EventOut:
-    """An ``EventOut`` for an event that has left the live tables.
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[EventListOut]:
+    """The same list DTO for events that have left the live tables.
 
-    Same DTO, different source: the columns come from the archive twin,
-    the headcount from the archived registrations, and the chapter name
-    from ``chapters``, which is still live. There is no next occurrence
-    for an archived event, and saying ``None`` is more honest than
-    computing one from dates nobody will act on.
+    Columns come from the archive twin, the headcount from the archived
+    registrations, and the chapter name from ``chapters``, which is still
+    live. There is no next occurrence for an archived event, and saying
+    ``None`` is more honest than computing one from dates nobody will act
+    on.
+
+    Batched like every other archived list: two queries for the page,
+    not two per row.
     """
-    chapter_name = None
-    if row["chapter_id"]:
-        chapter_name = db.query(Chapter.name).filter(Chapter.id == row["chapter_id"]).scalar()
-    totals = archive.child_sums(db, "registrations", "event_id", "party_size", [row["id"]])
-    return EventOut(
-        **{
-            key: row[key]
-            for key in (
-                "id",
-                "slug",
-                "name_nl",
-                "name_en",
-                "topic_nl",
-                "topic_en",
-                "location",
-                "latitude",
-                "longitude",
-                "starts_on",
-                "start_time",
-                "end_time",
-                "period_weeks",
-                "cycle_slots",
-                "span_weeks",
-                "horizon_days",
-                "source_options",
-                "source_enabled",
-                "help_options",
-                "help_enabled",
-                "feedback_enabled",
-                "reminder_enabled",
-                "listed",
-                "name_required",
-                "answers_editable",
-                "locale",
-                "chapter_id",
-                "image_artist_instagram",
-            )
-        },
-        chapter_name=chapter_name,
-        image_url=image_svc.public_url(row["image_path"]),
-        next_starts_at=None,
-        next_slug=None,
-        attendee_count=totals.get(row["id"], 0),
-        archived=True,
-    )
+    if not rows:
+        return []
+    ids = [r["id"] for r in rows]
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    totals = archive.child_sums(db, "registrations", "event_id", "party_size", ids)
+    return [
+        EventListOut(
+            **{
+                key: r[key]
+                for key in (
+                    "id",
+                    "name_nl",
+                    "name_en",
+                    "locale",
+                    "chapter_id",
+                    "location",
+                    "latitude",
+                    "longitude",
+                    "starts_on",
+                    "start_time",
+                    "period_weeks",
+                    "cycle_slots",
+                    "span_weeks",
+                )
+            },
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            next_starts_at=None,
+            next_slug=None,
+            attendee_count=totals.get(r["id"], 0),
+            archived=True,
+        )
+        for r in rows
+    ]
 
 
 def to_out(db: Session, event: Event) -> EventOut:

@@ -379,11 +379,10 @@ function brandDevInjection(): Plugin {
         logo_url: url(m.logo),
         favicon_url: url(m.favicon),
       };
-      const tags = [
-        `<style>:root{--boot-bg:${p.bg};--boot-surface:${p.surface};--boot-fg:${p.fg};`
-        + `--boot-fg-muted:${p.fg_muted};--boot-accent:${p.accent};--boot-border:${p.border};}</style>`,
-        `<link rel="stylesheet" href="${url("tokens.css")}">`,
-      ];
+      // The palette goes in inline, exactly as the backend does it
+      // (``services/brand.py::head``), so the shells' boot spinner can
+      // read the real ``--brand-*`` tokens in dev too.
+      const tags = [`<style>${readFileSync(`${dir}/tokens.css`, "utf-8")}</style>`];
       if (m.favicon) tags.push(`<link rel="icon" type="image/png" sizes="192x192" href="${url(m.favicon)}">`);
       if (m.apple_touch_icon) {
         tags.push(`<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`);

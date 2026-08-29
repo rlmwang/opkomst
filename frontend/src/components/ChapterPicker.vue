@@ -6,7 +6,7 @@ import AutoCompleteField, {
 import { ref } from "vue";
 import { useI18n } from "@/i18n";
 import type { Chapter } from "@/api/types";
-import { get } from "@/api/client";
+import { useChapters } from "@/composables/useChapters";
 import AppIcon, { type IconName } from "@/components/AppIcon.vue";
 
 export type { Chapter };
@@ -50,12 +50,17 @@ const suggestions = ref<Chapter[]>([]);
 // string at Enter-time means "no match was picked, treat as create".
 const local = ref<Chapter | string | null>(null);
 
-async function onComplete(e: AutoCompleteCompleteEvent) {
-  // Direct fetch: the picker is its own little island and shouldn't
-  // share cache with the page-level chapter list (the picker always
-  // wants archived results so the user can pick-to-restore; the
-  // page list usually doesn't).
-  const list = await get<Chapter[]>("/api/v1/chapters?include_archived=true");
+// The chapters to match against, archived ones included so a typed
+// name can resolve to a pick-to-restore. Shared with the page through
+// the normal query cache: the picker used to fetch the whole list on
+// every keystroke, which asked the server nine times to type
+// "Amsterdam" and threw away eight of the answers. The matching was
+// always local anyway. Creating, renaming, archiving and restoring all
+// invalidate ``["chapters"]``, so the suggestions follow the page.
+const chaptersQuery = useChapters({ includeArchived: true });
+
+function onComplete(e: AutoCompleteCompleteEvent) {
+  const list = chaptersQuery.data.value ?? [];
   const q = e.query.trim().toLowerCase();
   const matched = q ? list.filter((a) => a.name.toLowerCase().includes(q)) : list;
   suggestions.value = props.archivedOnly ? matched.filter((a) => a.archived) : matched;

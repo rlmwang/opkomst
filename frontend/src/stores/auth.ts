@@ -10,11 +10,12 @@ export type { User };
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<User | null>(null);
   const loaded = ref(false);
-  // Admin-only feature flag. True when EVOLUTION_URL,
-  // EVOLUTION_API_KEY, and EVOLUTION_INSTANCE are all set on the
-  // server. Drives the WhatsApp nav tab visibility and the
-  // route guard. Hydrated on fetchMe for admins only.
-  const whatsappAvailable = ref(false);
+  // Whether the WhatsApp blast tool is open to this account: an
+  // approved admin of an organisation, on a deployment with the
+  // EVOLUTION_* variables set. Drives the nav tab and the route guard.
+  // It arrives on the user row, so there is no second request in front
+  // of the first page.
+  const whatsappAvailable = computed(() => user.value?.whatsapp_available === true);
 
   const isAuthenticated = computed(() => user.value !== null);
   // A personal account is one person and no chapters, so the pages
@@ -49,19 +50,8 @@ export const useAuthStore = defineStore("auth", () => {
     }
     try {
       user.value = await get<User>("/api/v1/auth/me");
-      if (user.value?.role === "admin" && user.value?.is_approved) {
-        try {
-          const s = await get<{ state: string }>("/api/v1/whatsapp/status");
-          whatsappAvailable.value = s.state !== "not_configured";
-        } catch {
-          whatsappAvailable.value = false;
-        }
-      } else {
-        whatsappAvailable.value = false;
-      }
     } catch {
       user.value = null;
-      whatsappAvailable.value = false;
     } finally {
       loaded.value = true;
     }
@@ -106,7 +96,6 @@ export const useAuthStore = defineStore("auth", () => {
     }
     clearToken();
     user.value = null;
-    whatsappAvailable.value = false;
     // Drop any draft / recipient list the WhatsApp blast tool
     // had stashed in sessionStorage. Same privacy posture as
     // the rest of the project: nothing of the previous session

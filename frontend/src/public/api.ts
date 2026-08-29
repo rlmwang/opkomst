@@ -8,6 +8,7 @@
  * the occurrences the person is on, each individually withdrawable.
  */
 
+import { inlinedSubmission } from "@/public_shared/submission";
 /** A materialised, sign-up-able occurrence on the checklist.
  *  ``is_current`` marks the one whose page the visitor landed on. */
 export interface PublicOccurrence {
@@ -139,6 +140,14 @@ export async function postSignup(
 }
 
 export async function fetchBooking(token: string): Promise<Booking> {
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<Booking>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
   const r = await fetch(`/api/v1/event/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as Booking;

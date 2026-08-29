@@ -37,9 +37,13 @@ share the rest:
   it takes their dot off the map, so it is no loophole either way.
 """
 
+from collections.abc import Callable
+from typing import cast
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -85,6 +89,13 @@ def _named(name: str):
         return func
 
     return wrap
+
+
+# How to build the submission behind an edit-link token, per product.
+# Populated by ``build_router``; read by ``routers/spa.py``, which
+# inlines the result into the HTML for a ``?s=`` link so the page paints
+# without a round-trip for something the server already had.
+SUBMISSION_FOR_TOKEN: dict[str, Callable[[Session, str], BaseModel]] = {}
 
 
 def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, public_prefix: str) -> APIRouter:
@@ -374,6 +385,24 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             return _compass_result(db, form, submission, raw_token)
         return FormSubmitAck(submission_id=submission.id, edit_token=raw_token)
 
+    def _submission_out(db: Session, token: str) -> BaseModel:
+        """What the page behind an edit-link token shows: a quiz's
+        result, a kompas's map, or a questionnaire's current answers.
+        One function so the ``by-token`` route and the inlined copy in
+        the HTML shell can never render different things."""
+        sub = _submission_by_token(db, token)
+        if is_quiz or is_compass:
+            form = db.get(Form, sub.form_id)
+            assert form is not None  # the token resolver already validated it
+            return _result(db, form, sub, token) if is_quiz else _compass_result(db, form, sub, token)
+        return FormEditOut(
+            display_name=sub.display_name,
+            answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+            link_recovered_at=sub.link_recovered_at,
+        )
+
+    SUBMISSION_FOR_TOKEN[mode] = _submission_out
+
     if is_quiz:
 
         @router.get("/by-token/{token}", response_model=QuizResultOut)
@@ -382,10 +411,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             an answer after seeing the score is a second attempt, not a
             correction (``docs/design-quizzes.md`` part 3.4). There is
             no PUT on this path for a quiz."""
-            sub = _submission_by_token(db, token)
-            form = db.get(Form, sub.form_id)
-            assert form is not None  # the token resolver already validated it
-            return _result(db, form, sub, token)
+            return cast(QuizResultOut, _submission_out(db, token))
 
     elif is_compass:
 
@@ -395,10 +421,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             stands. The per-answer rows carry what was given, so this
             one shape both renders the result and refills the walk
             behind the "change your answers" button."""
-            sub = _submission_by_token(db, token)
-            form = db.get(Form, sub.form_id)
-            assert form is not None  # the token resolver already validated it
-            return _compass_result(db, form, sub, token)
+            return cast(CompassResultOut, _submission_out(db, token))
 
         @router.put("/by-token/{token}", response_model=CompassResultOut)
         @limiter.limit(Limits.PUBLIC_SUBMIT)
@@ -433,12 +456,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         def get_form_submission(token: str, db: Session = Depends(get_db)) -> FormEditOut:
             """Current values of a submission, for pre-filling the edit
             form. Gated by the secret token (the link)."""
-            sub = _submission_by_token(db, token)
-            return FormEditOut(
-                display_name=sub.display_name,
-                answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
-                link_recovered_at=sub.link_recovered_at,
-            )
+            return cast(FormEditOut, _submission_out(db, token))
 
         @router.put("/by-token/{token}", response_model=FormEditOut)
         @limiter.limit(Limits.PUBLIC_SUBMIT)

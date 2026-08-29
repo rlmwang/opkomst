@@ -55,13 +55,6 @@ export async function fetchChapterAgenda(tenant: string, slug: string): Promise<
   return r.json();
 }
 
-/** The organisation's live chapters — its public front page. */
-export async function fetchTenantChapters(tenant: string): Promise<ChapterPublic[]> {
-  const r = await fetch(`/api/v1/tenants/${encodeURIComponent(tenant)}/chapters`);
-  if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
-  return r.json();
-}
-
 declare global {
   interface Window {
     __OPKOMST_CHAPTER__?: ChapterAgenda | null;

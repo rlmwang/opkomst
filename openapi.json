@@ -2757,8 +2757,187 @@
         "title": "EventCreate",
         "type": "object"
       },
+      "EventListOut": {
+        "description": "List-row DTO: what a dashboard card or an archive row draws, and\nnothing else. The sign-up form's own configuration (its questions,\nits toggles, its horizon, its image) belongs to the event's own page;\nshipping it per row put a whole edit form behind every card. Same\nsplit the other five products already make.",
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "attendee_count": {
+            "title": "Attendee Count",
+            "type": "integer"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "cycle_slots": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Cycle Slots",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "locale": {
+            "enum": [
+              "nl",
+              "en"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "name_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name En"
+          },
+          "name_nl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name Nl"
+          },
+          "next_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Slug"
+          },
+          "next_starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Starts At"
+          },
+          "period_weeks": {
+            "title": "Period Weeks",
+            "type": "integer"
+          },
+          "span_weeks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Weeks"
+          },
+          "start_time": {
+            "format": "time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "starts_on": {
+            "format": "date",
+            "title": "Starts On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name_nl",
+          "name_en",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
+          "location",
+          "latitude",
+          "longitude",
+          "starts_on",
+          "start_time",
+          "period_weeks",
+          "cycle_slots",
+          "span_weeks",
+          "next_starts_at",
+          "next_slug",
+          "attendee_count"
+        ],
+        "title": "EventListOut",
+        "type": "object"
+      },
       "EventOut": {
-        "description": "Organiser-side event DTO: the definition + its recurrence rule + a\ncouple of derived read-model fields (next occurrence, headcount).",
+        "description": "Organiser-side event DTO: everything a row carries, plus the\ndefinition of the sign-up form itself.",
         "properties": {
           "answers_editable": {
             "title": "Answers Editable",
@@ -3014,20 +3193,27 @@
         },
         "required": [
           "id",
-          "slug",
           "name_nl",
           "name_en",
-          "topic_nl",
-          "topic_en",
+          "locale",
+          "chapter_id",
+          "chapter_name",
+          "archived",
           "location",
           "latitude",
           "longitude",
           "starts_on",
           "start_time",
-          "end_time",
           "period_weeks",
           "cycle_slots",
           "span_weeks",
+          "next_starts_at",
+          "next_slug",
+          "attendee_count",
+          "slug",
+          "topic_nl",
+          "topic_en",
+          "end_time",
           "horizon_days",
           "source_options",
           "source_enabled",
@@ -3038,15 +3224,8 @@
           "listed",
           "name_required",
           "answers_editable",
-          "locale",
-          "chapter_id",
-          "chapter_name",
           "image_url",
-          "image_artist_instagram",
-          "next_starts_at",
-          "next_slug",
-          "attendee_count",
-          "archived"
+          "image_artist_instagram"
         ],
         "title": "EventOut",
         "type": "object"
@@ -7858,6 +8037,10 @@
           "tenant_kind": {
             "title": "Tenant Kind",
             "type": "string"
+          },
+          "whatsapp_available": {
+            "title": "Whatsapp Available",
+            "type": "boolean"
           }
         },
         "required": [
@@ -7869,6 +8052,7 @@
           "tenant_kind",
           "participant_cap",
           "participant_mail",
+          "whatsapp_available",
           "chapters",
           "created_at"
         ],
@@ -13123,7 +13307,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EventOut"
+                    "$ref": "#/components/schemas/EventListOut"
                   },
                   "title": "Response List Events Api V1 Event Get",
                   "type": "array"
@@ -13249,7 +13433,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EventOut"
+                    "$ref": "#/components/schemas/EventListOut"
                   },
                   "title": "Response List Archived Events Api V1 Event Archived Get",
                   "type": "array"
@@ -13546,7 +13730,7 @@
     },
     "/api/v1/event/by-token/{token}": {
       "get": {
-        "description": "The whole booking behind an edit-link token, for the edit page.\nEmail is never returned (it isn't reachable from a booking).",
+        "description": "The whole booking behind an edit-link token, for the edit page.",
         "operationId": "get_booking_api_v1_event_by_token__token__get",
         "parameters": [
           {
@@ -13819,6 +14003,63 @@
           }
         },
         "summary": "Delete Event",
+        "tags": [
+          "events"
+        ]
+      },
+      "get": {
+        "description": "One event. The detail and edit pages read the event they are\nabout from here; they used to filter it out of the full list, which\nmade opening either one cost every event in the chapter.",
+        "operationId": "get_event_api_v1_event__event_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event",
         "tags": [
           "events"
         ]

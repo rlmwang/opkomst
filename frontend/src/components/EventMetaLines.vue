@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from "@/i18n";
-import type { EventOut } from "@/composables/useEvents";
+import type { EventListOut } from "@/composables/useEvents";
 import { formatDateTime } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { recurrenceHint } from "@/lib/recurrence";
@@ -14,7 +14,7 @@ import { recurrenceHint } from "@/lib/recurrence";
 //   Sporthal De Kaai · Tweewekelijks · 10 weken · eerstvolgende: 10-09-2026 19:00
 //
 // A one-off has no "next" session, only its date, so it drops the word.
-const props = defineProps<{ event: EventOut }>();
+const props = defineProps<{ event: EventListOut }>();
 const { t, locale } = useI18n();
 
 const oneOff = () => props.event.cycle_slots.length === 0;

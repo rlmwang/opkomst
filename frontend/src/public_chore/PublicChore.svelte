@@ -151,8 +151,11 @@ async function loadRosterCalendar(): Promise<void> {
   }
 }
 // The "Bijspringen" calendar is fetched per month, so paging it reloads.
-// Guarded on the month rather than run on every read: an effect fires on
-// mount too, and the first load is the one ``onMounted`` already does.
+// The effect is the only thing that fetches it, first month included:
+// it fires once ``status`` turns personal, which is the moment the
+// month is knowable. ``load()`` used to also call it directly, and
+// because that call left ``loadedMonth`` null the effect then fetched
+// the same month a second time.
 let loadedMonth: string | null = null;
 $effect(() => {
   if (status !== "personal" || helpMonth === loadedMonth) return;
@@ -227,7 +230,6 @@ async function load() {
       hydratePersonal(page);
       edit.captureBaseline();
       status = "personal";
-      void loadRosterCalendar();
     } else {
       status = "enrol";
     }

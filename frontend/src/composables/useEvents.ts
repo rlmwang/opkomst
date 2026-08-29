@@ -19,25 +19,28 @@ import { listOf, useApiQuery } from "@/api/queries";
 import { createEntityCrud } from "@/composables/createEntityCrud";
 import type {
   EventCreate,
+  EventListOut,
   EventOut,
   EventStats,
   OccurrenceList,
   SignupSummary,
 } from "@/api/types";
 
-export type { EventCreate, EventOut, EventStats, OccurrenceList, SignupSummary };
+export type { EventCreate, EventListOut, EventOut, EventStats, OccurrenceList, SignupSummary };
 
 // Events take the shared list/archived/create/restore from the factory
 // but keep their own *optimistic* update/archive/delete below (the
 // dashboard patches the cache inline; covered by composables.test.ts).
-const crud = createEntityCrud<EventOut, EventOut, EventCreate>({ resource: "event" });
+const crud = createEntityCrud<EventListOut, EventOut, EventCreate>({ resource: "event" });
 
 /** ``chapterId`` is the optional UI filter — ``null``/undefined means
  * "every chapter the user belongs to"; the filter is in the query key so
  * changing the dropdown produces a fresh cache entry, not a clobber. */
 export const useEventList = crud.useList;
-export const eventList = listOf<EventOut>;
+export const eventList = listOf<EventListOut>;
 export const useArchivedEvents = crud.useArchived;
+/** One event, for the pages that are about one. */
+export const useEvent = crud.useSingle;
 
 // ``useEventBySlug`` was removed when /e/:slug moved out of the
 // admin SPA into its own mini-app (see ``frontend/public-event.html``
@@ -96,43 +99,48 @@ export function useUpdateEvent() {
       put<EventOut>(`/api/v1/event/${vars.eventId}`, vars.payload),
     // Optimistic patch: the form already has every field that the
     // server will return except the auto-derived ``attendee_count``
-    // and ``chapter_name``. Patch the cached row inline so the
-    // dashboard / details page show the new values immediately
-    // after navigation; the settle invalidation reconciles the
-    // derived fields.
+    // and ``chapter_name``. Patch both caches the organiser is about
+    // to look at — the dashboard row and the event's own page — so
+    // the new values are there on arrival; the settle invalidation
+    // reconciles the derived fields.
     onMutate: async (vars) => {
-      await qc.cancelQueries({ queryKey: ["event", "active"] });
-      const snap = qc.getQueryData<EventOut[]>(["event", "active"]);
-      qc.setQueryData<EventOut[]>(["event", "active"], (old) =>
+      const single = ["event", "single", vars.eventId];
+      await Promise.all([
+        qc.cancelQueries({ queryKey: ["event", "active"] }),
+        qc.cancelQueries({ queryKey: single }),
+      ]);
+      const snap = qc.getQueryData<EventListOut[]>(["event", "active"]);
+      const snapSingle = qc.getQueryData<EventOut>(single);
+      qc.setQueryData<EventListOut[]>(["event", "active"], (old) =>
         old?.map((e) =>
           e.id === vars.eventId ? { ...e, ...vars.payload } : e,
         ),
       );
-      return { snap };
+      if (snapSingle) qc.setQueryData<EventOut>(single, { ...snapSingle, ...vars.payload });
+      return { snap, snapSingle };
     },
-    onError: (_err, _vars, ctx) =>
-      qc.setQueryData(["event", "active"], ctx?.snap),
+    onError: (_err, vars, ctx) => {
+      qc.setQueryData(["event", "active"], ctx?.snap);
+      qc.setQueryData(["event", "single", vars.eventId], ctx?.snapSingle);
+    },
     onSettled: () => invalidateLists(qc),
   });
 }
 
 /** Upload (or replace) the event's hero image. Returns the
- * server's fresh ``EventOut`` so consumers can patch caches
- * without an extra refetch. Failures bubble up — the page's
- * ``useGuardedMutation`` wrapper renders the toast. */
+ * server's fresh ``EventOut`` so the page it happened on shows the
+ * new image without an extra refetch. Failures bubble up — the
+ * page's ``useGuardedMutation`` wrapper renders the toast.
+ *
+ * Only the single-event cache is patched. A list row carries no
+ * image (``EventListOut``), so writing the full event into the list
+ * caches replaced a row with a different shape to no visible end. */
 export function useUploadEventImage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { eventId: string; file: File }) =>
       postFile<EventOut>(`/api/v1/event/${vars.eventId}/image`, vars.file),
-    onSuccess: (event) => {
-      // Patch every list cache in place so the new image_url is
-      // visible without waiting for a refetch.
-      qc.setQueriesData<EventOut[]>({ queryKey: ["event"] }, (old) =>
-        Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
-      );
-      qc.setQueryData(["event", "by-slug", event.slug], event);
-    },
+    onSuccess: (event) => qc.setQueryData(["event", "single", event.id], event),
     onSettled: () => invalidateLists(qc),
   });
 }
@@ -144,12 +152,7 @@ export function useDeleteEventImage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (eventId: string) => del<EventOut>(`/api/v1/event/${eventId}/image`),
-    onSuccess: (event) => {
-      qc.setQueriesData<EventOut[]>({ queryKey: ["event"] }, (old) =>
-        Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
-      );
-      qc.setQueryData(["event", "by-slug", event.slug], event);
-    },
+    onSuccess: (event) => qc.setQueryData(["event", "single", event.id], event),
     onSettled: () => invalidateLists(qc),
   });
 }
@@ -160,8 +163,8 @@ export function useArchiveEvent() {
     mutationFn: (eventId: string) => post(`/api/v1/event/${eventId}/archive`),
     onMutate: async (eventId) => {
       await qc.cancelQueries({ queryKey: ["event", "active"] });
-      const snap = qc.getQueryData<EventOut[]>(["event", "active"]);
-      qc.setQueryData<EventOut[]>(["event", "active"], (old) =>
+      const snap = qc.getQueryData<EventListOut[]>(["event", "active"]);
+      qc.setQueryData<EventListOut[]>(["event", "active"], (old) =>
         old?.filter((e) => e.id !== eventId),
       );
       return { snap };
@@ -181,8 +184,8 @@ export function useDeleteEvent() {
     // is enough to recover the row visually if the server refuses.
     onMutate: async (eventId) => {
       await qc.cancelQueries({ queryKey: ["event", "archived"] });
-      const snap = qc.getQueryData<EventOut[]>(["event", "archived"]);
-      qc.setQueryData<EventOut[]>(["event", "archived"], (old) =>
+      const snap = qc.getQueryData<EventListOut[]>(["event", "archived"]);
+      qc.setQueryData<EventListOut[]>(["event", "archived"], (old) =>
         old?.filter((e) => e.id !== eventId),
       );
       return { snap };

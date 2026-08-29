@@ -69,9 +69,8 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();
     const store = useAuthStore();
-    store.user = { ...adminUser };
+    store.user = { ...adminUser, whatsapp_available: false };
     store.loaded = true;
-    store.whatsappAvailable = false;
 
     await router.push("/admin/whatsapp");
     expect(router.currentRoute.value.path).toBe("/event");
@@ -81,9 +80,8 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();
     const store = useAuthStore();
-    store.user = { ...adminUser };
+    store.user = { ...adminUser, whatsapp_available: true };
     store.loaded = true;
-    store.whatsappAvailable = true;
 
     await router.push("/admin/whatsapp");
     expect(router.currentRoute.value.path).toBe("/admin/whatsapp");
@@ -93,9 +91,8 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();
     const store = useAuthStore();
-    store.user = { ...adminUser, role: "organiser" };
-    store.loaded = true;
-    store.whatsappAvailable = true; // would pass on its own
+    store.user = { ...adminUser, role: "organiser", whatsapp_available: true };
+    store.loaded = true; // whatsapp would pass on its own
 
     await router.push("/admin/whatsapp");
     expect(router.currentRoute.value.path).toBe("/event");

@@ -77,6 +77,7 @@ describe("auth store", () => {
       tenant_kind: "organisation",
       participant_cap: null,
       participant_mail: true,
+      whatsapp_available: false,
     };
 
     // Logged in but unapproved.
@@ -117,6 +118,7 @@ describe("auth store", () => {
       tenant_kind: "personal",
       participant_cap: 50,
       participant_mail: false,
+      whatsapp_available: false,
     };
 
     expect(store.participantMail).toBe(false);
@@ -128,7 +130,7 @@ describe("auth store", () => {
     expect(store.participantMail).toBe(true);
   });
 
-  it("hydrates whatsappAvailable from /whatsapp/status when an admin loads", async () => {
+  it("reads whatsappAvailable off the user row, in one request", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     vi.mocked(apiClient.getToken).mockReturnValue("tok");
     mockGet.mockImplementation(async (path: string) => {
@@ -139,19 +141,21 @@ describe("auth store", () => {
           name: "A",
           role: "admin",
           is_approved: true,
+          whatsapp_available: true,
           chapters: [],
           created_at: "2026-01-01T00:00:00Z",
         };
       }
-      if (path === "/api/v1/whatsapp/status") return { state: "open" };
       throw new Error(`unexpected GET ${path}`);
     });
     const store = useAuthStore();
     await store.fetchMe();
     expect(store.whatsappAvailable).toBe(true);
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/auth/me");
   });
 
-  it("sets whatsappAvailable=false when /status reports not_configured", async () => {
+  it("whatsappAvailable is false when the server says the tool is not open to this account", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     vi.mocked(apiClient.getToken).mockReturnValue("tok");
     mockGet.mockImplementation(async (path: string) => {
@@ -162,29 +166,7 @@ describe("auth store", () => {
           name: "A",
           role: "admin",
           is_approved: true,
-          chapters: [],
-          created_at: "2026-01-01T00:00:00Z",
-        };
-      }
-      if (path === "/api/v1/whatsapp/status") return { state: "not_configured" };
-      throw new Error(`unexpected GET ${path}`);
-    });
-    const store = useAuthStore();
-    await store.fetchMe();
-    expect(store.whatsappAvailable).toBe(false);
-  });
-
-  it("does not call /whatsapp/status for a non-admin user", async () => {
-    const { useAuthStore } = await import("@/stores/auth");
-    vi.mocked(apiClient.getToken).mockReturnValue("tok");
-    mockGet.mockImplementation(async (path: string) => {
-      if (path === "/api/v1/auth/me") {
-        return {
-          id: "u1",
-          email: "a@b",
-          name: "A",
-          role: "organiser",
-          is_approved: true,
+          whatsapp_available: false,
           chapters: [],
           created_at: "2026-01-01T00:00:00Z",
         };
@@ -194,15 +176,23 @@ describe("auth store", () => {
     const store = useAuthStore();
     await store.fetchMe();
     expect(store.whatsappAvailable).toBe(false);
-    expect(mockGet).toHaveBeenCalledTimes(1);
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/auth/me");
   });
 
   it("clears whatsappAvailable on logout", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     mockPost.mockResolvedValueOnce(undefined);
     const store = useAuthStore();
-    store.whatsappAvailable = true;
+    store.user = {
+      id: "u1",
+      email: "a@b",
+      name: "A",
+      role: "admin",
+      is_approved: true,
+      whatsapp_available: true,
+      chapters: [],
+      created_at: "2026-01-01T00:00:00Z",
+    } as never;
+    expect(store.whatsappAvailable).toBe(true);
     await store.logout();
     expect(store.whatsappAvailable).toBe(false);
   });

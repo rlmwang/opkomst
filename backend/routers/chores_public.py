@@ -146,9 +146,16 @@ def enroll(
     return EnrollAck(edit_token=raw)
 
 
+def submission_for_token(db: Session, token: str) -> PersonalPageOut:
+    """The volunteer's own page. Shared by the ``by-token`` route and
+    ``routers/spa.py``, which inlines this into the HTML for a ``?s=``
+    link so the page paints without a round-trip."""
+    return chores_svc.personal_page(db, _volunteer_by_token(db, token))
+
+
 @router.get("/by-token/{token}", response_model=PersonalPageOut)
 def get_personal_page(token: str, db: Session = Depends(get_db)) -> PersonalPageOut:
-    return chores_svc.personal_page(db, _volunteer_by_token(db, token))
+    return submission_for_token(db, token)
 
 
 @router.get("/by-token/{token}/calendar", response_model=list[ChoreCalendarOut])

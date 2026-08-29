@@ -76,7 +76,7 @@ def test_the_house_brand_carries_its_own_mark_and_nobody_elses() -> None:
         assert house[key].startswith(f"/brand/{brand_svc.HOUSE_BRAND}/"), key
     assert house["tagline_nl"] and house["tagline_en"]
     head = brand_svc.head(brand_svc.HOUSE_BRAND, "nonce")
-    assert f'href="/brand/{brand_svc.HOUSE_BRAND}/tokens.css"' in head
+    assert f'href="/brand/{brand_svc.HOUSE_BRAND}/favicon.png"' in head
     assert 'rel="icon"' in head
     # No other brand's folder is ever referenced from this one's head.
     for slug in ("rsp", "rood"):
@@ -100,12 +100,14 @@ def test_the_inline_brand_script_carries_the_csp_nonce() -> None:
 
 
 def test_head_carries_palette_icons_and_window_payload() -> None:
-    """What the shells get: the boot colours inline (the spinner paints
-    before a linked stylesheet is guaranteed to have arrived), the
-    palette stylesheet, both icons, and the brand on ``window``."""
+    """What the shells get: the palette inline, both icons, and the
+    brand on ``window``. The palette is inlined rather than linked so
+    the first paint does not wait on a round-trip for the colours it is
+    about to paint in."""
     head = brand_svc.head("rsp", "nonce")
-    assert "--boot-accent:" in head
-    assert '<link rel="stylesheet" href="/brand/rsp/tokens.css">' in head
+    assert "--brand-red:" in head
+    assert "<style>" in head
+    assert '<link rel="stylesheet"' not in head
     assert 'rel="icon"' in head and "/brand/rsp/favicon.png" in head
     assert 'rel="apple-touch-icon"' in head and "/brand/rsp/apple-touch-icon.png" in head
     assert "window.__OPKOMST_BRAND__" in head

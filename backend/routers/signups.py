@@ -193,11 +193,19 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
     )
 
 
+def submission_for_token(db: Session, token: str) -> BookingOut:
+    """The whole booking behind an edit-link token. Shared by the
+    ``by-token`` route and ``routers/spa.py``, which inlines this into
+    the HTML for a ``?s=`` link so the edit page paints without a
+    round-trip. Email is never returned (it isn't reachable from a
+    booking)."""
+    return _booking_out(db, _registration_by_token(db, token))
+
+
 @router.get("/by-token/{token}", response_model=BookingOut)
 def get_booking(token: str, db: Session = Depends(get_db)) -> BookingOut:
-    """The whole booking behind an edit-link token, for the edit page.
-    Email is never returned (it isn't reachable from a booking)."""
-    return _booking_out(db, _registration_by_token(db, token))
+    """The whole booking behind an edit-link token, for the edit page."""
+    return submission_for_token(db, token)
 
 
 @router.put("/by-token/{token}", response_model=BookingOut)

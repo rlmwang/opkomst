@@ -22,6 +22,7 @@ import { datepollQrUrl, publicDatepollUrl } from "@/lib/datepoll-urls";
 import { formatDate } from "@/lib/format";
 import { useToasts } from "@/lib/toasts";
 import { useAuthStore } from "@/stores/auth";
+import { useHoverPrefetch } from "@/composables/useHoverPrefetch";
 
 const { t, locale } = useI18n();
 const lt = useLocalizedText();
@@ -60,10 +61,7 @@ function dateRange(p: DatepollListOut): string {
   return `${count} · ${first} – ${formatDate(p.last_date, locale.value)}`;
 }
 
-const prefetched = new Set<string>();
-function prefetchDetails(datepollId: string) {
-  if (prefetched.has(datepollId)) return;
-  prefetched.add(datepollId);
+const hover = useHoverPrefetch((datepollId: string) => {
   void qc.prefetchQuery({
     queryKey: ["datepoll", "single", datepollId],
     queryFn: () => get(`/api/v1/datepoll/${datepollId}`),
@@ -72,7 +70,7 @@ function prefetchDetails(datepollId: string) {
     queryKey: ["datepoll", datepollId, "summary"],
     queryFn: () => get(`/api/v1/datepoll/${datepollId}/summary`),
   });
-}
+});
 
 function askArchive(p: DatepollListOut) {
   confirms.ask({
@@ -138,8 +136,9 @@ function askArchive(p: DatepollListOut) {
         :qr-src="datepollQrUrl(p.slug)"
         :copy-link-label="t('datepoll.share.copyLink')"
         :qr-label="t('datepoll.share.copyQr')"
-        @mouseenter="prefetchDetails(p.id)"
-        @focusin="prefetchDetails(p.id)"
+        @mouseenter="hover.enter(p.id)"
+        @mouseleave="hover.leave()"
+        @focusin="hover.enter(p.id)"
         @copy-link="copyLink(p.slug)"
         @copy-qr="copyQr(p.slug)"
       >

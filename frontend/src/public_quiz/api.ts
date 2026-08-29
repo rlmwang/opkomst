@@ -9,6 +9,7 @@
 
 import type { PublicForm, PublicFormQuestion, SubmitAnswer } from "@/public_form/api";
 import { ApiError } from "@/public_form/api";
+import { inlinedSubmission } from "@/public_shared/submission";
 
 export type { PublicForm as PublicQuiz, PublicFormQuestion as PublicQuizQuestion, SubmitAnswer };
 export { ApiError };
@@ -60,6 +61,14 @@ export async function postQuizAnswers(
  *  because changing an answer after seeing the score is a second
  *  attempt rather than a correction. */
 export async function fetchQuizResult(token: string): Promise<QuizResult> {
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<QuizResult>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
   const r = await fetch(`/api/v1/quiz/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as QuizResult;

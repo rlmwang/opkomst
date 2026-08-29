@@ -13,9 +13,8 @@ import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinks
 import StatBar from "@/components/StatBar.vue";
 import type { SignupSummary } from "@/api/types";
 import {
-  eventList,
   useDeleteSignup,
-  useEventList,
+  useEvent,
   useEventOccurrences,
   useOccurrenceSignups,
   useOccurrenceStats,
@@ -45,9 +44,8 @@ const { copyLink, copyQr } = useEventClipboard();
 // A personal account's event holds a bounded number of people; an
 // organisation's has no ceiling, so there is no number to show.
 const auth = useAuthStore();
-const eventsQuery = useEventList();
-const events = eventList(eventsQuery);
-const event = computed(() => events.value.find((e) => e.id === props.eventId) ?? null);
+const eventQuery = useEvent(computed(() => props.eventId));
+const event = computed(() => eventQuery.data.value ?? null);
 
 const occurrencesQuery = useEventOccurrences(computed(() => props.eventId));
 const occurrenceList = computed(() => occurrencesQuery.data.value ?? null);
@@ -279,11 +277,9 @@ function askTriggerNow(channel: EmailChannel) {
 </script>
 
 <template>
-  <!-- Only block render on ``event`` itself: it usually lives in
-       the events-list cache when arriving from the dashboard, so
-       the overview paints immediately. ``stats`` / ``summary``
-       each show a localised skeleton inside their own card —
-       the page no longer waits on the slowest fetch. -->
+  <!-- Only block render on ``event`` itself. ``stats`` / ``summary``
+       each show a localised skeleton inside their own card — the page
+       does not wait on the slowest fetch. -->
   <DetailsPageShell :loaded="!!event" :skeleton-rows="4">
     <template v-if="event">
 <DetailHeaderCard

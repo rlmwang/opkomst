@@ -6,7 +6,7 @@ import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
 import { useArchivedList } from "@/composables/useArchivedList";
 import {
-  type EventOut,
+  type EventListOut,
   useArchivedEvents,
   useDeleteEvent,
   useRestoreEvent,
@@ -17,7 +17,7 @@ import { recurrenceHint } from "@/lib/recurrence";
 const { t, locale } = useI18n();
 const lt = useLocalizedText();
 
-function hint(e: EventOut): string {
+function hint(e: EventListOut): string {
   return recurrenceHint(t, e);
 }
 
@@ -46,7 +46,7 @@ const {
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
     :search-placeholder="t('archived.searchPlaceholder')"
-    :search-keys="(e: EventOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
+    :search-keys="(e: EventListOut) => [lt(e.name_nl, e.name_en) ?? '', e.location ?? '']"
     :empty-copy="t('archived.empty')"
     :no-matches-copy="t('archived.noMatches')"
     :skeleton-rows="2"
