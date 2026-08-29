@@ -3,10 +3,31 @@
 A proposal, then a plan. The decision is taken; what follows is how to
 take it without a six-week stop.
 
-**Phases 0 and 1 have landed.** All seven public entries are Svelte and
-no public page ships Vue: **97,550 gz off them**, about a quarter of
-each. The organiser app is phases 2 to 4 and has not started. See the
-phase list below for the numbers and what they cost.
+**Phases 0 to 4 have landed.** Nothing in the app is drawn by Vue any
+more. The organiser app's critical path went **81,738 gz to 47,779**,
+and the public pages, already Svelte, came down another 800 to 1,600
+bytes each on the way. Phase 5, deleting the Vue packages, is what is
+left.
+
+| entry | before Svelte | after | off |
+|---|---|---|---|
+| organiser (`index.html`) | 81,738 | 47,779 | 33,959 (42%) |
+| public-chapter | 46,871 | 30,930 | 15,941 (34%) |
+| public-form | 52,753 | 37,291 | 15,462 (29%) |
+| public-quiz | 52,983 | 38,392 | 14,591 (28%) |
+| public-compass | 55,667 | 41,288 | 14,379 (26%) |
+| public-datepoll | 56,324 | 41,091 | 15,233 (27%) |
+| public-event | 61,923 | 47,142 | 14,781 (24%) |
+| public-chore | 64,300 | 48,082 | 16,218 (25%) |
+
+**The build is two passes now** (`frontend/scripts/build.mjs`). Eight
+entries in one Rollup graph was right while the two halves shared a
+runtime and little else, which is what they did all through the Vue
+years. It stopped being right the moment both halves were drawn by the
+same Svelte components: a module two entries can reach goes into a chunk
+they must both download, and every public page started paying four to
+six kilobytes for the organiser app's share of it. Measured: with one
+graph, `public-chapter` was 35,702; with its own, 30,930.
 
 ## Why
 

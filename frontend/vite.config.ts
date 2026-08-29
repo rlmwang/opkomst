@@ -400,6 +400,28 @@ function brandDevInjection(): Plugin {
   };
 }
 
+/**
+ * Which entries this pass builds. ``scripts/build.mjs`` sets it; a bare
+ * ``vite build`` still builds everything, which is what a one-off local
+ * check wants.
+ */
+const PUBLIC_ENTRIES = {
+  publicEvent: "./public-event.html",
+  publicForm: "./public-form.html",
+  publicQuiz: "./public-quiz.html",
+  publicCompass: "./public-compass.html",
+  publicDatepoll: "./public-datepoll.html",
+  publicChore: "./public-chore.html",
+  publicChapter: "./public-chapter.html",
+};
+
+const ENTRIES = Object.fromEntries(
+  Object.entries({
+    ...(process.env.BUILD_ENTRIES === "public" ? {} : { main: "./index.html" }),
+    ...(process.env.BUILD_ENTRIES === "app" ? {} : PUBLIC_ENTRIES),
+  }).map(([name, path]) => [name, fileURLToPath(new URL(path, import.meta.url))]),
+);
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -452,70 +474,21 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // One HTML entry point per app → independent bundle graphs.
-      // The public mini-apps at ``/e/{slug}``, ``/f/{slug}`` and the
-      // rest
-      // ship only what their form needs (Vue + the form component
-      // + a tiny inline i18n dict + raw fetch). No Pinia, no Vue
-      // Query, no router. Target wire weight:
-      // ~30 KB gzip each vs the admin SPA's ~200 KB. Backend
-      // routes serve the built ``public-event.html`` /
-      // ``public-form.html`` (with payload inlined); every other
-      // path falls through to the admin SPA's ``index.html``.
-      input: {
-        main: fileURLToPath(new URL("./index.html", import.meta.url)),
-        publicEvent: fileURLToPath(
-          new URL("./public-event.html", import.meta.url),
-        ),
-        // Same split as ``publicEvent``: dedicated bundle graph
-        // for ``/f/{slug}`` so public visitors land on ~30 KB
-        // gzip instead of the admin SPA's ~200 KB.
-        publicForm: fileURLToPath(
-          new URL("./public-form.html", import.meta.url),
-        ),
-        // And the same again for ``/q/{slug}``: a quiz is answered one
-        // question at a time, and shares every renderer with the form.
-        publicQuiz: fileURLToPath(
-          new URL("./public-quiz.html", import.meta.url),
-        ),
-        // And for ``/k/{slug}``: a kompas walks the same way and ends
-        // on a map instead of a score.
-        publicCompass: fileURLToPath(
-          new URL("./public-compass.html", import.meta.url),
-        ),
-        // Same split again: dedicated bundle graph for ``/d/{slug}``.
-        publicDatepoll: fileURLToPath(
-          new URL("./public-datepoll.html", import.meta.url),
-        ),
-        // Same split again: dedicated bundle graph for ``/c/{slug}``.
-        publicChore: fileURLToPath(
-          new URL("./public-chore.html", import.meta.url),
-        ),
-        publicChapter: fileURLToPath(
-          new URL("./public-chapter.html", import.meta.url),
-        ),
-      },
-      output: {
-        // Split heavy vendor libs into their own chunks. The main
-        // app chunk drops below the 500 kB warning threshold; the
-        // vendor chunks cache separately and survive across deploys
-        // that touch app code but not deps.
-        // Both halves of the app draw the same components now, so a
-        // module reachable from the organiser entry and from a public
-        // one lands in a chunk of its own. Left alone that fragmented
-        // the public pages into a dozen small files, and a dozen small
-        // gzip streams cost more than one big one: every public page
-        // grew by about 4.5 kB for code that had not changed. Rollup
-        // merges anything below this back into its importer.
-        experimentalMinChunkSize: 20_000,
-        manualChunks(id) {
-          if (id.includes("/node_modules/vue-router/")) return "vue-router";
-          if (id.includes("/node_modules/pinia/")) return "pinia";
-          // ``vue-core`` is shared with the public mini-apps; router +
-          // pinia stay admin-only so the public bundle doesn't pull them.
-          if (id.includes("/node_modules/vue/") || id.includes("/node_modules/@vue/")) return "vue-core";
-        },
-      },
+      // One HTML entry point per app, and two passes over them
+      // (``scripts/build.mjs``): the seven public mini-apps in one
+      // graph, the organiser app in another. They share components now,
+      // and one graph over both made every public page carry the
+      // organiser app's share of what they have in common.
+      //
+      // The public pages at ``/e/{slug}``, ``/f/{slug}`` and the rest
+      // ship only what their own form needs. The backend serves their
+      // built HTML with the payload inlined; every other path falls
+      // through to the organiser app's ``index.html``.
+      input: ENTRIES,
+      // Vue's chunks used to be named here so the public mini-apps and
+      // the organiser app could share one copy of the runtime. Both
+      // halves are Svelte and each is its own graph now, so there is
+      // nothing left to name: every chunk belongs to one half.
     },
   },
 });

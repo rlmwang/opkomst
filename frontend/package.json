@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && svelte-check --tsconfig ./tsconfig.svelte.json --threshold error && vite build",
+    "build": "vue-tsc --noEmit && svelte-check --tsconfig ./tsconfig.svelte.json --threshold error && node scripts/build.mjs",
     "build-only": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
