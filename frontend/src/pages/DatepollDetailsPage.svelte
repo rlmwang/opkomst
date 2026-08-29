@@ -18,9 +18,8 @@ import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
 import { locale, t } from "@/i18n.svelte";
 import { ApiError } from "@/api/client";
-import { downloadCsv } from "@/lib/csv-export";
+import { downloadFile } from "@/lib/download";
 import { datepollQrUrl, publicDatepollUrl } from "@/lib/datepoll-urls";
-import { filenameSlug } from "@/lib/filename-slug";
 import { localeTag } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { useToasts } from "@/lib/toasts";
@@ -170,24 +169,9 @@ function rankLabel(id: string): string {
 }
 
 async function exportCsv(): Promise<void> {
-  if (!poll || !summary) return;
+  if (!poll) return;
   try {
-    const rows = await fetchDatepollSubmissions(datepollId);
-    const slots = summary.slots;
-    const header = [
-      t("datepoll.details.csvName"),
-      t("datepoll.details.csvSubmittedAt"),
-      ...slots.map(slotHeading),
-      t("datepoll.details.csvNote"),
-    ];
-    const body = rows.map((s) => [
-      nameOf(s),
-      s.created_at,
-      ...slots.map((sl) => s.answers[sl.id] ?? ""),
-      s.note ?? "",
-    ]);
-    const name = filenameSlug(lt(poll.name_nl, poll.name_en) ?? "");
-    downloadCsv(`${name}-${poll.id}.csv`, [header, ...body]);
+    await downloadFile(`/api/v1/datepoll/${datepollId}/submissions.csv`, `${poll.id}.csv`);
   } catch {
     toasts.error(t("datepoll.details.csvFail"));
   }

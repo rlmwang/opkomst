@@ -19,15 +19,13 @@ import {
 import {
   type EmailChannel,
   feedbackSummaryQuery,
-  fetchFeedbackSubmissions,
 } from "@/composables/useFeedback.svelte";
 import { guarded } from "@/composables/useGuardedMutation.svelte";
 import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
 import { locale, t } from "@/i18n.svelte";
-import { downloadCsv } from "@/lib/csv-export";
+import { downloadFile } from "@/lib/download";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
-import { filenameSlug } from "@/lib/filename-slug";
 import { barWidth, formatAverage, formatDate, formatTimeRange } from "@/lib/format";
 import { tip } from "@/lib/tooltip";
 import { useToasts } from "@/lib/toasts";
@@ -257,14 +255,9 @@ function questionPrompt(key: string): string {
  * the id last, because that is what tells two same-named events apart.
  */
 async function exportCsv(): Promise<void> {
-  if (!event || !summary) return;
+  if (!event) return;
   try {
-    const submissions = await fetchFeedbackSubmissions(eventId);
-    const keys = summary.questions.map((q) => q.key);
-    const header = [t("feedback.summary.submissionId"), ...keys.map(questionPrompt)];
-    const rows = submissions.map((s) => [s.submission_id, ...keys.map((k) => s.answers[k] ?? "")]);
-    const slug = filenameSlug(lt(event.name_nl, event.name_en) ?? "");
-    downloadCsv(`${event.starts_on}-${slug}-${event.id}.csv`, [header, ...rows]);
+    await downloadFile(`/api/v1/event/${eventId}/feedback-submissions.csv`, `${event.id}.csv`);
   } catch {
     toasts.error(t("feedback.summary.csvFail"));
   }

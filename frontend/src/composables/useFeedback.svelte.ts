@@ -1,4 +1,4 @@
-import { get, post } from "@/api/client";
+import { post } from "@/api/client";
 import { apiQuery } from "@/api/queries.svelte";
 import { mutation } from "@/composables/mutation.svelte";
 import type {
@@ -8,7 +8,6 @@ import type {
   FeedbackForm,
   FeedbackQuestion,
   FeedbackQuestionSummary,
-  FeedbackSubmission,
   FeedbackSummary,
 } from "@/api/types";
 
@@ -23,7 +22,6 @@ export type {
   FeedbackForm,
   FeedbackQuestion,
   FeedbackQuestionSummary,
-  FeedbackSubmission,
   FeedbackSummary,
 };
 
@@ -54,9 +52,6 @@ export function feedbackSummaryQuery(eventId: () => string) {
   );
 }
 
-export async function fetchFeedbackSubmissions(eventId: string): Promise<FeedbackSubmission[]> {
-  return get<FeedbackSubmission[]>(`/api/v1/event/${eventId}/feedback-submissions`);
-}
 
 /**
  * Submit, and invalidate nothing.

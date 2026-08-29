@@ -141,8 +141,7 @@ WHERE r.form_id = :form_id
 # ``-0.0``: a 3 on a scale poled the low way multiplied out to negative
 # zero, which is the same number and a different word, and reached a
 # screen reading as a direction nobody took.
-_POSITIONS_SQL = text(
-    f"""
+PLACES_SQL = f"""
 WITH contribution AS ({_CONTRIBUTION_CTE})
 SELECT s.id AS submission_id,
        coalesce(round(avg(k.value) FILTER (WHERE k.axis = 'x'), 3), 0)::float AS x,
@@ -155,7 +154,11 @@ WHERE s.form_id = :form_id
   AND (cast(:submission_id AS text) IS NULL OR s.id = :submission_id)
 GROUP BY s.id
 """
-)
+
+# The same statement as a string, so the CSV export can nest it as a
+# CTE and put a kompas' two derived columns beside the answers that
+# made them. One place decides where somebody sits.
+_POSITIONS_SQL = text(PLACES_SQL)
 
 # The same rows, unaggregated: what each answer of one submission was
 # worth, for the result page that says "this moved you 0.5 toward
@@ -169,7 +172,7 @@ WHERE k.submission_id = :submission_id
 )
 
 
-def _params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
+def params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
     """The rules the statements are parameterised on, so the numbers
     that define the scale live in one place and Python and SQL cannot
     disagree about them."""
@@ -188,7 +191,7 @@ def positions(db: Session, form_id: str, submission_id: str | None = None) -> di
     result page that shows a person their own dot."""
     return {
         row.submission_id: Position(x=row.x, y=row.y, counted_x=row.counted_x, counted_y=row.counted_y)
-        for row in db.execute(_POSITIONS_SQL, _params(form_id, submission_id)).all()
+        for row in db.execute(_POSITIONS_SQL, params(form_id, submission_id)).all()
     }
 
 
@@ -197,7 +200,7 @@ def contributions(db: Session, form_id: str, submission_id: str) -> dict[str, tu
     far. Absent for a question that said nothing about either axis."""
     return {
         row.question_id: (row.axis, row.value)
-        for row in db.execute(_CONTRIBUTIONS_SQL, _params(form_id, submission_id)).all()
+        for row in db.execute(_CONTRIBUTIONS_SQL, params(form_id, submission_id)).all()
     }
 
 
@@ -276,7 +279,7 @@ def axis_stats(db: Session, form_id: str) -> dict[str, tuple[float, float, float
     """Axis name to the room's mean and the two ends of the interval
     around it. Empty before anybody has filled the kompas in."""
     return {
-        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, _params(form_id)).all()
+        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, params(form_id)).all()
     }
 
 

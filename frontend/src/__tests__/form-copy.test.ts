@@ -42,8 +42,8 @@ function pageSource(page: string): string {
  *  an override. */
 const OVERRIDING = ["quiz", "compass"] as const;
 
-/** Keys about none of the products: the page furniture, the CSV
- *  headers, the chapter and language fields, the two validation
+/** Keys about none of the products: the page furniture, the chapter
+ *  and language fields, the two validation
  *  messages every product's questions get. A product overriding one of
  *  these is a key that is not shared, so the test says so. */
 const SHARED = [
@@ -51,8 +51,6 @@ const SHARED = [
   "archived.restore",
   "details.anonymous",
   "details.csvFail",
-  "details.csvName",
-  "details.csvSubmittedAt",
   "details.exportCsv",
   "details.questionsHeading",
   "edit.addQuestion",

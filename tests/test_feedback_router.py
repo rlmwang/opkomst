@@ -333,10 +333,13 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
     assert r.status_code == 404
 
 
-# --- /event/{id}/feedback-submissions -----------------------------
+# --- /event/{id}/feedback-submissions.csv -------------------------
 
 
-def test_feedback_submissions_csv_source(client, organiser_headers):
+def test_feedback_download_carries_every_answer(client, organiser_headers):
+    """The organiser's download is the only per-submission read there
+    is: what somebody said comes back as a row, and the file itself is
+    proved in ``tests/test_csv_exports.py``."""
     event = _new_event(client, organiser_headers)
     raw, _ = _seed_signup_with_token(event["id"])
     questions = client.get("/api/v1/feedback/questions", headers=organiser_headers).json()
@@ -348,15 +351,8 @@ def test_feedback_submissions_csv_source(client, organiser_headers):
             answers.append({"question_key": q["key"], "answer_text": "Top"})
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
-    r = client.get(
-        f"/api/v1/event/{event['id']}/feedback-submissions",
-        headers=organiser_headers,
-    )
+    r = client.get(f"/api/v1/event/{event['id']}/feedback-submissions.csv", headers=organiser_headers)
     assert r.status_code == 200
-    rows = r.json()
-    assert len(rows) == 1
-    sub = rows[0]
-    assert "submission_id" in sub
-    # ``answers`` is a key→value map.
-    assert sub["answers"]["q1_overall"] == 5
-    assert sub["answers"]["q4_better"] == "Top"
+    rows = r.text.lstrip("\ufeff").splitlines()
+    assert len(rows) == 2
+    assert rows[1].split(",")[1:] == ["5", "5", "5", "Top", "Top"]

@@ -12,8 +12,9 @@ Responsibilities:
   projections (batched list rows, single organiser form, public
   by-slug form).
 * ``question_aggregates`` / ``submission_count`` / ``submissions``
-  — organiser-side reads for the details page + CSV export. Pure
-  SQL aggregation, no router fixture needed.
+  — organiser-side reads for the details page. ``submissions_csv``
+  is the download, pivoted into columns by the database. Pure SQL
+  aggregation, no router fixture needed.
 
 * ``query`` — the only place the ``forms`` table is read from. Every
   read names the mode it means, because the table holds both products
@@ -26,7 +27,7 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 mode for the same reason.
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
@@ -931,6 +932,78 @@ def question_aggregates(
     return summaries
 
 
+# One row per submission, answers already in column order.
+#
+# ``cells`` is the pivot: the question list is unnested with its
+# ordinal, left-joined to what this submission said, so a question
+# nobody answered is an empty cell rather than a missing column and
+# every row is the same width as the header. A tick is written as the
+# option's label because that is what the respondent saw, and a
+# multiple pick joins its labels with a semicolon.
+_CSV_SQL: Final[str] = """
+WITH cell AS (
+    SELECT r.submission_id,
+           q.ordinal,
+           CASE
+               WHEN q.kind IN ('rating', 'number') THEN r.answer_int::text
+               WHEN q.kind IN ('single_choice', 'multi_choice') THEN (
+                   SELECT string_agg(o.label, '; ' ORDER BY o.ordinal)
+                   FROM form_response_choices c
+                   JOIN form_question_options o ON o.id = c.option_id
+                   WHERE c.response_id = r.id
+               )
+               ELSE r.answer_text
+           END AS value
+    FROM form_responses r
+    JOIN form_questions q ON q.id = r.question_id
+    WHERE r.form_id = :form_id
+),
+column_of AS (
+    SELECT ordinal FROM form_questions WHERE form_id = :form_id
+)
+SELECT coalesce(s.display_name, 'Anonymous') AS name,
+       to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS submitted_at,
+       {places}
+       (
+           SELECT coalesce(array_agg(coalesce(cell.value, '') ORDER BY column_of.ordinal), '{{}}')
+           FROM column_of
+           LEFT JOIN cell ON cell.submission_id = s.id AND cell.ordinal = column_of.ordinal
+       ) AS cells
+FROM form_submissions s
+{join}
+WHERE s.form_id = :form_id
+ORDER BY s.created_at
+"""
+
+# A kompas carries its two coordinates beside the answers that made
+# them, read from the same statement the map is drawn from.
+_CSV_PLACES: Final[str] = f"LEFT JOIN (\n{compass.PLACES_SQL}\n) place ON place.submission_id = s.id"
+
+
+def submissions_csv(db: Session, form_id: str, *, mode: str) -> tuple[list[str], Iterator[Sequence[Any]]]:
+    """The organiser's download: the header, and the rows behind it.
+
+    The header is English but for the questions, which are the
+    organiser's own words. The rows stream: the database pivots the
+    answers into columns and this hands them straight to the writer
+    (``services/csv_export``)."""
+    questions = _questions(db, form_id)
+    compassed = mode == "compass"
+    header = ["Name", "Submitted at", *(["X", "Y"] if compassed else []), *(q.prompt for q in questions)]
+    statement = text(
+        _CSV_SQL.format(
+            places="place.x, place.y," if compassed else "",
+            join=_CSV_PLACES if compassed else "",
+        )
+    )
+    result = db.execute(
+        statement,
+        compass.params(form_id) if compassed else {"form_id": form_id},
+    )
+    rows = ([row.name, row.submitted_at, *([row.x, row.y] if compassed else []), *row.cells] for row in result)
+    return header, rows
+
+
 def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str, compass.Position]:
     """Where every submission sits, read once for a whole page.
 
@@ -1028,7 +1101,7 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
 
 
 def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[FormSubmissionOut]:
-    """Per-submission rows for the CSV export, keyed by question id.
+    """Per-submission rows, keyed by question id.
     One ``FormSubmissionOut`` per fill-out, carrying the pseudonym
     (``display_name``, NULL = anonymous); the answer value matches the
     question kind (int / str / list[str]).

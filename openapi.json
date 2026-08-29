@@ -3711,35 +3711,6 @@
         "title": "FeedbackQuestionSummary",
         "type": "object"
       },
-      "FeedbackSubmissionOut": {
-        "description": "One submission as a flat record \u2014 keyed by ``question.key`` so\na CSV consumer can map columns by question identifier without\nneeding the questions table. Rating values surface as the int;\ntext answers as the string. Missing answers are absent from\n``answers``. ``submission_id`` is the random per-submission id\nthat has no link back to a signup (privacy contract).",
-        "properties": {
-          "answers": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            },
-            "title": "Answers",
-            "type": "object"
-          },
-          "submission_id": {
-            "title": "Submission Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "submission_id",
-          "answers"
-        ],
-        "title": "FeedbackSubmissionOut",
-        "type": "object"
-      },
       "FeedbackSubmitIn": {
         "properties": {
           "answers": {
@@ -12104,7 +12075,7 @@
     },
     "/api/v1/compass/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
         "operationId": "form_submissions_api_v1_compass__form_id__submissions_get",
         "parameters": [
           {
@@ -12160,6 +12131,58 @@
           }
         },
         "summary": "Form Submissions",
+        "tags": [
+          "compasses"
+        ]
+      }
+    },
+    "/api/v1/compass/{form_id}/submissions.csv": {
+      "get": {
+        "description": "The download: one row per submission, one column per\nquestion, written by the database and streamed straight out.\n\nThe headers are English (``services/csv_export``) apart from\nthe questions, which are the organiser's own words.",
+        "operationId": "form_submissions_csv_api_v1_compass__form_id__submissions_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions Csv",
         "tags": [
           "compasses"
         ]
@@ -13172,7 +13195,7 @@
     },
     "/api/v1/datepoll/{datepoll_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by slot id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
+        "description": "Per-submission rows, keyed by slot id. The download is its\nown route below.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
         "operationId": "datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get",
         "parameters": [
           {
@@ -13228,6 +13251,58 @@
           }
         },
         "summary": "Datepoll Submissions",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
+    "/api/v1/datepoll/{datepoll_id}/submissions.csv": {
+      "get": {
+        "description": "The download: one row per submission, one column per candidate\ndate, written by the database and streamed straight out.\n\nThe headers are English (``services/csv_export``); a date names its\nown column.",
+        "operationId": "datepoll_submissions_csv_api_v1_datepoll__datepoll_id__submissions_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Submissions Csv",
         "tags": [
           "datepolls"
         ]
@@ -14284,10 +14359,10 @@
         ]
       }
     },
-    "/api/v1/event/{event_id}/feedback-submissions": {
+    "/api/v1/event/{event_id}/feedback-submissions.csv": {
       "get": {
-        "description": "Per-submission feedback rows. One entry per ``submission_id``,\nkeyed by question ``key`` (so a CSV consumer can index by\nquestion without joining to a questions table \u2014 there is no\nquestions table; the keys are app-level constants). Used by\nthe organiser-side CSV export.\n\nPrivacy: the ``submission_id`` is a random per-submission token\nwith no link back to the signup that produced it \u2014 this matches\nthe contract documented in the public privacy notice.",
-        "operationId": "feedback_submissions_api_v1_event__event_id__feedback_submissions_get",
+        "description": "The download: one row per submission, one column per question,\nwritten by the database and streamed straight out.\n\nThe headers are English on every download\n(``services/csv_export``).",
+        "operationId": "feedback_submissions_csv_api_v1_event__event_id__feedback_submissions_csv_get",
         "parameters": [
           {
             "in": "path",
@@ -14317,17 +14392,6 @@
         ],
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FeedbackSubmissionOut"
-                  },
-                  "title": "Response Feedback Submissions Api V1 Event  Event Id  Feedback Submissions Get",
-                  "type": "array"
-                }
-              }
-            },
             "description": "Successful Response"
           },
           "422": {
@@ -14341,7 +14405,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Feedback Submissions",
+        "summary": "Feedback Submissions Csv",
         "tags": [
           "feedback"
         ]
@@ -16022,7 +16086,7 @@
     },
     "/api/v1/form/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
         "operationId": "form_submissions_api_v1_form__form_id__submissions_get",
         "parameters": [
           {
@@ -16078,6 +16142,58 @@
           }
         },
         "summary": "Form Submissions",
+        "tags": [
+          "forms"
+        ]
+      }
+    },
+    "/api/v1/form/{form_id}/submissions.csv": {
+      "get": {
+        "description": "The download: one row per submission, one column per\nquestion, written by the database and streamed straight out.\n\nThe headers are English (``services/csv_export``) apart from\nthe questions, which are the organiser's own words.",
+        "operationId": "form_submissions_csv_api_v1_form__form_id__submissions_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions Csv",
         "tags": [
           "forms"
         ]
@@ -17039,7 +17155,7 @@
     },
     "/api/v1/quiz/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
         "operationId": "form_submissions_api_v1_quiz__form_id__submissions_get",
         "parameters": [
           {
@@ -17095,6 +17211,58 @@
           }
         },
         "summary": "Form Submissions",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/api/v1/quiz/{form_id}/submissions.csv": {
+      "get": {
+        "description": "The download: one row per submission, one column per\nquestion, written by the database and streamed straight out.\n\nThe headers are English (``services/csv_export``) apart from\nthe questions, which are the organiser's own words.",
+        "operationId": "form_submissions_csv_api_v1_quiz__form_id__submissions_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "form_id",
+            "required": true,
+            "schema": {
+              "title": "Form Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Form Submissions Csv",
         "tags": [
           "quizzes"
         ]

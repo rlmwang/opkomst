@@ -7,7 +7,10 @@ combine — and the SQL lives here where it can be unit-tested
 without a router fixture.
 """
 
-from sqlalchemy import distinct, func
+from collections.abc import Iterator, Sequence
+from typing import Any
+
+from sqlalchemy import distinct, func, text
 from sqlalchemy.orm import Session
 
 from ..models import EmailChannel, EmailDispatch, EmailSendCount, FeedbackResponse, Occurrence, Signup
@@ -151,3 +154,51 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
                 )
             )
     return summaries
+
+
+# One row per submission, its five answers already in column order.
+#
+# The question keys are unnested with their position, so a question
+# somebody skipped is an empty cell rather than a missing column, and a
+# stored row for a question the app no longer asks lands nowhere.
+_CSV_SQL = text(
+    """
+WITH column_of AS (
+    SELECT question_key, ordinal
+    FROM unnest(cast(:keys AS text[])) WITH ORDINALITY AS t(question_key, ordinal)
+),
+answered AS (
+    SELECT r.submission_id,
+           r.question_key,
+           coalesce(r.answer_text, r.answer_int::text, '') AS value,
+           r.created_at
+    FROM feedback_responses r
+    JOIN occurrences o ON o.id = r.occurrence_id
+    WHERE o.event_id = :event_id
+),
+submitted AS (
+    SELECT submission_id, min(created_at) AS at FROM answered GROUP BY submission_id
+)
+SELECT submitted.submission_id,
+       (
+           SELECT coalesce(array_agg(coalesce(a.value, '') ORDER BY column_of.ordinal), '{}')
+           FROM column_of
+           LEFT JOIN answered a
+                  ON a.submission_id = submitted.submission_id AND a.question_key = column_of.question_key
+       ) AS cells
+FROM submitted
+ORDER BY submitted.at
+"""
+)
+
+
+def submissions_csv(db: Session, event_id: str) -> tuple[list[str], Iterator[Sequence[Any]]]:
+    """The organiser's download: the header, and the rows behind it.
+
+    One row per submission, one column per question, in the order they
+    are asked. The submission id is the only identifier there is, and it
+    points at nothing (``routers/feedback``)."""
+    header = ["Submission", *(q.csv_header for q in QUESTIONS)]
+    result = db.execute(_CSV_SQL, {"event_id": event_id, "keys": [q.key for q in QUESTIONS]})
+    rows = ([row.submission_id, *row.cells] for row in result)
+    return header, rows

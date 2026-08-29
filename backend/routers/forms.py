@@ -24,13 +24,14 @@ step by hand.
 
 Form CRUD mirrors the events router shape one-to-one: create,
 list active, list archived, get, update, archive, restore,
-delete-when-archived, summary, submissions CSV source.
+delete-when-archived, summary, submissions, the CSV download.
 """
 
 from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -47,7 +48,7 @@ from ..schemas.forms import (
     FormUpdate,
     QuizSubmissionOut,
 )
-from ..services import access, crud, edit_token, entities, limits, quizzes
+from ..services import access, crud, csv_export, edit_token, entities, limits, quizzes
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -344,9 +345,9 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormSubmissionOut] | list[QuizSubmissionOut]:
-        """Per-submission rows, keyed by question id. CSV consumers
-        map columns by question id; a separate lookup against the
-        questions list gives them the prompt text.
+        """Per-submission rows, keyed by question id. The download
+        is its own route below, written by the database; this is the
+        shape the page reads.
 
         Privacy: ``submission_id`` is a random per-submission token
         with no link back to whoever submitted — same contract as
@@ -355,6 +356,22 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         if _MODE == "quiz":
             return forms_svc.quiz_submissions(db, form_id)
         return forms_svc.submissions(db, form_id, mode=_MODE)
+
+    @router.get("/{form_id}/submissions.csv", response_class=StreamingResponse)
+    def form_submissions_csv(
+        form_id: str,
+        db: Session = Depends(get_db),
+        user: User = Depends(require_approved),
+    ) -> StreamingResponse:
+        """The download: one row per submission, one column per
+        question, written by the database and streamed straight out.
+
+        The headers are English (``services/csv_export``) apart from
+        the questions, which are the organiser's own words."""
+        form = access.get_form_for_user(db, form_id, user, _MODE)
+        header, rows = forms_svc.submissions_csv(db, form_id, mode=_MODE)
+        stem = csv_export.filename_slug(form.name_nl or form.name_en or "")
+        return csv_export.csv_response(f"{stem}-{form.id}.csv", header, rows)
 
     return router
 

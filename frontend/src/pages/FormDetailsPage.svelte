@@ -13,8 +13,7 @@ import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
 import { locale, t } from "@/i18n.svelte";
 import { ApiError } from "@/api/client";
-import { downloadCsv } from "@/lib/csv-export";
-import { filenameSlug } from "@/lib/filename-slug";
+import { downloadFile } from "@/lib/download";
 import { barWidth, formatAverage, formatDecimal } from "@/lib/format";
 import { formQrUrl, publicFormUrl } from "@/lib/form-urls";
 import { useToasts } from "@/lib/toasts";
@@ -143,37 +142,12 @@ async function recoverRows(): Promise<RecoverableRow[]> {
   }));
 }
 
-/**
- * One row per submission: who, when, and one column per question, with
- * the organiser's own prompt as the header. The columns come from the
- * form's question list rather than the summary's, so a form nobody has
- * answered still exports.
- */
+/** The download. The server writes the file and names it; the page
+ * only asks for it (``services/csv_export``). */
 async function exportCsv(): Promise<void> {
   if (!form) return;
   try {
-    const submissions = await api.fetchSubmissions(formId);
-    const questions = form.questions ?? [];
-    const ids = questions.map((q) => q.id);
-    const header = [
-      L("details.csvName"),
-      L("details.csvSubmittedAt"),
-      // A kompas's two derived columns, beside the answers that
-      // produced them.
-      ...(isCompass ? ["x", "y"] : []),
-      ...questions.map((q) => q.prompt),
-    ];
-    const rows = submissions.map((s) => [
-      s.display_name ?? L("details.anonymous"),
-      s.created_at,
-      ...(isCompass ? [s.x ?? "", s.y ?? ""] : []),
-      ...ids.map((id) => {
-        const v = s.answers[id];
-        return Array.isArray(v) ? v.join("; ") : (v ?? "");
-      }),
-    ]);
-    const name = filenameSlug(lt(form.name_nl, form.name_en) ?? "");
-    downloadCsv(`${name}-${form.id}.csv`, [header, ...rows]);
+    await downloadFile(`/api/v1/${api.resource}/${formId}/submissions.csv`, `${form.id}.csv`);
   } catch {
     toasts.error(L("details.csvFail"));
   }

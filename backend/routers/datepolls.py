@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -28,7 +29,7 @@ from ..schemas.datepolls import (
     DatepollSummaryOut,
     DatepollUpdate,
 )
-from ..services import access, crud, edit_token, entities, limits
+from ..services import access, crud, csv_export, edit_token, entities, limits
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -283,9 +284,27 @@ def datepoll_submissions(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollSubmissionOut]:
-    """Per-submission rows, keyed by slot id. CSV source.
+    """Per-submission rows, keyed by slot id. The download is its
+    own route below.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
     access.get_datepoll_for_user(db, datepoll_id, user)
     return datepolls_svc.submissions(db, datepoll_id)
+
+
+@router.get("/{datepoll_id}/submissions.csv", response_class=StreamingResponse)
+def datepoll_submissions_csv(
+    datepoll_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> StreamingResponse:
+    """The download: one row per submission, one column per candidate
+    date, written by the database and streamed straight out.
+
+    The headers are English (``services/csv_export``); a date names its
+    own column."""
+    poll = access.get_datepoll_for_user(db, datepoll_id, user)
+    header, rows = datepolls_svc.submissions_csv(db, datepoll_id)
+    stem = csv_export.filename_slug(poll.name_nl or poll.name_en or "")
+    return csv_export.csv_response(f"{stem}-{poll.id}.csv", header, rows)

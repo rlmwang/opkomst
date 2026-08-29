@@ -129,7 +129,6 @@ export type FeedbackAnswer = S["FeedbackAnswerIn"];
 export type FeedbackSubmit = S["FeedbackSubmitIn"];
 export type FeedbackQuestionSummary = S["FeedbackQuestionSummary"];
 export type FeedbackSummary = S["FeedbackSummaryOut"];
-export type FeedbackSubmission = S["FeedbackSubmissionOut"];
 export type EmailHealth = S["EmailHealthOut"];
 
 // --- Channel-keyed maps. The generated schema types EmailHealth as

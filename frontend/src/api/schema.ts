@@ -1240,15 +1240,39 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. CSV consumers
-         *     map columns by question id; a separate lookup against the
-         *     questions list gives them the prompt text.
+         * @description Per-submission rows, keyed by question id. The download
+         *     is its own route below, written by the database; this is the
+         *     shape the page reads.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
         get: operations["form_submissions_api_v1_compass__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/compass/{form_id}/submissions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions Csv
+         * @description The download: one row per submission, one column per
+         *     question, written by the database and streamed straight out.
+         *
+         *     The headers are English (``services/csv_export``) apart from
+         *     the questions, which are the organiser's own words.
+         */
+        get: operations["form_submissions_csv_api_v1_compass__form_id__submissions_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1542,12 +1566,37 @@ export interface paths {
         };
         /**
          * Datepoll Submissions
-         * @description Per-submission rows, keyed by slot id. CSV source.
+         * @description Per-submission rows, keyed by slot id. The download is its
+         *     own route below.
          *
          *     Privacy: the submission id is opaque and the only respondent
          *     identifier is the self-chosen pseudonym.
          */
         get: operations["datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/datepoll/{datepoll_id}/submissions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datepoll Submissions Csv
+         * @description The download: one row per submission, one column per candidate
+         *     date, written by the database and streamed straight out.
+         *
+         *     The headers are English (``services/csv_export``); a date names its
+         *     own column.
+         */
+        get: operations["datepoll_submissions_csv_api_v1_datepoll__datepoll_id__submissions_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1911,7 +1960,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/event/{event_id}/feedback-submissions": {
+    "/api/v1/event/{event_id}/feedback-submissions.csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -1919,18 +1968,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Feedback Submissions
-         * @description Per-submission feedback rows. One entry per ``submission_id``,
-         *     keyed by question ``key`` (so a CSV consumer can index by
-         *     question without joining to a questions table — there is no
-         *     questions table; the keys are app-level constants). Used by
-         *     the organiser-side CSV export.
+         * Feedback Submissions Csv
+         * @description The download: one row per submission, one column per question,
+         *     written by the database and streamed straight out.
          *
-         *     Privacy: the ``submission_id`` is a random per-submission token
-         *     with no link back to the signup that produced it — this matches
-         *     the contract documented in the public privacy notice.
+         *     The headers are English on every download
+         *     (``services/csv_export``).
          */
-        get: operations["feedback_submissions_api_v1_event__event_id__feedback_submissions_get"];
+        get: operations["feedback_submissions_csv_api_v1_event__event_id__feedback_submissions_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2448,15 +2493,39 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. CSV consumers
-         *     map columns by question id; a separate lookup against the
-         *     questions list gives them the prompt text.
+         * @description Per-submission rows, keyed by question id. The download
+         *     is its own route below, written by the database; this is the
+         *     shape the page reads.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
         get: operations["form_submissions_api_v1_form__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/form/{form_id}/submissions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions Csv
+         * @description The download: one row per submission, one column per
+         *     question, written by the database and streamed straight out.
+         *
+         *     The headers are English (``services/csv_export``) apart from
+         *     the questions, which are the organiser's own words.
+         */
+        get: operations["form_submissions_csv_api_v1_form__form_id__submissions_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2751,15 +2820,39 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. CSV consumers
-         *     map columns by question id; a separate lookup against the
-         *     questions list gives them the prompt text.
+         * @description Per-submission rows, keyed by question id. The download
+         *     is its own route below, written by the database; this is the
+         *     shape the page reads.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
         get: operations["form_submissions_api_v1_quiz__form_id__submissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quiz/{form_id}/submissions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Form Submissions Csv
+         * @description The download: one row per submission, one column per
+         *     question, written by the database and streamed straight out.
+         *
+         *     The headers are English (``services/csv_export``) apart from
+         *     the questions, which are the organiser's own words.
+         */
+        get: operations["form_submissions_csv_api_v1_quiz__form_id__submissions_csv_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4586,23 +4679,6 @@ export interface components {
             response_count: number;
             /** Texts */
             texts?: string[] | null;
-        };
-        /**
-         * FeedbackSubmissionOut
-         * @description One submission as a flat record — keyed by ``question.key`` so
-         *     a CSV consumer can map columns by question identifier without
-         *     needing the questions table. Rating values surface as the int;
-         *     text answers as the string. Missing answers are absent from
-         *     ``answers``. ``submission_id`` is the random per-submission id
-         *     that has no link back to a signup (privacy contract).
-         */
-        FeedbackSubmissionOut: {
-            /** Answers */
-            answers: {
-                [key: string]: number | string;
-            };
-            /** Submission Id */
-            submission_id: string;
         };
         /** FeedbackSubmitIn */
         FeedbackSubmitIn: {
@@ -8618,6 +8694,37 @@ export interface operations {
             };
         };
     };
+    form_submissions_csv_api_v1_compass__form_id__submissions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     recover_edit_link_compass_api_v1_compass__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
@@ -9236,6 +9343,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DatepollSubmissionOut"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datepoll_submissions_csv_api_v1_datepoll__datepoll_id__submissions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -9901,7 +10039,7 @@ export interface operations {
             };
         };
     };
-    feedback_submissions_api_v1_event__event_id__feedback_submissions_get: {
+    feedback_submissions_csv_api_v1_event__event_id__feedback_submissions_csv_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9919,9 +10057,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["FeedbackSubmissionOut"][];
-                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -10935,6 +11071,37 @@ export interface operations {
             };
         };
     };
+    form_submissions_csv_api_v1_form__form_id__submissions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     recover_edit_link_form_api_v1_form__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
@@ -11518,6 +11685,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["QuizSubmissionOut"][];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    form_submissions_csv_api_v1_quiz__form_id__submissions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                form_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

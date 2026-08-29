@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from uuid_utils import uuid7
 
@@ -34,11 +35,10 @@ from ..schemas.common import pick_localized
 from ..schemas.feedback import (
     FeedbackFormOut,
     FeedbackQuestionOut,
-    FeedbackSubmissionOut,
     FeedbackSubmitIn,
     FeedbackSummaryOut,
 )
-from ..services import access, archive, feedback_stats
+from ..services import access, archive, csv_export, feedback_stats
 from ..services.feedback_questions import BY_KEY, QUESTIONS
 from ..services.rate_limit import Limits, limiter
 
@@ -262,41 +262,18 @@ def feedback_summary(
     )
 
 
-@router.get("/event/{event_id}/feedback-submissions", response_model=list[FeedbackSubmissionOut])
-def feedback_submissions(
+@router.get("/event/{event_id}/feedback-submissions.csv", response_class=StreamingResponse)
+def feedback_submissions_csv(
     event_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[FeedbackSubmissionOut]:
-    """Per-submission feedback rows. One entry per ``submission_id``,
-    keyed by question ``key`` (so a CSV consumer can index by
-    question without joining to a questions table — there is no
-    questions table; the keys are app-level constants). Used by
-    the organiser-side CSV export.
+) -> StreamingResponse:
+    """The download: one row per submission, one column per question,
+    written by the database and streamed straight out.
 
-    Privacy: the ``submission_id`` is a random per-submission token
-    with no link back to the signup that produced it — this matches
-    the contract documented in the public privacy notice."""
-    access.get_event_for_user(db, event_id, user)
-
-    occ_ids = db.query(Occurrence.id).filter(Occurrence.event_id == event_id)
-    rows = (
-        db.query(FeedbackResponse)
-        .filter(FeedbackResponse.occurrence_id.in_(occ_ids))
-        .order_by(FeedbackResponse.submission_id, FeedbackResponse.created_at)
-        .all()
-    )
-
-    grouped: dict[str, dict[str, int | str]] = {}
-    for r in rows:
-        q = BY_KEY.get(r.question_key)
-        if q is None:
-            # Stale row from a since-removed question; skip.
-            continue
-        bucket = grouped.setdefault(r.submission_id, {})
-        if q.kind == "rating" and r.answer_int is not None:
-            bucket[q.key] = r.answer_int
-        elif q.kind == "text" and r.answer_text is not None:
-            bucket[q.key] = r.answer_text
-
-    return [FeedbackSubmissionOut(submission_id=sid, answers=ans) for sid, ans in grouped.items()]
+    The headers are English on every download
+    (``services/csv_export``)."""
+    event = access.get_event_for_user(db, event_id, user)
+    header, rows = feedback_stats.submissions_csv(db, event_id)
+    stem = csv_export.filename_slug(event.name_nl or event.name_en or "")
+    return csv_export.csv_response(f"{event.starts_on}-{stem}-{event.id}.csv", header, rows)

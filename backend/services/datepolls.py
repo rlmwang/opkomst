@@ -10,11 +10,11 @@ Chapter-scoped lookups live in ``services.access``
 (``get_datepoll_for_user`` / ``datepoll_scope_filter``).
 """
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import date, time
 from typing import TYPE_CHECKING, Any, Final, get_args
 
-from sqlalchemy import and_, distinct, func, select
+from sqlalchemy import and_, distinct, func, select, text
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission, User
@@ -384,8 +384,61 @@ def slot_aggregates(db: Session, datepoll_id: str, total_subs: int) -> tuple[lis
     return summaries, best_slot_id
 
 
+# The candidate dates, in the order the poll asks them, each with the
+# heading its column gets. A whole-day slot is named by its date alone;
+# a timed one carries the range, on the 24-hour clock every reader of a
+# spreadsheet can line up against the next file.
+_SLOT_COLUMNS_SQL = text(
+    """
+SELECT id,
+       to_char(on_date, 'YYYY-MM-DD')
+       || coalesce(' ' || to_char(start_time, 'HH24:MI') || '-' || to_char(end_time, 'HH24:MI'), '') AS heading
+FROM datepoll_slots
+WHERE datepoll_id = :datepoll_id
+ORDER BY on_date, start_time NULLS FIRST, end_time NULLS FIRST
+"""
+)
+
+# One row per submission, its answers already in column order. The slot
+# ids are unnested with their position, so a date somebody left unset is
+# an empty cell rather than a short row.
+_CSV_SQL = text(
+    """
+WITH column_of AS (
+    SELECT slot_id, ordinal
+    FROM unnest(cast(:slot_ids AS text[])) WITH ORDINALITY AS t(slot_id, ordinal)
+)
+SELECT coalesce(s.display_name, 'Anonymous') AS name,
+       to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS submitted_at,
+       coalesce(s.note, '') AS note,
+       (
+           SELECT coalesce(array_agg(coalesce(r.availability, '') ORDER BY column_of.ordinal), '{}')
+           FROM column_of
+           LEFT JOIN datepoll_responses r
+                  ON r.submission_id = s.id AND r.datepoll_slot_id = column_of.slot_id
+       ) AS cells
+FROM datepoll_submissions s
+WHERE s.datepoll_id = :datepoll_id
+ORDER BY s.created_at
+"""
+)
+
+
+def submissions_csv(db: Session, datepoll_id: str) -> tuple[list[str], Iterator[Sequence[Any]]]:
+    """The organiser's download: the header, and the rows behind it.
+
+    The dates are the columns, in poll order, and the note is the last
+    one. Written by the database and streamed out
+    (``services/csv_export``)."""
+    slots = db.execute(_SLOT_COLUMNS_SQL, {"datepoll_id": datepoll_id}).all()
+    header = ["Name", "Submitted at", *(slot.heading for slot in slots), "Note"]
+    result = db.execute(_CSV_SQL, {"datepoll_id": datepoll_id, "slot_ids": [slot.id for slot in slots]})
+    rows = ([row.name, row.submitted_at, *row.cells, row.note] for row in result)
+    return header, rows
+
+
 def submissions(db: Session, datepoll_id: str) -> list[DatepollSubmissionOut]:
-    """Per-submission rows for the CSV export, keyed by slot id.
+    """Per-submission rows, keyed by slot id.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen ``display_name`` (NULL = anonymous).
