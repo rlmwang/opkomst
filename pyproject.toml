@@ -94,6 +94,11 @@ ignore = ["B008", "UP047", "S101", "S105", "S106"]
 # A test suite asserts, seeds fake credentials, and writes literal SQL
 # on purpose. Bandit rules describe production code.
 "tests/**" = ["S"]
+# The kompas builds two statements around one shared CTE, so the rules
+# it draws a map from are written once. The only thing interpolated is
+# that module constant: no value from a request reaches the SQL, which
+# is parameterised throughout.
+"backend/services/compass.py" = ["S608"]
 
 [tool.pyright]
 include = ["backend", "tests"]

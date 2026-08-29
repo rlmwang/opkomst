@@ -6,7 +6,7 @@ everything else about a kompas *is* a questionnaire
 (``docs/design-kompas.md``). This module holds the three things that
 are only true when an answer has a direction:
 
-* ``contribution`` / ``position_of`` / ``positions`` — what one answer
+* ``contributions`` / ``positions`` — what one answer
   is worth, where one submission lands, and where everybody lands.
 * ``validate_axes`` / ``validate_questions`` — can this kompas place
   anybody at all, checked when the organiser saves rather than when
@@ -30,16 +30,14 @@ chosen option supplies both and lands on one of the two endpoints.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from ..models import CompassAxis, FormQuestion, FormResponse
-from . import form_answers
+from ..models import CompassAxis
 
 # The kinds a kompas can ask. A rating is the classic compass question:
 # a statement, a five-point scale, one direction. A choice is the
@@ -97,84 +95,110 @@ class Position:
         return self.x if axis == "x" else self.y
 
 
-def contribution(question: FormQuestion, fields: dict[str, Any] | None) -> tuple[str, float] | None:
-    """What one answer is worth: an axis, and a value in [-1, 1].
+# What one answer is worth: an axis, and a value in [-1, 1].
+#
+# The three rules the page describes, as SQL. A rating poles the
+# statement, so a 5 is all the way toward that side and a 1 all the way
+# to the other. A choice poles each option and lands on its own end, and
+# only a single pick counts: a question answered with two ticks points
+# two ways at once, which is not a direction. An answer that says
+# nothing about either axis contributes no row at all, which is how a
+# skipped question stops counting rather than counting as a zero.
+_CONTRIBUTION_CTE = """
+SELECT r.submission_id,
+       r.question_id,
+       split_part(q.pole, '_', 1) AS axis,
+       ((r.answer_int - :midpoint)::numeric / (:half_range)::numeric)
+           * CASE WHEN split_part(q.pole, '_', 2) = 'high' THEN 1 ELSE -1 END AS value
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+WHERE r.form_id = :form_id
+  AND q.kind = 'rating'
+  AND q.pole = ANY(:poles)
+  AND r.answer_int IS NOT NULL
 
-    ``None`` when the answer says nothing about either axis, which
-    covers an unanswered question, a question with no pole on it, and a
-    kind a kompas does not ask.
+UNION ALL
 
-    ``fields`` is the stored-answer shape ``_build_submitted`` produces,
-    the same dict ``services/quizzes.grade`` compares against."""
-    if fields is None:
-        return None
+SELECT r.submission_id,
+       r.question_id,
+       split_part(o.pole, '_', 1) AS axis,
+       (CASE WHEN split_part(o.pole, '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+JOIN form_response_choices c ON c.response_id = r.id
+JOIN form_question_options o ON o.id = c.option_id
+WHERE r.form_id = :form_id
+  AND q.kind = 'single_choice'
+  AND o.pole = ANY(:poles)
+  AND (SELECT count(*) FROM form_response_choices c2 WHERE c2.response_id = r.id) = 1
+"""
 
-    if question.kind == "rating":
-        if not question.pole or question.pole not in POLES:
-            return None
-        answer = fields.get("answer_int")
-        if answer is None:
-            return None
-        axis, direction = split_pole(question.pole)
-        return axis, _round(((answer - RATING_MIDPOINT) / RATING_HALF_RANGE) * direction)
+# A position is the mean per axis, so an unbalanced kompas still reads
+# on one scale: eight questions on one axis and three on the other
+# answer "how far toward this side were you", not "how many were there".
+#
+# Numeric rather than float, so a coordinate cannot come back as
+# ``-0.0``: a 3 on a scale poled the low way multiplied out to negative
+# zero, which is the same number and a different word, and reached a
+# screen reading as a direction nobody took.
+_POSITIONS_SQL = text(
+    f"""
+WITH contribution AS ({_CONTRIBUTION_CTE})
+SELECT s.id AS submission_id,
+       coalesce(round(avg(k.value) FILTER (WHERE k.axis = 'x'), 3), 0)::float AS x,
+       coalesce(round(avg(k.value) FILTER (WHERE k.axis = 'y'), 3), 0)::float AS y,
+       count(*) FILTER (WHERE k.axis = 'x')::int AS counted_x,
+       count(*) FILTER (WHERE k.axis = 'y')::int AS counted_y
+FROM form_submissions s
+LEFT JOIN contribution k ON k.submission_id = s.id
+WHERE s.form_id = :form_id
+  AND (cast(:submission_id AS text) IS NULL OR s.id = :submission_id)
+GROUP BY s.id
+"""
+)
 
-    if question.kind == "single_choice":
-        chosen = fields.get("answer_choices") or []
-        if len(chosen) != 1:
-            return None
-        # The direction is a column on the option the answer points at.
-        # It used to be read by finding the answer's text among the
-        # options and taking the pole at that position, so renaming an
-        # option lost the answer and reordering changed what it meant.
-        poles = {str(o.id): o.pole for o in question.options}
-        pole = poles.get(str(chosen[0]))
-        if pole not in POLES:
-            return None
-        axis, direction = split_pole(pole)
-        return axis, float(direction)
-
-    return None
+# The same rows, unaggregated: what each answer of one submission was
+# worth, for the result page that says "this moved you 0.5 toward
+# Rechts".
+_CONTRIBUTIONS_SQL = text(
+    f"""
+SELECT question_id, axis, round(value, 3)::float AS value
+FROM ({_CONTRIBUTION_CTE}) k
+WHERE k.submission_id = :submission_id
+"""
+)
 
 
-def as_fields(row: FormResponse) -> dict[str, Any]:
-    """A stored answer row in the shape ``contribution`` reads."""
+def _params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
+    """The rules the statements are parameterised on, so the numbers
+    that define the scale live in one place and Python and SQL cannot
+    disagree about them."""
     return {
-        "answer_int": row.answer_int,
-        "answer_choices": list(row.answer_choices) if row.answer_choices else None,
+        "form_id": form_id,
+        "submission_id": submission_id,
+        "midpoint": RATING_MIDPOINT,
+        "half_range": RATING_HALF_RANGE,
+        "poles": sorted(POLES),
     }
 
 
-def position_of(questions: Sequence[Any], rows: Sequence[Any]) -> Position:
-    """One submission's place on the map: the mean of its answers'
-    contributions, per axis.
-
-    A mean rather than a sum, because a kompas need not be balanced.
-    Eight questions on one axis and three on the other still read on
-    the same scale, and each coordinate answers "how far toward this
-    side were your answers on this subject" rather than "how many of
-    them were there"."""
-    by_id = {q.id: q for q in questions}
-    buckets: dict[str, list[float]] = {"x": [], "y": []}
-    for row in rows:
-        question = by_id.get(row.question_id)
-        if question is None:
-            continue
-        found = contribution(question, as_fields(row))
-        if found is None:
-            continue
-        axis, value = found
-        buckets[axis].append(value)
-    return Position(
-        x=_round(sum(buckets["x"]) / len(buckets["x"])) if buckets["x"] else 0.0,
-        y=_round(sum(buckets["y"]) / len(buckets["y"])) if buckets["y"] else 0.0,
-        counted_x=len(buckets["x"]),
-        counted_y=len(buckets["y"]),
-    )
+def positions(db: Session, form_id: str, submission_id: str | None = None) -> dict[str, Position]:
+    """Submission id to place on the map. One statement: nothing is read
+    into Python to be averaged there. Narrowed to one submission for the
+    result page that shows a person their own dot."""
+    return {
+        row.submission_id: Position(x=row.x, y=row.y, counted_x=row.counted_x, counted_y=row.counted_y)
+        for row in db.execute(_POSITIONS_SQL, _params(form_id, submission_id)).all()
+    }
 
 
-def positions(db: Session, questions: Sequence[Any], form_id: str) -> dict[str, Position]:
-    """Submission id to place on the map, for every submission."""
-    return {sid: position_of(questions, rows) for sid, rows in form_answers.by_submission(db, form_id).items()}
+def contributions(db: Session, form_id: str, submission_id: str) -> dict[str, tuple[str, float]]:
+    """Question id to the axis one submission's answer moved, and how
+    far. Absent for a question that said nothing about either axis."""
+    return {
+        row.question_id: (row.axis, row.value)
+        for row in db.execute(_CONTRIBUTIONS_SQL, _params(form_id, submission_id)).all()
+    }
 
 
 def axes_of(db: Session, form_id: str) -> list[Any]:

@@ -326,13 +326,17 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         questions = _form_questions(db, form.id)
         by_id = {q.id: q for q in questions}
         rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
-        place = compass.position_of(questions, rows)
+        # Both the dot and the per-answer directions under it are worked
+        # out by the database, from the same rules the map is drawn
+        # from: nothing here re-derives a coordinate.
+        place = compass.positions(db, form.id, submission.id).get(submission.id, compass.Position(0.0, 0.0, 0, 0))
+        moved = compass.contributions(db, form.id, submission.id)
         answers: list[CompassAnswerResult] = []
         for row in rows:
             q = by_id.get(row.question_id)
             if q is None:
                 continue
-            found = compass.contribution(q, compass.as_fields(row))
+            found = moved.get(row.question_id)
             answers.append(
                 CompassAnswerResult(
                     question_id=q.id,

@@ -941,7 +941,7 @@ def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str
     Both halves of a kompas page (the axes and the dots) place the same
     people from the same answers. Reading it here and handing it to both
     is what keeps one page from loading every answer twice."""
-    return compass.positions(db, questions, form.id)
+    return compass.positions(db, form.id)
 
 
 def compass_points(
@@ -1063,7 +1063,7 @@ def _submissions_with_answers(
     grouped = form_answers.by_submission(db, form_id)
     # Two more CSV columns on a kompas, derived like everything else
     # about a position (``services/compass``).
-    places = {sid: compass.position_of(questions, rows) for sid, rows in grouped.items()} if mode == "compass" else {}
+    places = compass.positions(db, form_id) if mode == "compass" else {}
     answers: dict[str, dict[str, int | str | list[str]]] = {sid: {} for sid in sub_ids}
     for r in (row for sid in sub_ids for row in grouped.get(sid, [])):
         kind = kinds.get(r.question_id)
