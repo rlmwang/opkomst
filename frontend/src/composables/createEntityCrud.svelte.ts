@@ -50,10 +50,14 @@ export function createEntityCrud<TList, TSingle, TCreate, TUpdate = TCreate>(opt
     );
   }
 
-  function single(id: () => string) {
+  /** One row. ``enabled`` is how a create page says there is nothing to
+   *  fetch yet: it renders the same form as the edit page, and the id it
+   *  would ask for does not exist. */
+  function single(id: () => string, o: { enabled?: () => boolean } = {}) {
     return apiQuery<TSingle>(
       () => [resource, "single", id()],
       () => `${base}/${id()}`,
+      { enabled: o.enabled },
     );
   }
 

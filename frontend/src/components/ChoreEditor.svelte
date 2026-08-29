@@ -28,11 +28,12 @@ import EmojiPicker from "@/components/EmojiPicker.svelte";
 import NumberStepper from "@/components/NumberStepper.svelte";
 import { t } from "@/i18n.svelte";
 
-let {
-  value = $bindable(),
+const {
+  value,
   periodWeeks,
   canMoveUp,
   canMoveDown,
+  onchange,
   ondelete,
   onmoveUp,
   onmoveDown,
@@ -42,13 +43,18 @@ let {
   periodWeeks: number;
   canMoveUp: boolean;
   canMoveDown: boolean;
+  /** The whole chore, with one field changed. The parent takes the
+   *  replacement rather than the row writing itself back, because the
+   *  list keeps an invariant across its rows: two chores never wear the
+   *  same emoji. */
+  onchange: (next: ChoreDraft) => void;
   ondelete: () => void;
   onmoveUp: () => void;
   onmoveDown: () => void;
 } = $props();
 
 function patch<K extends keyof ChoreDraft>(key: K, next: ChoreDraft[K]): void {
-  value = { ...value, [key]: next };
+  onchange({ ...value, [key]: next });
 }
 </script>
 
