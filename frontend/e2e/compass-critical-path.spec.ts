@@ -32,7 +32,7 @@ async function stopAnimating(page: import("@playwright/test").Page) {
   });
 }
 
-/** Open one PrimeVue Select and choose an option by its label. The
+/** Open one ``SelectField`` and choose an option by its label. The
  *  panel is a portal, so the option is found on the page rather than
  *  inside the select, and the panel has to be gone before the next one
  *  opens or the two overlap. */
@@ -43,7 +43,7 @@ async function pickPole(
 ) {
   await select.click();
   await page.getByRole("option", { name: label, exact: true }).click();
-  await expect(page.locator(".p-select-overlay")).toHaveCount(0);
+  await expect(page.locator(".ovl-panel")).toHaveCount(0);
 }
 
 async function organiserToken(request: import("@playwright/test").APIRequestContext) {
@@ -76,9 +76,9 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
   await page.getByPlaceholder("Titel").fill("E2E Kompas");
   // An organiser in more than one chapter has to say which, the same
   // as on every other create page.
-  await page.locator(".form-section .p-select").first().click();
+  await page.locator(".form-section .ovl-field").first().click();
   await page.getByRole("option").first().click();
-  await expect(page.locator(".p-select-overlay")).toHaveCount(0);
+  await expect(page.locator(".ovl-panel")).toHaveCount(0);
 
   // The two axes and their four sides. Every one of them is named,
   // because the result screen builds a sentence out of them.
@@ -102,12 +102,12 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
 
   // The pole select carries the organiser's own words, live from the
   // axes block above.
-  await pickPole(page, first.locator(".p-select").last(), "Economie: Links");
+  await pickPole(page, first.locator(".ovl-field").last(), "Economie: Links");
 
   // Question two: a multiple-choice question, one direction per answer.
   await page.getByRole("button", { name: "Vraag toevoegen" }).click();
   const second = page.locator(".question-editor").nth(1);
-  await pickPole(page, second.locator(".p-select").first(), "Meerkeuze");
+  await pickPole(page, second.locator(".ovl-field").first(), "Meerkeuze");
   await second.getByPlaceholder(/vraag|question/i).fill("Waar moet het geld heen?");
   for (const option of ["Zorg", "Defensie"]) {
     // The add-row: type the option and press Enter, the same way an
@@ -117,8 +117,8 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
   }
   const optionRows = second.locator(".option-row-pointed");
   await expect(optionRows).toHaveCount(2);
-  await pickPole(page, optionRows.nth(0).locator(".p-select"), "Economie: Links");
-  await pickPole(page, optionRows.nth(1).locator(".p-select"), "Cultuur: Behoud");
+  await pickPole(page, optionRows.nth(0).locator(".ovl-field"), "Economie: Links");
+  await pickPole(page, optionRows.nth(1).locator(".ovl-field"), "Cultuur: Behoud");
 
   await page.getByRole("button", { name: "Kompas aanmaken" }).click();
 
