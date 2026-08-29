@@ -17,10 +17,16 @@ volume is the work here, not difficulty.
 ## What lands
 
 New in `src/components/`: `AppButton.vue`, `AppInput.vue`,
-`AppTextarea.vue`, `AppToggle.vue`, `AppProgressBar.vue`. `IconField`
-and `InputIcon` do not become components; they are two CSS rules on the
-one call site each pair serves, so fold them into that call site and
-delete the concept.
+`AppTextarea.vue`, `AppToggle.vue`. Those four have between 2 and 32 call
+sites and real behaviour to share.
+
+The other three do not become components. `IconField` and `InputIcon`
+are a wrapper and its icon, two CSS rules on the one call site each pair
+serves. `ProgressBar` has a single call site, `AdminWhatsAppPage.vue`,
+and is two divs and a width percentage next to the `.progress-line` rule
+already in that file. Fold all three into their call sites and delete the
+concept: a shared component with one consumer is a worse shape than the
+markup it hides.
 
 `primevue-base` and `primevue-themes` **do not shrink**. They go in task
 03. What shrinks here is the route chunks these components sit in, and
