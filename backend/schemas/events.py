@@ -157,6 +157,11 @@ class EventUpdate(EventCreate):
 
     _clamp_out_of_range_slots: ClassVar[bool] = True
 
+    # An edit that deletes given answers is refused with a 409 saying
+    # how many, and accepted when the same save comes back with this
+    # set (``docs/design-question-edits.md``).
+    confirm_destructive: bool = False
+
 
 class EventListOut(BaseModel):
     """List-row DTO: what a dashboard card or an archive row draws, and

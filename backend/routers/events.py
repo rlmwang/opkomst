@@ -212,6 +212,15 @@ def update_event(
     event.cycle_slots = data.cycle_slots
     event.span_weeks = data.span_weeks
     event.horizon_days = data.horizon_days
+    if not data.confirm_destructive:
+        doomed = events_svc.count_destroyed_answers(db, event, data.source_options, data.help_options)
+        if doomed:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This removes {doomed} given {'answer' if doomed == 1 else 'answers'}. Save again to confirm."
+                ),
+            )
     events_svc.apply_options(db, event, EventSourceOption, event.source_options, data.source_options)
     event.source_enabled = data.source_enabled
     events_svc.apply_options(db, event, EventHelpOption, event.help_options, data.help_options)

@@ -34,7 +34,17 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, CompassAxis, Form, FormQuestion, FormQuestionOption, FormSubmission, User
+from ..models import (
+    Chapter,
+    CompassAxis,
+    Form,
+    FormQuestion,
+    FormQuestionOption,
+    FormResponse,
+    FormResponseChoice,
+    FormSubmission,
+    User,
+)
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -254,12 +264,58 @@ def _apply_options(
             db.delete(row)
 
 
+def count_destroyed_answers(db: Session, form_id: str, questions: Sequence[Any]) -> int:
+    """How many stored answers this save would delete.
+
+    Three edits destroy answers, and they are the same three however the
+    organiser arrives at them (``docs/design-question-edits.md``):
+
+    * a question the payload no longer mentions,
+    * a question whose kind changed, which is a different question and
+      so replaces the row,
+    * an option the payload no longer mentions.
+
+    Counted before anything is written, so the caller can refuse the
+    save and say what it would have cost. No double counting: the
+    options of a question that is going are skipped, because its answers
+    are already in the first total.
+    """
+    existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
+    if not existing:
+        return 0
+    submitted = {q.id: q for q in questions if q.id}
+
+    doomed_questions = [qid for qid, row in existing.items() if qid not in submitted or submitted[qid].kind != row.kind]
+    doomed_options: list[str] = []
+    for qid, row in existing.items():
+        if qid in doomed_questions:
+            continue
+        kept = {o.id for o in submitted[qid].options if o.id}
+        doomed_options.extend(o.id for o in row.options if o.id not in kept)
+
+    total = 0
+    if doomed_questions:
+        total += (
+            db.query(func.count(FormResponse.id)).filter(FormResponse.question_id.in_(doomed_questions)).scalar() or 0
+        )
+    if doomed_options:
+        total += (
+            db.query(func.count(FormResponseChoice.id))
+            .filter(FormResponseChoice.option_id.in_(doomed_options))
+            .scalar()
+            or 0
+        )
+    return int(total)
+
+
 def apply_questions(
     db: Session,
     form_id: str,
     questions: list["FormQuestionIn"],
     mode: str,
     axes: list["CompassAxisIn"] | None = None,
+    *,
+    confirmed: bool = False,
 ) -> None:
     """Diff-apply a question payload against the form's current
     rows. Matches by id. Rows with no id (or an id not in the
@@ -272,8 +328,22 @@ def apply_questions(
     validation needs: a question's direction points at one of them, so
     the two are only checkable together (``services/compass``).
 
+    An edit that would delete stored answers is refused unless
+    ``confirmed``. The organiser is told how many and asked again, rather
+    than finding out from a report that no longer adds up
+    (``docs/design-question-edits.md``).
+
     Caller commits the session."""
     _validate_questions(questions, mode, list(axes or []))
+    if not confirmed:
+        doomed = count_destroyed_answers(db, form_id, questions)
+        if doomed:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This removes {doomed} given {'answer' if doomed == 1 else 'answers'}. Save again to confirm."
+                ),
+            )
 
     existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
     seen_ids: set[str] = set()

@@ -253,9 +253,16 @@ class FormCreate(BilingualTitleMixin):
 
 
 class FormUpdate(FormCreate):
-    """Same shape as create. Kept as a distinct class so the
-    OpenAPI schema distinguishes the two endpoints even though
-    the body is identical."""
+    """Same shape as create, plus the one thing only an update needs.
+
+    Kept as a distinct class so the OpenAPI schema distinguishes the two
+    endpoints."""
+
+    # An edit that deletes stored answers is refused with a 409 saying
+    # how many, and accepted when the same save comes back with this
+    # set. The organiser decides, rather than a heuristic guessing what
+    # they meant (``docs/design-question-edits.md``).
+    confirm_destructive: bool = False
 
 
 class FormListOut(BaseModel):

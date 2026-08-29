@@ -1976,7 +1976,7 @@ export interface paths {
          *     Replacing an image deletes the file it replaces, once the row
          *     points at the new one.
          *
-         *     Returns the updated ``EventOut`` so the caller's Vue Query
+         *     Returns the updated ``EventOut`` so the caller's query
          *     cache patches in-place without an extra refetch.
          */
         post: operations["upload_event_image_api_v1_event__event_id__image_post"];
@@ -4432,6 +4432,11 @@ export interface components {
             answers_editable: boolean;
             /** Chapter Id */
             chapter_id?: string | null;
+            /**
+             * Confirm Destructive
+             * @default false
+             */
+            confirm_destructive: boolean;
             /** Cycle Slots */
             cycle_slots?: number[];
             /**
@@ -5066,9 +5071,10 @@ export interface components {
         };
         /**
          * FormUpdate
-         * @description Same shape as create. Kept as a distinct class so the
-         *     OpenAPI schema distinguishes the two endpoints even though
-         *     the body is identical.
+         * @description Same shape as create, plus the one thing only an update needs.
+         *
+         *     Kept as a distinct class so the OpenAPI schema distinguishes the two
+         *     endpoints.
          */
         FormUpdate: {
             /**
@@ -5080,6 +5086,11 @@ export interface components {
             axes?: components["schemas"]["CompassAxisIn"][];
             /** Chapter Id */
             chapter_id?: string | null;
+            /**
+             * Confirm Destructive
+             * @default false
+             */
+            confirm_destructive: boolean;
             /** Description En */
             description_en?: string | null;
             /** Description Nl */

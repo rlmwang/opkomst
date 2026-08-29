@@ -3330,6 +3330,11 @@
             ],
             "title": "Chapter Id"
           },
+          "confirm_destructive": {
+            "default": false,
+            "title": "Confirm Destructive",
+            "type": "boolean"
+          },
           "cycle_slots": {
             "items": {
               "type": "integer"
@@ -5067,7 +5072,7 @@
         "type": "object"
       },
       "FormUpdate": {
-        "description": "Same shape as create. Kept as a distinct class so the\nOpenAPI schema distinguishes the two endpoints even though\nthe body is identical.",
+        "description": "Same shape as create, plus the one thing only an update needs.\n\nKept as a distinct class so the OpenAPI schema distinguishes the two\nendpoints.",
         "properties": {
           "answers_editable": {
             "default": true,
@@ -5092,6 +5097,11 @@
               }
             ],
             "title": "Chapter Id"
+          },
+          "confirm_destructive": {
+            "default": false,
+            "title": "Confirm Destructive",
+            "type": "boolean"
           },
           "description_en": {
             "anyOf": [
@@ -14454,7 +14464,7 @@
         ]
       },
       "post": {
-        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py``: validated, EXIF-rotated, cropped to\n4:5, resized to 1200x1500, JPEG-re-encoded, then stored.\n``event.image_path`` is set to where it landed, and what anyone\nsees is this app's own ``/i/{path}``.\n\nReplacing an image deletes the file it replaces, once the row\npoints at the new one.\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
+        "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py``: validated, EXIF-rotated, cropped to\n4:5, resized to 1200x1500, JPEG-re-encoded, then stored.\n``event.image_path`` is set to where it landed, and what anyone\nsees is this app's own ``/i/{path}``.\n\nReplacing an image deletes the file it replaces, once the row\npoints at the new one.\n\nReturns the updated ``EventOut`` so the caller's query\ncache patches in-place without an extra refetch.",
         "operationId": "upload_event_image_api_v1_event__event_id__image_post",
         "parameters": [
           {

@@ -16,9 +16,10 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Occurrence
+from ..models import Occurrence, Signup, SignupHelpChoice
 from ..schemas.events import EventOptionOut, ProjectedOccurrenceOut, PublicEventOut, PublicOccurrenceOut
 from . import event_recurrence, tenancy
 from . import image as image_svc
@@ -29,6 +30,30 @@ from . import image as image_svc
 # that's two hours off and was the whole reason reminder emails sent the
 # wrong time.
 _AMS = ZoneInfo("Europe/Amsterdam")
+
+
+def count_destroyed_answers(db: Session, event: Any, source: Sequence[Any], help_: Sequence[Any]) -> int:
+    """How many sign-up answers this save would delete.
+
+    Removing a source option blanks the answers that named it (the key
+    is ON DELETE SET NULL, so the sign-up itself stands); removing a
+    help option deletes the offers made against it. Both are answers
+    given by somebody, so both are counted and both are gated
+    (``docs/design-question-edits.md``)."""
+    kept_sources = {o.id for o in source if o.id}
+    kept_help = {o.id for o in help_ if o.id}
+    doomed_sources = [o.id for o in event.source_options if o.id not in kept_sources]
+    doomed_help = [o.id for o in event.help_options if o.id not in kept_help]
+
+    total = 0
+    if doomed_sources:
+        total += db.query(func.count(Signup.id)).filter(Signup.source_option_id.in_(doomed_sources)).scalar() or 0
+    if doomed_help:
+        total += (
+            db.query(func.count(SignupHelpChoice.id)).filter(SignupHelpChoice.help_option_id.in_(doomed_help)).scalar()
+            or 0
+        )
+    return int(total)
 
 
 def apply_options(db: Session, event: Any, model: Any, existing: Sequence[Any], payload: Sequence[Any]) -> None:

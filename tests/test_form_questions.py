@@ -35,12 +35,15 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = 
     return r.json()
 
 
-def _put(client: Any, headers: Any, form: dict[str, Any], questions: list[dict[str, Any]]) -> dict[str, Any]:
+def _put(
+    client: Any, headers: Any, form: dict[str, Any], questions: list[dict[str, Any]], **extra: Any
+) -> dict[str, Any]:
     body = {
         "chapter_id": form["chapter_id"],
         "name_nl": form["name_nl"],
         "locale": form["locale"],
         "questions": questions,
+        **extra,
     }
     r = client.put(f"/api/v1/form/{form['id']}", headers=headers, json=body)
     assert r.status_code == 200, r.text
@@ -159,8 +162,9 @@ def test_removed_question_cascades_to_responses(client, organiser_headers):
     finally:
         db.close()
 
-    # Drop q1.
-    _put(client, organiser_headers, form, [form["questions"][1]])
+    # Drop q1. It has an answer, so the save has to say it means it
+    # (``docs/design-question-edits.md``, decision 2).
+    _put(client, organiser_headers, form, [form["questions"][1]], confirm_destructive=True)
 
     db = SessionLocal()
     try:

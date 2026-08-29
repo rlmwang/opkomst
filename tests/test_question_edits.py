@@ -191,7 +191,7 @@ def test_deleting_an_answered_option_takes_its_answers(client, organiser_headers
     def drop_answered(questions):
         questions[0]["options"] = [o for o in questions[0]["options"] if o["label"] != "Wekelijks"]
 
-    assert _save(client, organiser_headers, form, drop_answered).status_code == 200
+    assert _save(client, organiser_headers, form, drop_answered, confirm_destructive=True).status_code == 200
     counts, total = _counts(client, organiser_headers, form)
     assert "Wekelijks" not in counts
     assert counts == {"Maandelijks": 1, "Nooit": 0}
@@ -245,7 +245,7 @@ def test_changing_the_kind_replaces_the_question_and_its_answers(client, organis
     def to_rating(qs):
         qs[0].update({"kind": "rating", "options": []})
 
-    assert _save(client, organiser_headers, form, to_rating).status_code == 200
+    assert _save(client, organiser_headers, form, to_rating, confirm_destructive=True).status_code == 200
     db.expire_all()
 
     after = client.get(f"/api/v1/form/{form['id']}", headers=organiser_headers).json()["questions"]
@@ -277,7 +277,7 @@ def test_retyping_a_question_drops_its_answers(client, organiser_headers, db) ->
         for option in questions[0]["options"]:
             option.pop("id")
 
-    assert _save(client, organiser_headers, form, retype).status_code == 200
+    assert _save(client, organiser_headers, form, retype, confirm_destructive=True).status_code == 200
     db.expire_all()
     assert db.query(FormResponse).filter(FormResponse.form_id == form["id"]).count() == 0
 
@@ -473,7 +473,7 @@ def _breakdowns(client: Any, headers: Any, event: dict[str, Any]) -> tuple[dict[
     return stats["by_source"], stats["by_help"]
 
 
-def _save_event(client: Any, headers: Any, event: dict[str, Any], mutate) -> Any:
+def _save_event(client: Any, headers: Any, event: dict[str, Any], mutate, **extra: Any) -> Any:
     full = client.get(f"/api/v1/event/{event['id']}", headers=headers).json()
     mutate(full)
     return client.put(
@@ -486,6 +486,7 @@ def _save_event(client: Any, headers: Any, event: dict[str, Any], mutate) -> Any
             "source_enabled": True,
             "help_options": full["help_options"],
             "help_enabled": True,
+            **extra,
         },
     )
 
@@ -530,7 +531,7 @@ def test_deleting_a_source_option_leaves_the_signup_standing(client, organiser_h
     def drop(full):
         full["source_options"] = [o for o in full["source_options"] if o["label"] != "Flyer"]
 
-    assert _save_event(client, organiser_headers, event, drop).status_code == 200
+    assert _save_event(client, organiser_headers, event, drop, confirm_destructive=True).status_code == 200
     by_source, _ = _breakdowns(client, organiser_headers, event)
     assert "Flyer" not in by_source
     # Still one line item, still two people.
@@ -549,7 +550,7 @@ def test_deleting_a_help_option_takes_the_offers_with_it(client, organiser_heade
     def drop(full):
         full["help_options"] = [o for o in full["help_options"] if o["label"] != "Opbouwen"]
 
-    assert _save_event(client, organiser_headers, event, drop).status_code == 200
+    assert _save_event(client, organiser_headers, event, drop, confirm_destructive=True).status_code == 200
     assert _breakdowns(client, organiser_headers, event)[1] == {"Afbreken": 2}
 
 
@@ -564,3 +565,120 @@ def test_adding_an_event_option_leaves_the_existing_answers_alone(client, organi
     by_source, by_help = _breakdowns(client, organiser_headers, event)
     assert by_source == {"Flyer": 2}
     assert by_help == {"Opbouwen": 2, "Afbreken": 0}
+
+
+# --- the confirmation gate --------------------------------------------
+#
+# Decision 2: the three edits above that destroy answers are refused
+# once, with a count, and go through when the same save comes back
+# confirmed. Silently deleting what people said is the thing this stops.
+
+
+def test_deleting_an_answered_option_is_refused_until_confirmed(client, organiser_headers) -> None:
+    # Three options, so dropping one still leaves a choice question a
+    # choice to offer and the refusal is the gate rather than the
+    # two-option minimum.
+    form = _form(
+        client,
+        organiser_headers,
+        [
+            {
+                "kind": "single_choice",
+                "prompt": "Hoe vaak kom je?",
+                "required": True,
+                "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}, {"label": "Nooit"}],
+            }
+        ],
+    )
+    _answer(client, form, ["Wekelijks"])
+    _answer(client, form, ["Wekelijks"])
+
+    def drop(questions):
+        questions[0]["options"] = [o for o in questions[0]["options"] if o["label"] != "Wekelijks"]
+
+    refused = _save(client, organiser_headers, form, drop)
+    assert refused.status_code == 409
+    assert "2 given answers" in refused.json()["detail"]
+    # Refused means nothing moved.
+    assert _counts(client, organiser_headers, form) == ({"Wekelijks": 2, "Maandelijks": 0, "Nooit": 0}, 2)
+
+    confirmed = _save(client, organiser_headers, form, drop, confirm_destructive=True)
+    assert confirmed.status_code == 200
+    assert _counts(client, organiser_headers, form) == ({"Maandelijks": 0, "Nooit": 0}, 0)
+
+
+def test_removing_a_question_is_refused_until_confirmed(client, organiser_headers) -> None:
+    form = _form(client, organiser_headers, _CHOICE)
+    _answer(client, form, ["Wekelijks"])
+
+    def remove(questions):
+        questions.clear()
+        questions.append({"kind": "short_text", "prompt": "Iets anders?", "required": False, "options": []})
+
+    refused = _save(client, organiser_headers, form, remove)
+    assert refused.status_code == 409
+    assert "1 given answer" in refused.json()["detail"]
+    assert _save(client, organiser_headers, form, remove, confirm_destructive=True).status_code == 200
+
+
+def test_changing_the_kind_is_refused_until_confirmed(client, organiser_headers) -> None:
+    form = _form(client, organiser_headers, _CHOICE)
+    _answer(client, form, ["Wekelijks"])
+
+    def to_rating(questions):
+        questions[0].update({"kind": "rating", "options": []})
+
+    refused = _save(client, organiser_headers, form, to_rating)
+    assert refused.status_code == 409
+    assert _save(client, organiser_headers, form, to_rating, confirm_destructive=True).status_code == 200
+
+
+def test_a_harmless_edit_needs_no_confirmation(client, organiser_headers) -> None:
+    """The gate only stands in front of edits that destroy something.
+    Renaming, reordering and adding go straight through, which is the
+    whole point of options being rows."""
+    form = _form(client, organiser_headers, _CHOICE)
+    _answer(client, form, ["Wekelijks"])
+
+    def harmless(questions):
+        questions[0]["prompt"] = "Hoe vaak kom je langs?"
+        questions[0]["options"][0]["label"] = "Elke week"
+        questions[0]["options"].reverse()
+        questions[0]["options"].append({"label": "Nooit"})
+
+    assert _save(client, organiser_headers, form, harmless).status_code == 200
+    counts, total = _counts(client, organiser_headers, form)
+    assert counts == {"Maandelijks": 0, "Elke week": 1, "Nooit": 0}
+    assert total == 1
+
+
+def test_removing_an_answered_event_option_is_refused_until_confirmed(client, organiser_headers) -> None:
+    event = _event(client, organiser_headers)
+    _sign_up(client, event, "Flyer", ("Opbouwen",))
+
+    def drop_both(full):
+        full["source_options"] = [o for o in full["source_options"] if o["label"] != "Flyer"]
+        full["help_options"] = [o for o in full["help_options"] if o["label"] != "Opbouwen"]
+
+    refused = _save_event(client, organiser_headers, event, drop_both)
+    assert refused.status_code == 409
+    # One sign-up named the source and one offer was made against the
+    # help option, so two answers would go.
+    assert "2 given answers" in refused.json()["detail"]
+    by_source, by_help = _breakdowns(client, organiser_headers, event)
+    assert by_source == {"Flyer": 2} and by_help == {"Opbouwen": 2, "Afbreken": 0}
+
+    assert _save_event(client, organiser_headers, event, drop_both, confirm_destructive=True).status_code == 200
+    by_source, by_help = _breakdowns(client, organiser_headers, event)
+    assert by_source == {} and by_help == {"Afbreken": 0}
+
+
+def test_renaming_an_event_option_needs_no_confirmation(client, organiser_headers) -> None:
+    event = _event(client, organiser_headers)
+    _sign_up(client, event, "Flyer", ("Opbouwen",))
+
+    def rename(full):
+        full["source_options"][0]["label"] = "Flyertje"
+        full["help_options"][0]["label"] = "Opbouw"
+
+    assert _save_event(client, organiser_headers, event, rename).status_code == 200
