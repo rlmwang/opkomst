@@ -20,6 +20,8 @@ class OccurrenceCardOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
     location: str | None
+    # The card shows the poster about 200 px wide, so it asks for the
+    # 600x750 version rather than the full one.
     image_url: str | None
     image_artist_instagram: str | None
     attendee_count: int

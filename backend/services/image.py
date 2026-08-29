@@ -36,10 +36,26 @@ is replaced, when it is removed, and when the entity holding it has
 been archived long enough (``services/image_reaper.py``). A delete
 removes the file from the repository's current tree; the blob stays in
 its history, which is the accepted cost of storing images in git.
+
+**Reads are cached on disk, and cards are smaller.** Without a CDN in
+front, every visitor's request for a picture used to become a fresh
+HTTPS connection to the storage host and ~900 KB back through this box.
+Two things fix most of that:
+
+* ``fetch`` writes what it reads into ``IMAGE_CACHE_DIR`` and serves
+  from there afterwards. A stored path names one file for ever — a
+  replacement gets a new timestamp — so a cached file can never be
+  stale, and the cache needs no invalidation, only a size bound.
+* ``card_bytes`` is the same picture at 600x750, made once from the
+  full one and cached beside it. An agenda card shows the poster about
+  200 px wide; sending 1200x1500 for that is twenty times the bytes the
+  page needs, on the slowest connection the visitor has.
 """
 
 import base64
+import hashlib
 import io
+import pathlib
 from typing import Final
 
 import httpx
@@ -60,6 +76,97 @@ _OUT_H: Final[int] = 1500
 MAX_UPLOAD_BYTES: Final[int] = 8 * 1024 * 1024  # 8 MiB
 
 _JPEG_QUALITY: Final[int] = 85
+
+# The card variant: half the full size in each direction, which is still
+# retina for the ~200 px slot an agenda card gives it.
+_CARD_W: Final[int] = 600
+_CARD_H: Final[int] = 750
+_CARD_QUALITY: Final[int] = 80
+
+# How much disk the read cache may take before the oldest files are
+# dropped. Sized to hold a few hundred pictures — far more than a
+# chapter has — while leaving the volume to the backups it shares.
+_CACHE_MAX_BYTES: Final[int] = 512 * 1024 * 1024
+
+
+def _cache_dir() -> pathlib.Path | None:
+    """Where fetched bytes are kept, or ``None`` when caching is off.
+
+    Off is a legitimate state: a dev machine has no volume, and a broken
+    cache must never stop an image being served."""
+    configured = settings.image_cache_dir
+    if not configured:
+        return None
+    try:
+        path = pathlib.Path(configured)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    except OSError as exc:
+        logger.warning("image_cache_unavailable", error=str(exc))
+        return None
+
+
+def _cache_name(path: str, variant: str) -> str:
+    """A flat filename for a stored path. Hashed rather than nested so
+    the cache is one directory that can be swept by mtime, and so a
+    path can never escape it."""
+    digest = hashlib.sha256(f"{variant}:{path}".encode()).hexdigest()
+    return f"{digest}.jpg"
+
+
+def _cache_read(path: str, variant: str) -> bytes | None:
+    directory = _cache_dir()
+    if directory is None:
+        return None
+    file = directory / _cache_name(path, variant)
+    try:
+        data = file.read_bytes()
+    except OSError:
+        return None
+    # Touch on read so the sweep drops what nobody looks at, rather than
+    # what happens to be old.
+    try:
+        file.touch()
+    except OSError:
+        pass
+    return data
+
+
+def _cache_write(path: str, variant: str, data: bytes) -> None:
+    directory = _cache_dir()
+    if directory is None:
+        return
+    file = directory / _cache_name(path, variant)
+    try:
+        # Written beside and renamed: a reader never sees half a file.
+        temporary = file.with_suffix(".part")
+        temporary.write_bytes(data)
+        temporary.replace(file)
+    except OSError as exc:
+        logger.warning("image_cache_write_failed", error=str(exc))
+        return
+    _sweep(directory)
+
+
+def _sweep(directory: pathlib.Path) -> None:
+    """Drop the least recently read files once the cache is over its
+    bound. Cheap enough to run on write: the cache holds hundreds of
+    files, not millions."""
+    try:
+        files = [(f, f.stat()) for f in directory.glob("*.jpg")]
+    except OSError:
+        return
+    total = sum(stat.st_size for _, stat in files)
+    if total <= _CACHE_MAX_BYTES:
+        return
+    for file, stat in sorted(files, key=lambda pair: pair[1].st_atime):
+        try:
+            file.unlink()
+        except OSError:
+            continue
+        total -= stat.st_size
+        if total <= _CACHE_MAX_BYTES:
+            return
 
 
 class ImageProcessingError(ValueError):
@@ -113,6 +220,14 @@ def public_url(path: str | None) -> str | None:
     if not path:
         return None
     return f"{str(settings.public_base_url).rstrip('/')}/i/{path.lstrip('/')}"
+
+
+def card_url(path: str | None) -> str | None:
+    """The URL for the small version, for a page that shows the picture
+    in a card rather than as a hero."""
+    if not path:
+        return None
+    return f"{str(settings.public_base_url).rstrip('/')}/i/card/{path.lstrip('/')}"
 
 
 def _config() -> tuple[str, str, str, str]:
@@ -180,6 +295,10 @@ def fetch(path: str) -> bytes | None:
     ``GithubUploadError`` when the host itself is unreachable, which the
     route turns into a 502; a missing file is not an error here, it is a
     404."""
+    cached = _cache_read(path, "full")
+    if cached is not None:
+        return cached
+
     owner, repo, branch, _token = _config()
     url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}"
     try:
@@ -192,7 +311,40 @@ def fetch(path: str) -> bytes | None:
     if resp.status_code != 200:
         logger.warning("image_fetch_failed", status=resp.status_code)
         raise GithubUploadError(f"Image storage returned {resp.status_code}")
+    _cache_write(path, "full", resp.content)
     return resp.content
+
+
+def card_bytes(path: str) -> bytes | None:
+    """The same picture at 600x750, or ``None`` when there is no such
+    path.
+
+    Made from the full one the first time it is asked for and cached
+    beside it, rather than written at upload: every picture already
+    stored gets the smaller version too, and the storage host keeps one
+    file per image instead of two that have to be deleted together.
+    """
+    cached = _cache_read(path, "card")
+    if cached is not None:
+        return cached
+    full = fetch(path)
+    if full is None:
+        return None
+    try:
+        with Image.open(io.BytesIO(full)) as img:
+            img = ImageOps.exif_transpose(img) or img
+            img = img.convert("RGB")
+            img = img.resize((_CARD_W, _CARD_H), Image.Resampling.LANCZOS)
+            out = io.BytesIO()
+            img.save(out, format="JPEG", quality=_CARD_QUALITY, optimize=True, progressive=True)
+    except OSError as exc:
+        # A picture that cannot be resized is still a picture: serve the
+        # full one rather than nothing.
+        logger.warning("image_card_render_failed", error=str(exc))
+        return full
+    data = out.getvalue()
+    _cache_write(path, "card", data)
+    return data
 
 
 def delete(path: str) -> bool:

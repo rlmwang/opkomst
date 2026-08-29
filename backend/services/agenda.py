@@ -37,7 +37,7 @@ def _card(occ: Occurrence, totals: dict[str, int]) -> OccurrenceCardOut:
         starts_at=occ.starts_at,
         ends_at=occ.ends_at,
         location=event.location,
-        image_url=image_svc.public_url(event.image_path),
+        image_url=image_svc.card_url(event.image_path),
         image_artist_instagram=event.image_artist_instagram,
         attendee_count=totals.get(occ.id, 0),
         index=event_recurrence.session_index(event, occ),
