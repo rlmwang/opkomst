@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import ToggleSwitch from "primevue/toggleswitch";
@@ -8,6 +7,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
+import DatePicker from "@/components/DatePicker.vue";
 import EditableList from "@/components/EditableList.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
@@ -621,10 +621,11 @@ async function submit() {
           :bias-lon="chapterBias.lon"
           @update:coords="setCoords"
         />
-        <DatePicker v-model="eventDate" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
+        <DatePicker v-model="eventDate" :locale="locale" date-format="dd-mm-yy" :placeholder="t('event.date')" fluid />
         <div class="time-row">
           <DatePicker
             v-model="startTime"
+            :locale="locale"
             time-only
             hour-format="24"
             :step-minute="15"
@@ -633,6 +634,7 @@ async function submit() {
           />
           <DatePicker
             v-model="endTime"
+            :locale="locale"
             time-only
             hour-format="24"
             :step-minute="15"

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import ToggleSwitch from "primevue/toggleswitch";
@@ -7,6 +6,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
+import DatePicker from "@/components/DatePicker.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
@@ -623,7 +623,7 @@ async function submit() {
 
       <div class="dates-stack">
         <div class="picker-row">
-          <DatePicker v-model="selectedDates" selection-mode="multiple" inline :manual-input="false" />
+          <DatePicker v-model="selectedDates" :locale="locale" selection-mode="multiple" inline :manual-input="false" />
 
           <!-- Common time-slots: created once here, applied to every
                chosen day (shown on each day card below). -->
@@ -796,15 +796,9 @@ async function submit() {
 </template>
 
 <style scoped>
-/* Pin the inline date picker to a constant 6-week height (weekday
- * header + 6 rows) so navigating between 5- and 6-row months doesn't
- * shift the page. The day-view table sits at the top of the
- * container; a shorter month leaves the 6th-row slot empty rather
- * than collapsing. Row height = the theme's date-cell height + its
- * vertical padding (falls back to Aura's values). */
-:deep(.p-datepicker-calendar-container) {
-  min-height: calc((var(--p-datepicker-date-height, 2.5rem) + var(--p-datepicker-date-padding, 0.25rem) * 2) * 7);
-}
+/* The inline date picker draws six week rows in every month, so its
+ * height does not shift as you navigate. It used to draw five or six
+ * and needed a min-height pinning it to the taller one. */
 
 /* Shared form chrome (.form-section, .section-heading,
  * .section-explainer) lives in ``src/assets/forms.css``. */

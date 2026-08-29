@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import Button from "primevue/button";
-import DatePicker from "primevue/datepicker";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import ToggleSwitch from "primevue/toggleswitch";
@@ -10,6 +9,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import ChoreEditor, { type ChoreDraft } from "@/components/ChoreEditor.vue";
+import DatePicker from "@/components/DatePicker.vue";
 import { DEFAULT_CHORE_EMOJI, firstUnusedEmoji } from "@/components/EmojiPicker.vue";
 import FormPageShell from "@/components/FormPageShell.vue";
 import ImageField from "@/components/ImageField.vue";
@@ -476,6 +476,7 @@ async function submit() {
         <div class="field">
           <DatePicker
             v-model="startsOn"
+            :locale="locale"
             date-format="dd-mm-yy"
             :placeholder="t('chores.edit.startDatePlaceholder')"
             fluid
@@ -484,6 +485,7 @@ async function submit() {
         <div class="field">
           <DatePicker
             v-model="endsOn"
+            :locale="locale"
             date-format="dd-mm-yy"
             show-button-bar
             :placeholder="t('chores.edit.endsOnPlaceholder')"

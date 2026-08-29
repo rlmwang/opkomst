@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import DatePicker from "primevue/datepicker";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import SupportButtons from "@/public_shared/SupportButtons.vue";
 import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
@@ -8,6 +7,7 @@ import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
+import DatePicker from "@/components/DatePicker.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import { isValidEmail } from "@/lib/validate";
 import { showToast } from "@/public_shared/publicToast";
@@ -429,6 +429,7 @@ async function leave(): Promise<void> {
           <div v-for="(r, i) in availDraft" :key="i" class="list-row avail-row">
             <div class="avail-fields">
               <DatePicker
+                :locale="locale"
                 :model-value="parseDate(r.start)"
                 @update:model-value="(d) => (r.start = isoDate(d as Date | null))"
                 date-format="dd-mm-yy"
@@ -437,6 +438,7 @@ async function leave(): Promise<void> {
                 fluid
               />
               <DatePicker
+                :locale="locale"
                 :model-value="parseDate(r.end)"
                 @update:model-value="(d) => (r.end = isoDate(d as Date | null))"
                 date-format="dd-mm-yy"
@@ -637,7 +639,7 @@ h2 { margin: 0; font-size: 1.1rem; }
  * theme.css, matching the admin editable lists. */
 .avail-row { margin-bottom: 0.25rem; }
 .avail-fields { display: flex; gap: 0.5rem; flex: 1; min-width: 0; flex-wrap: wrap; }
-.avail-fields > :deep(.p-datepicker) { flex: 1 1 8rem; min-width: 0; }
+.avail-fields > :deep(.dp) { flex: 1 1 8rem; min-width: 0; }
 /* .btn-secondary (soft-pink add button) comes from theme.css. Add buttons
  * span the section full-width, matching the admin form add buttons. */
 .avail-add { width: 100%; justify-content: center; }
