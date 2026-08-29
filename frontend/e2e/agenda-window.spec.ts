@@ -86,7 +86,14 @@ test("an admin widens the agenda window and a far-off event appears", async ({
     await expect(ahead).toHaveValue("31");
     await ahead.fill("90");
     await ahead.blur();
+    // Wait for the write itself, not just the click. Reloading straight
+    // after raced it: the page came back showing 31 because the PUT had
+    // not landed yet, which read as the save being broken.
+    const saved = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/settings") && r.request().method() === "PUT",
+    );
     await page.getByRole("button", { name: /opslaan|save/i }).click();
+    expect((await saved).ok()).toBeTruthy();
 
     // The saved value survives a reload, so it reached the server.
     await page.reload();
