@@ -4,8 +4,10 @@ import { type Locale, setLocale } from "@/i18n";
 
 const { locale } = useI18n();
 
-function pick(l: Locale) {
-  setLocale(l);
+// Switching fetches the other catalogue the first time, so this waits.
+// The browser has it cached on every switch after that.
+async function pick(l: Locale) {
+  await setLocale(l);
 }
 </script>
 

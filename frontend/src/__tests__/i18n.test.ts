@@ -6,10 +6,16 @@
  * so the same class of bug breaks the build instead.
  */
 
-import { describe, expect, it, vi } from "vitest";
-import { i18n } from "@/i18n";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { i18n, initI18n, setLocale } from "@/i18n";
 
 const t = i18n.global.t;
+
+// The catalogues are fetched rather than bundled, so the active one has
+// to be loaded before any lookup resolves.
+beforeAll(async () => {
+  await initI18n();
+});
 
 describe("i18n missing-key handler", () => {
   it("returns ``[key]`` for missing keys so the UI surfaces the gap visibly", () => {
@@ -41,5 +47,23 @@ describe("i18n missing-key handler", () => {
     // Sanity: the strict handler doesn't break normal lookups.
     expect(t("auth.sendLink")).not.toMatch(/^\[/);
     expect(t("auth.sendLink")).not.toBe("");
+  });
+});
+
+describe("lazy catalogues", () => {
+  it("has the active language after init, and resolves real copy from it", () => {
+    expect(i18n.global.locale.value).toBe("nl");
+    expect(t("auth.sendLink")).not.toMatch(/^\[/);
+  });
+
+  it("fetches the other language on switch, then renders it", async () => {
+    const dutch = t("auth.sendLink");
+    await setLocale("en");
+    expect(i18n.global.locale.value).toBe("en");
+    const english = t("auth.sendLink");
+    expect(english).not.toMatch(/^\[/);
+    expect(english).not.toBe(dutch);
+    await setLocale("nl");
+    expect(t("auth.sendLink")).toBe(dutch);
   });
 });

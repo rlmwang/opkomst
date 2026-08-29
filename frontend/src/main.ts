@@ -8,7 +8,7 @@ import ToastService from "primevue/toastservice";
 import { createApp } from "vue";
 import { ApiError } from "@/api/client";
 import App from "./App.vue";
-import { i18n } from "./i18n";
+import { i18n, initI18n } from "./i18n";
 import { primeVueConfig } from "./primevue-preset";
 import router from "./router";
 import "primeicons/primeicons.css";
@@ -76,4 +76,7 @@ app.use(ToastService);
 app.use(ConfirmationService);
 app.directive("tooltip", Tooltip);
 
-app.mount("#app");
+// The active language is fetched, not bundled, so it has to be in hand
+// before the first render or every string would paint as ``[key]``. It
+// is one small request that starts alongside the entry chunk.
+initI18n().then(() => app.mount("#app"));
