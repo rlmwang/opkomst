@@ -127,44 +127,72 @@ In Coolify:
    - DB / user / password: pick any. Coolify gives you a
      ``DATABASE_URL`` once it's running.
    - **Custom Postgres command** (Coolify → service → Configuration
-     → "Custom Postgres command"): paste the small-VPS tuning
-     stanza below. Postgres' defaults assume a few GB of RAM all
-     to itself; on a 512 MB VPS shared with the API they burn
-     through memory you don't have. Skip this if the database
-     box has ≥4 GB free.
+     → "Custom Postgres command"): paste the stanza below. Postgres'
+     defaults assume a few GB of RAM all to itself, which is not what
+     it has here: the container is capped at 512 MB and shares the box
+     with the API, Coolify and Traefik.
 
      ```
      postgres
-       -c shared_buffers=64MB
-       -c effective_cache_size=128MB
-       -c work_mem=2MB
-       -c maintenance_work_mem=32MB
-       -c max_connections=20
-       -c wal_buffers=2MB
+       -c shared_buffers=128MB
+       -c effective_cache_size=1GB
+       -c work_mem=4MB
+       -c maintenance_work_mem=64MB
+       -c max_connections=60
+       -c wal_buffers=4MB
      ```
 
-     The numbers (rationale below) cap PG's resident set at
-     roughly ``shared_buffers + (max_connections × ~10 MB)`` ≈
-     265 MB worst case, vs. 400+ MB on defaults.
-     * ``shared_buffers=64MB``, main page cache. Default
-       ``128MB`` is a quarter of a 512 MB VPS on its own.
-     * ``effective_cache_size=128MB``, planner hint, not an
-       allocation. Default 4 GB lies to the planner about how
-       much OS-level disk cache it can count on.
-     * ``work_mem=2MB``, per-sort/-hash budget. We run
-       small SELECTs; 2 MB is plenty and caps the worst case
-       (a dashboard load with several joins) at single-digit
-       MB.
-     * ``max_connections=20``, each backend process eats
-       ~10 MB resident. With ``WEB_CONCURRENCY=1`` the app
-       opens ≤5; the cron sweeps add 1 each, peaking around 7.
-       20 leaves room for ``psql`` debugging without anyone
-       paying for 100 idle slots.
+     * ``shared_buffers=128MB``, Postgres' own page cache. A quarter
+       of the container's 512 MB. It was 64 MB, which was sized for a
+       512 MB *host*.
+     * ``effective_cache_size=1GB``, a planner hint, not an
+       allocation. It tells the planner how much disk cache it can
+       expect the OS to have. The host keeps 2.4 GB in page cache, so
+       the old 128 MB understated it by a factor of twenty, and an
+       understated value makes the planner prefer sequential scans
+       over index scans as tables grow.
+     * ``work_mem=4MB``, the budget for one sort or hash. The queries
+       here are small; this caps a dashboard load with several joins
+       at a few MB.
+     * ``max_connections=60``. Each backend process costs roughly
+       10 MB resident. The app opens up to ``WEB_CONCURRENCY × 5``
+       (SQLAlchemy pool of 2 plus 3 overflow per worker), each cron
+       sweep adds one, and a deploy briefly runs the old and new
+       containers at once, so the real ceiling is about twice the
+       steady-state number. At ``WEB_CONCURRENCY=3`` that is 30 plus
+       crons; 60 leaves room for ``psql`` and for one more worker
+       without another restart. The old value of 20 was two workers
+       away from refusing connections.
+
+   - **Redis** (Coolify → **+ New Resource → Database → Redis**):
+     the rate limiter's counters. Without it each uvicorn worker
+     counts separately, so the real budget is the limit times the
+     worker count, and every deploy resets it. Set the API's
+     ``RATE_LIMIT_STORAGE_URI`` to the ``redis://`` URL Coolify gives
+     you. Nothing in it needs to survive a restart: losing it only
+     refills everybody's allowance.
+
 3. **+ New Resource → Application → Public Repository**:
    - URL: your fork of opkomst on GitHub.
    - Build pack: Dockerfile (Coolify auto-detects ``./Dockerfile``).
    - Domain: ``https://opkomst.nu`` (Coolify provisions
      Let's Encrypt automatically once DNS is in).
+   - **Compression** (Coolify → application → Configuration →
+     "Custom Labels"). Traefik compresses responses if you ask it to,
+     in Go, on a connection it is already terminating. The app used to
+     do it in Python, which spent the box's scarcest resource on every
+     response. **Add these before deploying**, or responses go out
+     uncompressed and the SPA bundle arrives about four times larger:
+
+     ```
+     traefik.http.middlewares.opkomst-compress.compress=true
+     traefik.http.routers.<router-name>.middlewares=opkomst-compress
+     ```
+
+     Coolify names the router after the application; the existing
+     labels in that box show the name to use. Check it worked with
+     ``curl -sI -H 'Accept-Encoding: gzip' https://opkomst.nu/ | grep -i
+     content-encoding``.
 4. **Add a Persistent Volume** for backups: Coolify → application →
    Storage → **+ Add Persistent Storage** → mount path
    ``/app/data``. The daily ``scripts/backup.sh`` cron writes

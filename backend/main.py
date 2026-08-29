@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -99,11 +98,6 @@ app.add_middleware(TenantBindingMiddleware)
 # Security headers on every response. Installed before CORS so
 # CSP / HSTS / nosniff apply uniformly to preflights too.
 app.add_middleware(SecurityHeadersMiddleware)
-
-# Gzip everything ≥1 KiB. The static SPA bundle (~470 KB raw PrimeVue
-# chunk, ~190 KB main) compresses ~4× and is the dominant payload on
-# first paint.
-app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # CORS — dev frontend on 5173. In prod the frontend is served from the
 # same origin so this becomes a no-op.

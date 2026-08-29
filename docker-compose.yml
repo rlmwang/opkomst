@@ -42,6 +42,19 @@ services:
       timeout: 3s
       retries: 10
 
+  # Shared rate-limit counters. Without it each uvicorn worker keeps
+  # its own, so the real budget is the limit times the worker count and
+  # a deploy resets it. Holds nothing but counters: no persistence, and
+  # losing it only refills everybody's allowance.
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "32mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   api:
     build: .
     image: opkomst:latest
@@ -54,8 +67,11 @@ services:
     # localhost:5433 for host-side dev) doesn't leak in.
     environment:
       DATABASE_URL: postgresql+psycopg://opkomst:opkomst@postgres:5432/opkomst
+      RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     # Mirrors the image's HEALTHCHECK budget: curl's own ``--max-time``
     # sits below the compose ``timeout`` so curl exits by itself rather

@@ -36,6 +36,11 @@ dependencies = [
     "uuid-utils>=0.10",
     "jinja2>=3.1",
     "slowapi>=0.1.9",
+    # The client ``limits`` (slowapi's storage layer) needs when
+    # ``RATE_LIMIT_STORAGE_URI`` is a redis:// URL. Production shares
+    # one set of counters across uvicorn workers; without this the URI
+    # raises at boot.
+    "redis>=5",
     "sentry-sdk>=2.58.0",
     # Async HTTP client for the Evolution API proxy in
     # ``services/whatsapp.py``. Also pulled in by Starlette's
