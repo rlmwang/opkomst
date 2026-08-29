@@ -29,3 +29,20 @@ window.__OPKOMST_BRAND__ = {
   logo_url: `/brand/rsp/${brandManifest.logo}`,
   favicon_url: `/brand/rsp/${brandManifest.favicon}`,
 };
+
+// happy-dom has no Web Animations API, and Svelte's transitions call
+// ``element.animate`` to hold an element's first frame. Nothing here
+// asserts on an animation, so a stub that reports a finished one is
+// enough; without it the toast's fly-in throws past every assertion and
+// fails the run on an error rather than on a test.
+if (typeof Element !== "undefined" && !Element.prototype.animate) {
+  Element.prototype.animate = function animate(): Animation {
+    return {
+      cancel() {},
+      finish() {},
+      onfinish: null,
+      currentTime: 0,
+      playState: "finished",
+    } as unknown as Animation;
+  };
+}
