@@ -34,6 +34,7 @@ const {
   disabled,
   loading,
   type = "button",
+  ariaLabel,
   onclick,
   children,
 }: {
@@ -48,6 +49,9 @@ const {
   /** Swaps the icon for a spinner and stops the button responding. */
   loading?: boolean;
   type?: "button" | "submit" | "reset";
+  /** What an icon-only button is called, for anything not looking at
+   *  it. A labelled one names itself. */
+  ariaLabel?: string;
   onclick?: (event: MouseEvent) => void;
   children?: Snippet;
 } = $props();
@@ -60,6 +64,7 @@ const {
   class:app-btn-sm={size === "small"}
   class:app-btn-icon-only={!label && !children}
   disabled={disabled || loading}
+  aria-label={ariaLabel}
   {onclick}
 >
   {#if loading}
