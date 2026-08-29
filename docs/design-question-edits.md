@@ -1,5 +1,7 @@
 # Editing a question after people have answered it
 
+Status: built. `tests/test_question_edits.py` is what it proves.
+
 An organiser can change a form, a quiz, a kompas or an event at any time,
 including after answers are in. Some of those edits leave the stored
 answers meaningful and some do not. Today the difference is not modelled,
@@ -117,7 +119,8 @@ orphaning it replaces.
 
 ### 3. Options become tables
 
-Six new tables, replacing five JSON columns and one text column.
+Five new tables, replacing five JSON columns, plus one text column
+that becomes a foreign key.
 
 ```
 form_question_options

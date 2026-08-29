@@ -1,3 +1,24 @@
+<script lang="ts" module>
+/** One answer offered by a sign-up question. ``id`` is the server's,
+ *  and absent on one the organiser has just typed. */
+export interface EventOption {
+  id?: string | null;
+  label: string;
+}
+
+/** The seeded options in another language, each keeping the id it
+ *  already had.
+ *
+ *  Translating is a rename: the sign-ups that named an option point at
+ *  its row, so carrying the id across is what keeps them attached.
+ *  Returning the seeded rows as they come would drop every id and turn
+ *  a language switch into deleting each option and adding a new one,
+ *  which takes the answers with it. */
+export function translated(current: EventOption[], seeded: EventOption[]): EventOption[] {
+  return seeded.map((option, i) => ({ ...option, id: current[i]?.id ?? null }));
+}
+</script>
+
 <script lang="ts">
 import { untrack } from "svelte";
 
@@ -220,14 +241,19 @@ let confirmDestructive = $state(false);
 // only while they are still the seeded ones. An organiser who has added
 // or removed one has thought about the wording, and that is not ours to
 // overwrite.
+//
+// Translating keeps each option's id, so it is a rename and the
+// sign-ups that named it stay attached (``translated``, above).
 let lastEventLocale = startLocale;
 $effect(() => {
   const next = eventLocale;
   const prev = lastEventLocale;
   if (next === prev) return;
   lastEventLocale = next;
-  if (sameLabels(sources, defaultSources(prev))) sources = defaultSources(next);
-  if (sameLabels(helpOptions, defaultHelp(prev))) helpOptions = defaultHelp(next);
+  if (sameLabels(sources, defaultSources(prev))) sources = translated(sources, defaultSources(next));
+  if (sameLabels(helpOptions, defaultHelp(prev))) {
+    helpOptions = translated(helpOptions, defaultHelp(next));
+  }
 });
 
 // --- Times on the wire ------------------------------------------------
