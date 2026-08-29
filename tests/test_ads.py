@@ -18,11 +18,26 @@ Design and reasoning: ``docs/ads.md``.
 from __future__ import annotations
 
 import pathlib
+import re
+from urllib.parse import urlparse
 
 import pytest
 
 from backend.services import brand as brand_svc
 from backend.services.security_headers import CSP_ADS_TEMPLATE, CSP_TEMPLATE
+
+
+def _script_hosts(html: str) -> set[str]:
+    """The host of every ``<script src>`` on the page.
+
+    Matched on the parsed host rather than by searching the HTML for a
+    domain: a page mentioning ``pagead2.googlesyndication.com.evil.test``
+    contains the string and loads nothing from Google."""
+    return {
+        host
+        for src in re.findall(r'<script[^>]+src="([^"]+)"', html)
+        if (host := urlparse(src if "//" in src else f"//{src}").hostname)
+    }
 
 
 def _csp_sources(csp: str) -> set[str]:
@@ -89,9 +104,9 @@ def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configure
     """The other half of the gate: with a network configured, the page
     that may carry ads is served the policy that lets them load."""
     csp = client.get("/event").headers["content-security-policy"]
-    sources = _csp_sources(csp)
-    assert "https://pagead2.googlesyndication.com" in sources
-    assert "https://fundingchoicesmessages.google.com" in sources
+    assert _csp_sources(csp).issuperset(
+        {"https://pagead2.googlesyndication.com", "https://fundingchoicesmessages.google.com"}
+    )
 
 
 def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> None:
@@ -225,12 +240,12 @@ def test_a_written_page_carries_the_slot_once_configured(client, configured) -> 
     have to arrive in the HTML, because there is no bundle here to
     fetch them later."""
     body = client.get("/datumplanner-zonder-account").text
-    assert "//pagead2.googlesyndication.com/" in body
+    assert _script_hosts(body).issuperset({"pagead2.googlesyndication.com"})
     assert "ca-pub-0000000000000000" in body
     assert '"1111111111"' in body or "1111111111" in body
     assert "2222222222" in body
     csp = client.get("/datumplanner-zonder-account").headers["content-security-policy"]
-    assert "https://pagead2.googlesyndication.com" in _csp_sources(csp)
+    assert _csp_sources(csp).issuperset({"https://pagead2.googlesyndication.com"})
 
 
 def test_the_written_pages_advertise_under_a_nonce(client, configured) -> None:
