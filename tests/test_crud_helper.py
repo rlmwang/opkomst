@@ -58,3 +58,31 @@ def test_hard_delete_after_archive(db):
     crud.archive(db, roster, log_event="roster_archived", actor_id="a")
     crud.hard_delete(db, roster, log_event="roster_deleted", actor_id="a", conflict_detail="nope")
     assert db.query(Roster).count() == 0
+
+
+def test_hard_delete_takes_the_image_with_it(db, monkeypatch):
+    """The row is the only thing that knows where the image is stored.
+    Deleting it without deleting the file leaves a picture in the image
+    repository that nothing references and no sweep can find:
+    ``image_reaper`` looks for archived rows, and this one is gone."""
+    deleted: list[str] = []
+    monkeypatch.setattr(crud.image_svc, "delete", lambda path: deleted.append(path) or True)
+
+    roster = _roster(db)
+    roster.image_path = "img/rost0001.webp"
+    db.commit()
+    crud.archive(db, roster, log_event="roster_archived", actor_id="a")
+    crud.hard_delete(db, roster, log_event="roster_deleted", actor_id="a", conflict_detail="nope")
+
+    assert deleted == ["img/rost0001.webp"]
+
+
+def test_hard_delete_without_an_image_asks_for_nothing(db, monkeypatch):
+    called: list[str] = []
+    monkeypatch.setattr(crud.image_svc, "delete", lambda path: called.append(path) or True)
+
+    roster = _roster(db)
+    crud.archive(db, roster, log_event="roster_archived", actor_id="a")
+    crud.hard_delete(db, roster, log_event="roster_deleted", actor_id="a", conflict_detail="nope")
+
+    assert called == []
