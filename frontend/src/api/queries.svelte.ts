@@ -30,7 +30,8 @@ export interface ApiQuery<T> {
   readonly isPending: boolean;
   readonly isError: boolean;
   readonly error: Error | null;
-  refetch: () => void;
+  /** Ask again now, and hand back what came back. */
+  refetch: () => Promise<T | undefined>;
 }
 
 export function apiQuery<T>(
@@ -64,6 +65,6 @@ export function apiQuery<T>(
     get error() {
       return store.current.error;
     },
-    refetch: () => void store.current.refetch(),
+    refetch: async () => (await store.current.refetch()).data,
   };
 }
