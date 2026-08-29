@@ -15,7 +15,7 @@
 
 import type { UseMutationReturnType } from "@tanstack/vue-query";
 import { type ComputedRef, type Ref, computed, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 import { useChapterUrlFilter } from "@/composables/useChapterUrlFilter";
 import { useGuardedMutation } from "@/composables/useGuardedMutation";

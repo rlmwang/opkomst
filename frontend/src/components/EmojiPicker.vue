@@ -51,7 +51,7 @@ export function firstUnusedEmoji(used: Iterable<string>): string {
  */
 import AppButton from "@/components/AppButton.vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 defineProps<{
   /** The currently selected emoji (value mode); omit for insert mode. */

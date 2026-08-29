@@ -4,7 +4,7 @@ import AppInput from "@/components/AppInput.vue";
 import SelectField from "@/components/SelectField.vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { computed, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import AppHeader from "@/components/AppHeader.vue";

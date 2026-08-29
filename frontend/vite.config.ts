@@ -494,7 +494,6 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("/node_modules/vue-router/")) return "vue-router";
           if (id.includes("/node_modules/pinia/")) return "pinia";
-          if (id.includes("/node_modules/vue-i18n/") || id.includes("/node_modules/@intlify/")) return "i18n";
           // ``vue-core`` is shared with the public mini-apps; router +
           // pinia stay admin-only so the public bundle doesn't pull them.
           if (id.includes("/node_modules/vue/") || id.includes("/node_modules/@vue/")) return "vue-core";

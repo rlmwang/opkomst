@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import type { EventOut } from "@/composables/useEvents";
 import { formatDateTime } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";

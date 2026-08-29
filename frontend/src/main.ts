@@ -5,7 +5,7 @@ import { ApiError } from "@/api/client";
 import * as sentry from "@/lib/sentry";
 import { tooltip } from "@/lib/tooltip";
 import App from "./App.vue";
-import { i18n, initI18n } from "./i18n";
+import { initI18n } from "./i18n";
 import router from "./router";
 import "./assets/theme.css";
 import "./assets/forms.css";
@@ -47,7 +47,6 @@ const queryClient = new QueryClient({
 });
 app.use(VueQueryPlugin, { queryClient });
 
-app.use(i18n);
 app.use(router);
 app.directive("tooltip", tooltip);
 

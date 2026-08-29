@@ -11,7 +11,7 @@
  */
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
 import EmojiPicker from "@/components/EmojiPicker.vue";
 import NumberStepper from "@/components/NumberStepper.vue";

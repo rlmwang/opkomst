@@ -10,7 +10,7 @@
  */
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
+import { useTestMessages } from "@/__tests__/i18n-harness";
 import { createMemoryHistory, createRouter } from "vue-router";
 
 import SiteFooter from "@/components/SiteFooter.vue";
@@ -34,13 +34,7 @@ const INDEXED = ["/", ...CREATE];
 
 const blank = { template: "<div />" };
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "nl",
-    messages: { nl: { footer: { label: "Meer lezen", privacy: "Privacy", source: "Broncode" } } },
-  });
-}
+useTestMessages("nl", { footer: { label: "Meer lezen", privacy: "Privacy", source: "Broncode" } });
 
 async function mountAt(path: string) {
   const router = createRouter({
@@ -52,7 +46,7 @@ async function mountAt(path: string) {
   });
   router.push(path);
   await router.isReady();
-  return mount(SiteFooter, { global: { plugins: [makeI18n(), router] } });
+  return mount(SiteFooter, { global: { plugins: [router] } });
 }
 
 beforeEach(() => {

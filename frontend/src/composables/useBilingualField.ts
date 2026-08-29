@@ -1,5 +1,5 @@
 import { type Ref, type WritableComputedRef, computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 import type { Locale } from "@/public_shared/strings";
 

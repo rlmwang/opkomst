@@ -2,7 +2,7 @@
 import AppPopover from "@/components/AppPopover.vue";
 import AppIcon from "@/components/AppIcon.vue";
 import { computed, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useRoute, useRouter } from "vue-router";
 import BrandMark from "@/public_shared/BrandMark.vue";
 import { APP_NAME } from "@/lib/branding";

@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
+import { useTestMessages } from "@/__tests__/i18n-harness";
 
 import AppPopover from "@/components/AppPopover.vue";
 import AutoCompleteField from "@/components/AutoCompleteField.vue";
@@ -11,11 +11,7 @@ import SelectField from "@/components/SelectField.vue";
 // the keyboard and the dismissal: they are invisible until somebody who
 // needs them cannot use the app.
 
-const i18n = createI18n({
-  legacy: false,
-  locale: "nl",
-  messages: { nl: { common: { clear: "Wissen", noResults: "Geen resultaten", remove: "Verwijderen" } } },
-});
+useTestMessages("nl", { common: { clear: "Wissen", noResults: "Geen resultaten", remove: "Verwijderen" } });
 
 const OPTIONS = [
   { id: "a", name: "Amsterdam" },
@@ -26,7 +22,6 @@ const OPTIONS = [
 function mountSelect(props: Record<string, unknown> = {}) {
   return mount(SelectField, {
     props: { options: OPTIONS, optionLabel: "name", optionValue: "id", ...props },
-    global: { plugins: [i18n] },
     attachTo: document.body,
   });
 }
@@ -136,7 +131,6 @@ describe("MultiSelectField", () => {
   const mountMulti = (props: Record<string, unknown> = {}) =>
     mount(MultiSelectField, {
       props: { options: OPTIONS, optionLabel: "name", optionValue: "id", ...props },
-      global: { plugins: [i18n] },
       attachTo: document.body,
     });
 
@@ -168,7 +162,6 @@ describe("AutoCompleteField", () => {
   const mountAuto = (props: Record<string, unknown> = {}) =>
     mount(AutoCompleteField, {
       props: { suggestions: [], optionLabel: "name", delay: 0, ...props },
-      global: { plugins: [i18n] },
       attachTo: document.body,
     });
 

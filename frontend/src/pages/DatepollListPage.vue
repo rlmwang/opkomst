@@ -2,7 +2,7 @@
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/AppButton.vue";
 import { computed, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";

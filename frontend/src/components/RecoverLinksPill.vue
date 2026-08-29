@@ -14,7 +14,7 @@
 import AppButton from "@/components/AppButton.vue";
 import AppPopover from "@/components/AppPopover.vue";
 import { ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import AppDialog from "@/components/AppDialog.vue";
 import { post } from "@/api/client";
 import { useToasts } from "@/lib/toasts";

@@ -5,7 +5,7 @@ import AutoCompleteField, {
 } from "@/components/AutoCompleteField.vue";
 import AppInput from "@/components/AppInput.vue";
 import { ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { type LocationPick, type NominatimResult, useNominatim } from "@/composables/useNominatim";
 
 const { t } = useI18n();

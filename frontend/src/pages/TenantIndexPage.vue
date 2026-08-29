@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import ChapterGrid from "@/components/ChapterGrid.vue";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import LoginForm from "@/components/LoginForm.vue";

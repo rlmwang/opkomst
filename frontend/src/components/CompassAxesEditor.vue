@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppInput from "@/components/AppInput.vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import type { CompassAxisIn } from "@/api/types";
 
 /**

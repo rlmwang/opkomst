@@ -5,7 +5,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import AdSlot from "@/public_shared/AdSlot.vue";
 import SiteFooter from "@/components/SiteFooter.vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 // Auth bootstrapping lives in the router guard — it's the one
 // place that knows which routes need auth state. App.vue used to

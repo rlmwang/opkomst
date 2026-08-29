@@ -22,7 +22,7 @@ import AppTextarea from "@/components/AppTextarea.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
 import { computed, ref, watch } from "vue";
 import { onBeforeUnmount, onMounted } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
 import EmojiPicker from "@/components/EmojiPicker.vue";

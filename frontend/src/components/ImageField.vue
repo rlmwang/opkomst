@@ -2,7 +2,7 @@
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
 import { onBeforeUnmount, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { ApiError } from "@/api/client";
 import { useImageUpload } from "@/composables/useImageUpload";
 import { useToasts } from "@/lib/toasts";

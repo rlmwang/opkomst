@@ -1,4 +1,4 @@
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 import { resolveText } from "@/public_shared/bilingual";
 import type { Locale } from "@/public_shared/strings";

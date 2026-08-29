@@ -5,31 +5,22 @@
  */
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
+import { useTestMessages } from "@/__tests__/i18n-harness";
 
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "en",
-    messages: {
-      en: {
+useTestMessages("en", {
         chores: {
           edit: {
             weekLabel: "Week {n}",
             weekday: { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
           },
         },
-      },
-    },
-  });
-}
+      });
 
 function mountPicker(modelValue: number[], periodWeeks: number) {
   return mount(CycleGridPicker, {
     props: { modelValue, periodWeeks },
-    global: { plugins: [makeI18n()] },
   });
 }
 

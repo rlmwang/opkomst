@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import { computed, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import DetailHeaderCard from "@/components/DetailHeaderCard.vue";

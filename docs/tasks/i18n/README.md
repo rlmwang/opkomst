@@ -1,5 +1,10 @@
 # Taking the organiser app off vue-i18n
 
+**Landed.** The organiser critical path went from 100,321 gz to
+**81,907 gz**, a saving of 18,414. Nothing in `dist` mentions intlify,
+the `en` catalogue is still fetched on demand, and all 811 call sites
+are unchanged. What follows is the record.
+
 One task. `vue-i18n` and `@intlify` are **18,760 gz** in the organiser
 app's critical path, which is 19% of it, and the app uses three things
 from them.
@@ -94,6 +99,25 @@ reaches Sentry, and `i18n-*.js` is gone from the entry.
 
 `npx vue-tsc --noEmit`, `npx vitest run`, `npm run build`,
 `uv run python scripts/check_brand_tokens.py`.
+
+## What was not in the plan
+
+**`t(key, 1, { locale })`.** Six call sites in `EventFormPage` used
+vue-i18n's third argument to render a string in a named language rather
+than the one on screen: the event form seeds its default sign-up
+options in the *event's* language, which is not necessarily the
+organiser's. The `1` was a plural count that meant nothing.
+
+That is now `tIn(loc, key)`, which says what it does. It also exposed a
+bug the old call had: `en` is fetched, not bundled, so an organiser
+reading Dutch and creating an English event got Dutch defaults, silently,
+through the fallback. `EventFormPage` now asks for both catalogues at
+setup, which it can do without waiting because the switch that needs the
+second one is a click away.
+
+**`setCatalogue`.** Installing a catalogue is now a named export rather
+than a plugin method, which is what `loadLocale` uses and what the six
+tests use through `src/__tests__/i18n-harness.ts`.
 
 ## Worth knowing
 

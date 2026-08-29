@@ -8,16 +8,11 @@
  */
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
+import { useTestMessages } from "@/__tests__/i18n-harness";
 
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "en",
-    messages: {
-      en: {
+useTestMessages("en", {
         forms: {
           question: {
             promptPlaceholder: "Question",
@@ -39,10 +34,7 @@ function makeI18n() {
           },
         },
         common: { remove: "Remove" },
-      },
-    },
-  });
-}
+      });
 
 function mountEditor(draft: QuestionDraft) {
   let current = draft;
@@ -56,7 +48,6 @@ function mountEditor(draft: QuestionDraft) {
         wrapper.setProps({ modelValue: v });
       },
     },
-    global: { plugins: [makeI18n()] },
   });
   return { wrapper, get: () => current };
 }

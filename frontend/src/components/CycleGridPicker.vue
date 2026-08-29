@@ -10,7 +10,7 @@
  * the parent clamps out-of-range offsets when k shrinks (task 04 page).
  */
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 const props = defineProps<{
   modelValue: number[];

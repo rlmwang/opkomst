@@ -2,7 +2,7 @@
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
 import { onMounted, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useRoute, useRouter } from "vue-router";
 import { ApiError } from "@/api/client";
 import AppCard from "@/components/AppCard.vue";

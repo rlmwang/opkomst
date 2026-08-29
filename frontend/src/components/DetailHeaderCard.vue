@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import type { RouteLocationRaw } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
 import ShareStub from "@/components/ShareStub.vue";

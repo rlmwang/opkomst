@@ -780,13 +780,13 @@
     "sendNow": {
       "reminder": {
         "title": "Reminder delivery",
-        "explainer": "@:appName normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
+        "explainer": "{appName} normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
         "button": "Send reminders now",
         "confirmTitle": "Send reminder now?"
       },
       "feedback": {
         "title": "Feedback delivery",
-        "explainer": "@:appName normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
+        "explainer": "{appName} normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
         "button": "Send feedback emails now",
         "confirmTitle": "Send feedback email now?"
       },

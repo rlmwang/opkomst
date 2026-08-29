@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
 import LoginForm from "@/components/LoginForm.vue";
 import PublicIdentity from "@/public_shared/PublicIdentity.vue";

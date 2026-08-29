@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import AppButton from "@/components/AppButton.vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 
 defineProps<{
   /** The current items. */

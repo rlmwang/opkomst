@@ -4,7 +4,7 @@ import AutoCompleteField, {
   type AutoCompleteOptionSelectEvent,
 } from "@/components/AutoCompleteField.vue";
 import { ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import type { Chapter } from "@/api/types";
 import { get } from "@/api/client";
 import AppIcon, { type IconName } from "@/components/AppIcon.vue";

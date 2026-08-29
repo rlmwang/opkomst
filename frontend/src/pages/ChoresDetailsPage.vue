@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import { computed, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import { useQueryClient } from "@tanstack/vue-query";
 import AppCard from "@/components/AppCard.vue";

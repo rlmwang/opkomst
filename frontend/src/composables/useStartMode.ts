@@ -16,7 +16,7 @@
  */
 
 import { computed, ref, type Ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useRouter } from "vue-router";
 import { ApiError, post } from "@/api/client";
 import { isPersonalApp } from "@/lib/branding";

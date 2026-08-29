@@ -4,7 +4,7 @@ import AppInput from "@/components/AppInput.vue";
 import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
+import { loadLocale, useI18n } from "@/i18n";
 import { useRoute, useRouter } from "vue-router";
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
 import DatePicker from "@/components/DatePicker.vue";
@@ -33,7 +33,7 @@ import { useAuthStore } from "@/stores/auth";
 
 const props = defineProps<{ eventId?: string }>();
 
-const { t, te, locale } = useI18n();
+const { t, tIn, te, locale } = useI18n();
 const router = useRouter();
 const route = useRoute();
 const toasts = useToasts();
@@ -149,18 +149,25 @@ const wireSpanWeeks = computed<number | null>(() => {
 // the event's language, so the seeded options should match — picking
 // English in the UI shouldn't lock the form to English options when
 // the organiser is creating a Dutch-language event.
+// Both catalogues, because the defaults are seeded in the *event's*
+// language and the organiser may be reading the other one. Only the one
+// on screen is loaded by the time this page mounts, and the switch that
+// needs the other is a click away.
+void loadLocale("nl");
+void loadLocale("en");
+
 function defaultSources(loc: "nl" | "en"): string[] {
   return [
-    t("event.sourceDefaults.wordOfMouth", 1, { locale: loc }),
-    t("event.sourceDefaults.socialMedia", 1, { locale: loc }),
-    t("event.sourceDefaults.flyer", 1, { locale: loc }),
-    t("event.sourceDefaults.poster", 1, { locale: loc }),
+    tIn(loc, "event.sourceDefaults.wordOfMouth"),
+    tIn(loc, "event.sourceDefaults.socialMedia"),
+    tIn(loc, "event.sourceDefaults.flyer"),
+    tIn(loc, "event.sourceDefaults.poster"),
   ];
 }
 function defaultHelp(loc: "nl" | "en"): string[] {
   return [
-    t("event.helpDefaults.setup", 1, { locale: loc }),
-    t("event.helpDefaults.teardown", 1, { locale: loc }),
+    tIn(loc, "event.helpDefaults.setup"),
+    tIn(loc, "event.helpDefaults.teardown"),
   ];
 }
 function arraysEqual(a: string[], b: string[]): boolean {

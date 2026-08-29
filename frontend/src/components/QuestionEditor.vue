@@ -4,7 +4,7 @@ import AppInput from "@/components/AppInput.vue";
 import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import EditableList from "@/components/EditableList.vue";
 import type { Pole } from "@/api/types";
 

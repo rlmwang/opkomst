@@ -6,7 +6,7 @@
  */
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createI18n } from "vue-i18n";
+import { useTestMessages } from "@/__tests__/i18n-harness";
 
 import RecoverLinksPill from "@/components/RecoverLinksPill.vue";
 import { tooltip } from "@/lib/tooltip";
@@ -15,12 +15,7 @@ import * as client from "@/api/client";
 vi.mock("@/api/client", () => ({ post: vi.fn(async () => ({ edit_token: "tok123" })) }));
 vi.mock("@/lib/toasts", () => ({ useToasts: () => ({ success: vi.fn(), error: vi.fn() }) }));
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "en",
-    messages: {
-      en: {
+useTestMessages("en", {
         common: { loading: "Loading…", cancel: "Cancel" },
         recoverLink: {
           open: "View signups",
@@ -35,10 +30,7 @@ function makeI18n() {
           copied: "Link copied.",
           failed: "Copying failed.",
         },
-      },
-    },
-  });
-}
+      });
 
 const rows = [
   { id: "a", name: "Sam", recoveredAt: null },
@@ -55,7 +47,7 @@ function mountPill() {
       recoverPath: (id: string) => `/api/x/${id}/edit-link`,
       publicUrl: (tok: string) => `https://pub/e/slug?s=${tok}`,
     },
-    global: { plugins: [makeI18n()], directives: { tooltip } },
+    global: { directives: { tooltip } },
   });
 }
 

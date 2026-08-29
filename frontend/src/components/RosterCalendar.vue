@@ -8,7 +8,7 @@
  * such day opens a popover with a per-shift volunteer picker.
  */
 import { computed, ref } from "vue";
-import { useI18n } from "vue-i18n";
+import { useI18n } from "@/i18n";
 import { useQueryClient } from "@tanstack/vue-query";
 import RosterCalendarView, { type RosterAssignment, type RosterDay } from "./RosterCalendarView.vue";
 import { post } from "@/api/client";
