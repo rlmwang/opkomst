@@ -1,14 +1,14 @@
 /**
- * Unit tests for the ``createEntityCrud`` factory: verifies each
- * generated hook hits the right URL/verb and that the list queries
- * carry the chapter-scoped query keys. The HTTP client is mocked.
+ * The ``createEntityCrud`` factory: each generated call hits the right
+ * URL and verb, and the list queries carry the chapter-scoped keys. The
+ * HTTP client is mocked.
  */
-
-import { QueryClient, VUE_QUERY_CLIENT } from "@tanstack/vue-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type App, createApp, defineComponent, h } from "vue";
+
 import * as apiClient from "@/api/client";
-import { createEntityCrud } from "@/composables/createEntityCrud";
+import { createEntityCrud } from "@/composables/createEntityCrud.svelte";
+import { queryClient } from "@/lib/query-client";
+import { inEffect } from "@/__tests__/effect-root.svelte";
 
 vi.mock("@/api/client", () => ({
   get: vi.fn(),
@@ -22,102 +22,79 @@ const mockPost = vi.mocked(apiClient.post);
 const mockPut = vi.mocked(apiClient.put);
 const mockDel = vi.mocked(apiClient.del);
 
-let app: App | null = null;
-let queryClient: QueryClient;
-
-function withSetup<T>(composable: () => T): T {
-  let result!: T;
-  const Harness = defineComponent({
-    setup() {
-      result = composable();
-      return () => h("div");
-    },
-  });
-  app = createApp(Harness);
-  app.provide(VUE_QUERY_CLIENT, queryClient);
-  app.mount(document.createElement("div"));
-  return result;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
 });
 
 afterEach(() => {
-  app?.unmount();
-  app = null;
   queryClient.clear();
 });
 
-// A throwaway resource so the test is independent of any real entity.
+// A throwaway resource, so the test is independent of any real entity.
 const crud = createEntityCrud<{ id: string }, { id: string }, { name: string }>({
   resource: "widgets",
 });
 
 describe("createEntityCrud", () => {
-  it("useList fetches the base URL and keys on [resource, active, {chapter}]", async () => {
+  it("list fetches the base URL", async () => {
     mockGet.mockResolvedValueOnce([]);
-    const q = withSetup(() => crud.useList());
-    await q.refetch();
+    await inEffect(async () => {
+      await crud.list().refetch();
+    });
     expect(mockGet).toHaveBeenCalledWith("/api/v1/widgets");
   });
 
-  it("useList appends chapter_id when filtered", async () => {
+  it("list appends chapter_id when filtered", async () => {
     mockGet.mockResolvedValueOnce([]);
-    const q = withSetup(() => crud.useList({ chapterId: "ch1" }));
-    await q.refetch();
+    await inEffect(async () => {
+      await crud.list({ chapterId: () => "ch1" }).refetch();
+    });
     expect(mockGet).toHaveBeenCalledWith("/api/v1/widgets?chapter_id=ch1");
   });
 
-  it("useArchived fetches the /archived URL", async () => {
+  it("archived fetches the /archived URL", async () => {
     mockGet.mockResolvedValueOnce([]);
-    const q = withSetup(() => crud.useArchived());
-    await q.refetch();
+    await inEffect(async () => {
+      await crud.archived().refetch();
+    });
     expect(mockGet).toHaveBeenCalledWith("/api/v1/widgets/archived");
   });
 
-  it("useSingle fetches /{id}", async () => {
+  it("single fetches /{id}", async () => {
     mockGet.mockResolvedValueOnce({ id: "w1" });
-    const q = withSetup(() => crud.useSingle("w1"));
-    await q.refetch();
+    await inEffect(async () => {
+      await crud.single(() => "w1").refetch();
+    });
     expect(mockGet).toHaveBeenCalledWith("/api/v1/widgets/w1");
   });
 
-  it("useCreate POSTs the base URL with the payload", async () => {
+  it("create posts the base URL with the payload", async () => {
     mockPost.mockResolvedValueOnce({ id: "w1" });
-    const m = withSetup(() => crud.useCreate());
-    await m.mutateAsync({ name: "X" });
+    await inEffect(() => crud.create().run({ name: "X" }));
     expect(mockPost).toHaveBeenCalledWith("/api/v1/widgets", { name: "X" });
   });
 
-  it("useUpdate PUTs /{id} with the payload (id-keyed vars)", async () => {
+  it("update puts /{id} with the payload", async () => {
     mockPut.mockResolvedValueOnce({ id: "w1" });
-    const m = withSetup(() => crud.useUpdate());
-    await m.mutateAsync({ id: "w1", payload: { name: "Y" } });
+    await inEffect(() => crud.update().run({ id: "w1", payload: { name: "Y" } }));
     expect(mockPut).toHaveBeenCalledWith("/api/v1/widgets/w1", { name: "Y" });
   });
 
-  it("useArchive POSTs /{id}/archive", async () => {
+  it("archive posts /{id}/archive", async () => {
     mockPost.mockResolvedValueOnce({ id: "w1" });
-    const m = withSetup(() => crud.useArchive());
-    await m.mutateAsync("w1");
+    await inEffect(() => crud.archive().run("w1"));
     expect(mockPost).toHaveBeenCalledWith("/api/v1/widgets/w1/archive");
   });
 
-  it("useRestore POSTs /{id}/restore", async () => {
+  it("restore posts /{id}/restore", async () => {
     mockPost.mockResolvedValueOnce({ id: "w1" });
-    const m = withSetup(() => crud.useRestore());
-    await m.mutateAsync("w1");
+    await inEffect(() => crud.restore().run("w1"));
     expect(mockPost).toHaveBeenCalledWith("/api/v1/widgets/w1/restore");
   });
 
-  it("useDelete DELETEs /{id}", async () => {
+  it("remove deletes /{id}", async () => {
     mockDel.mockResolvedValueOnce(undefined as never);
-    const m = withSetup(() => crud.useDelete());
-    await m.mutateAsync("w1");
+    await inEffect(() => crud.remove().run("w1"));
     expect(mockDel).toHaveBeenCalledWith("/api/v1/widgets/w1");
   });
 });

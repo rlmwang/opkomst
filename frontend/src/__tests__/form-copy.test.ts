@@ -24,7 +24,12 @@ import en from "@/locales/en.json";
 import nl from "@/locales/nl.json";
 
 /** The pages that share their copy across the products. */
-const PAGES = ["FormListPage.vue", "ArchivedFormsPage.vue", "FormEditPage.vue", "FormDetailsPage.vue"];
+const PAGES = [
+  "FormListPage.svelte",
+  "ArchivedFormsPage.svelte",
+  "FormEditPage.svelte",
+  "FormDetailsPage.svelte",
+];
 
 /** Read a page's source once, for the assertions that are about the
  *  page rather than about a key. */
@@ -126,12 +131,32 @@ const ARCHIVED_LIST_KEYS = [
   "archived.restored",
 ];
 
+/** The list and the archive are one screen each, shared by all four
+ *  resources: the page hands the shell a ``copy`` that prefixes, and
+ *  the shell asks for the bare name. So the keys those two resolve are
+ *  read there, under the prefix the forms pages give them. */
+const SHELLS: [string, string][] = [
+  ["src/components/EntityListPage.svelte", "list."],
+  ["src/components/ArchivedListPage.svelte", "archived."],
+  // The archive button's confirm and its two toasts are the list
+  // screen's wiring rather than its markup, and are worded the same
+  // way.
+  ["src/composables/useEntityList.svelte.ts", "list."],
+];
+
 function keysUsed(): Set<string> {
   const found = new Set<string>(ARCHIVED_LIST_KEYS);
   for (const page of PAGES) {
     // Vitest runs with the frontend package root as cwd.
     const src = readFileSync(resolve(process.cwd(), "src/pages", page), "utf8");
     for (const m of src.matchAll(/L\(\s*['"]([\w.]+)['"]/g)) found.add(m[1]);
+    // A forms page hands the shell a ``copy`` that prefixes with
+    // ``list.``, and asks it for a few names itself.
+    for (const m of src.matchAll(/copy\(\s*["']([\w.]+)["']/g)) found.add("list." + m[1]);
+  }
+  for (const [file, prefix] of SHELLS) {
+    const src = readFileSync(resolve(process.cwd(), file), "utf8");
+    for (const m of src.matchAll(/copy\(\s*["']([\w.]+)["']/g)) found.add(prefix + m[1]);
   }
   return found;
 }
@@ -143,7 +168,7 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
     if (entry === "node_modules" || entry === "__tests__") continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) sourceFiles(path, found);
-    else if (/\.(vue|ts)$/.test(entry)) found.push(path);
+    else if (/\.(svelte|ts)$/.test(entry)) found.push(path);
   }
   return found;
 }
@@ -202,9 +227,9 @@ describe("shared organiser-page copy", () => {
     // back on the kompas page carrying a question kind a kompas cannot
     // ask. Pinned here because the next product would reintroduce it
     // silently.
-    const src = pageSource("FormEditPage.vue");
-    const key = src.match(/const draftKey = computed\(\(\) => (.+)\);/);
-    expect(key, "draftKey moved").not.toBeNull();
+    const src = pageSource("FormEditPage.svelte");
+    const key = src.match(/key: \(\) => (.+),/);
+    expect(key, "the draft key moved").not.toBeNull();
     expect(key![1]).toContain("api.resource");
   });
 
