@@ -88,7 +88,7 @@ function slotTime(s: { start_time?: string | null; end_time?: string | null }): 
 }
 
 function nameOf(s: DatepollSubmission): string {
-  return s.display_name ?? t("datepolls.details.anonymous");
+  return s.display_name ?? t("datepoll.details.anonymous");
 }
 
 // Respondents who left a note — the comments section pairs each note with
@@ -106,15 +106,15 @@ const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" 
 const maxTotal = computed(() => Math.max(1, ...(summary.value?.slots ?? []).map((s) => s.yes + s.maybe + s.no)));
 function slotSegments(s: { yes: number; maybe: number; no: number }): BarSegment[] {
   return [
-    { value: s.yes, variant: "positive", title: `${s.yes} ${t("datepolls.details.yes")}` },
-    { value: s.maybe, variant: "warning", title: `${s.maybe} ${t("datepolls.details.maybe")}` },
-    { value: s.no, variant: "neutral", title: `${s.no} ${t("datepolls.details.no")}` },
+    { value: s.yes, variant: "positive", title: `${s.yes} ${t("datepoll.details.yes")}` },
+    { value: s.maybe, variant: "warning", title: `${s.maybe} ${t("datepoll.details.maybe")}` },
+    { value: s.no, variant: "neutral", title: `${s.no} ${t("datepoll.details.no")}` },
   ];
 }
 const legendItems = computed<LegendItem[]>(() => [
-  { variant: "positive", label: t("datepolls.details.yes") },
-  { variant: "warning", label: t("datepolls.details.maybe") },
-  { variant: "neutral", label: t("datepolls.details.no") },
+  { variant: "positive", label: t("datepoll.details.yes") },
+  { variant: "warning", label: t("datepoll.details.maybe") },
+  { variant: "neutral", label: t("datepoll.details.no") },
 ]);
 
 // The proposed-dates calendar opens on the month of the earliest slot (or
@@ -153,7 +153,7 @@ const rankById = computed<Record<string, number>>(() => {
 });
 function rankLabel(id: string): string {
   const r = rankById.value[id];
-  return r ? t(`datepolls.details.rank${r}`) : "";
+  return r ? t(`datepoll.details.rank${r}`) : "";
 }
 
 async function exportCsv() {
@@ -162,10 +162,10 @@ async function exportCsv() {
     const rows = await fetchDatepollSubmissions(props.datepollId);
     const slots = summary.value.slots;
     const header = [
-      t("datepolls.details.csvName"),
-      t("datepolls.details.csvSubmittedAt"),
+      t("datepoll.details.csvName"),
+      t("datepoll.details.csvSubmittedAt"),
       ...slots.map(slotHeading),
-      t("datepolls.details.csvNote"),
+      t("datepoll.details.csvNote"),
     ];
     const body = rows.map((s) => [
       nameOf(s),
@@ -175,7 +175,7 @@ async function exportCsv() {
     ]);
     downloadCsv(`${filenameSlug(lt(poll.value.name_nl, poll.value.name_en) ?? "")}-${poll.value.id}.csv`, [header, ...body]);
   } catch {
-    toasts.error(t("datepolls.details.csvFail"));
+    toasts.error(t("datepoll.details.csvFail"));
   }
 }
 </script>
@@ -183,13 +183,13 @@ async function exportCsv() {
 <template>
   <DetailsPageShell :loaded="loaded" :skeleton-rows="4">
     <AppCard v-if="notFound" :stack="false">
-      <h2>{{ t("datepolls.details.notFoundTitle") }}</h2>
-      <p class="muted">{{ t("datepolls.details.notFoundBody") }}</p>
-      <router-link to="/datepolls" class="back-link">{{ t("datepolls.details.backToList") }}</router-link>
+      <h2>{{ t("datepoll.details.notFoundTitle") }}</h2>
+      <p class="muted">{{ t("datepoll.details.notFoundBody") }}</p>
+      <router-link to="/datepoll" class="back-link">{{ t("datepoll.details.backToList") }}</router-link>
     </AppCard>
 
     <AppCard v-else-if="otherError" :stack="false">
-      <p>{{ t("datepolls.details.loadFailed") }}</p>
+      <p>{{ t("datepoll.details.loadFailed") }}</p>
     </AppCard>
 
     <template v-else-if="poll">
@@ -201,7 +201,7 @@ async function exportCsv() {
         :description-html="lt(poll.description_nl, poll.description_en)"
         :qr-src="datepollQrUrl(poll.slug)"
         :public-url="publicDatepollUrl(poll.slug)"
-        :edit-to="`/datepolls/${poll.id}/edit`"
+        :edit-to="`/datepoll/${poll.id}/edit`"
         @copy-qr="copyQr(poll.slug)"
         @copy-link="copyLink(poll.slug)"
       >
@@ -222,27 +222,27 @@ async function exportCsv() {
            "Taken" card listing the defined chores). -->
       <AppCard v-if="poll.slots?.length">
         <div class="summary-header">
-          <h2>{{ t("datepolls.details.datesHeading") }}</h2>
+          <h2>{{ t("datepoll.details.datesHeading") }}</h2>
         </div>
         <MonthCalendar
           v-model:month="datesMonth"
           :slots="poll.slots ?? []"
           :locale="locale"
-          :prev-label="t('datepolls.details.prevMonth')"
-          :next-label="t('datepolls.details.nextMonth')"
+          :prev-label="t('datepoll.details.prevMonth')"
+          :next-label="t('datepoll.details.nextMonth')"
         />
       </AppCard>
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("datepolls.details.resultsTitle") }}</h2>
+          <h2>{{ t("datepoll.details.resultsTitle") }}</h2>
           <div class="header-actions">
             <AppButton
-              :label="t('datepolls.details.exportCsv')"
+              :label="t('datepoll.details.exportCsv')"
               size="small"
               severity="secondary"
               text
-              icon="pi pi-download"
+              icon="download"
               :disabled="!summary || summary.submission_count === 0"
               @click="exportCsv"
             />
@@ -250,16 +250,16 @@ async function exportCsv() {
               v-if="summary && poll"
               :count="summary.submission_count"
               :cap="auth.user?.participant_cap ?? null"
-              :label="t('datepolls.details.responses')"
+              :label="t('datepoll.details.responses')"
               :load-rows="recoverRows"
-              :recover-path="(id: string) => `/api/v1/datepolls/${props.datepollId}/submissions/${id}/edit-link`"
+              :recover-path="(id: string) => `/api/v1/datepoll/${props.datepollId}/submissions/${id}/edit-link`"
               :public-url="(tok: string) => `${publicDatepollUrl(poll!.slug)}?s=${tok}`"
             />
           </div>
         </div>
 
         <p v-if="!summary || summary.submission_count === 0" class="muted">
-          {{ t("datepolls.details.noResponsesYet") }}
+          {{ t("datepoll.details.noResponsesYet") }}
         </p>
 
         <template v-else>
@@ -281,7 +281,7 @@ async function exportCsv() {
           <!-- Submission notes (one optional note per respondent), each led
                by the (pseudo)name that wrote it. -->
           <div v-if="notedSubs.length" class="notes-section">
-            <h3>{{ t("datepolls.details.notesTitle") }}</h3>
+            <h3>{{ t("datepoll.details.notesTitle") }}</h3>
             <ul class="comments">
               <li v-for="sub in notedSubs" :key="sub.submission_id">
                 <span class="comment-name">{{ nameOf(sub) }}</span>
@@ -295,7 +295,7 @@ async function exportCsv() {
             <table class="grid">
               <thead>
                 <tr>
-                  <th class="who">{{ t("datepolls.details.respondent") }}</th>
+                  <th class="who">{{ t("datepoll.details.respondent") }}</th>
                   <th v-for="s in summary.slots" :key="s.id" class="slot-th">
                     <div>{{ shortDate(s.on_date) }}</div>
                     <div v-if="slotTime(s)" class="th-time">{{ slotTime(s) }}</div>

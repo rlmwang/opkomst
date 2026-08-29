@@ -298,6 +298,6 @@ async function withdraw() {
 /* --- Choice lists --- */
 
 /* --- Submit --- */
-/* .submit-row (right-aligned action row) comes from ``forms.css``. */
+/* .submit-row (right-aligned action row) comes from ``form.css``. */
 /* .btn-primary comes from ``src/public_shared/forms.css``. */
 </style>

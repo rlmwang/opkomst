@@ -47,7 +47,7 @@ const volunteerCount = computed(() => roster.value?.volunteer_count ?? 0);
 
 // Rows for the volunteers pill's recovery popover.
 async function recoverRows(): Promise<RecoverableRow[]> {
-  const vols = await get<VolunteerSummary[]>(`/api/v1/chores/${props.rosterId}/volunteers`);
+  const vols = await get<VolunteerSummary[]>(`/api/v1/chore/${props.rosterId}/volunteers`);
   return vols.map((v) => ({ id: v.id, name: v.display_name, recoveredAt: v.link_recovered_at ?? null }));
 }
 
@@ -68,12 +68,12 @@ function openFoldIn() {
 async function confirmFoldIn() {
   rebalancing.value = true;
   try {
-    await post(`/api/v1/chores/${props.rosterId}/rebalance`);
-    await queryClient.invalidateQueries({ queryKey: ["chores"] });
+    await post(`/api/v1/chore/${props.rosterId}/rebalance`);
+    await queryClient.invalidateQueries({ queryKey: ["chore"] });
     showFoldIn.value = false;
-    toasts.success(t("chores.details.foldInDone"));
+    toasts.success(t("chore.details.foldInDone"));
   } catch {
-    toasts.error(t("chores.details.foldInFailed"));
+    toasts.error(t("chore.details.foldInFailed"));
   } finally {
     rebalancing.value = false;
   }
@@ -100,12 +100,12 @@ const schedule = computed(() => scheduleQuery.data.value ?? null);
 type VolRow = (typeof accountability.value)[number]["volunteers"][number];
 function volSegments(v: VolRow): BarSegment[] {
   return [
-    { value: v.regular_turns, variant: "positive", title: t("chores.details.regularCount", { n: v.regular_turns }) },
-    { value: v.picked_up, variant: "accent", title: t("chores.details.pickedUpCount", { n: v.picked_up }) },
-    { value: v.deferred, variant: "warning", title: t("chores.details.deferredCount", { n: v.deferred }) },
+    { value: v.regular_turns, variant: "positive", title: t("chore.details.regularCount", { n: v.regular_turns }) },
+    { value: v.picked_up, variant: "accent", title: t("chore.details.pickedUpCount", { n: v.picked_up }) },
+    { value: v.deferred, variant: "warning", title: t("chore.details.deferredCount", { n: v.deferred }) },
     // Grey, not red: the bar already uses green (own turns), so red would
     // be a red/green pair that colour-blind users can't separate.
-    { value: v.missed, variant: "neutral", title: t("chores.details.missedCount", { n: v.missed }) },
+    { value: v.missed, variant: "neutral", title: t("chore.details.missedCount", { n: v.missed }) },
   ];
 }
 function barLabel(v: VolRow): string {
@@ -115,28 +115,28 @@ function barLabel(v: VolRow): string {
     .join(", ");
 }
 const legendItems = computed<LegendItem[]>(() => [
-  { variant: "positive", label: t("chores.details.legend.regular") },
-  { variant: "accent", label: t("chores.details.legend.pickedUp") },
-  { variant: "warning", label: t("chores.details.legend.deferred") },
-  { variant: "neutral", label: t("chores.details.legend.missed") },
+  { variant: "positive", label: t("chore.details.legend.regular") },
+  { variant: "accent", label: t("chore.details.legend.pickedUp") },
+  { variant: "warning", label: t("chore.details.legend.deferred") },
+  { variant: "neutral", label: t("chore.details.legend.missed") },
 ]);
 
 const dayLabels = computed(() => [
-  t("chores.edit.weekday.mon"),
-  t("chores.edit.weekday.tue"),
-  t("chores.edit.weekday.wed"),
-  t("chores.edit.weekday.thu"),
-  t("chores.edit.weekday.fri"),
-  t("chores.edit.weekday.sat"),
-  t("chores.edit.weekday.sun"),
+  t("chore.edit.weekday.mon"),
+  t("chore.edit.weekday.tue"),
+  t("chore.edit.weekday.wed"),
+  t("chore.edit.weekday.thu"),
+  t("chore.edit.weekday.fri"),
+  t("chore.edit.weekday.sat"),
+  t("chore.edit.weekday.sun"),
 ]);
 
 const cadence = computed(() => {
   const r = roster.value;
   if (!r) return "";
   return r.period_weeks <= 1
-    ? t("chores.recurrence.weekly")
-    : t("chores.recurrence.everyKWeeks", { k: r.period_weeks });
+    ? t("chore.recurrence.weekly")
+    : t("chore.recurrence.everyKWeeks", { k: r.period_weeks });
 });
 
 
@@ -144,7 +144,7 @@ function dateWindow(): string {
   const r = roster.value;
   if (!r) return "";
   const start = formatDate(r.starts_on, locale.value);
-  if (!r.ends_on) return t("chores.details.fromDate", { date: start });
+  if (!r.ends_on) return t("chore.details.fromDate", { date: start });
   return `${start} – ${formatDate(r.ends_on, locale.value)}`;
 }
 </script>
@@ -160,7 +160,7 @@ function dateWindow(): string {
         :description-html="lt(roster.description_nl, roster.description_en)"
         :qr-src="choreQrUrl(roster.slug)"
         :public-url="publicChoreUrl(roster.slug)"
-        :edit-to="`/chores/${roster.id}/edit`"
+        :edit-to="`/chore/${roster.id}/edit`"
         @copy-qr="copyQr(roster.slug)"
         @copy-link="copyLink(roster.slug)"
       >
@@ -171,9 +171,9 @@ function dateWindow(): string {
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("chores.details.choresHeading") }}</h2>
+          <h2>{{ t("chore.details.choresHeading") }}</h2>
         </div>
-        <p v-if="choreItems.length === 0" class="muted">{{ t("chores.details.noChores") }}</p>
+        <p v-if="choreItems.length === 0" class="muted">{{ t("chore.details.noChores") }}</p>
         <ul v-else class="chore-list">
           <li v-for="c in choreItems" :key="c.id" class="chore-item">
             <div class="chore-head">
@@ -182,11 +182,11 @@ function dateWindow(): string {
                 {{ c.name }}
               </span>
               <span v-if="c.people_per_shift > 1" class="people-chip">
-                {{ t("chores.details.peoplePerShift", { n: c.people_per_shift }) }}
+                {{ t("chore.details.peoplePerShift", { n: c.people_per_shift }) }}
               </span>
             </div>
             <p v-if="c.description" class="muted chore-desc">{{ c.description }}</p>
-            <p v-if="c.cycle_slots.length === 0" class="muted chore-days">{{ t("chores.details.noDays") }}</p>
+            <p v-if="c.cycle_slots.length === 0" class="muted chore-days">{{ t("chore.details.noDays") }}</p>
             <WeekdayGrid
               v-else
               :cycle-slots="c.cycle_slots"
@@ -199,18 +199,18 @@ function dateWindow(): string {
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("chores.details.volunteersHeading") }}</h2>
+          <h2>{{ t("chore.details.volunteersHeading") }}</h2>
           <RecoverLinksPill
             v-if="volunteerCount && roster"
             :count="volunteerCount"
             :cap="auth.user?.participant_cap ?? null"
-            :label="t('chores.details.volunteersLabel')"
+            :label="t('chore.details.volunteersLabel')"
             :load-rows="recoverRows"
-            :recover-path="(id: string) => `/api/v1/chores/${props.rosterId}/volunteers/${id}/edit-link`"
+            :recover-path="(id: string) => `/api/v1/chore/${props.rosterId}/volunteers/${id}/edit-link`"
             :public-url="(tok: string) => `${publicChoreUrl(roster!.slug)}?s=${tok}`"
           />
         </div>
-        <p v-if="volunteerCount === 0" class="muted">{{ t("chores.details.volunteersEmpty") }}</p>
+        <p v-if="volunteerCount === 0" class="muted">{{ t("chore.details.volunteersEmpty") }}</p>
         <template v-else>
           <TallyLegend :items="legendItems" />
           <!-- One section per chore; each row is just the volunteer + their
@@ -220,15 +220,15 @@ function dateWindow(): string {
               <span v-if="c.emoji" class="chore-emoji">{{ c.emoji }}</span>{{ c.chore_name }}
             </h3>
             <p v-if="c.volunteers.length === 0" class="muted chore-section-empty">
-              {{ t("chores.details.choreNoVolunteers") }}
+              {{ t("chore.details.choreNoVolunteers") }}
             </p>
             <ul v-else class="vol-tally">
               <li v-for="v in c.volunteers" :key="v.id" class="vol-row">
-                <span class="vol-name">{{ v.display_name || t("chores.details.anonymous") }}</span>
+                <span class="vol-name">{{ v.display_name || t("chore.details.anonymous") }}</span>
                 <!-- A newcomer with no turns of this chore yet: show the
                      "joining" note in place of the (empty) bar. -->
                 <span v-if="v.pending && horizonEdge" class="vol-joining">
-                  {{ t("chores.details.joining", { date: formatDate(horizonEdge, locale) }) }}
+                  {{ t("chore.details.joining", { date: formatDate(horizonEdge, locale) }) }}
                 </span>
                 <SegmentedBar v-else :segments="volSegments(v)" :aria-label="barLabel(v)" />
               </li>
@@ -239,18 +239,18 @@ function dateWindow(): string {
 
       <AppCard>
         <div class="summary-header">
-          <h2>{{ t("chores.details.scheduleHeading") }}</h2>
+          <h2>{{ t("chore.details.scheduleHeading") }}</h2>
           <AppButton
             v-if="hasPending"
-            :label="t('chores.details.foldIn')"
-            icon="pi pi-user-plus"
+            :label="t('chore.details.foldIn')"
+            icon="user-plus"
             size="small"
             severity="secondary"
             @click="openFoldIn"
           />
         </div>
         <p v-if="schedule" class="muted stats-line">
-          {{ t("chores.details.stats", {
+          {{ t("chore.details.stats", {
             scheduled: schedule.stats.scheduled,
             done: schedule.stats.done,
             missed: schedule.stats.missed,
@@ -259,8 +259,8 @@ function dateWindow(): string {
         </p>
         <template v-if="roster?.activated_at">
           <div class="cal-legend muted">
-            <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
-            <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
+            <span><i class="cal-swatch locked" />{{ t("chore.details.calLocked") }}</span>
+            <span><i class="cal-swatch tentative" />{{ t("chore.details.calTentative") }}</span>
             <span v-for="c in choreItems" :key="c.id" class="cal-chore">
               <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
             </span>
@@ -269,22 +269,22 @@ function dateWindow(): string {
             :roster-id="props.rosterId"
             reassignable
             :locale="locale"
-            :open-label="t('chores.details.openShift')"
-            :anon-label="t('chores.details.anonymous')"
-            :prev-label="t('chores.details.prevMonth')"
-            :next-label="t('chores.details.nextMonth')"
+            :open-label="t('chore.details.openShift')"
+            :anon-label="t('chore.details.anonymous')"
+            :prev-label="t('chore.details.prevMonth')"
+            :next-label="t('chore.details.nextMonth')"
           />
         </template>
-        <p v-else class="muted">{{ t("chores.details.scheduleEmpty") }}</p>
+        <p v-else class="muted">{{ t("chore.details.scheduleEmpty") }}</p>
       </AppCard>
     </template>
 
-    <AppDialog v-model:visible="showFoldIn" :header="t('chores.details.foldInTitle')" width="560px">
-      <p class="muted">{{ t("chores.details.foldInIntro") }}</p>
+    <AppDialog v-model:visible="showFoldIn" :header="t('chore.details.foldInTitle')" width="560px">
+      <p class="muted">{{ t("chore.details.foldInIntro") }}</p>
       <div class="cal-legend muted">
-        <span><i class="cal-swatch locked" />{{ t("chores.details.calLocked") }}</span>
-        <span><i class="cal-swatch tentative" />{{ t("chores.details.calTentative") }}</span>
-        <span><i class="cal-swatch changed" />{{ t("chores.details.calChanged") }}</span>
+        <span><i class="cal-swatch locked" />{{ t("chore.details.calLocked") }}</span>
+        <span><i class="cal-swatch tentative" />{{ t("chore.details.calTentative") }}</span>
+        <span><i class="cal-swatch changed" />{{ t("chore.details.calChanged") }}</span>
         <span v-for="c in choreItems" :key="c.id" class="cal-chore">
           <span v-if="c.emoji" class="cal-chore-emoji">{{ c.emoji }}</span>{{ c.name }}
         </span>
@@ -294,11 +294,11 @@ function dateWindow(): string {
         preview
         :enabled="showFoldIn"
         :locale="locale"
-        :open-label="t('chores.details.openShift')"
-        :anon-label="t('chores.details.anonymous')"
-        :prev-label="t('chores.details.prevMonth')"
-        :next-label="t('chores.details.nextMonth')"
-        :no-change-label="t('chores.details.foldInNoneMonth')"
+        :open-label="t('chore.details.openShift')"
+        :anon-label="t('chore.details.anonymous')"
+        :prev-label="t('chore.details.prevMonth')"
+        :next-label="t('chore.details.nextMonth')"
+        :no-change-label="t('chore.details.foldInNoneMonth')"
       />
       <template #footer>
         <AppButton
@@ -310,7 +310,7 @@ function dateWindow(): string {
           @click="showFoldIn = false"
         />
         <AppButton
-          :label="t('chores.details.foldInConfirm')"
+          :label="t('chore.details.foldInConfirm')"
           size="small"
           :loading="rebalancing"
           @click="confirmFoldIn"

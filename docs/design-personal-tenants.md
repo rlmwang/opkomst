@@ -13,7 +13,7 @@ second code path.
 
 | | organisation | personal |
 |---|---|---|
-| URL | `/{slug}/events` | `/events` |
+| URL | `/{slug}/event` | `/event` |
 | brand | `brands/{slug}/` | the house brand |
 | people | many, admin-approved | exactly one |
 | chapters | yes | no |

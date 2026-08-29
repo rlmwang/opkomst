@@ -246,7 +246,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
 
         Marked hererather than read from a stored number: the answers
         are what is kept, and an organiser who fixes a key or changes a
-        weight means every score to follow (``services/quizzes``). The
+        weight means every score to follow (``services/quiz``). The
         rows are the answers this person actually gave, so the list and
         the score cannot disagree about what was in the quiz."""
         questions = {q.id: q for q in _form_questions(db, form.id)}
@@ -486,14 +486,14 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
 
 
 router = build_router(
-    "survey", prefix="/api/v1/forms", tag="forms", surface="public_form", noun="form", public_prefix="f"
+    "survey", prefix="/api/v1/form", tag="forms", surface="public_form", noun="form", public_prefix="f"
 )
 quiz_router = build_router(
-    "quiz", prefix="/api/v1/quizzes", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
+    "quiz", prefix="/api/v1/quiz", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
 )
 compass_router = build_router(
     "compass",
-    prefix="/api/v1/compasses",
+    prefix="/api/v1/compass",
     tag="compasses",
     surface="public_compass",
     noun="compass",

@@ -85,13 +85,13 @@ async function handOver(a: RosterAssignment, volunteerId: string, close: () => v
   if (!a.action || !volunteerId) return;
   saving.value = true;
   try {
-    await post(`/api/v1/chores/${props.rosterId}/shifts/${a.action.shiftId}/reassign`, {
+    await post(`/api/v1/chore/${props.rosterId}/shifts/${a.action.shiftId}/reassign`, {
       volunteer_id: volunteerId,
     });
-    await queryClient.invalidateQueries({ queryKey: ["chores", props.rosterId] });
-    toasts.success(t("chores.details.handOverDone"));
+    await queryClient.invalidateQueries({ queryKey: ["chore", props.rosterId] });
+    toasts.success(t("chore.details.handOverDone"));
   } catch {
-    toasts.error(t("chores.details.handOverFailed"));
+    toasts.error(t("chore.details.handOverFailed"));
   } finally {
     saving.value = false;
     close();
@@ -127,10 +127,10 @@ const weekdays = computed(() => {
           <select
             class="rc-picker"
             :disabled="saving"
-            :aria-label="t('chores.details.handOver')"
+            :aria-label="t('chore.details.handOver')"
             @change="handOver(a, ($event.target as HTMLSelectElement).value, close)"
           >
-            <option value="" disabled selected>{{ t("chores.details.handOver") }}</option>
+            <option value="" disabled selected>{{ t("chore.details.handOver") }}</option>
             <option v-for="v in candidates(a)" :key="v.id" :value="v.id">{{ v.display_name || anonLabel }}</option>
           </select>
         </div>

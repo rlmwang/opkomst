@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -71,7 +71,7 @@ const { location, latitude, longitude, chapterBias, setCoords, set } = useLocati
 // Drop a restored chapter the user can't actually assign — e.g. a
 // localStorage draft saved before a DB reseed gave chapters new ids.
 // Without this, submit would 403 on the chapter-membership check with
-// a stale id the chapter <Select> can't even display.
+// a stale id the chapter <SelectField> can't even display.
 watch(userChapterOptions, (opts) => {
   if (chapterId.value && opts.length && !opts.some((c) => c.id === chapterId.value)) {
     chapterId.value = opts.length === 1 ? opts[0].id : null;
@@ -182,11 +182,11 @@ function buildSlot(draft: TimeSlot, existing: TimeSlot[]): TimeSlot | null {
   const end = normalizeTime(draft.end);
   if (!start || !end) return null;
   if (end <= start) {
-    toasts.warn(t("datepolls.edit.slotRangeInvalid"));
+    toasts.warn(t("datepoll.edit.slotRangeInvalid"));
     return null;
   }
   if (existing.some((s) => s.start === start && s.end === end)) {
-    toasts.warn(t("datepolls.edit.slotDuplicate"));
+    toasts.warn(t("datepoll.edit.slotDuplicate"));
     return null;
   }
   return { start, end };
@@ -478,9 +478,9 @@ function cancel(): void {
   clearDraft();
   if (cancelStart()) return;
   if (isEdit.value && props.datepollId) {
-    void router.push(`/datepolls/${props.datepollId}/details`);
+    void router.push(`/datepoll/${props.datepollId}/details`);
   } else {
-    void router.push("/datepolls");
+    void router.push("/datepoll");
   }
 }
 
@@ -488,11 +488,11 @@ async function submit() {
   // Backend requires the title in the primary language (``pollLocale``).
   const primaryName = (pollLocale.value === "en" ? nameEn.value : nameNl.value).trim();
   if (!primaryName) {
-    toasts.warn(t("datepolls.edit.fillName"));
+    toasts.warn(t("datepoll.edit.fillName"));
     return;
   }
   if (hasChapters.value && !chapterId.value) {
-    toasts.warn(t("datepolls.edit.fillChapter"));
+    toasts.warn(t("datepoll.edit.fillChapter"));
     return;
   }
   if (startActive.value && !validateStartEmail()) return;
@@ -534,9 +534,9 @@ async function submit() {
         : await createMutation.mutateAsync(wirePayload);
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
-    void router.push(`/datepolls/${result.id}/details`);
+    void router.push(`/datepoll/${result.id}/details`);
   } catch {
-    toasts.error(t("datepolls.edit.saveFailed"));
+    toasts.error(t("datepoll.edit.saveFailed"));
   } finally {
     submitting.value = false;
   }
@@ -548,9 +548,9 @@ async function submit() {
     <AppHeader />
     <div class="container-wide stack">
       <AppCard>
-        <h2>{{ t("datepolls.edit.notFoundTitle") }}</h2>
-        <p class="muted">{{ t("datepolls.edit.notFoundBody") }}</p>
-        <router-link to="/datepolls" class="back-link">{{ t("datepolls.edit.backToList") }}</router-link>
+        <h2>{{ t("datepoll.edit.notFoundTitle") }}</h2>
+        <p class="muted">{{ t("datepoll.edit.notFoundBody") }}</p>
+        <router-link to="/datepoll" class="back-link">{{ t("datepoll.edit.backToList") }}</router-link>
       </AppCard>
     </div>
   </template>
@@ -559,7 +559,7 @@ async function submit() {
     <AppHeader />
     <div class="container-wide stack">
       <AppCard>
-        <p>{{ t("datepolls.edit.loadFailed") }}</p>
+        <p>{{ t("datepoll.edit.loadFailed") }}</p>
       </AppCard>
     </div>
   </template>
@@ -568,8 +568,8 @@ async function submit() {
 
   <FormPageShell
     v-else
-    :title="isEdit ? t('datepolls.edit.editTitle') : t('datepolls.edit.newTitle')"
-    :submit-label="isEdit ? t('datepolls.edit.save') : t('datepolls.edit.create')"
+    :title="isEdit ? t('datepoll.edit.editTitle') : t('datepoll.edit.newTitle')"
+    :submit-label="isEdit ? t('datepoll.edit.save') : t('datepoll.edit.create')"
     :submitting="submitting"
     @submit="submit"
     @cancel="cancel"
@@ -578,21 +578,21 @@ async function submit() {
       <StartAccountField v-if="startActive" v-model="startEmail" />
       <AppInput
         v-model="title"
-        :placeholder="titleFallback || t('datepolls.edit.namePlaceholder')"
+        :placeholder="titleFallback || t('datepoll.edit.namePlaceholder')"
         fluid
       />
       <RichTextField
         v-model="body"
-        :placeholder="t('datepolls.edit.descriptionPlaceholder')"
+        :placeholder="t('datepoll.edit.descriptionPlaceholder')"
         :fallback-html="bodyFallback || null"
       />
-      <Select
+      <SelectField
         v-if="hasChapters"
         v-model="chapterId"
         :options="userChapterOptions"
         option-label="name"
         option-value="id"
-        :placeholder="t('datepolls.edit.chapterPlaceholder')"
+        :placeholder="t('datepoll.edit.chapterPlaceholder')"
         :disabled="userChapterOptions.length === 1 && chapterId !== null"
         fluid
       />
@@ -611,15 +611,15 @@ async function submit() {
     <ImageField
       v-if="!startActive"
       ref="imageField"
-      resource="datepolls"
+      resource="datepoll"
       :entity-id="props.datepollId ?? null"
       v-model:image-url="imageUrl"
       v-model:artist="imageArtistInstagram"
     />
 
     <section class="form-section">
-      <h2 class="section-heading">{{ t("datepolls.edit.datesHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("datepolls.edit.datesExplainer") }}</p>
+      <h2 class="section-heading">{{ t("datepoll.edit.datesHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("datepoll.edit.datesExplainer") }}</p>
 
       <div class="dates-stack">
         <div class="picker-row">
@@ -628,15 +628,15 @@ async function submit() {
           <!-- Common time-slots: created once here, applied to every
                chosen day (shown on each day card below). -->
           <div class="common-panel">
-            <p class="common-title">{{ t("datepolls.edit.commonSlotsTitle") }}</p>
-            <p class="muted common-hint">{{ t("datepolls.edit.commonSlotsHint") }}</p>
+            <p class="common-title">{{ t("datepoll.edit.commonSlotsTitle") }}</p>
+            <p class="muted common-hint">{{ t("datepoll.edit.commonSlotsHint") }}</p>
             <div v-if="commonSlots.length" class="slot-pills">
               <button
                 v-for="(s, idx) in commonSlots"
                 :key="`${s.start}-${s.end}`"
                 type="button"
                 class="slot-pill"
-                :aria-label="`${t('datepolls.edit.removeSlot')}: ${slotLabel(s)}`"
+                :aria-label="`${t('datepoll.edit.removeSlot')}: ${slotLabel(s)}`"
                 @click="removeCommonSlot(idx)"
               >
                 <span>{{ slotLabel(s) }}</span>
@@ -651,7 +651,7 @@ async function submit() {
                 placeholder="00:00"
                 maxlength="5"
                 class="time-input"
-                :aria-label="t('datepolls.edit.slotStart')"
+                :aria-label="t('datepoll.edit.slotStart')"
                 @blur="newCommon.start = normalizeTime(newCommon.start)"
                 @keyup.enter="newCommon.start = normalizeTime(newCommon.start)"
               />
@@ -663,19 +663,19 @@ async function submit() {
                 placeholder="00:00"
                 maxlength="5"
                 class="time-input"
-                :aria-label="t('datepolls.edit.slotEnd')"
+                :aria-label="t('datepoll.edit.slotEnd')"
                 @blur="newCommon.end = normalizeTime(newCommon.end)"
                 @keyup.enter="newCommon.end = normalizeTime(newCommon.end)"
               />
               <button type="button" class="add-slot-btn" @click="addCommonSlot">
-                {{ t("datepolls.edit.addSlot") }}
+                {{ t("datepoll.edit.addSlot") }}
               </button>
             </div>
           </div>
         </div>
 
         <p v-if="sortedISODates.length === 0" class="empty muted">
-          {{ t("datepolls.edit.noDatesYet") }}
+          {{ t("datepoll.edit.noDatesYet") }}
         </p>
         <!-- One card per chosen day: remove-day, its time-slot pills,
              and an add-row. A day with no time-slots stays whole-day
@@ -687,7 +687,7 @@ async function submit() {
               <button
                 type="button"
                 class="remove-day"
-                :aria-label="`${t('datepolls.edit.removeDate')}: ${chipLabel(iso)}`"
+                :aria-label="`${t('datepoll.edit.removeDate')}: ${chipLabel(iso)}`"
                 @click="removeDate(iso)"
               >×</button>
             </div>
@@ -711,7 +711,7 @@ async function submit() {
                 :key="`${s.start}-${s.end}`"
                 type="button"
                 class="slot-pill"
-                :aria-label="`${t('datepolls.edit.removeSlot')}: ${slotLabel(s)}`"
+                :aria-label="`${t('datepoll.edit.removeSlot')}: ${slotLabel(s)}`"
                 @click="removeSlot(iso, idx)"
               >
                 <span>{{ slotLabel(s) }}</span>
@@ -727,7 +727,7 @@ async function submit() {
                 placeholder="00:00"
                 maxlength="5"
                 class="time-input"
-                :aria-label="t('datepolls.edit.slotStart')"
+                :aria-label="t('datepoll.edit.slotStart')"
                 @blur="newSlot[iso].start = normalizeTime(newSlot[iso].start)"
                 @keyup.enter="newSlot[iso].start = normalizeTime(newSlot[iso].start)"
               />
@@ -739,12 +739,12 @@ async function submit() {
                 placeholder="00:00"
                 maxlength="5"
                 class="time-input"
-                :aria-label="t('datepolls.edit.slotEnd')"
+                :aria-label="t('datepoll.edit.slotEnd')"
                 @blur="newSlot[iso].end = normalizeTime(newSlot[iso].end)"
                 @keyup.enter="newSlot[iso].end = normalizeTime(newSlot[iso].end)"
               />
               <button type="button" class="add-slot-btn" @click="addSlot(iso)">
-                {{ t("datepolls.edit.addSlot") }}
+                {{ t("datepoll.edit.addSlot") }}
               </button>
             </div>
           </li>
@@ -772,20 +772,20 @@ async function submit() {
       <section class="form-section">
         <label class="toggle-row" for="editableToggle">
           <AppToggle v-model="answersEditable" inputId="editableToggle" />
-          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+          <h2 class="section-heading">{{ t("form.edit.editableHeading") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+        <p class="muted section-explainer">{{ t("form.edit.editableExplainer") }}</p>
       </section>
     </details>
 
     <section class="form-section">
-      <h2 class="section-heading">{{ t("datepolls.edit.localeHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("datepolls.edit.localeExplainer") }}</p>
-      <Select
+      <h2 class="section-heading">{{ t("datepoll.edit.localeHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("datepoll.edit.localeExplainer") }}</p>
+      <SelectField
         v-model="pollLocale"
         :options="[
-          { value: 'nl', label: t('datepolls.edit.localeNl') },
-          { value: 'en', label: t('datepolls.edit.localeEn') },
+          { value: 'nl', label: t('datepoll.edit.localeNl') },
+          { value: 'en', label: t('datepoll.edit.localeEn') },
         ]"
         option-label="label"
         option-value="value"

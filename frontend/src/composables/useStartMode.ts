@@ -29,15 +29,15 @@ import type { Started } from "@/api/types";
  * endpoint expects it under. */
 export type StartKind = "event" | "form" | "datepoll" | "roster" | "quiz" | "compass";
 
-// The endpoint path per kind. Rosters are "chores" everywhere in the
+// The endpoint path per kind. Rosters are "chore" everywhere in the
 // URL space, so the two names differ here and nowhere else.
 const PATHS: Record<StartKind, string> = {
-  event: "events",
-  quiz: "quizzes",
-  compass: "compasses",
-  form: "forms",
-  datepoll: "datepolls",
-  roster: "chores",
+  event: "event",
+  quiz: "quiz",
+  compass: "compass",
+  form: "form",
+  datepoll: "datepoll",
+  roster: "chore",
 };
 
 export interface StartMode {

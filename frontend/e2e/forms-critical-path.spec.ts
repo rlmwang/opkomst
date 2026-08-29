@@ -27,7 +27,7 @@ test("public visitor fills a form and sees the thanks state", async ({
   expect(user.chapters.length).toBeGreaterThan(0);
   const chapterId = user.chapters[0].id;
 
-  const formRes = await request.post("/api/v1/forms", {
+  const formRes = await request.post("/api/v1/form", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       chapter_id: chapterId,

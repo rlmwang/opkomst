@@ -83,9 +83,9 @@ function onCancel(event: Event): void {
 .app-dialog {
   max-width: calc(100vw - 1rem);
   padding: 0;
-  border: 1px solid var(--brand-surface-200);
+  border: 1px solid var(--brand-border);
   border-radius: 12px;
-  background: var(--brand-surface-0);
+  background: var(--brand-surface);
   color: var(--brand-text);
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.1),

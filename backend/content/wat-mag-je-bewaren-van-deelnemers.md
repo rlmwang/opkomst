@@ -1,7 +1,7 @@
 ---
 title: Wat mag je bewaren van je deelnemers?
 description: Vraag niet meer dan je nodig hebt, zeg waarvoor je het gebruikt, en bewaar het niet langer dan dat. Wat dat betekent voor een aanmeldlijst.
-cta_path: /events/new
+cta_path: /event/new
 cta_label: Maak een evenement
 order: 8
 ---

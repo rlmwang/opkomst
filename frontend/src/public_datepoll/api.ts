@@ -71,13 +71,13 @@ export class ApiError extends Error {
 }
 
 export async function fetchDatepollBySlug(slug: string): Promise<PublicDatepoll> {
-  const r = await fetch(`/api/v1/datepolls/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/datepoll/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicDatepoll;
 }
 
 export async function postSubmission(slug: string, payload: SubmitPayload): Promise<SubmitAck> {
-  const r = await fetch(`/api/v1/datepolls/by-slug/${encodeURIComponent(slug)}/submit`, {
+  const r = await fetch(`/api/v1/datepoll/by-slug/${encodeURIComponent(slug)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -87,13 +87,13 @@ export async function postSubmission(slug: string, payload: SubmitPayload): Prom
 }
 
 export async function fetchSubmission(token: string): Promise<DatepollSubmissionValues> {
-  const r = await fetch(`/api/v1/datepolls/by-token/${encodeURIComponent(token)}`);
+  const r = await fetch(`/api/v1/datepoll/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as DatepollSubmissionValues;
 }
 
 export async function putSubmission(token: string, payload: SubmitPayload): Promise<DatepollSubmissionValues> {
-  const r = await fetch(`/api/v1/datepolls/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/datepoll/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -103,7 +103,7 @@ export async function putSubmission(token: string, payload: SubmitPayload): Prom
 }
 
 export async function withdrawSubmission(token: string): Promise<void> {
-  const r = await fetch(`/api/v1/datepolls/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
+  const r = await fetch(`/api/v1/datepoll/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
 }
 

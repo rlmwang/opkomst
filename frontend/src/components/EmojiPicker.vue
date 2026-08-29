@@ -105,14 +105,14 @@ onBeforeUnmount(() => {
       severity="secondary"
       text
       size="small"
-      :aria-label="t('chores.edit.pickEmoji')"
+      :aria-label="t('chore.edit.pickEmoji')"
       :aria-expanded="open"
       class="emoji-trigger"
       :class="{ 'is-empty': !modelValue }"
       @click="toggle"
     >
       <span v-if="modelValue" class="emoji-current">{{ modelValue }}</span>
-      <i v-else class="pi pi-face-smile" />
+      <AppIcon v-else name="face-smile" />
     </AppButton>
     <div v-if="open" class="emoji-panel" role="dialog">
       <div class="emoji-grid">

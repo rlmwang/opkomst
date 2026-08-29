@@ -47,7 +47,7 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
         "locale": "nl",
         **overrides,
     }
-    r = client.post("/api/v1/events", headers=organiser_headers, json=payload)
+    r = client.post("/api/v1/event", headers=organiser_headers, json=payload)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -124,7 +124,7 @@ def test_feedback_form_happy_path(client, organiser_headers):
     assert body["event_name"] == event["name_nl"]
     # The feedback form is per occurrence, so ``event_slug`` is the
     # occurrence's public slug, not the event's internal slug.
-    occ = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     assert body["event_slug"] == occ["slug"]
     assert body["event_locale"] == "nl"
     assert len(body["questions"]) == 5
@@ -145,7 +145,7 @@ def test_feedback_form_still_works_after_event_archive(client, organiser_headers
     that those have no token gate."""
     event = _new_event(client, organiser_headers)
     raw, _ = _seed_signup_with_token(event["id"])
-    client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
+    client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
 
     r = client.get(f"/api/v1/feedback/{raw}")
     assert r.status_code == 200
@@ -216,13 +216,13 @@ def test_submit_already_redeemed_token_410s(client, organiser_headers):
     assert r.status_code == 410
 
 
-# --- /events/{id}/feedback-summary ---------------------------------
+# --- /event/{id}/feedback-summary ---------------------------------
 
 
 def test_feedback_summary_empty_event(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -247,7 +247,7 @@ def test_feedback_summary_with_responses(client, organiser_headers):
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -304,7 +304,7 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
         db.close()
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -331,13 +331,13 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
     outsider_token = token_for(uid)
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert r.status_code == 404
 
 
-# --- /events/{id}/feedback-submissions -----------------------------
+# --- /event/{id}/feedback-submissions -----------------------------
 
 
 def test_feedback_submissions_csv_source(client, organiser_headers):
@@ -353,7 +353,7 @@ def test_feedback_submissions_csv_source(client, organiser_headers):
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-submissions",
+        f"/api/v1/event/{event['id']}/feedback-submissions",
         headers=organiser_headers,
     )
     assert r.status_code == 200

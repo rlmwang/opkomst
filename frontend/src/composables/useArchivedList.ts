@@ -10,7 +10,7 @@
  * (``{prefix}.restored`` / ``.restoreFail`` / ``.deleteOk`` /
  * ``.deleteFail`` / ``.deleteConfirmTitle`` / ``.deleteConfirmBody`` /
  * ``.delete`` / ``.loadFailed``); only the ``prefix`` differs
- * (``"archived"`` vs ``"forms.archived"``).
+ * (``"archived"`` vs ``"form.archived"``).
  */
 
 import type { UseMutationReturnType } from "@tanstack/vue-query";
@@ -45,7 +45,7 @@ export function useArchivedList<T extends { id: string } & BilingualName, RD, RE
   query: (chapterFilter: ComputedRef<string | null>) => ListQuery<T>;
   restore: UseMutationReturnType<RD, RE, string, unknown>;
   remove: UseMutationReturnType<DD, DE, string, unknown>;
-  /** i18n key prefix, e.g. ``"archived"`` or ``"forms.archived"``. */
+  /** i18n key prefix, e.g. ``"archived"`` or ``"form.archived"``. */
   prefix: string;
 }): {
   chapterFilter: ComputedRef<string | null>;
@@ -85,7 +85,7 @@ export function useArchivedList<T extends { id: string } & BilingualName, RD, RE
     confirm: {
       header: t(`${opts.prefix}.deleteConfirmTitle`),
       message: t(`${opts.prefix}.deleteConfirmBody`, { name: lt(item.name_nl, item.name_en) ?? "" }),
-      icon: "pi pi-exclamation-triangle",
+      icon: "exclamation-triangle",
       rejectLabel: t("common.cancel"),
       acceptLabel: t(`${opts.prefix}.delete`),
     },

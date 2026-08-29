@@ -92,7 +92,7 @@ function onBlur(ev: FocusEvent): void {
   align-items: center;
   padding-inline-end: 0.5rem;
   border-block: 1px solid var(--brand-border);
-  background: var(--brand-surface-0);
+  background: var(--brand-surface);
   color: var(--brand-text-muted);
 }
 /* Ported verbatim from the public event sign-up stepper so the counter

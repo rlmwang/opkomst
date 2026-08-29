@@ -17,7 +17,7 @@ test("editing a datepoll from its details page (warm cache) renders", async ({ r
   const { token, user } = await loginRes.json();
   const chapterId = user.chapters[0].id;
 
-  const pollRes = await request.post("/api/v1/datepolls", {
+  const pollRes = await request.post("/api/v1/datepoll", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       name_nl: "E2E Warm-cache Poll",
@@ -36,11 +36,11 @@ test("editing a datepoll from its details page (warm cache) renders", async ({ r
   const page = await ctx.newPage();
 
   // Load the details page first — this warms the useDatepoll cache.
-  await page.goto(`/rsp/datepolls/${poll.id}/details`);
+  await page.goto(`/rsp/datepoll/${poll.id}/details`);
   await expect(page.getByRole("heading", { name: "E2E Warm-cache Poll" })).toBeVisible({ timeout: 10_000 });
 
   // Client-side navigate into edit: the poll is served from the warm cache.
-  await page.locator(`a[href="/rsp/datepolls/${poll.id}/edit"]`).click();
+  await page.locator(`a[href="/rsp/datepoll/${poll.id}/edit"]`).click();
 
   // The per-day add-row (its time inputs) proves the day-cards rendered
   // without the newSlot crash.

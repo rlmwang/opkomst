@@ -41,7 +41,7 @@ defineEmits<{ "copy-link": []; "copy-qr": [] }>();
     <div v-if="publicUrl" class="link-row">
       <a :href="publicUrl" target="_blank" rel="noopener">{{ publicUrl }}</a>
       <AppButton
-        icon="pi pi-copy"
+        icon="copy"
         size="small"
         severity="secondary"
         text

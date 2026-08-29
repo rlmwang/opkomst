@@ -1,5 +1,7 @@
 import { reactive, readonly } from "vue";
 
+import type { IconName } from "@/components/AppIcon.vue";
+
 /**
  * The app's confirmation dialog. Was a wrapper over PrimeVue's
  * ``useConfirm``; the queue underneath is the app's own now, and
@@ -15,8 +17,8 @@ export interface ConfirmRequest {
   message: string;
   acceptLabel: string;
   rejectLabel: string;
-  /** Optional icon class shown beside the message. */
-  icon?: string;
+  /** Optional ``AppIcon`` name shown beside the message. */
+  icon?: IconName;
   accept: () => void | Promise<void>;
 }
 

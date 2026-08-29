@@ -77,7 +77,7 @@ function askArchive(f: FormListOut) {
   confirms.ask({
     header: L("list.archiveConfirmTitle"),
     message: L("list.archiveConfirmBody", { name: lt(f.name_nl, f.name_en) ?? "" }),
-    icon: "pi pi-exclamation-triangle",
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: L("list.archive"),
     accept: async () => {
@@ -129,7 +129,7 @@ function askArchive(f: FormListOut) {
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <AppButton :label="L('list.newForm')" icon="pi pi-plus" />
+        <AppButton :label="L('list.newForm')" icon="plus" />
       </router-link>
     </template>
 
@@ -137,8 +137,8 @@ function askArchive(f: FormListOut) {
       <EntityCard
         :public-url="publicFormUrl(api.resource, f.slug)"
         :qr-src="formQrUrl(api.resource, f.slug)"
-        :copy-link-label="t('forms.share.copyLink')"
-        :qr-label="t('forms.share.copyQr')"
+        :copy-link-label="t('form.share.copyLink')"
+        :qr-label="t('form.share.copyQr')"
         @mouseenter="prefetchDetails(f.id)"
         @focusin="prefetchDetails(f.id)"
         @copy-link="copyLink(f.slug)"
@@ -154,11 +154,11 @@ function askArchive(f: FormListOut) {
 
         <template #actions>
           <router-link :to="`/${api.resource}/${f.id}/details`">
-            <AppButton :label="L('list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            <AppButton :label="L('list.details')" icon="info-circle" size="small" severity="secondary" />
           </router-link>
           <AppButton
             :label="L('list.archive')"
-            icon="pi pi-archive"
+            icon="archive"
             size="small"
             severity="secondary"
             text

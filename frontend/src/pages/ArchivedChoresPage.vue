@@ -27,22 +27,22 @@ const {
   query: (chapterId) => useArchivedRosters({ chapterId }),
   restore: useRestoreRoster(),
   remove: useDeleteRoster(),
-  prefix: "chores.archived",
+  prefix: "chore.archived",
 });
 </script>
 
 <template>
   <ListPageView
-    :title="t('chores.archived.title')"
-    :intro="t('chores.archived.intro')"
+    :title="t('chore.archived.title')"
+    :intro="t('chore.archived.intro')"
     :items="archived"
     :loaded="loaded"
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
-    :search-placeholder="t('chores.archived.searchPlaceholder')"
+    :search-placeholder="t('chore.archived.searchPlaceholder')"
     :search-keys="(r: RosterListOut) => [lt(r.name_nl, r.name_en) ?? '']"
-    :empty-copy="t('chores.archived.empty')"
-    :no-matches-copy="t('chores.archived.noMatches')"
+    :empty-copy="t('chore.archived.empty')"
+    :no-matches-copy="t('chore.archived.noMatches')"
     :skeleton-rows="2"
     @update:chapter-filter="setChapterFilter"
   >
@@ -55,14 +55,14 @@ const {
           </h3>
         </div>
         <div class="archive-row-actions">
-          <AppButton :label="t('chores.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(r)" />
+          <AppButton :label="t('chore.archived.restore')" icon="replay" size="small" severity="secondary" @click="restoreItem(r)" />
           <AppButton
-            icon="pi pi-trash"
+            icon="trash"
             size="small"
             severity="secondary"
             text
-            v-tooltip.top="t('chores.archived.delete')"
-            :aria-label="t('chores.archived.delete')"
+            v-tooltip.top="t('chore.archived.delete')"
+            :aria-label="t('chore.archived.delete')"
             @click="askDelete(r)"
           />
         </div>

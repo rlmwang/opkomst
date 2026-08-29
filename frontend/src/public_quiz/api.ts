@@ -38,7 +38,7 @@ export interface QuizResult {
 }
 
 export async function fetchQuizBySlug(slug: string): Promise<PublicForm> {
-  const r = await fetch(`/api/v1/quizzes/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/quiz/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicForm;
 }
@@ -47,7 +47,7 @@ export async function postQuizAnswers(
   slug: string,
   payload: { display_name: string | null; answers: SubmitAnswer[] },
 ): Promise<QuizResult> {
-  const r = await fetch(`/api/v1/quizzes/by-slug/${encodeURIComponent(slug)}/submit`, {
+  const r = await fetch(`/api/v1/quiz/by-slug/${encodeURIComponent(slug)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -60,7 +60,7 @@ export async function postQuizAnswers(
  *  because changing an answer after seeing the score is a second
  *  attempt rather than a correction. */
 export async function fetchQuizResult(token: string): Promise<QuizResult> {
-  const r = await fetch(`/api/v1/quizzes/by-token/${encodeURIComponent(token)}`);
+  const r = await fetch(`/api/v1/quiz/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as QuizResult;
 }

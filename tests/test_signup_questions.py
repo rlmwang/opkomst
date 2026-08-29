@@ -28,12 +28,12 @@ def _chapter(client: Any, headers: dict[str, str]) -> str:
 
 def _create(client: Any, headers: dict[str, str], **overrides: Any):
     payload = {**_BASE, "chapter_id": _chapter(client, headers), **overrides}
-    return client.post("/api/v1/events", headers=headers, json=payload)
+    return client.post("/api/v1/event", headers=headers, json=payload)
 
 
 def _public(client: Any, event: dict[str, Any]) -> dict[str, Any]:
     """What the public sign-up page is handed for this event."""
-    r = client.get(f"/api/v1/events/by-slug/{event['next_slug']}")
+    r = client.get(f"/api/v1/event/by-slug/{event['next_slug']}")
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -72,7 +72,7 @@ def test_the_options_survive_being_switched_off(client, organiser_headers, db) -
     ).json()
 
     off = client.put(
-        f"/api/v1/events/{created['id']}",
+        f"/api/v1/event/{created['id']}",
         headers=organiser_headers,
         json={
             **_BASE,
@@ -124,20 +124,20 @@ def test_an_answer_to_a_switched_off_question_is_refused(client, organiser_heade
     slug = created["next_slug"]
 
     refused_source = client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={"display_name": "Aisha", "party_size": 1, "source_choice": "Flyer", "all_upcoming": True},
     )
     assert refused_source.status_code == 400
 
     refused_help = client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={"display_name": "Aisha", "party_size": 1, "help_choices": ["Opbouwen"], "all_upcoming": True},
     )
     assert refused_help.status_code == 400
 
     # Without an answer to either, the sign-up goes through.
     ok = client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={"display_name": "Aisha", "party_size": 1, "all_upcoming": True},
     )
     assert ok.status_code == 201, ok.text

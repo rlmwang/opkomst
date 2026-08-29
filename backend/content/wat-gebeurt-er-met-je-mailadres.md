@@ -1,7 +1,7 @@
 ---
 title: Wat er met je e-mailadres gebeurt
 description: Versleuteld opgeslagen, gebruikt voor de mails die de organisator aanzette, en daarna gewist. Wat dat precies betekent, stap voor stap.
-cta_path: /events/new
+cta_path: /event/new
 cta_label: Maak een evenement
 order: 4
 ---

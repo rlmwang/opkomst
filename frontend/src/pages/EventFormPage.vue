@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -386,9 +386,9 @@ function cancel() {
   // the dashboard. Keeps the back-stack predictable instead of
   // relying on browser history.
   if (isEdit.value && props.eventId) {
-    void router.push(`/events/${props.eventId}/details`);
+    void router.push(`/event/${props.eventId}/details`);
   } else {
-    void router.push("/events");
+    void router.push("/event");
   }
 }
 
@@ -560,7 +560,7 @@ async function submit() {
     // (no-op in edit mode / when nothing was picked).
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
-    void router.push(`/events/${result.id}/details`);
+    void router.push(`/event/${result.id}/details`);
   } catch (err) {
     // Most validation is caught up-front; a field-level 422 that slips
     // through (e.g. a paste over the length cap) is surfaced with the
@@ -603,7 +603,7 @@ async function submit() {
           :placeholder="t('event.topic')"
           :fallback-html="bodyFallback || null"
         />
-        <Select
+        <SelectField
           v-if="hasChapters"
           v-model="chapterId"
           :options="userChapterOptions"
@@ -651,7 +651,7 @@ async function submit() {
       <ImageField
         v-if="!startActive"
         ref="imageField"
-        resource="events"
+        resource="event"
         :entity-id="props.eventId ?? null"
         v-model:image-url="imageUrl"
         v-model:artist="imageArtistInstagram"
@@ -732,7 +732,7 @@ async function submit() {
             />
             <AppButton
               type="button"
-              icon="pi pi-plus"
+              icon="plus"
               size="small"
               severity="secondary"
               :aria-label="t('event.newHelp')"
@@ -764,7 +764,7 @@ async function submit() {
             />
             <AppButton
               type="button"
-              icon="pi pi-plus"
+              icon="plus"
               size="small"
               severity="secondary"
               :aria-label="t('event.newSource')"
@@ -813,9 +813,9 @@ async function submit() {
       <section class="form-section">
         <label class="toggle-row" for="editableToggle">
           <AppToggle v-model="answersEditable" inputId="editableToggle" />
-          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+          <h2 class="section-heading">{{ t("form.edit.editableHeading") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+        <p class="muted section-explainer">{{ t("form.edit.editableExplainer") }}</p>
       </section>
 
       </details>
@@ -823,7 +823,7 @@ async function submit() {
       <section class="form-section">
         <h2 class="section-heading">{{ t("event.localeHeading") }}</h2>
         <p class="muted section-explainer">{{ t("event.localeExplainer") }}</p>
-        <Select
+        <SelectField
           v-model="eventLocale"
           :options="[
             { value: 'nl', label: t('event.localeNl') },

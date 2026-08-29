@@ -103,7 +103,7 @@ def _finish(db: Session, user: User, kind: str, slug: str, name: str, locale: st
     return StartedOut(public_url=public_url, slug=slug)
 
 
-@router.post("/events", response_model=StartedOut, status_code=201)
+@router.post("/event", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_event(request: Request, data: StartEvent, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)
@@ -117,7 +117,7 @@ def start_event(request: Request, data: StartEvent, db: Session = Depends(get_db
     return _finish(db, user, "event", slug, event.name_nl or event.name_en or "", event.locale)
 
 
-@router.post("/forms", response_model=StartedOut, status_code=201)
+@router.post("/form", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_form(request: Request, data: StartForm, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)
@@ -128,7 +128,7 @@ def start_form(request: Request, data: StartForm, db: Session = Depends(get_db))
     return _finish(db, user, "form", form.slug, form.name_nl or form.name_en or "", form.locale)
 
 
-@router.post("/quizzes", response_model=StartedOut, status_code=201)
+@router.post("/quiz", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_quiz(request: Request, data: StartQuiz, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)
@@ -139,7 +139,7 @@ def start_quiz(request: Request, data: StartQuiz, db: Session = Depends(get_db))
     return _finish(db, user, "quiz", quiz.slug, quiz.name_nl or quiz.name_en or "", quiz.locale)
 
 
-@router.post("/compasses", response_model=StartedOut, status_code=201)
+@router.post("/compass", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_compass(request: Request, data: StartCompass, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)
@@ -150,7 +150,7 @@ def start_compass(request: Request, data: StartCompass, db: Session = Depends(ge
     return _finish(db, user, "compass", kompas.slug, kompas.name_nl or kompas.name_en or "", kompas.locale)
 
 
-@router.post("/datepolls", response_model=StartedOut, status_code=201)
+@router.post("/datepoll", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_datepoll(request: Request, data: StartDatepoll, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)
@@ -161,7 +161,7 @@ def start_datepoll(request: Request, data: StartDatepoll, db: Session = Depends(
     return _finish(db, user, "datepoll", poll.slug, poll.name_nl or poll.name_en or "", poll.locale)
 
 
-@router.post("/chores", response_model=StartedOut, status_code=201)
+@router.post("/chore", response_model=StartedOut, status_code=201)
 @limiter.limit(Limits.PUBLIC_WRITE)
 def start_roster(request: Request, data: StartRoster, db: Session = Depends(get_db)) -> StartedOut:
     user = _resolve_account(db, data.email)

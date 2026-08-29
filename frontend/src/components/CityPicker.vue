@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import AutoComplete, {
+import AutoCompleteField, {
   type AutoCompleteCompleteEvent,
   type AutoCompleteOptionSelectEvent,
-} from "primevue/autocomplete";
+} from "@/components/AutoCompleteField.vue";
 import { ref, watch } from "vue";
 import { type CitySuggestion, useCitySuggest } from "@/composables/useCitySuggest";
 
@@ -73,7 +73,7 @@ function onBlur() {
 </script>
 
 <template>
-  <AutoComplete
+  <AutoCompleteField
     v-model="local"
     :suggestions="results"
     option-label="name"

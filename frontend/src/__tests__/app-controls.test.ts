@@ -20,14 +20,14 @@ describe("AppButton", () => {
   });
 
   it("shows a spinner instead of the icon while loading", () => {
-    const w = mount(AppButton, { props: { label: "x", icon: "pi pi-send", loading: true } });
+    const w = mount(AppButton, { props: { label: "x", icon: "send", loading: true } });
     expect(w.find(".app-btn-spin").exists()).toBe(true);
-    expect(w.find("i.pi-send").exists()).toBe(false);
+    expect(w.find(".app-icon").exists()).toBe(false);
   });
 
   it("is a square when it carries an icon and no label", () => {
-    expect(mount(AppButton, { props: { icon: "pi pi-trash" } }).classes()).toContain("app-btn-icon-only");
-    expect(mount(AppButton, { props: { icon: "pi pi-trash", label: "Weg" } }).classes()).not.toContain(
+    expect(mount(AppButton, { props: { icon: "trash" } }).classes()).toContain("app-btn-icon-only");
+    expect(mount(AppButton, { props: { icon: "trash", label: "Weg" } }).classes()).not.toContain(
       "app-btn-icon-only",
     );
   });

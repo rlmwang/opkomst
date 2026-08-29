@@ -41,7 +41,7 @@ const archiveMutation = useArchiveRoster();
 
 
 watch(rostersQuery.isError, (isError) => {
-  if (isError) toasts.error(t("chores.list.loadFailed"));
+  if (isError) toasts.error(t("chore.list.loadFailed"));
 });
 
 const loaded = computed(() => !auth.isApproved || !rostersQuery.isPending.value);
@@ -53,9 +53,9 @@ const sortedRosters = computed(() =>
 function summary(r: RosterListOut): string {
   const cadence =
     r.period_weeks <= 1
-      ? t("chores.recurrence.weekly")
-      : t("chores.recurrence.everyKWeeks", { k: r.period_weeks });
-  const chores = t("chores.list.choreCount", { n: r.chore_count });
+      ? t("chore.recurrence.weekly")
+      : t("chore.recurrence.everyKWeeks", { k: r.period_weeks });
+  const chores = t("chore.list.choreCount", { n: r.chore_count });
   return `${cadence} · ${chores}`;
 }
 
@@ -64,24 +64,24 @@ function prefetchDetails(rosterId: string) {
   if (prefetched.has(rosterId)) return;
   prefetched.add(rosterId);
   void qc.prefetchQuery({
-    queryKey: ["chores", "single", rosterId],
-    queryFn: () => get(`/api/v1/chores/${rosterId}`),
+    queryKey: ["chore", "single", rosterId],
+    queryFn: () => get(`/api/v1/chore/${rosterId}`),
   });
 }
 
 function askArchive(r: RosterListOut) {
   confirms.ask({
-    header: t("chores.list.archiveConfirmTitle"),
-    message: t("chores.list.archiveConfirmBody", { name: lt(r.name_nl, r.name_en) ?? "" }),
-    icon: "pi pi-exclamation-triangle",
+    header: t("chore.list.archiveConfirmTitle"),
+    message: t("chore.list.archiveConfirmBody", { name: lt(r.name_nl, r.name_en) ?? "" }),
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
-    acceptLabel: t("chores.list.archive"),
+    acceptLabel: t("chore.list.archive"),
     accept: async () => {
       try {
         await archiveMutation.mutateAsync(r.id);
-        toasts.success(t("chores.list.archived"));
+        toasts.success(t("chore.list.archived"));
       } catch {
-        toasts.error(t("chores.list.archiveFail"));
+        toasts.error(t("chore.list.archiveFail"));
       }
     },
   });
@@ -92,8 +92,8 @@ function askArchive(r: RosterListOut) {
   <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container-wide stack">
-      <h1>{{ t("chores.list.title") }}</h1>
-      <p class="muted">{{ t("chores.list.intro") }}</p>
+      <h1>{{ t("chore.list.title") }}</h1>
+      <p class="muted">{{ t("chore.list.intro") }}</p>
       <AppCard>
         <h2>{{ t("dashboard.noChaptersTitle") }}</h2>
         <p class="muted">{{ t("dashboard.noChaptersBody") }}</p>
@@ -103,27 +103,27 @@ function askArchive(r: RosterListOut) {
 
   <ListPageView
     v-else
-    :title="t('chores.list.title')"
-    :intro="t('chores.list.intro')"
+    :title="t('chore.list.title')"
+    :intro="t('chore.list.intro')"
     :items="sortedRosters"
     :loaded="loaded"
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
-    :search-placeholder="t('chores.list.searchPlaceholder')"
+    :search-placeholder="t('chore.list.searchPlaceholder')"
     :search-keys="(r: RosterListOut) => [lt(r.name_nl, r.name_en) ?? '']"
-    :empty-copy="t('chores.list.empty')"
-    :no-matches-copy="t('chores.list.noMatches')"
+    :empty-copy="t('chore.list.empty')"
+    :no-matches-copy="t('chore.list.noMatches')"
     :skeleton-rows="2"
     @update:chapter-filter="setChapterFilter"
   >
     <template #actions-leading>
       <router-link
         :to="{
-          path: '/chores/new',
+          path: '/chore/new',
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <AppButton :label="t('chores.list.newRoster')" icon="pi pi-plus" />
+        <AppButton :label="t('chore.list.newRoster')" icon="plus" />
       </router-link>
     </template>
 
@@ -131,8 +131,8 @@ function askArchive(r: RosterListOut) {
       <EntityCard
         :public-url="publicChoreUrl(r.slug)"
         :qr-src="choreQrUrl(r.slug)"
-        :copy-link-label="t('chores.share.copyLink')"
-        :qr-label="t('chores.share.copyQr')"
+        :copy-link-label="t('chore.share.copyLink')"
+        :qr-label="t('chore.share.copyQr')"
         @mouseenter="prefetchDetails(r.id)"
         @focusin="prefetchDetails(r.id)"
         @copy-link="copyLink(r.slug)"
@@ -151,12 +151,12 @@ function askArchive(r: RosterListOut) {
 
 
         <template #actions>
-          <router-link :to="`/chores/${r.id}/details`">
-            <AppButton :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          <router-link :to="`/chore/${r.id}/details`">
+            <AppButton :label="t('chore.list.details')" icon="info-circle" size="small" severity="secondary" />
           </router-link>
           <AppButton
-            :label="t('chores.list.archive')"
-            icon="pi pi-archive"
+            :label="t('chore.list.archive')"
+            icon="archive"
             size="small"
             severity="secondary"
             text
@@ -164,7 +164,7 @@ function askArchive(r: RosterListOut) {
           />
         </template>
 
-        <template #count>{{ t("chores.list.volunteerCount", { n: r.volunteer_count }) }}</template>
+        <template #count>{{ t("chore.list.volunteerCount", { n: r.volunteer_count }) }}</template>
       </EntityCard>
     </template>
   </ListPageView>

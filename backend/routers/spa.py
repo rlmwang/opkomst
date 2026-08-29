@@ -348,7 +348,7 @@ def _serve_public_app(
 
     Each caller resolves its own entity and decides the archived
     policy (events inline the archived event's payload to render a
-    banner; forms/datepolls inline ``null`` so the mini-app shows
+    banner; forms/datepoll inline ``null`` so the mini-app shows
     "no longer available"), and passes the brand of the organisation
     that owns it — the URL carries no tenant, so the entity is what
     decides whose logo and palette the visitor sees. An unknown slug
@@ -379,10 +379,10 @@ def _serve_public_app(
 # reach. Everything else the shell serves is one "app" bucket.
 _APP_SURFACES = {
     "/": "root",
-    "/events/new": "create_event",
-    "/forms/new": "create_form",
-    "/datepolls/new": "create_datepoll",
-    "/chores/new": "create_chore",
+    "/event/new": "create_event",
+    "/form/new": "create_form",
+    "/datepoll/new": "create_datepoll",
+    "/chore/new": "create_chore",
 }
 
 # What a search result for each of those should say. The same
@@ -395,31 +395,31 @@ _APP_PAGE_META = {
         "Maak een aanmeldpagina, een vragenlijst, een datumplanner of een rooster. "
         "Eén link, geen account voor je deelnemers, geen cookies en geen tracking.",
     ),
-    "/events/new": (
+    "/event/new": (
         "Aanmeldpagina voor je evenement maken",
         "Maak in een minuut een aanmeldpagina met één deelbare link. Deelnemers "
         "hoeven geen account, en hun e-mailadres wordt na afloop gewist.",
     ),
-    "/forms/new": (
+    "/form/new": (
         "Vragenlijst maken zonder Google Forms",
         "Stel je eigen vragen samen en deel één link. Geen account voor de "
         "invuller, geen cookies, en de antwoorden blijven bij jou.",
     ),
-    "/quizzes/new": (
+    "/quiz/new": (
         "Pubquiz maken zonder account",
         "Schrijf je eigen quiz en deel één link. Iedereen speelt op de eigen "
         "telefoon, ziet meteen de score, en hoeft nergens voor in te loggen.",
     ),
-    "/compasses/new": (
+    "/compass/new": (
         "Kompas maken: waar staat jouw groep?",
         "Stel vragen met twee assen en zie op één kaart waar iedereen staat. "
         "Geen account voor de invuller, geen cookies, geen tracking.",
     ),
-    "/datepolls/new": (
+    "/datepoll/new": (
         "Datumplanner maken zonder account",
         "Prik een datum met je groep via één link. Niemand hoeft een account te maken en er worden geen cookies gezet.",
     ),
-    "/chores/new": (
+    "/chore/new": (
         "Takenrooster maken voor vrijwilligers",
         "Verdeel terugkerende taken eerlijk over je vrijwilligers, met een rooster "
         "dat iedereen kan zien en waar de beurten vanzelf rondgaan.",
@@ -726,7 +726,7 @@ def mount(app: FastAPI) -> None:
         if tenant is None:
             # No organisation owns this path, so it belongs to the app
             # itself: the personal side, in the house brand, based at
-            # ``/``. Its router resolves ``/events``, ``/settings`` and the
+            # ``/``. Its router resolves ``/event``, ``/settings`` and the
             # rest, and renders its own not-found page for anything it
             # doesn't know.
             #

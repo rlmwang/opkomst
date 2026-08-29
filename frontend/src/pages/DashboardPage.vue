@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query";
 import AppButton from "@/components/AppButton.vue";
-import MultiSelect from "primevue/multiselect";
+import MultiSelectField from "@/components/MultiSelectField.vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -98,7 +98,7 @@ async function submitOnboardingChapters() {
     // while the user had zero chapters. Invalidate so the next
     // render refetches against the new membership set instead
     // of showing the cached empty list.
-    await qc.invalidateQueries({ queryKey: ["events"] });
+    await qc.invalidateQueries({ queryKey: ["event"] });
     toasts.success(t("dashboard.noChaptersSavedToast"));
   } catch {
     toasts.error(t("dashboard.noChaptersSaveFailed"));
@@ -117,16 +117,16 @@ function prefetchDetails(eventId: string) {
   if (prefetched.has(eventId)) return;
   prefetched.add(eventId);
   void qc.prefetchQuery({
-    queryKey: ["events", eventId, "stats"],
-    queryFn: () => get(`/api/v1/events/${eventId}/stats`),
+    queryKey: ["event", eventId, "stats"],
+    queryFn: () => get(`/api/v1/event/${eventId}/stats`),
   });
   void qc.prefetchQuery({
-    queryKey: ["events", eventId, "signups"],
-    queryFn: () => get(`/api/v1/events/${eventId}/signups`),
+    queryKey: ["event", eventId, "signups"],
+    queryFn: () => get(`/api/v1/event/${eventId}/signups`),
   });
   void qc.prefetchQuery({
     queryKey: ["feedback", "summary", eventId],
-    queryFn: () => get(`/api/v1/events/${eventId}/feedback-summary`),
+    queryFn: () => get(`/api/v1/event/${eventId}/feedback-summary`),
   });
 }
 
@@ -153,7 +153,7 @@ function askArchive(e: EventOut) {
   confirms.ask({
     header: t("dashboard.archiveConfirmTitle"),
     message: t("dashboard.archiveConfirmBody", { name: lt(e.name_nl, e.name_en) ?? "" }),
-    icon: "pi pi-exclamation-triangle",
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("dashboard.archive"),
     accept: async () => {
@@ -188,7 +188,7 @@ function askArchive(e: EventOut) {
         <h2>{{ t("dashboard.noChaptersTitle") }}</h2>
         <p class="muted">{{ t("dashboard.noChaptersBody") }}</p>
         <div class="onboarding-picker">
-          <MultiSelect
+          <MultiSelectField
             v-model="onboardingPicks"
             :options="allChapters"
             option-label="name"
@@ -226,11 +226,11 @@ function askArchive(e: EventOut) {
     <template #actions-leading>
       <router-link
         :to="{
-          path: '/events/new',
+          path: '/event/new',
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <AppButton :label="t('dashboard.newEvent')" icon="pi pi-plus" />
+        <AppButton :label="t('dashboard.newEvent')" icon="plus" />
       </router-link>
     </template>
 
@@ -259,12 +259,12 @@ function askArchive(e: EventOut) {
         </template>
 
         <template #actions>
-          <router-link :to="`/events/${e.id}/details`">
-            <AppButton :label="t('dashboard.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          <router-link :to="`/event/${e.id}/details`">
+            <AppButton :label="t('dashboard.details')" icon="info-circle" size="small" severity="secondary" />
           </router-link>
           <AppButton
             :label="t('dashboard.archive')"
-            icon="pi pi-archive"
+            icon="archive"
             size="small"
             severity="secondary"
             text

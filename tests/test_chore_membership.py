@@ -125,7 +125,7 @@ def test_leave_endpoint_recovers_shifts(client, organiser_headers, db):
 
     cid_header = client.get("/api/v1/auth/me", headers=organiser_headers).json()["chapters"][0]["id"]
     roster = client.post(
-        "/api/v1/chores",
+        "/api/v1/chore",
         headers=organiser_headers,
         json={
             "chapter_id": cid_header,
@@ -135,16 +135,16 @@ def test_leave_endpoint_recovers_shifts(client, organiser_headers, db):
         },
     ).json()
     slug, cid = roster["slug"], roster["chores"][0]["id"]
-    ta = client.post(f"/api/v1/chores/by-slug/{slug}/enroll", json={"display_name": "A", "chore_ids": [cid]}).json()[
+    ta = client.post(f"/api/v1/chore/by-slug/{slug}/enroll", json={"display_name": "A", "chore_ids": [cid]}).json()[
         "edit_token"
     ]
-    client.post(f"/api/v1/chores/by-slug/{slug}/enroll", json={"display_name": "B", "chore_ids": [cid]})
+    client.post(f"/api/v1/chore/by-slug/{slug}/enroll", json={"display_name": "B", "chore_ids": [cid]})
     for r in db.query(Roster).filter(Roster.activated_at.is_(None)).all():
         r.activated_at = datetime.now(UTC)
     db.flush()
     chore_tick.run_tick(db, _date.today())
     # A leaves → their shifts must not linger unassigned.
-    assert client.post(f"/api/v1/chores/by-token/{ta}/leave").status_code == 204
+    assert client.post(f"/api/v1/chore/by-token/{ta}/leave").status_code == 204
     orphaned = (
         db.query(Shift)
         .join(Chore, Chore.id == Shift.chore_id)

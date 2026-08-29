@@ -50,7 +50,7 @@ export function useFeedbackPreview(
 ) {
   return useApiQuery<FeedbackForm>(
     () => ["feedback", "preview", unref(slug)],
-    () => `/api/v1/events/by-slug/${encodeURIComponent(unref(slug))}/feedback-preview`,
+    () => `/api/v1/event/by-slug/${encodeURIComponent(unref(slug))}/feedback-preview`,
     {
       enabled: enabled ?? Boolean(unref(slug)),
       retry: false,
@@ -61,7 +61,7 @@ export function useFeedbackPreview(
 export function useFeedbackSummary(eventId: MaybeRef<string>) {
   return useApiQuery<FeedbackSummary>(
     () => ["feedback", "summary", unref(eventId)],
-    () => `/api/v1/events/${unref(eventId)}/feedback-summary`,
+    () => `/api/v1/event/${unref(eventId)}/feedback-summary`,
     { retry: false },
   );
 }
@@ -70,7 +70,7 @@ export async function fetchFeedbackSubmissions(
   eventId: string,
 ): Promise<FeedbackSubmission[]> {
   return get<FeedbackSubmission[]>(
-    `/api/v1/events/${eventId}/feedback-submissions`,
+    `/api/v1/event/${eventId}/feedback-submissions`,
   );
 }
 

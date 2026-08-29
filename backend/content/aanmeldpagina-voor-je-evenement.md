@@ -1,7 +1,7 @@
 ---
 title: Aanmeldpagina voor je evenement, zonder kosten per aanmelding
 description: Een aanmeldpagina voor je evenement met één link: naam, aantal personen, en hooguit twee mails. Geen ticketkosten en geen kosten per aanmelding.
-cta_path: /events/new
+cta_path: /event/new
 cta_label: Maak een evenement
 order: 1
 ---

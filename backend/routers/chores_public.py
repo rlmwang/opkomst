@@ -57,7 +57,7 @@ _GONE = "This roster is no longer available."
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/chores", tags=["chores"])
+router = APIRouter(prefix="/api/v1/chore", tags=["chores"])
 
 
 def _volunteer_by_token(db: Session, token: str) -> Volunteer:

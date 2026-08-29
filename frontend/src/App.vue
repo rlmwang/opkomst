@@ -68,11 +68,21 @@ router.isReady().finally(() => {
 
 <!-- Global on purpose: the element that has to be the column is the
      mount point, which is outside every component. Only this bundle
-     mounts an App.vue, so nothing else sees it. Inside ``@layer app``
-     like every other global rule, so PrimeVue's runtime-injected
-     styles are not trampled (see ``main.ts``). -->
+     mounts an App.vue, so nothing else sees it, which is why the
+     box-sizing reset can sit here and leave the public mini-apps as
+     they are. Inside ``@layer app`` like every other global rule. -->
 <style>
 @layer app {
+  /* Padding and border count inside a declared width. PrimeVue's reset
+   * used to set this for the whole page; it left with PrimeVue, and
+   * without it every fluid input overflowed its column by its own
+   * padding. */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   #app {
     display: flex;
     flex-direction: column;

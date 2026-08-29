@@ -367,7 +367,7 @@ to be live, the magic link goes out over the same TEM hop.
 3. Check your inbox for the "finish setting up your account"
    link. Click.
 4. Fill in your name on the next page. Submit.
-5. You land on ``/events`` as an admin. Done.
+5. You land on ``/event`` as an admin. Done.
 
 If the magic link doesn't arrive, check the Scaleway TEM
 dashboard for the outbound delivery status (sent / soft-bounce /
@@ -512,7 +512,7 @@ curl -fsS https://opkomst.nu/health/full | jq .
 # 2. SMTP works (check your inbox after each)
 # - submit a fresh email on the landing page
 # - the "finish setting up your account" link should arrive within 30 sec
-# - click through and submit a name → you should land on /events
+# - click through and submit a name → you should land on /event
 
 # 3. Cron is firing
 # Coolify → application → Scheduled Tasks → check the last-run

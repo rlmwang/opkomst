@@ -30,7 +30,7 @@ export type { EventCreate, EventOut, EventStats, OccurrenceList, SignupSummary }
 // Events take the shared list/archived/create/restore from the factory
 // but keep their own *optimistic* update/archive/delete below (the
 // dashboard patches the cache inline; covered by composables.test.ts).
-const crud = createEntityCrud<EventOut, EventOut, EventCreate>({ resource: "events" });
+const crud = createEntityCrud<EventOut, EventOut, EventCreate>({ resource: "event" });
 
 /** ``chapterId`` is the optional UI filter — ``null``/undefined means
  * "every chapter the user belongs to"; the filter is in the query key so
@@ -50,8 +50,8 @@ export const useArchivedEvents = crud.useArchived;
  * dates. Replaces the old event-level signups list. */
 export function useEventOccurrences(eventId: MaybeRef<string>) {
   return useApiQuery<OccurrenceList>(
-    () => ["events", unref(eventId), "occurrences"],
-    () => `/api/v1/events/${unref(eventId)}/occurrences`,
+    () => ["event", unref(eventId), "occurrences"],
+    () => `/api/v1/event/${unref(eventId)}/occurrences`,
   );
 }
 
@@ -63,9 +63,9 @@ export function useOccurrenceSignups(
   occurrenceId: MaybeRef<string | null>,
 ) {
   return useApiQuery<SignupSummary[]>(
-    () => ["events", unref(eventId), "occurrences", unref(occurrenceId), "signups"],
+    () => ["event", unref(eventId), "occurrences", unref(occurrenceId), "signups"],
     () =>
-      `/api/v1/events/${unref(eventId)}/occurrences/${unref(occurrenceId)}/signups`,
+      `/api/v1/event/${unref(eventId)}/occurrences/${unref(occurrenceId)}/signups`,
     { enabled: computed(() => Boolean(unref(occurrenceId))) },
   );
 }
@@ -78,9 +78,9 @@ export function useOccurrenceStats(
   occurrenceId: MaybeRef<string | null>,
 ) {
   return useApiQuery<EventStats>(
-    () => ["events", unref(eventId), "occurrences", unref(occurrenceId), "stats"],
+    () => ["event", unref(eventId), "occurrences", unref(occurrenceId), "stats"],
     () =>
-      `/api/v1/events/${unref(eventId)}/occurrences/${unref(occurrenceId)}/stats`,
+      `/api/v1/event/${unref(eventId)}/occurrences/${unref(occurrenceId)}/stats`,
     { enabled: computed(() => Boolean(unref(occurrenceId))) },
   );
 }
@@ -93,7 +93,7 @@ export function useUpdateEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { eventId: string; payload: EventCreate }) =>
-      put<EventOut>(`/api/v1/events/${vars.eventId}`, vars.payload),
+      put<EventOut>(`/api/v1/event/${vars.eventId}`, vars.payload),
     // Optimistic patch: the form already has every field that the
     // server will return except the auto-derived ``attendee_count``
     // and ``chapter_name``. Patch the cached row inline so the
@@ -101,9 +101,9 @@ export function useUpdateEvent() {
     // after navigation; the settle invalidation reconciles the
     // derived fields.
     onMutate: async (vars) => {
-      await qc.cancelQueries({ queryKey: ["events", "active"] });
-      const snap = qc.getQueryData<EventOut[]>(["events", "active"]);
-      qc.setQueryData<EventOut[]>(["events", "active"], (old) =>
+      await qc.cancelQueries({ queryKey: ["event", "active"] });
+      const snap = qc.getQueryData<EventOut[]>(["event", "active"]);
+      qc.setQueryData<EventOut[]>(["event", "active"], (old) =>
         old?.map((e) =>
           e.id === vars.eventId ? { ...e, ...vars.payload } : e,
         ),
@@ -111,7 +111,7 @@ export function useUpdateEvent() {
       return { snap };
     },
     onError: (_err, _vars, ctx) =>
-      qc.setQueryData(["events", "active"], ctx?.snap),
+      qc.setQueryData(["event", "active"], ctx?.snap),
     onSettled: () => invalidateLists(qc),
   });
 }
@@ -124,14 +124,14 @@ export function useUploadEventImage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { eventId: string; file: File }) =>
-      postFile<EventOut>(`/api/v1/events/${vars.eventId}/image`, vars.file),
+      postFile<EventOut>(`/api/v1/event/${vars.eventId}/image`, vars.file),
     onSuccess: (event) => {
       // Patch every list cache in place so the new image_url is
       // visible without waiting for a refetch.
-      qc.setQueriesData<EventOut[]>({ queryKey: ["events"] }, (old) =>
+      qc.setQueriesData<EventOut[]>({ queryKey: ["event"] }, (old) =>
         Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
       );
-      qc.setQueryData(["events", "by-slug", event.slug], event);
+      qc.setQueryData(["event", "by-slug", event.slug], event);
     },
     onSettled: () => invalidateLists(qc),
   });
@@ -143,12 +143,12 @@ export function useUploadEventImage() {
 export function useDeleteEventImage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (eventId: string) => del<EventOut>(`/api/v1/events/${eventId}/image`),
+    mutationFn: (eventId: string) => del<EventOut>(`/api/v1/event/${eventId}/image`),
     onSuccess: (event) => {
-      qc.setQueriesData<EventOut[]>({ queryKey: ["events"] }, (old) =>
+      qc.setQueriesData<EventOut[]>({ queryKey: ["event"] }, (old) =>
         Array.isArray(old) ? old.map((e) => (e.id === event.id ? event : e)) : old,
       );
-      qc.setQueryData(["events", "by-slug", event.slug], event);
+      qc.setQueryData(["event", "by-slug", event.slug], event);
     },
     onSettled: () => invalidateLists(qc),
   });
@@ -157,17 +157,17 @@ export function useDeleteEventImage() {
 export function useArchiveEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (eventId: string) => post(`/api/v1/events/${eventId}/archive`),
+    mutationFn: (eventId: string) => post(`/api/v1/event/${eventId}/archive`),
     onMutate: async (eventId) => {
-      await qc.cancelQueries({ queryKey: ["events", "active"] });
-      const snap = qc.getQueryData<EventOut[]>(["events", "active"]);
-      qc.setQueryData<EventOut[]>(["events", "active"], (old) =>
+      await qc.cancelQueries({ queryKey: ["event", "active"] });
+      const snap = qc.getQueryData<EventOut[]>(["event", "active"]);
+      qc.setQueryData<EventOut[]>(["event", "active"], (old) =>
         old?.filter((e) => e.id !== eventId),
       );
       return { snap };
     },
     onError: (_err, _id, ctx) =>
-      qc.setQueryData(["events", "active"], ctx?.snap),
+      qc.setQueryData(["event", "active"], ctx?.snap),
     onSettled: () => invalidateLists(qc),
   });
 }
@@ -175,20 +175,20 @@ export function useArchiveEvent() {
 export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (eventId: string) => del<void>(`/api/v1/events/${eventId}`),
+    mutationFn: (eventId: string) => del<void>(`/api/v1/event/${eventId}`),
     // Optimistic drop from the archived list — irreversible action,
     // confirm dialog is the safety gate; cache rollback on error
     // is enough to recover the row visually if the server refuses.
     onMutate: async (eventId) => {
-      await qc.cancelQueries({ queryKey: ["events", "archived"] });
-      const snap = qc.getQueryData<EventOut[]>(["events", "archived"]);
-      qc.setQueryData<EventOut[]>(["events", "archived"], (old) =>
+      await qc.cancelQueries({ queryKey: ["event", "archived"] });
+      const snap = qc.getQueryData<EventOut[]>(["event", "archived"]);
+      qc.setQueryData<EventOut[]>(["event", "archived"], (old) =>
         old?.filter((e) => e.id !== eventId),
       );
       return { snap };
     },
     onError: (_err, _id, ctx) =>
-      qc.setQueryData(["events", "archived"], ctx?.snap),
+      qc.setQueryData(["event", "archived"], ctx?.snap),
     onSettled: () => invalidateLists(qc),
   });
 }
@@ -200,7 +200,7 @@ export function useSendEmailsNow() {
   return useMutation({
     mutationFn: (vars: { eventId: string; channel: "reminder" | "feedback" }) =>
       post<{ processed: number }>(
-        `/api/v1/events/${vars.eventId}/send-emails/${vars.channel}`,
+        `/api/v1/event/${vars.eventId}/send-emails/${vars.channel}`,
       ),
     // Pending counts in the per-channel summary cards drop after
     // a manual fire — invalidate so the page rerenders without
@@ -225,9 +225,9 @@ export function useDeleteSignup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { eventId: string; occurrenceId: string; signupId: string }) =>
-      del<void>(`/api/v1/events/${vars.eventId}/signups/${vars.signupId}`),
+      del<void>(`/api/v1/event/${vars.eventId}/signups/${vars.signupId}`),
     onMutate: async ({ eventId, occurrenceId, signupId }) => {
-      const key = ["events", eventId, "occurrences", occurrenceId, "signups"];
+      const key = ["event", eventId, "occurrences", occurrenceId, "signups"];
       await qc.cancelQueries({ queryKey: key });
       const snap = qc.getQueryData<SignupSummary[]>(key);
       qc.setQueryData<SignupSummary[]>(key, (old) =>
@@ -240,10 +240,10 @@ export function useDeleteSignup() {
     },
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({
-        queryKey: ["events", vars.eventId, "occurrences", vars.occurrenceId, "signups"],
+        queryKey: ["event", vars.eventId, "occurrences", vars.occurrenceId, "signups"],
       });
-      qc.invalidateQueries({ queryKey: ["events", vars.eventId, "occurrences"] });
-      qc.invalidateQueries({ queryKey: ["events", vars.eventId, "stats"] });
+      qc.invalidateQueries({ queryKey: ["event", vars.eventId, "occurrences"] });
+      qc.invalidateQueries({ queryKey: ["event", vars.eventId, "stats"] });
     },
   });
 }

@@ -67,7 +67,7 @@
         "title": "AvailabilityRange",
         "type": "object"
       },
-      "Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post": {
+      "Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -78,10 +78,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post",
+        "title": "Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post",
         "type": "object"
       },
-      "Body_upload_event_image_api_v1_events__event_id__image_post": {
+      "Body_upload_event_image_api_v1_event__event_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -92,10 +92,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_event_image_api_v1_events__event_id__image_post",
+        "title": "Body_upload_event_image_api_v1_event__event_id__image_post",
         "type": "object"
       },
-      "Body_upload_image_compass_api_v1_compasses__form_id__image_post": {
+      "Body_upload_image_compass_api_v1_compass__form_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -106,10 +106,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_image_compass_api_v1_compasses__form_id__image_post",
+        "title": "Body_upload_image_compass_api_v1_compass__form_id__image_post",
         "type": "object"
       },
-      "Body_upload_image_form_api_v1_forms__form_id__image_post": {
+      "Body_upload_image_form_api_v1_form__form_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -120,10 +120,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_image_form_api_v1_forms__form_id__image_post",
+        "title": "Body_upload_image_form_api_v1_form__form_id__image_post",
         "type": "object"
       },
-      "Body_upload_image_quiz_api_v1_quizzes__form_id__image_post": {
+      "Body_upload_image_quiz_api_v1_quiz__form_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -134,10 +134,10 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_image_quiz_api_v1_quizzes__form_id__image_post",
+        "title": "Body_upload_image_quiz_api_v1_quiz__form_id__image_post",
         "type": "object"
       },
-      "Body_upload_roster_image_api_v1_chores__roster_id__image_post": {
+      "Body_upload_roster_image_api_v1_chore__roster_id__image_post": {
         "properties": {
           "file": {
             "contentMediaType": "application/octet-stream",
@@ -148,7 +148,7 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_roster_image_api_v1_chores__roster_id__image_post",
+        "title": "Body_upload_roster_image_api_v1_chore__roster_id__image_post",
         "type": "object"
       },
       "BookingEditIn": {
@@ -9092,9 +9092,9 @@
         ]
       }
     },
-    "/api/v1/chores": {
+    "/api/v1/chore": {
       "get": {
-        "operationId": "list_rosters_api_v1_chores_get",
+        "operationId": "list_rosters_api_v1_chore_get",
         "parameters": [
           {
             "in": "query",
@@ -9137,7 +9137,7 @@
                   "items": {
                     "$ref": "#/components/schemas/RosterListOut"
                   },
-                  "title": "Response List Rosters Api V1 Chores Get",
+                  "title": "Response List Rosters Api V1 Chore Get",
                   "type": "array"
                 }
               }
@@ -9162,7 +9162,7 @@
       },
       "post": {
         "description": "Create a roster. Chores are optional at create \u2014 a blank roster\ncan be saved and chores added on the edit page. The caller-supplied\n``chapter_id`` must be in the user's set.",
-        "operationId": "create_roster_api_v1_chores_post",
+        "operationId": "create_roster_api_v1_chore_post",
         "parameters": [
           {
             "in": "header",
@@ -9219,9 +9219,9 @@
         ]
       }
     },
-    "/api/v1/chores/archived": {
+    "/api/v1/chore/archived": {
       "get": {
-        "operationId": "list_archived_rosters_api_v1_chores_archived_get",
+        "operationId": "list_archived_rosters_api_v1_chore_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -9264,7 +9264,7 @@
                   "items": {
                     "$ref": "#/components/schemas/RosterListOut"
                   },
-                  "title": "Response List Archived Rosters Api V1 Chores Archived Get",
+                  "title": "Response List Archived Rosters Api V1 Chore Archived Get",
                   "type": "array"
                 }
               }
@@ -9288,9 +9288,9 @@
         ]
       }
     },
-    "/api/v1/chores/by-slug/{slug}": {
+    "/api/v1/chore/by-slug/{slug}": {
       "get": {
-        "operationId": "get_public_roster_api_v1_chores_by_slug__slug__get",
+        "operationId": "get_public_roster_api_v1_chore_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -9330,9 +9330,9 @@
         ]
       }
     },
-    "/api/v1/chores/by-slug/{slug}/enroll": {
+    "/api/v1/chore/by-slug/{slug}/enroll": {
       "post": {
-        "operationId": "enroll_api_v1_chores_by_slug__slug__enroll_post",
+        "operationId": "enroll_api_v1_chore_by_slug__slug__enroll_post",
         "parameters": [
           {
             "in": "path",
@@ -9382,10 +9382,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-slug/{slug}/qr.svg": {
+    "/api/v1/chore/by-slug/{slug}/qr.svg": {
       "get": {
         "description": "QR SVG for one slug. Resolves the roster first so a typo'd slug\n410s rather than 200ing with a wrong-target QR.",
-        "operationId": "get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get",
+        "operationId": "get_roster_qr_api_v1_chore_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -9423,9 +9423,9 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}": {
+    "/api/v1/chore/by-token/{token}": {
       "get": {
-        "operationId": "get_personal_page_api_v1_chores_by_token__token__get",
+        "operationId": "get_personal_page_api_v1_chore_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -9465,7 +9465,7 @@
         ]
       },
       "put": {
-        "operationId": "update_enrolment_api_v1_chores_by_token__token__put",
+        "operationId": "update_enrolment_api_v1_chore_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -9515,10 +9515,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/availability": {
+    "/api/v1/chore/by-token/{token}/availability": {
       "put": {
         "description": "Replace the volunteer's away ranges. These exclude them from future\nprojection + pinning on those dates (\u00a77). A range covering an already\nlocked-in shift hands that shift off (unassigned + opened) the same way\n\"can't make it\" does \u2014 it's a late deferral (they should have flagged the\nabsence before it was pinned).",
-        "operationId": "set_availability_api_v1_chores_by_token__token__availability_put",
+        "operationId": "set_availability_api_v1_chore_by_token__token__availability_put",
         "parameters": [
           {
             "in": "path",
@@ -9568,10 +9568,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/calendar": {
+    "/api/v1/chore/by-token/{token}/calendar": {
       "get": {
         "description": "The whole roster as a month calendar (all chores, all assignees) for\nthe volunteer's \"pitch in\" overview \u2014 same shape the organiser sees, so\nthey can look past the commit horizon into the tentative projection. The\n``shift_id`` on each pinned assignee ties an open/others' slot back to a\nclaim/cover action; projected days carry none.",
-        "operationId": "get_token_calendar_api_v1_chores_by_token__token__calendar_get",
+        "operationId": "get_token_calendar_api_v1_chore_by_token__token__calendar_get",
         "parameters": [
           {
             "in": "path",
@@ -9607,7 +9607,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ChoreCalendarOut"
                   },
-                  "title": "Response Get Token Calendar Api V1 Chores By Token  Token  Calendar Get",
+                  "title": "Response Get Token Calendar Api V1 Chore By Token  Token  Calendar Get",
                   "type": "array"
                 }
               }
@@ -9631,10 +9631,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/leave": {
+    "/api/v1/chore/by-token/{token}/leave": {
       "post": {
         "description": "Remove the volunteer. Enrolments cascade; the encrypted email goes\nwith the row; future shifts drop the assignee via SET NULL and are\nimmediately re-covered among the remaining eligible (an ``inherited``\npickup), or left ``open`` if nobody is eligible.",
-        "operationId": "leave_api_v1_chores_by_token__token__leave_post",
+        "operationId": "leave_api_v1_chore_by_token__token__leave_post",
         "parameters": [
           {
             "in": "path",
@@ -9667,10 +9667,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/claim": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/claim": {
       "post": {
         "description": "Take an open shift on a chore you're enrolled for.",
-        "operationId": "claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post",
+        "operationId": "claim_shift_api_v1_chore_by_token__token__shifts__shift_id__claim_post",
         "parameters": [
           {
             "in": "path",
@@ -9719,10 +9719,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/cover": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/cover": {
       "post": {
         "description": "Voluntarily take over someone else's confirmed shift. One-way: the\ncoverer becomes the assignee and earns a favour credit (\u00a77).",
-        "operationId": "cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post",
+        "operationId": "cover_shift_api_v1_chore_by_token__token__shifts__shift_id__cover_post",
         "parameters": [
           {
             "in": "path",
@@ -9771,9 +9771,9 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/done": {
       "post": {
-        "operationId": "mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post",
+        "operationId": "mark_shift_done_api_v1_chore_by_token__token__shifts__shift_id__done_post",
         "parameters": [
           {
             "in": "path",
@@ -9822,10 +9822,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/pass": {
       "post": {
         "description": "\"Can't make it\": give up a confirmed shift. It's unassigned and left\n``open`` for anyone to claim \u2014 no automatic reassignment.",
-        "operationId": "pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post",
+        "operationId": "pass_shift_api_v1_chore_by_token__token__shifts__shift_id__pass_post",
         "parameters": [
           {
             "in": "path",
@@ -9874,10 +9874,10 @@
         ]
       }
     },
-    "/api/v1/chores/by-token/{token}/swap": {
+    "/api/v1/chore/by-token/{token}/swap": {
       "post": {
         "description": "Trade two confirmed shifts: the caller's ``mine`` for another\nvolunteer's ``theirs``. Both must be eligible for the chore they\nreceive. Ledger-neutral (records ``assigned`` for each new holder).",
-        "operationId": "swap_shifts_api_v1_chores_by_token__token__swap_post",
+        "operationId": "swap_shifts_api_v1_chore_by_token__token__swap_post",
         "parameters": [
           {
             "in": "path",
@@ -9927,10 +9927,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}": {
+    "/api/v1/chore/{roster_id}": {
       "delete": {
         "description": "Delete an archived roster for good, with its chores, volunteers,\nenrollments and shifts, and the image it owned. A live roster is not\nfound here at all, so deleting one still means archiving it first.",
-        "operationId": "delete_roster_api_v1_chores__roster_id__delete",
+        "operationId": "delete_roster_api_v1_chore__roster_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -9979,7 +9979,7 @@
         ]
       },
       "get": {
-        "operationId": "get_roster_api_v1_chores__roster_id__get",
+        "operationId": "get_roster_api_v1_chore__roster_id__get",
         "parameters": [
           {
             "in": "path",
@@ -10036,7 +10036,7 @@
       },
       "put": {
         "description": "Update a roster. Chapter changes are allowed but the new one must\nbe in the user's set. Chores are diff-applied on id; shrinking\n``period_weeks`` clamps now-out-of-range ``cycle_slots`` (the schema\nvalidator handles the clamp).",
-        "operationId": "update_roster_api_v1_chores__roster_id__put",
+        "operationId": "update_roster_api_v1_chore__roster_id__put",
         "parameters": [
           {
             "in": "path",
@@ -10102,10 +10102,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/accountability": {
+    "/api/v1/chore/{roster_id}/accountability": {
       "get": {
         "description": "Accountability broken down per chore: one section per chore (by\nordinal), each listing the enrolled volunteers with their per-chore\nturn split. Never the email/ciphertext/token.",
-        "operationId": "chore_accountability_api_v1_chores__roster_id__accountability_get",
+        "operationId": "chore_accountability_api_v1_chore__roster_id__accountability_get",
         "parameters": [
           {
             "in": "path",
@@ -10141,7 +10141,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ChoreAccountabilityOut"
                   },
-                  "title": "Response Chore Accountability Api V1 Chores  Roster Id  Accountability Get",
+                  "title": "Response Chore Accountability Api V1 Chore  Roster Id  Accountability Get",
                   "type": "array"
                 }
               }
@@ -10165,10 +10165,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/activate": {
+    "/api/v1/chore/{roster_id}/activate": {
       "post": {
         "description": "Start a forming roster: flip it to running and pin the commit\nhorizon now. One-way \u2014 409 if already running (design \u00a77 bootstrap).",
-        "operationId": "activate_roster_api_v1_chores__roster_id__activate_post",
+        "operationId": "activate_roster_api_v1_chore__roster_id__activate_post",
         "parameters": [
           {
             "in": "path",
@@ -10224,9 +10224,9 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/archive": {
+    "/api/v1/chore/{roster_id}/archive": {
       "post": {
-        "operationId": "archive_roster_api_v1_chores__roster_id__archive_post",
+        "operationId": "archive_roster_api_v1_chore__roster_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -10282,10 +10282,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/calendar": {
+    "/api/v1/chore/{roster_id}/calendar": {
       "get": {
         "description": "One month of the roster as a per-chore calendar. ``month`` is\n``YYYY-MM`` (defaults to the current month). Past days come from the\nshift log, the horizon window from the pins, beyond it from the\nprojection (flagged ``tentative``).",
-        "operationId": "chore_calendar_api_v1_chores__roster_id__calendar_get",
+        "operationId": "chore_calendar_api_v1_chore__roster_id__calendar_get",
         "parameters": [
           {
             "in": "path",
@@ -10337,7 +10337,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ChoreCalendarOut"
                   },
-                  "title": "Response Chore Calendar Api V1 Chores  Roster Id  Calendar Get",
+                  "title": "Response Chore Calendar Api V1 Chore  Roster Id  Calendar Get",
                   "type": "array"
                 }
               }
@@ -10361,10 +10361,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/image": {
+    "/api/v1/chore/{roster_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_roster_image_api_v1_chores__roster_id__image_delete",
+        "operationId": "delete_roster_image_api_v1_chore__roster_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -10421,7 +10421,7 @@
       },
       "post": {
         "description": "Upload (or replace) the roster's hero image \u2014 same 4:5 GitHub\npipeline as the other entities (``services/image.py``).",
-        "operationId": "upload_roster_image_api_v1_chores__roster_id__image_post",
+        "operationId": "upload_roster_image_api_v1_chore__roster_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -10453,7 +10453,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_roster_image_api_v1_chores__roster_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_roster_image_api_v1_chore__roster_id__image_post"
               }
             }
           },
@@ -10487,10 +10487,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/rebalance": {
+    "/api/v1/chore/{roster_id}/rebalance": {
       "post": {
         "description": "Re-pin the current commit window from the fresh projection, folding\npending volunteers in now. Drops un-acted pins and reassigns them, so\nit changes confirmed shifts \u2014 an explicit, opt-in organiser action.",
-        "operationId": "rebalance_roster_api_v1_chores__roster_id__rebalance_post",
+        "operationId": "rebalance_roster_api_v1_chore__roster_id__rebalance_post",
         "parameters": [
           {
             "in": "path",
@@ -10546,10 +10546,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/rebalance/preview": {
+    "/api/v1/chore/{roster_id}/rebalance/preview": {
       "get": {
         "description": "The month calendar as it would look after a \"fold in now\" rebalance,\nwith changed days flagged \u2014 without persisting anything (dry-run rolled\nback in a savepoint). Feeds the fold-in confirmation dialog.",
-        "operationId": "rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get",
+        "operationId": "rebalance_preview_api_v1_chore__roster_id__rebalance_preview_get",
         "parameters": [
           {
             "in": "path",
@@ -10601,7 +10601,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ChoreCalendarOut"
                   },
-                  "title": "Response Rebalance Preview Api V1 Chores  Roster Id  Rebalance Preview Get",
+                  "title": "Response Rebalance Preview Api V1 Chore  Roster Id  Rebalance Preview Get",
                   "type": "array"
                 }
               }
@@ -10625,9 +10625,9 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/restore": {
+    "/api/v1/chore/{roster_id}/restore": {
       "post": {
-        "operationId": "restore_roster_api_v1_chores__roster_id__restore_post",
+        "operationId": "restore_roster_api_v1_chore__roster_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -10683,10 +10683,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/schedule": {
+    "/api/v1/chore/{roster_id}/schedule": {
       "get": {
         "description": "Upcoming shifts (today onward) with the assignee pseudonym, plus\nlifetime done/missed/scheduled/open counts.",
-        "operationId": "get_schedule_api_v1_chores__roster_id__schedule_get",
+        "operationId": "get_schedule_api_v1_chore__roster_id__schedule_get",
         "parameters": [
           {
             "in": "path",
@@ -10742,10 +10742,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/shifts/{shift_id}/reassign": {
+    "/api/v1/chore/{roster_id}/shifts/{shift_id}/reassign": {
       "post": {
         "description": "Hand a pinned shift to a chosen volunteer \u2014 the organiser-side\n\"overnemen\" on the roster calendar. Mirrors the public claim/cover\nsemantics: taking an open shift records ``claimed``, taking over\nanother's confirmed shift records ``covered`` (+1 favour credit either\nway). The past is frozen and done/missed shifts can't change hands;\nthe new assignee must be enrolled in the shift's chore.",
-        "operationId": "reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post",
+        "operationId": "reassign_shift_api_v1_chore__roster_id__shifts__shift_id__reassign_post",
         "parameters": [
           {
             "in": "path",
@@ -10813,10 +10813,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/volunteers": {
+    "/api/v1/chore/{roster_id}/volunteers": {
       "get": {
         "description": "Volunteers on a roster: pseudonym + enrolled chores + load.\nNever the email/ciphertext/token (privacy \u2014 see the leak-guard\ntest). ``load`` is 0 until shift generation (task 06).",
-        "operationId": "list_volunteers_api_v1_chores__roster_id__volunteers_get",
+        "operationId": "list_volunteers_api_v1_chore__roster_id__volunteers_get",
         "parameters": [
           {
             "in": "path",
@@ -10852,7 +10852,7 @@
                   "items": {
                     "$ref": "#/components/schemas/VolunteerSummaryOut"
                   },
-                  "title": "Response List Volunteers Api V1 Chores  Roster Id  Volunteers Get",
+                  "title": "Response List Volunteers Api V1 Chore  Roster Id  Volunteers Get",
                   "type": "array"
                 }
               }
@@ -10876,10 +10876,10 @@
         ]
       }
     },
-    "/api/v1/chores/{roster_id}/volunteers/{volunteer_id}/edit-link": {
+    "/api/v1/chore/{roster_id}/volunteers/{volunteer_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a volunteer's lost personal-page link \u2014\nrotates the token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post",
+        "operationId": "recover_volunteer_edit_link_api_v1_chore__roster_id__volunteers__volunteer_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -10944,9 +10944,9 @@
         ]
       }
     },
-    "/api/v1/compasses": {
+    "/api/v1/compass": {
       "get": {
-        "operationId": "list_forms_api_v1_compasses_get",
+        "operationId": "list_forms_api_v1_compass_get",
         "parameters": [
           {
             "in": "query",
@@ -10989,7 +10989,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Forms Api V1 Compasses Get",
+                  "title": "Response List Forms Api V1 Compass Get",
                   "type": "array"
                 }
               }
@@ -11014,7 +11014,7 @@
       },
       "post": {
         "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
-        "operationId": "create_compass_api_v1_compasses_post",
+        "operationId": "create_compass_api_v1_compass_post",
         "parameters": [
           {
             "in": "header",
@@ -11071,9 +11071,9 @@
         ]
       }
     },
-    "/api/v1/compasses/archived": {
+    "/api/v1/compass/archived": {
       "get": {
-        "operationId": "list_archived_forms_api_v1_compasses_archived_get",
+        "operationId": "list_archived_forms_api_v1_compass_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -11116,7 +11116,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Archived Forms Api V1 Compasses Archived Get",
+                  "title": "Response List Archived Forms Api V1 Compass Archived Get",
                   "type": "array"
                 }
               }
@@ -11140,9 +11140,9 @@
         ]
       }
     },
-    "/api/v1/compasses/by-slug/{slug}": {
+    "/api/v1/compass/by-slug/{slug}": {
       "get": {
-        "operationId": "get_public_form_api_v1_compasses_by_slug__slug__get",
+        "operationId": "get_public_form_api_v1_compass_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -11182,10 +11182,10 @@
         ]
       }
     },
-    "/api/v1/compasses/by-slug/{slug}/qr.svg": {
+    "/api/v1/compass/by-slug/{slug}/qr.svg": {
       "get": {
         "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
-        "operationId": "get_form_qr_api_v1_compasses_by_slug__slug__qr_svg_get",
+        "operationId": "get_form_qr_api_v1_compass_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -11223,10 +11223,10 @@
         ]
       }
     },
-    "/api/v1/compasses/by-slug/{slug}/submit": {
+    "/api/v1/compass/by-slug/{slug}/submit": {
       "post": {
         "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\ncome back to it. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
-        "operationId": "submit_compass_api_v1_compasses_by_slug__slug__submit_post",
+        "operationId": "submit_compass_api_v1_compass_by_slug__slug__submit_post",
         "parameters": [
           {
             "in": "path",
@@ -11276,10 +11276,10 @@
         ]
       }
     },
-    "/api/v1/compasses/by-token/{token}": {
+    "/api/v1/compass/by-token/{token}": {
       "get": {
         "description": "The map again, later, drawn against the room as it\nstands. The per-answer rows carry what was given, so this\none shape both renders the result and refills the walk\nbehind the \"change your answers\" button.",
-        "operationId": "get_compass_result_api_v1_compasses_by_token__token__get",
+        "operationId": "get_compass_result_api_v1_compass_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -11320,7 +11320,7 @@
       },
       "put": {
         "description": "Change your mind. Unlike a quiz, this is a correction\nrather than a second attempt: a kompas has nothing to score\nand nothing to beat (``docs/design-kompas.md`` 5.4). The\nanswer rows and the pseudonym are replaced, and the map\ncomes back redrawn.",
-        "operationId": "update_submission_compass_api_v1_compasses_by_token__token__put",
+        "operationId": "update_submission_compass_api_v1_compass_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -11370,10 +11370,10 @@
         ]
       }
     },
-    "/api/v1/compasses/by-token/{token}/withdraw": {
+    "/api/v1/compass/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
-        "operationId": "withdraw_submission_compass_api_v1_compasses_by_token__token__withdraw_post",
+        "operationId": "withdraw_submission_compass_api_v1_compass_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -11406,10 +11406,10 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}": {
+    "/api/v1/compass/{form_id}": {
       "delete": {
         "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
-        "operationId": "delete_compass_api_v1_compasses__form_id__delete",
+        "operationId": "delete_compass_api_v1_compass__form_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -11458,7 +11458,7 @@
         ]
       },
       "get": {
-        "operationId": "get_form_api_v1_compasses__form_id__get",
+        "operationId": "get_form_api_v1_compass__form_id__get",
         "parameters": [
           {
             "in": "path",
@@ -11515,7 +11515,7 @@
       },
       "put": {
         "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
-        "operationId": "update_compass_api_v1_compasses__form_id__put",
+        "operationId": "update_compass_api_v1_compass__form_id__put",
         "parameters": [
           {
             "in": "path",
@@ -11581,9 +11581,9 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/archive": {
+    "/api/v1/compass/{form_id}/archive": {
       "post": {
-        "operationId": "archive_compass_api_v1_compasses__form_id__archive_post",
+        "operationId": "archive_compass_api_v1_compass__form_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -11639,10 +11639,10 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/image": {
+    "/api/v1/compass/{form_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_image_compass_api_v1_compasses__form_id__image_delete",
+        "operationId": "delete_image_compass_api_v1_compass__form_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -11699,7 +11699,7 @@
       },
       "post": {
         "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
-        "operationId": "upload_image_compass_api_v1_compasses__form_id__image_post",
+        "operationId": "upload_image_compass_api_v1_compass__form_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -11731,7 +11731,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_image_compass_api_v1_compasses__form_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_image_compass_api_v1_compass__form_id__image_post"
               }
             }
           },
@@ -11765,9 +11765,9 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/restore": {
+    "/api/v1/compass/{form_id}/restore": {
       "post": {
-        "operationId": "restore_compass_api_v1_compasses__form_id__restore_post",
+        "operationId": "restore_compass_api_v1_compass__form_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -11823,10 +11823,10 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/submissions": {
+    "/api/v1/compass/{form_id}/submissions": {
       "get": {
         "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
-        "operationId": "form_submissions_api_v1_compasses__form_id__submissions_get",
+        "operationId": "form_submissions_api_v1_compass__form_id__submissions_get",
         "parameters": [
           {
             "in": "path",
@@ -11862,7 +11862,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormSubmissionOut"
                   },
-                  "title": "Response Form Submissions Api V1 Compasses  Form Id  Submissions Get",
+                  "title": "Response Form Submissions Api V1 Compass  Form Id  Submissions Get",
                   "type": "array"
                 }
               }
@@ -11886,10 +11886,10 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/compass/{form_id}/submissions/{submission_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_edit_link_compass_api_v1_compasses__form_id__submissions__submission_id__edit_link_post",
+        "operationId": "recover_edit_link_compass_api_v1_compass__form_id__submissions__submission_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -11954,9 +11954,9 @@
         ]
       }
     },
-    "/api/v1/compasses/{form_id}/summary": {
+    "/api/v1/compass/{form_id}/summary": {
       "get": {
-        "operationId": "form_summary_api_v1_compasses__form_id__summary_get",
+        "operationId": "form_summary_api_v1_compass__form_id__summary_get",
         "parameters": [
           {
             "in": "path",
@@ -12012,9 +12012,9 @@
         ]
       }
     },
-    "/api/v1/datepolls": {
+    "/api/v1/datepoll": {
       "get": {
-        "operationId": "list_datepolls_api_v1_datepolls_get",
+        "operationId": "list_datepolls_api_v1_datepoll_get",
         "parameters": [
           {
             "in": "query",
@@ -12057,7 +12057,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DatepollListOut"
                   },
-                  "title": "Response List Datepolls Api V1 Datepolls Get",
+                  "title": "Response List Datepolls Api V1 Datepoll Get",
                   "type": "array"
                 }
               }
@@ -12082,7 +12082,7 @@
       },
       "post": {
         "description": "Create a poll. Candidate slots are optional at create \u2014 a blank\npoll can be saved and slots added on the edit page. The\ncaller-supplied ``chapter_id`` must be in the user's set.",
-        "operationId": "create_datepoll_api_v1_datepolls_post",
+        "operationId": "create_datepoll_api_v1_datepoll_post",
         "parameters": [
           {
             "in": "header",
@@ -12139,9 +12139,9 @@
         ]
       }
     },
-    "/api/v1/datepolls/archived": {
+    "/api/v1/datepoll/archived": {
       "get": {
-        "operationId": "list_archived_datepolls_api_v1_datepolls_archived_get",
+        "operationId": "list_archived_datepolls_api_v1_datepoll_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -12184,7 +12184,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DatepollListOut"
                   },
-                  "title": "Response List Archived Datepolls Api V1 Datepolls Archived Get",
+                  "title": "Response List Archived Datepolls Api V1 Datepoll Archived Get",
                   "type": "array"
                 }
               }
@@ -12208,9 +12208,9 @@
         ]
       }
     },
-    "/api/v1/datepolls/by-slug/{slug}": {
+    "/api/v1/datepoll/by-slug/{slug}": {
       "get": {
-        "operationId": "get_public_datepoll_api_v1_datepolls_by_slug__slug__get",
+        "operationId": "get_public_datepoll_api_v1_datepoll_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -12250,10 +12250,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+    "/api/v1/datepoll/by-slug/{slug}/qr.svg": {
       "get": {
         "description": "QR SVG for one slug. Resolves the poll first so a typo'd slug\n410s rather than 200ing with a wrong-target QR.",
-        "operationId": "get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get",
+        "operationId": "get_datepoll_qr_api_v1_datepoll_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -12291,10 +12291,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/by-slug/{slug}/submit": {
+    "/api/v1/datepoll/by-slug/{slug}/submit": {
       "post": {
         "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\nrevisit and edit.",
-        "operationId": "submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post",
+        "operationId": "submit_datepoll_api_v1_datepoll_by_slug__slug__submit_post",
         "parameters": [
           {
             "in": "path",
@@ -12344,10 +12344,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/by-token/{token}": {
+    "/api/v1/datepoll/by-token/{token}": {
       "get": {
         "description": "Current values of a submission, for pre-filling the edit form.",
-        "operationId": "get_datepoll_submission_api_v1_datepolls_by_token__token__get",
+        "operationId": "get_datepoll_submission_api_v1_datepoll_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -12388,7 +12388,7 @@
       },
       "put": {
         "description": "Update a submission in place via its edit-link token. Replaces\nthe per-slot answers, the pseudonym, and the note.",
-        "operationId": "update_datepoll_submission_api_v1_datepolls_by_token__token__put",
+        "operationId": "update_datepoll_submission_api_v1_datepoll_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -12438,10 +12438,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/by-token/{token}/withdraw": {
+    "/api/v1/datepoll/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own availability. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
-        "operationId": "withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post",
+        "operationId": "withdraw_datepoll_submission_api_v1_datepoll_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -12474,10 +12474,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}": {
+    "/api/v1/datepoll/{datepoll_id}": {
       "delete": {
         "description": "Delete an archived poll for good, with its dates, submissions and\nresponses, and the image it owned. A live poll is not found here at\nall, so deleting one still means archiving it first.",
-        "operationId": "delete_datepoll_api_v1_datepolls__datepoll_id__delete",
+        "operationId": "delete_datepoll_api_v1_datepoll__datepoll_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -12526,7 +12526,7 @@
         ]
       },
       "get": {
-        "operationId": "get_datepoll_api_v1_datepolls__datepoll_id__get",
+        "operationId": "get_datepoll_api_v1_datepoll__datepoll_id__get",
         "parameters": [
           {
             "in": "path",
@@ -12583,7 +12583,7 @@
       },
       "put": {
         "description": "Update a poll. Chapter changes are allowed but the new one must\nbe in the user's set. Slots are diff-applied on\n``(on_date, start_time, end_time)`` \u2014 see\n``services/datepolls.apply_slots``.",
-        "operationId": "update_datepoll_api_v1_datepolls__datepoll_id__put",
+        "operationId": "update_datepoll_api_v1_datepoll__datepoll_id__put",
         "parameters": [
           {
             "in": "path",
@@ -12649,9 +12649,9 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/archive": {
+    "/api/v1/datepoll/{datepoll_id}/archive": {
       "post": {
-        "operationId": "archive_datepoll_api_v1_datepolls__datepoll_id__archive_post",
+        "operationId": "archive_datepoll_api_v1_datepoll__datepoll_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -12707,10 +12707,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/image": {
+    "/api/v1/datepoll/{datepoll_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete",
+        "operationId": "delete_datepoll_image_api_v1_datepoll__datepoll_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -12767,7 +12767,7 @@
       },
       "post": {
         "description": "Upload (or replace) the poll's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
-        "operationId": "upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post",
+        "operationId": "upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -12799,7 +12799,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post"
               }
             }
           },
@@ -12833,9 +12833,9 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/restore": {
+    "/api/v1/datepoll/{datepoll_id}/restore": {
       "post": {
-        "operationId": "restore_datepoll_api_v1_datepolls__datepoll_id__restore_post",
+        "operationId": "restore_datepoll_api_v1_datepoll__datepoll_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -12891,10 +12891,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/submissions": {
+    "/api/v1/datepoll/{datepoll_id}/submissions": {
       "get": {
         "description": "Per-submission rows, keyed by slot id. CSV source.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
-        "operationId": "datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get",
+        "operationId": "datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get",
         "parameters": [
           {
             "in": "path",
@@ -12930,7 +12930,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DatepollSubmissionOut"
                   },
-                  "title": "Response Datepoll Submissions Api V1 Datepolls  Datepoll Id  Submissions Get",
+                  "title": "Response Datepoll Submissions Api V1 Datepoll  Datepoll Id  Submissions Get",
                   "type": "array"
                 }
               }
@@ -12954,10 +12954,10 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/datepoll/{datepoll_id}/submissions/{submission_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post",
+        "operationId": "recover_submission_edit_link_api_v1_datepoll__datepoll_id__submissions__submission_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -13022,9 +13022,9 @@
         ]
       }
     },
-    "/api/v1/datepolls/{datepoll_id}/summary": {
+    "/api/v1/datepoll/{datepoll_id}/summary": {
       "get": {
-        "operationId": "datepoll_summary_api_v1_datepolls__datepoll_id__summary_get",
+        "operationId": "datepoll_summary_api_v1_datepoll__datepoll_id__summary_get",
         "parameters": [
           {
             "in": "path",
@@ -13080,9 +13080,9 @@
         ]
       }
     },
-    "/api/v1/events": {
+    "/api/v1/event": {
       "get": {
-        "operationId": "list_events_api_v1_events_get",
+        "operationId": "list_events_api_v1_event_get",
         "parameters": [
           {
             "in": "query",
@@ -13125,7 +13125,7 @@
                   "items": {
                     "$ref": "#/components/schemas/EventOut"
                   },
-                  "title": "Response List Events Api V1 Events Get",
+                  "title": "Response List Events Api V1 Event Get",
                   "type": "array"
                 }
               }
@@ -13149,7 +13149,7 @@
         ]
       },
       "post": {
-        "operationId": "create_event_api_v1_events_post",
+        "operationId": "create_event_api_v1_event_post",
         "parameters": [
           {
             "in": "header",
@@ -13206,9 +13206,9 @@
         ]
       }
     },
-    "/api/v1/events/archived": {
+    "/api/v1/event/archived": {
       "get": {
-        "operationId": "list_archived_events_api_v1_events_archived_get",
+        "operationId": "list_archived_events_api_v1_event_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -13251,7 +13251,7 @@
                   "items": {
                     "$ref": "#/components/schemas/EventOut"
                   },
-                  "title": "Response List Archived Events Api V1 Events Archived Get",
+                  "title": "Response List Archived Events Api V1 Event Archived Get",
                   "type": "array"
                 }
               }
@@ -13275,10 +13275,10 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}": {
+    "/api/v1/event/by-slug/{slug}": {
       "get": {
         "description": "Public event lookup. The response is identical for every\nvisitor in the seconds between two organiser edits, so it's a\nperfect candidate for HTTP caching: a 60 s shared cache window\n(Coolify/Traefik / any CDN that fronts the app) keeps the\ncommon case off the DB entirely, and ``stale-while-revalidate``\nmeans a request after the 60 s expiry serves the still-warm\npayload while a single background fetch refreshes it.\n\nThe 60 s freshness window is the trade-off: an organiser edit\nis visible to *new* visitors after up to 60 s. Acceptable \u2014\nedits during an active sign-up window are rare, and\n``no-store`` would defeat the point of caching the highest-\ntraffic public endpoint.",
-        "operationId": "get_event_by_slug_api_v1_events_by_slug__slug__get",
+        "operationId": "get_event_by_slug_api_v1_event_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -13318,10 +13318,10 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}/email-preview/{channel}": {
+    "/api/v1/event/by-slug/{slug}/email-preview/{channel}": {
       "get": {
         "description": "Render the exact email that the dispatcher will send to a\nsignup on this event.",
-        "operationId": "email_preview_api_v1_events_by_slug__slug__email_preview__channel__get",
+        "operationId": "email_preview_api_v1_event_by_slug__slug__email_preview__channel__get",
         "parameters": [
           {
             "in": "path",
@@ -13368,10 +13368,10 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}/event.ics": {
+    "/api/v1/event/by-slug/{slug}/event.ics": {
       "get": {
         "description": "Public RFC 5545 calendar download for one event. Universal \u2014\nGoogle, Apple, Outlook, Proton, Thunderbird, every mobile\ncalendar app imports it. UID is the event's stable ``id``,\nso re-importing after an organiser edit updates the existing\nentry instead of creating a duplicate.",
-        "operationId": "get_event_ics_api_v1_events_by_slug__slug__event_ics_get",
+        "operationId": "get_event_ics_api_v1_event_by_slug__slug__event_ics_get",
         "parameters": [
           {
             "in": "path",
@@ -13409,10 +13409,10 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}/feedback-preview": {
+    "/api/v1/event/by-slug/{slug}/feedback-preview": {
       "get": {
         "description": "Preview of the post-event feedback form.",
-        "operationId": "feedback_form_preview_api_v1_events_by_slug__slug__feedback_preview_get",
+        "operationId": "feedback_form_preview_api_v1_event_by_slug__slug__feedback_preview_get",
         "parameters": [
           {
             "in": "path",
@@ -13452,9 +13452,9 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}/qr.svg": {
+    "/api/v1/event/by-slug/{slug}/qr.svg": {
       "get": {
-        "operationId": "get_event_qr_api_v1_events_by_slug__slug__qr_svg_get",
+        "operationId": "get_event_qr_api_v1_event_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -13492,9 +13492,9 @@
         ]
       }
     },
-    "/api/v1/events/by-slug/{slug}/signups": {
+    "/api/v1/event/by-slug/{slug}/signups": {
       "post": {
-        "operationId": "create_signup_api_v1_events_by_slug__slug__signups_post",
+        "operationId": "create_signup_api_v1_event_by_slug__slug__signups_post",
         "parameters": [
           {
             "in": "path",
@@ -13544,10 +13544,10 @@
         ]
       }
     },
-    "/api/v1/events/by-token/{token}": {
+    "/api/v1/event/by-token/{token}": {
       "get": {
         "description": "The whole booking behind an edit-link token, for the edit page.\nEmail is never returned (it isn't reachable from a booking).",
-        "operationId": "get_booking_api_v1_events_by_token__token__get",
+        "operationId": "get_booking_api_v1_event_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -13588,7 +13588,7 @@
       },
       "put": {
         "description": "Update a booking's name + party size via its edit-link token.\nEmail + dispatch rows are untouched \u2014 there is no path from a booking\nto its encrypted address (principle #2).",
-        "operationId": "update_booking_api_v1_events_by_token__token__put",
+        "operationId": "update_booking_api_v1_event_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -13638,10 +13638,10 @@
         ]
       }
     },
-    "/api/v1/events/by-token/{token}/occurrences": {
+    "/api/v1/event/by-token/{token}/occurrences": {
       "put": {
         "description": "Replace a booking's **future** session set from the manage-page\ncalendar. Diffs the chosen future occurrences against the booking's\ncurrent future line items: adds a line item for each newly-selected\noccurrence, deletes it for each deselected one, and never touches a line\nitem whose session has already started (frozen attendance).\n\n``all_upcoming`` resolves server-side to every future occurrence, so a\nstale page can't miss a just-materialised session. Newly-added sessions\nget a line item only, not an email dispatch: the recipient address isn't\nreachable from a booking (principle #2), so reminder/feedback mail only\never covers sessions signed up for with an email at sign-up time.",
-        "operationId": "set_booking_occurrences_api_v1_events_by_token__token__occurrences_put",
+        "operationId": "set_booking_occurrences_api_v1_event_by_token__token__occurrences_put",
         "parameters": [
           {
             "in": "path",
@@ -13691,10 +13691,10 @@
         ]
       }
     },
-    "/api/v1/events/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
+    "/api/v1/event/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
       "post": {
         "description": "Withdraw the booking from one occurrence \u2014 per-occurrence withdrawal\nis how absence is reported. Deletes only that ``Signup`` line item (no\nemail lives on it). If it was the booking's last line item, the empty\n``Registration`` is deleted too. Any pending ``EmailDispatch`` for the\noccurrence is untouched by design (no signup link), so an already-\nscheduled email may still arrive.",
-        "operationId": "withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post",
+        "operationId": "withdraw_occurrence_api_v1_event_by_token__token__occurrences__occurrence_id__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -13736,10 +13736,10 @@
         ]
       }
     },
-    "/api/v1/events/by-token/{token}/withdraw": {
+    "/api/v1/event/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw the whole booking \u2014 the attendee removing themselves from\nevery occurrence at once. Deletes the ``Registration`` (its line items\ncascade). Pending dispatches are untouched by design.",
-        "operationId": "withdraw_booking_api_v1_events_by_token__token__withdraw_post",
+        "operationId": "withdraw_booking_api_v1_event_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -13772,10 +13772,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}": {
+    "/api/v1/event/{event_id}": {
       "delete": {
         "description": "Delete an archived event for good. A live event is not found\nhere at all \u2014 it is in ``events``, and this reads the archive \u2014 so\ndeleting one still means archiving it first. The item's whole graph\ngoes, plus the image it owned.",
-        "operationId": "delete_event_api_v1_events__event_id__delete",
+        "operationId": "delete_event_api_v1_event__event_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -13824,7 +13824,7 @@
         ]
       },
       "put": {
-        "operationId": "update_event_api_v1_events__event_id__put",
+        "operationId": "update_event_api_v1_event__event_id__put",
         "parameters": [
           {
             "in": "path",
@@ -13890,9 +13890,9 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/archive": {
+    "/api/v1/event/{event_id}/archive": {
       "post": {
-        "operationId": "archive_event_api_v1_events__event_id__archive_post",
+        "operationId": "archive_event_api_v1_event__event_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -13948,10 +13948,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/feedback-submissions": {
+    "/api/v1/event/{event_id}/feedback-submissions": {
       "get": {
         "description": "Per-submission feedback rows. One entry per ``submission_id``,\nkeyed by question ``key`` (so a CSV consumer can index by\nquestion without joining to a questions table \u2014 there is no\nquestions table; the keys are app-level constants). Used by\nthe organiser-side CSV export.\n\nPrivacy: the ``submission_id`` is a random per-submission token\nwith no link back to the signup that produced it \u2014 this matches\nthe contract documented in the public privacy notice.",
-        "operationId": "feedback_submissions_api_v1_events__event_id__feedback_submissions_get",
+        "operationId": "feedback_submissions_api_v1_event__event_id__feedback_submissions_get",
         "parameters": [
           {
             "in": "path",
@@ -13987,7 +13987,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FeedbackSubmissionOut"
                   },
-                  "title": "Response Feedback Submissions Api V1 Events  Event Id  Feedback Submissions Get",
+                  "title": "Response Feedback Submissions Api V1 Event  Event Id  Feedback Submissions Get",
                   "type": "array"
                 }
               }
@@ -14011,9 +14011,9 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/feedback-summary": {
+    "/api/v1/event/{event_id}/feedback-summary": {
       "get": {
-        "operationId": "feedback_summary_api_v1_events__event_id__feedback_summary_get",
+        "operationId": "feedback_summary_api_v1_event__event_id__feedback_summary_get",
         "parameters": [
           {
             "in": "path",
@@ -14069,10 +14069,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/image": {
+    "/api/v1/event/{event_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file. Nothing else points at\nit, so leaving it behind would be storage nobody can ever reach.",
-        "operationId": "delete_event_image_api_v1_events__event_id__image_delete",
+        "operationId": "delete_event_image_api_v1_event__event_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -14129,7 +14129,7 @@
       },
       "post": {
         "description": "Upload (or replace) the event's hero image. The bytes go\nthrough ``services/image.py``: validated, EXIF-rotated, cropped to\n4:5, resized to 1200x1500, JPEG-re-encoded, then stored.\n``event.image_path`` is set to where it landed, and what anyone\nsees is this app's own ``/i/{path}``.\n\nReplacing an image deletes the file it replaces, once the row\npoints at the new one.\n\nReturns the updated ``EventOut`` so the caller's Vue Query\ncache patches in-place without an extra refetch.",
-        "operationId": "upload_event_image_api_v1_events__event_id__image_post",
+        "operationId": "upload_event_image_api_v1_event__event_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -14161,7 +14161,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_event_image_api_v1_events__event_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_event_image_api_v1_event__event_id__image_post"
               }
             }
           },
@@ -14195,10 +14195,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/occurrences": {
+    "/api/v1/event/{event_id}/occurrences": {
       "get": {
         "description": "The occurrence panel on the organiser detail page: the materialised\noccurrences with per-session headcount + line-item counts, plus the\nprojected future dates that aren't rows yet. Strictly read-only per\noccurrence \u2014 the only actions are on the event itself.",
-        "operationId": "event_occurrences_api_v1_events__event_id__occurrences_get",
+        "operationId": "event_occurrences_api_v1_event__event_id__occurrences_get",
         "parameters": [
           {
             "in": "path",
@@ -14254,10 +14254,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/signups": {
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": {
       "get": {
         "description": "Per-line-item list for one occurrence of the organiser's event.\nReturns display_name + party_size + help_choices \u2014 never email,\nsource, or feedback-email status.",
-        "operationId": "occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get",
+        "operationId": "occurrence_signups_api_v1_event__event_id__occurrences__occurrence_id__signups_get",
         "parameters": [
           {
             "in": "path",
@@ -14302,7 +14302,7 @@
                   "items": {
                     "$ref": "#/components/schemas/SignupSummaryOut"
                   },
-                  "title": "Response Occurrence Signups Api V1 Events  Event Id  Occurrences  Occurrence Id  Signups Get",
+                  "title": "Response Occurrence Signups Api V1 Event  Event Id  Occurrences  Occurrence Id  Signups Get",
                   "type": "array"
                 }
               }
@@ -14326,10 +14326,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/stats": {
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": {
       "get": {
         "description": "Aggregated source/help breakdown for one occurrence \u2014 the \"stats of\nthat day\" behind the detail page's calendar day switcher. Aggregate\nonly, never linked to a person.",
-        "operationId": "occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get",
+        "operationId": "occurrence_stats_api_v1_event__event_id__occurrences__occurrence_id__stats_get",
         "parameters": [
           {
             "in": "path",
@@ -14394,10 +14394,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/registrations/{registration_id}/edit-link": {
+    "/api/v1/event/{event_id}/registrations/{registration_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a participant's lost magic link. Only the\ntoken's hash is stored, so this *rotates* rather than reveals: the old\nlink stops working, the fresh raw token is returned exactly once, and\n``link_recovered_at`` is stamped permanently.",
-        "operationId": "recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post",
+        "operationId": "recover_booking_edit_link_api_v1_event__event_id__registrations__registration_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -14462,9 +14462,9 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/restore": {
+    "/api/v1/event/{event_id}/restore": {
       "post": {
-        "operationId": "restore_event_api_v1_events__event_id__restore_post",
+        "operationId": "restore_event_api_v1_event__event_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -14520,10 +14520,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/send-emails/{channel}": {
+    "/api/v1/event/{event_id}/send-emails/{channel}": {
       "post": {
         "description": "Manually trigger the worker for one channel on a single\nevent. Re-use of the generic dispatcher means the reminder\n+ feedback \"send now\" buttons share one endpoint and one\nrate-limit budget.",
-        "operationId": "send_emails_now_api_v1_events__event_id__send_emails__channel__post",
+        "operationId": "send_emails_now_api_v1_event__event_id__send_emails__channel__post",
         "parameters": [
           {
             "in": "path",
@@ -14568,7 +14568,7 @@
                   "additionalProperties": {
                     "type": "integer"
                   },
-                  "title": "Response Send Emails Now Api V1 Events  Event Id  Send Emails  Channel  Post",
+                  "title": "Response Send Emails Now Api V1 Event  Event Id  Send Emails  Channel  Post",
                   "type": "object"
                 }
               }
@@ -14592,10 +14592,10 @@
         ]
       }
     },
-    "/api/v1/events/{event_id}/signups/{signup_id}": {
+    "/api/v1/event/{event_id}/signups/{signup_id}": {
       "delete": {
         "description": "Organiser-only hard-delete of a single sign-up line item \u2014 a stray\nor duplicate booking on one occurrence. Privacy invariant unaffected:\n``Signup`` carries no email. Any pending ``EmailDispatch`` for the\noccurrence lives on by design (no signup link).",
-        "operationId": "delete_signup_api_v1_events__event_id__signups__signup_id__delete",
+        "operationId": "delete_signup_api_v1_event__event_id__signups__signup_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -14805,9 +14805,9 @@
         ]
       }
     },
-    "/api/v1/forms": {
+    "/api/v1/form": {
       "get": {
-        "operationId": "list_forms_api_v1_forms_get",
+        "operationId": "list_forms_api_v1_form_get",
         "parameters": [
           {
             "in": "query",
@@ -14850,7 +14850,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Forms Api V1 Forms Get",
+                  "title": "Response List Forms Api V1 Form Get",
                   "type": "array"
                 }
               }
@@ -14875,7 +14875,7 @@
       },
       "post": {
         "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
-        "operationId": "create_form_api_v1_forms_post",
+        "operationId": "create_form_api_v1_form_post",
         "parameters": [
           {
             "in": "header",
@@ -14932,9 +14932,9 @@
         ]
       }
     },
-    "/api/v1/forms/archived": {
+    "/api/v1/form/archived": {
       "get": {
-        "operationId": "list_archived_forms_api_v1_forms_archived_get",
+        "operationId": "list_archived_forms_api_v1_form_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -14977,7 +14977,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Archived Forms Api V1 Forms Archived Get",
+                  "title": "Response List Archived Forms Api V1 Form Archived Get",
                   "type": "array"
                 }
               }
@@ -15001,9 +15001,9 @@
         ]
       }
     },
-    "/api/v1/forms/by-slug/{slug}": {
+    "/api/v1/form/by-slug/{slug}": {
       "get": {
-        "operationId": "get_public_form_api_v1_forms_by_slug__slug__get",
+        "operationId": "get_public_form_api_v1_form_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -15043,10 +15043,10 @@
         ]
       }
     },
-    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+    "/api/v1/form/by-slug/{slug}/qr.svg": {
       "get": {
         "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
-        "operationId": "get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get",
+        "operationId": "get_form_qr_api_v1_form_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -15084,10 +15084,10 @@
         ]
       }
     },
-    "/api/v1/forms/by-slug/{slug}/submit": {
+    "/api/v1/form/by-slug/{slug}/submit": {
       "post": {
         "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\ncome back to it. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
-        "operationId": "submit_form_api_v1_forms_by_slug__slug__submit_post",
+        "operationId": "submit_form_api_v1_form_by_slug__slug__submit_post",
         "parameters": [
           {
             "in": "path",
@@ -15137,10 +15137,10 @@
         ]
       }
     },
-    "/api/v1/forms/by-token/{token}": {
+    "/api/v1/form/by-token/{token}": {
       "get": {
         "description": "Current values of a submission, for pre-filling the edit\nform. Gated by the secret token (the link).",
-        "operationId": "get_form_submission_api_v1_forms_by_token__token__get",
+        "operationId": "get_form_submission_api_v1_form_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -15181,7 +15181,7 @@
       },
       "put": {
         "description": "Update a submission in place via its edit-link token.\nReplaces the submission's answer rows and the pseudonym.",
-        "operationId": "update_submission_form_api_v1_forms_by_token__token__put",
+        "operationId": "update_submission_form_api_v1_form_by_token__token__put",
         "parameters": [
           {
             "in": "path",
@@ -15231,10 +15231,10 @@
         ]
       }
     },
-    "/api/v1/forms/by-token/{token}/withdraw": {
+    "/api/v1/form/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
-        "operationId": "withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post",
+        "operationId": "withdraw_submission_form_api_v1_form_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -15267,10 +15267,10 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}": {
+    "/api/v1/form/{form_id}": {
       "delete": {
         "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
-        "operationId": "delete_form_api_v1_forms__form_id__delete",
+        "operationId": "delete_form_api_v1_form__form_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -15319,7 +15319,7 @@
         ]
       },
       "get": {
-        "operationId": "get_form_api_v1_forms__form_id__get",
+        "operationId": "get_form_api_v1_form__form_id__get",
         "parameters": [
           {
             "in": "path",
@@ -15376,7 +15376,7 @@
       },
       "put": {
         "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
-        "operationId": "update_form_api_v1_forms__form_id__put",
+        "operationId": "update_form_api_v1_form__form_id__put",
         "parameters": [
           {
             "in": "path",
@@ -15442,9 +15442,9 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/archive": {
+    "/api/v1/form/{form_id}/archive": {
       "post": {
-        "operationId": "archive_form_api_v1_forms__form_id__archive_post",
+        "operationId": "archive_form_api_v1_form__form_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -15500,10 +15500,10 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/image": {
+    "/api/v1/form/{form_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_image_form_api_v1_forms__form_id__image_delete",
+        "operationId": "delete_image_form_api_v1_form__form_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -15560,7 +15560,7 @@
       },
       "post": {
         "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
-        "operationId": "upload_image_form_api_v1_forms__form_id__image_post",
+        "operationId": "upload_image_form_api_v1_form__form_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -15592,7 +15592,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_image_form_api_v1_forms__form_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_image_form_api_v1_form__form_id__image_post"
               }
             }
           },
@@ -15626,9 +15626,9 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/restore": {
+    "/api/v1/form/{form_id}/restore": {
       "post": {
-        "operationId": "restore_form_api_v1_forms__form_id__restore_post",
+        "operationId": "restore_form_api_v1_form__form_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -15684,10 +15684,10 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/submissions": {
+    "/api/v1/form/{form_id}/submissions": {
       "get": {
         "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
-        "operationId": "form_submissions_api_v1_forms__form_id__submissions_get",
+        "operationId": "form_submissions_api_v1_form__form_id__submissions_get",
         "parameters": [
           {
             "in": "path",
@@ -15723,7 +15723,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormSubmissionOut"
                   },
-                  "title": "Response Form Submissions Api V1 Forms  Form Id  Submissions Get",
+                  "title": "Response Form Submissions Api V1 Form  Form Id  Submissions Get",
                   "type": "array"
                 }
               }
@@ -15747,10 +15747,10 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/form/{form_id}/submissions/{submission_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post",
+        "operationId": "recover_edit_link_form_api_v1_form__form_id__submissions__submission_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -15815,9 +15815,9 @@
         ]
       }
     },
-    "/api/v1/forms/{form_id}/summary": {
+    "/api/v1/form/{form_id}/summary": {
       "get": {
-        "operationId": "form_summary_api_v1_forms__form_id__summary_get",
+        "operationId": "form_summary_api_v1_form__form_id__summary_get",
         "parameters": [
           {
             "in": "path",
@@ -15873,9 +15873,9 @@
         ]
       }
     },
-    "/api/v1/quizzes": {
+    "/api/v1/quiz": {
       "get": {
-        "operationId": "list_forms_api_v1_quizzes_get",
+        "operationId": "list_forms_api_v1_quiz_get",
         "parameters": [
           {
             "in": "query",
@@ -15918,7 +15918,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Forms Api V1 Quizzes Get",
+                  "title": "Response List Forms Api V1 Quiz Get",
                   "type": "array"
                 }
               }
@@ -15943,7 +15943,7 @@
       },
       "post": {
         "description": "Create a new form. Questions are optional \u2014 a blank form\ncan be saved and the question list filled in on the edit\npage afterwards. Caller-supplied ``chapter_id`` must be in\nthe user's live membership set.",
-        "operationId": "create_quiz_api_v1_quizzes_post",
+        "operationId": "create_quiz_api_v1_quiz_post",
         "parameters": [
           {
             "in": "header",
@@ -16000,9 +16000,9 @@
         ]
       }
     },
-    "/api/v1/quizzes/archived": {
+    "/api/v1/quiz/archived": {
       "get": {
-        "operationId": "list_archived_forms_api_v1_quizzes_archived_get",
+        "operationId": "list_archived_forms_api_v1_quiz_archived_get",
         "parameters": [
           {
             "in": "query",
@@ -16045,7 +16045,7 @@
                   "items": {
                     "$ref": "#/components/schemas/FormListOut"
                   },
-                  "title": "Response List Archived Forms Api V1 Quizzes Archived Get",
+                  "title": "Response List Archived Forms Api V1 Quiz Archived Get",
                   "type": "array"
                 }
               }
@@ -16069,9 +16069,9 @@
         ]
       }
     },
-    "/api/v1/quizzes/by-slug/{slug}": {
+    "/api/v1/quiz/by-slug/{slug}": {
       "get": {
-        "operationId": "get_public_form_api_v1_quizzes_by_slug__slug__get",
+        "operationId": "get_public_form_api_v1_quiz_by_slug__slug__get",
         "parameters": [
           {
             "in": "path",
@@ -16111,10 +16111,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/by-slug/{slug}/qr.svg": {
+    "/api/v1/quiz/by-slug/{slug}/qr.svg": {
       "get": {
         "description": "QR SVG for one slug. Resolves the form first so a typo'd\nslug 410s rather than 200ing with a wrong-target QR.",
-        "operationId": "get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get",
+        "operationId": "get_form_qr_api_v1_quiz_by_slug__slug__qr_svg_get",
         "parameters": [
           {
             "in": "path",
@@ -16152,10 +16152,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/by-slug/{slug}/submit": {
+    "/api/v1/quiz/by-slug/{slug}/submit": {
       "post": {
         "description": "Accept one public submission. Mints a secret edit-link token\n(raw returned once; only its hash stored) so the respondent can\ncome back to it. Nothing in the response links the submission\nback to a person beyond the self-chosen pseudonym.",
-        "operationId": "submit_quiz_api_v1_quizzes_by_slug__slug__submit_post",
+        "operationId": "submit_quiz_api_v1_quiz_by_slug__slug__submit_post",
         "parameters": [
           {
             "in": "path",
@@ -16205,10 +16205,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/by-token/{token}": {
+    "/api/v1/quiz/by-token/{token}": {
       "get": {
         "description": "The result again, later. Read-only on purpose: changing\nan answer after seeing the score is a second attempt, not a\ncorrection (``docs/design-quizzes.md`` part 3.4). There is\nno PUT on this path for a quiz.",
-        "operationId": "get_quiz_result_api_v1_quizzes_by_token__token__get",
+        "operationId": "get_quiz_result_api_v1_quiz_by_token__token__get",
         "parameters": [
           {
             "in": "path",
@@ -16248,10 +16248,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/by-token/{token}/withdraw": {
+    "/api/v1/quiz/by-token/{token}/withdraw": {
       "post": {
         "description": "Withdraw a submission via its edit-link token \u2014 the respondent\ndeleting their own answers. Removes the response rows and the\nsubmission; nothing else references either (pseudonymous, no email).",
-        "operationId": "withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post",
+        "operationId": "withdraw_submission_quiz_api_v1_quiz_by_token__token__withdraw_post",
         "parameters": [
           {
             "in": "path",
@@ -16284,10 +16284,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}": {
+    "/api/v1/quiz/{form_id}": {
       "delete": {
         "description": "Delete an archived form for good, with its questions,\nsubmissions and responses, and the image it owned. A live form is\nnot found here at all, so deleting one still means archiving it\nfirst.",
-        "operationId": "delete_quiz_api_v1_quizzes__form_id__delete",
+        "operationId": "delete_quiz_api_v1_quiz__form_id__delete",
         "parameters": [
           {
             "in": "path",
@@ -16336,7 +16336,7 @@
         ]
       },
       "get": {
-        "operationId": "get_form_api_v1_quizzes__form_id__get",
+        "operationId": "get_form_api_v1_quiz__form_id__get",
         "parameters": [
           {
             "in": "path",
@@ -16393,7 +16393,7 @@
       },
       "put": {
         "description": "Update a form. Chapter changes are allowed (organiser might\nhave picked the wrong chapter at create time) but the new one\nstill has to be in the user's set. Questions are diff-applied\nby id \u2014 see ``services/forms.apply_questions``.",
-        "operationId": "update_quiz_api_v1_quizzes__form_id__put",
+        "operationId": "update_quiz_api_v1_quiz__form_id__put",
         "parameters": [
           {
             "in": "path",
@@ -16459,9 +16459,9 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/archive": {
+    "/api/v1/quiz/{form_id}/archive": {
       "post": {
-        "operationId": "archive_quiz_api_v1_quizzes__form_id__archive_post",
+        "operationId": "archive_quiz_api_v1_quiz__form_id__archive_post",
         "parameters": [
           {
             "in": "path",
@@ -16517,10 +16517,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/image": {
+    "/api/v1/quiz/{form_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file: nothing else points at\nit.",
-        "operationId": "delete_image_quiz_api_v1_quizzes__form_id__image_delete",
+        "operationId": "delete_image_quiz_api_v1_quiz__form_id__image_delete",
         "parameters": [
           {
             "in": "path",
@@ -16577,7 +16577,7 @@
       },
       "post": {
         "description": "Upload (or replace) the form's hero image \u2014 same 4:5 GitHub\npipeline as events (``services/image.py``).",
-        "operationId": "upload_image_quiz_api_v1_quizzes__form_id__image_post",
+        "operationId": "upload_image_quiz_api_v1_quiz__form_id__image_post",
         "parameters": [
           {
             "in": "path",
@@ -16609,7 +16609,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_image_quiz_api_v1_quizzes__form_id__image_post"
+                "$ref": "#/components/schemas/Body_upload_image_quiz_api_v1_quiz__form_id__image_post"
               }
             }
           },
@@ -16643,9 +16643,9 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/restore": {
+    "/api/v1/quiz/{form_id}/restore": {
       "post": {
-        "operationId": "restore_quiz_api_v1_quizzes__form_id__restore_post",
+        "operationId": "restore_quiz_api_v1_quiz__form_id__restore_post",
         "parameters": [
           {
             "in": "path",
@@ -16701,10 +16701,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/submissions": {
+    "/api/v1/quiz/{form_id}/submissions": {
       "get": {
         "description": "Per-submission rows, keyed by question id. CSV consumers\nmap columns by question id; a separate lookup against the\nquestions list gives them the prompt text.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
-        "operationId": "form_submissions_api_v1_quizzes__form_id__submissions_get",
+        "operationId": "form_submissions_api_v1_quiz__form_id__submissions_get",
         "parameters": [
           {
             "in": "path",
@@ -16740,7 +16740,7 @@
                   "items": {
                     "$ref": "#/components/schemas/QuizSubmissionOut"
                   },
-                  "title": "Response Form Submissions Api V1 Quizzes  Form Id  Submissions Get",
+                  "title": "Response Form Submissions Api V1 Quiz  Form Id  Submissions Get",
                   "type": "array"
                 }
               }
@@ -16764,10 +16764,10 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/quiz/{form_id}/submissions/{submission_id}/edit-link": {
       "post": {
         "description": "Organiser recovery of a respondent's lost magic link \u2014 rotates\nthe token (never reveals it) and permanently stamps\n``link_recovered_at``; see ``services/edit_token.recover``.",
-        "operationId": "recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post",
+        "operationId": "recover_edit_link_quiz_api_v1_quiz__form_id__submissions__submission_id__edit_link_post",
         "parameters": [
           {
             "in": "path",
@@ -16832,9 +16832,9 @@
         ]
       }
     },
-    "/api/v1/quizzes/{form_id}/summary": {
+    "/api/v1/quiz/{form_id}/summary": {
       "get": {
-        "operationId": "form_summary_api_v1_quizzes__form_id__summary_get",
+        "operationId": "form_summary_api_v1_quiz__form_id__summary_get",
         "parameters": [
           {
             "in": "path",
@@ -16996,9 +16996,9 @@
         ]
       }
     },
-    "/api/v1/start/chores": {
+    "/api/v1/start/chore": {
       "post": {
-        "operationId": "start_roster_api_v1_start_chores_post",
+        "operationId": "start_roster_api_v1_start_chore_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -17037,9 +17037,9 @@
         ]
       }
     },
-    "/api/v1/start/compasses": {
+    "/api/v1/start/compass": {
       "post": {
-        "operationId": "start_compass_api_v1_start_compasses_post",
+        "operationId": "start_compass_api_v1_start_compass_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -17078,9 +17078,9 @@
         ]
       }
     },
-    "/api/v1/start/datepolls": {
+    "/api/v1/start/datepoll": {
       "post": {
-        "operationId": "start_datepoll_api_v1_start_datepolls_post",
+        "operationId": "start_datepoll_api_v1_start_datepoll_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -17119,9 +17119,9 @@
         ]
       }
     },
-    "/api/v1/start/events": {
+    "/api/v1/start/event": {
       "post": {
-        "operationId": "start_event_api_v1_start_events_post",
+        "operationId": "start_event_api_v1_start_event_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -17160,9 +17160,9 @@
         ]
       }
     },
-    "/api/v1/start/forms": {
+    "/api/v1/start/form": {
       "post": {
-        "operationId": "start_form_api_v1_start_forms_post",
+        "operationId": "start_form_api_v1_start_form_post",
         "requestBody": {
           "content": {
             "application/json": {
@@ -17201,9 +17201,9 @@
         ]
       }
     },
-    "/api/v1/start/quizzes": {
+    "/api/v1/start/quiz": {
       "post": {
-        "operationId": "start_quiz_api_v1_start_quizzes_post",
+        "operationId": "start_quiz_api_v1_start_quiz_post",
         "requestBody": {
           "content": {
             "application/json": {

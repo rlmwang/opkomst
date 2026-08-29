@@ -186,7 +186,7 @@ describe("useEvents composables", () => {
     const { useArchiveEvent } = await import("@/composables/useEvents");
 
     queryClient.setQueryData(
-      ["events", "active"],
+      ["event", "active"],
       [{ id: "e1", name: "A" }, { id: "e2", name: "B" }],
     );
     mockPost.mockRejectedValueOnce(new Error("boom"));
@@ -195,7 +195,7 @@ describe("useEvents composables", () => {
     await expect(m.mutateAsync("e1")).rejects.toThrow();
 
     // Snapshot restored — both events back in the cache, in order.
-    const after = queryClient.getQueryData<{ id: string }[]>(["events", "active"]);
+    const after = queryClient.getQueryData<{ id: string }[]>(["event", "active"]);
     expect(after?.map((e) => e.id)).toEqual(["e1", "e2"]);
   });
 
@@ -207,12 +207,12 @@ describe("useEvents composables", () => {
     const r = await m.mutateAsync({ eventId: "ev1", channel: "reminder" });
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/api/v1/events/ev1/send-emails/reminder",
+      "/api/v1/event/ev1/send-emails/reminder",
     );
     expect(r.processed).toBe(3);
   });
 
-  it("useCreateEvent POSTs /api/v1/events with the payload", async () => {
+  it("useCreateEvent POSTs /api/v1/event with the payload", async () => {
     const { useCreateEvent } = await import("@/composables/useEvents");
     const payload = {
       name: "Demo",
@@ -244,7 +244,7 @@ describe("useEvents composables", () => {
     const m = withSetup(() => useCreateEvent());
     await m.mutateAsync(payload);
 
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/events", payload);
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/event", payload);
   });
 
   it("useUpdateEvent PUTs the event-id-keyed URL", async () => {
@@ -255,17 +255,17 @@ describe("useEvents composables", () => {
     const payload = { name: "X" } as never;
     await m.mutateAsync({ eventId: "ev1", payload });
 
-    expect(mockPut).toHaveBeenCalledWith("/api/v1/events/ev1", payload);
+    expect(mockPut).toHaveBeenCalledWith("/api/v1/event/ev1", payload);
   });
 
-  it("useRestoreEvent POSTs /api/v1/events/{id}/restore", async () => {
+  it("useRestoreEvent POSTs /api/v1/event/{id}/restore", async () => {
     const { useRestoreEvent } = await import("@/composables/useEvents");
     mockPost.mockResolvedValueOnce({} as never);
 
     const m = withSetup(() => useRestoreEvent());
     await m.mutateAsync("ev1");
 
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/events/ev1/restore");
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/event/ev1/restore");
   });
 
   it("useEventOccurrences GETs the occurrence panel URL", async () => {
@@ -275,7 +275,7 @@ describe("useEvents composables", () => {
     const q = withSetup(() => useEventOccurrences("ev1"));
     await q.refetch();
 
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/events/ev1/occurrences");
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/event/ev1/occurrences");
   });
 
   it("useDeleteSignup DELETEs the line-item URL", async () => {
@@ -285,7 +285,7 @@ describe("useEvents composables", () => {
     const m = withSetup(() => useDeleteSignup());
     await m.mutateAsync({ eventId: "ev1", occurrenceId: "oc1", signupId: "su1" });
 
-    expect(mockDel).toHaveBeenCalledWith("/api/v1/events/ev1/signups/su1");
+    expect(mockDel).toHaveBeenCalledWith("/api/v1/event/ev1/signups/su1");
   });
 
   // ``usePublicSignup`` removed: the public sign-up form moved to

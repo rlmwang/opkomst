@@ -57,7 +57,7 @@ async function copy() {
           text
           @click="open"
         />
-        <AppButton :label="t('start.copyLink')" icon="pi pi-link" @click="copy" />
+        <AppButton :label="t('start.copyLink')" icon="link" @click="copy" />
       </div>
     </AppCard>
   </div>

@@ -41,7 +41,7 @@ function ask(item: T) {
         </slot>
       </div>
       <AppButton
-        icon="pi pi-trash"
+        icon="trash"
         size="small"
         severity="secondary"
         text

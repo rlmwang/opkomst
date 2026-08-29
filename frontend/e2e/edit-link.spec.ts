@@ -21,7 +21,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
 
   const startsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const endsAt = new Date(startsAt.getTime() + 2 * 60 * 60 * 1000);
-  const eventRes = await request.post("/api/v1/events", {
+  const eventRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       name_nl: "E2E Edit-link Event",
@@ -42,7 +42,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   const event = await eventRes.json();
 
   // Public page is per occurrence; use the first occurrence's slug.
-  const occRes = await request.get(`/api/v1/events/${event.id}/occurrences`, {
+  const occRes = await request.get(`/api/v1/event/${event.id}/occurrences`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const occSlug = (await occRes.json()).occurrences[0].slug as string;

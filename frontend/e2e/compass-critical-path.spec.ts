@@ -66,7 +66,7 @@ test("organiser builds a kompas in the editor, and the refusals name the questio
   // navigation rather than logged in through the form.
   await context.addInitScript((t) => window.localStorage.setItem("token:rsp", t), token as string);
   const page = await context.newPage();
-  await page.goto("/rsp/compasses/new");
+  await page.goto("/rsp/compass/new");
   await stopAnimating(page);
 
   // ``exact``: the accessible-name match is a substring by default, and
@@ -133,7 +133,7 @@ test("a visitor walks a kompas and lands on the map", async ({ browser, request 
   const { token, user } = await organiserToken(request);
   const chapterId = user.chapters[0].id;
 
-  const created = await request.post("/api/v1/compasses", {
+  const created = await request.post("/api/v1/compass", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       chapter_id: chapterId,

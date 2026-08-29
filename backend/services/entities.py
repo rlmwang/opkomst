@@ -1,7 +1,7 @@
 """Creating the four things the app makes, from either door.
 
-An organiser signed in to a tenant posts to ``/api/v1/events`` (and its
-three siblings). A visitor at the root posts to ``/api/v1/start/events``
+An organiser signed in to a tenant posts to ``/api/v1/event`` (and its
+three siblings). A visitor at the root posts to ``/api/v1/start/event``
 with an address instead of a session. Both end up here, so an entity is
 built one way whichever door it came through — the difference between
 the doors is who the actor is and how they were resolved, not what gets

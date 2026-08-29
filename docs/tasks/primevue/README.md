@@ -1,7 +1,13 @@
 # Removing PrimeVue: task specs
 
-Three tasks that take the organiser app off PrimeVue. Ship in order; each
-leaves the suite green and the app shippable.
+**All three landed. This is the record, not a plan.** The app has no
+component library and no icon font; `node_modules/primevue`,
+`node_modules/@primeuix` and `src/primevue-preset.ts` are gone, so the
+reference paths below no longer resolve. They are kept because they say
+where each number came from.
+
+Three tasks that took the organiser app off PrimeVue. Shipped in order;
+each left the suite green and the app shippable.
 
 The pattern for each is the one `src/components/DatePicker.vue` already
 proved, and every task below repeats it in three phases:
@@ -48,7 +54,7 @@ when the chore page's date fields became `DatePicker.vue`.
 |---|---|---|---|
 | 01 | Plain controls *(landed; spec deleted)* | Button, InputText, Textarea, ToggleSwitch, ProgressBar, IconField, InputIcon | none |
 | 02 | The ones we already own *(landed; spec deleted)* | Toast, InputNumber, Dialog, ConfirmDialog, Tooltip | 01 |
-| 03 | [Overlay lists](03-overlay-lists.md) | Select, MultiSelect, AutoComplete, Popover, then PrimeVue itself | 01, 02 |
+| 03 | Overlay lists *(landed; spec deleted)* | Select, MultiSelect, AutoComplete, Popover, then PrimeVue and PrimeIcons themselves | 01, 02 |
 
 01 and 02 are independent of each other in principle. 02 lists after 01
 because both touch the same pages and doing them together means one pass
@@ -62,9 +68,14 @@ statements. Button alone is 78. Count tags before estimating.
 Both specs said the critical path would not move until task 03. That
 held for 01 and was wrong for 02, which took 19,917 gz off it. Toast,
 ConfirmDialog and Tooltip are registered in `main.ts` and rendered in
-`App.vue`, so they were in the entry chunk, not behind a route. What is
-left of `primevue-base` is 32,944 gz, not the 45,244 the table below
-still quotes.
+`App.vue`, so they were in the entry chunk, not behind a route.
+
+**What task 03 collected.** The organiser critical path went from
+150,517 gz to 100,321 gz: 50,196 gz, which is a third of it. That is
+the last of `primevue-base` and `primevue-themes`, the four overlay
+widgets, and PrimeIcons' 35 kB woff2 and 85 kB ttf, replaced by 23 SVG
+paths in `AppIcon.vue`. Nothing in `dist` mentions PrimeVue any more,
+and the app ships no icon font.
 
 ## Where the reference lives
 
@@ -187,11 +198,18 @@ padding, weight and gap.
 
 That is not task 01's to settle, because the other two are what the
 public mini-apps render and changing them changes public pages. It is a
-question about the whole app's button, worth asking on its own once the
-organiser side has stopped moving. Raise it after task 03.
+question about the whole app's button, worth asking on its own. The
+organiser side has now stopped moving, so it is askable.
 
-**The form-field colours still read the PrimeVue ramp.** Task 01 kept
-`--brand-surface-200` borders and `--brand-surface-900` text on
-`AppInput`, `AppTextarea` and `AppToggle`, because they sit beside
-PrimeVue `Select` and `AutoComplete` until task 03. Task 03's phase 3
-moves them to `--brand-border` and `--brand-text`.
+Task 03 settled the same question for the input: the organiser field
+won, and `public_shared/forms.css`'s `.input` took its padding, its
+ground, its shadow and its ring-less focus. The button is the last
+control where the two halves of the app still disagree.
+
+**The form-field colours now read the app's own names.** Task 03's
+phase 3 moved `AppInput`, `AppTextarea`, `AppToggle`, `DatePicker`,
+`SelectField`, `MultiSelectField` and `AutoCompleteField` from
+`--brand-surface-200` / `--brand-surface-900` / `--brand-surface-500`
+to `--brand-border` / `--brand-text` / `--brand-text-muted`. The one
+role with no house name is the hover border, which is now
+`color-mix(in srgb, var(--brand-text-muted) 45%, transparent)`.

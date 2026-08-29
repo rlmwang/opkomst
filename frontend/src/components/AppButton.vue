@@ -21,11 +21,12 @@
  * own that no brand defines, so replicating it would have meant a
  * literal colour, which is not allowed outside ``brands/``.
  */
+import AppIcon, { type IconName } from "@/components/AppIcon.vue";
 withDefaults(
   defineProps<{
     label?: string;
-    /** An icon class, e.g. ``pi pi-plus``. */
-    icon?: string;
+    /** An ``AppIcon`` name, e.g. ``plus``. */
+    icon?: IconName;
     severity?: "secondary" | "danger";
     /** Transparent until hovered, for low-emphasis actions. */
     text?: boolean;
@@ -63,7 +64,7 @@ withDefaults(
     >
       <path d="M21 12a9 9 0 1 1-6.22-8.56" />
     </svg>
-    <i v-else-if="icon" :class="icon" aria-hidden="true"></i>
+    <AppIcon v-else-if="icon" :name="icon" />
     <span v-if="label" class="app-btn-label">{{ label }}</span>
     <slot />
   </button>

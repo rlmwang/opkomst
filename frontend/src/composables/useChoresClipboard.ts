@@ -7,6 +7,6 @@ export function useChoresClipboard() {
   return useShareClipboard({
     publicUrlFor: publicChoreUrl,
     qrUrlFor: choreQrUrl,
-    copyPrefix: "chores.share",
+    copyPrefix: "chore.share",
   });
 }

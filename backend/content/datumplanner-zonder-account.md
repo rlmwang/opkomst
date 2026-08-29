@@ -1,7 +1,7 @@
 ---
 title: Datumplanner zonder account of cookies
 description: Een datum prikken met een groep, zonder dat iemand een account maakt en zonder cookies. Wat andere datumplanners opslaan, en wat wij niet doen.
-cta_path: /datepolls/new
+cta_path: /datepoll/new
 cta_label: Maak een datumplanner
 order: 2
 ---

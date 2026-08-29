@@ -129,7 +129,7 @@ def test_store_puts_to_contents_api_and_returns_a_path(github_enabled) -> None:
     # is kept.
     assert path == "events/ev1/1700000000000.jpg"
     assert captured["url"] == (
-        "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/events/ev1/1700000000000.jpg"
+        "https://api.github.com/repos/rlmwang/opkomst-event-images/contents/event/ev1/1700000000000.jpg"
     )
     assert captured["headers"]["Authorization"] == "Bearer ghp_test"
     assert captured["json"]["branch"] == "main"
@@ -139,7 +139,7 @@ def test_store_puts_to_contents_api_and_returns_a_path(github_enabled) -> None:
 def test_public_url_is_this_app_and_never_the_storage_host() -> None:
     url = event_image.public_url("events/ev1/1700000000000.jpg")
     assert url is not None
-    assert url.endswith("/i/events/ev1/1700000000000.jpg")
+    assert url.endswith("/i/event/ev1/1700000000000.jpg")
     assert "github" not in url
     assert event_image.public_url(None) is None
 
@@ -207,7 +207,7 @@ def _new_event(client: Any, headers: dict[str, str]) -> dict[str, Any]:
     me = client.get("/api/v1/auth/me", headers=headers).json()
     chapter_id = me["chapters"][0]["id"]
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=headers,
         json={
             "name_nl": "Demo",
@@ -236,7 +236,7 @@ def _upload(
     content_type: str = "image/png",
 ):
     return client.post(
-        f"/api/v1/events/{event_id}/image",
+        f"/api/v1/event/{event_id}/image",
         headers=headers,
         files={"file": (filename, file_bytes, content_type)},
     )
@@ -308,7 +308,7 @@ def test_delete_route_clears_the_row_and_deletes_the_file(client, organiser_head
     commit(db)
 
     with patch.object(event_image, "delete", return_value=True) as deleted:
-        r = client.delete(f"/api/v1/events/{e['id']}/image", headers=organiser_headers)
+        r = client.delete(f"/api/v1/event/{e['id']}/image", headers=organiser_headers)
     assert r.status_code == 200
     assert r.json()["image_url"] is None
     deleted.assert_called_once_with("events/ev/1.jpg")
@@ -316,7 +316,7 @@ def test_delete_route_clears_the_row_and_deletes_the_file(client, organiser_head
 
 def test_delete_route_404s_when_no_image(client, organiser_headers) -> None:
     e = _new_event(client, organiser_headers)
-    r = client.delete(f"/api/v1/events/{e['id']}/image", headers=organiser_headers)
+    r = client.delete(f"/api/v1/event/{e['id']}/image", headers=organiser_headers)
     assert r.status_code == 404
 
 
@@ -384,7 +384,7 @@ def test_event_create_strips_leading_at_from_artist_handle(client, organiser_hea
     ``handle`` so URL construction is uniform."""
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Demo",
@@ -408,7 +408,7 @@ def test_event_create_strips_leading_at_from_artist_handle(client, organiser_hea
 def test_event_create_rejects_invalid_instagram_handle(client, organiser_headers) -> None:
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Demo",

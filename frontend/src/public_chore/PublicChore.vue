@@ -476,7 +476,7 @@ async function leave(): Promise<void> {
       <div class="card stack">
         <h2>{{ ch.chooseChores }}</h2>
         <p v-if="status === 'enrol'" class="muted">{{ ch.enrolIntro }}</p>
-        <p v-if="chores.length === 0" class="empty muted">{{ ch.noChores }}</p>
+        <p v-if="chore.length === 0" class="empty muted">{{ ch.noChores }}</p>
         <label v-for="chore in chores" :key="chore.id" class="chore-check">
           <input type="checkbox" class="check" v-model="picked[chore.id]" />
           <span class="chore-label">
@@ -663,6 +663,6 @@ h2 { margin: 0; font-size: 1.1rem; }
   background: color-mix(in srgb, var(--brand-red) 8%, transparent);
 }
 /* .submit-row (right-aligned action row) + .btn / .btn.ghost come from
- * ``forms.css`` (shared so sub-components like PersonalCalendar get them). */
+ * ``form.css`` (shared so sub-components like PersonalCalendar get them). */
 .error { color: var(--brand-red); }
 </style>

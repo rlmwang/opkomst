@@ -33,7 +33,7 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/events", tags=["signups"])
+router = APIRouter(prefix="/api/v1/event", tags=["signups"])
 
 
 def _resolve_targets(db: Session, event: Event, data: SignupCreate, now) -> list[Occurrence]:

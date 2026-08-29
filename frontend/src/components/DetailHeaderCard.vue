@@ -51,7 +51,7 @@ const { t } = useI18n();
       <div v-if="descriptionHtml" class="richtext" v-html="descriptionHtml"></div>
       <div class="edit-row">
         <router-link :to="editTo">
-          <AppButton :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
+          <AppButton :label="t('common.edit')" icon="pencil" size="small" severity="secondary" />
         </router-link>
       </div>
     </div>

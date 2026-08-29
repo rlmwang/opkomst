@@ -7,5 +7,5 @@ export function publicDatepollUrl(slug: string): string {
 
 /** SVG endpoint for the datepoll's QR code. */
 export function datepollQrUrl(slug: string): string {
-  return qrUrl("datepolls", slug);
+  return qrUrl("datepoll", slug);
 }

@@ -26,7 +26,7 @@ import { createEntityCrud } from "@/composables/createEntityCrud";
 export type { RosterCreate, RosterListOut, RosterOut, RosterUpdate };
 
 const crud = createEntityCrud<RosterListOut, RosterOut, RosterCreate, RosterUpdate>({
-  resource: "chores",
+  resource: "chore",
 });
 
 export const useRosterList = crud.useList;
@@ -43,30 +43,30 @@ export const useDeleteRoster = crud.useDelete;
 
 export function useRosterVolunteers(rosterId: MaybeRef<string>) {
   return useApiQuery<VolunteerSummary[]>(
-    () => ["chores", unref(rosterId), "volunteers"],
-    () => `/api/v1/chores/${unref(rosterId)}/volunteers`,
+    () => ["chore", unref(rosterId), "volunteers"],
+    () => `/api/v1/chore/${unref(rosterId)}/volunteers`,
   );
 }
 
 export function useRosterAccountability(rosterId: MaybeRef<string>) {
   return useApiQuery<ChoreAccountability[]>(
-    () => ["chores", unref(rosterId), "accountability"],
-    () => `/api/v1/chores/${unref(rosterId)}/accountability`,
+    () => ["chore", unref(rosterId), "accountability"],
+    () => `/api/v1/chore/${unref(rosterId)}/accountability`,
   );
 }
 
 export function useRosterSchedule(rosterId: MaybeRef<string>) {
   return useApiQuery<ChoreSchedule>(
-    () => ["chores", unref(rosterId), "schedule"],
-    () => `/api/v1/chores/${unref(rosterId)}/schedule`,
+    () => ["chore", unref(rosterId), "schedule"],
+    () => `/api/v1/chore/${unref(rosterId)}/schedule`,
   );
 }
 
 /** The roster as a per-chore calendar for one ``YYYY-MM`` month. */
 export function useRosterCalendar(rosterId: MaybeRef<string>, month: MaybeRef<string>) {
   return useApiQuery<ChoreCalendar[]>(
-    () => ["chores", unref(rosterId), "calendar", unref(month)],
-    () => `/api/v1/chores/${unref(rosterId)}/calendar?month=${unref(month)}`,
+    () => ["chore", unref(rosterId), "calendar", unref(month)],
+    () => `/api/v1/chore/${unref(rosterId)}/calendar?month=${unref(month)}`,
   );
 }
 
@@ -78,8 +78,8 @@ export function useRebalancePreviewCalendar(
   enabled: MaybeRef<boolean>,
 ) {
   return useApiQuery<ChoreCalendar[]>(
-    () => ["chores", unref(rosterId), "rebalance-preview", unref(month)],
-    () => `/api/v1/chores/${unref(rosterId)}/rebalance/preview?month=${unref(month)}`,
+    () => ["chore", unref(rosterId), "rebalance-preview", unref(month)],
+    () => `/api/v1/chore/${unref(rosterId)}/rebalance/preview?month=${unref(month)}`,
     { enabled },
   );
 }

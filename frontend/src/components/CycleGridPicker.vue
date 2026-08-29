@@ -24,13 +24,13 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const dayLabels = computed(() => [
-  t("chores.edit.weekday.mon"),
-  t("chores.edit.weekday.tue"),
-  t("chores.edit.weekday.wed"),
-  t("chores.edit.weekday.thu"),
-  t("chores.edit.weekday.fri"),
-  t("chores.edit.weekday.sat"),
-  t("chores.edit.weekday.sun"),
+  t("chore.edit.weekday.mon"),
+  t("chore.edit.weekday.tue"),
+  t("chore.edit.weekday.wed"),
+  t("chore.edit.weekday.thu"),
+  t("chore.edit.weekday.fri"),
+  t("chore.edit.weekday.sat"),
+  t("chore.edit.weekday.sun"),
 ]);
 
 const weeks = computed(() => Math.max(1, props.periodWeeks));

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import MultiSelect from "primevue/multiselect";
+import MultiSelectField from "@/components/MultiSelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -75,7 +75,7 @@ const askDeleteUser = useGuardedMutation(removeMutation, (u: User) => ({
   confirm: {
     header: t("admin.deleteUserConfirmTitle"),
     message: t("admin.deleteUserConfirmBody", { name: u.name }),
-    icon: "pi pi-exclamation-triangle",
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("admin.deleteUser"),
   },
@@ -309,7 +309,7 @@ async function submitUserEdit() {
             />
             <AppButton
               v-if="u.is_approved"
-              icon="pi pi-pencil"
+              icon="pencil"
               size="small"
               severity="secondary"
               text
@@ -318,7 +318,7 @@ async function submitUserEdit() {
               @click="openEdit(u)"
             />
             <AppButton
-              icon="pi pi-trash"
+              icon="trash"
               size="small"
               severity="secondary"
               text
@@ -369,7 +369,7 @@ async function submitUserEdit() {
       </label>
       <label class="reassign-label">
         {{ t("admin.chaptersLabel") }}
-        <MultiSelect
+        <MultiSelectField
           v-model="userEditChapters"
           :options="chapters"
           option-label="name"
@@ -496,8 +496,7 @@ async function submitUserEdit() {
   cursor: default;
   opacity: 0.65;
 }
-/* PrimeVue's disabled ToggleSwitch defaults to ``not-allowed``; force
- * the default arrow so hovering the user's own self-toggle doesn't
+/* The default arrow, so hovering the user's own self-toggle does not
  * flash a "blocked" cursor. */
 .admin-toggle.disabled :deep(.app-toggle) {
   cursor: default;

@@ -7,6 +7,6 @@ export function useDatepollClipboard() {
   return useShareClipboard({
     publicUrlFor: publicDatepollUrl,
     qrUrlFor: datepollQrUrl,
-    copyPrefix: "datepolls.share",
+    copyPrefix: "datepoll.share",
   });
 }

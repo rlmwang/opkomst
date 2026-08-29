@@ -30,7 +30,7 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = 
     }
     if questions is not None:
         body["questions"] = questions
-    r = client.post("/api/v1/forms", headers=headers, json=body)
+    r = client.post("/api/v1/form", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -42,7 +42,7 @@ def _put(client: Any, headers: Any, form: dict[str, Any], questions: list[dict[s
         "locale": form["locale"],
         "questions": questions,
     }
-    r = client.put(f"/api/v1/forms/{form['id']}", headers=headers, json=body)
+    r = client.put(f"/api/v1/form/{form['id']}", headers=headers, json=body)
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -175,7 +175,7 @@ def test_removed_question_cascades_to_responses(client, organiser_headers):
 
 def test_choice_with_one_option_400s(client, organiser_headers):
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -197,7 +197,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
 
 def test_choice_with_duplicate_options_400s(client, organiser_headers):
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),

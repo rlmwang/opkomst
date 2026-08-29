@@ -50,7 +50,7 @@ def serve_card_image(path: str) -> Response:
     Its own path rather than a query parameter: the URL still names one
     immutable thing, so it stays cacheable for a year by anything that
     caches at all. Declared before ``/i/{path}`` so it wins the match —
-    that route would take ``card/events/…`` and refuse it.
+    that route would take ``card/event/…`` and refuse it.
     """
     if not _PATH_RE.match(path):
         raise HTTPException(status_code=404, detail="Not found")

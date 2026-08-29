@@ -17,7 +17,7 @@
 import AppButton from "@/components/AppButton.vue";
 import AppDialog from "@/components/AppDialog.vue";
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import AppTextarea from "@/components/AppTextarea.vue";
 import NumberStepper from "@/components/NumberStepper.vue";
 import { computed, ref, watch } from "vue";
@@ -102,8 +102,8 @@ const tags = computed(() => mergeTags(parsed.value.headers, phoneColumn.value));
 // ``sendResults`` so the parser's per-row state isn't disturbed
 // (rows can be re-validated mid-blast if the CSV is edited).
 const template = ref(persisted.template ?? "");
-// Ref to the PrimeVue Textarea so the emoji picker can insert at
-// the cursor position. PrimeVue exposes the underlying DOM
+// Ref to the textarea so the emoji picker can insert at the cursor
+// position. ``AppTextarea`` exposes the underlying DOM
 // element on ``$el``.
 const composeRef = ref<{ $el: HTMLTextAreaElement } | null>(null);
 const sending = ref(false);
@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
           </label>
           <label class="phone-col">
             <span>{{ t("whatsapp.recipients.countryCodeLabel") }}</span>
-            <Select
+            <SelectField
               v-model="country"
               :options="COUNTRIES"
               optionLabel="name"
@@ -491,7 +491,7 @@ onBeforeUnmount(() => {
                   <span class="country-dial">+{{ option.dialCode }}</span>
                 </span>
               </template>
-            </Select>
+            </SelectField>
           </label>
         </div>
 

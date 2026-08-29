@@ -10,6 +10,6 @@ export function useFormClipboard(resource: FormResource) {
   return useShareClipboard({
     publicUrlFor: (slug: string) => publicFormUrl(resource, slug),
     qrUrlFor: (slug: string) => formQrUrl(resource, slug),
-    copyPrefix: "forms.share",
+    copyPrefix: "form.share",
   });
 }

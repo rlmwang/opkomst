@@ -1,6 +1,6 @@
 /**
  * Public kompas mini-app entry. Mounts one component to ``#app`` — no
- * router, no Pinia, no Vue Query, no PrimeVue, no vue-i18n, the same
+ * router, no Pinia, no Vue Query, no vue-i18n, the same
  * wire-weight target as the other five.
  *
  * Handles one URL shape (``/k/<slug>``); the slug is parsed from

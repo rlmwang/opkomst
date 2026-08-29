@@ -59,7 +59,7 @@ guarantee.
 - Sentry UI → project → Alerts → Create Alert → "An issue is
   first seen this week" → action: send email to you.
 - Test by hitting an endpoint that throws (fastest:
-  `curl https://opkomst.nu/api/v1/events/by-slug/<garbage>`
+  `curl https://opkomst.nu/api/v1/event/by-slug/<garbage>`
   returns 404, not 500, instead force one with `gh issue` or
   a temporary throw in a sandbox deploy).
 

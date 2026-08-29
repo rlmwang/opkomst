@@ -52,7 +52,7 @@ const PAGES = [
 // five paths the server writes a title and description for
 // (``routers/spa.py``), for the same reason: they are the pages a
 // stranger arrives on.
-const LANDING_PATHS = ["/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"];
+const LANDING_PATHS = ["/", "/event/new", "/form/new", "/datepoll/new", "/chore/new"];
 
 const show = computed(() => isPersonalApp() && LANDING_PATHS.includes(route.path));
 

@@ -118,7 +118,7 @@ def test_an_organisations_me_has_no_ceiling(client, admin_headers) -> None:
 
 def test_creating_something_needs_no_chapter(client, personal, db) -> None:
     _, user, headers = personal
-    resp = client.post("/api/v1/events", json=_event_payload(chapter_id=None), headers=headers)
+    resp = client.post("/api/v1/event", json=_event_payload(chapter_id=None), headers=headers)
     assert resp.status_code == 201, resp.text
     event = db.query(Event).filter(Event.id == resp.json()["id"]).one()
     assert event.chapter_id is None
@@ -129,12 +129,12 @@ def test_assigning_a_chapter_is_a_malformed_request(client, personal, chapter_id
     """422, not 403: there is no chapter this account could have meant,
     so the body is wrong rather than the caller unauthorised."""
     _, _, headers = personal
-    resp = client.post("/api/v1/events", json=_event_payload(chapter_id=chapter_id), headers=headers)
+    resp = client.post("/api/v1/event", json=_event_payload(chapter_id=chapter_id), headers=headers)
     assert resp.status_code == 422
 
 
 def test_an_organisation_must_still_pick_one(client, organiser_headers) -> None:
-    resp = client.post("/api/v1/events", json=_event_payload(chapter_id=None), headers=organiser_headers)
+    resp = client.post("/api/v1/event", json=_event_payload(chapter_id=None), headers=organiser_headers)
     assert resp.status_code == 422
 
 
@@ -143,9 +143,9 @@ def test_it_sees_its_own_rows_despite_having_no_chapters(client, personal, db) -
     organisation's scope, and for a personal account the tenant is the
     whole of it."""
     _, user, headers = personal
-    created = client.post("/api/v1/events", json=_event_payload(), headers=headers)
+    created = client.post("/api/v1/event", json=_event_payload(), headers=headers)
     assert created.status_code == 201
-    listed = client.get("/api/v1/events", headers=headers)
+    listed = client.get("/api/v1/event", headers=headers)
     assert [e["id"] for e in listed.json()] == [created.json()["id"]]
     assert access.is_personal(db, user) is True
 
@@ -153,11 +153,11 @@ def test_it_sees_its_own_rows_despite_having_no_chapters(client, personal, db) -
 def test_it_cannot_see_another_tenants_rows(client, personal, db, chapter_id, admin_headers) -> None:
     """The tenant predicate is in the scope filter itself, so a personal
     account's empty chapter set never widens into everyone's rows."""
-    theirs = client.post("/api/v1/events", json=_event_payload(chapter_id=chapter_id), headers=admin_headers)
+    theirs = client.post("/api/v1/event", json=_event_payload(chapter_id=chapter_id), headers=admin_headers)
     assert theirs.status_code == 201, theirs.text
     _, _, headers = personal
-    assert client.get("/api/v1/events", headers=headers).json() == []
-    assert client.get(f"/api/v1/events/{theirs.json()['id']}", headers=headers).status_code == 404
+    assert client.get("/api/v1/event", headers=headers).json() == []
+    assert client.get(f"/api/v1/event/{theirs.json()['id']}", headers=headers).status_code == 404
 
 
 # ---- The ceilings -------------------------------------------------
@@ -167,21 +167,21 @@ def test_active_entities_are_capped_and_archiving_makes_room(client, personal, d
     """The count is of live rows: archiving is how you free a slot."""
     monkeypatch.setattr(limits, "MAX_ACTIVE_PER_KIND", 2)
     _, _, headers = personal
-    first = client.post("/api/v1/events", json=_event_payload(), headers=headers)
-    client.post("/api/v1/events", json=_event_payload(), headers=headers)
-    full = client.post("/api/v1/events", json=_event_payload(), headers=headers)
+    first = client.post("/api/v1/event", json=_event_payload(), headers=headers)
+    client.post("/api/v1/event", json=_event_payload(), headers=headers)
+    full = client.post("/api/v1/event", json=_event_payload(), headers=headers)
     assert full.status_code == 409
     assert "Archive" in full.json()["detail"]
 
-    assert client.post(f"/api/v1/events/{first.json()['id']}/archive", headers=headers).status_code in (200, 204)
-    assert client.post("/api/v1/events", json=_event_payload(), headers=headers).status_code == 201
+    assert client.post(f"/api/v1/event/{first.json()['id']}/archive", headers=headers).status_code in (200, 204)
+    assert client.post("/api/v1/event", json=_event_payload(), headers=headers).status_code == 201
 
 
 def test_an_organisation_has_no_entity_ceiling(client, organiser_headers, chapter_id, monkeypatch) -> None:
     monkeypatch.setattr(limits, "MAX_ACTIVE_PER_KIND", 1)
     body = _event_payload(chapter_id=chapter_id)
-    assert client.post("/api/v1/events", json=body, headers=organiser_headers).status_code == 201
-    assert client.post("/api/v1/events", json=body, headers=organiser_headers).status_code == 201
+    assert client.post("/api/v1/event", json=body, headers=organiser_headers).status_code == 201
+    assert client.post("/api/v1/event", json=body, headers=organiser_headers).status_code == 201
 
 
 def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch) -> None:
@@ -189,7 +189,7 @@ def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch
     of the places."""
     monkeypatch.setattr(limits, "MAX_PARTICIPANTS", 5)
     _, _, headers = personal
-    created = client.post("/api/v1/events", json=_event_payload(), headers=headers)
+    created = client.post("/api/v1/event", json=_event_payload(), headers=headers)
     slug = created.json()["next_slug"]
 
     signup = {
@@ -199,16 +199,16 @@ def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch
         "help_choices": [],
         "all_upcoming": True,
     }
-    assert client.post(f"/api/v1/events/by-slug/{slug}/signups", json=signup).status_code == 201
+    assert client.post(f"/api/v1/event/by-slug/{slug}/signups", json=signup).status_code == 201
     # One more of four would make eight, past the five places.
-    refused = client.post(f"/api/v1/events/by-slug/{slug}/signups", json=signup)
+    refused = client.post(f"/api/v1/event/by-slug/{slug}/signups", json=signup)
     assert refused.status_code == 409
     assert refused.json()["detail"] == "This is full. No more places are available."
 
 
 def test_an_organisations_event_has_no_participant_ceiling(client, organiser_headers, chapter_id, monkeypatch) -> None:
     monkeypatch.setattr(limits, "MAX_PARTICIPANTS", 1)
-    created = client.post("/api/v1/events", json=_event_payload(chapter_id=chapter_id), headers=organiser_headers)
+    created = client.post("/api/v1/event", json=_event_payload(chapter_id=chapter_id), headers=organiser_headers)
     slug = created.json()["next_slug"]
     signup = {
         "display_name": "Bo",
@@ -217,8 +217,8 @@ def test_an_organisations_event_has_no_participant_ceiling(client, organiser_hea
         "help_choices": [],
         "all_upcoming": True,
     }
-    assert client.post(f"/api/v1/events/by-slug/{slug}/signups", json=signup).status_code == 201
-    assert client.post(f"/api/v1/events/by-slug/{slug}/signups", json=signup).status_code == 201
+    assert client.post(f"/api/v1/event/by-slug/{slug}/signups", json=signup).status_code == 201
+    assert client.post(f"/api/v1/event/by-slug/{slug}/signups", json=signup).status_code == 201
 
 
 def test_the_mail_budget_only_binds_a_personal_account(db, personal, tenant_id) -> None:
@@ -259,7 +259,7 @@ def test_the_public_page_of_a_personal_entity_renders(client, personal) -> None:
     """End to end over the start flow's own output: the link it hands
     back has to open."""
     started = client.post(
-        "/api/v1/start/events",
+        "/api/v1/start/event",
         json={"email": "opener@example.org", "event": _event_payload()},
     )
     assert started.status_code == 201, started.text
@@ -321,7 +321,7 @@ def test_a_form_lands_in_the_account_with_no_chapter(client, personal, db) -> No
             }
         ],
     }
-    resp = client.post("/api/v1/forms", json=body, headers=headers)
+    resp = client.post("/api/v1/form", json=body, headers=headers)
     assert resp.status_code == 201, resp.text
     form = db.query(Form).filter(Form.id == resp.json()["id"]).one()
     assert form.chapter_id is None

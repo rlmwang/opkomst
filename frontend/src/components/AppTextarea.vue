@@ -57,10 +57,10 @@ watch(model, () => {
   font-family: inherit;
   font-feature-settings: inherit;
   font-size: 1rem;
-  color: var(--brand-surface-900);
-  background: var(--brand-surface-0);
+  color: var(--brand-text);
+  background: var(--brand-surface);
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--brand-surface-200);
+  border: 1px solid var(--brand-border);
   border-radius: 6px;
   /* The neutral flattening of Aura's form-field shadow; see AppInput. */
   box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -83,10 +83,10 @@ watch(model, () => {
   overflow: hidden;
 }
 .app-textarea:enabled:hover {
-  border-color: var(--brand-surface-400);
+  border-color: color-mix(in srgb, var(--brand-text-muted) 45%, transparent);
 }
 .app-textarea:enabled:focus {
-  border-color: var(--brand-primary-500);
+  border-color: var(--brand-red);
   outline: none;
 }
 /* Chrome paints an autofilled field its own yellow, and refuses to let
@@ -96,17 +96,22 @@ watch(model, () => {
  * the one every password manager fills. */
 .app-textarea:-webkit-autofill,
 .app-textarea:-webkit-autofill:hover,
-.app-textarea:-webkit-autofill:focus {
-  box-shadow: 0 0 0 100px var(--brand-surface-0) inset;
-  -webkit-text-fill-color: var(--brand-surface-900);
-  caret-color: var(--brand-surface-900);
+.app-textarea:-webkit-autofill:focus,
+.app-textarea:-webkit-autofill:active {
+  box-shadow: 0 0 0 100px var(--brand-surface) inset;
+  -webkit-text-fill-color: var(--brand-text);
+  caret-color: var(--brand-text);
+  /* Chrome animates its own yellow in when the field takes focus, and
+   * the inset shadow only lands after it. A background transition it
+   * never finishes is the only way to stop the flash. */
+  transition: background-color 100000s ease-in-out 0s;
 }
 .app-textarea::placeholder {
-  color: var(--brand-surface-500);
+  color: var(--brand-text-muted);
 }
 .app-textarea:disabled {
   opacity: 1;
-  background: var(--brand-surface-50);
-  color: var(--brand-surface-500);
+  background: var(--brand-bg);
+  color: var(--brand-text-muted);
 }
 </style>

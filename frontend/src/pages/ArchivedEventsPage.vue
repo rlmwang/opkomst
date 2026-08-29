@@ -66,9 +66,9 @@ const {
           </p>
         </div>
         <div class="archive-row-actions">
-          <AppButton :label="t('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(e)" />
+          <AppButton :label="t('archived.restore')" icon="replay" size="small" severity="secondary" @click="restoreItem(e)" />
           <AppButton
-            icon="pi pi-trash"
+            icon="trash"
             size="small"
             severity="secondary"
             text

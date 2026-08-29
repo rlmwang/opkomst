@@ -78,7 +78,7 @@ def test_configured_ids_reach_the_house_brand_only(configured) -> None:
 def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configured) -> None:
     """The other half of the gate: with a network configured, the page
     that may carry ads is served the policy that lets them load."""
-    csp = client.get("/events").headers["content-security-policy"]
+    csp = client.get("/event").headers["content-security-policy"]
     assert "https://pagead2.googlesyndication.com" in csp
     assert "https://fundingchoicesmessages.google.com" in csp
 
@@ -86,7 +86,7 @@ def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configure
 def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> None:
     """The rule that matters most: configuring a network does not open
     an organisation's pages, now or by accident later."""
-    csp = client.get("/rsp/events").headers["content-security-policy"]
+    csp = client.get("/rsp/event").headers["content-security-policy"]
     assert "googlesyndication" not in csp
 
 
@@ -193,7 +193,7 @@ def test_the_ad_policy_keeps_everything_else_shut() -> None:
 def test_an_organisation_page_gets_the_strict_policy(client) -> None:
     """End to end: the header on an organisation's own page names no ad
     host, whatever the deployment's advertising settings are."""
-    response = client.get("/rsp/events")
+    response = client.get("/rsp/event")
     csp = response.headers["content-security-policy"]
     assert "googlesyndication" not in csp
 
@@ -203,7 +203,7 @@ def test_a_house_brand_page_gets_the_strict_policy_without_a_network(client) -> 
     and no cookie, so there is nothing to open the policy for. The
     loosened policy is not served just because a page could carry ads;
     it is served when a page actually does."""
-    response = client.get("/events")
+    response = client.get("/event")
     csp = response.headers["content-security-policy"]
     assert "googlesyndication" not in csp
 

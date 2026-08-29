@@ -7,7 +7,7 @@ guarded by *no behaviour change + existing tests pass unedited* — so the chore
 it instead of becoming copy #4.
 
 **The original series (R1→08) is complete** — each spec file was deleted as its task landed
-(one commit per task on `feat/chores`). Order shipped:
+(one commit per task on `feat/chore`). Order shipped:
 `R1 → 01 → R2 → 02 → R3 → 03 → 04 → R4 → 05 → 06 → 07 → 08`. After 04 the organiser side is
 usable; after 07 volunteers self-manage email-free; 08 adds the optional reminders.
 

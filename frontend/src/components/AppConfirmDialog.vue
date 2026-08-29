@@ -5,6 +5,7 @@ import { computed } from "vue";
 
 import AppButton from "@/components/AppButton.vue";
 import AppDialog from "@/components/AppDialog.vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { useConfirmRequest } from "@/lib/confirms";
 
 const { state, accept, reject } = useConfirmRequest();
@@ -21,7 +22,7 @@ const open = computed({
 <template>
   <AppDialog v-if="state.request" v-model:visible="open" :header="state.request.header">
     <p class="confirm-message">
-      <i v-if="state.request.icon" :class="state.request.icon" aria-hidden="true"></i>
+      <AppIcon v-if="state.request.icon" :name="state.request.icon" />
       <span>{{ state.request.message }}</span>
     </p>
     <template #footer>

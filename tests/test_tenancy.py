@@ -74,7 +74,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     both ends."""
     chapter = db.query(Chapter).first()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Tenancy demo",
@@ -93,9 +93,9 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     )
     assert r.status_code == 201, r.text
     event_id = r.json()["id"]
-    occ = client.get(f"/api/v1/events/{event_id}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{event_id}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     ack = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={
             "display_name": "Sam",
             "party_size": 2,
@@ -134,7 +134,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
     not a 403 — its existence is never disclosed."""
     chapter = db.query(Chapter).first()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Ours",
@@ -183,9 +183,9 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
         their_event_id = their_event.id
 
     # Ours is visible; theirs is not, and the list shows only ours.
-    assert client.get(f"/api/v1/events/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
-    assert client.get(f"/api/v1/events/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
-    listed = client.get("/api/v1/events", headers=organiser_headers).json()
+    assert client.get(f"/api/v1/event/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
+    assert client.get(f"/api/v1/event/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
+    listed = client.get("/api/v1/event", headers=organiser_headers).json()
     assert {e["id"] for e in listed} == {our_event_id}
 
 

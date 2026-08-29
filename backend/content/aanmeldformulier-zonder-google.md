@@ -1,7 +1,7 @@
 ---
 title: Aanmeldformulier maken zonder Google Forms
 description: Een aanmeldformulier voor je evenement zonder Google-account en zonder dat de antwoorden bij een advertentiebedrijf terechtkomen.
-cta_path: /forms/new
+cta_path: /form/new
 cta_label: Maak een vragenlijst
 order: 3
 ---

@@ -21,7 +21,9 @@
     "nameRequired": "Name required",
     "nameRequiredExplainer": "Nothing can be sent in without a (pseudo)name.",
     "advancedShow": "Show advanced options",
-    "advancedHide": "Hide advanced options"
+    "advancedHide": "Hide advanced options",
+    "clear": "Clear",
+    "noResults": "No results"
   },
   "recoverLink": {
     "open": "View signups",
@@ -233,7 +235,7 @@
     "deleteOk": "{name} deleted",
     "deleteFail": "Delete failed"
   },
-  "forms": {
+  "form": {
     "list": {
       "title": "Forms",
       "intro": "Standalone questionnaires you can share with anyone via a link.",
@@ -358,7 +360,7 @@
       "step": "Step size"
     }
   },
-  "datepolls": {
+  "datepoll": {
     "list": {
       "title": "Date polls",
       "intro": "Find a date that works. Propose dates, share the link, let people pick.",
@@ -462,7 +464,7 @@
       "backToList": "← Back to date polls"
     }
   },
-  "chores": {
+  "chore": {
     "recurrence": {
       "weekly": "Weekly",
       "everyKWeeks": "Every {k} weeks"
@@ -921,7 +923,7 @@
     "blogs": "Blogs:",
     "terms": "Terms"
   },
-  "quizzes": {
+  "quiz": {
     "list": {
       "title": "Quizzes",
       "intro": "A quiz with points. Share the link, everyone sees their own score.",
@@ -990,7 +992,7 @@
       "points": "points"
     }
   },
-  "compasses": {
+  "compass": {
     "list": {
       "title": "Compasses",
       "intro": "Everyone who fills it in gets a spot on a map with two axes.",

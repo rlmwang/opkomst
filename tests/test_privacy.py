@@ -32,7 +32,7 @@ def test_decrypt_only_called_from_mail_lifecycle():
 def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "T",
@@ -49,9 +49,9 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
         },
     )
     eid = r.json()["id"]
-    occ = client.get(f"/api/v1/events/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={
             "display_name": "Alice",
             "party_size": 2,
@@ -60,7 +60,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "occurrence_ids": [occ["id"]],
         },
     )
-    r = client.get(f"/api/v1/events/{eid}/occurrences/{occ['id']}/signups", headers=organiser_headers)
+    r = client.get(f"/api/v1/event/{eid}/occurrences/{occ['id']}/signups", headers=organiser_headers)
     assert r.status_code == 200
     rows = r.json()
     # The privacy invariant is field-level: the email-side fields

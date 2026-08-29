@@ -15,7 +15,7 @@ const routes = [
   // waiting on an admin has nothing to do in any of them, and being
   // shown four doors that all open onto "you are not approved yet" is
   // worse than being told once, on the landing page.
-  { path: "/events", component: () => import("@/pages/DashboardPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/event", component: () => import("@/pages/DashboardPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   // ``requiresOrganisation``: these act on an organisation's people and
   // its chapters, and a personal account has neither. The API 404s them
   // for such an account; the guard keeps a typed URL from getting there
@@ -28,57 +28,57 @@ const routes = [
   // itself, and the address is a field in it rather than a wall in
   // front of it. Under an organisation's slug the flag does nothing,
   // because there the visitor is somebody's organiser or nobody.
-  { path: "/events/new", component: () => import("@/pages/EventFormPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
-  { path: "/events/:eventId/edit", component: () => import("@/pages/EventFormPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/events/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/events/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/event/new", component: () => import("@/pages/EventFormPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
+  { path: "/event/:eventId/edit", component: () => import("@/pages/EventFormPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/event/:eventId/details", component: () => import("@/pages/EventDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/event/archived", component: () => import("@/pages/ArchivedEventsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
   // Forms — standalone questionnaires (no relation to Events).
   // Same chapter-scoped four-page experience: active list /
   // archived list / details / edit. The public fill-out lives
   // at /f/:slug and is unauthenticated.
-  { path: "/forms", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/forms/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/forms/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
-  { path: "/forms/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/forms/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/form", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/form/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/form/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
+  { path: "/form/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/form/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // Quizzes — the other product in the forms table: the same four
   // pages, told apart by ``meta.resource``, which is what the pages
   // read to decide which API they are on (``useForms.useFormsApi``).
   // A quiz differs from a questionnaire by an answer key, a score and
   // how the questions are walked through, and none of that is on this
   // side of the app (``docs/design-quizzes.md``).
-  { path: "/quizzes", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
-  { path: "/quizzes/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
-  { path: "/quizzes/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "quizzes" } },
-  { path: "/quizzes/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
-  { path: "/quizzes/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quizzes" } },
+  { path: "/quiz", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quiz" } },
+  { path: "/quiz/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "quiz" } },
+  { path: "/quiz/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "quiz" } },
+  { path: "/quiz/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quiz" } },
+  { path: "/quiz/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "quiz" } },
   // Kompassen — the third product in the same table, registered the
   // same way. A kompas differs by a direction on every answer and a
   // map at the end, and none of that is on this side of the app
   // either (``docs/design-kompas.md``). The public walk lives at
   // /k/:slug.
-  { path: "/compasses", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
-  { path: "/compasses/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
-  { path: "/compasses/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "compasses" } },
-  { path: "/compasses/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
-  { path: "/compasses/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compasses" } },
+  { path: "/compass", component: () => import("@/pages/FormListPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compass" } },
+  { path: "/compass/archived", component: () => import("@/pages/ArchivedFormsPage.vue"), meta: { requiresAuth: true, requiresApproved: true, resource: "compass" } },
+  { path: "/compass/new", component: () => import("@/pages/FormEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true, resource: "compass" } },
+  { path: "/compass/:formId/edit", component: () => import("@/pages/FormEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compass" } },
+  { path: "/compass/:formId/details", component: () => import("@/pages/FormDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true, resource: "compass" } },
 
   // Datepolls — dates-only availability polls (no relation to
   // Events/Forms). Same chapter-scoped four-page experience; the
   // public fill-out lives at /d/:slug and is unauthenticated
   // (served by the backend mini-app, not this router).
-  { path: "/datepolls", component: () => import("@/pages/DatepollListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/datepolls/archived", component: () => import("@/pages/ArchivedDatepollsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/datepolls/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
-  { path: "/datepolls/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/datepolls/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepoll", component: () => import("@/pages/DatepollListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepoll/archived", component: () => import("@/pages/ArchivedDatepollsPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepoll/new", component: () => import("@/pages/DatepollEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
+  { path: "/datepoll/:datepollId/edit", component: () => import("@/pages/DatepollEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/datepoll/:datepollId/details", component: () => import("@/pages/DatepollDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // Chores (Dutch: takenroosters) — recurring-chore rosters. ``/c/:slug`` public
   // enrol page is a separate backend mini-app (task 07), not here.
-  { path: "/chores", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/chores/archived", component: () => import("@/pages/ArchivedChoresPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/chores/new", component: () => import("@/pages/ChoresEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
-  { path: "/chores/:rosterId/edit", component: () => import("@/pages/ChoresEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
-  { path: "/chores/:rosterId/details", component: () => import("@/pages/ChoresDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chore", component: () => import("@/pages/ChoresListPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chore/archived", component: () => import("@/pages/ArchivedChoresPage.vue"), meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chore/new", component: () => import("@/pages/ChoresEditPage.vue"), meta: { requiresAuth: true, requiresApproved: true, startable: true } },
+  { path: "/chore/:rosterId/edit", component: () => import("@/pages/ChoresEditPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
+  { path: "/chore/:rosterId/details", component: () => import("@/pages/ChoresDetailsPage.vue"), props: true, meta: { requiresAuth: true, requiresApproved: true } },
   // ``/f/:slug`` is NOT in the admin SPA router — it's served by
   // the backend as a separate Vue mini-app (``public-form.html``
   // + ``src/public_form/``) with the form payload inlined into
@@ -93,7 +93,7 @@ const routes = [
   // single-use token, low traffic.
   { path: "/e/:slug/feedback", component: () => import("@/pages/FeedbackPage.vue"), props: true },
   // Admin-only WhatsApp blast tool (Evolution API proxy).
-  // ``requiresWhatsApp`` redirects to /events when the EVOLUTION_*
+  // ``requiresWhatsApp`` redirects to /event when the EVOLUTION_*
   // env vars aren't all set on the server, so direct URL pokes
   // don't surface a non-functional page.
   { path: "/admin/whatsapp", component: () => import("@/pages/AdminWhatsAppPage.vue"), meta: { requiresAuth: true, requiresAdmin: true, requiresWhatsApp: true, requiresOrganisation: true } },
@@ -101,7 +101,7 @@ const routes = [
 ];
 
 // The organiser app is served under its organisation's slug
-// (``opkomst.nu/rsp/events``), so every route above is relative to that
+// (``opkomst.nu/rsp/event``), so every route above is relative to that
 // base. It comes from the brand the server injected into the page head —
 // the app never parses it out of the URL, so a mismatch between what the
 // page is wearing and what it routes to is impossible. A page served in
@@ -136,12 +136,12 @@ router.beforeEach(async (to: RouteLocationNormalized) => {
   // The landing page is the door: signed out, it renders the sign-in
   // form itself, so there is no separate login page to send anyone to.
   if (to.meta.requiresAuth && !auth.isAuthenticated) return { path: "/" };
-  if (to.meta.requiresOrganisation && auth.isPersonal) return { path: "/events" };
-  if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/events" };
-  // Not to /events: that is itself approval-gated now, and the landing
+  if (to.meta.requiresOrganisation && auth.isPersonal) return { path: "/event" };
+  if (to.meta.requiresAdmin && !auth.isAdmin) return { path: "/event" };
+  // Not to /event: that is itself approval-gated now, and the landing
   // page is where an account waiting on an admin is told so.
   if (to.meta.requiresApproved && !auth.isApproved) return { path: "/" };
-  if (to.meta.requiresWhatsApp && !auth.whatsappAvailable) return { path: "/events" };
+  if (to.meta.requiresWhatsApp && !auth.whatsappAvailable) return { path: "/event" };
   return true;
 });
 

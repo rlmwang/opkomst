@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import { useQueryClient } from "@tanstack/vue-query";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -201,7 +201,7 @@ async function submitDelete() {
         :placeholder="t('chapters.addPlaceholder')"
         :archived-only="true"
         :disabled="!canManageChapters"
-        leading-icon="pi pi-plus"
+        leading-icon="plus"
         @pick="onPickedChapterFromAddBar"
         @create="onCreateFromAddBar"
       />
@@ -222,7 +222,7 @@ async function submitDelete() {
               </span>
             </span>
             <AppButton
-              icon="pi pi-pencil"
+              icon="pencil"
               size="small"
               severity="secondary"
               text
@@ -244,7 +244,7 @@ async function submitDelete() {
       <p class="muted dialog-text">{{ t("chapters.deleteDialogBody") }}</p>
       <label v-if="deleteUsage.users > 0" class="reassign-label">
         {{ t("chapters.deleteUsersLabel", { n: deleteUsage.users }) }}
-        <Select
+        <SelectField
           v-model="deleteReassignUsersTo"
           :options="otherChapters"
           option-label="name"
@@ -255,7 +255,7 @@ async function submitDelete() {
       </label>
       <label v-if="deleteUsage.events > 0" class="reassign-label">
         {{ t("chapters.deleteEventsLabel", { n: deleteUsage.events }) }}
-        <Select
+        <SelectField
           v-model="deleteReassignEventsTo"
           :options="otherChapters"
           option-label="name"

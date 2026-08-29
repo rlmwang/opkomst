@@ -82,15 +82,15 @@ const model = defineModel<boolean>({ default: false });
   border-color: var(--brand-surface-400);
 }
 .app-toggle-checked .app-toggle-track {
-  background: var(--brand-primary-500);
-  border-color: var(--brand-primary-500);
+  background: var(--brand-red);
+  border-color: var(--brand-red);
 }
 .app-toggle-checked:not(.app-toggle-disabled):hover .app-toggle-track {
   background: var(--brand-primary-600);
   border-color: var(--brand-primary-600);
 }
 .app-toggle-input:focus-visible + .app-toggle-track {
-  outline: 1px solid var(--brand-primary-500);
+  outline: 1px solid var(--brand-red);
   outline-offset: 2px;
 }
 .app-toggle-handle {
@@ -101,7 +101,7 @@ const model = defineModel<boolean>({ default: false });
   height: 1rem;
   margin-block-start: -0.5rem;
   border-radius: 50%;
-  background: var(--brand-surface-0);
+  background: var(--brand-surface);
   transition:
     inset-inline-start 120ms,
     background 120ms;
@@ -113,6 +113,6 @@ const model = defineModel<boolean>({ default: false });
   opacity: 0.4;
 }
 .app-toggle-disabled .app-toggle-track {
-  background: var(--brand-surface-50);
+  background: var(--brand-bg);
 }
 </style>

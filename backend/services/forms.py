@@ -411,7 +411,7 @@ def _questions(db: Session, form_id: str) -> list[FormQuestion]:
 
 def questions_of(db: Session, form_id: str) -> list[FormQuestion]:
     """The question rows, for a caller that has to mark answers against
-    them (``routers/forms`` asking ``services/quizzes`` for the score
+    them (``routers/form`` asking ``services/quiz`` for the score
     stats)."""
     return _questions(db, form_id)
 
@@ -678,7 +678,7 @@ def compass_summary(db: Session, form: Form) -> CompassSummary | None:
 def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
     """The organiser's list of played quizzes: the survey projection
     plus what each one scored, marked against the quiz as it stands
-    now (``services/quizzes``)."""
+    now (``services/quiz``)."""
     questions = _questions(db, form_id)
     grouped = quizzes.rows_by_submission(db, form_id)
     out_of = quizzes.max_score(questions)

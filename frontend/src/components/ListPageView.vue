@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends { id: string }">
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
@@ -77,7 +77,7 @@ const filtered = computed(() => {
       <slot name="actions-leading" />
       <!-- No chapters to filter by, no filter. A personal account has
            none at all; an organisation's member always has one. -->
-      <Select
+      <SelectField
         v-if="chapterOptions.length > 0"
         :model-value="chapterFilter"
         :options="[{ id: null, name: t('dashboard.chapterFilterAll') }, ...chapterOptions]"

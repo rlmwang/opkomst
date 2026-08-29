@@ -11,10 +11,10 @@
  *   })
  *
  * ``useGuardedMutation`` wraps that into a setup-time hook. It
- * MUST run during component setup — it calls ``useToasts()`` and
- * ``useConfirms()``, which call PrimeVue's ``inject()``. Calling
- * the hook from an event handler trips Vue's "inject() outside
- * setup" warning and may resolve the wrong (or no) provider.
+ * MUST run during component setup: it calls ``useToasts()`` and
+ * ``useConfirms()``, which call Vue's ``inject()``. Calling the hook
+ * from an event handler trips Vue's "inject() outside setup" warning
+ * and may resolve the wrong (or no) provider.
  *
  * Each click-time arg becomes the input to a per-call ``spec``
  * function that returns the mutation vars plus the toast / confirm
@@ -36,14 +36,15 @@ import type { UseMutationReturnType } from "@tanstack/vue-query";
 
 import { useConfirms } from "@/lib/confirms";
 import { useToasts } from "@/lib/toasts";
+import type { IconName } from "@/components/AppIcon.vue";
 
 interface ConfirmOpts {
   header: string;
   message: string;
   acceptLabel: string;
   rejectLabel: string;
-  /** Optional PrimeIcon class for the dialog header icon. */
-  icon?: string;
+  /** Optional ``AppIcon`` name for the dialog header icon. */
+  icon?: IconName;
 }
 
 interface ToastSpec {

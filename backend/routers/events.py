@@ -41,7 +41,7 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/events", tags=["events"])
+router = APIRouter(prefix="/api/v1/event", tags=["events"])
 
 
 @router.post("", response_model=EventOut, status_code=201)

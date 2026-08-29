@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import Popover from "primevue/popover";
+import AppPopover from "@/components/AppPopover.vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -26,7 +27,7 @@ const showPendingBadge = computed(
 );
 
 // Every top-level destination lives in one dropdown. Each item
-// knows how to recognise its own subtree (so e.g. ``/events/new``
+// knows how to recognise its own subtree (so e.g. ``/event/new``
 // still reads as Evenementen), which is what lets the trigger
 // double as a "you are here" label.
 interface MenuItem {
@@ -50,39 +51,39 @@ const workspaceItems = computed<MenuItem[]>(() => {
   return [
     {
       key: "events",
-      to: "/events",
+      to: "/event",
       label: t("header.events"),
-      isActive: (p) => p === "/events" || p.startsWith("/events/"),
+      isActive: (p) => p === "/event" || p.startsWith("/event/"),
     },
     {
       key: "datepolls",
-      to: "/datepolls",
+      to: "/datepoll",
       label: t("header.datepolls"),
-      isActive: (p) => p === "/datepolls" || p.startsWith("/datepolls/"),
+      isActive: (p) => p === "/datepoll" || p.startsWith("/datepoll/"),
     },
     {
       key: "chores",
-      to: "/chores",
+      to: "/chore",
       label: t("header.chores"),
-      isActive: (p) => p === "/chores" || p.startsWith("/chores/"),
+      isActive: (p) => p === "/chore" || p.startsWith("/chore/"),
     },
     {
       key: "forms",
-      to: "/forms",
+      to: "/form",
       label: t("header.forms"),
-      isActive: (p) => p === "/forms" || p.startsWith("/forms/"),
+      isActive: (p) => p === "/form" || p.startsWith("/form/"),
     },
     {
       key: "quizzes",
-      to: "/quizzes",
+      to: "/quiz",
       label: t("header.quizzes"),
-      isActive: (p) => p === "/quizzes" || p.startsWith("/quizzes/"),
+      isActive: (p) => p === "/quiz" || p.startsWith("/quiz/"),
     },
     {
       key: "compasses",
-      to: "/compasses",
+      to: "/compass",
       label: t("header.compasses"),
-      isActive: (p) => p === "/compasses" || p.startsWith("/compasses/"),
+      isActive: (p) => p === "/compass" || p.startsWith("/compass/"),
     },
   ];
 });
@@ -126,7 +127,7 @@ const activeItem = computed(
 );
 const triggerLabel = computed(() => activeItem.value?.label ?? t("header.menu"));
 
-const navMenu = ref<InstanceType<typeof Popover> | null>(null);
+const navMenu = ref<InstanceType<typeof AppPopover> | null>(null);
 const navMenuOpen = ref(false);
 function toggleNavMenu(event: Event) {
   navMenu.value?.toggle(event);
@@ -143,7 +144,7 @@ async function logout() {
 
 // Subtabs derived from the current route. Empty array on routes
 // that don't sit under one of the parents with subtabs (Lid-
-// feedback, WhatsApp, /events/new, /events/:id/edit, /forms/new,
+// feedback, WhatsApp, /event/new, /event/:id/edit, /form/new,
 // etc.) — the subtab pair distinguishes only the two list views,
 // so hiding it on detail/edit routes keeps the navigation honest.
 interface Subtab {
@@ -153,28 +154,28 @@ interface Subtab {
 }
 const subtabs = computed<Subtab[]>(() => {
   const p = route.path;
-  if (p === "/events" || p === "/events/archived") {
+  if (p === "/event" || p === "/event/archived") {
     return [
-      { to: "/events", label: t("header.active") },
-      { to: "/events/archived", label: t("header.archive") },
+      { to: "/event", label: t("header.active") },
+      { to: "/event/archived", label: t("header.archive") },
     ];
   }
-  if (p === "/forms" || p === "/forms/archived") {
+  if (p === "/form" || p === "/form/archived") {
     return [
-      { to: "/forms", label: t("header.active") },
-      { to: "/forms/archived", label: t("header.archive") },
+      { to: "/form", label: t("header.active") },
+      { to: "/form/archived", label: t("header.archive") },
     ];
   }
-  if (p === "/datepolls" || p === "/datepolls/archived") {
+  if (p === "/datepoll" || p === "/datepoll/archived") {
     return [
-      { to: "/datepolls", label: t("header.active") },
-      { to: "/datepolls/archived", label: t("header.archive") },
+      { to: "/datepoll", label: t("header.active") },
+      { to: "/datepoll/archived", label: t("header.archive") },
     ];
   }
-  if (p === "/chores" || p === "/chores/archived") {
+  if (p === "/chore" || p === "/chore/archived") {
     return [
-      { to: "/chores", label: t("header.active") },
-      { to: "/chores/archived", label: t("header.archive") },
+      { to: "/chore", label: t("header.active") },
+      { to: "/chore/archived", label: t("header.archive") },
     ];
   }
   if (p === "/users" || p === "/chapters" || p === "/settings") {
@@ -237,16 +238,16 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
           :aria-label="t('header.menuAria', { section: triggerLabel })"
           @click="toggleNavMenu"
         >
-          <i class="pi pi-bars trigger-icon" aria-hidden="true"></i>
+          <AppIcon name="bars" class="trigger-icon" />
           <span class="trigger-label">{{ triggerLabel }}</span>
-          <i class="pi pi-chevron-down trigger-chevron" aria-hidden="true"></i>
+          <AppIcon name="chevron-down" class="trigger-chevron" />
           <span
             v-if="showPendingBadge"
             class="trigger-dot"
             :aria-label="t('header.pendingBadgeLabel', { n: pendingCount })"
           />
         </button>
-        <Popover
+        <AppPopover
           ref="navMenu"
           @show="navMenuOpen = true"
           @hide="navMenuOpen = false"
@@ -278,11 +279,11 @@ const hasSubtabs = computed(() => subtabs.value.length > 0);
             </button>
             <span class="menu-rule" aria-hidden="true" />
             <button type="button" class="menu-item menu-item-logout" @click="logout">
-              <i class="pi pi-sign-out" aria-hidden="true"></i>
+              <AppIcon name="sign-out" />
               {{ t("header.logout") }}
             </button>
           </div>
-        </Popover>
+        </AppPopover>
       </template>
       <LanguageSwitcher />
     </div>

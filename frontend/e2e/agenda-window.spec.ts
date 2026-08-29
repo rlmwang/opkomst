@@ -41,7 +41,7 @@ test("an admin widens the agenda window and a far-off event appears", async ({
   // 48 days out: past the 31-day window, well inside a 90-day one.
   const startsAt = new Date(Date.now() + 48 * 24 * 60 * 60 * 1000);
   const name = `E2E Window ${startsAt.getTime()}`;
-  const created = await request.post("/api/v1/events", {
+  const created = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${orgToken}` },
     data: {
       chapter_id: chapterId,

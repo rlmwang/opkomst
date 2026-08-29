@@ -3,7 +3,7 @@ import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 
 describe("eventQrUrl", () => {
   it("points at the QR SVG endpoint for the slug", () => {
-    expect(eventQrUrl("abcd1234")).toBe("/api/v1/events/by-slug/abcd1234/qr.svg");
+    expect(eventQrUrl("abcd1234")).toBe("/api/v1/event/by-slug/abcd1234/qr.svg");
   });
 });
 

@@ -2,14 +2,12 @@
  * QuestionEditor's kind-switching contract: changing kind clears
  * the fields that don't belong to the new kind, so the payload
  * shipped to the backend doesn't carry stale data from a previous
- * kind. The patch helper is the load-bearing piece — verifying it
- * directly keeps the test focused on the behaviour, not the Select
- * widget's interaction model.
+ * kind. The patch helper is the load-bearing piece: verifying it
+ * directly keeps the test focused on the behaviour, not on the
+ * select field's interaction model.
  */
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
-// PrimeVue stays until task 03: this editor still renders its Select.
-import PrimeVue from "primevue/config";
 import { createI18n } from "vue-i18n";
 
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";
@@ -58,7 +56,7 @@ function mountEditor(draft: QuestionDraft) {
         wrapper.setProps({ modelValue: v });
       },
     },
-    global: { plugins: [makeI18n(), PrimeVue] },
+    global: { plugins: [makeI18n()] },
   });
   return { wrapper, get: () => current };
 }

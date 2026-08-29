@@ -68,7 +68,7 @@ def test_the_footer_list_matches_the_server(client) -> None:
 
 def test_the_sitemap_lists_what_should_be_indexed(client) -> None:
     body = client.get("/sitemap.xml").text
-    for path in ("/events/new", "/forms/new", "/datepolls/new", "/chores/new", "/privacy"):
+    for path in ("/event/new", "/form/new", "/datepoll/new", "/chore/new", "/privacy"):
         assert "<loc>" in body and path in body, path
     for page in PAGES:
         assert page.slug in body, page.slug
@@ -82,7 +82,7 @@ def test_robots_points_at_the_sitemap(client) -> None:
 
 @pytest.mark.parametrize(
     ("path", "expected"),
-    [("/", 200), ("/events/new", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
+    [("/", 200), ("/event/new", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
 )
 def test_a_path_nothing_serves_is_a_404(client, path: str, expected: int) -> None:
     """A soft 404 is a 200 on a page that does not exist. Google flags
@@ -101,7 +101,7 @@ def test_the_five_app_pages_describe_themselves(client) -> None:
     """One title on five URLs is a search engine with five pages it
     cannot tell apart."""
     titles = {}
-    for path in ("/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"):
+    for path in ("/", "/event/new", "/form/new", "/datepoll/new", "/chore/new"):
         head = client.get(path).text.split("</head>")[0]
         match = re.search(r"<title>(.*?)</title>", head)
         assert match, path
@@ -116,7 +116,7 @@ def test_the_five_app_pages_describe_themselves(client) -> None:
 
 def test_the_organiser_app_is_not_described_to_a_crawler(client) -> None:
     """A dashboard behind a sign-in has no business in an index."""
-    head = client.get("/rsp/events").text.split("</head>")[0]
+    head = client.get("/rsp/event").text.split("</head>")[0]
     assert 'content="noindex, follow"' in head
 
 

@@ -30,7 +30,7 @@ def _public_signup(client: Any, event: Any, *, email: str | None) -> Any:
     }
     if email is not None:
         payload["email"] = email
-    return client.post(f"/api/v1/events/by-slug/{first_occurrence(event).slug}/signups", json=payload)
+    return client.post(f"/api/v1/event/by-slug/{first_occurrence(event).slug}/signups", json=payload)
 
 
 def _signup_for_event(session: Any, event_id: str) -> Signup | None:

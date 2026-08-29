@@ -1,6 +1,6 @@
 /**
  * Public chapter-agenda mini-app entry. Mounts a single component to
- * ``#app`` — no router, no Pinia, no Vue Query, no PrimeVue, no
+ * ``#app``: no router, no Pinia, no Vue Query, no
  * vue-i18n, same lean bundle as the other public pages.
  *
  * Handles one URL shape (``/e/<chapter-slug>``); the slug is parsed from

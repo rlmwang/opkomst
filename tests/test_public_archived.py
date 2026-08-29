@@ -47,12 +47,12 @@ def test_get_event_by_slug_returns_archived_event_with_flag(client, db: Any) -> 
     on the response distinguishes them from live ones."""
     e = make_event(db)
     commit(db)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}")
     assert r.status_code == 200
     assert r.json()["archived"] is False
 
     _archive(e.slug)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}")
     assert r.status_code == 200
     assert r.json()["archived"] is True
 
@@ -60,18 +60,18 @@ def test_get_event_by_slug_returns_archived_event_with_flag(client, db: Any) -> 
 def test_event_ics_404s_on_archived(client, db: Any) -> None:
     e = make_event(db)
     commit(db)
-    assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/event.ics").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/event.ics").status_code == 200
     _archive(e.slug)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/event.ics")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/event.ics")
     assert r.status_code == 404
 
 
 def test_qr_404s_on_archived(client, db: Any) -> None:
     e = make_event(db)
     commit(db)
-    assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/qr.svg").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/qr.svg").status_code == 200
     _archive(e.slug)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/qr.svg")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/qr.svg")
     assert r.status_code == 404
 
 
@@ -85,19 +85,19 @@ def test_signup_404s_on_archived(client, db: Any) -> None:
         "email": None,
         "all_upcoming": True,
     }
-    r = client.post(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/signups", json=payload)
+    r = client.post(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/signups", json=payload)
     assert r.status_code == 201
     _archive(e.slug)
-    r = client.post(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/signups", json=payload)
+    r = client.post(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/signups", json=payload)
     assert r.status_code == 404
 
 
 def test_feedback_preview_404s_on_archived(client, db: Any) -> None:
     e = make_event(db)
     commit(db)
-    assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/feedback-preview").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/feedback-preview").status_code == 200
     _archive(e.slug)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/feedback-preview")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/feedback-preview")
     assert r.status_code == 404
 
 
@@ -105,14 +105,14 @@ def test_email_preview_404s_on_archived(client, db: Any) -> None:
     e = make_event(db)
     commit(db)
     # Live event renders.
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/email-preview/feedback")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/email-preview/feedback")
     assert r.status_code == 200
     _archive(e.slug)
-    r = client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}/email-preview/feedback")
+    r = client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}/email-preview/feedback")
     assert r.status_code == 404
 
 
 def test_unknown_slug_404s(client) -> None:
     """Sanity: an unknown slug also 404s — same response shape as
     archived, so the visitor can't infer existence."""
-    assert client.get("/api/v1/events/by-slug/never-existed").status_code == 404
+    assert client.get("/api/v1/event/by-slug/never-existed").status_code == 404

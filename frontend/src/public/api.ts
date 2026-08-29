@@ -117,7 +117,7 @@ export class ApiError extends Error {
 }
 
 export async function fetchEventBySlug(slug: string): Promise<PublicEvent> {
-  const r = await fetch(`/api/v1/events/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/event/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicEvent;
 }
@@ -127,7 +127,7 @@ export async function postSignup(
   payload: SignupPayload,
 ): Promise<SignupAck> {
   const r = await fetch(
-    `/api/v1/events/by-slug/${encodeURIComponent(slug)}/signups`,
+    `/api/v1/event/by-slug/${encodeURIComponent(slug)}/signups`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,7 +139,7 @@ export async function postSignup(
 }
 
 export async function fetchBooking(token: string): Promise<Booking> {
-  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`);
+  const r = await fetch(`/api/v1/event/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as Booking;
 }
@@ -148,7 +148,7 @@ export async function putBooking(
   token: string,
   payload: BookingEditPayload,
 ): Promise<Booking> {
-  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/event/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -165,7 +165,7 @@ export async function putBookingOccurrences(
   payload: { occurrence_ids: string[]; all_upcoming: boolean },
 ): Promise<Booking> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/occurrences`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/occurrences`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -182,7 +182,7 @@ export async function withdrawOccurrence(
   occurrenceId: string,
 ): Promise<void> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/occurrences/${encodeURIComponent(occurrenceId)}/withdraw`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/occurrences/${encodeURIComponent(occurrenceId)}/withdraw`,
     { method: "POST" },
   );
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
@@ -191,7 +191,7 @@ export async function withdrawOccurrence(
 /** Withdraw the whole booking (every occurrence at once). */
 export async function withdrawBooking(token: string): Promise<void> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/withdraw`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/withdraw`,
     { method: "POST" },
   );
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);

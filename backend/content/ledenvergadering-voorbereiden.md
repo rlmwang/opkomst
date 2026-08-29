@@ -1,7 +1,7 @@
 ---
 title: Een ledenvergadering voorbereiden
 description: Een datum kiezen, weten wie er komt, de stemming peilen en achteraf vragen hoe het ging. Vier stappen, vier links.
-cta_path: /datepolls/new
+cta_path: /datepoll/new
 cta_label: Maak een datumplanner
 order: 9
 ---

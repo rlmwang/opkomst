@@ -243,7 +243,7 @@ def submit_feedback(
 # --- Organiser: per-event feedback summary ----------------------------
 
 
-@router.get("/events/{event_id}/feedback-summary", response_model=FeedbackSummaryOut)
+@router.get("/event/{event_id}/feedback-summary", response_model=FeedbackSummaryOut)
 def feedback_summary(
     event_id: str,
     db: Session = Depends(get_db),
@@ -262,7 +262,7 @@ def feedback_summary(
     )
 
 
-@router.get("/events/{event_id}/feedback-submissions", response_model=list[FeedbackSubmissionOut])
+@router.get("/event/{event_id}/feedback-submissions", response_model=list[FeedbackSubmissionOut])
 def feedback_submissions(
     event_id: str,
     db: Session = Depends(get_db),

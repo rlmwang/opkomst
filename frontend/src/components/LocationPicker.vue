@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import AutoComplete, {
+import AutoCompleteField, {
   type AutoCompleteCompleteEvent,
   type AutoCompleteOptionSelectEvent,
-} from "primevue/autocomplete";
+} from "@/components/AutoCompleteField.vue";
 import AppInput from "@/components/AppInput.vue";
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -132,7 +132,7 @@ async function onHouseNumberBlur() {
 
 <template>
   <div class="picker">
-    <AutoComplete
+    <AutoCompleteField
       v-model="local"
       :suggestions="results"
       option-label="display_name"
@@ -148,7 +148,7 @@ async function onHouseNumberBlur() {
       <template #option="{ option }">
         <div class="suggestion">{{ (option as NominatimResult).display_name }}</div>
       </template>
-    </AutoComplete>
+    </AutoCompleteField>
     <AppInput
       v-if="picked"
       v-model="houseNumber"

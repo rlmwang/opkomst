@@ -27,22 +27,22 @@ const {
   query: (chapterId) => useArchivedDatepolls({ chapterId }),
   restore: useRestoreDatepoll(),
   remove: useDeleteDatepoll(),
-  prefix: "datepolls.archived",
+  prefix: "datepoll.archived",
 });
 </script>
 
 <template>
   <ListPageView
-    :title="t('datepolls.archived.title')"
-    :intro="t('datepolls.archived.intro')"
+    :title="t('datepoll.archived.title')"
+    :intro="t('datepoll.archived.intro')"
     :items="archived"
     :loaded="loaded"
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
-    :search-placeholder="t('datepolls.archived.searchPlaceholder')"
+    :search-placeholder="t('datepoll.archived.searchPlaceholder')"
     :search-keys="(p: DatepollListOut) => [lt(p.name_nl, p.name_en) ?? '']"
-    :empty-copy="t('datepolls.archived.empty')"
-    :no-matches-copy="t('datepolls.archived.noMatches')"
+    :empty-copy="t('datepoll.archived.empty')"
+    :no-matches-copy="t('datepoll.archived.noMatches')"
     :skeleton-rows="2"
     @update:chapter-filter="setChapterFilter"
   >
@@ -55,14 +55,14 @@ const {
           </h3>
         </div>
         <div class="archive-row-actions">
-          <AppButton :label="t('datepolls.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(p)" />
+          <AppButton :label="t('datepoll.archived.restore')" icon="replay" size="small" severity="secondary" @click="restoreItem(p)" />
           <AppButton
-            icon="pi pi-trash"
+            icon="trash"
             size="small"
             severity="secondary"
             text
-            v-tooltip.top="t('datepolls.archived.delete')"
-            :aria-label="t('datepolls.archived.delete')"
+            v-tooltip.top="t('datepoll.archived.delete')"
+            :aria-label="t('datepoll.archived.delete')"
             @click="askDelete(p)"
           />
         </div>

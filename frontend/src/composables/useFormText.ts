@@ -5,7 +5,7 @@ import { type FormResource, useFormsApi } from "@/composables/useForms";
  * The copy lookup for the four organiser pages the forms table's
  * products share.
  *
- * ``<resource>.<key>`` when the product defines it, ``forms.<key>``
+ * ``<resource>.<key>`` when the product defines it, ``form.<key>``
  * otherwise: the products share every string that is not about what
  * makes them different. A questionnaire is the base vocabulary, so its
  * own resource resolves to itself either way.
@@ -28,7 +28,7 @@ export function useFormText(): {
   const resource = api.resource;
   const L = (key: string, params?: Record<string, unknown>): string => {
     const own = `${resource}.${key}`;
-    const full = te(own) ? own : `forms.${key}`;
+    const full = te(own) ? own : `form.${key}`;
     return params ? t(full, params) : t(full);
   };
   return { resource, isQuiz: resource === "quizzes", isCompass: resource === "compasses", L };

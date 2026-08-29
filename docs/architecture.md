@@ -5,7 +5,7 @@ How the app is wired today. Keep it in step with the code.
 ## Stack
 
 FastAPI on Python 3.13 with SQLAlchemy 2.0 and Alembic, Postgres
-everywhere. Vue 3 with TypeScript, Vite and PrimeVue 4 on the front,
+everywhere. Vue 3 with TypeScript and Vite on the front,
 with types generated from the OpenAPI schema. Mail is Jinja templates
 per locale over a pluggable backend. Address autocomplete comes from
 PDOK.

@@ -74,7 +74,7 @@ export interface CompassResult {
 }
 
 export async function fetchCompassBySlug(slug: string): Promise<PublicForm> {
-  const r = await fetch(`/api/v1/compasses/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/compass/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicForm;
 }
@@ -83,7 +83,7 @@ export async function postCompassAnswers(
   slug: string,
   payload: { display_name: string | null; answers: SubmitAnswer[] },
 ): Promise<CompassResult> {
-  const r = await fetch(`/api/v1/compasses/by-slug/${encodeURIComponent(slug)}/submit`, {
+  const r = await fetch(`/api/v1/compass/by-slug/${encodeURIComponent(slug)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -96,7 +96,7 @@ export async function postCompassAnswers(
  *  per-answer rows carry what was given, so this one call both renders
  *  the result and refills the walk behind "change your answers". */
 export async function fetchCompassResult(token: string): Promise<CompassResult> {
-  const r = await fetch(`/api/v1/compasses/by-token/${encodeURIComponent(token)}`);
+  const r = await fetch(`/api/v1/compass/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as CompassResult;
 }
@@ -107,7 +107,7 @@ export async function putCompassAnswers(
   token: string,
   payload: { display_name: string | null; answers: SubmitAnswer[] },
 ): Promise<CompassResult> {
-  const r = await fetch(`/api/v1/compasses/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/compass/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -117,7 +117,7 @@ export async function putCompassAnswers(
 }
 
 export async function withdrawCompass(token: string): Promise<void> {
-  const r = await fetch(`/api/v1/compasses/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
+  const r = await fetch(`/api/v1/compass/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
 }
 

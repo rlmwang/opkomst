@@ -41,7 +41,7 @@ const ARROW = { x: { low: "←", high: "→" }, y: { low: "↓", high: "↑" } }
 const SIDES = { x: ["low", "high"], y: ["high", "low"] } as const;
 
 function copy(axis: "x" | "y", key: string): string {
-  return t(`compasses.edit.${key}${AXIS[axis]}`);
+  return t(`compass.edit.${key}${AXIS[axis]}`);
 }
 
 function sideLabel(axis: "x" | "y", side: "low" | "high"): string {
@@ -80,7 +80,7 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
 <template>
   <div class="axes-editor">
     <div v-for="axis in (['x', 'y'] as const)" :key="axis" class="axis-card">
-      <h3 class="axis-heading">{{ t(`compasses.edit.axis${AXIS[axis]}`) }}</h3>
+      <h3 class="axis-heading">{{ t(`compass.edit.axis${AXIS[axis]}`) }}</h3>
 
       <AppInput
         :model-value="axisAt(axis).name"

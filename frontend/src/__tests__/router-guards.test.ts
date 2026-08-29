@@ -1,7 +1,7 @@
 /**
  * Router-guard behaviour. Specifically the ``requiresWhatsApp``
  * meta added for ``/admin/whatsapp``: a direct URL poke must
- * redirect to ``/events`` when the auth store reports the
+ * redirect to ``/event`` when the auth store reports the
  * WhatsApp tool isn't configured, even though the user is an
  * admin and would otherwise pass ``requiresAdmin``.
  *
@@ -65,7 +65,7 @@ async function loadRouter() {
 // this runs beside the backend suite, the production build and Playwright
 // all at once. It took 18.6s there and blocked the push.
 describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
-  it("redirects to /events when whatsappAvailable is false", async () => {
+  it("redirects to /event when whatsappAvailable is false", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();
     const store = useAuthStore();
@@ -74,7 +74,7 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     store.whatsappAvailable = false;
 
     await router.push("/admin/whatsapp");
-    expect(router.currentRoute.value.path).toBe("/events");
+    expect(router.currentRoute.value.path).toBe("/event");
   });
 
   it("admits admins to /admin/whatsapp when whatsappAvailable is true", async () => {
@@ -89,7 +89,7 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     expect(router.currentRoute.value.path).toBe("/admin/whatsapp");
   });
 
-  it("non-admin trying to reach /admin/whatsapp lands on /events via requiresAdmin (not requiresWhatsApp)", async () => {
+  it("non-admin trying to reach /admin/whatsapp lands on /event via requiresAdmin (not requiresWhatsApp)", async () => {
     const { useAuthStore } = await import("@/stores/auth");
     const router = await loadRouter();
     const store = useAuthStore();
@@ -98,6 +98,6 @@ describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
     store.whatsappAvailable = true; // would pass on its own
 
     await router.push("/admin/whatsapp");
-    expect(router.currentRoute.value.path).toBe("/events");
+    expect(router.currentRoute.value.path).toBe("/event");
   });
 });

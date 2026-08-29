@@ -14,12 +14,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@primeuix/themes": "^1.0.0",
     "@sentry/vue": "^10.50.0",
     "@tanstack/vue-query": "^5.100.6",
     "pinia": "^3.0.0",
-    "primeicons": "^7.0.0",
-    "primevue": "^4.3.0",
     "vue": "^3.5.0",
     "vue-i18n": "^11.4.0",
     "vue-router": "^5.3.0"

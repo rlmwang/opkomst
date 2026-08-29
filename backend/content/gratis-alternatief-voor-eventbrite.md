@@ -1,7 +1,7 @@
 ---
 title: Gratis alternatief voor Eventbrite
 description: Voor een bijeenkomst zonder kaartverkoop: één aanmeldlink, geen account voor je bezoekers, en geen marktplaats die ze daarna zelf mailt.
-cta_path: /events/new
+cta_path: /event/new
 cta_label: Maak een evenement
 order: 10
 ---

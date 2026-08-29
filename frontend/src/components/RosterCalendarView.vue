@@ -172,9 +172,9 @@ onBeforeUnmount(() => document.removeEventListener("click", close));
   gap: 0.375rem;
   text-align: left;
 }
-/* The public mini-apps ship ``.btn`` from forms.css; the organiser (PrimeVue)
- * app does not, so provide the equivalent here for the read-only view (it has
- * no buttons anyway, but keep the popover self-sufficient). */
+/* The public mini-apps ship ``.btn`` from forms.css; the organiser app
+ * does not, so provide the equivalent here for the read-only view (it
+ * has no buttons anyway, but keep the popover self-sufficient). */
 .rcv-pop .btn {
   padding: 0.5rem 0.875rem;
   border: 1px solid var(--brand-border);

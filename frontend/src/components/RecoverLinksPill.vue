@@ -12,7 +12,7 @@
  * loader, the recover endpoint path, and the public URL builder.
  */
 import AppButton from "@/components/AppButton.vue";
-import Popover from "primevue/popover";
+import AppPopover from "@/components/AppPopover.vue";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppDialog from "@/components/AppDialog.vue";
@@ -42,7 +42,7 @@ const props = defineProps<{
 const { t, locale } = useI18n();
 const toasts = useToasts();
 
-const pop = ref<InstanceType<typeof Popover>>();
+const pop = ref<InstanceType<typeof AppPopover>>();
 const rows = ref<RecoverableRow[]>([]);
 const loading = ref(false);
 
@@ -92,7 +92,7 @@ async function confirmCopy() {
     <span class="label">{{ label }}</span>
   </button>
 
-  <Popover ref="pop">
+  <AppPopover ref="pop">
     <div class="rlp-list">
       <p v-if="loading" class="rlp-muted">{{ t("common.loading") }}</p>
       <p v-else-if="rows.length === 0" class="rlp-muted">{{ t("recoverLink.empty") }}</p>
@@ -105,7 +105,7 @@ async function confirmCopy() {
           >{{ t("recoverLink.recoveredMark") }}</span
         >
         <AppButton
-          icon="pi pi-link"
+          icon="link"
           size="small"
           severity="secondary"
           text
@@ -115,7 +115,7 @@ async function confirmCopy() {
         />
       </div>
     </div>
-  </Popover>
+  </AppPopover>
 
   <AppDialog
     :visible="pending !== null"

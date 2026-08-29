@@ -53,7 +53,7 @@ def test_event_create_via_http_rejects_tz_aware_time(client, organiser_headers) 
         "reminder_enabled": True,
         "locale": "nl",
     }
-    r = client.post("/api/v1/events", headers=organiser_headers, json=payload)
+    r = client.post("/api/v1/event", headers=organiser_headers, json=payload)
     assert r.status_code == 422
     assert "naive" in r.text
 

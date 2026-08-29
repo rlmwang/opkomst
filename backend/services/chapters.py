@@ -140,7 +140,7 @@ def slug_exists_active(db: Session, slug: str, *, exclude_id: str | None = None)
 def _taken(db: Session, slug: str, *, exclude_id: str | None) -> bool:
     """A slug is unavailable when another live chapter of this
     organisation holds it, or when it names a page of the organiser app
-    — ``/{tenant}/{chapter}`` and ``/{tenant}/events`` are the same
+    — ``/{tenant}/{chapter}`` and ``/{tenant}/event`` are the same
     namespace, and the app wins."""
     return slug in slug_svc.RESERVED_SLUGS or slug_exists_active(db, slug, exclude_id=exclude_id)
 

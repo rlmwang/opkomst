@@ -410,7 +410,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores": {
+    "/api/v1/chore": {
         parameters: {
             query?: never;
             header?: never;
@@ -418,7 +418,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Rosters */
-        get: operations["list_rosters_api_v1_chores_get"];
+        get: operations["list_rosters_api_v1_chore_get"];
         put?: never;
         /**
          * Create Roster
@@ -426,14 +426,14 @@ export interface paths {
          *     can be saved and chores added on the edit page. The caller-supplied
          *     ``chapter_id`` must be in the user's set.
          */
-        post: operations["create_roster_api_v1_chores_post"];
+        post: operations["create_roster_api_v1_chore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/archived": {
+    "/api/v1/chore/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -441,7 +441,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Rosters */
-        get: operations["list_archived_rosters_api_v1_chores_archived_get"];
+        get: operations["list_archived_rosters_api_v1_chore_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -450,7 +450,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-slug/{slug}": {
+    "/api/v1/chore/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -458,7 +458,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Public Roster */
-        get: operations["get_public_roster_api_v1_chores_by_slug__slug__get"];
+        get: operations["get_public_roster_api_v1_chore_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -467,7 +467,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-slug/{slug}/enroll": {
+    "/api/v1/chore/by-slug/{slug}/enroll": {
         parameters: {
             query?: never;
             header?: never;
@@ -477,14 +477,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Enroll */
-        post: operations["enroll_api_v1_chores_by_slug__slug__enroll_post"];
+        post: operations["enroll_api_v1_chore_by_slug__slug__enroll_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-slug/{slug}/qr.svg": {
+    "/api/v1/chore/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -496,7 +496,7 @@ export interface paths {
          * @description QR SVG for one slug. Resolves the roster first so a typo'd slug
          *     410s rather than 200ing with a wrong-target QR.
          */
-        get: operations["get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get"];
+        get: operations["get_roster_qr_api_v1_chore_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -505,7 +505,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}": {
+    "/api/v1/chore/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -513,9 +513,9 @@ export interface paths {
             cookie?: never;
         };
         /** Get Personal Page */
-        get: operations["get_personal_page_api_v1_chores_by_token__token__get"];
+        get: operations["get_personal_page_api_v1_chore_by_token__token__get"];
         /** Update Enrolment */
-        put: operations["update_enrolment_api_v1_chores_by_token__token__put"];
+        put: operations["update_enrolment_api_v1_chore_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -523,7 +523,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/availability": {
+    "/api/v1/chore/by-token/{token}/availability": {
         parameters: {
             query?: never;
             header?: never;
@@ -539,7 +539,7 @@ export interface paths {
          *     "can't make it" does — it's a late deferral (they should have flagged the
          *     absence before it was pinned).
          */
-        put: operations["set_availability_api_v1_chores_by_token__token__availability_put"];
+        put: operations["set_availability_api_v1_chore_by_token__token__availability_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -547,7 +547,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/calendar": {
+    "/api/v1/chore/by-token/{token}/calendar": {
         parameters: {
             query?: never;
             header?: never;
@@ -562,7 +562,7 @@ export interface paths {
          *     ``shift_id`` on each pinned assignee ties an open/others' slot back to a
          *     claim/cover action; projected days carry none.
          */
-        get: operations["get_token_calendar_api_v1_chores_by_token__token__calendar_get"];
+        get: operations["get_token_calendar_api_v1_chore_by_token__token__calendar_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -571,7 +571,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/leave": {
+    "/api/v1/chore/by-token/{token}/leave": {
         parameters: {
             query?: never;
             header?: never;
@@ -587,14 +587,14 @@ export interface paths {
          *     immediately re-covered among the remaining eligible (an ``inherited``
          *     pickup), or left ``open`` if nobody is eligible.
          */
-        post: operations["leave_api_v1_chores_by_token__token__leave_post"];
+        post: operations["leave_api_v1_chore_by_token__token__leave_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/claim": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/claim": {
         parameters: {
             query?: never;
             header?: never;
@@ -607,14 +607,14 @@ export interface paths {
          * Claim Shift
          * @description Take an open shift on a chore you're enrolled for.
          */
-        post: operations["claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post"];
+        post: operations["claim_shift_api_v1_chore_by_token__token__shifts__shift_id__claim_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/cover": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/cover": {
         parameters: {
             query?: never;
             header?: never;
@@ -628,14 +628,14 @@ export interface paths {
          * @description Voluntarily take over someone else's confirmed shift. One-way: the
          *     coverer becomes the assignee and earns a favour credit (§7).
          */
-        post: operations["cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post"];
+        post: operations["cover_shift_api_v1_chore_by_token__token__shifts__shift_id__cover_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/done": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/done": {
         parameters: {
             query?: never;
             header?: never;
@@ -645,14 +645,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Mark Shift Done */
-        post: operations["mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post"];
+        post: operations["mark_shift_done_api_v1_chore_by_token__token__shifts__shift_id__done_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/shifts/{shift_id}/pass": {
+    "/api/v1/chore/by-token/{token}/shifts/{shift_id}/pass": {
         parameters: {
             query?: never;
             header?: never;
@@ -666,14 +666,14 @@ export interface paths {
          * @description "Can't make it": give up a confirmed shift. It's unassigned and left
          *     ``open`` for anyone to claim — no automatic reassignment.
          */
-        post: operations["pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post"];
+        post: operations["pass_shift_api_v1_chore_by_token__token__shifts__shift_id__pass_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/by-token/{token}/swap": {
+    "/api/v1/chore/by-token/{token}/swap": {
         parameters: {
             query?: never;
             header?: never;
@@ -688,14 +688,14 @@ export interface paths {
          *     volunteer's ``theirs``. Both must be eligible for the chore they
          *     receive. Ledger-neutral (records ``assigned`` for each new holder).
          */
-        post: operations["swap_shifts_api_v1_chores_by_token__token__swap_post"];
+        post: operations["swap_shifts_api_v1_chore_by_token__token__swap_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}": {
+    "/api/v1/chore/{roster_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -703,7 +703,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Roster */
-        get: operations["get_roster_api_v1_chores__roster_id__get"];
+        get: operations["get_roster_api_v1_chore__roster_id__get"];
         /**
          * Update Roster
          * @description Update a roster. Chapter changes are allowed but the new one must
@@ -711,7 +711,7 @@ export interface paths {
          *     ``period_weeks`` clamps now-out-of-range ``cycle_slots`` (the schema
          *     validator handles the clamp).
          */
-        put: operations["update_roster_api_v1_chores__roster_id__put"];
+        put: operations["update_roster_api_v1_chore__roster_id__put"];
         post?: never;
         /**
          * Delete Roster
@@ -719,13 +719,13 @@ export interface paths {
          *     enrollments and shifts, and the image it owned. A live roster is not
          *     found here at all, so deleting one still means archiving it first.
          */
-        delete: operations["delete_roster_api_v1_chores__roster_id__delete"];
+        delete: operations["delete_roster_api_v1_chore__roster_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/accountability": {
+    "/api/v1/chore/{roster_id}/accountability": {
         parameters: {
             query?: never;
             header?: never;
@@ -738,7 +738,7 @@ export interface paths {
          *     ordinal), each listing the enrolled volunteers with their per-chore
          *     turn split. Never the email/ciphertext/token.
          */
-        get: operations["chore_accountability_api_v1_chores__roster_id__accountability_get"];
+        get: operations["chore_accountability_api_v1_chore__roster_id__accountability_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -747,7 +747,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/activate": {
+    "/api/v1/chore/{roster_id}/activate": {
         parameters: {
             query?: never;
             header?: never;
@@ -761,14 +761,14 @@ export interface paths {
          * @description Start a forming roster: flip it to running and pin the commit
          *     horizon now. One-way — 409 if already running (design §7 bootstrap).
          */
-        post: operations["activate_roster_api_v1_chores__roster_id__activate_post"];
+        post: operations["activate_roster_api_v1_chore__roster_id__activate_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/archive": {
+    "/api/v1/chore/{roster_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -778,14 +778,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Roster */
-        post: operations["archive_roster_api_v1_chores__roster_id__archive_post"];
+        post: operations["archive_roster_api_v1_chore__roster_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/calendar": {
+    "/api/v1/chore/{roster_id}/calendar": {
         parameters: {
             query?: never;
             header?: never;
@@ -799,7 +799,7 @@ export interface paths {
          *     shift log, the horizon window from the pins, beyond it from the
          *     projection (flagged ``tentative``).
          */
-        get: operations["chore_calendar_api_v1_chores__roster_id__calendar_get"];
+        get: operations["chore_calendar_api_v1_chore__roster_id__calendar_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -808,7 +808,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/image": {
+    "/api/v1/chore/{roster_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -822,19 +822,19 @@ export interface paths {
          * @description Upload (or replace) the roster's hero image — same 4:5 GitHub
          *     pipeline as the other entities (``services/image.py``).
          */
-        post: operations["upload_roster_image_api_v1_chores__roster_id__image_post"];
+        post: operations["upload_roster_image_api_v1_chore__roster_id__image_post"];
         /**
          * Delete Roster Image
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_roster_image_api_v1_chores__roster_id__image_delete"];
+        delete: operations["delete_roster_image_api_v1_chore__roster_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/rebalance": {
+    "/api/v1/chore/{roster_id}/rebalance": {
         parameters: {
             query?: never;
             header?: never;
@@ -849,14 +849,14 @@ export interface paths {
          *     pending volunteers in now. Drops un-acted pins and reassigns them, so
          *     it changes confirmed shifts — an explicit, opt-in organiser action.
          */
-        post: operations["rebalance_roster_api_v1_chores__roster_id__rebalance_post"];
+        post: operations["rebalance_roster_api_v1_chore__roster_id__rebalance_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/rebalance/preview": {
+    "/api/v1/chore/{roster_id}/rebalance/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -869,7 +869,7 @@ export interface paths {
          *     with changed days flagged — without persisting anything (dry-run rolled
          *     back in a savepoint). Feeds the fold-in confirmation dialog.
          */
-        get: operations["rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get"];
+        get: operations["rebalance_preview_api_v1_chore__roster_id__rebalance_preview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -878,7 +878,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/restore": {
+    "/api/v1/chore/{roster_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -888,14 +888,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Roster */
-        post: operations["restore_roster_api_v1_chores__roster_id__restore_post"];
+        post: operations["restore_roster_api_v1_chore__roster_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/schedule": {
+    "/api/v1/chore/{roster_id}/schedule": {
         parameters: {
             query?: never;
             header?: never;
@@ -907,7 +907,7 @@ export interface paths {
          * @description Upcoming shifts (today onward) with the assignee pseudonym, plus
          *     lifetime done/missed/scheduled/open counts.
          */
-        get: operations["get_schedule_api_v1_chores__roster_id__schedule_get"];
+        get: operations["get_schedule_api_v1_chore__roster_id__schedule_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -916,7 +916,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/shifts/{shift_id}/reassign": {
+    "/api/v1/chore/{roster_id}/shifts/{shift_id}/reassign": {
         parameters: {
             query?: never;
             header?: never;
@@ -934,14 +934,14 @@ export interface paths {
          *     way). The past is frozen and done/missed shifts can't change hands;
          *     the new assignee must be enrolled in the shift's chore.
          */
-        post: operations["reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post"];
+        post: operations["reassign_shift_api_v1_chore__roster_id__shifts__shift_id__reassign_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/volunteers": {
+    "/api/v1/chore/{roster_id}/volunteers": {
         parameters: {
             query?: never;
             header?: never;
@@ -954,7 +954,7 @@ export interface paths {
          *     Never the email/ciphertext/token (privacy — see the leak-guard
          *     test). ``load`` is 0 until shift generation (task 06).
          */
-        get: operations["list_volunteers_api_v1_chores__roster_id__volunteers_get"];
+        get: operations["list_volunteers_api_v1_chore__roster_id__volunteers_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -963,7 +963,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/chores/{roster_id}/volunteers/{volunteer_id}/edit-link": {
+    "/api/v1/chore/{roster_id}/volunteers/{volunteer_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -978,14 +978,14 @@ export interface paths {
          *     rotates the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post"];
+        post: operations["recover_volunteer_edit_link_api_v1_chore__roster_id__volunteers__volunteer_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses": {
+    "/api/v1/compass": {
         parameters: {
             query?: never;
             header?: never;
@@ -993,7 +993,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Forms */
-        get: operations["list_forms_api_v1_compasses_get"];
+        get: operations["list_forms_api_v1_compass_get"];
         put?: never;
         /**
          * Create Compass
@@ -1002,14 +1002,14 @@ export interface paths {
          *     page afterwards. Caller-supplied ``chapter_id`` must be in
          *     the user's live membership set.
          */
-        post: operations["create_compass_api_v1_compasses_post"];
+        post: operations["create_compass_api_v1_compass_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/archived": {
+    "/api/v1/compass/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -1017,7 +1017,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Forms */
-        get: operations["list_archived_forms_api_v1_compasses_archived_get"];
+        get: operations["list_archived_forms_api_v1_compass_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1026,7 +1026,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/by-slug/{slug}": {
+    "/api/v1/compass/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1034,7 +1034,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Public Form */
-        get: operations["get_public_form_api_v1_compasses_by_slug__slug__get"];
+        get: operations["get_public_form_api_v1_compass_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1043,7 +1043,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/by-slug/{slug}/qr.svg": {
+    "/api/v1/compass/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -1055,7 +1055,7 @@ export interface paths {
          * @description QR SVG for one slug. Resolves the form first so a typo'd
          *     slug 410s rather than 200ing with a wrong-target QR.
          */
-        get: operations["get_form_qr_api_v1_compasses_by_slug__slug__qr_svg_get"];
+        get: operations["get_form_qr_api_v1_compass_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1064,7 +1064,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/by-slug/{slug}/submit": {
+    "/api/v1/compass/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -1080,14 +1080,14 @@ export interface paths {
          *     come back to it. Nothing in the response links the submission
          *     back to a person beyond the self-chosen pseudonym.
          */
-        post: operations["submit_compass_api_v1_compasses_by_slug__slug__submit_post"];
+        post: operations["submit_compass_api_v1_compass_by_slug__slug__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/by-token/{token}": {
+    "/api/v1/compass/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1101,7 +1101,7 @@ export interface paths {
          *     one shape both renders the result and refills the walk
          *     behind the "change your answers" button.
          */
-        get: operations["get_compass_result_api_v1_compasses_by_token__token__get"];
+        get: operations["get_compass_result_api_v1_compass_by_token__token__get"];
         /**
          * Update Submission Compass
          * @description Change your mind. Unlike a quiz, this is a correction
@@ -1110,7 +1110,7 @@ export interface paths {
          *     answer rows and the pseudonym are replaced, and the map
          *     comes back redrawn.
          */
-        put: operations["update_submission_compass_api_v1_compasses_by_token__token__put"];
+        put: operations["update_submission_compass_api_v1_compass_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1118,7 +1118,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/by-token/{token}/withdraw": {
+    "/api/v1/compass/by-token/{token}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -1133,14 +1133,14 @@ export interface paths {
          *     deleting their own answers. Removes the response rows and the
          *     submission; nothing else references either (pseudonymous, no email).
          */
-        post: operations["withdraw_submission_compass_api_v1_compasses_by_token__token__withdraw_post"];
+        post: operations["withdraw_submission_compass_api_v1_compass_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}": {
+    "/api/v1/compass/{form_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1148,7 +1148,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Form */
-        get: operations["get_form_api_v1_compasses__form_id__get"];
+        get: operations["get_form_api_v1_compass__form_id__get"];
         /**
          * Update Compass
          * @description Update a form. Chapter changes are allowed (organiser might
@@ -1156,7 +1156,7 @@ export interface paths {
          *     still has to be in the user's set. Questions are diff-applied
          *     by id — see ``services/forms.apply_questions``.
          */
-        put: operations["update_compass_api_v1_compasses__form_id__put"];
+        put: operations["update_compass_api_v1_compass__form_id__put"];
         post?: never;
         /**
          * Delete Compass
@@ -1165,13 +1165,13 @@ export interface paths {
          *     not found here at all, so deleting one still means archiving it
          *     first.
          */
-        delete: operations["delete_compass_api_v1_compasses__form_id__delete"];
+        delete: operations["delete_compass_api_v1_compass__form_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/archive": {
+    "/api/v1/compass/{form_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -1181,14 +1181,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Compass */
-        post: operations["archive_compass_api_v1_compasses__form_id__archive_post"];
+        post: operations["archive_compass_api_v1_compass__form_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/image": {
+    "/api/v1/compass/{form_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -1202,19 +1202,19 @@ export interface paths {
          * @description Upload (or replace) the form's hero image — same 4:5 GitHub
          *     pipeline as events (``services/image.py``).
          */
-        post: operations["upload_image_compass_api_v1_compasses__form_id__image_post"];
+        post: operations["upload_image_compass_api_v1_compass__form_id__image_post"];
         /**
          * Delete Image Compass
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_image_compass_api_v1_compasses__form_id__image_delete"];
+        delete: operations["delete_image_compass_api_v1_compass__form_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/restore": {
+    "/api/v1/compass/{form_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -1224,14 +1224,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Compass */
-        post: operations["restore_compass_api_v1_compasses__form_id__restore_post"];
+        post: operations["restore_compass_api_v1_compass__form_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/submissions": {
+    "/api/v1/compass/{form_id}/submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1248,7 +1248,7 @@ export interface paths {
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
-        get: operations["form_submissions_api_v1_compasses__form_id__submissions_get"];
+        get: operations["form_submissions_api_v1_compass__form_id__submissions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1257,7 +1257,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/compass/{form_id}/submissions/{submission_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -1272,14 +1272,14 @@ export interface paths {
          *     the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_edit_link_compass_api_v1_compasses__form_id__submissions__submission_id__edit_link_post"];
+        post: operations["recover_edit_link_compass_api_v1_compass__form_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/compasses/{form_id}/summary": {
+    "/api/v1/compass/{form_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -1287,7 +1287,7 @@ export interface paths {
             cookie?: never;
         };
         /** Form Summary */
-        get: operations["form_summary_api_v1_compasses__form_id__summary_get"];
+        get: operations["form_summary_api_v1_compass__form_id__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1296,7 +1296,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls": {
+    "/api/v1/datepoll": {
         parameters: {
             query?: never;
             header?: never;
@@ -1304,7 +1304,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Datepolls */
-        get: operations["list_datepolls_api_v1_datepolls_get"];
+        get: operations["list_datepolls_api_v1_datepoll_get"];
         put?: never;
         /**
          * Create Datepoll
@@ -1312,14 +1312,14 @@ export interface paths {
          *     poll can be saved and slots added on the edit page. The
          *     caller-supplied ``chapter_id`` must be in the user's set.
          */
-        post: operations["create_datepoll_api_v1_datepolls_post"];
+        post: operations["create_datepoll_api_v1_datepoll_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/archived": {
+    "/api/v1/datepoll/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -1327,7 +1327,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Datepolls */
-        get: operations["list_archived_datepolls_api_v1_datepolls_archived_get"];
+        get: operations["list_archived_datepolls_api_v1_datepoll_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1336,7 +1336,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/by-slug/{slug}": {
+    "/api/v1/datepoll/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1344,7 +1344,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Public Datepoll */
-        get: operations["get_public_datepoll_api_v1_datepolls_by_slug__slug__get"];
+        get: operations["get_public_datepoll_api_v1_datepoll_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1353,7 +1353,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/by-slug/{slug}/qr.svg": {
+    "/api/v1/datepoll/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -1365,7 +1365,7 @@ export interface paths {
          * @description QR SVG for one slug. Resolves the poll first so a typo'd slug
          *     410s rather than 200ing with a wrong-target QR.
          */
-        get: operations["get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get"];
+        get: operations["get_datepoll_qr_api_v1_datepoll_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1374,7 +1374,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/by-slug/{slug}/submit": {
+    "/api/v1/datepoll/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -1389,14 +1389,14 @@ export interface paths {
          *     (raw returned once; only its hash stored) so the respondent can
          *     revisit and edit.
          */
-        post: operations["submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post"];
+        post: operations["submit_datepoll_api_v1_datepoll_by_slug__slug__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/by-token/{token}": {
+    "/api/v1/datepoll/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1407,13 +1407,13 @@ export interface paths {
          * Get Datepoll Submission
          * @description Current values of a submission, for pre-filling the edit form.
          */
-        get: operations["get_datepoll_submission_api_v1_datepolls_by_token__token__get"];
+        get: operations["get_datepoll_submission_api_v1_datepoll_by_token__token__get"];
         /**
          * Update Datepoll Submission
          * @description Update a submission in place via its edit-link token. Replaces
          *     the per-slot answers, the pseudonym, and the note.
          */
-        put: operations["update_datepoll_submission_api_v1_datepolls_by_token__token__put"];
+        put: operations["update_datepoll_submission_api_v1_datepoll_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1421,7 +1421,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/by-token/{token}/withdraw": {
+    "/api/v1/datepoll/by-token/{token}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -1436,14 +1436,14 @@ export interface paths {
          *     deleting their own availability. Removes the response rows and the
          *     submission; nothing else references either (pseudonymous, no email).
          */
-        post: operations["withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post"];
+        post: operations["withdraw_datepoll_submission_api_v1_datepoll_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}": {
+    "/api/v1/datepoll/{datepoll_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1451,7 +1451,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Datepoll */
-        get: operations["get_datepoll_api_v1_datepolls__datepoll_id__get"];
+        get: operations["get_datepoll_api_v1_datepoll__datepoll_id__get"];
         /**
          * Update Datepoll
          * @description Update a poll. Chapter changes are allowed but the new one must
@@ -1459,7 +1459,7 @@ export interface paths {
          *     ``(on_date, start_time, end_time)`` — see
          *     ``services/datepolls.apply_slots``.
          */
-        put: operations["update_datepoll_api_v1_datepolls__datepoll_id__put"];
+        put: operations["update_datepoll_api_v1_datepoll__datepoll_id__put"];
         post?: never;
         /**
          * Delete Datepoll
@@ -1467,13 +1467,13 @@ export interface paths {
          *     responses, and the image it owned. A live poll is not found here at
          *     all, so deleting one still means archiving it first.
          */
-        delete: operations["delete_datepoll_api_v1_datepolls__datepoll_id__delete"];
+        delete: operations["delete_datepoll_api_v1_datepoll__datepoll_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/archive": {
+    "/api/v1/datepoll/{datepoll_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -1483,14 +1483,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Datepoll */
-        post: operations["archive_datepoll_api_v1_datepolls__datepoll_id__archive_post"];
+        post: operations["archive_datepoll_api_v1_datepoll__datepoll_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/image": {
+    "/api/v1/datepoll/{datepoll_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -1504,19 +1504,19 @@ export interface paths {
          * @description Upload (or replace) the poll's hero image — same 4:5 GitHub
          *     pipeline as events (``services/image.py``).
          */
-        post: operations["upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"];
+        post: operations["upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post"];
         /**
          * Delete Datepoll Image
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete"];
+        delete: operations["delete_datepoll_image_api_v1_datepoll__datepoll_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/restore": {
+    "/api/v1/datepoll/{datepoll_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -1526,14 +1526,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Datepoll */
-        post: operations["restore_datepoll_api_v1_datepolls__datepoll_id__restore_post"];
+        post: operations["restore_datepoll_api_v1_datepoll__datepoll_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/submissions": {
+    "/api/v1/datepoll/{datepoll_id}/submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1547,7 +1547,7 @@ export interface paths {
          *     Privacy: the submission id is opaque and the only respondent
          *     identifier is the self-chosen pseudonym.
          */
-        get: operations["datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get"];
+        get: operations["datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1556,7 +1556,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/datepoll/{datepoll_id}/submissions/{submission_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -1571,14 +1571,14 @@ export interface paths {
          *     the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post"];
+        post: operations["recover_submission_edit_link_api_v1_datepoll__datepoll_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepolls/{datepoll_id}/summary": {
+    "/api/v1/datepoll/{datepoll_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -1586,7 +1586,7 @@ export interface paths {
             cookie?: never;
         };
         /** Datepoll Summary */
-        get: operations["datepoll_summary_api_v1_datepolls__datepoll_id__summary_get"];
+        get: operations["datepoll_summary_api_v1_datepoll__datepoll_id__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1595,7 +1595,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events": {
+    "/api/v1/event": {
         parameters: {
             query?: never;
             header?: never;
@@ -1603,17 +1603,17 @@ export interface paths {
             cookie?: never;
         };
         /** List Events */
-        get: operations["list_events_api_v1_events_get"];
+        get: operations["list_events_api_v1_event_get"];
         put?: never;
         /** Create Event */
-        post: operations["create_event_api_v1_events_post"];
+        post: operations["create_event_api_v1_event_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/archived": {
+    "/api/v1/event/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -1621,7 +1621,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Events */
-        get: operations["list_archived_events_api_v1_events_archived_get"];
+        get: operations["list_archived_events_api_v1_event_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1630,7 +1630,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}": {
+    "/api/v1/event/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1653,7 +1653,7 @@ export interface paths {
          *     ``no-store`` would defeat the point of caching the highest-
          *     traffic public endpoint.
          */
-        get: operations["get_event_by_slug_api_v1_events_by_slug__slug__get"];
+        get: operations["get_event_by_slug_api_v1_event_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1662,7 +1662,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}/email-preview/{channel}": {
+    "/api/v1/event/by-slug/{slug}/email-preview/{channel}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1674,7 +1674,7 @@ export interface paths {
          * @description Render the exact email that the dispatcher will send to a
          *     signup on this event.
          */
-        get: operations["email_preview_api_v1_events_by_slug__slug__email_preview__channel__get"];
+        get: operations["email_preview_api_v1_event_by_slug__slug__email_preview__channel__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1683,7 +1683,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}/event.ics": {
+    "/api/v1/event/by-slug/{slug}/event.ics": {
         parameters: {
             query?: never;
             header?: never;
@@ -1698,7 +1698,7 @@ export interface paths {
          *     so re-importing after an organiser edit updates the existing
          *     entry instead of creating a duplicate.
          */
-        get: operations["get_event_ics_api_v1_events_by_slug__slug__event_ics_get"];
+        get: operations["get_event_ics_api_v1_event_by_slug__slug__event_ics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1707,7 +1707,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}/feedback-preview": {
+    "/api/v1/event/by-slug/{slug}/feedback-preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -1718,7 +1718,7 @@ export interface paths {
          * Feedback Form Preview
          * @description Preview of the post-event feedback form.
          */
-        get: operations["feedback_form_preview_api_v1_events_by_slug__slug__feedback_preview_get"];
+        get: operations["feedback_form_preview_api_v1_event_by_slug__slug__feedback_preview_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1727,7 +1727,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}/qr.svg": {
+    "/api/v1/event/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -1735,7 +1735,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Event Qr */
-        get: operations["get_event_qr_api_v1_events_by_slug__slug__qr_svg_get"];
+        get: operations["get_event_qr_api_v1_event_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1744,7 +1744,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-slug/{slug}/signups": {
+    "/api/v1/event/by-slug/{slug}/signups": {
         parameters: {
             query?: never;
             header?: never;
@@ -1754,14 +1754,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Create Signup */
-        post: operations["create_signup_api_v1_events_by_slug__slug__signups_post"];
+        post: operations["create_signup_api_v1_event_by_slug__slug__signups_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-token/{token}": {
+    "/api/v1/event/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1773,14 +1773,14 @@ export interface paths {
          * @description The whole booking behind an edit-link token, for the edit page.
          *     Email is never returned (it isn't reachable from a booking).
          */
-        get: operations["get_booking_api_v1_events_by_token__token__get"];
+        get: operations["get_booking_api_v1_event_by_token__token__get"];
         /**
          * Update Booking
          * @description Update a booking's name + party size via its edit-link token.
          *     Email + dispatch rows are untouched — there is no path from a booking
          *     to its encrypted address (principle #2).
          */
-        put: operations["update_booking_api_v1_events_by_token__token__put"];
+        put: operations["update_booking_api_v1_event_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1788,7 +1788,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-token/{token}/occurrences": {
+    "/api/v1/event/by-token/{token}/occurrences": {
         parameters: {
             query?: never;
             header?: never;
@@ -1810,7 +1810,7 @@ export interface paths {
          *     reachable from a booking (principle #2), so reminder/feedback mail only
          *     ever covers sessions signed up for with an email at sign-up time.
          */
-        put: operations["set_booking_occurrences_api_v1_events_by_token__token__occurrences_put"];
+        put: operations["set_booking_occurrences_api_v1_event_by_token__token__occurrences_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1818,7 +1818,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
+    "/api/v1/event/by-token/{token}/occurrences/{occurrence_id}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -1836,14 +1836,14 @@ export interface paths {
          *     occurrence is untouched by design (no signup link), so an already-
          *     scheduled email may still arrive.
          */
-        post: operations["withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post"];
+        post: operations["withdraw_occurrence_api_v1_event_by_token__token__occurrences__occurrence_id__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/by-token/{token}/withdraw": {
+    "/api/v1/event/by-token/{token}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -1858,14 +1858,14 @@ export interface paths {
          *     every occurrence at once. Deletes the ``Registration`` (its line items
          *     cascade). Pending dispatches are untouched by design.
          */
-        post: operations["withdraw_booking_api_v1_events_by_token__token__withdraw_post"];
+        post: operations["withdraw_booking_api_v1_event_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}": {
+    "/api/v1/event/{event_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1874,7 +1874,7 @@ export interface paths {
         };
         get?: never;
         /** Update Event */
-        put: operations["update_event_api_v1_events__event_id__put"];
+        put: operations["update_event_api_v1_event__event_id__put"];
         post?: never;
         /**
          * Delete Event
@@ -1883,13 +1883,13 @@ export interface paths {
          *     deleting one still means archiving it first. The item's whole graph
          *     goes, plus the image it owned.
          */
-        delete: operations["delete_event_api_v1_events__event_id__delete"];
+        delete: operations["delete_event_api_v1_event__event_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/archive": {
+    "/api/v1/event/{event_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -1899,14 +1899,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Event */
-        post: operations["archive_event_api_v1_events__event_id__archive_post"];
+        post: operations["archive_event_api_v1_event__event_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/feedback-submissions": {
+    "/api/v1/event/{event_id}/feedback-submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -1925,7 +1925,7 @@ export interface paths {
          *     with no link back to the signup that produced it — this matches
          *     the contract documented in the public privacy notice.
          */
-        get: operations["feedback_submissions_api_v1_events__event_id__feedback_submissions_get"];
+        get: operations["feedback_submissions_api_v1_event__event_id__feedback_submissions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1934,7 +1934,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/feedback-summary": {
+    "/api/v1/event/{event_id}/feedback-summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -1942,7 +1942,7 @@ export interface paths {
             cookie?: never;
         };
         /** Feedback Summary */
-        get: operations["feedback_summary_api_v1_events__event_id__feedback_summary_get"];
+        get: operations["feedback_summary_api_v1_event__event_id__feedback_summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1951,7 +1951,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/image": {
+    "/api/v1/event/{event_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -1974,19 +1974,19 @@ export interface paths {
          *     Returns the updated ``EventOut`` so the caller's Vue Query
          *     cache patches in-place without an extra refetch.
          */
-        post: operations["upload_event_image_api_v1_events__event_id__image_post"];
+        post: operations["upload_event_image_api_v1_event__event_id__image_post"];
         /**
          * Delete Event Image
          * @description Clear the reference and delete the file. Nothing else points at
          *     it, so leaving it behind would be storage nobody can ever reach.
          */
-        delete: operations["delete_event_image_api_v1_events__event_id__image_delete"];
+        delete: operations["delete_event_image_api_v1_event__event_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/occurrences": {
+    "/api/v1/event/{event_id}/occurrences": {
         parameters: {
             query?: never;
             header?: never;
@@ -2000,7 +2000,7 @@ export interface paths {
          *     projected future dates that aren't rows yet. Strictly read-only per
          *     occurrence — the only actions are on the event itself.
          */
-        get: operations["event_occurrences_api_v1_events__event_id__occurrences_get"];
+        get: operations["event_occurrences_api_v1_event__event_id__occurrences_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2009,7 +2009,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/signups": {
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": {
         parameters: {
             query?: never;
             header?: never;
@@ -2022,7 +2022,7 @@ export interface paths {
          *     Returns display_name + party_size + help_choices — never email,
          *     source, or feedback-email status.
          */
-        get: operations["occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get"];
+        get: operations["occurrence_signups_api_v1_event__event_id__occurrences__occurrence_id__signups_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2031,7 +2031,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/occurrences/{occurrence_id}/stats": {
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": {
         parameters: {
             query?: never;
             header?: never;
@@ -2044,7 +2044,7 @@ export interface paths {
          *     that day" behind the detail page's calendar day switcher. Aggregate
          *     only, never linked to a person.
          */
-        get: operations["occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get"];
+        get: operations["occurrence_stats_api_v1_event__event_id__occurrences__occurrence_id__stats_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2053,7 +2053,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/registrations/{registration_id}/edit-link": {
+    "/api/v1/event/{event_id}/registrations/{registration_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -2069,14 +2069,14 @@ export interface paths {
          *     link stops working, the fresh raw token is returned exactly once, and
          *     ``link_recovered_at`` is stamped permanently.
          */
-        post: operations["recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post"];
+        post: operations["recover_booking_edit_link_api_v1_event__event_id__registrations__registration_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/restore": {
+    "/api/v1/event/{event_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2086,14 +2086,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Event */
-        post: operations["restore_event_api_v1_events__event_id__restore_post"];
+        post: operations["restore_event_api_v1_event__event_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/send-emails/{channel}": {
+    "/api/v1/event/{event_id}/send-emails/{channel}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2109,14 +2109,14 @@ export interface paths {
          *     + feedback "send now" buttons share one endpoint and one
          *     rate-limit budget.
          */
-        post: operations["send_emails_now_api_v1_events__event_id__send_emails__channel__post"];
+        post: operations["send_emails_now_api_v1_event__event_id__send_emails__channel__post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/events/{event_id}/signups/{signup_id}": {
+    "/api/v1/event/{event_id}/signups/{signup_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2133,7 +2133,7 @@ export interface paths {
          *     ``Signup`` carries no email. Any pending ``EmailDispatch`` for the
          *     occurrence lives on by design (no signup link).
          */
-        delete: operations["delete_signup_api_v1_events__event_id__signups__signup_id__delete"];
+        delete: operations["delete_signup_api_v1_event__event_id__signups__signup_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2193,7 +2193,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms": {
+    "/api/v1/form": {
         parameters: {
             query?: never;
             header?: never;
@@ -2201,7 +2201,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Forms */
-        get: operations["list_forms_api_v1_forms_get"];
+        get: operations["list_forms_api_v1_form_get"];
         put?: never;
         /**
          * Create Form
@@ -2210,14 +2210,14 @@ export interface paths {
          *     page afterwards. Caller-supplied ``chapter_id`` must be in
          *     the user's live membership set.
          */
-        post: operations["create_form_api_v1_forms_post"];
+        post: operations["create_form_api_v1_form_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/archived": {
+    "/api/v1/form/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -2225,7 +2225,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Forms */
-        get: operations["list_archived_forms_api_v1_forms_archived_get"];
+        get: operations["list_archived_forms_api_v1_form_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2234,7 +2234,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/by-slug/{slug}": {
+    "/api/v1/form/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2242,7 +2242,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Public Form */
-        get: operations["get_public_form_api_v1_forms_by_slug__slug__get"];
+        get: operations["get_public_form_api_v1_form_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2251,7 +2251,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/by-slug/{slug}/qr.svg": {
+    "/api/v1/form/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -2263,7 +2263,7 @@ export interface paths {
          * @description QR SVG for one slug. Resolves the form first so a typo'd
          *     slug 410s rather than 200ing with a wrong-target QR.
          */
-        get: operations["get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get"];
+        get: operations["get_form_qr_api_v1_form_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2272,7 +2272,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/by-slug/{slug}/submit": {
+    "/api/v1/form/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -2288,14 +2288,14 @@ export interface paths {
          *     come back to it. Nothing in the response links the submission
          *     back to a person beyond the self-chosen pseudonym.
          */
-        post: operations["submit_form_api_v1_forms_by_slug__slug__submit_post"];
+        post: operations["submit_form_api_v1_form_by_slug__slug__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/by-token/{token}": {
+    "/api/v1/form/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2307,13 +2307,13 @@ export interface paths {
          * @description Current values of a submission, for pre-filling the edit
          *     form. Gated by the secret token (the link).
          */
-        get: operations["get_form_submission_api_v1_forms_by_token__token__get"];
+        get: operations["get_form_submission_api_v1_form_by_token__token__get"];
         /**
          * Update Submission Form
          * @description Update a submission in place via its edit-link token.
          *     Replaces the submission's answer rows and the pseudonym.
          */
-        put: operations["update_submission_form_api_v1_forms_by_token__token__put"];
+        put: operations["update_submission_form_api_v1_form_by_token__token__put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2321,7 +2321,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/by-token/{token}/withdraw": {
+    "/api/v1/form/by-token/{token}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -2336,14 +2336,14 @@ export interface paths {
          *     deleting their own answers. Removes the response rows and the
          *     submission; nothing else references either (pseudonymous, no email).
          */
-        post: operations["withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post"];
+        post: operations["withdraw_submission_form_api_v1_form_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}": {
+    "/api/v1/form/{form_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2351,7 +2351,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Form */
-        get: operations["get_form_api_v1_forms__form_id__get"];
+        get: operations["get_form_api_v1_form__form_id__get"];
         /**
          * Update Form
          * @description Update a form. Chapter changes are allowed (organiser might
@@ -2359,7 +2359,7 @@ export interface paths {
          *     still has to be in the user's set. Questions are diff-applied
          *     by id — see ``services/forms.apply_questions``.
          */
-        put: operations["update_form_api_v1_forms__form_id__put"];
+        put: operations["update_form_api_v1_form__form_id__put"];
         post?: never;
         /**
          * Delete Form
@@ -2368,13 +2368,13 @@ export interface paths {
          *     not found here at all, so deleting one still means archiving it
          *     first.
          */
-        delete: operations["delete_form_api_v1_forms__form_id__delete"];
+        delete: operations["delete_form_api_v1_form__form_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/archive": {
+    "/api/v1/form/{form_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -2384,14 +2384,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Form */
-        post: operations["archive_form_api_v1_forms__form_id__archive_post"];
+        post: operations["archive_form_api_v1_form__form_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/image": {
+    "/api/v1/form/{form_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -2405,19 +2405,19 @@ export interface paths {
          * @description Upload (or replace) the form's hero image — same 4:5 GitHub
          *     pipeline as events (``services/image.py``).
          */
-        post: operations["upload_image_form_api_v1_forms__form_id__image_post"];
+        post: operations["upload_image_form_api_v1_form__form_id__image_post"];
         /**
          * Delete Image Form
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_image_form_api_v1_forms__form_id__image_delete"];
+        delete: operations["delete_image_form_api_v1_form__form_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/restore": {
+    "/api/v1/form/{form_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2427,14 +2427,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Form */
-        post: operations["restore_form_api_v1_forms__form_id__restore_post"];
+        post: operations["restore_form_api_v1_form__form_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/submissions": {
+    "/api/v1/form/{form_id}/submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -2451,7 +2451,7 @@ export interface paths {
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
-        get: operations["form_submissions_api_v1_forms__form_id__submissions_get"];
+        get: operations["form_submissions_api_v1_form__form_id__submissions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2460,7 +2460,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/form/{form_id}/submissions/{submission_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -2475,14 +2475,14 @@ export interface paths {
          *     the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post"];
+        post: operations["recover_edit_link_form_api_v1_form__form_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/forms/{form_id}/summary": {
+    "/api/v1/form/{form_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -2490,7 +2490,7 @@ export interface paths {
             cookie?: never;
         };
         /** Form Summary */
-        get: operations["form_summary_api_v1_forms__form_id__summary_get"];
+        get: operations["form_summary_api_v1_form__form_id__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2499,7 +2499,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes": {
+    "/api/v1/quiz": {
         parameters: {
             query?: never;
             header?: never;
@@ -2507,7 +2507,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Forms */
-        get: operations["list_forms_api_v1_quizzes_get"];
+        get: operations["list_forms_api_v1_quiz_get"];
         put?: never;
         /**
          * Create Quiz
@@ -2516,14 +2516,14 @@ export interface paths {
          *     page afterwards. Caller-supplied ``chapter_id`` must be in
          *     the user's live membership set.
          */
-        post: operations["create_quiz_api_v1_quizzes_post"];
+        post: operations["create_quiz_api_v1_quiz_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/archived": {
+    "/api/v1/quiz/archived": {
         parameters: {
             query?: never;
             header?: never;
@@ -2531,7 +2531,7 @@ export interface paths {
             cookie?: never;
         };
         /** List Archived Forms */
-        get: operations["list_archived_forms_api_v1_quizzes_archived_get"];
+        get: operations["list_archived_forms_api_v1_quiz_archived_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2540,7 +2540,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/by-slug/{slug}": {
+    "/api/v1/quiz/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2548,7 +2548,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Public Form */
-        get: operations["get_public_form_api_v1_quizzes_by_slug__slug__get"];
+        get: operations["get_public_form_api_v1_quiz_by_slug__slug__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2557,7 +2557,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/by-slug/{slug}/qr.svg": {
+    "/api/v1/quiz/by-slug/{slug}/qr.svg": {
         parameters: {
             query?: never;
             header?: never;
@@ -2569,7 +2569,7 @@ export interface paths {
          * @description QR SVG for one slug. Resolves the form first so a typo'd
          *     slug 410s rather than 200ing with a wrong-target QR.
          */
-        get: operations["get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get"];
+        get: operations["get_form_qr_api_v1_quiz_by_slug__slug__qr_svg_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2578,7 +2578,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/by-slug/{slug}/submit": {
+    "/api/v1/quiz/by-slug/{slug}/submit": {
         parameters: {
             query?: never;
             header?: never;
@@ -2594,14 +2594,14 @@ export interface paths {
          *     come back to it. Nothing in the response links the submission
          *     back to a person beyond the self-chosen pseudonym.
          */
-        post: operations["submit_quiz_api_v1_quizzes_by_slug__slug__submit_post"];
+        post: operations["submit_quiz_api_v1_quiz_by_slug__slug__submit_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/by-token/{token}": {
+    "/api/v1/quiz/by-token/{token}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2615,7 +2615,7 @@ export interface paths {
          *     correction (``docs/design-quizzes.md`` part 3.4). There is
          *     no PUT on this path for a quiz.
          */
-        get: operations["get_quiz_result_api_v1_quizzes_by_token__token__get"];
+        get: operations["get_quiz_result_api_v1_quiz_by_token__token__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2624,7 +2624,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/by-token/{token}/withdraw": {
+    "/api/v1/quiz/by-token/{token}/withdraw": {
         parameters: {
             query?: never;
             header?: never;
@@ -2639,14 +2639,14 @@ export interface paths {
          *     deleting their own answers. Removes the response rows and the
          *     submission; nothing else references either (pseudonymous, no email).
          */
-        post: operations["withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post"];
+        post: operations["withdraw_submission_quiz_api_v1_quiz_by_token__token__withdraw_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}": {
+    "/api/v1/quiz/{form_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2654,7 +2654,7 @@ export interface paths {
             cookie?: never;
         };
         /** Get Form */
-        get: operations["get_form_api_v1_quizzes__form_id__get"];
+        get: operations["get_form_api_v1_quiz__form_id__get"];
         /**
          * Update Quiz
          * @description Update a form. Chapter changes are allowed (organiser might
@@ -2662,7 +2662,7 @@ export interface paths {
          *     still has to be in the user's set. Questions are diff-applied
          *     by id — see ``services/forms.apply_questions``.
          */
-        put: operations["update_quiz_api_v1_quizzes__form_id__put"];
+        put: operations["update_quiz_api_v1_quiz__form_id__put"];
         post?: never;
         /**
          * Delete Quiz
@@ -2671,13 +2671,13 @@ export interface paths {
          *     not found here at all, so deleting one still means archiving it
          *     first.
          */
-        delete: operations["delete_quiz_api_v1_quizzes__form_id__delete"];
+        delete: operations["delete_quiz_api_v1_quiz__form_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/archive": {
+    "/api/v1/quiz/{form_id}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -2687,14 +2687,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Archive Quiz */
-        post: operations["archive_quiz_api_v1_quizzes__form_id__archive_post"];
+        post: operations["archive_quiz_api_v1_quiz__form_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/image": {
+    "/api/v1/quiz/{form_id}/image": {
         parameters: {
             query?: never;
             header?: never;
@@ -2708,19 +2708,19 @@ export interface paths {
          * @description Upload (or replace) the form's hero image — same 4:5 GitHub
          *     pipeline as events (``services/image.py``).
          */
-        post: operations["upload_image_quiz_api_v1_quizzes__form_id__image_post"];
+        post: operations["upload_image_quiz_api_v1_quiz__form_id__image_post"];
         /**
          * Delete Image Quiz
          * @description Clear the reference and delete the file: nothing else points at
          *     it.
          */
-        delete: operations["delete_image_quiz_api_v1_quizzes__form_id__image_delete"];
+        delete: operations["delete_image_quiz_api_v1_quiz__form_id__image_delete"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/restore": {
+    "/api/v1/quiz/{form_id}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2730,14 +2730,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Restore Quiz */
-        post: operations["restore_quiz_api_v1_quizzes__form_id__restore_post"];
+        post: operations["restore_quiz_api_v1_quiz__form_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/submissions": {
+    "/api/v1/quiz/{form_id}/submissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -2754,7 +2754,7 @@ export interface paths {
          *     with no link back to whoever submitted — same contract as
          *     the post-event feedback CSV.
          */
-        get: operations["form_submissions_api_v1_quizzes__form_id__submissions_get"];
+        get: operations["form_submissions_api_v1_quiz__form_id__submissions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2763,7 +2763,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/submissions/{submission_id}/edit-link": {
+    "/api/v1/quiz/{form_id}/submissions/{submission_id}/edit-link": {
         parameters: {
             query?: never;
             header?: never;
@@ -2778,14 +2778,14 @@ export interface paths {
          *     the token (never reveals it) and permanently stamps
          *     ``link_recovered_at``; see ``services/edit_token.recover``.
          */
-        post: operations["recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post"];
+        post: operations["recover_edit_link_quiz_api_v1_quiz__form_id__submissions__submission_id__edit_link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/quizzes/{form_id}/summary": {
+    "/api/v1/quiz/{form_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -2793,7 +2793,7 @@ export interface paths {
             cookie?: never;
         };
         /** Form Summary */
-        get: operations["form_summary_api_v1_quizzes__form_id__summary_get"];
+        get: operations["form_summary_api_v1_quiz__form_id__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2820,7 +2820,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/chores": {
+    "/api/v1/start/chore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2830,14 +2830,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Roster */
-        post: operations["start_roster_api_v1_start_chores_post"];
+        post: operations["start_roster_api_v1_start_chore_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/compasses": {
+    "/api/v1/start/compass": {
         parameters: {
             query?: never;
             header?: never;
@@ -2847,14 +2847,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Compass */
-        post: operations["start_compass_api_v1_start_compasses_post"];
+        post: operations["start_compass_api_v1_start_compass_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/datepolls": {
+    "/api/v1/start/datepoll": {
         parameters: {
             query?: never;
             header?: never;
@@ -2864,14 +2864,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Datepoll */
-        post: operations["start_datepoll_api_v1_start_datepolls_post"];
+        post: operations["start_datepoll_api_v1_start_datepoll_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/events": {
+    "/api/v1/start/event": {
         parameters: {
             query?: never;
             header?: never;
@@ -2881,14 +2881,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Event */
-        post: operations["start_event_api_v1_start_events_post"];
+        post: operations["start_event_api_v1_start_event_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/forms": {
+    "/api/v1/start/form": {
         parameters: {
             query?: never;
             header?: never;
@@ -2898,14 +2898,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Form */
-        post: operations["start_form_api_v1_start_forms_post"];
+        post: operations["start_form_api_v1_start_form_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/start/quizzes": {
+    "/api/v1/start/quiz": {
         parameters: {
             query?: never;
             header?: never;
@@ -2915,7 +2915,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Start Quiz */
-        post: operations["start_quiz_api_v1_start_quizzes_post"];
+        post: operations["start_quiz_api_v1_start_quiz_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3162,33 +3162,33 @@ export interface components {
              */
             start: string;
         };
-        /** Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post */
-        Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post: {
+        /** Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post */
+        Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_event_image_api_v1_events__event_id__image_post */
-        Body_upload_event_image_api_v1_events__event_id__image_post: {
+        /** Body_upload_event_image_api_v1_event__event_id__image_post */
+        Body_upload_event_image_api_v1_event__event_id__image_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_image_compass_api_v1_compasses__form_id__image_post */
-        Body_upload_image_compass_api_v1_compasses__form_id__image_post: {
+        /** Body_upload_image_compass_api_v1_compass__form_id__image_post */
+        Body_upload_image_compass_api_v1_compass__form_id__image_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_image_form_api_v1_forms__form_id__image_post */
-        Body_upload_image_form_api_v1_forms__form_id__image_post: {
+        /** Body_upload_image_form_api_v1_form__form_id__image_post */
+        Body_upload_image_form_api_v1_form__form_id__image_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_image_quiz_api_v1_quizzes__form_id__image_post */
-        Body_upload_image_quiz_api_v1_quizzes__form_id__image_post: {
+        /** Body_upload_image_quiz_api_v1_quiz__form_id__image_post */
+        Body_upload_image_quiz_api_v1_quiz__form_id__image_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_roster_image_api_v1_chores__roster_id__image_post */
-        Body_upload_roster_image_api_v1_chores__roster_id__image_post: {
+        /** Body_upload_roster_image_api_v1_chore__roster_id__image_post */
+        Body_upload_roster_image_api_v1_chore__roster_id__image_post: {
             /** File */
             file: string;
         };
@@ -6841,7 +6841,7 @@ export interface operations {
             };
         };
     };
-    list_rosters_api_v1_chores_get: {
+    list_rosters_api_v1_chore_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -6874,7 +6874,7 @@ export interface operations {
             };
         };
     };
-    create_roster_api_v1_chores_post: {
+    create_roster_api_v1_chore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -6909,7 +6909,7 @@ export interface operations {
             };
         };
     };
-    list_archived_rosters_api_v1_chores_archived_get: {
+    list_archived_rosters_api_v1_chore_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -6942,7 +6942,7 @@ export interface operations {
             };
         };
     };
-    get_public_roster_api_v1_chores_by_slug__slug__get: {
+    get_public_roster_api_v1_chore_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -6973,7 +6973,7 @@ export interface operations {
             };
         };
     };
-    enroll_api_v1_chores_by_slug__slug__enroll_post: {
+    enroll_api_v1_chore_by_slug__slug__enroll_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7008,7 +7008,7 @@ export interface operations {
             };
         };
     };
-    get_roster_qr_api_v1_chores_by_slug__slug__qr_svg_get: {
+    get_roster_qr_api_v1_chore_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -7039,7 +7039,7 @@ export interface operations {
             };
         };
     };
-    get_personal_page_api_v1_chores_by_token__token__get: {
+    get_personal_page_api_v1_chore_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -7070,7 +7070,7 @@ export interface operations {
             };
         };
     };
-    update_enrolment_api_v1_chores_by_token__token__put: {
+    update_enrolment_api_v1_chore_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -7105,7 +7105,7 @@ export interface operations {
             };
         };
     };
-    set_availability_api_v1_chores_by_token__token__availability_put: {
+    set_availability_api_v1_chore_by_token__token__availability_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -7140,7 +7140,7 @@ export interface operations {
             };
         };
     };
-    get_token_calendar_api_v1_chores_by_token__token__calendar_get: {
+    get_token_calendar_api_v1_chore_by_token__token__calendar_get: {
         parameters: {
             query?: {
                 month?: string | null;
@@ -7173,7 +7173,7 @@ export interface operations {
             };
         };
     };
-    leave_api_v1_chores_by_token__token__leave_post: {
+    leave_api_v1_chore_by_token__token__leave_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7202,7 +7202,7 @@ export interface operations {
             };
         };
     };
-    claim_shift_api_v1_chores_by_token__token__shifts__shift_id__claim_post: {
+    claim_shift_api_v1_chore_by_token__token__shifts__shift_id__claim_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7234,7 +7234,7 @@ export interface operations {
             };
         };
     };
-    cover_shift_api_v1_chores_by_token__token__shifts__shift_id__cover_post: {
+    cover_shift_api_v1_chore_by_token__token__shifts__shift_id__cover_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7266,7 +7266,7 @@ export interface operations {
             };
         };
     };
-    mark_shift_done_api_v1_chores_by_token__token__shifts__shift_id__done_post: {
+    mark_shift_done_api_v1_chore_by_token__token__shifts__shift_id__done_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7298,7 +7298,7 @@ export interface operations {
             };
         };
     };
-    pass_shift_api_v1_chores_by_token__token__shifts__shift_id__pass_post: {
+    pass_shift_api_v1_chore_by_token__token__shifts__shift_id__pass_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7330,7 +7330,7 @@ export interface operations {
             };
         };
     };
-    swap_shifts_api_v1_chores_by_token__token__swap_post: {
+    swap_shifts_api_v1_chore_by_token__token__swap_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -7365,7 +7365,7 @@ export interface operations {
             };
         };
     };
-    get_roster_api_v1_chores__roster_id__get: {
+    get_roster_api_v1_chore__roster_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -7398,7 +7398,7 @@ export interface operations {
             };
         };
     };
-    update_roster_api_v1_chores__roster_id__put: {
+    update_roster_api_v1_chore__roster_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -7435,7 +7435,7 @@ export interface operations {
             };
         };
     };
-    delete_roster_api_v1_chores__roster_id__delete: {
+    delete_roster_api_v1_chore__roster_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -7466,7 +7466,7 @@ export interface operations {
             };
         };
     };
-    chore_accountability_api_v1_chores__roster_id__accountability_get: {
+    chore_accountability_api_v1_chore__roster_id__accountability_get: {
         parameters: {
             query?: never;
             header?: {
@@ -7499,7 +7499,7 @@ export interface operations {
             };
         };
     };
-    activate_roster_api_v1_chores__roster_id__activate_post: {
+    activate_roster_api_v1_chore__roster_id__activate_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7532,7 +7532,7 @@ export interface operations {
             };
         };
     };
-    archive_roster_api_v1_chores__roster_id__archive_post: {
+    archive_roster_api_v1_chore__roster_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7565,7 +7565,7 @@ export interface operations {
             };
         };
     };
-    chore_calendar_api_v1_chores__roster_id__calendar_get: {
+    chore_calendar_api_v1_chore__roster_id__calendar_get: {
         parameters: {
             query?: {
                 month?: string | null;
@@ -7600,7 +7600,7 @@ export interface operations {
             };
         };
     };
-    upload_roster_image_api_v1_chores__roster_id__image_post: {
+    upload_roster_image_api_v1_chore__roster_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7613,7 +7613,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_roster_image_api_v1_chores__roster_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_roster_image_api_v1_chore__roster_id__image_post"];
             };
         };
         responses: {
@@ -7637,7 +7637,7 @@ export interface operations {
             };
         };
     };
-    delete_roster_image_api_v1_chores__roster_id__image_delete: {
+    delete_roster_image_api_v1_chore__roster_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -7670,7 +7670,7 @@ export interface operations {
             };
         };
     };
-    rebalance_roster_api_v1_chores__roster_id__rebalance_post: {
+    rebalance_roster_api_v1_chore__roster_id__rebalance_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7703,7 +7703,7 @@ export interface operations {
             };
         };
     };
-    rebalance_preview_api_v1_chores__roster_id__rebalance_preview_get: {
+    rebalance_preview_api_v1_chore__roster_id__rebalance_preview_get: {
         parameters: {
             query?: {
                 month?: string | null;
@@ -7738,7 +7738,7 @@ export interface operations {
             };
         };
     };
-    restore_roster_api_v1_chores__roster_id__restore_post: {
+    restore_roster_api_v1_chore__roster_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7771,7 +7771,7 @@ export interface operations {
             };
         };
     };
-    get_schedule_api_v1_chores__roster_id__schedule_get: {
+    get_schedule_api_v1_chore__roster_id__schedule_get: {
         parameters: {
             query?: never;
             header?: {
@@ -7804,7 +7804,7 @@ export interface operations {
             };
         };
     };
-    reassign_shift_api_v1_chores__roster_id__shifts__shift_id__reassign_post: {
+    reassign_shift_api_v1_chore__roster_id__shifts__shift_id__reassign_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7840,7 +7840,7 @@ export interface operations {
             };
         };
     };
-    list_volunteers_api_v1_chores__roster_id__volunteers_get: {
+    list_volunteers_api_v1_chore__roster_id__volunteers_get: {
         parameters: {
             query?: never;
             header?: {
@@ -7873,7 +7873,7 @@ export interface operations {
             };
         };
     };
-    recover_volunteer_edit_link_api_v1_chores__roster_id__volunteers__volunteer_id__edit_link_post: {
+    recover_volunteer_edit_link_api_v1_chore__roster_id__volunteers__volunteer_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7907,7 +7907,7 @@ export interface operations {
             };
         };
     };
-    list_forms_api_v1_compasses_get: {
+    list_forms_api_v1_compass_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -7940,7 +7940,7 @@ export interface operations {
             };
         };
     };
-    create_compass_api_v1_compasses_post: {
+    create_compass_api_v1_compass_post: {
         parameters: {
             query?: never;
             header?: {
@@ -7975,7 +7975,7 @@ export interface operations {
             };
         };
     };
-    list_archived_forms_api_v1_compasses_archived_get: {
+    list_archived_forms_api_v1_compass_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -8008,7 +8008,7 @@ export interface operations {
             };
         };
     };
-    get_public_form_api_v1_compasses_by_slug__slug__get: {
+    get_public_form_api_v1_compass_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8039,7 +8039,7 @@ export interface operations {
             };
         };
     };
-    get_form_qr_api_v1_compasses_by_slug__slug__qr_svg_get: {
+    get_form_qr_api_v1_compass_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8070,7 +8070,7 @@ export interface operations {
             };
         };
     };
-    submit_compass_api_v1_compasses_by_slug__slug__submit_post: {
+    submit_compass_api_v1_compass_by_slug__slug__submit_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8105,7 +8105,7 @@ export interface operations {
             };
         };
     };
-    get_compass_result_api_v1_compasses_by_token__token__get: {
+    get_compass_result_api_v1_compass_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8136,7 +8136,7 @@ export interface operations {
             };
         };
     };
-    update_submission_compass_api_v1_compasses_by_token__token__put: {
+    update_submission_compass_api_v1_compass_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -8171,7 +8171,7 @@ export interface operations {
             };
         };
     };
-    withdraw_submission_compass_api_v1_compasses_by_token__token__withdraw_post: {
+    withdraw_submission_compass_api_v1_compass_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8200,7 +8200,7 @@ export interface operations {
             };
         };
     };
-    get_form_api_v1_compasses__form_id__get: {
+    get_form_api_v1_compass__form_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -8233,7 +8233,7 @@ export interface operations {
             };
         };
     };
-    update_compass_api_v1_compasses__form_id__put: {
+    update_compass_api_v1_compass__form_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -8270,7 +8270,7 @@ export interface operations {
             };
         };
     };
-    delete_compass_api_v1_compasses__form_id__delete: {
+    delete_compass_api_v1_compass__form_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -8301,7 +8301,7 @@ export interface operations {
             };
         };
     };
-    archive_compass_api_v1_compasses__form_id__archive_post: {
+    archive_compass_api_v1_compass__form_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8334,7 +8334,7 @@ export interface operations {
             };
         };
     };
-    upload_image_compass_api_v1_compasses__form_id__image_post: {
+    upload_image_compass_api_v1_compass__form_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8347,7 +8347,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_image_compass_api_v1_compasses__form_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_image_compass_api_v1_compass__form_id__image_post"];
             };
         };
         responses: {
@@ -8371,7 +8371,7 @@ export interface operations {
             };
         };
     };
-    delete_image_compass_api_v1_compasses__form_id__image_delete: {
+    delete_image_compass_api_v1_compass__form_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -8404,7 +8404,7 @@ export interface operations {
             };
         };
     };
-    restore_compass_api_v1_compasses__form_id__restore_post: {
+    restore_compass_api_v1_compass__form_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8437,7 +8437,7 @@ export interface operations {
             };
         };
     };
-    form_submissions_api_v1_compasses__form_id__submissions_get: {
+    form_submissions_api_v1_compass__form_id__submissions_get: {
         parameters: {
             query?: never;
             header?: {
@@ -8470,7 +8470,7 @@ export interface operations {
             };
         };
     };
-    recover_edit_link_compass_api_v1_compasses__form_id__submissions__submission_id__edit_link_post: {
+    recover_edit_link_compass_api_v1_compass__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8504,7 +8504,7 @@ export interface operations {
             };
         };
     };
-    form_summary_api_v1_compasses__form_id__summary_get: {
+    form_summary_api_v1_compass__form_id__summary_get: {
         parameters: {
             query?: never;
             header?: {
@@ -8537,7 +8537,7 @@ export interface operations {
             };
         };
     };
-    list_datepolls_api_v1_datepolls_get: {
+    list_datepolls_api_v1_datepoll_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -8570,7 +8570,7 @@ export interface operations {
             };
         };
     };
-    create_datepoll_api_v1_datepolls_post: {
+    create_datepoll_api_v1_datepoll_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8605,7 +8605,7 @@ export interface operations {
             };
         };
     };
-    list_archived_datepolls_api_v1_datepolls_archived_get: {
+    list_archived_datepolls_api_v1_datepoll_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -8638,7 +8638,7 @@ export interface operations {
             };
         };
     };
-    get_public_datepoll_api_v1_datepolls_by_slug__slug__get: {
+    get_public_datepoll_api_v1_datepoll_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8669,7 +8669,7 @@ export interface operations {
             };
         };
     };
-    get_datepoll_qr_api_v1_datepolls_by_slug__slug__qr_svg_get: {
+    get_datepoll_qr_api_v1_datepoll_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8700,7 +8700,7 @@ export interface operations {
             };
         };
     };
-    submit_datepoll_api_v1_datepolls_by_slug__slug__submit_post: {
+    submit_datepoll_api_v1_datepoll_by_slug__slug__submit_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8735,7 +8735,7 @@ export interface operations {
             };
         };
     };
-    get_datepoll_submission_api_v1_datepolls_by_token__token__get: {
+    get_datepoll_submission_api_v1_datepoll_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -8766,7 +8766,7 @@ export interface operations {
             };
         };
     };
-    update_datepoll_submission_api_v1_datepolls_by_token__token__put: {
+    update_datepoll_submission_api_v1_datepoll_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -8801,7 +8801,7 @@ export interface operations {
             };
         };
     };
-    withdraw_datepoll_submission_api_v1_datepolls_by_token__token__withdraw_post: {
+    withdraw_datepoll_submission_api_v1_datepoll_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -8830,7 +8830,7 @@ export interface operations {
             };
         };
     };
-    get_datepoll_api_v1_datepolls__datepoll_id__get: {
+    get_datepoll_api_v1_datepoll__datepoll_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -8863,7 +8863,7 @@ export interface operations {
             };
         };
     };
-    update_datepoll_api_v1_datepolls__datepoll_id__put: {
+    update_datepoll_api_v1_datepoll__datepoll_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -8900,7 +8900,7 @@ export interface operations {
             };
         };
     };
-    delete_datepoll_api_v1_datepolls__datepoll_id__delete: {
+    delete_datepoll_api_v1_datepoll__datepoll_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -8931,7 +8931,7 @@ export interface operations {
             };
         };
     };
-    archive_datepoll_api_v1_datepolls__datepoll_id__archive_post: {
+    archive_datepoll_api_v1_datepoll__datepoll_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8964,7 +8964,7 @@ export interface operations {
             };
         };
     };
-    upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post: {
+    upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -8977,7 +8977,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_datepoll_image_api_v1_datepolls__datepoll_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_datepoll_image_api_v1_datepoll__datepoll_id__image_post"];
             };
         };
         responses: {
@@ -9001,7 +9001,7 @@ export interface operations {
             };
         };
     };
-    delete_datepoll_image_api_v1_datepolls__datepoll_id__image_delete: {
+    delete_datepoll_image_api_v1_datepoll__datepoll_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -9034,7 +9034,7 @@ export interface operations {
             };
         };
     };
-    restore_datepoll_api_v1_datepolls__datepoll_id__restore_post: {
+    restore_datepoll_api_v1_datepoll__datepoll_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9067,7 +9067,7 @@ export interface operations {
             };
         };
     };
-    datepoll_submissions_api_v1_datepolls__datepoll_id__submissions_get: {
+    datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9100,7 +9100,7 @@ export interface operations {
             };
         };
     };
-    recover_submission_edit_link_api_v1_datepolls__datepoll_id__submissions__submission_id__edit_link_post: {
+    recover_submission_edit_link_api_v1_datepoll__datepoll_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9134,7 +9134,7 @@ export interface operations {
             };
         };
     };
-    datepoll_summary_api_v1_datepolls__datepoll_id__summary_get: {
+    datepoll_summary_api_v1_datepoll__datepoll_id__summary_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9167,7 +9167,7 @@ export interface operations {
             };
         };
     };
-    list_events_api_v1_events_get: {
+    list_events_api_v1_event_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -9200,7 +9200,7 @@ export interface operations {
             };
         };
     };
-    create_event_api_v1_events_post: {
+    create_event_api_v1_event_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9235,7 +9235,7 @@ export interface operations {
             };
         };
     };
-    list_archived_events_api_v1_events_archived_get: {
+    list_archived_events_api_v1_event_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -9268,7 +9268,7 @@ export interface operations {
             };
         };
     };
-    get_event_by_slug_api_v1_events_by_slug__slug__get: {
+    get_event_by_slug_api_v1_event_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9299,7 +9299,7 @@ export interface operations {
             };
         };
     };
-    email_preview_api_v1_events_by_slug__slug__email_preview__channel__get: {
+    email_preview_api_v1_event_by_slug__slug__email_preview__channel__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9331,7 +9331,7 @@ export interface operations {
             };
         };
     };
-    get_event_ics_api_v1_events_by_slug__slug__event_ics_get: {
+    get_event_ics_api_v1_event_by_slug__slug__event_ics_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9362,7 +9362,7 @@ export interface operations {
             };
         };
     };
-    feedback_form_preview_api_v1_events_by_slug__slug__feedback_preview_get: {
+    feedback_form_preview_api_v1_event_by_slug__slug__feedback_preview_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9393,7 +9393,7 @@ export interface operations {
             };
         };
     };
-    get_event_qr_api_v1_events_by_slug__slug__qr_svg_get: {
+    get_event_qr_api_v1_event_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9424,7 +9424,7 @@ export interface operations {
             };
         };
     };
-    create_signup_api_v1_events_by_slug__slug__signups_post: {
+    create_signup_api_v1_event_by_slug__slug__signups_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -9459,7 +9459,7 @@ export interface operations {
             };
         };
     };
-    get_booking_api_v1_events_by_token__token__get: {
+    get_booking_api_v1_event_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -9490,7 +9490,7 @@ export interface operations {
             };
         };
     };
-    update_booking_api_v1_events_by_token__token__put: {
+    update_booking_api_v1_event_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -9525,7 +9525,7 @@ export interface operations {
             };
         };
     };
-    set_booking_occurrences_api_v1_events_by_token__token__occurrences_put: {
+    set_booking_occurrences_api_v1_event_by_token__token__occurrences_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -9560,7 +9560,7 @@ export interface operations {
             };
         };
     };
-    withdraw_occurrence_api_v1_events_by_token__token__occurrences__occurrence_id__withdraw_post: {
+    withdraw_occurrence_api_v1_event_by_token__token__occurrences__occurrence_id__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -9590,7 +9590,7 @@ export interface operations {
             };
         };
     };
-    withdraw_booking_api_v1_events_by_token__token__withdraw_post: {
+    withdraw_booking_api_v1_event_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -9619,7 +9619,7 @@ export interface operations {
             };
         };
     };
-    update_event_api_v1_events__event_id__put: {
+    update_event_api_v1_event__event_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -9656,7 +9656,7 @@ export interface operations {
             };
         };
     };
-    delete_event_api_v1_events__event_id__delete: {
+    delete_event_api_v1_event__event_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -9687,7 +9687,7 @@ export interface operations {
             };
         };
     };
-    archive_event_api_v1_events__event_id__archive_post: {
+    archive_event_api_v1_event__event_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9720,7 +9720,7 @@ export interface operations {
             };
         };
     };
-    feedback_submissions_api_v1_events__event_id__feedback_submissions_get: {
+    feedback_submissions_api_v1_event__event_id__feedback_submissions_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9753,7 +9753,7 @@ export interface operations {
             };
         };
     };
-    feedback_summary_api_v1_events__event_id__feedback_summary_get: {
+    feedback_summary_api_v1_event__event_id__feedback_summary_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9786,7 +9786,7 @@ export interface operations {
             };
         };
     };
-    upload_event_image_api_v1_events__event_id__image_post: {
+    upload_event_image_api_v1_event__event_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9799,7 +9799,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_event_image_api_v1_events__event_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_event_image_api_v1_event__event_id__image_post"];
             };
         };
         responses: {
@@ -9823,7 +9823,7 @@ export interface operations {
             };
         };
     };
-    delete_event_image_api_v1_events__event_id__image_delete: {
+    delete_event_image_api_v1_event__event_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -9856,7 +9856,7 @@ export interface operations {
             };
         };
     };
-    event_occurrences_api_v1_events__event_id__occurrences_get: {
+    event_occurrences_api_v1_event__event_id__occurrences_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9889,7 +9889,7 @@ export interface operations {
             };
         };
     };
-    occurrence_signups_api_v1_events__event_id__occurrences__occurrence_id__signups_get: {
+    occurrence_signups_api_v1_event__event_id__occurrences__occurrence_id__signups_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9923,7 +9923,7 @@ export interface operations {
             };
         };
     };
-    occurrence_stats_api_v1_events__event_id__occurrences__occurrence_id__stats_get: {
+    occurrence_stats_api_v1_event__event_id__occurrences__occurrence_id__stats_get: {
         parameters: {
             query?: never;
             header?: {
@@ -9957,7 +9957,7 @@ export interface operations {
             };
         };
     };
-    recover_booking_edit_link_api_v1_events__event_id__registrations__registration_id__edit_link_post: {
+    recover_booking_edit_link_api_v1_event__event_id__registrations__registration_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -9991,7 +9991,7 @@ export interface operations {
             };
         };
     };
-    restore_event_api_v1_events__event_id__restore_post: {
+    restore_event_api_v1_event__event_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10024,7 +10024,7 @@ export interface operations {
             };
         };
     };
-    send_emails_now_api_v1_events__event_id__send_emails__channel__post: {
+    send_emails_now_api_v1_event__event_id__send_emails__channel__post: {
         parameters: {
             query?: never;
             header?: {
@@ -10060,7 +10060,7 @@ export interface operations {
             };
         };
     };
-    delete_signup_api_v1_events__event_id__signups__signup_id__delete: {
+    delete_signup_api_v1_event__event_id__signups__signup_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -10191,7 +10191,7 @@ export interface operations {
             };
         };
     };
-    list_forms_api_v1_forms_get: {
+    list_forms_api_v1_form_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -10224,7 +10224,7 @@ export interface operations {
             };
         };
     };
-    create_form_api_v1_forms_post: {
+    create_form_api_v1_form_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10259,7 +10259,7 @@ export interface operations {
             };
         };
     };
-    list_archived_forms_api_v1_forms_archived_get: {
+    list_archived_forms_api_v1_form_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -10292,7 +10292,7 @@ export interface operations {
             };
         };
     };
-    get_public_form_api_v1_forms_by_slug__slug__get: {
+    get_public_form_api_v1_form_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10323,7 +10323,7 @@ export interface operations {
             };
         };
     };
-    get_form_qr_api_v1_forms_by_slug__slug__qr_svg_get: {
+    get_form_qr_api_v1_form_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10354,7 +10354,7 @@ export interface operations {
             };
         };
     };
-    submit_form_api_v1_forms_by_slug__slug__submit_post: {
+    submit_form_api_v1_form_by_slug__slug__submit_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -10389,7 +10389,7 @@ export interface operations {
             };
         };
     };
-    get_form_submission_api_v1_forms_by_token__token__get: {
+    get_form_submission_api_v1_form_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10420,7 +10420,7 @@ export interface operations {
             };
         };
     };
-    update_submission_form_api_v1_forms_by_token__token__put: {
+    update_submission_form_api_v1_form_by_token__token__put: {
         parameters: {
             query?: never;
             header?: never;
@@ -10455,7 +10455,7 @@ export interface operations {
             };
         };
     };
-    withdraw_submission_form_api_v1_forms_by_token__token__withdraw_post: {
+    withdraw_submission_form_api_v1_form_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -10484,7 +10484,7 @@ export interface operations {
             };
         };
     };
-    get_form_api_v1_forms__form_id__get: {
+    get_form_api_v1_form__form_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -10517,7 +10517,7 @@ export interface operations {
             };
         };
     };
-    update_form_api_v1_forms__form_id__put: {
+    update_form_api_v1_form__form_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -10554,7 +10554,7 @@ export interface operations {
             };
         };
     };
-    delete_form_api_v1_forms__form_id__delete: {
+    delete_form_api_v1_form__form_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -10585,7 +10585,7 @@ export interface operations {
             };
         };
     };
-    archive_form_api_v1_forms__form_id__archive_post: {
+    archive_form_api_v1_form__form_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10618,7 +10618,7 @@ export interface operations {
             };
         };
     };
-    upload_image_form_api_v1_forms__form_id__image_post: {
+    upload_image_form_api_v1_form__form_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10631,7 +10631,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_image_form_api_v1_forms__form_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_image_form_api_v1_form__form_id__image_post"];
             };
         };
         responses: {
@@ -10655,7 +10655,7 @@ export interface operations {
             };
         };
     };
-    delete_image_form_api_v1_forms__form_id__image_delete: {
+    delete_image_form_api_v1_form__form_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -10688,7 +10688,7 @@ export interface operations {
             };
         };
     };
-    restore_form_api_v1_forms__form_id__restore_post: {
+    restore_form_api_v1_form__form_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10721,7 +10721,7 @@ export interface operations {
             };
         };
     };
-    form_submissions_api_v1_forms__form_id__submissions_get: {
+    form_submissions_api_v1_form__form_id__submissions_get: {
         parameters: {
             query?: never;
             header?: {
@@ -10754,7 +10754,7 @@ export interface operations {
             };
         };
     };
-    recover_edit_link_form_api_v1_forms__form_id__submissions__submission_id__edit_link_post: {
+    recover_edit_link_form_api_v1_form__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10788,7 +10788,7 @@ export interface operations {
             };
         };
     };
-    form_summary_api_v1_forms__form_id__summary_get: {
+    form_summary_api_v1_form__form_id__summary_get: {
         parameters: {
             query?: never;
             header?: {
@@ -10821,7 +10821,7 @@ export interface operations {
             };
         };
     };
-    list_forms_api_v1_quizzes_get: {
+    list_forms_api_v1_quiz_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -10854,7 +10854,7 @@ export interface operations {
             };
         };
     };
-    create_quiz_api_v1_quizzes_post: {
+    create_quiz_api_v1_quiz_post: {
         parameters: {
             query?: never;
             header?: {
@@ -10889,7 +10889,7 @@ export interface operations {
             };
         };
     };
-    list_archived_forms_api_v1_quizzes_archived_get: {
+    list_archived_forms_api_v1_quiz_archived_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
@@ -10922,7 +10922,7 @@ export interface operations {
             };
         };
     };
-    get_public_form_api_v1_quizzes_by_slug__slug__get: {
+    get_public_form_api_v1_quiz_by_slug__slug__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10953,7 +10953,7 @@ export interface operations {
             };
         };
     };
-    get_form_qr_api_v1_quizzes_by_slug__slug__qr_svg_get: {
+    get_form_qr_api_v1_quiz_by_slug__slug__qr_svg_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -10984,7 +10984,7 @@ export interface operations {
             };
         };
     };
-    submit_quiz_api_v1_quizzes_by_slug__slug__submit_post: {
+    submit_quiz_api_v1_quiz_by_slug__slug__submit_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11019,7 +11019,7 @@ export interface operations {
             };
         };
     };
-    get_quiz_result_api_v1_quizzes_by_token__token__get: {
+    get_quiz_result_api_v1_quiz_by_token__token__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -11050,7 +11050,7 @@ export interface operations {
             };
         };
     };
-    withdraw_submission_quiz_api_v1_quizzes_by_token__token__withdraw_post: {
+    withdraw_submission_quiz_api_v1_quiz_by_token__token__withdraw_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11079,7 +11079,7 @@ export interface operations {
             };
         };
     };
-    get_form_api_v1_quizzes__form_id__get: {
+    get_form_api_v1_quiz__form_id__get: {
         parameters: {
             query?: never;
             header?: {
@@ -11112,7 +11112,7 @@ export interface operations {
             };
         };
     };
-    update_quiz_api_v1_quizzes__form_id__put: {
+    update_quiz_api_v1_quiz__form_id__put: {
         parameters: {
             query?: never;
             header?: {
@@ -11149,7 +11149,7 @@ export interface operations {
             };
         };
     };
-    delete_quiz_api_v1_quizzes__form_id__delete: {
+    delete_quiz_api_v1_quiz__form_id__delete: {
         parameters: {
             query?: never;
             header?: {
@@ -11180,7 +11180,7 @@ export interface operations {
             };
         };
     };
-    archive_quiz_api_v1_quizzes__form_id__archive_post: {
+    archive_quiz_api_v1_quiz__form_id__archive_post: {
         parameters: {
             query?: never;
             header?: {
@@ -11213,7 +11213,7 @@ export interface operations {
             };
         };
     };
-    upload_image_quiz_api_v1_quizzes__form_id__image_post: {
+    upload_image_quiz_api_v1_quiz__form_id__image_post: {
         parameters: {
             query?: never;
             header?: {
@@ -11226,7 +11226,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["Body_upload_image_quiz_api_v1_quizzes__form_id__image_post"];
+                "multipart/form-data": components["schemas"]["Body_upload_image_quiz_api_v1_quiz__form_id__image_post"];
             };
         };
         responses: {
@@ -11250,7 +11250,7 @@ export interface operations {
             };
         };
     };
-    delete_image_quiz_api_v1_quizzes__form_id__image_delete: {
+    delete_image_quiz_api_v1_quiz__form_id__image_delete: {
         parameters: {
             query?: never;
             header?: {
@@ -11283,7 +11283,7 @@ export interface operations {
             };
         };
     };
-    restore_quiz_api_v1_quizzes__form_id__restore_post: {
+    restore_quiz_api_v1_quiz__form_id__restore_post: {
         parameters: {
             query?: never;
             header?: {
@@ -11316,7 +11316,7 @@ export interface operations {
             };
         };
     };
-    form_submissions_api_v1_quizzes__form_id__submissions_get: {
+    form_submissions_api_v1_quiz__form_id__submissions_get: {
         parameters: {
             query?: never;
             header?: {
@@ -11349,7 +11349,7 @@ export interface operations {
             };
         };
     };
-    recover_edit_link_quiz_api_v1_quizzes__form_id__submissions__submission_id__edit_link_post: {
+    recover_edit_link_quiz_api_v1_quiz__form_id__submissions__submission_id__edit_link_post: {
         parameters: {
             query?: never;
             header?: {
@@ -11383,7 +11383,7 @@ export interface operations {
             };
         };
     };
-    form_summary_api_v1_quizzes__form_id__summary_get: {
+    form_summary_api_v1_quiz__form_id__summary_get: {
         parameters: {
             query?: never;
             header?: {
@@ -11482,7 +11482,7 @@ export interface operations {
             };
         };
     };
-    start_roster_api_v1_start_chores_post: {
+    start_roster_api_v1_start_chore_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11515,7 +11515,7 @@ export interface operations {
             };
         };
     };
-    start_compass_api_v1_start_compasses_post: {
+    start_compass_api_v1_start_compass_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11548,7 +11548,7 @@ export interface operations {
             };
         };
     };
-    start_datepoll_api_v1_start_datepolls_post: {
+    start_datepoll_api_v1_start_datepoll_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11581,7 +11581,7 @@ export interface operations {
             };
         };
     };
-    start_event_api_v1_start_events_post: {
+    start_event_api_v1_start_event_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11614,7 +11614,7 @@ export interface operations {
             };
         };
     };
-    start_form_api_v1_start_forms_post: {
+    start_form_api_v1_start_form_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -11647,7 +11647,7 @@ export interface operations {
             };
         };
     };
-    start_quiz_api_v1_start_quizzes_post: {
+    start_quiz_api_v1_start_quiz_post: {
         parameters: {
             query?: never;
             header?: never;

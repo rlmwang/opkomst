@@ -151,7 +151,7 @@ app.include_router(forms_router.compass_router)
 app.include_router(datepolls_public_router.router)
 app.include_router(datepolls_router.router)
 # Public-by-slug routes mount BEFORE the organiser router (same reason
-# as forms/datepolls) so /by-slug/{slug} wins over /{roster_id}.
+# as forms/datepoll) so /by-slug/{slug} wins over /{roster_id}.
 app.include_router(chores_public_router.router)
 app.include_router(chores_router.router)
 app.include_router(start_router.router)

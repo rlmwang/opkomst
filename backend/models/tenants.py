@@ -34,7 +34,7 @@ class Tenant(UUIDMixin, TimestampMixin, Base):
     every other table carries its ``tenant_id`` (see ``TenantMixin``).
 
     ``slug`` does double duty. It is the first segment of the organiser
-    app's URLs (``/rsp/events``) and the name of the brand folder
+    app's URLs (``/rsp/event``) and the name of the brand folder
     (``brands/rsp/``) whose palette, logo and wordmark the pages wear.
     One name for one thing: there is no separate ``brand_dir`` column.
 

@@ -1,15 +1,12 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
-import PrimeVue from "primevue/config";
 import { createApp } from "vue";
 import { ApiError } from "@/api/client";
 import * as sentry from "@/lib/sentry";
 import { tooltip } from "@/lib/tooltip";
 import App from "./App.vue";
 import { i18n, initI18n } from "./i18n";
-import { primeVueConfig } from "./primevue-preset";
 import router from "./router";
-import "primeicons/primeicons.css";
 import "./assets/theme.css";
 import "./assets/forms.css";
 
@@ -52,7 +49,6 @@ app.use(VueQueryPlugin, { queryClient });
 
 app.use(i18n);
 app.use(router);
-app.use(PrimeVue, primeVueConfig);
 app.directive("tooltip", tooltip);
 
 // The active language is fetched, not bundled, so it has to be in hand

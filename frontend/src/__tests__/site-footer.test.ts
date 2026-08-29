@@ -29,7 +29,7 @@ const BRAND = {
 // The five pages a stranger can land on: the root and the four things
 // it offers to make. The same five the server writes a title and a
 // description for.
-const INDEXED = ["/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"];
+const INDEXED = ["/", "/event/new", "/form/new", "/datepoll/new", "/chore/new"];
 
 const blank = { template: "<div />" };
 
@@ -44,7 +44,7 @@ function makeI18n() {
 async function mountAt(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [...INDEXED, "/events", "/chores/abc/edit"].map((p) => ({ path: p, component: blank })),
+    routes: [...INDEXED, "/event", "/chore/abc/edit"].map((p) => ({ path: p, component: blank })),
   });
   router.push(path);
   await router.isReady();
@@ -68,8 +68,8 @@ describe("SiteFooter", () => {
   });
 
   it("stays off the organiser's working pages", async () => {
-    expect((await mountAt("/events")).find("footer").exists()).toBe(false);
-    expect((await mountAt("/chores/abc/edit")).find("footer").exists()).toBe(false);
+    expect((await mountAt("/event")).find("footer").exists()).toBe(false);
+    expect((await mountAt("/chore/abc/edit")).find("footer").exists()).toBe(false);
   });
 
   it("stays off a brand an organisation owns", async () => {

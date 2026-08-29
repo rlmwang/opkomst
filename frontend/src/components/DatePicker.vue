@@ -11,15 +11,9 @@
  *
  * The geometry is Aura's, so the panel, the round 2rem day cells and the
  * input keep the proportions they had. The colours are the app's own
- * semantic tokens rather than the PrimeVue surface ramp: ``--brand-text``
- * over ``--brand-surface-700`` and ``--brand-border`` over
- * ``--brand-surface-200``, which is what ``MonthGrid`` and every
- * hand-rolled control already read. Surface and accent resolve to the
- * same values either way.
- *
- * The input keeps the form-field values, because on the two admin pages
- * it sits in a row of PrimeVue ``InputText`` fields and has to match
- * them.
+ * semantic tokens: ``--brand-text``, ``--brand-text-muted`` and
+ * ``--brand-border``, which is what ``MonthGrid``, ``AppInput`` and
+ * every other hand-rolled control read.
  *
  * Month and weekday names come from ``Intl`` in the page language, the
  * way ``MonthGrid`` does. PrimeVue was configured with only
@@ -28,7 +22,9 @@
  *
  * No admin dependencies: the public chore page imports this directly.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+
+import { useOverlayPanel } from "@/composables/useOverlayPanel";
 
 const props = withDefaults(
   defineProps<{
@@ -68,12 +64,13 @@ const LABELS: Record<string, Record<string, string>> = {
 const label = computed(() => LABELS[props.locale] ?? LABELS.nl);
 const intlLocale = computed(() => (props.locale === "en" ? "en-GB" : "nl-NL"));
 
-const root = ref<HTMLElement>();
 const input = ref<HTMLInputElement>();
-const panel = ref<HTMLElement>();
-const open = ref(false);
 const focused = ref(false);
-const panelStyle = ref<Record<string, string>>({});
+// The panel's placement, teleporting and dismissal
+// (``composables/useOverlayPanel``), shared with the other overlays.
+const { anchor: root, panel, open, style: panelStyle, show: openPanel, hide } = useOverlayPanel({
+  onEscape: () => input.value?.focus(),
+});
 
 // --- value shape -----------------------------------------------------
 // Single selection carries a Date; multiple carries an array. Everything
@@ -294,64 +291,16 @@ function clearValue(): void {
 }
 
 // --- the overlay -----------------------------------------------------
-// Positioned against the viewport and teleported to the body, which is
-// what PrimeVue's ``appendTo: "body"`` did: a panel inside the form
-// would be clipped by any card that hides its overflow.
-function place(): void {
-  const anchor = root.value;
-  const box = panel.value;
-  if (!anchor || !box) return;
-  const rect = anchor.getBoundingClientRect();
-  const height = box.offsetHeight;
-  const below = window.innerHeight - rect.bottom;
-  const flip = below < height + 8 && rect.top > height + 8;
-  panelStyle.value = {
-    position: "absolute",
-    insetInlineStart: `${rect.left + window.scrollX}px`,
-    top: `${(flip ? rect.top - height : rect.bottom) + window.scrollY}px`,
-    minWidth: `${rect.width}px`,
-  };
-}
-
 function show(): void {
-  if (props.disabled || open.value) return;
+  if (props.disabled) return;
+  // Open on the month the value is in, not wherever it was left.
   if (selected.value[0]) viewMonth.value = monthKeyOf(selected.value[0]);
-  open.value = true;
-  requestAnimationFrame(place);
+  openPanel();
 }
-
-function hide(): void {
-  open.value = false;
-}
-
-function onDocumentPointerDown(event: PointerEvent): void {
-  if (!open.value) return;
-  const target = event.target as Node;
-  if (root.value?.contains(target) || panel.value?.contains(target)) return;
-  hide();
-}
-
-function onKeydown(event: KeyboardEvent): void {
-  if (event.key === "Escape" && open.value) {
-    hide();
-    input.value?.focus();
-  }
-}
-
-onMounted(() => {
-  document.addEventListener("pointerdown", onDocumentPointerDown, true);
-  window.addEventListener("resize", place);
-  window.addEventListener("scroll", place, true);
-});
-onBeforeUnmount(() => {
-  document.removeEventListener("pointerdown", onDocumentPointerDown, true);
-  window.removeEventListener("resize", place);
-  window.removeEventListener("scroll", place, true);
-});
 </script>
 
 <template>
-  <div ref="root" class="dp" :class="{ 'dp-fluid': fluid, 'dp-inline': inline }" @keydown="onKeydown">
+  <div ref="root" class="dp" :class="{ 'dp-fluid': fluid, 'dp-inline': inline }">
     <input
       v-if="!inline"
       ref="input"
@@ -481,11 +430,11 @@ onBeforeUnmount(() => {
   font-family: inherit;
   font-feature-settings: inherit;
   font-size: 1rem;
-  color: var(--brand-surface-900);
-  background: var(--brand-surface-0);
+  color: var(--brand-text);
+  background: var(--brand-surface);
   padding-block: 0.5rem;
   padding-inline: 0.75rem;
-  border: 1px solid var(--brand-surface-200);
+  border: 1px solid var(--brand-border);
   border-radius: 6px;
   /* Aura's form-field shadow, with its faintly blue black flattened to
    * a neutral one: shadows carry no brand here by rule
@@ -502,19 +451,19 @@ onBeforeUnmount(() => {
   appearance: none;
 }
 .dp-input:enabled:hover {
-  border-color: var(--brand-surface-400);
+  border-color: color-mix(in srgb, var(--brand-text-muted) 45%, transparent);
 }
 .dp-input:enabled:focus {
   border-color: var(--brand-red);
   outline: none;
 }
 .dp-input::placeholder {
-  color: var(--brand-surface-500);
+  color: var(--brand-text-muted);
 }
 .dp-input:disabled {
   opacity: 1;
-  background: var(--brand-surface-50);
-  color: var(--brand-surface-500);
+  background: var(--brand-bg);
+  color: var(--brand-text-muted);
 }
 </style>
 

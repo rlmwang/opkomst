@@ -1,7 +1,7 @@
 ---
 title: Vrijwilligers inroosteren zonder spreadsheet
 description: Een terugkerend rooster waarin de beurten eerlijk rondgaan, zonder dat iemand elke week een spreadsheet bijwerkt.
-cta_path: /chores/new
+cta_path: /chore/new
 cta_label: Maak een rooster
 order: 7
 ---

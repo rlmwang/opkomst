@@ -117,10 +117,10 @@ Daily `python -m backend.cli reap-auth-tokens` deletes expired rows from both to
 
 ## Frontend
 
-- **Vue 3 Composition API + TypeScript + Vite + PrimeVue 4.**
+- **Vue 3 Composition API + TypeScript + Vite.** No component library: every control in `src/components/` is the app's own, built against Aura's geometry when it replaced a PrimeVue one. `AppIcon.vue` holds all 23 icons as SVG paths.
 - **State lives in TanStack Vue Query composables** (`frontend/src/composables/use*.ts`). The only Pinia store is `auth.ts`. Optimistic mutations carry an explicit `onMutate` snapshot + `onError` rollback so a failed write can't silently desync the cache from the server.
 - **Types are auto-generated from the OpenAPI schema.** `make openapi` regenerates `openapi.json` + `frontend/src/api/schema.ts`. CI fails on drift.
-- **PrimeVue 4 layer ordering**: all global CSS goes inside `@layer app { }`. `theme.css` declares `@layer primevue, app;` so PrimeVue's runtime-injected styles aren't trampled. Set up in `main.ts`.
+- **All global CSS goes inside `@layer app { }`**, so page-level rules stay orderable against each other. `App.vue` carries the `box-sizing: border-box` reset for the organiser app; the public mini-apps do not load it.
 
 ## What's where
 

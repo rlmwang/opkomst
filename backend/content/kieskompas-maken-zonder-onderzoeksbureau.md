@@ -1,7 +1,7 @@
 ---
 title: Een kieskompas maken voor je eigen groep
 description: Twee assen die je zelf benoemt, een stuk of tien stellingen en één link. Iedereen ziet waar diegene staat en waar de groep staat.
-cta_path: /compasses/new
+cta_path: /compass/new
 cta_label: Maak een kompas
 order: 6
 ---

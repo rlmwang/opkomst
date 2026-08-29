@@ -4,6 +4,7 @@
  *  is a wrapper, an absolutely-positioned icon, and padding on the
  *  input. That is cheaper written here than imported. */
 import AppInput from "@/components/AppInput.vue";
+import AppIcon from "@/components/AppIcon.vue";
 
 defineProps<{
   modelValue: string;
@@ -15,7 +16,7 @@ defineEmits<{ "update:modelValue": [value: string] }>();
 
 <template>
   <div class="icon-field">
-    <i class="pi pi-search field-icon" aria-hidden="true"></i>
+    <AppIcon name="search" class="field-icon" />
     <AppInput
       :model-value="modelValue"
       :placeholder="placeholder"
@@ -35,8 +36,7 @@ defineEmits<{ "update:modelValue": [value: string] }>();
   top: 50%;
   inset-inline-start: 0.75rem;
   margin-top: -0.5rem;
-  color: var(--brand-surface-400);
-  line-height: 1;
+  color: var(--brand-text-muted);
   z-index: 1;
 }
 /* Twice the field's own inline padding, plus the icon, so the text

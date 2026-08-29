@@ -7,7 +7,7 @@ import SupportButtons from "@/public_shared/SupportButtons.vue";
 
 /**
  * Shared shell for "managed resource" edit pages — EventFormPage
- * today (handling both ``/events/new`` and ``/events/:id/edit``);
+ * today (handling both ``/event/new`` and ``/event/:id/edit``);
  * FormEditPage when the Forms feature lands. Owns:
  *
  * * AppHeader.

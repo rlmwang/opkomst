@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -70,12 +70,12 @@ const isEdit = computed(() => Boolean(props.formId));
 const poleOptions = computed<PoleOption[]>(() =>
   (["x", "y"] as const).flatMap((axis) => {
     const row = axes.value.find((a) => a.axis === axis);
-    const axisName = row?.name.trim() || t(`compasses.edit.axis${axis.toUpperCase()}`);
+    const axisName = row?.name.trim() || t(`compass.edit.axis${axis.toUpperCase()}`);
     return (["low", "high"] as const).map((side) => {
       const own = (side === "low" ? row?.low_name : row?.high_name)?.trim();
       // Before a side is named, the select says where it lands, which
       // is the same thing the axes block calls it.
-      const fallback = t(`compasses.edit.side${side === "low" ? "Low" : "High"}${axis.toUpperCase()}`);
+      const fallback = t(`compass.edit.side${side === "low" ? "Low" : "High"}${axis.toUpperCase()}`);
       return { value: `${axis}_${side}` as Pole, label: `${axisName}: ${own || fallback}` };
     });
   }),
@@ -208,7 +208,7 @@ watch(
 // tabs don't clobber each other. Cleared on successful save + cancel.
 //
 // The resource is in the key because this page is three pages: without
-// it, ``/forms/new``, ``/quizzes/new`` and ``/compasses/new`` all wrote
+// it, ``/form/new``, ``/quiz/new`` and ``/compass/new`` all wrote
 // to ``form-edit-draft:new``, so a half-typed questionnaire came back
 // on the kompas page — with a number question in it, which a kompas
 // cannot ask, so the kind select rendered blank and the body rendered a
@@ -286,9 +286,9 @@ function firstAxisNamingProblem(): string | null {
   for (const axis of ["x", "y"] as const) {
     const row = axes.value.find((a) => a.axis === axis);
     const name = row?.name.trim() ?? "";
-    if (!name) return t("compasses.edit.fillAxisName", { axis: axis.toUpperCase() });
+    if (!name) return t("compass.edit.fillAxisName", { axis: axis.toUpperCase() });
     if (!row?.low_name.trim() || !row?.high_name.trim()) {
-      return t("compasses.edit.fillPoleNames", { name });
+      return t("compass.edit.fillPoleNames", { name });
     }
   }
   return null;
@@ -315,7 +315,7 @@ function axisCoverageProblem(): string | null {
   for (const axis of ["x", "y"] as const) {
     if (used.has(axis)) continue;
     const name = axes.value.find((a) => a.axis === axis)?.name.trim() ?? axis.toUpperCase();
-    return t("compasses.edit.axisUnused", { name });
+    return t("compass.edit.axisUnused", { name });
   }
   return null;
 }
@@ -336,22 +336,22 @@ function firstQuestionProblem(): string | null {
     const choice = q.kind === "single_choice" || q.kind === "multi_choice";
     if (choice && q.options.length < 2) return L("edit.questionNeedsOptions", { n });
     if (isCompass.value) {
-      if (q.kind === "rating" && !q.pole) return t("compasses.edit.questionNeedsPole", { n });
+      if (q.kind === "rating" && !q.pole) return t("compass.edit.questionNeedsPole", { n });
       if (q.kind === "single_choice") {
         const poles = q.option_poles ?? [];
         if (poles.length !== q.options.length || poles.some((pole) => !pole)) {
-          return t("compasses.edit.questionNeedsOptionPoles", { n });
+          return t("compass.edit.questionNeedsOptionPoles", { n });
         }
       }
       continue;
     }
     if (!isQuiz.value || q.points <= 0) continue;
-    if (choice && (q.correct_choices ?? []).length === 0) return t("quizzes.edit.questionNeedsKey", { n });
+    if (choice && (q.correct_choices ?? []).length === 0) return t("quiz.edit.questionNeedsKey", { n });
     if (q.kind === "single_choice" && (q.correct_choices ?? []).length !== 1) {
-      return t("quizzes.edit.questionNeedsOneKey", { n });
+      return t("quiz.edit.questionNeedsOneKey", { n });
     }
     if ((q.kind === "number" || q.kind === "rating") && q.correct_int === null) {
-      return t("quizzes.edit.questionNeedsKey", { n });
+      return t("quiz.edit.questionNeedsKey", { n });
     }
   }
   return null;
@@ -539,16 +539,16 @@ async function submit() {
       />
       <RichTextField
         v-model="body"
-        :placeholder="t('forms.edit.descriptionPlaceholder')"
+        :placeholder="t('form.edit.descriptionPlaceholder')"
         :fallback-html="bodyFallback || null"
       />
-      <Select
+      <SelectField
         v-if="hasChapters"
         v-model="chapterId"
         :options="userChapterOptions"
         option-label="name"
         option-value="id"
-        :placeholder="t('forms.edit.chapterPlaceholder')"
+        :placeholder="t('form.edit.chapterPlaceholder')"
         :disabled="userChapterOptions.length === 1 && chapterId !== null"
         fluid
       />
@@ -569,7 +569,7 @@ async function submit() {
          points at one of these: the words chosen here are the words
          every pole select below then offers. -->
     <section v-if="isCompass" class="form-section">
-      <h2 class="section-heading">{{ t("compasses.edit.axesHeading") }}</h2>
+      <h2 class="section-heading">{{ t("compass.edit.axesHeading") }}</h2>
       <!-- No explainer: the placeholders carry what to type and the
            example to type it like, and the arrows say where each side
            lands. A paragraph above them would repeat the boxes
@@ -605,7 +605,7 @@ async function submit() {
       <AppButton
         type="button"
         :label="L('edit.addQuestion')"
-        icon="pi pi-plus"
+        icon="plus"
         severity="secondary"
         @click="addQuestion"
       />
@@ -633,28 +633,28 @@ async function submit() {
       <section v-if="!isQuiz" class="form-section">
         <label class="toggle-row" for="editableToggle">
           <AppToggle v-model="answersEditable" inputId="editableToggle" />
-          <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
+          <h2 class="section-heading">{{ t("form.edit.editableHeading") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
+        <p class="muted section-explainer">{{ t("form.edit.editableExplainer") }}</p>
       </section>
 
       <section v-if="isQuiz" class="form-section">
         <label class="toggle-row" for="revealToggle">
           <AppToggle v-model="revealAnswers" inputId="revealToggle" />
-          <h2 class="section-heading">{{ t("quizzes.edit.revealHeading") }}</h2>
+          <h2 class="section-heading">{{ t("quiz.edit.revealHeading") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("quizzes.edit.revealExplainer") }}</p>
+        <p class="muted section-explainer">{{ t("quiz.edit.revealExplainer") }}</p>
       </section>
     </details>
 
     <section class="form-section">
       <h2 class="section-heading">{{ L("edit.localeHeading") }}</h2>
       <p class="muted section-explainer">{{ L("edit.localeExplainer") }}</p>
-      <Select
+      <SelectField
         v-model="formLocale"
         :options="[
-          { value: 'nl', label: t('forms.edit.localeNl') },
-          { value: 'en', label: t('forms.edit.localeEn') },
+          { value: 'nl', label: t('form.edit.localeNl') },
+          { value: 'en', label: t('form.edit.localeEn') },
         ]"
         option-label="label"
         option-value="value"

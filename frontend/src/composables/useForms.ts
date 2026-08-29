@@ -5,8 +5,8 @@
  * (nothing, a key, a pole) and by how the questions are walked through
  * (``docs/design-quizzes.md``, ``docs/design-kompas.md``), and by
  * nothing at all at this layer: the same CRUD, the same summary, the
- * same by-slug read, against ``/api/v1/forms``, ``/api/v1/quizzes`` or
- * ``/api/v1/compasses``. So this file builds the surface once and
+ * same by-slug read, against ``/api/v1/form``, ``/api/v1/quiz`` or
+ * ``/api/v1/compass``. So this file builds the surface once and
  * hands out one per product, and the organiser pages ask
  * ``useFormsApi()`` which one they are on rather than importing one by
  * name.
@@ -53,11 +53,11 @@ export type {
 };
 
 /** The products, and the API prefix each one lives under. */
-export type FormResource = "forms" | "quizzes" | "compasses";
+export type FormResource = "form" | "quiz" | "compass";
 
 /** Every resource, so a caller that has to cover all of them (the
  *  copy test, a route table) enumerates rather than remembers. */
-export const FORM_RESOURCES: readonly FormResource[] = ["forms", "quizzes", "compasses"];
+export const FORM_RESOURCES: readonly FormResource[] = ["form", "quiz", "compass"];
 
 function makeApi(resource: FormResource) {
   // The chapter-scoped CRUD surface (list / archived / single / create /
@@ -113,9 +113,9 @@ export const quizzesApi = makeApi("quizzes");
 export const compassesApi = makeApi("compasses");
 
 const BY_RESOURCE: Record<FormResource, ReturnType<typeof makeApi>> = {
-  forms: formsApi,
-  quizzes: quizzesApi,
-  compasses: compassesApi,
+  form: formsApi,
+  quiz: quizzesApi,
+  compass: compassesApi,
 };
 
 /** Which product an organiser page is on. The route says so

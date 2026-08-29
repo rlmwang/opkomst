@@ -95,15 +95,15 @@ function ratingContribution(average: number, pole: string): string {
  *  person answering it reads under the box. */
 function numberRule(q: Question): string | null {
   const parts: string[] = [];
-  if (q.step && q.step > 1) parts.push(t("forms.details.ruleStep", { step: q.step }));
+  if (q.step && q.step > 1) parts.push(t("form.details.ruleStep", { step: q.step }));
   if (q.min_value !== null && q.min_value !== undefined && q.max_value !== null && q.max_value !== undefined) {
-    parts.push(t("forms.details.ruleBetween", { min: q.min_value, max: q.max_value }));
+    parts.push(t("form.details.ruleBetween", { min: q.min_value, max: q.max_value }));
   } else if (q.min_value !== null && q.min_value !== undefined) {
-    parts.push(t("forms.details.ruleFrom", { min: q.min_value }));
+    parts.push(t("form.details.ruleFrom", { min: q.min_value }));
   } else if (q.max_value !== null && q.max_value !== undefined) {
-    parts.push(t("forms.details.ruleUpTo", { max: q.max_value }));
+    parts.push(t("form.details.ruleUpTo", { max: q.max_value }));
   }
-  if (isQuiz.value && q.tolerance) parts.push(t("quizzes.details.ruleMargin", { margin: q.tolerance }));
+  if (isQuiz.value && q.tolerance) parts.push(t("quiz.details.ruleMargin", { margin: q.tolerance }));
   return parts.length ? parts.join(", ") : null;
 }
 
@@ -221,7 +221,7 @@ async function exportCsv() {
            organiser to the editor to look them up. -->
       <AppCard v-if="isCompass && (form.axes ?? []).length">
         <div class="summary-header">
-          <h2>{{ t("compasses.details.axesHeading") }}</h2>
+          <h2>{{ t("compass.details.axesHeading") }}</h2>
         </div>
         <ul class="axis-defs">
           <li v-for="axis in form.axes ?? []" :key="axis.axis">
@@ -243,7 +243,7 @@ async function exportCsv() {
           <li v-for="q in form.questions ?? []" :key="q.id" class="q-overview-item">
             <div class="q-overview-head">
               <span class="q-overview-prompt">{{ q.prompt }}</span>
-              <span class="q-overview-kind">{{ t(`forms.details.kind.${q.kind}`) }}</span>
+              <span class="q-overview-kind">{{ t(`form.details.kind.${q.kind}`) }}</span>
             </div>
             <!-- What this question accepts, for the kind whose answer
                  is typed rather than picked. The same line the person
@@ -258,7 +258,7 @@ async function exportCsv() {
                  it is read on the same row rather than looked up
                  elsewhere. -->
             <p v-if="isCompass && q.kind === 'rating' && q.pole" class="muted q-overview-rule">
-              {{ t("compasses.details.ratingPole", { pole: poleName(q.pole) }) }}
+              {{ t("compass.details.ratingPole", { pole: poleName(q.pole) }) }}
             </p>
             <ul v-if="q.options.length" class="q-overview-options">
               <li v-for="o in q.options" :key="o" :class="{ 'is-key': isKeyOption(q, o) }">
@@ -268,7 +268,7 @@ async function exportCsv() {
               </li>
             </ul>
             <p v-if="typedKey(q)" class="muted q-overview-rule">
-              {{ t("quizzes.details.rightAnswerIs", { answer: typedKey(q) }) }}
+              {{ t("quiz.details.rightAnswerIs", { answer: typedKey(q) }) }}
             </p>
           </li>
         </ol>
@@ -280,15 +280,15 @@ async function exportCsv() {
            organiser's page nobody is "you". -->
       <AppCard v-if="isCompass && compass">
         <div class="summary-header">
-          <h2>{{ t("compasses.details.mapHeading") }}</h2>
+          <h2>{{ t("compass.details.mapHeading") }}</h2>
         </div>
-        <p v-if="!compass.points.length" class="muted">{{ t("compasses.details.noPositions") }}</p>
+        <p v-if="!compass.points.length" class="muted">{{ t("compass.details.noPositions") }}</p>
         <template v-else>
           <CompassPlot
             :axes="compass.axes.map((a) => a.axis)"
             :points="compass.points"
             :anonymous-label="L('details.anonymous')"
-            :aria-label="t('compasses.details.mapHeading')"
+            :aria-label="t('compass.details.mapHeading')"
           />
           <!-- Where the room sits on each axis. Not a histogram: the
                coordinates are means of a handful of values, so a bar
@@ -328,7 +328,7 @@ async function exportCsv() {
               </div>
               <p v-if="row.average !== null && row.average !== undefined" class="muted q-meta">
                 {{
-                  t("compasses.details.interval", {
+                  t("compass.details.interval", {
                     avg: formatDecimal(row.average!, locale),
                     low: formatDecimal(row.ci_low!, locale),
                     high: formatDecimal(row.ci_high!, locale),
@@ -349,7 +349,7 @@ async function exportCsv() {
               size="small"
               severity="secondary"
               text
-              icon="pi pi-download"
+              icon="download"
               :disabled="!summary || summary.submission_count === 0"
               @click="exportCsv"
             />
@@ -379,7 +379,7 @@ async function exportCsv() {
             class="muted q-meta score-line"
           >
             {{
-              t("quizzes.details.scoreLine", {
+              t("quiz.details.scoreLine", {
                 avg: summary.score_average,
                 best: summary.score_best,
                 max: summary.max_score,
@@ -393,14 +393,14 @@ async function exportCsv() {
                  share who got it right, which is what says a question
                  was broken rather than hard. -->
             <p v-if="q.correct_share !== null && q.correct_share !== undefined" class="muted q-meta">
-              {{ t("quizzes.details.correctShare", { pct: Math.round(q.correct_share * 100) }) }}
+              {{ t("quiz.details.correctShare", { pct: Math.round(q.correct_share * 100) }) }}
             </p>
 
             <template v-if="q.kind === 'rating' && q.rating_distribution">
               <p class="muted q-meta">
-                {{ t("forms.details.qResponses", { n: q.response_count }) }}
+                {{ t("form.details.qResponses", { n: q.response_count }) }}
                 <template v-if="q.rating_average">
-                  · {{ t("forms.details.qAverage", { avg: formatAverage(q.rating_average, locale) }) }}
+                  · {{ t("form.details.qAverage", { avg: formatAverage(q.rating_average, locale) }) }}
                 </template>
               </p>
               <!-- The average restated as what it was worth: "3,8 van 5"
@@ -408,7 +408,7 @@ async function exportCsv() {
                    says what it did to the map. -->
               <p v-if="isCompass && q.pole && q.rating_average" class="muted q-meta">
                 {{
-                  t("compasses.details.ratingContribution", {
+                  t("compass.details.ratingContribution", {
                     avg: formatAverage(q.rating_average, locale),
                     value: ratingContribution(q.rating_average, q.pole),
                     pole: poleName(q.pole),
@@ -440,8 +440,8 @@ async function exportCsv() {
               <p class="muted q-meta">
                 {{ L("details.qResponses", { n: q.response_count }) }}
                 <template v-if="q.number_average !== null && q.number_average !== undefined">
-                  · {{ t("forms.details.qAverage", { avg: formatAverage(q.number_average, locale) }) }}
-                  · {{ t("forms.details.qRange", { low: q.number_min, high: q.number_max }) }}
+                  · {{ t("form.details.qAverage", { avg: formatAverage(q.number_average, locale) }) }}
+                  · {{ t("form.details.qRange", { low: q.number_min, high: q.number_max }) }}
                 </template>
               </p>
               <!-- One bar per allowed value while the question's own
@@ -467,7 +467,7 @@ async function exportCsv() {
             </template>
 
             <template v-else-if="(q.kind === 'single_choice' || q.kind === 'multi_choice') && q.choice_counts">
-              <p class="muted q-meta">{{ t("forms.details.qResponses", { n: q.response_count }) }}</p>
+              <p class="muted q-meta">{{ t("form.details.qResponses", { n: q.response_count }) }}</p>
               <div class="bars">
                 <template v-for="(count, label) in q.choice_counts" :key="label">
                   <span class="bar-label choice-label">

@@ -68,8 +68,8 @@ class Limits:
     # without any auth gate. Tightest budgets.
     AUTH = "5/hour"  # /auth/login-link (per IP)
     LOGIN_REDEEM = "20/minute"  # /auth/login (token redemption)
-    PUBLIC_SIGNUP = "30/hour"  # /events/by-slug/{slug}/signups
-    PUBLIC_SUBMIT = "20/hour"  # public questionnaire submits: /feedback/{token}/submit + /forms/by-slug/{slug}/submit
+    PUBLIC_SIGNUP = "30/hour"  # /event/by-slug/{slug}/signups
+    PUBLIC_SUBMIT = "20/hour"  # public questionnaire submits: /feedback/{token}/submit + /form/by-slug/{slug}/submit
     # ``/start/*``: creates an account as a side effect, so it is the
     # tightest budget on the app. A person making one event needs it
     # once or twice; anything above that is somebody minting accounts.

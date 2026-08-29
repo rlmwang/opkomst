@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import AutoComplete, {
+import AutoCompleteField, {
   type AutoCompleteCompleteEvent,
   type AutoCompleteOptionSelectEvent,
-} from "primevue/autocomplete";
+} from "@/components/AutoCompleteField.vue";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { Chapter } from "@/api/types";
 import { get } from "@/api/client";
+import AppIcon, { type IconName } from "@/components/AppIcon.vue";
 
 export type { Chapter };
 
@@ -26,10 +27,9 @@ const props = defineProps<{
    * affordance consistency but can't actually trigger the
    * create / restore branches. */
   disabled?: boolean;
-  /** Leading PrimeIcons class (e.g. ``pi pi-plus``). When set, the
-   * input carries the icon inside the
-   * input on the left — matching ``SearchInput`` visually. */
-  leadingIcon?: string;
+  /** An ``AppIcon`` name. When set, the input carries that icon on
+   * its left, the way ``SearchInput`` does. */
+  leadingIcon?: IconName;
 }>();
 
 const emit = defineEmits<{
@@ -76,8 +76,8 @@ function onEnter() {
 
 <template>
   <div v-if="leadingIcon" class="icon-field">
-    <i :class="leadingIcon" class="field-icon" aria-hidden="true"></i>
-    <AutoComplete
+    <AppIcon :name="leadingIcon" class="field-icon" />
+    <AutoCompleteField
       v-model="local"
       :suggestions="suggestions"
       option-label="name"
@@ -95,9 +95,9 @@ function onEnter() {
           <span v-if="(option as Chapter).archived" class="tag">{{ t("chapters.archivedTag") }}</span>
         </div>
       </template>
-    </AutoComplete>
+    </AutoCompleteField>
   </div>
-  <AutoComplete
+  <AutoCompleteField
     v-else
     v-model="local"
     :suggestions="suggestions"
@@ -116,7 +116,7 @@ function onEnter() {
         <span v-if="(option as Chapter).archived" class="tag">{{ t("chapters.archivedTag") }}</span>
       </div>
     </template>
-  </AutoComplete>
+  </AutoCompleteField>
 </template>
 
 <style scoped>
@@ -132,14 +132,11 @@ function onEnter() {
   top: 50%;
   inset-inline-start: 0.75rem;
   margin-top: -0.5rem;
-  color: var(--brand-surface-400);
-  line-height: 1;
+  color: var(--brand-text-muted);
   z-index: 1;
 }
-/* Twice the field's own inline padding, plus the icon. Still targets
- * PrimeVue's input because the field inside is AutoComplete; task 03
- * replaces it. */
-.icon-field :deep(.p-inputtext) {
+/* Twice the field's own inline padding, plus the icon. */
+.icon-field :deep(.ac-input) {
   padding-inline-start: 2.5rem;
 }
 .option {

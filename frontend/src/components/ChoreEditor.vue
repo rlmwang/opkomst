@@ -56,38 +56,38 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
       </span>
       <AppInput
         :model-value="modelValue.name"
-        :placeholder="t('chores.edit.choreNamePlaceholder')"
+        :placeholder="t('chore.edit.choreNamePlaceholder')"
         fluid
         @update:model-value="(v) => patch('name', v ?? '')"
       />
       <div class="header-actions">
         <AppButton
           type="button"
-          icon="pi pi-arrow-up"
+          icon="arrow-up"
           size="small"
           severity="secondary"
           text
           :disabled="!canMoveUp"
-          :aria-label="t('chores.edit.moveUp')"
+          :aria-label="t('chore.edit.moveUp')"
           @click="emit('moveUp')"
         />
         <AppButton
           type="button"
-          icon="pi pi-arrow-down"
+          icon="arrow-down"
           size="small"
           severity="secondary"
           text
           :disabled="!canMoveDown"
-          :aria-label="t('chores.edit.moveDown')"
+          :aria-label="t('chore.edit.moveDown')"
           @click="emit('moveDown')"
         />
         <AppButton
           type="button"
-          icon="pi pi-trash"
+          icon="trash"
           size="small"
           severity="secondary"
           text
-          :aria-label="t('chores.edit.deleteChore')"
+          :aria-label="t('chore.edit.deleteChore')"
           @click="emit('delete')"
         />
       </div>
@@ -95,7 +95,7 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
 
     <AppInput
       :model-value="modelValue.description ?? ''"
-      :placeholder="t('chores.edit.choreDescriptionPlaceholder')"
+      :placeholder="t('chore.edit.choreDescriptionPlaceholder')"
       fluid
       @update:model-value="(v) => patch('description', v ? v : null)"
     />
@@ -107,12 +107,12 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
     />
 
     <div class="people-row">
-      <span class="field-label">{{ t("chores.edit.peoplePerShift") }}</span>
+      <span class="field-label">{{ t("chore.edit.peoplePerShift") }}</span>
       <NumberStepper
         :model-value="modelValue.people_per_shift"
         :min="1"
         :max="20"
-        :aria-label="t('chores.edit.peoplePerShift')"
+        :aria-label="t('chore.edit.peoplePerShift')"
         @update:model-value="(v) => patch('people_per_shift', v)"
       />
     </div>

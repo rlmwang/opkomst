@@ -8,7 +8,7 @@
  * The fallback is silent, so a missing key reads as the wrong product's
  * language rather than as a bug: eight of them shipped that way on the
  * quiz (`e9dd24b`), and the archived page is still resolving keys under
- * a `quizzes.archived.*` block that never defined them.
+ * a `quiz.archived.*` block that never defined them.
  *
  * So the keys are enumerated here rather than spotted on the page.
  * Every key the four pages resolve is either SHARED (about none of the
@@ -152,8 +152,8 @@ function sourceFiles(dir: string, found: string[] = []): string[] {
  *  written: a component resolving one of these is as capable of
  *  shipping a ``[compasses.question.pickOptionPoles]`` onto the page as
  *  a page is, and one of them did. Interpolated keys
- *  (``compasses.edit.axis${axis}``) are skipped: the literal half of
- *  them is not a key. So is ``forms.css``, which is a stylesheet. */
+ *  (``compass.edit.axis${axis}``) are skipped: the literal half of
+ *  them is not a key. So is ``form.css``, which is a stylesheet. */
 function literalKeys(): string[] {
   const keys = new Set<string>();
   for (const file of sourceFiles(resolve(process.cwd(), "src"))) {
@@ -193,8 +193,8 @@ describe("shared organiser-page copy", () => {
 
   it("keys the localStorage draft by product, not just by form id", () => {
     // The four pages are three pages. A draft key that names only the
-    // form id put ``/forms/new``, ``/quizzes/new`` and
-    // ``/compasses/new`` on one key, so a half-typed questionnaire came
+    // form id put ``/form/new``, ``/quiz/new`` and
+    // ``/compass/new`` on one key, so a half-typed questionnaire came
     // back on the kompas page carrying a question kind a kompas cannot
     // ask. Pinned here because the next product would reintroduce it
     // silently.
@@ -207,7 +207,7 @@ describe("shared organiser-page copy", () => {
   for (const locale of Object.keys(LOCALES)) {
     it(`resolves every product key written anywhere in the tree (${locale})`, () => {
       const messages = LOCALES[locale];
-      // A prefix a helper appends to (``forms.archived`` in
+      // A prefix a helper appends to (``form.archived`` in
       // ``useArchivedList``) resolves to the block rather than to a
       // string, and is just as present.
       const missing = literalKeys().filter((k) => lookup(messages, k) === undefined);
@@ -220,7 +220,7 @@ describe("shared organiser-page copy", () => {
 
     it(`defines every shared key on forms, and nowhere else (${locale})`, () => {
       const messages = LOCALES[locale];
-      const missing = SHARED.filter((k) => typeof lookup(messages, `forms.${k}`) !== "string");
+      const missing = SHARED.filter((k) => typeof lookup(messages, `form.${k}`) !== "string");
       expect(missing).toEqual([]);
       // An override of a shared key means it is not shared: either the
       // product wants its own word (move it to PRODUCT) or the override

@@ -21,7 +21,9 @@
     "nameRequired": "Naam verplicht",
     "nameRequiredExplainer": "Mensen moeten een (schuil)naam invullen.",
     "advancedShow": "Geavanceerde opties tonen",
-    "advancedHide": "Geavanceerde opties verbergen"
+    "advancedHide": "Geavanceerde opties verbergen",
+    "clear": "Wissen",
+    "noResults": "Geen resultaten"
   },
   "recoverLink": {
     "open": "Aanmeldingen bekijken",
@@ -233,7 +235,7 @@
     "deleteOk": "{name} verwijderd",
     "deleteFail": "Verwijderen mislukt"
   },
-  "forms": {
+  "form": {
     "list": {
       "title": "Vragenlijsten",
       "intro": "Losse vragenlijsten die je via een link met iedereen kunt delen.",
@@ -358,7 +360,7 @@
       "step": "Stapgrootte"
     }
   },
-  "datepolls": {
+  "datepoll": {
     "list": {
       "title": "Datumplanners",
       "intro": "Vind een datum die werkt. Stel data voor, deel de link, laat mensen kiezen.",
@@ -462,7 +464,7 @@
       "backToList": "← Terug naar datumplanners"
     }
   },
-  "chores": {
+  "chore": {
     "recurrence": {
       "weekly": "Wekelijks",
       "everyKWeeks": "Elke {k} weken"
@@ -921,7 +923,7 @@
     "blogs": "Blogs:",
     "terms": "Voorwaarden"
   },
-  "quizzes": {
+  "quiz": {
     "list": {
       "title": "Quizzen",
       "intro": "Een quiz met punten. Deel de link, iedereen ziet z'n eigen score.",
@@ -990,7 +992,7 @@
       "points": "punten"
     }
   },
-  "compasses": {
+  "compass": {
     "list": {
       "title": "Kompassen",
       "intro": "Iedereen die 'm invult krijgt een plek op een kaart met twee assen.",

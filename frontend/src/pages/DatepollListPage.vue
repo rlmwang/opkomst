@@ -42,7 +42,7 @@ const archiveMutation = useArchiveDatepoll();
 
 
 watch(pollsQuery.isError, (isError) => {
-  if (isError) toasts.error(t("datepolls.list.loadFailed"));
+  if (isError) toasts.error(t("datepoll.list.loadFailed"));
 });
 
 const loaded = computed(() => !auth.isApproved || !pollsQuery.isPending.value);
@@ -52,8 +52,8 @@ const sortedPolls = computed(() =>
 );
 
 function dateRange(p: DatepollListOut): string {
-  if (p.date_count === 0) return t("datepolls.list.noDates");
-  const count = t("datepolls.list.dateCount", { n: p.date_count });
+  if (p.date_count === 0) return t("datepoll.list.noDates");
+  const count = t("datepoll.list.dateCount", { n: p.date_count });
   if (!p.first_date) return count;
   const first = formatDate(p.first_date, locale.value);
   if (!p.last_date || p.last_date === p.first_date) return `${count} · ${first}`;
@@ -65,28 +65,28 @@ function prefetchDetails(datepollId: string) {
   if (prefetched.has(datepollId)) return;
   prefetched.add(datepollId);
   void qc.prefetchQuery({
-    queryKey: ["datepolls", "single", datepollId],
-    queryFn: () => get(`/api/v1/datepolls/${datepollId}`),
+    queryKey: ["datepoll", "single", datepollId],
+    queryFn: () => get(`/api/v1/datepoll/${datepollId}`),
   });
   void qc.prefetchQuery({
-    queryKey: ["datepolls", datepollId, "summary"],
-    queryFn: () => get(`/api/v1/datepolls/${datepollId}/summary`),
+    queryKey: ["datepoll", datepollId, "summary"],
+    queryFn: () => get(`/api/v1/datepoll/${datepollId}/summary`),
   });
 }
 
 function askArchive(p: DatepollListOut) {
   confirms.ask({
-    header: t("datepolls.list.archiveConfirmTitle"),
-    message: t("datepolls.list.archiveConfirmBody", { name: lt(p.name_nl, p.name_en) ?? "" }),
-    icon: "pi pi-exclamation-triangle",
+    header: t("datepoll.list.archiveConfirmTitle"),
+    message: t("datepoll.list.archiveConfirmBody", { name: lt(p.name_nl, p.name_en) ?? "" }),
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
-    acceptLabel: t("datepolls.list.archive"),
+    acceptLabel: t("datepoll.list.archive"),
     accept: async () => {
       try {
         await archiveMutation.mutateAsync(p.id);
-        toasts.success(t("datepolls.list.archived"));
+        toasts.success(t("datepoll.list.archived"));
       } catch {
-        toasts.error(t("datepolls.list.archiveFail"));
+        toasts.error(t("datepoll.list.archiveFail"));
       }
     },
   });
@@ -97,8 +97,8 @@ function askArchive(p: DatepollListOut) {
   <template v-if="auth.needsChapters">
     <AppHeader />
     <div class="container-wide stack">
-      <h1>{{ t("datepolls.list.title") }}</h1>
-      <p class="muted">{{ t("datepolls.list.intro") }}</p>
+      <h1>{{ t("datepoll.list.title") }}</h1>
+      <p class="muted">{{ t("datepoll.list.intro") }}</p>
       <AppCard>
         <h2>{{ t("dashboard.noChaptersTitle") }}</h2>
         <p class="muted">{{ t("dashboard.noChaptersBody") }}</p>
@@ -108,27 +108,27 @@ function askArchive(p: DatepollListOut) {
 
   <ListPageView
     v-else
-    :title="t('datepolls.list.title')"
-    :intro="t('datepolls.list.intro')"
+    :title="t('datepoll.list.title')"
+    :intro="t('datepoll.list.intro')"
     :items="sortedPolls"
     :loaded="loaded"
     :chapter-filter="chapterFilter"
     :chapter-options="chapterOptions"
-    :search-placeholder="t('datepolls.list.searchPlaceholder')"
+    :search-placeholder="t('datepoll.list.searchPlaceholder')"
     :search-keys="(p: DatepollListOut) => [lt(p.name_nl, p.name_en) ?? '']"
-    :empty-copy="t('datepolls.list.empty')"
-    :no-matches-copy="t('datepolls.list.noMatches')"
+    :empty-copy="t('datepoll.list.empty')"
+    :no-matches-copy="t('datepoll.list.noMatches')"
     :skeleton-rows="2"
     @update:chapter-filter="setChapterFilter"
   >
     <template #actions-leading>
       <router-link
         :to="{
-          path: '/datepolls/new',
+          path: '/datepoll/new',
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <AppButton :label="t('datepolls.list.newDatepoll')" icon="pi pi-plus" />
+        <AppButton :label="t('datepoll.list.newDatepoll')" icon="plus" />
       </router-link>
     </template>
 
@@ -136,8 +136,8 @@ function askArchive(p: DatepollListOut) {
       <EntityCard
         :public-url="publicDatepollUrl(p.slug)"
         :qr-src="datepollQrUrl(p.slug)"
-        :copy-link-label="t('datepolls.share.copyLink')"
-        :qr-label="t('datepolls.share.copyQr')"
+        :copy-link-label="t('datepoll.share.copyLink')"
+        :qr-label="t('datepoll.share.copyQr')"
         @mouseenter="prefetchDetails(p.id)"
         @focusin="prefetchDetails(p.id)"
         @copy-link="copyLink(p.slug)"
@@ -156,12 +156,12 @@ function askArchive(p: DatepollListOut) {
 
 
         <template #actions>
-          <router-link :to="`/datepolls/${p.id}/details`">
-            <AppButton :label="t('datepolls.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+          <router-link :to="`/datepoll/${p.id}/details`">
+            <AppButton :label="t('datepoll.list.details')" icon="info-circle" size="small" severity="secondary" />
           </router-link>
           <AppButton
-            :label="t('datepolls.list.archive')"
-            icon="pi pi-archive"
+            :label="t('datepoll.list.archive')"
+            icon="archive"
             size="small"
             severity="secondary"
             text
@@ -169,7 +169,7 @@ function askArchive(p: DatepollListOut) {
           />
         </template>
 
-        <template #count>{{ t("datepolls.list.responseCount", { n: p.submission_count }) }}</template>
+        <template #count>{{ t("datepoll.list.responseCount", { n: p.submission_count }) }}</template>
       </EntityCard>
     </template>
   </ListPageView>

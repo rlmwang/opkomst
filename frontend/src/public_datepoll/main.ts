@@ -1,6 +1,6 @@
 /**
  * Public datepoll mini-app entry. Mounts a single component to
- * ``#app`` — no router, no Pinia, no Vue Query, no PrimeVue, no
+ * ``#app``: no router, no Pinia, no Vue Query, no
  * vue-i18n. Mirrors ``src/public_form/main.ts`` one-to-one; same
  * wire-weight target.
  *

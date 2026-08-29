@@ -1,6 +1,6 @@
 """Chapter-scoped datepoll CRUD + organiser-side reads.
 
-Mirrors the events/forms router shape: create, list active, list
+Mirrors the events/form router shape: create, list active, list
 archived, get, update, archive, restore, delete-when-archived,
 summary, submissions. All require an approved user; all are scoped to
 the user's chapter via ``access.get_datepoll_for_user`` (single) or
@@ -35,7 +35,7 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/datepolls", tags=["datepolls"])
+router = APIRouter(prefix="/api/v1/datepoll", tags=["datepolls"])
 
 
 @router.post("", response_model=DatepollOut, status_code=201)

@@ -114,7 +114,7 @@ const askDeleteSignup = useGuardedMutation(deleteSignupMutation, (s: SignupSumma
   confirm: {
     header: t("event.deleteSignup.confirmTitle"),
     message: t("event.deleteSignup.confirmBody", { name: s.display_name ?? t("event.signupAnonymous") }),
-    icon: "pi pi-exclamation-triangle",
+    icon: "exclamation-triangle",
     rejectLabel: t("common.cancel"),
     acceptLabel: t("event.deleteSignup.confirm"),
   },
@@ -149,7 +149,7 @@ const shownMonth = computed({
 });
 
 const weekdayLabels = computed(() =>
-  (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((d) => t(`chores.edit.weekday.${d}`)),
+  (["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const).map((d) => t(`chore.edit.weekday.${d}`)),
 );
 
 function dayClass(iso: string): Record<string, boolean> {
@@ -187,7 +187,7 @@ const triggerNow = useGuardedMutation(sendEmailsMutation, (channel: EmailChannel
     confirm: {
       header: t(`event.sendNow.${channel}.confirmTitle`),
       message: t("event.sendNow.confirmBody", { n: pending }),
-      icon: "pi pi-send",
+      icon: "send",
       rejectLabel: t("common.cancel"),
       acceptLabel: t("event.sendNow.confirm"),
     },
@@ -295,7 +295,7 @@ function askTriggerNow(channel: EmailChannel) {
         :description-html="lt(event.topic_nl, event.topic_en)"
         :qr-src="eventQrUrl(primaryOccurrence?.slug ?? '')"
         :public-url="primaryOccurrence ? publicEventUrl(primaryOccurrence.slug) : ''"
-        :edit-to="`/events/${event.id}/edit`"
+        :edit-to="`/event/${event.id}/edit`"
         @copy-qr="primaryOccurrence && copyQr(primaryOccurrence.slug)"
         @copy-link="primaryOccurrence && copyLink(primaryOccurrence.slug)"
       >
@@ -319,7 +319,7 @@ function askTriggerNow(channel: EmailChannel) {
               :count="selectedOccurrence.attendee_count"
               :label="t('event.totalAttendees')"
               :load-rows="recoverRows"
-              :recover-path="(id: string) => `/api/v1/events/${props.eventId}/registrations/${id}/edit-link`"
+              :recover-path="(id: string) => `/api/v1/event/${props.eventId}/registrations/${id}/edit-link`"
               :public-url="(tok: string) => `${publicEventUrl(selectedOccurrence!.slug)}?s=${tok}`"
             />
           </div>
@@ -380,7 +380,7 @@ function askTriggerNow(channel: EmailChannel) {
                   </span>
                   <span class="row-count signup-count">{{ s.party_size }}</span>
                   <AppButton
-                    icon="pi pi-trash"
+                    icon="trash"
                     size="small"
                     severity="secondary"
                     text
@@ -427,7 +427,7 @@ function askTriggerNow(channel: EmailChannel) {
               size="small"
               severity="secondary"
               text
-              icon="pi pi-download"
+              icon="download"
               :disabled="!summary || summary.submission_count === 0"
               @click="exportCsv"
             />
@@ -437,7 +437,7 @@ function askTriggerNow(channel: EmailChannel) {
               target="_blank"
               rel="noopener"
             >
-              <AppButton :label="t('feedback.preview.open')" size="small" severity="secondary" text icon="pi pi-eye" />
+              <AppButton :label="t('feedback.preview.open')" size="small" severity="secondary" text icon="eye" />
             </a>
           </div>
         </div>
@@ -503,7 +503,7 @@ function askTriggerNow(channel: EmailChannel) {
           <div class="send-now-row">
             <AppButton
               :label="t(`event.sendNow.${channel}.button`)"
-              icon="pi pi-send"
+              icon="send"
               :disabled="!canTrigger(channel) || triggering !== null"
               :loading="triggering === channel"
               @click="askTriggerNow(channel)"

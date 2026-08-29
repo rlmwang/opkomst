@@ -8,5 +8,5 @@ export function publicChoreUrl(slug: string): string {
 /** SVG endpoint for the roster's QR code (served by the public router,
  * task 05). */
 export function choreQrUrl(slug: string): string {
-  return qrUrl("chores", slug);
+  return qrUrl("chore", slug);
 }

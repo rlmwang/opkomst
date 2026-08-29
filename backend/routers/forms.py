@@ -14,7 +14,7 @@ The ``forms`` table holds three products: surveys, quizzes
 They differ by what an answer means, what is derived from it and how
 the questions are walked through: nothing an organiser's CRUD cares
 about. So this module is a factory and it is mounted three times, at
-``/api/v1/forms``, ``/api/v1/quizzes`` and ``/api/v1/compasses``.
+``/api/v1/form``, ``/api/v1/quiz`` and ``/api/v1/compass``.
 ``mode`` is what each mount passes in, every read names it, and the log
 events and the ceiling kind come from the same argument.
 
@@ -353,6 +353,6 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
 
 # The three mounts. Surveys keep the URL they had; the other two get
 # their own.
-router = build_router("survey", prefix="/api/v1/forms", tag="forms", kind="form", noun="form")
-quiz_router = build_router("quiz", prefix="/api/v1/quizzes", tag="quizzes", kind="quiz", noun="quiz")
-compass_router = build_router("compass", prefix="/api/v1/compasses", tag="compasses", kind="compass", noun="compass")
+router = build_router("survey", prefix="/api/v1/form", tag="forms", kind="form", noun="form")
+quiz_router = build_router("quiz", prefix="/api/v1/quiz", tag="quizzes", kind="quiz", noun="quiz")
+compass_router = build_router("compass", prefix="/api/v1/compass", tag="compasses", kind="compass", noun="compass")

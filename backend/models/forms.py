@@ -27,7 +27,7 @@ Four tables:
   correct answer is worth and what the correct answer is. Both are
   null-or-zero on a survey, dropped on write rather than trusted from
   the payload. Nothing stores a score: an answer plus the current key
-  is the score (``services/quizzes``).
+  is the score (``services/quiz``).
 * ``form_questions`` carries the kompas half too: the direction an
   answer moves somebody in. A rating poles the statement (``pole``,
   the side a 5 means); a choice poles each option (``option_poles``,

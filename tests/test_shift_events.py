@@ -152,7 +152,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 def _api_roster(client: Any, headers: Any) -> dict[str, Any]:
     r = client.post(
-        "/api/v1/chores",
+        "/api/v1/chore",
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
@@ -166,7 +166,7 @@ def _api_roster(client: Any, headers: Any) -> dict[str, Any]:
 
 def _enroll(client: Any, slug: str, name: str, cid: str) -> str:
     return client.post(
-        f"/api/v1/chores/by-slug/{slug}/enroll",
+        f"/api/v1/chore/by-slug/{slug}/enroll",
         json={"display_name": name, "chore_ids": [cid]},
     ).json()["edit_token"]
 
@@ -179,7 +179,7 @@ def _tick(db: Any) -> None:
 
 
 def _volunteers(client: Any, headers: Any, rid: str) -> dict[str, dict[str, Any]]:
-    rows = client.get(f"/api/v1/chores/{rid}/volunteers", headers=headers).json()
+    rows = client.get(f"/api/v1/chore/{rid}/volunteers", headers=headers).json()
     return {r["display_name"]: r for r in rows}
 
 
@@ -188,8 +188,8 @@ def test_done_records_completed(client, organiser_headers, db):
     cid = roster["chores"][0]["id"]
     token = _enroll(client, roster["slug"], "Sam", cid)
     _tick(db)
-    my = client.get(f"/api/v1/chores/by-token/{token}").json()["my_shifts"]
-    client.post(f"/api/v1/chores/by-token/{token}/shifts/{my[0]['id']}/done")
+    my = client.get(f"/api/v1/chore/by-token/{token}").json()["my_shifts"]
+    client.post(f"/api/v1/chore/by-token/{token}/shifts/{my[0]['id']}/done")
     assert _volunteers(client, organiser_headers, roster["id"])["Sam"]["completed"] == 1
 
 
@@ -199,15 +199,15 @@ def test_pass_records_deferred_and_opens(client, organiser_headers, db):
     a = _enroll(client, roster["slug"], "A", cid)
     _enroll(client, roster["slug"], "B", cid)
     _tick(db)
-    my = client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]
+    my = client.get(f"/api/v1/chore/by-token/{a}").json()["my_shifts"]
     if not my:
         return
     shift_id = my[0]["id"]
-    client.post(f"/api/v1/chores/by-token/{a}/shifts/{shift_id}/pass")
+    client.post(f"/api/v1/chore/by-token/{a}/shifts/{shift_id}/pass")
     vols = _volunteers(client, organiser_headers, roster["id"])
     assert vols["A"]["deferred"] == 1
     # The shift is opened for anyone to claim, not auto-reassigned.
-    page = client.get(f"/api/v1/chores/by-token/{a}").json()
+    page = client.get(f"/api/v1/chore/by-token/{a}").json()
     assert shift_id in [s["id"] for s in page["open_shifts"]]
     assert shift_id not in [s["id"] for s in page["my_shifts"]]
 
@@ -218,20 +218,20 @@ def test_organiser_reassign_scheduled_records_covered(client, organiser_headers,
     a = _enroll(client, roster["slug"], "A", cid)
     b = _enroll(client, roster["slug"], "B", cid)
     _tick(db)
-    my = client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]
+    my = client.get(f"/api/v1/chore/by-token/{a}").json()["my_shifts"]
     if not my:
         return
     shift_id = my[0]["id"]
     vols = _volunteers(client, organiser_headers, roster["id"])
     r = client.post(
-        f"/api/v1/chores/{roster['id']}/shifts/{shift_id}/reassign",
+        f"/api/v1/chore/{roster['id']}/shifts/{shift_id}/reassign",
         headers=organiser_headers,
         json={"volunteer_id": vols["B"]["id"]},
     )
     assert r.status_code == 204, r.text
     # B now holds the shift and it counts as picked up for others.
-    assert shift_id in [s["id"] for s in client.get(f"/api/v1/chores/by-token/{b}").json()["my_shifts"]]
-    assert shift_id not in [s["id"] for s in client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]]
+    assert shift_id in [s["id"] for s in client.get(f"/api/v1/chore/by-token/{b}").json()["my_shifts"]]
+    assert shift_id not in [s["id"] for s in client.get(f"/api/v1/chore/by-token/{a}").json()["my_shifts"]]
     assert _volunteers(client, organiser_headers, roster["id"])["B"]["picked_up"] == 1
 
 
@@ -240,13 +240,13 @@ def test_organiser_reassign_open_shift_records_claimed(client, organiser_headers
     cid = roster["chores"][0]["id"]
     _tick(db)  # no volunteers yet → shifts open
     _enroll(client, roster["slug"], "Late", cid)
-    open_shifts = client.get(f"/api/v1/chores/{roster['id']}/schedule", headers=organiser_headers).json()["confirmed"]
+    open_shifts = client.get(f"/api/v1/chore/{roster['id']}/schedule", headers=organiser_headers).json()["confirmed"]
     open_ids = [s["id"] for s in open_shifts if s["status"] == "open"]
     if not open_ids:
         return
     vols = _volunteers(client, organiser_headers, roster["id"])
     r = client.post(
-        f"/api/v1/chores/{roster['id']}/shifts/{open_ids[0]}/reassign",
+        f"/api/v1/chore/{roster['id']}/shifts/{open_ids[0]}/reassign",
         headers=organiser_headers,
         json={"volunteer_id": vols["Late"]["id"]},
     )
@@ -262,20 +262,20 @@ def test_organiser_reassign_rejects_unenrolled_and_done(client, organiser_header
     a = _enroll(client, roster["slug"], "A", cid)
     _enroll(client, roster["slug"], "Out", cid)
     _tick(db)
-    my = client.get(f"/api/v1/chores/by-token/{a}").json()["my_shifts"]
+    my = client.get(f"/api/v1/chore/by-token/{a}").json()["my_shifts"]
     if not my:
         return
     shift_id = my[0]["id"]
     vols = _volunteers(client, organiser_headers, roster["id"])
     # Withdraw "Out" from the chore: an unenrolled volunteer can't take it.
     out_token = client.put(
-        f"/api/v1/chores/by-token/{_enroll(client, roster['slug'], 'Tmp', cid)}",
+        f"/api/v1/chore/by-token/{_enroll(client, roster['slug'], 'Tmp', cid)}",
         json={"display_name": "Tmp", "chore_ids": [], "email_reminders": False, "email": None},
     )
     assert out_token.status_code == 200
     tmp_id = _volunteers(client, organiser_headers, roster["id"])["Tmp"]["id"]
     r = client.post(
-        f"/api/v1/chores/{roster['id']}/shifts/{shift_id}/reassign",
+        f"/api/v1/chore/{roster['id']}/shifts/{shift_id}/reassign",
         headers=organiser_headers,
         json={"volunteer_id": tmp_id},
     )
@@ -284,7 +284,7 @@ def test_organiser_reassign_rejects_unenrolled_and_done(client, organiser_header
     db.query(Shift).filter(Shift.id == shift_id).update({"status": "done"})
     db.commit()
     r = client.post(
-        f"/api/v1/chores/{roster['id']}/shifts/{shift_id}/reassign",
+        f"/api/v1/chore/{roster['id']}/shifts/{shift_id}/reassign",
         headers=organiser_headers,
         json={"volunteer_id": vols["Out"]["id"]},
     )
@@ -296,8 +296,8 @@ def test_claim_records_as_picked_up(client, organiser_headers, db):
     cid = roster["chores"][0]["id"]
     _tick(db)  # no volunteers yet → shifts open
     token = _enroll(client, roster["slug"], "Late", cid)
-    open_shifts = client.get(f"/api/v1/chores/by-token/{token}").json()["open_shifts"]
-    client.post(f"/api/v1/chores/by-token/{token}/shifts/{open_shifts[0]['id']}/claim")
+    open_shifts = client.get(f"/api/v1/chore/by-token/{token}").json()["open_shifts"]
+    client.post(f"/api/v1/chore/by-token/{token}/shifts/{open_shifts[0]['id']}/claim")
     # A self-claim of an open slot is help beyond a WRH-assigned fair share.
     late = _volunteers(client, organiser_headers, roster["id"])["Late"]
     assert late["picked_up"] == 1

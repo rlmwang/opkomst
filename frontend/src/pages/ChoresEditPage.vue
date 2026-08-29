@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppButton from "@/components/AppButton.vue";
 import AppInput from "@/components/AppInput.vue";
-import Select from "primevue/select";
+import SelectField from "@/components/SelectField.vue";
 import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -89,8 +89,8 @@ const chores = choreListState.items;
 const submitting = ref(false);
 
 const localeOptions = computed(() => [
-  { value: "nl", label: t("chores.edit.localeNl") },
-  { value: "en", label: t("chores.edit.localeEn") },
+  { value: "nl", label: t("chore.edit.localeNl") },
+  { value: "en", label: t("chore.edit.localeEn") },
 ]);
 
 // --- Date <-> "YYYY-MM-DD" (local, no UTC shift) --------------------
@@ -125,12 +125,12 @@ watch(periodWeeks, (next, prev) => {
   for (const c of chores.value) {
     const kept = c.cycle_slots.filter((s) => s < hi);
     if (kept.length !== c.cycle_slots.length) {
-      affected.push(c.name || t("chores.edit.untitledChore"));
+      affected.push(c.name || t("chore.edit.untitledChore"));
       c.cycle_slots = kept;
     }
   }
   if (affected.length) {
-    toasts.warn(t("chores.edit.slotsCleared", { names: affected.join(", ") }));
+    toasts.warn(t("chore.edit.slotsCleared", { names: affected.join(", ") }));
   }
 });
 
@@ -316,9 +316,9 @@ function cancel(): void {
   clearDraft();
   if (cancelStart()) return;
   if (isEdit.value && props.rosterId) {
-    void router.push(`/chores/${props.rosterId}/details`);
+    void router.push(`/chore/${props.rosterId}/details`);
   } else {
-    void router.push("/chores");
+    void router.push("/chore");
   }
 }
 
@@ -327,20 +327,20 @@ async function submit() {
   // the other language is an optional translation.
   const primaryName = (rosterLocale.value === "en" ? nameEn.value : nameNl.value).trim();
   if (!primaryName) {
-    toasts.warn(t("chores.edit.fillName"));
+    toasts.warn(t("chore.edit.fillName"));
     return;
   }
   if (hasChapters.value && !chapterId.value) {
-    toasts.warn(t("chores.edit.fillChapter"));
+    toasts.warn(t("chore.edit.fillChapter"));
     return;
   }
   if (startActive.value && !validateStartEmail()) return;
   if (!startsOn.value) {
-    toasts.warn(t("chores.edit.fillStartsOn"));
+    toasts.warn(t("chore.edit.fillStartsOn"));
     return;
   }
   if (chores.value.some((c) => !c.name.trim())) {
-    toasts.warn(t("chores.edit.fillChoreName"));
+    toasts.warn(t("chore.edit.fillChoreName"));
     return;
   }
   submitting.value = true;
@@ -387,9 +387,9 @@ async function submit() {
         : await createMutation.mutateAsync(wirePayload);
     await imageField.value?.flushPendingUpload(result.id);
     clearDraft();
-    void router.push(`/chores/${result.id}/details`);
+    void router.push(`/chore/${result.id}/details`);
   } catch {
-    toasts.error(t("chores.edit.saveFailed"));
+    toasts.error(t("chore.edit.saveFailed"));
   } finally {
     submitting.value = false;
   }
@@ -401,9 +401,9 @@ async function submit() {
     <AppHeader />
     <div class="container-wide stack">
       <AppCard>
-        <h2>{{ t("chores.edit.notFoundTitle") }}</h2>
-        <p class="muted">{{ t("chores.edit.notFoundBody") }}</p>
-        <router-link to="/chores" class="back-link">{{ t("chores.edit.backToList") }}</router-link>
+        <h2>{{ t("chore.edit.notFoundTitle") }}</h2>
+        <p class="muted">{{ t("chore.edit.notFoundBody") }}</p>
+        <router-link to="/chore" class="back-link">{{ t("chore.edit.backToList") }}</router-link>
       </AppCard>
     </div>
   </template>
@@ -412,7 +412,7 @@ async function submit() {
     <AppHeader />
     <div class="container-wide stack">
       <AppCard>
-        <p>{{ t("chores.edit.loadFailed") }}</p>
+        <p>{{ t("chore.edit.loadFailed") }}</p>
       </AppCard>
     </div>
   </template>
@@ -421,8 +421,8 @@ async function submit() {
 
   <FormPageShell
     v-else
-    :title="isEdit ? t('chores.edit.editTitle') : t('chores.edit.newTitle')"
-    :submit-label="isEdit ? t('chores.edit.save') : t('chores.edit.create')"
+    :title="isEdit ? t('chore.edit.editTitle') : t('chore.edit.newTitle')"
+    :submit-label="isEdit ? t('chore.edit.save') : t('chore.edit.create')"
     :submitting="submitting"
     @submit="submit"
     @cancel="cancel"
@@ -432,21 +432,21 @@ async function submit() {
       <StartAccountField v-if="startActive" v-model="startEmail" />
       <AppInput
         v-model="title"
-        :placeholder="titleFallback || t('chores.edit.namePlaceholder')"
+        :placeholder="titleFallback || t('chore.edit.namePlaceholder')"
         fluid
       />
       <RichTextField
         v-model="body"
-        :placeholder="t('chores.edit.descriptionPlaceholder')"
+        :placeholder="t('chore.edit.descriptionPlaceholder')"
         :fallback-html="bodyFallback || null"
       />
-      <Select
+      <SelectField
         v-if="hasChapters"
         v-model="chapterId"
         :options="userChapterOptions"
         option-label="name"
         option-value="id"
-        :placeholder="t('chores.edit.chapterPlaceholder')"
+        :placeholder="t('chore.edit.chapterPlaceholder')"
         :disabled="userChapterOptions.length === 1 && chapterId !== null"
         fluid
       />
@@ -457,7 +457,7 @@ async function submit() {
     <ImageField
       v-if="!startActive"
       ref="imageField"
-      resource="chores"
+      resource="chore"
       :entity-id="props.rosterId ?? null"
       v-model:image-url="imageUrl"
       v-model:artist="imageArtistInstagram"
@@ -465,11 +465,11 @@ async function submit() {
 
     <!-- Recurrence + run window -->
     <section class="form-section">
-      <h2 class="section-heading">{{ t("chores.edit.recurrenceHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("chores.edit.recurrenceExplainer") }}</p>
+      <h2 class="section-heading">{{ t("chore.edit.recurrenceHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("chore.edit.recurrenceExplainer") }}</p>
 
       <div class="stepper-row">
-        <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chores.edit.periodWeeks')" />
+        <NumberStepper v-model="periodWeeks" :min="1" :max="8" :aria-label="t('chore.edit.periodWeeks')" />
       </div>
 
       <div class="date-row">
@@ -478,7 +478,7 @@ async function submit() {
             v-model="startsOn"
             :locale="locale"
             date-format="dd-mm-yy"
-            :placeholder="t('chores.edit.startDatePlaceholder')"
+            :placeholder="t('chore.edit.startDatePlaceholder')"
             fluid
           />
         </div>
@@ -488,7 +488,7 @@ async function submit() {
             :locale="locale"
             date-format="dd-mm-yy"
             show-button-bar
-            :placeholder="t('chores.edit.endsOnPlaceholder')"
+            :placeholder="t('chore.edit.endsOnPlaceholder')"
             fluid
           />
         </div>
@@ -498,11 +498,11 @@ async function submit() {
 
     <!-- Chores -->
     <section class="form-section">
-      <h2 class="section-heading">{{ t("chores.edit.choresHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("chores.edit.choresExplainer") }}</p>
+      <h2 class="section-heading">{{ t("chore.edit.choresHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("chore.edit.choresExplainer") }}</p>
 
-      <div v-if="chores.length === 0" class="empty muted">
-        {{ t("chores.edit.noChoresYet") }}
+      <div v-if="chore.length === 0" class="empty muted">
+        {{ t("chore.edit.noChoresYet") }}
       </div>
 
       <div class="chores-stack">
@@ -522,8 +522,8 @@ async function submit() {
 
       <AppButton
         type="button"
-        :label="t('chores.edit.addChore')"
-        icon="pi pi-plus"
+        :label="t('chore.edit.addChore')"
+        icon="plus"
         severity="secondary"
         @click="addChore"
       />
@@ -554,17 +554,17 @@ async function submit() {
       <section v-if="auth.participantMail" class="form-section">
         <label class="toggle-row" for="reminderToggle">
           <AppToggle v-model="reminderEnabled" inputId="reminderToggle" />
-          <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>
+          <h2 class="section-heading">{{ t("chore.edit.reminderEnabled") }}</h2>
         </label>
-        <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>
+        <p class="muted section-explainer">{{ t("chore.edit.remindersExplainer") }}</p>
 
         <div v-if="reminderEnabled" class="field">
-          <span class="field-label">{{ t("chores.edit.reminderDaysBefore") }}</span>
+          <span class="field-label">{{ t("chore.edit.reminderDaysBefore") }}</span>
           <NumberStepper
             v-model="reminderDaysBefore"
             :min="0"
             :max="14"
-            :aria-label="t('chores.edit.reminderDaysBefore')"
+            :aria-label="t('chore.edit.reminderDaysBefore')"
           />
         </div>
       </section>
@@ -573,22 +573,22 @@ async function submit() {
            part of the roster, so it belongs in here with the switches
            rather than in a fold of its own inside the dates. -->
       <section class="form-section">
-        <h2 class="section-heading">{{ t("chores.edit.commitHorizonDays") }}</h2>
-        <p class="muted section-explainer">{{ t("chores.edit.commitHorizonHint") }}</p>
+        <h2 class="section-heading">{{ t("chore.edit.commitHorizonDays") }}</h2>
+        <p class="muted section-explainer">{{ t("chore.edit.commitHorizonHint") }}</p>
         <NumberStepper
           v-model="commitHorizonDays"
           :min="reminderEnabled ? reminderDaysBefore : 1"
           :max="365"
-          :aria-label="t('chores.edit.commitHorizonDays')"
+          :aria-label="t('chore.edit.commitHorizonDays')"
         />
       </section>
     </details>
 
     <!-- Language -->
     <section class="form-section">
-      <h2 class="section-heading">{{ t("chores.edit.languageHeading") }}</h2>
-      <p class="muted section-explainer">{{ t("chores.edit.languageExplainer") }}</p>
-      <Select
+      <h2 class="section-heading">{{ t("chore.edit.languageHeading") }}</h2>
+      <p class="muted section-explainer">{{ t("chore.edit.languageExplainer") }}</p>
+      <SelectField
         v-model="rosterLocale"
         :options="localeOptions"
         option-label="label"

@@ -1,7 +1,7 @@
 ---
 title: Pubquiz maken zonder account of abonnement
 description: Een pubquiz maken en spelen zonder dat deelnemers een account maken en zonder abonnement. Vragen met punten, scores meteen na afloop.
-cta_path: /quizzes/new
+cta_path: /quiz/new
 cta_label: Maak een quiz
 order: 5
 ---

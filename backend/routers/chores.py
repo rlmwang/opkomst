@@ -1,6 +1,6 @@
 """Chapter-scoped chore-roster CRUD + organiser-side reads.
 
-Mirrors the events/forms/datepolls router shape: create, list active,
+Mirrors the events/form/datepoll router shape: create, list active,
 list archived, get, update, archive, restore, delete-when-archived,
 image. All require an approved user; all are scoped to the user's
 chapter via ``access.get_roster_for_user`` (single) or
@@ -41,7 +41,7 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/chores", tags=["chores"])
+router = APIRouter(prefix="/api/v1/chore", tags=["chores"])
 
 
 @router.post("", response_model=RosterOut, status_code=201)

@@ -85,7 +85,7 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    # Mirrors the events/forms list index.
+    # Mirrors the events/form list index.
     __table_args__ = (
         # The organiser's list: one tenant, the chapters its user
         # belongs to, newest first, with the ordering column in the

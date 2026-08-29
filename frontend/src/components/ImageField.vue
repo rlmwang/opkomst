@@ -131,7 +131,7 @@ defineExpose({ flushPendingUpload });
         <AppButton
           type="button"
           :label="t('imageField.replace')"
-          icon="pi pi-refresh"
+          icon="refresh"
           size="small"
           severity="secondary"
           :disabled="uploading"
@@ -140,7 +140,7 @@ defineExpose({ flushPendingUpload });
         <AppButton
           type="button"
           :label="t('imageField.remove')"
-          icon="pi pi-trash"
+          icon="trash"
           size="small"
           severity="secondary"
           text
@@ -153,7 +153,7 @@ defineExpose({ flushPendingUpload });
       v-else
       type="button"
       :label="uploading ? t('imageField.uploading') : t('imageField.upload')"
-      icon="pi pi-upload"
+      icon="upload"
       severity="secondary"
       :loading="uploading"
       @click="pick"

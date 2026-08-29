@@ -60,7 +60,7 @@ def _choice(prompt: str, pairs: list[tuple[str, str]], **extra: Any) -> dict[str
 
 def _create(client: Any, headers: Any, questions: list[dict[str, Any]], axes: Any = None, **extra: Any) -> Any:
     return client.post(
-        "/api/v1/compasses",
+        "/api/v1/compass",
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
@@ -81,7 +81,7 @@ def _compass(client: Any, headers: Any, questions: list[dict[str, Any]], **extra
 
 def _fill(client: Any, kompas: dict[str, Any], answers: list[dict[str, Any]], name: str | None = "Sam") -> Any:
     return client.post(
-        f"/api/v1/compasses/by-slug/{kompas['slug']}/submit",
+        f"/api/v1/compass/by-slug/{kompas['slug']}/submit",
         json={"display_name": name, "answers": answers},
     )
 
@@ -242,10 +242,10 @@ def test_moving_an_option_to_the_other_side_moves_the_dot(client, organiser_head
         kompas["questions"][1],
     ]
     body["axes"] = AXES
-    r = client.put(f"/api/v1/compasses/{kompas['id']}", headers=organiser_headers, json=body)
+    r = client.put(f"/api/v1/compass/{kompas['id']}", headers=organiser_headers, json=body)
     assert r.status_code == 200, r.text
 
-    again = client.get(f"/api/v1/compasses/by-token/{token}")
+    again = client.get(f"/api/v1/compass/by-token/{token}")
     assert again.json()["x"] == 1.0
 
 
@@ -275,7 +275,7 @@ def test_the_walk_never_learns_which_answer_points_where(client, organiser_heade
         organiser_headers,
         [_statement("Een", "x_high"), _choice("Waarheen?", [("A", "y_low"), ("B", "y_high")])],
     )
-    public = client.get(f"/api/v1/compasses/by-slug/{kompas['slug']}").json()
+    public = client.get(f"/api/v1/compass/by-slug/{kompas['slug']}").json()
     for question in public["questions"]:
         assert "pole" not in question
         assert "option_poles" not in question
@@ -294,7 +294,7 @@ def test_changing_your_mind_is_allowed_and_redraws_the_map(client, organiser_hea
     token = first["edit_token"]
 
     changed = client.put(
-        f"/api/v1/compasses/by-token/{token}",
+        f"/api/v1/compass/by-token/{token}",
         json={
             "display_name": "Kim",
             "answers": [
@@ -316,8 +316,8 @@ def test_withdrawing_takes_the_dot_off_the_map(client, organiser_headers) -> Non
     _fill(client, kompas, answers, "Sam")
     mine = _fill(client, kompas, answers, "Kim").json()
 
-    assert client.post(f"/api/v1/compasses/by-token/{mine['edit_token']}/withdraw").status_code == 204
-    summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+    assert client.post(f"/api/v1/compass/by-token/{mine['edit_token']}/withdraw").status_code == 204
+    summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
     assert [p["name"] for p in summary["compass"]["points"]] == ["Sam"]
 
 
@@ -334,7 +334,7 @@ def test_the_summary_says_where_the_room_sits_on_each_axis(client, organiser_hea
             [{"question_id": ids[0], "answer_int": given}, {"question_id": ids[1], "answer_int": 5}],
             name,
         )
-    summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
     x_axis = summary["compass"]["axes"][0]
     assert x_axis["axis"]["name"] == "Economie"
     # Two people, one at 1.0 and one at 0.0: the mean is 0.5 and two
@@ -353,7 +353,7 @@ def test_the_interval_narrows_as_the_room_agrees(client, organiser_headers) -> N
     ids = [q["id"] for q in kompas["questions"]]
 
     def x_axis() -> dict:
-        summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+        summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
         return summary["compass"]["axes"][0]
 
     for i in range(4):
@@ -384,7 +384,7 @@ def test_one_answer_has_a_mean_and_no_interval(client, organiser_headers) -> Non
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 5}], "Sam")
-    x_axis = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()["compass"][
+    x_axis = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()["compass"][
         "axes"
     ][0]
     assert (x_axis["average"], x_axis["ci_low"], x_axis["ci_high"]) == (1.0, 1.0, 1.0)
@@ -424,7 +424,7 @@ def test_the_csv_rows_carry_the_coordinates(client, organiser_headers) -> None:
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 1}])
-    rows = client.get(f"/api/v1/compasses/{kompas['id']}/submissions", headers=organiser_headers).json()
+    rows = client.get(f"/api/v1/compass/{kompas['id']}/submissions", headers=organiser_headers).json()
     assert (rows[0]["x"], rows[0]["y"]) == (1.0, -1.0)
 
 
@@ -481,6 +481,6 @@ def test_a_kompas_with_nothing_to_answer_is_refused(client, organiser_headers) -
 
 def test_a_kompas_is_not_reachable_through_the_forms_urls(client, organiser_headers) -> None:
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
-    assert client.get(f"/api/v1/forms/{kompas['id']}", headers=organiser_headers).status_code == 404
-    assert client.get(f"/api/v1/quizzes/by-slug/{kompas['slug']}").status_code == 410
-    assert [f["id"] for f in client.get("/api/v1/forms", headers=organiser_headers).json()] == []
+    assert client.get(f"/api/v1/form/{kompas['id']}", headers=organiser_headers).status_code == 404
+    assert client.get(f"/api/v1/quiz/by-slug/{kompas['slug']}").status_code == 410
+    assert [f["id"] for f in client.get("/api/v1/form", headers=organiser_headers).json()] == []

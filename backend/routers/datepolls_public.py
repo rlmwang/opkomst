@@ -38,7 +38,7 @@ PUBLIC_BASE_URL = str(settings.public_base_url).rstrip("/")
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/datepolls", tags=["datepolls"])
+router = APIRouter(prefix="/api/v1/datepoll", tags=["datepolls"])
 
 
 def _resolve_datepoll(db: Session, slug: str) -> Datepoll:
