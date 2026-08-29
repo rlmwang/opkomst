@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
 import { useQueryClient } from "@tanstack/vue-query";
 import { computed, ref } from "vue";
@@ -221,7 +221,7 @@ async function submitDelete() {
                 · {{ (item as Chapter).city }}
               </span>
             </span>
-            <Button
+            <AppButton
               icon="pi pi-pencil"
               size="small"
               severity="secondary"
@@ -268,8 +268,8 @@ async function submitDelete() {
         {{ t("chapters.deleteNoDeps") }}
       </p>
       <template #footer>
-        <Button :label="t('common.cancel')" severity="secondary" text @click="deleteDialog.close()" />
-        <Button :label="t('chapters.archive')" :loading="deleteDialog.submitting.value" @click="submitDelete" />
+        <AppButton :label="t('common.cancel')" severity="secondary" text @click="deleteDialog.close()" />
+        <AppButton :label="t('chapters.archive')" :loading="deleteDialog.submitting.value" @click="submitDelete" />
       </template>
     </AppDialog>
 
@@ -278,15 +278,15 @@ async function submitDelete() {
       :header="t('chapters.editDialogTitle', { name: editDialog.target.value?.name ?? '' })"
     >
       <p class="muted dialog-text">{{ t("chapters.editDialogBody") }}</p>
-      <InputText v-model="editName" :placeholder="t('chapters.namePlaceholder')" fluid />
-      <InputText v-model="editSlug" :placeholder="t('chapters.slugPlaceholder')" fluid />
+      <AppInput v-model="editName" :placeholder="t('chapters.namePlaceholder')" fluid />
+      <AppInput v-model="editSlug" :placeholder="t('chapters.slugPlaceholder')" fluid />
       <p class="muted dialog-text">
         {{ t("chapters.slugHelp", { tenant: brand().slug, slug: editSlug || "…" }) }}
       </p>
       <CityPicker v-model="editCity" :placeholder="t('chapters.cityPlaceholder')" />
       <template #footer>
-        <Button :label="t('common.cancel')" severity="secondary" text @click="editDialog.close()" />
-        <Button :label="t('common.save')" :loading="editDialog.submitting.value" @click="submitEditChapter" />
+        <AppButton :label="t('common.cancel')" severity="secondary" text @click="editDialog.close()" />
+        <AppButton :label="t('common.save')" :loading="editDialog.submitting.value" @click="submitEditChapter" />
       </template>
     </AppDialog>
   </div>

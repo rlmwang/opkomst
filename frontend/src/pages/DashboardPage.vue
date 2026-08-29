@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query";
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import MultiSelect from "primevue/multiselect";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -197,7 +197,7 @@ function askArchive(e: EventOut) {
             filter
             fluid
           />
-          <Button
+          <AppButton
             :label="t('dashboard.noChaptersCta')"
             :disabled="onboardingPicks.length === 0"
             :loading="onboardingSubmitting"
@@ -230,7 +230,7 @@ function askArchive(e: EventOut) {
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <Button :label="t('dashboard.newEvent')" icon="pi pi-plus" />
+        <AppButton :label="t('dashboard.newEvent')" icon="pi pi-plus" />
       </router-link>
     </template>
 
@@ -260,9 +260,9 @@ function askArchive(e: EventOut) {
 
         <template #actions>
           <router-link :to="`/events/${e.id}/details`">
-            <Button :label="t('dashboard.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            <AppButton :label="t('dashboard.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
           </router-link>
-          <Button
+          <AppButton
             :label="t('dashboard.archive')"
             icon="pi pi-archive"
             size="small"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
+import AppInput from "@/components/AppInput.vue";
 import { useI18n } from "vue-i18n";
 import type { CompassAxisIn } from "@/api/types";
 
@@ -82,14 +82,14 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
     <div v-for="axis in (['x', 'y'] as const)" :key="axis" class="axis-card">
       <h3 class="axis-heading">{{ t(`compasses.edit.axis${AXIS[axis]}`) }}</h3>
 
-      <InputText
+      <AppInput
         :model-value="axisAt(axis).name"
         :placeholder="copy(axis, 'axisNamePlaceholder')"
         :aria-label="copy(axis, 'axisNamePlaceholder')"
         fluid
         @update:model-value="(v) => patch(axis, 'name', v)"
       />
-      <InputText
+      <AppInput
         :model-value="axisAt(axis).description ?? ''"
         :placeholder="copy(axis, 'axisDescriptionPlaceholder')"
         :aria-label="copy(axis, 'axisDescriptionPlaceholder')"
@@ -102,7 +102,7 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
            words for a screen reader. -->
       <div v-for="side in SIDES[axis]" :key="side" class="side-row">
         <span class="side-arrow" :title="sideLabel(axis, side)" aria-hidden="true">{{ ARROW[axis][side] }}</span>
-        <InputText
+        <AppInput
           :model-value="side === 'low' ? axisAt(axis).low_name : axisAt(axis).high_name"
           :placeholder="copy(axis, side === 'low' ? 'lowNamePlaceholder' : 'highNamePlaceholder')"
           :aria-label="sideLabel(axis, side)"
@@ -151,7 +151,7 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
   color: var(--brand-text-muted);
   cursor: default;
 }
-.side-row :deep(.p-inputtext) {
+.side-row :deep(.app-input) {
   min-width: 0;
 }
 </style>

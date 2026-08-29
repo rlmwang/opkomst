@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useI18n } from "vue-i18n";
 
 defineProps<{
@@ -40,7 +40,7 @@ function ask(item: T) {
           <span>{{ itemLabel(item) }}</span>
         </slot>
       </div>
-      <Button
+      <AppButton
         icon="pi pi-trash"
         size="small"
         severity="secondary"
@@ -77,7 +77,7 @@ function ask(item: T) {
  * controls) keep their natural size. The previous ``> * { flex: 1 }``
  * stretched the trailing plus-button to 50% of the row width. */
 .add-row :deep(.p-autocomplete),
-.add-row :deep(.p-inputtext) {
+.add-row :deep(.app-input) {
   flex: 1;
   min-width: 0;
   width: 100%;

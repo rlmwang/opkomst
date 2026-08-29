@@ -14,13 +14,12 @@
  *  - ``pagehide`` listener below (browser tab close).
  *  - Server-side watchdog catches anything those two miss.
  */
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import Dialog from "primevue/dialog";
 import InputNumber from "primevue/inputnumber";
-import InputText from "primevue/inputtext";
-import ProgressBar from "primevue/progressbar";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import Textarea from "primevue/textarea";
+import AppTextarea from "@/components/AppTextarea.vue";
 import { computed, ref, watch } from "vue";
 import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -444,7 +443,7 @@ onBeforeUnmount(() => {
             ({{ t("whatsapp.connected.reconnecting") }})
           </span>
         </span>
-        <Button
+        <AppButton
           :label="t('whatsapp.connected.disconnect')"
           severity="secondary"
           text
@@ -462,9 +461,9 @@ onBeforeUnmount(() => {
         <div class="phone-config">
           <label class="phone-col">
             <span>{{ t("whatsapp.recipients.phoneColumnLabel") }}</span>
-            <InputText
+            <AppInput
               v-model="phoneColumn"
-              spellcheck="false"
+              :spellcheck="false"
               autocomplete="off"
               class="phone-col-input"
             />
@@ -496,9 +495,9 @@ onBeforeUnmount(() => {
           </label>
         </div>
 
-        <Textarea
+        <AppTextarea
           v-model="csvText"
-          rows="8"
+          :rows="8"
           class="csv-textarea"
         />
 
@@ -526,7 +525,7 @@ onBeforeUnmount(() => {
             {{ t("whatsapp.recipients.availableTags") }}
             <code v-for="tag in tags" :key="tag" class="tag">{{ "{" + tag + "}" }}</code>
           </p>
-          <Button
+          <AppButton
             v-if="hasPersistedProgress && !sending"
             :label="t('whatsapp.recipients.clear')"
             severity="secondary"
@@ -575,10 +574,10 @@ onBeforeUnmount(() => {
 
           <div class="compose-grid">
             <div class="compose-input">
-              <Textarea
+              <AppTextarea
                 ref="composeRef"
                 v-model="template"
-                rows="8"
+                :rows="8"
                 :placeholder="t('whatsapp.compose.placeholder')"
                 class="compose-textarea"
                 autoResize
@@ -621,7 +620,9 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-if="sending || finished" class="send-progress">
-            <ProgressBar :value="progress" />
+            <div class="progress" role="progressbar" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-fill" :style="{ width: `${progress}%` }"></div>
+            </div>
             <p class="progress-line">
               {{ sentCount }} {{ t("whatsapp.compose.sent") }},
               {{ failedCount }} {{ t("whatsapp.compose.failed") }}
@@ -636,25 +637,25 @@ onBeforeUnmount(() => {
           </p>
 
           <div class="send-controls">
-            <Button
+            <AppButton
               v-if="!sending && !finished"
               :label="t('whatsapp.compose.sendButton', { count: validRows.length })"
               :disabled="sendDisabled"
               @click="openConfirm"
             />
             <template v-if="sending">
-              <Button
+              <AppButton
                 v-if="!paused"
                 :label="t('whatsapp.compose.pause')"
                 severity="secondary"
                 @click="paused = true"
               />
-              <Button
+              <AppButton
                 v-else
                 :label="t('whatsapp.compose.resume')"
                 @click="paused = false"
               />
-              <Button
+              <AppButton
                 :label="t('whatsapp.compose.cancel')"
                 severity="danger"
                 text
@@ -710,7 +711,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div v-if="finished" class="download-row">
-            <Button
+            <AppButton
               :label="t('whatsapp.compose.download')"
               severity="secondary"
               @click="downloadResults"
@@ -736,13 +737,13 @@ onBeforeUnmount(() => {
         <span v-else v-html="previewHtml" />
       </div>
       <template #footer>
-        <Button
+        <AppButton
           :label="t('common.cancel')"
           severity="secondary"
           text
           @click="confirmOpen = false"
         />
-        <Button
+        <AppButton
           :label="t('whatsapp.compose.confirmAccept', { count: validRows.length })"
           @click="acceptConfirm"
         />
@@ -881,7 +882,7 @@ onBeforeUnmount(() => {
 }
 /* Lock the height so a big paste scrolls inside the box rather
  * than pushing the rest of the page down. ``resize: none`` keeps
- * the box at the ``rows="8"`` initial height; the user can scroll
+ * the box at the ``:rows="8"`` initial height; the user can scroll
  * inside it but not drag the corner. */
 .csv-textarea :deep(textarea) {
   resize: none;
@@ -1015,6 +1016,19 @@ onBeforeUnmount(() => {
 .confirm-bubble {
   max-height: 18rem;
   overflow-y: auto;
+}
+/* The send bar. One call site, so it lives here rather than becoming a
+ * component with a single consumer. */
+.progress {
+  height: 1.125rem;
+  background: var(--brand-surface-200);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--brand-primary-500);
+  transition: width 0.2s;
 }
 .progress-line {
   margin: 0.5rem 0 0;

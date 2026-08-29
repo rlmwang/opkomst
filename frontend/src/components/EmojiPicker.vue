@@ -49,7 +49,7 @@ export function firstUnusedEmoji(used: Iterable<string>): string {
  * chores (cleaning, kitchen, tools, logistics) and rounds out with the
  * organising/comms staples the blast tool needs — no library, no search.
  */
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
 
 <template>
   <span ref="root" class="emoji-picker">
-    <Button
+    <AppButton
       type="button"
       severity="secondary"
       text
@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
     >
       <span v-if="modelValue" class="emoji-current">{{ modelValue }}</span>
       <i v-else class="pi pi-face-smile" />
-    </Button>
+    </AppButton>
     <div v-if="open" class="emoji-panel" role="dialog">
       <div class="emoji-grid">
         <button

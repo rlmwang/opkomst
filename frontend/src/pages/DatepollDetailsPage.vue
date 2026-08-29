@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -237,7 +237,7 @@ async function exportCsv() {
         <div class="summary-header">
           <h2>{{ t("datepolls.details.resultsTitle") }}</h2>
           <div class="header-actions">
-            <Button
+            <AppButton
               :label="t('datepolls.details.exportCsv')"
               size="small"
               severity="secondary"

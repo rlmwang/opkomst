@@ -493,11 +493,11 @@ onBeforeUnmount(() => {
    * differ on screen. */
   box-shadow: 0 0 #0000, 0 0 #0000, 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition:
-    background 0.2s,
-    color 0.2s,
-    border-color 0.2s,
-    outline-color 0.2s,
-    box-shadow 0.2s;
+    background 120ms,
+    color 120ms,
+    border-color 120ms,
+    outline-color 120ms,
+    box-shadow 120ms;
   outline-color: transparent;
   appearance: none;
 }
@@ -572,8 +572,8 @@ onBeforeUnmount(() => {
   color: var(--brand-text-muted);
   cursor: pointer;
   transition:
-    background 0.2s,
-    color 0.2s;
+    background 120ms,
+    color 120ms;
 }
 .dp-navbtn:hover {
   background: color-mix(in srgb, var(--brand-border) 60%, transparent);
@@ -618,11 +618,11 @@ onBeforeUnmount(() => {
   outline-color: transparent;
   color: var(--brand-text);
   transition:
-    background 0.2s,
-    color 0.2s,
-    border-color 0.2s,
-    box-shadow 0.2s,
-    outline-color 0.2s;
+    background 120ms,
+    color 120ms,
+    border-color 120ms,
+    box-shadow 120ms,
+    outline-color 120ms;
 }
 .dp-day:not(.dp-day-selected):not(.dp-day-other):hover {
   background: color-mix(in srgb, var(--brand-border) 60%, transparent);
@@ -669,7 +669,7 @@ onBeforeUnmount(() => {
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 120ms;
 }
 .dp-barbtn:hover {
   background: color-mix(in srgb, var(--brand-red) 8%, transparent);

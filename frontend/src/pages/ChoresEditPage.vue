@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -430,7 +430,7 @@ async function submit() {
     <!-- Basics -->
     <section class="form-section">
       <StartAccountField v-if="startActive" v-model="startEmail" />
-      <InputText
+      <AppInput
         v-model="title"
         :placeholder="titleFallback || t('chores.edit.namePlaceholder')"
         fluid
@@ -520,7 +520,7 @@ async function submit() {
         />
       </div>
 
-      <Button
+      <AppButton
         type="button"
         :label="t('chores.edit.addChore')"
         icon="pi pi-plus"
@@ -541,7 +541,7 @@ async function submit() {
            an organiser is likeliest to switch on. -->
       <section class="form-section">
         <label class="toggle-row" for="nameRequiredToggle">
-          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <AppToggle v-model="nameRequired" inputId="nameRequiredToggle" />
           <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
@@ -553,7 +553,7 @@ async function submit() {
            all. -->
       <section v-if="auth.participantMail" class="form-section">
         <label class="toggle-row" for="reminderToggle">
-          <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+          <AppToggle v-model="reminderEnabled" inputId="reminderToggle" />
           <h2 class="section-heading">{{ t("chores.edit.reminderEnabled") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("chores.edit.remindersExplainer") }}</p>

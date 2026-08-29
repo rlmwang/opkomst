@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
 import ListPageView from "@/components/ListPageView.vue";
@@ -52,8 +52,8 @@ const {
           </h3>
         </div>
         <div class="archive-row-actions">
-          <Button :label="L('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(f)" />
-          <Button
+          <AppButton :label="L('archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(f)" />
+          <AppButton
             icon="pi pi-trash"
             size="small"
             severity="secondary"

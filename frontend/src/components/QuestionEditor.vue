@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import EditableList from "@/components/EditableList.vue";
@@ -266,14 +266,14 @@ function removeOption(opt: string) {
            facts about the question rather than about its wording, so
            both belong on this row. -->
       <label v-if="!scored" class="required-row">
-        <ToggleSwitch
+        <AppToggle
           :model-value="modelValue.required"
           @update:model-value="(v) => patch('required', v)"
         />
         <span>{{ t("forms.question.required") }}</span>
       </label>
       <label v-if="gradable" class="points-field">
-        <InputText
+        <AppInput
           class="points-input"
           :model-value="String(modelValue.points)"
           inputmode="numeric"
@@ -282,7 +282,7 @@ function removeOption(opt: string) {
         <span class="muted points-label">{{ t("quizzes.question.points") }}</span>
       </label>
       <div class="header-actions">
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-arrow-up"
           size="small"
@@ -292,7 +292,7 @@ function removeOption(opt: string) {
           :aria-label="t('forms.question.moveUp')"
           @click="emit('moveUp')"
         />
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-arrow-down"
           size="small"
@@ -302,7 +302,7 @@ function removeOption(opt: string) {
           :aria-label="t('forms.question.moveDown')"
           @click="emit('moveDown')"
         />
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-trash"
           size="small"
@@ -314,7 +314,7 @@ function removeOption(opt: string) {
       </div>
     </div>
 
-    <InputText
+    <AppInput
       :model-value="modelValue.prompt"
       :placeholder="t('forms.question.promptPlaceholder')"
       fluid
@@ -325,13 +325,13 @@ function removeOption(opt: string) {
          renders blank on the public form — the right choice for
          a generic 1..5 scale. -->
     <div v-if="isRating" class="scale-row">
-      <InputText
+      <AppInput
         :model-value="modelValue.low_label ?? ''"
         :placeholder="t('forms.question.lowLabel')"
         fluid
         @update:model-value="(v) => patch('low_label', v ? v : null)"
       />
-      <InputText
+      <AppInput
         :model-value="modelValue.high_label ?? ''"
         :placeholder="t('forms.question.highLabel')"
         fluid
@@ -364,7 +364,7 @@ function removeOption(opt: string) {
     <div v-if="isNumber" class="field-row">
       <label class="field">
         <span class="field-label muted">{{ t("forms.question.minValue") }}</span>
-        <InputText
+        <AppInput
           :model-value="modelValue.min_value === null ? '' : String(modelValue.min_value)"
           inputmode="numeric"
           fluid
@@ -373,7 +373,7 @@ function removeOption(opt: string) {
       </label>
       <label class="field">
         <span class="field-label muted">{{ t("forms.question.maxValue") }}</span>
-        <InputText
+        <AppInput
           :model-value="modelValue.max_value === null ? '' : String(modelValue.max_value)"
           inputmode="numeric"
           fluid
@@ -382,7 +382,7 @@ function removeOption(opt: string) {
       </label>
       <label class="field">
         <span class="field-label muted">{{ t("forms.question.step") }}</span>
-        <InputText
+        <AppInput
           :model-value="modelValue.step === null ? '' : String(modelValue.step)"
           inputmode="numeric"
           fluid
@@ -446,13 +446,13 @@ function removeOption(opt: string) {
           </span>
         </template>
         <template #add>
-          <InputText
+          <AppInput
             v-model="newOption"
             :placeholder="t('forms.question.newOption')"
             fluid
             @keydown.enter.prevent="addOption"
           />
-          <Button
+          <AppButton
             type="button"
             icon="pi pi-plus"
             size="small"
@@ -470,7 +470,7 @@ function removeOption(opt: string) {
     <div v-if="gradable && (modelValue.kind === 'rating' || modelValue.kind === 'number')" class="field-row">
       <label class="field">
         <span class="field-label muted">{{ t("quizzes.question.correctNumber") }}</span>
-        <InputText
+        <AppInput
           :model-value="modelValue.correct_int === null ? '' : String(modelValue.correct_int)"
           inputmode="numeric"
           fluid
@@ -479,7 +479,7 @@ function removeOption(opt: string) {
       </label>
       <label v-if="modelValue.kind === 'number'" class="field">
         <span class="field-label muted">{{ t("quizzes.question.tolerance") }}</span>
-        <InputText
+        <AppInput
           :model-value="modelValue.tolerance === null ? '' : String(modelValue.tolerance)"
           inputmode="numeric"
           fluid
@@ -543,7 +543,7 @@ function removeOption(opt: string) {
   display: flex;
   gap: 0.5rem;
 }
-.scale-row :deep(.p-inputtext) { flex: 1; }
+.scale-row :deep(.app-input) { flex: 1; }
 .options-block {
   display: flex;
   flex-direction: column;

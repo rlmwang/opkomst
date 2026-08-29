@@ -11,7 +11,7 @@
  * of both numbers, saved on one button, because that is what the
  * endpoint takes.
  */
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
@@ -113,7 +113,7 @@ async function submit() {
       </div>
 
       <div v-if="canEdit" class="save-row">
-        <Button
+        <AppButton
           type="submit"
           :label="t('common.save')"
           :disabled="!dirty"

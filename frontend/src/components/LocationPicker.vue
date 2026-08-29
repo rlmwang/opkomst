@@ -3,7 +3,7 @@ import AutoComplete, {
   type AutoCompleteCompleteEvent,
   type AutoCompleteOptionSelectEvent,
 } from "primevue/autocomplete";
-import InputText from "primevue/inputtext";
+import AppInput from "@/components/AppInput.vue";
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { type LocationPick, type NominatimResult, useNominatim } from "@/composables/useNominatim";
@@ -149,7 +149,7 @@ async function onHouseNumberBlur() {
         <div class="suggestion">{{ (option as NominatimResult).display_name }}</div>
       </template>
     </AutoComplete>
-    <InputText
+    <AppInput
       v-if="picked"
       v-model="houseNumber"
       :placeholder="t('event.houseNumber')"

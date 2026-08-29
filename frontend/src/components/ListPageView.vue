@@ -146,7 +146,7 @@ const filtered = computed(() => {
   }
   /* The slotted "+ New …" link wraps its button, so the width
    * has to be pushed through to the button itself. */
-  .actions-row :deep(.p-button) {
+  .actions-row :deep(.app-btn) {
     width: 100%;
     justify-content: center;
   }

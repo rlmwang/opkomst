@@ -3,8 +3,6 @@ import AutoComplete, {
   type AutoCompleteCompleteEvent,
   type AutoCompleteOptionSelectEvent,
 } from "primevue/autocomplete";
-import IconField from "primevue/iconfield";
-import InputIcon from "primevue/inputicon";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { Chapter } from "@/api/types";
@@ -29,7 +27,7 @@ const props = defineProps<{
    * create / restore branches. */
   disabled?: boolean;
   /** Leading PrimeIcons class (e.g. ``pi pi-plus``). When set, the
-   * input is wrapped in an IconField so the icon sits inside the
+   * input carries the icon inside the
    * input on the left — matching ``SearchInput`` visually. */
   leadingIcon?: string;
 }>();
@@ -77,8 +75,8 @@ function onEnter() {
 </script>
 
 <template>
-  <IconField v-if="leadingIcon">
-    <InputIcon :class="leadingIcon" />
+  <div v-if="leadingIcon" class="icon-field">
+    <i :class="leadingIcon" class="field-icon" aria-hidden="true"></i>
     <AutoComplete
       v-model="local"
       :suggestions="suggestions"
@@ -98,7 +96,7 @@ function onEnter() {
         </div>
       </template>
     </AutoComplete>
-  </IconField>
+  </div>
   <AutoComplete
     v-else
     v-model="local"
@@ -122,6 +120,28 @@ function onEnter() {
 </template>
 
 <style scoped>
+/* The leading icon inside the field. PrimeVue's IconField was a
+ * wrapper, an absolutely-positioned icon and padding on the input;
+ * written here rather than imported. */
+.icon-field {
+  position: relative;
+  display: block;
+}
+.field-icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 0.75rem;
+  margin-top: -0.5rem;
+  color: var(--brand-surface-400);
+  line-height: 1;
+  z-index: 1;
+}
+/* Twice the field's own inline padding, plus the icon. Still targets
+ * PrimeVue's input because the field inside is AutoComplete; task 03
+ * replaces it. */
+.icon-field :deep(.p-inputtext) {
+  padding-inline-start: 2.5rem;
+}
 .option {
   display: flex;
   justify-content: space-between;

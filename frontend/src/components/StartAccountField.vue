@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
+import AppInput from "@/components/AppInput.vue";
 import { useI18n } from "vue-i18n";
 
 /**
@@ -16,7 +16,7 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <InputText
+  <AppInput
     v-model="model"
     type="email"
     name="email"

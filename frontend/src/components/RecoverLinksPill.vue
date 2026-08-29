@@ -11,7 +11,7 @@
  * Pages stay thin: they hand in the pill count/label, a lazy row
  * loader, the recover endpoint path, and the public URL builder.
  */
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import Popover from "primevue/popover";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -104,7 +104,7 @@ async function confirmCopy() {
           v-tooltip.top="t('recoverLink.recoveredOn', { date: formatDate(row.recoveredAt, locale) })"
           >{{ t("recoverLink.recoveredMark") }}</span
         >
-        <Button
+        <AppButton
           icon="pi pi-link"
           size="small"
           severity="secondary"
@@ -125,7 +125,7 @@ async function confirmCopy() {
   >
     <p class="rlp-confirm">{{ t("recoverLink.confirmBody", { name: pending?.name || t("recoverLink.anonymous") }) }}</p>
     <template #footer>
-      <Button
+      <AppButton
         :label="t('common.cancel')"
         size="small"
         severity="secondary"
@@ -133,7 +133,7 @@ async function confirmCopy() {
         :disabled="busy"
         @click="pending = null"
       />
-      <Button :label="t('recoverLink.confirm')" size="small" :loading="busy" @click="confirmCopy" />
+      <AppButton :label="t('recoverLink.confirm')" size="small" :loading="busy" @click="confirmCopy" />
     </template>
   </AppDialog>
 </template>

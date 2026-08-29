@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -593,7 +593,7 @@ async function submit() {
   >
       <section class="form-section">
         <StartAccountField v-if="startActive" v-model="startEmail" />
-        <InputText
+        <AppInput
           v-model="title"
           :placeholder="titleFallback || t('event.name')"
           fluid
@@ -662,7 +662,7 @@ async function submit() {
            offer. -->
       <section v-if="hasChapters" class="form-section">
         <label class="toggle-row" for="listedToggle">
-          <ToggleSwitch v-model="listed" inputId="listedToggle" />
+          <AppToggle v-model="listed" inputId="listedToggle" />
           <h2 class="section-heading">{{ t("event.listedToggle") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("event.listedHelp") }}</p>
@@ -680,7 +680,7 @@ async function submit() {
         <!-- The switch turns the whole block on, so it sits in front of
              the heading rather than on a line of its own under it. -->
         <label class="toggle-row" for="repeatToggle">
-          <ToggleSwitch v-model="repeats" inputId="repeatToggle" />
+          <AppToggle v-model="repeats" inputId="repeatToggle" />
           <h2 class="section-heading">{{ t("event.repeatHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("event.repeatExplainer") }}</p>
@@ -696,7 +696,7 @@ async function submit() {
           <CycleGridPicker v-model="cycleSlots" :period-weeks="periodWeeks" />
 
           <label class="toggle-row">
-            <ToggleSwitch v-model="openEnded" />
+            <AppToggle v-model="openEnded" />
             <span class="toggle-label">{{ t("event.span.openEnded") }}</span>
           </label>
           <div v-if="!openEnded" class="repeat-row">
@@ -712,7 +712,7 @@ async function submit() {
            one is about the event itself, the other is about us. -->
       <section class="form-section">
         <label class="toggle-row" for="helpToggle">
-          <ToggleSwitch v-model="helpEnabled" inputId="helpToggle" />
+          <AppToggle v-model="helpEnabled" inputId="helpToggle" />
           <h2 class="section-heading">{{ t("event.helpHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("event.helpExplainer") }}</p>
@@ -724,13 +724,13 @@ async function submit() {
           @remove="(s: string) => removeHelp(helpOptions.indexOf(s))"
         >
           <template #add>
-            <InputText
+            <AppInput
               v-model="newHelp"
               :placeholder="t('event.newHelp')"
               fluid
               @keydown.enter.prevent="addHelp"
             />
-            <Button
+            <AppButton
               type="button"
               icon="pi pi-plus"
               size="small"
@@ -744,7 +744,7 @@ async function submit() {
 
       <section class="form-section">
         <label class="toggle-row" for="sourcesToggle">
-          <ToggleSwitch v-model="sourceEnabled" inputId="sourcesToggle" />
+          <AppToggle v-model="sourceEnabled" inputId="sourcesToggle" />
           <h2 class="section-heading">{{ t("event.sourcesHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("event.sourcesExplainer") }}</p>
@@ -756,13 +756,13 @@ async function submit() {
           @remove="(s: string) => removeSource(sources.indexOf(s))"
         >
           <template #add>
-            <InputText
+            <AppInput
               v-model="newSource"
               :placeholder="t('event.newSource')"
               fluid
               @keydown.enter.prevent="addSource"
             />
-            <Button
+            <AppButton
               type="button"
               icon="pi pi-plus"
               size="small"
@@ -781,7 +781,7 @@ async function submit() {
       <template v-if="auth.participantMail">
         <section class="form-section">
           <label class="toggle-row" for="reminderToggle">
-            <ToggleSwitch v-model="reminderEnabled" inputId="reminderToggle" />
+            <AppToggle v-model="reminderEnabled" inputId="reminderToggle" />
             <h2 class="section-heading">{{ t("event.reminderToggle") }}</h2>
           </label>
           <p class="muted section-explainer">{{ t("event.reminderHelp") }}</p>
@@ -789,7 +789,7 @@ async function submit() {
 
         <section class="form-section">
           <label class="toggle-row" for="questionnaireToggle">
-            <ToggleSwitch v-model="feedbackEnabled" inputId="questionnaireToggle" />
+            <AppToggle v-model="feedbackEnabled" inputId="questionnaireToggle" />
             <h2 class="section-heading">{{ t("event.questionnaireToggle") }}</h2>
           </label>
           <p class="muted section-explainer">{{ t("event.questionnaireHelp") }}</p>
@@ -801,7 +801,7 @@ async function submit() {
            are only useful attached to somebody. -->
       <section class="form-section">
         <label class="toggle-row" for="nameRequiredToggle">
-          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <AppToggle v-model="nameRequired" inputId="nameRequiredToggle" />
           <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
@@ -812,7 +812,7 @@ async function submit() {
            being acted on and has to stop moving. -->
       <section class="form-section">
         <label class="toggle-row" for="editableToggle">
-          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <AppToggle v-model="answersEditable" inputId="editableToggle" />
           <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>

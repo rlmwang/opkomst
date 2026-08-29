@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import { onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { ApiError } from "@/api/client";
@@ -128,7 +128,7 @@ defineExpose({ flushPendingUpload });
     <div v-if="imageUrl || previewUrl" class="image-preview">
       <img :src="imageUrl ?? previewUrl ?? ''" :alt="t('imageField.alt')" />
       <div class="image-actions">
-        <Button
+        <AppButton
           type="button"
           :label="t('imageField.replace')"
           icon="pi pi-refresh"
@@ -137,7 +137,7 @@ defineExpose({ flushPendingUpload });
           :disabled="uploading"
           @click="pick"
         />
-        <Button
+        <AppButton
           type="button"
           :label="t('imageField.remove')"
           icon="pi pi-trash"
@@ -149,7 +149,7 @@ defineExpose({ flushPendingUpload });
         />
       </div>
     </div>
-    <Button
+    <AppButton
       v-else
       type="button"
       :label="uploading ? t('imageField.uploading') : t('imageField.upload')"
@@ -160,7 +160,7 @@ defineExpose({ flushPendingUpload });
     />
     <!-- Artist credit. Empty = no credit shown anywhere. The backend
          strips a leading ``@`` if pasted. -->
-    <InputText v-model="artist" :placeholder="t('imageField.artistPlaceholder')" fluid />
+    <AppInput v-model="artist" :placeholder="t('imageField.artistPlaceholder')" fluid />
   </section>
 </template>
 

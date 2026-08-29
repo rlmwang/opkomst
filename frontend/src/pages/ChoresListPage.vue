@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query";
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -123,7 +123,7 @@ function askArchive(r: RosterListOut) {
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <Button :label="t('chores.list.newRoster')" icon="pi pi-plus" />
+        <AppButton :label="t('chores.list.newRoster')" icon="pi pi-plus" />
       </router-link>
     </template>
 
@@ -152,9 +152,9 @@ function askArchive(r: RosterListOut) {
 
         <template #actions>
           <router-link :to="`/chores/${r.id}/details`">
-            <Button :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            <AppButton :label="t('chores.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
           </router-link>
-          <Button
+          <AppButton
             :label="t('chores.list.archive')"
             icon="pi pi-archive"
             size="small"

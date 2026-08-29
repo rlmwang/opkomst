@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -576,7 +576,7 @@ async function submit() {
   >
     <section class="form-section">
       <StartAccountField v-if="startActive" v-model="startEmail" />
-      <InputText
+      <AppInput
         v-model="title"
         :placeholder="titleFallback || t('datepolls.edit.namePlaceholder')"
         fluid
@@ -763,7 +763,7 @@ async function submit() {
            only useful attached to somebody. -->
       <section class="form-section">
         <label class="toggle-row" for="nameRequiredToggle">
-          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <AppToggle v-model="nameRequired" inputId="nameRequiredToggle" />
           <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
@@ -771,7 +771,7 @@ async function submit() {
 
       <section class="form-section">
         <label class="toggle-row" for="editableToggle">
-          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <AppToggle v-model="answersEditable" inputId="editableToggle" />
           <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>

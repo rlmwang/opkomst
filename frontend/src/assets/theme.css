@@ -316,29 +316,10 @@
     max-width: calc(100vw - 1rem);
   }
 
-  /* Secondary buttons in the brand-red family at low saturation:
-   * soft-pink fill, red border, red text. Stand out clearly against
-   * the cream surfaces without competing with primary buttons. Targets
-   * both the solid and outlined variants from PrimeVue. */
-  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link) {
-    background: var(--brand-red-soft);
-    color: var(--brand-red);
-    border: 1px solid var(--brand-red-soft-border);
-  }
-  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover {
-    background: var(--brand-red-soft-hover);
-    color: var(--brand-red-strong);
-    border-color: var(--brand-red);
-  }
-  .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):active {
-    background: var(--brand-red-soft-active);
-    color: var(--brand-primary-900);
-    border-color: var(--brand-red);
-  }
-
-  /* The same soft-pink secondary as a plain class, for the public
-   * mini-apps (no PrimeVue). An add / low-emphasis action shares one look
-   * across admin and public. */
+  /* The soft-pink secondary as a plain class, for the public mini-apps,
+   * which import no components from ``src/components``. The organiser
+   * app's own is ``AppButton``'s ``secondary`` severity; the two are
+   * the same look and both read the tokens below. */
   .btn-secondary {
     display: inline-flex;
     align-items: center;
@@ -365,19 +346,6 @@
     opacity: 0.6;
     cursor: default;
   }
-  /* Text-variant secondary: red text, soft-pink hover wash. */
-  .p-button.p-button-secondary.p-button-text {
-    color: var(--brand-red);
-  }
-  .p-button.p-button-secondary.p-button-text:hover {
-    background: var(--brand-red-soft);
-    color: var(--brand-red-strong);
-  }
-  .p-button.p-button-secondary.p-button-text:active {
-    background: var(--brand-red-soft-hover);
-    color: var(--brand-primary-900);
-  }
-
   .privacy-notice {
     font-size: 0.875rem;
     color: var(--brand-text-muted);

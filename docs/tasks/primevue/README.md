@@ -46,13 +46,17 @@ when the chore page's date fields became `DatePicker.vue`.
 
 | # | Task | What goes | Depends on |
 |---|---|---|---|
-| 01 | [Plain controls](01-plain-controls.md) | Button, InputText, Textarea, ToggleSwitch, ProgressBar, IconField, InputIcon | none |
+| 01 | Plain controls *(landed; spec deleted)* | Button, InputText, Textarea, ToggleSwitch, ProgressBar, IconField, InputIcon | none |
 | 02 | [The ones we already own](02-house-equivalents.md) | Toast, InputNumber, Dialog, ConfirmDialog, Tooltip | 01 |
 | 03 | [Overlay lists](03-overlay-lists.md) | Select, MultiSelect, AutoComplete, Popover, then PrimeVue itself | 01, 02 |
 
 01 and 02 are independent of each other in principle. 02 lists after 01
 because both touch the same pages and doing them together means one pass
 over each file.
+
+**Counting call sites, not files.** Task 01's spec said 61 call sites and
+the real number was 135, because the first count was of import
+statements. Button alone is 78. Count tags before estimating.
 
 ## Where the reference lives
 
@@ -163,3 +167,23 @@ done; echo "$tot gz"
 
 Record the before and after in each task's commit message, as the
 DatePicker and Sentry commits do.
+
+## Deferred, so it is not lost
+
+**The app has three buttons, and should have one.** Task 01 built
+`AppButton` to Aura's geometry: `0.5rem 0.75rem` padding, `500` label
+weight. `theme.css` has `.btn-secondary` at `0.4rem 0.875rem`, and
+`public_shared/forms.css` has `.btn-primary` at `0.625rem 1.5rem` with
+`600` weight and an `8rem` minimum, plus a plain `.btn`. They disagree on
+padding, weight and gap.
+
+That is not task 01's to settle, because the other two are what the
+public mini-apps render and changing them changes public pages. It is a
+question about the whole app's button, worth asking on its own once the
+organiser side has stopped moving. Raise it after task 03.
+
+**The form-field colours still read the PrimeVue ramp.** Task 01 kept
+`--brand-surface-200` borders and `--brand-surface-900` text on
+`AppInput`, `AppTextarea` and `AppToggle`, because they sit beside
+PrimeVue `Select` and `AutoComplete` until task 03. Task 03's phase 3
+moves them to `--brand-border` and `--brand-text`.

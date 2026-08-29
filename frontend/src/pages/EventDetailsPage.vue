@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -379,7 +379,7 @@ function askTriggerNow(channel: EmailChannel) {
                     <span v-if="s.help_choices.includes(opt)" class="help-chip">{{ opt }}</span>
                   </span>
                   <span class="row-count signup-count">{{ s.party_size }}</span>
-                  <Button
+                  <AppButton
                     icon="pi pi-trash"
                     size="small"
                     severity="secondary"
@@ -422,7 +422,7 @@ function askTriggerNow(channel: EmailChannel) {
         <div class="summary-header">
           <h2>{{ t("feedback.summary.title") }}</h2>
           <div class="header-actions">
-            <Button
+            <AppButton
               :label="t('feedback.summary.exportCsv')"
               size="small"
               severity="secondary"
@@ -437,7 +437,7 @@ function askTriggerNow(channel: EmailChannel) {
               target="_blank"
               rel="noopener"
             >
-              <Button :label="t('feedback.preview.open')" size="small" severity="secondary" text icon="pi pi-eye" />
+              <AppButton :label="t('feedback.preview.open')" size="small" severity="secondary" text icon="pi pi-eye" />
             </a>
           </div>
         </div>
@@ -501,7 +501,7 @@ function askTriggerNow(channel: EmailChannel) {
             {{ triggerDisabledReason(channel) }}
           </p>
           <div class="send-now-row">
-            <Button
+            <AppButton
               :label="t(`event.sendNow.${channel}.button`)"
               icon="pi pi-send"
               :disabled="!canTrigger(channel) || triggering !== null"

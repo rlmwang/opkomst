@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -70,7 +70,7 @@ async function submit() {
       <h1>{{ t("auth.completeTitle") }}</h1>
       <p class="muted">{{ t("auth.completeBody") }}</p>
       <form class="stack" method="post" action="" novalidate @submit.prevent="submit">
-        <InputText
+        <AppInput
           v-model="name"
           name="name"
           :placeholder="t('auth.name')"
@@ -78,7 +78,7 @@ async function submit() {
           autofocus
           fluid
         />
-        <Button type="submit" :label="t('auth.completeSubmit')" :loading="submitting" />
+        <AppButton type="submit" :label="t('auth.completeSubmit')" :loading="submitting" />
       </form>
     </AppCard>
   </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -51,13 +51,13 @@ async function copy() {
         <a :href="started.public_url" target="_blank" rel="noopener">{{ started.public_url }}</a>
       </p>
       <div class="actions">
-        <Button
+        <AppButton
           :label="t('start.openIt')"
           severity="secondary"
           text
           @click="open"
         />
-        <Button :label="t('start.copyLink')" icon="pi pi-link" @click="copy" />
+        <AppButton :label="t('start.copyLink')" icon="pi pi-link" @click="copy" />
       </div>
     </AppCard>
   </div>

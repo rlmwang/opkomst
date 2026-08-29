@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query";
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -128,7 +128,7 @@ function askArchive(p: DatepollListOut) {
           query: chapterFilter ? { chapter: chapterFilter } : undefined,
         }"
       >
-        <Button :label="t('datepolls.list.newDatepoll')" icon="pi pi-plus" />
+        <AppButton :label="t('datepolls.list.newDatepoll')" icon="pi pi-plus" />
       </router-link>
     </template>
 
@@ -157,9 +157,9 @@ function askArchive(p: DatepollListOut) {
 
         <template #actions>
           <router-link :to="`/datepolls/${p.id}/details`">
-            <Button :label="t('datepolls.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
+            <AppButton :label="t('datepolls.list.details')" icon="pi pi-info-circle" size="small" severity="secondary" />
           </router-link>
-          <Button
+          <AppButton
             :label="t('datepolls.list.archive')"
             icon="pi pi-archive"
             size="small"

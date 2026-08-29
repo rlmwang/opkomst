@@ -9,8 +9,8 @@
  * roster-level ``periodWeeks``. Per-row move/delete mirror
  * ``QuestionEditor`` so both sit on the same ``useOrderedList`` parent.
  */
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import { useI18n } from "vue-i18n";
 import CycleGridPicker from "@/components/CycleGridPicker.vue";
 import EmojiPicker from "@/components/EmojiPicker.vue";
@@ -54,14 +54,14 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
       <span class="emoji-slot">
         <EmojiPicker :model-value="modelValue.emoji" @select="(e) => patch('emoji', e)" />
       </span>
-      <InputText
+      <AppInput
         :model-value="modelValue.name"
         :placeholder="t('chores.edit.choreNamePlaceholder')"
         fluid
         @update:model-value="(v) => patch('name', v ?? '')"
       />
       <div class="header-actions">
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-arrow-up"
           size="small"
@@ -71,7 +71,7 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
           :aria-label="t('chores.edit.moveUp')"
           @click="emit('moveUp')"
         />
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-arrow-down"
           size="small"
@@ -81,7 +81,7 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
           :aria-label="t('chores.edit.moveDown')"
           @click="emit('moveDown')"
         />
-        <Button
+        <AppButton
           type="button"
           icon="pi pi-trash"
           size="small"
@@ -93,7 +93,7 @@ function patch<K extends keyof ChoreDraft>(key: K, value: ChoreDraft[K]): void {
       </div>
     </div>
 
-    <InputText
+    <AppInput
       :model-value="modelValue.description ?? ''"
       :placeholder="t('chores.edit.choreDescriptionPlaceholder')"
       fluid

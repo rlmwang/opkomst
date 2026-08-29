@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
 import AppCard from "@/components/AppCard.vue";
@@ -55,8 +55,8 @@ const {
           </h3>
         </div>
         <div class="archive-row-actions">
-          <Button :label="t('chores.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(r)" />
-          <Button
+          <AppButton :label="t('chores.archived.restore')" icon="pi pi-replay" size="small" severity="secondary" @click="restoreItem(r)" />
+          <AppButton
             icon="pi pi-trash"
             size="small"
             severity="secondary"

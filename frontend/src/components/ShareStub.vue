@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 
 /**
  * The ticket stub: the public URL and its QR, the two things an organiser
@@ -40,7 +40,7 @@ defineEmits<{ "copy-link": []; "copy-qr": [] }>();
   <div class="share-stub">
     <div v-if="publicUrl" class="link-row">
       <a :href="publicUrl" target="_blank" rel="noopener">{{ publicUrl }}</a>
-      <Button
+      <AppButton
         icon="pi pi-copy"
         size="small"
         severity="secondary"

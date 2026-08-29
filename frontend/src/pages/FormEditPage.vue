@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -532,7 +532,7 @@ async function submit() {
   >
     <section class="form-section">
       <StartAccountField v-if="startActive" v-model="startEmail" />
-      <InputText
+      <AppInput
         v-model="title"
         :placeholder="titleFallback || L('edit.namePlaceholder')"
         fluid
@@ -602,7 +602,7 @@ async function submit() {
         />
       </div>
 
-      <Button
+      <AppButton
         type="button"
         :label="L('edit.addQuestion')"
         icon="pi pi-plus"
@@ -622,7 +622,7 @@ async function submit() {
            only useful attached to somebody. -->
       <section class="form-section">
         <label class="toggle-row" for="nameRequiredToggle">
-          <ToggleSwitch v-model="nameRequired" inputId="nameRequiredToggle" />
+          <AppToggle v-model="nameRequired" inputId="nameRequiredToggle" />
           <h2 class="section-heading">{{ t("common.nameRequired") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("common.nameRequiredExplainer") }}</p>
@@ -632,7 +632,7 @@ async function submit() {
            edit at all, so it gets the reveal switch instead. -->
       <section v-if="!isQuiz" class="form-section">
         <label class="toggle-row" for="editableToggle">
-          <ToggleSwitch v-model="answersEditable" inputId="editableToggle" />
+          <AppToggle v-model="answersEditable" inputId="editableToggle" />
           <h2 class="section-heading">{{ t("forms.edit.editableHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("forms.edit.editableExplainer") }}</p>
@@ -640,7 +640,7 @@ async function submit() {
 
       <section v-if="isQuiz" class="form-section">
         <label class="toggle-row" for="revealToggle">
-          <ToggleSwitch v-model="revealAnswers" inputId="revealToggle" />
+          <AppToggle v-model="revealAnswers" inputId="revealToggle" />
           <h2 class="section-heading">{{ t("quizzes.edit.revealHeading") }}</h2>
         </label>
         <p class="muted section-explainer">{{ t("quizzes.edit.revealExplainer") }}</p>

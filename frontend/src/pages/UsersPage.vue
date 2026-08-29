@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import MultiSelect from "primevue/multiselect";
-import ToggleSwitch from "primevue/toggleswitch";
+import AppToggle from "@/components/AppToggle.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
@@ -300,14 +300,14 @@ async function submitUserEdit() {
             <span v-if="u.is_approved && u.role === 'admin'" class="admin-chip">{{ t("admin.adminToggle") }}</span>
           </div>
           <div class="account-actions">
-            <Button
+            <AppButton
               v-if="!u.is_approved"
               :label="t('admin.approve')"
               size="small"
               :disabled="!canApprove(u)"
               @click="openApprove(u)"
             />
-            <Button
+            <AppButton
               v-if="u.is_approved"
               icon="pi pi-pencil"
               size="small"
@@ -317,7 +317,7 @@ async function submitUserEdit() {
               :aria-label="t('admin.userEditDialogTitle', { name: u.name })"
               @click="openEdit(u)"
             />
-            <Button
+            <AppButton
               icon="pi pi-trash"
               size="small"
               severity="secondary"
@@ -360,7 +360,7 @@ async function submitUserEdit() {
       </p>
       <label class="reassign-label">
         {{ t("auth.name") }}
-        <InputText
+        <AppInput
           v-model="userEditName"
           autocomplete="off"
           fluid
@@ -391,15 +391,15 @@ async function submitUserEdit() {
         class="admin-toggle"
         :class="{ disabled: !userEditTarget || !canTogglePromotion(userEditTarget) }"
       >
-        <ToggleSwitch
+        <AppToggle
           v-model="userEditIsAdmin"
           :disabled="!userEditTarget || !canTogglePromotion(userEditTarget)"
         />
         <span>{{ t("admin.adminToggle") }}</span>
       </label>
       <template #footer>
-        <Button :label="t('common.cancel')" severity="secondary" text @click="userEditOpen = false" />
-        <Button
+        <AppButton :label="t('common.cancel')" severity="secondary" text @click="userEditOpen = false" />
+        <AppButton
           :label="userEditMode === 'approve' ? t('admin.approve') : t('common.save')"
           :disabled="
             !userEditName.trim() ||
@@ -499,7 +499,7 @@ async function submitUserEdit() {
 /* PrimeVue's disabled ToggleSwitch defaults to ``not-allowed``; force
  * the default arrow so hovering the user's own self-toggle doesn't
  * flash a "blocked" cursor. */
-.admin-toggle.disabled :deep(.p-toggleswitch) {
+.admin-toggle.disabled :deep(.app-toggle) {
   cursor: default;
 }
 .dialog-text {

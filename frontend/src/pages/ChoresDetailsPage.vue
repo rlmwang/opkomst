@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useLocalizedText } from "@/composables/useLocalizedText";
@@ -240,7 +240,7 @@ function dateWindow(): string {
       <AppCard>
         <div class="summary-header">
           <h2>{{ t("chores.details.scheduleHeading") }}</h2>
-          <Button
+          <AppButton
             v-if="hasPending"
             :label="t('chores.details.foldIn')"
             icon="pi pi-user-plus"
@@ -301,7 +301,7 @@ function dateWindow(): string {
         :no-change-label="t('chores.details.foldInNoneMonth')"
       />
       <template #footer>
-        <Button
+        <AppButton
           :label="t('common.cancel')"
           size="small"
           severity="secondary"
@@ -309,7 +309,7 @@ function dateWindow(): string {
           :disabled="rebalancing"
           @click="showFoldIn = false"
         />
-        <Button
+        <AppButton
           :label="t('chores.details.foldInConfirm')"
           size="small"
           :loading="rebalancing"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useI18n } from "vue-i18n";
 import type { RouteLocationRaw } from "vue-router";
 import AppCard from "@/components/AppCard.vue";
@@ -51,7 +51,7 @@ const { t } = useI18n();
       <div v-if="descriptionHtml" class="richtext" v-html="descriptionHtml"></div>
       <div class="edit-row">
         <router-link :to="editTo">
-          <Button :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
+          <AppButton :label="t('common.edit')" icon="pi pi-pencil" size="small" severity="secondary" />
         </router-link>
       </div>
     </div>

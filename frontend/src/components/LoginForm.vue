@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
+import AppButton from "@/components/AppButton.vue";
+import AppInput from "@/components/AppInput.vue";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useToasts } from "@/lib/toasts";
@@ -65,7 +65,7 @@ async function submit() {
        that; we deliberately don't claim ``"username webauthn"``, since
        neither side of that pair is doing any work. -->
   <form v-else class="login-form" method="post" action="" novalidate @submit.prevent="submit">
-    <InputText
+    <AppInput
       v-model="email"
       type="email"
       name="email"
@@ -73,7 +73,7 @@ async function submit() {
       autocomplete="email"
       fluid
     />
-    <Button type="submit" :label="t('auth.sendLink')" :loading="submitting" />
+    <AppButton type="submit" :label="t('auth.sendLink')" :loading="submitting" />
   </form>
 </template>
 
@@ -85,12 +85,12 @@ async function submit() {
   gap: 0.5rem;
   align-items: center;
 }
-.login-form :deep(.p-inputtext) {
+.login-form :deep(.app-input) {
   flex: 1 1 auto;
 }
 /* The label is two words; let it keep its line rather than wrapping
  * into a two-line button next to a one-line field. */
-.login-form :deep(.p-button) {
+.login-form :deep(.app-btn) {
   flex: 0 0 auto;
   white-space: nowrap;
 }

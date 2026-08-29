@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Button from "primevue/button";
+import AppButton from "@/components/AppButton.vue";
 import { useI18n } from "vue-i18n";
 import AppCard from "@/components/AppCard.vue";
 import AppHeader from "@/components/AppHeader.vue";
@@ -52,14 +52,14 @@ const { t } = useI18n();
         <!-- An aside, opposite the primary action: it asks, it does not
              compete. Renders nothing unless a support URL is set. -->
         <SupportButtons class="form-footer-support" />
-        <Button
+        <AppButton
           :label="cancelLabel ?? t('common.cancel')"
           severity="secondary"
           text
           type="button"
           @click="emit('cancel')"
         />
-        <Button type="submit" :label="submitLabel" :loading="submitting" />
+        <AppButton type="submit" :label="submitLabel" :loading="submitting" />
       </div>
     </AppCard>
   </div>

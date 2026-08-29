@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import Textarea from "primevue/textarea";
+import AppButton from "@/components/AppButton.vue";
+import AppTextarea from "@/components/AppTextarea.vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
@@ -151,18 +151,18 @@ async function submit() {
             :label-high="ratingLabel(q, 'High')"
             @update:model-value="ratings[q.key] = $event"
           />
-          <Textarea
+          <AppTextarea
             v-else
             v-model="texts[q.key]"
             :placeholder="textPlaceholder(q)"
             :maxlength="500"
-            rows="3"
+            :rows="3"
             auto-resize
             fluid
           />
         </AppCard>
         <div class="submit-row">
-          <Button
+          <AppButton
             type="submit"
             :label="t('feedback.submit')"
             :loading="submitting"
