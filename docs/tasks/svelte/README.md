@@ -3,6 +3,10 @@
 A proposal, then a plan. The decision is taken; what follows is how to
 take it without a six-week stop.
 
+**Phase 0 has landed and the number is in.** `public-chapter` went from
+46,871 gz to 29,968, a saving of 36%. See the phase list below for what
+that measured and what it cost.
+
 ## Why
 
 `vue-core` is **32,626 gz** and it is on all eight entries. After the
@@ -94,16 +98,44 @@ change in shape.
 Each one leaves the suite green and the app shippable, the way the
 PrimeVue series did.
 
-**0. Spike, and get a real number.** Port `public-chapter` and nothing
-else. It is the smallest entry: 5 files, 543 lines, 46,871 gz today, of
-which 32,626 is Vue. It shares `PublicShell`, `BrandMark` and
-`PublicIdentity` with the other six, so porting it ports the shared
-floor as well.
+**0. Spike, and get a real number.** *(Landed.)* Ported
+`public-chapter` and nothing else. It is the smallest entry: 5 files,
+543 lines, 46,871 gz before, of which 32,626 was Vue. It shares
+`PublicShell`, `BrandMark`, `PublicIdentity`, `PublicNotice`, `AdSlot`,
+`AdUnit`, `Colophon` and `AppToast` with the other six, so porting it
+ported the shared floor as well: 9 components and the entry.
 
-Measure the built entry against the number above and write it down. If
-the saving is not most of the 32.6 kB, stop and say so before anybody
-touches the other 30,000 lines. Nothing below is worth doing on an
-assumption.
+**46,871 gz to 29,968 gz. A saving of 16,903, which is 36% of the
+page.**
+
+Less than the 32.6 kB of runtime that left, and that difference is the
+trade the proposal named: Svelte's compiled components are larger than
+Vue's templates, so roughly half the runtime saving is spent buying the
+components back. On this entry the app's own code went from about 14 kB
+across seven chunks to 22.4 kB in one. On a bigger entry that ratio gets
+worse, which is the thing to watch in phase 1 and the reason phases 2 to
+4 are worth less than their line count suggests.
+
+The verdict is go. 36% off the page a stranger actually loads is worth
+having, and it comes with fewer moving parts rather than more.
+
+Three things the spike found:
+
+- **`@sveltejs/vite-plugin-svelte@7` wants Vite 8.** Pinned to `^6.2.4`,
+  which peers on Vite 7. A Vite major does not belong in a measurement.
+- **`lib/toast.ts` had to stop being Vue.** Both halves of the app show
+  toasts from the one module-level queue, so it is now a plain array and
+  a set of listeners, and each `AppToast` keeps its own reactive copy.
+  That pattern is the general answer for anything in `lib/` that a
+  Svelte component and a Vue component both use.
+- **Svelte's compiler found an a11y bug the Vue version shipped.** The
+  event card's poster credit was a `<figcaption>` that was not inside a
+  `<figure>`. Fixed in the port.
+
+**Checking, while both are in the tree.** `vue-tsc` cannot read a
+`.svelte` and `svelte-check` cannot read a `.vue`, so they get a config
+each: `tsconfig.svelte.json` lists the directories Svelte owns and grows
+as phase 1 does. `npm run check` runs both.
 
 **1. The public half.** The other six entries, in ascending order of
 size: `public-form`, `public-quiz`, `public-compass`,

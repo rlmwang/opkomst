@@ -2,6 +2,7 @@
 import { request as httpRequest } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import vue from "@vitejs/plugin-vue";
 import { defineConfig, type Plugin } from "vite";
 
@@ -403,6 +404,10 @@ function brandDevInjection(): Plugin {
 export default defineConfig({
   plugins: [
     vue(),
+    // Both, while the front end moves across (``docs/tasks/svelte``).
+    // A ``.vue`` and a ``.svelte`` of the same name can sit side by
+    // side because the import names the extension.
+    svelte(),
     brandDevInjection(),
     organiserAppDevRoute(),
     publicEventDevRoute(),

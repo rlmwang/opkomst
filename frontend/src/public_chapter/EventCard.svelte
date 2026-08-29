@@ -1,5 +1,4 @@
-<script setup lang="ts">
-import { computed } from "vue";
+<script lang="ts">
 import { brand } from "@/lib/branding";
 import { formatDateShortWeekday, formatTimeRange } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
@@ -9,83 +8,90 @@ import type { EventCard } from "./api";
 import { strings } from "./i18n";
 
 // One event in the agenda grid: a full-bleed poster (or the muted
-// organisation logo as the default) topping the card, then the date/time,
-// location, title, topic,
-// and the sign-up CTA. The whole card isn't a single anchor because the
-// poster carries its own credit link; the title and CTA are the links.
-const props = defineProps<{ event: EventCard; locale: Locale; past?: boolean }>();
+// organisation logo as the default) topping the card, then the date and
+// time, location, title, topic, and the sign-up CTA. The whole card is
+// not a single anchor because the poster carries its own credit link;
+// the title and CTA are the links.
+const {
+  event,
+  locale,
+  past,
+}: { event: EventCard; locale: Locale; past?: boolean } = $props();
 
 const b = brand();
-const t = computed(() => strings(props.locale));
-const c = computed(() => chromeStrings(props.locale));
-const href = computed(() => `/e/${props.event.slug}`);
-const title = computed(() =>
-  resolveText(props.event.name_nl, props.event.name_en, props.locale),
-);
-const topic = computed(() =>
-  resolveText(props.event.topic_nl, props.event.topic_en, props.locale),
-);
-// A one-off event is "sessie 1 van 1" — pure noise, so no badge. Only a
-// real series (finite ``> 1``, or open-ended ``null``) earns one.
-const sessionBadge = computed(() => {
-  if (props.event.total_sessions === 1) return null;
-  return props.event.total_sessions === null
-    ? t.value.sessionOpen(props.event.index + 1)
-    : t.value.sessionOf(props.event.index + 1, props.event.total_sessions);
+const t = $derived(strings(locale));
+const c = $derived(chromeStrings(locale));
+const href = $derived(`/e/${event.slug}`);
+const title = $derived(resolveText(event.name_nl, event.name_en, locale));
+const topic = $derived(resolveText(event.topic_nl, event.topic_en, locale));
+// A one-off event is "sessie 1 van 1", which is pure noise, so no badge.
+// Only a real series (finite ``> 1``, or open-ended ``null``) earns one.
+const sessionBadge = $derived.by(() => {
+  if (event.total_sessions === 1) return null;
+  return event.total_sessions === null
+    ? t.sessionOpen(event.index + 1)
+    : t.sessionOf(event.index + 1, event.total_sessions);
 });
-
 </script>
 
-<template>
-  <article class="event-card card" :class="{ past }">
-    <div class="card-media">
-      <img v-if="event.image_url" :src="event.image_url" alt="" class="card-media__img" />
-      <div v-else class="card-media__placeholder" aria-hidden="true">
-        <img :src="b.logo_url" alt="" />
+<article class="event-card card" class:past>
+  <figure class="card-media">
+    {#if event.image_url}
+      <img src={event.image_url} alt="" class="card-media__img" />
+    {:else}
+      <div class="card-media__placeholder" aria-hidden="true">
+        <img src={b.logo_url} alt="" />
       </div>
-      <span v-if="sessionBadge" class="session-badge">{{ sessionBadge }}</span>
-      <figcaption v-if="event.image_url && event.image_artist_instagram" class="card-credit">
-        {{ c.imageCredit }}
+    {/if}
+    {#if sessionBadge}<span class="session-badge">{sessionBadge}</span>{/if}
+    {#if event.image_url && event.image_artist_instagram}
+      <figcaption class="card-credit">
+        {c.imageCredit}
         <a
-          :href="`https://instagram.com/${event.image_artist_instagram}`"
+          href="https://instagram.com/{event.image_artist_instagram}"
           target="_blank"
           rel="noopener"
-        >@{{ event.image_artist_instagram }}</a>
+        >@{event.image_artist_instagram}</a>
       </figcaption>
-    </div>
+    {/if}
+  </figure>
 
-    <div class="card-meta">
-      <p class="card-when">
-        {{ formatDateShortWeekday(event.starts_at, locale) }} ·
-        {{ formatTimeRange(event.starts_at, event.ends_at, locale) }}
-      </p>
-      <p v-if="event.location" class="card-where">
+  <div class="card-meta">
+    <p class="card-when">
+      {formatDateShortWeekday(event.starts_at, locale)} &middot;
+      {formatTimeRange(event.starts_at, event.ends_at, locale)}
+    </p>
+    {#if event.location}
+      <p class="card-where">
         <a
-          :href="mapLink({ location: event.location, latitude: null, longitude: null })"
+          href={mapLink({ location: event.location, latitude: null, longitude: null })}
           target="_blank"
           rel="noopener"
           class="meta-link"
-        >{{ event.location }}</a>
+        >{event.location}</a>
       </p>
-    </div>
+    {/if}
+  </div>
 
-    <div class="card-body">
-      <h2 class="card-title">
-        <a :href="href">{{ title }}</a>
-      </h2>
-      <div v-if="topic" class="richtext card-topic" v-html="topic"></div>
+  <div class="card-body">
+    <h2 class="card-title">
+      <a {href}>{title}</a>
+    </h2>
+    {#if topic}<div class="richtext card-topic">{@html topic}</div>{/if}
 
-      <div class="card-foot">
-        <span v-if="past" class="muted card-came">
-          {{ event.attendee_count ? t.attendees(event.attendee_count) : "" }}
+    <div class="card-foot">
+      {#if past}
+        <span class="muted card-came">
+          {event.attendee_count ? t.attendees(event.attendee_count) : ""}
         </span>
-        <a v-else :href="href" class="btn-primary card-cta">{{ t.signUp }}</a>
-      </div>
+      {:else}
+        <a {href} class="btn-primary card-cta">{t.signUp}</a>
+      {/if}
     </div>
-  </article>
-</template>
+  </div>
+</article>
 
-<style scoped>
+<style>
 /* No card padding: the poster is flush to the card's edges, so we pad the
  * body instead and clip everything to the card's radius. Poster left,
  * words right — a 4:5 poster running the full width of the card outweighs
@@ -107,6 +113,9 @@ const sessionBadge = computed(() => {
  * artist credit. */
 .card-media {
   position: relative;
+  /* A ``figure``, because it holds the poster's ``figcaption`` credit.
+     The browser's own margin on one would break the grid. */
+  margin: 0;
   grid-column: 1;
   grid-row: 1 / span 2;
   align-self: start;

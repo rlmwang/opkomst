@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node", "svelte"]
+  },
+  // ``svelte-check`` reads every file its config includes, and it has no
+  // idea what a ``.vue`` is, so a ``.ts`` that imports a type out of one
+  // comes back as an error that ``vue-tsc`` does not report. Until the
+  // last ``.vue`` is gone (``docs/tasks/svelte``) the two checkers get a
+  // config each: this one lists the directories Svelte owns.
+  "include": [
+    "src/vite-env.d.ts",
+    "src/public_shared/**/*.svelte",
+    "src/public_chapter/**/*",
+    "src/components/AppToast.svelte"
+  ]
+}

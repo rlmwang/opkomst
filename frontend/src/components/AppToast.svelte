@@ -1,46 +1,51 @@
-<script setup lang="ts">
+<script lang="ts">
 /** Renders the app's toast queue (``lib/toast.ts``). Mounted once in
- *  ``App.vue`` for the organiser app and once in ``PublicShell.vue`` for
+ *  ``App.vue`` for the organiser app and once in ``PublicShell`` for
  *  the public mini-apps, so both share one region and one look. */
-import { onUnmounted, shallowRef } from "vue";
+import { onMount } from "svelte";
+import { fly } from "svelte/transition";
 
 import { currentToasts, subscribeToasts, type Toast } from "@/lib/toast";
 
 // The queue is a plain module (``lib/toast``); this is one reactive
 // view of it.
-const toasts = shallowRef<readonly Toast[]>(currentToasts());
-onUnmounted(subscribeToasts(() => {
-  toasts.value = currentToasts();
-}));
+let toasts = $state<readonly Toast[]>(currentToasts());
+onMount(() =>
+  subscribeToasts(() => {
+    toasts = currentToasts();
+  }),
+);
 </script>
 
-<template>
-  <div class="toast-region" aria-live="assertive" role="alert">
-    <TransitionGroup name="toast">
-      <div v-for="t in toasts" :key="t.id" class="toast">
-        <!-- One colour for every kind; the icon is what says which it
-             is. Colour-coding three shades of the same message is noise
-             when toasts are this rare. -->
-        <span v-if="t.kind" class="toast-icon" aria-hidden="true">
+<div class="toast-region" aria-live="assertive" role="alert">
+  {#each toasts as t (t.id)}
+    <div class="toast" transition:fly={{ y: -8, duration: 180 }}>
+      <!-- One colour for every kind; the icon is what says which it is.
+           Colour-coding three shades of the same message is noise when
+           toasts are this rare. -->
+      {#if t.kind}
+        <span class="toast-icon" aria-hidden="true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <template v-if="t.kind === 'success'"><path d="M20 6L9 17l-5-5" /></template>
-            <template v-else-if="t.kind === 'warn'">
+            {#if t.kind === "success"}
+              <path d="M20 6L9 17l-5-5" />
+            {:else if t.kind === "warn"}
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <path d="M12 9v4" /><path d="M12 17h.01" />
-            </template>
-            <template v-else><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></template>
+            {:else}
+              <circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" />
+            {/if}
           </svg>
         </span>
-        <span class="toast-text">
-          <span class="toast-summary">{{ t.message }}</span>
-          <span v-if="t.detail" class="toast-detail">{{ t.detail }}</span>
-        </span>
-      </div>
-    </TransitionGroup>
-  </div>
-</template>
+      {/if}
+      <span class="toast-text">
+        <span class="toast-summary">{t.message}</span>
+        {#if t.detail}<span class="toast-detail">{t.detail}</span>{/if}
+      </span>
+    </div>
+  {/each}
+</div>
 
-<style scoped>
+<style>
 .toast-region {
   position: fixed;
   top: 1rem;
@@ -90,14 +95,5 @@ onUnmounted(subscribeToasts(() => {
  * accent, so the summary still reads first. */
 .toast-detail {
   color: var(--brand-text-muted);
-}
-.toast-enter-active,
-.toast-leave-active {
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(-0.5rem);
 }
 </style>
