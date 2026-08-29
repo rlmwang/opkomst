@@ -204,24 +204,27 @@ def test_archive_then_restore(client, organiser_headers):
     assert r2.json()["archived"] is False
 
 
-def test_archive_already_archived_409s(client, organiser_headers):
+def test_archiving_twice_is_a_404(client, organiser_headers):
+    """The first archive moves the form out of ``forms``; the second has
+    nothing live to find."""
     form = _create_form(client, organiser_headers)
     client.post(f"/api/v1/forms/{form['id']}/archive", headers=organiser_headers)
     r = client.post(f"/api/v1/forms/{form['id']}/archive", headers=organiser_headers)
-    assert r.status_code == 409
+    assert r.status_code == 404
 
 
-def test_restore_unarchived_409s(client, organiser_headers):
+def test_restoring_something_live_is_a_404(client, organiser_headers):
     form = _create_form(client, organiser_headers)
     r = client.post(f"/api/v1/forms/{form['id']}/restore", headers=organiser_headers)
-    assert r.status_code == 409
+    assert r.status_code == 404
 
 
 def test_delete_only_after_archive(client, organiser_headers):
     form = _create_form(client, organiser_headers)
-    # Live form delete refused.
+    # A live form is not in the archive, so the delete route cannot find
+    # it: archiving first is still the only way to delete.
     r = client.delete(f"/api/v1/forms/{form['id']}", headers=organiser_headers)
-    assert r.status_code == 409
+    assert r.status_code == 404
 
     client.post(f"/api/v1/forms/{form['id']}/archive", headers=organiser_headers)
     r = client.delete(f"/api/v1/forms/{form['id']}", headers=organiser_headers)

@@ -404,17 +404,21 @@ def test_archive_event_happy_path(client, organiser_headers):
     assert r.status_code == 200
 
 
-def test_archive_already_archived_returns_409(client, organiser_headers):
+def test_archiving_twice_is_a_404(client, organiser_headers):
+    """Archiving moves the event out of ``events``, so the second call
+    has nothing live to find. It used to be a 409 on a row that was
+    still there with a date on it."""
     event = _new_event(client, organiser_headers)
     client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
     r = client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
-    assert r.status_code == 409
+    assert r.status_code == 404
 
 
-def test_restore_not_archived_returns_409(client, organiser_headers):
+def test_restoring_something_live_is_a_404(client, organiser_headers):
+    """Nothing in the archive answers to that id."""
     event = _new_event(client, organiser_headers)
     r = client.post(f"/api/v1/events/{event['id']}/restore", headers=organiser_headers)
-    assert r.status_code == 409
+    assert r.status_code == 404
 
 
 def test_restore_archived_event_happy_path(client, organiser_headers):

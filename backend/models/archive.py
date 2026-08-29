@@ -26,10 +26,13 @@ one more thing to forget. ``docs/design-archive-tables.md`` is the why.
 """
 
 from collections import defaultdict, deque
+from datetime import datetime
 
-from sqlalchemy import Column, MetaData, Table
+from sqlalchemy import Column, DateTime, Index, MetaData, Table, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
+from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 
 # The four things an organiser archives. Everything else in the archive
 # is there because it hangs off one of them.
@@ -40,6 +43,36 @@ ARCHIVABLE_ROOTS: tuple[str, ...] = ("events", "forms", "datepolls", "rosters")
 # (the tenancy audit, the seed, a naive "delete everything" in a test).
 # Alembic is pointed at both.
 archive_metadata = MetaData()
+
+
+class ArchiveIndex(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One row per archived item: what it was, and when it was archived.
+
+    A live table, not a twin. The twins are mirrors and cannot carry a
+    column their live table lacks, so the fact of archiving needs
+    somewhere of its own — and once ``archived_at`` leaves the live
+    models there is nowhere else for it.
+
+    It is also what the archive list reads: ``root`` and ``archived_at``
+    order and filter it without opening a twin, and ``entity_id`` is the
+    key that fetches the item itself when somebody asks for one.
+
+    ``entity_id`` is deliberately not a foreign key. The row it names is
+    in the archive, which is exactly the set of rows no key can point
+    at."""
+
+    __tablename__ = "archive_index"
+
+    # ``events`` / ``forms`` / ``datepolls`` / ``rosters``: the table the
+    # item's own row lives in, and the root of the graph that moved.
+    root: Mapped[str] = mapped_column(Text, nullable=False)
+    entity_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        # The archive page: one root, newest first, within a tenant.
+        Index("ix_archive_index_tenant_root_archived", "tenant_id", "root", "archived_at"),
+    )
 
 
 def _dependents() -> dict[str, set[str]]:
@@ -95,8 +128,22 @@ def archive_name(table: str) -> str:
     return f"{table}_archive"
 
 
-# Built once, at import: every table any root can reach, plus the roots.
-MIRRORED: tuple[str, ...] = tuple(dict.fromkeys(name for names in archived_tables().values() for name in names))
+# Filled by ``build_mirrors()``.
+MIRRORED: tuple[str, ...] = ()
 
-for _name in MIRRORED:
-    _mirror(Base.metadata.tables[_name])
+
+def build_mirrors() -> tuple[str, ...]:
+    """Generate the twins. Called once, from ``models/__init__.py``,
+    after every model is registered.
+
+    Not at import time: this module reads the foreign keys of tables it
+    does not define, and at its own import half of them do not exist
+    yet. Being called last is the only ordering that can work, so it is
+    the ordering, rather than an import cycle nobody can follow."""
+    global MIRRORED
+    if MIRRORED:
+        return MIRRORED
+    MIRRORED = tuple(dict.fromkeys(name for names in archived_tables().values() for name in names))
+    for name in MIRRORED:
+        _mirror(Base.metadata.tables[name])
+    return MIRRORED

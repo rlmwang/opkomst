@@ -84,13 +84,8 @@ def list_archived_rosters(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[RosterListOut]:
-    rows = (
-        db.query(Roster)
-        .filter(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_not(None))
-        .order_by(Roster.archived_at.desc())
-        .all()
-    )
-    return chores_svc.enrich(db, rows)
+    # Archived rosters live in the twins now, ordered by when they left.
+    return chores_svc.archived_enrich(db, access.archived_rows(db, "rosters", user, chapter_id))
 
 
 @router.get("/{roster_id}", response_model=RosterOut)
@@ -336,8 +331,10 @@ def archive_roster(
     user: User = Depends(require_approved),
 ) -> RosterOut:
     roster = access.get_roster_for_user(db, roster_id, user)
-    crud.archive(db, roster, log_event="roster_archived", actor_id=user.id)
-    return chores_svc.to_out(db, roster)
+    # Projected before the move: afterwards there is no live row to read.
+    out = chores_svc.to_out(db, roster)
+    crud.archive_entity(db, roster, root="rosters", log_event="roster_archived", actor_id=user.id)
+    return out.model_copy(update={"archived": True})
 
 
 @router.post("/{roster_id}/restore", response_model=RosterOut)
@@ -348,9 +345,9 @@ def restore_roster(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> RosterOut:
-    roster = access.get_roster_for_user(db, roster_id, user)
-    crud.restore(db, roster, log_event="roster_restored", actor_id=user.id)
-    return chores_svc.to_out(db, roster)
+    access.archived_row(db, "rosters", roster_id, user)
+    crud.restore_entity(db, root="rosters", entity_id=roster_id, log_event="roster_restored", actor_id=user.id)
+    return chores_svc.to_out(db, access.get_roster_for_user(db, roster_id, user))
 
 
 @router.delete("/{roster_id}", status_code=204)
@@ -361,17 +358,17 @@ def delete_roster(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> None:
-    """Hard-delete an archived roster. Refuses unless archived first —
-    deleting a live roster with volunteers/shifts would be a data-loss
-    footgun. Cascades through chores / volunteers / enrollments / shifts
-    via the FK ON DELETE CASCADEs."""
-    roster = access.get_roster_for_user(db, roster_id, user)
-    crud.hard_delete(
+    """Delete an archived roster for good, with its chores, volunteers,
+    enrollments and shifts, and the image it owned. A live roster is not
+    found here at all, so deleting one still means archiving it first."""
+    row = access.archived_row(db, "rosters", roster_id, user)
+    crud.purge_entity(
         db,
-        roster,
+        root="rosters",
+        entity_id=roster_id,
+        image_path=row["image_path"],
         log_event="roster_deleted",
         actor_id=user.id,
-        conflict_detail="Archive the roster before deleting it",
     )
 
 

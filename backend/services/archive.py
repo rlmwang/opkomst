@@ -25,8 +25,10 @@ occurrences" is a plain ``IN``, and no query needs to know the shape of
 the graph above it.
 """
 
+from typing import Any
+
 import structlog
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, false, func, insert, select
 from sqlalchemy.orm import Session
 
 from ..database import Base
@@ -48,84 +50,76 @@ def _parent_columns(table: str, known: set[str]) -> list[tuple[str, str]]:
     return [(fk.parent.name, fk.column.table.name) for fk in live.foreign_keys if fk.column.table.name in known]
 
 
-def _row_ids(db: Session, root: str, root_id: str) -> dict[str, list[str]]:
-    """The id of every row being moved, per table, in dependency order.
+def _selection(db: Session, root: str, root_id: str, *, archived: bool) -> dict[str, Any]:
+    """A WHERE clause per table, selecting the rows that belong to one
+    item, in dependency order.
 
-    Walks down from the root: each table's rows are the ones whose
-    foreign key names an id already collected for its parent. A table
-    with two keys into the set (a shift naming both a chore and a
-    volunteer) matches on either, because either is a reason for the row
-    to travel with the item.
+    Walks down from the root: a table's rows are the ones whose foreign
+    key names a row already selected from its parent. A table with two
+    keys into the set — a shift naming both a chore and a volunteer — is
+    selected by either, because either is a reason to travel with the
+    item.
+
+    Ids are collected only for the tables that have one, and only
+    because their children need them. ``enrollments`` is a join table
+    with a composite key and no ``id`` at all; nothing references it, so
+    nothing ever asks.
     """
-    found: dict[str, list[str]] = {root: [root_id]}
-    for table in dependent_tables(root):
-        parents = _parent_columns(table, set(found))
-        if not parents:
-            continue
-        live = Base.metadata.tables[table]
-        clauses = [live.c[column].in_(found[parent]) for column, parent in parents if found[parent]]
+
+    def table_of(name: str) -> Any:
+        live = Base.metadata.tables[name]
+        return archive_metadata.tables[f"{name}_archive"] if archived else live
+
+    root_table = table_of(root)
+    conditions: dict[str, Any] = {root: root_table.c.id == root_id}
+    ids: dict[str, list[str]] = {root: [root_id]}
+
+    for name in dependent_tables(root):
+        table = table_of(name)
+        parents = _parent_columns(name, set(conditions))
+        clauses = [table.c[column].in_(ids[parent]) for column, parent in parents if ids.get(parent)]
         if not clauses:
-            found[table] = []
+            # Every parent came back empty, so this table has nothing to
+            # move either. ``false()`` keeps the shape without a query.
+            conditions[name] = false()
+            if "id" in table.c:
+                ids[name] = []
             continue
         condition = clauses[0]
         for extra in clauses[1:]:
             condition = condition | extra
-        found[table] = [row[0] for row in db.execute(select(live.c.id).where(condition))]
-    return found
+        conditions[name] = condition
+        if "id" in table.c:
+            ids[name] = [row[0] for row in db.execute(select(table.c.id).where(condition))]
+    return conditions
 
 
-def _move(db: Session, tables: list[str], ids: dict[str, list[str]], *, to_archive: bool) -> int:
-    """Copy rows between a table and its twin, then delete the source.
+def _move(db: Session, root: str, conditions: dict[str, Any], *, to_archive: bool) -> int:
+    """Copy each table's selected rows to its twin, then delete them.
 
     ``INSERT INTO … SELECT`` keeps the rows in the database: nothing is
     read into Python, so the cost does not grow with how much an event
-    collected. Writes go parents-first and deletes children-first, which
-    is the only ordering that never leaves a row pointing at a parent
-    that is not there.
+    collected. Writes go parents-first and deletes children-first, the
+    only ordering that never leaves a row pointing at a parent that has
+    gone.
     """
+    tables = [root, *dependent_tables(root)]
     moved = 0
-    for table in tables:
-        row_ids = ids.get(table) or []
-        if not row_ids:
-            continue
-        live = Base.metadata.tables[table]
-        twin = archive_metadata.tables[f"{table}_archive"]
+    for name in tables:
+        live = Base.metadata.tables[name]
+        twin = archive_metadata.tables[f"{name}_archive"]
         source, target = (live, twin) if to_archive else (twin, live)
         columns = [c.name for c in live.columns]
-        db.execute(
-            insert(target).from_select(
-                columns, select(*[source.c[name] for name in columns]).where(source.c.id.in_(row_ids))
-            )
+        result = db.execute(
+            insert(target).from_select(columns, select(*[source.c[c] for c in columns]).where(conditions[name]))
         )
-        moved += len(row_ids)
-    for table in reversed(tables):
-        row_ids = ids.get(table) or []
-        if not row_ids:
-            continue
-        live = Base.metadata.tables[table]
-        twin = archive_metadata.tables[f"{table}_archive"]
+        moved += getattr(result, "rowcount", 0) or 0
+    for name in reversed(tables):
+        live = Base.metadata.tables[name]
+        twin = archive_metadata.tables[f"{name}_archive"]
         source = live if to_archive else twin
-        db.execute(delete(source).where(source.c.id.in_(row_ids)))
+        db.execute(delete(source).where(conditions[name]))
     return moved
-
-
-def _archived_row_ids(db: Session, root: str, root_id: str) -> dict[str, list[str]]:
-    """The same walk, over the twins: what is in the archive for an item."""
-    found: dict[str, list[str]] = {root: [root_id]}
-    for table in dependent_tables(root):
-        parents = _parent_columns(table, set(found))
-        if not parents:
-            continue
-        twin = archive_metadata.tables[f"{table}_archive"]
-        clauses = [twin.c[column].in_(found[parent]) for column, parent in parents if found[parent]]
-        if not clauses:
-            found[table] = []
-            continue
-        condition = clauses[0]
-        for extra in clauses[1:]:
-            condition = condition | extra
-        found[table] = [row[0] for row in db.execute(select(twin.c.id).where(condition))]
-    return found
 
 
 def archive_item(db: Session, root: str, root_id: str) -> int:
@@ -133,9 +127,8 @@ def archive_item(db: Session, root: str, root_id: str) -> int:
     number of rows moved. Does not commit: the caller owns the
     transaction, so the move and whatever else it does are one."""
     _assert_root(root)
-    ids = _row_ids(db, root, root_id)
-    tables = [root, *dependent_tables(root)]
-    moved = _move(db, tables, ids, to_archive=True)
+    conditions = _selection(db, root, root_id, archived=False)
+    moved = _move(db, root, conditions, to_archive=True)
     # The rows moved out from under any ORM object the caller is holding.
     # Expiring says so, rather than letting the next attribute read raise
     # ObjectDeletedError somewhere unrelated.
@@ -147,9 +140,8 @@ def archive_item(db: Session, root: str, root_id: str) -> int:
 def restore_item(db: Session, root: str, root_id: str) -> int:
     """Move an item back out of the archive, ids intact."""
     _assert_root(root)
-    ids = _archived_row_ids(db, root, root_id)
-    tables = [root, *dependent_tables(root)]
-    moved = _move(db, tables, ids, to_archive=False)
+    conditions = _selection(db, root, root_id, archived=True)
+    moved = _move(db, root, conditions, to_archive=False)
     db.expire_all()
     logger.info("archive_restored", root=root, entity_id=root_id, rows=moved)
     return moved
@@ -159,18 +151,74 @@ def purge_item(db: Session, root: str, root_id: str) -> int:
     """Delete an archived item outright. The twins have no cascades, so
     this walks the same graph and deletes children first."""
     _assert_root(root)
-    ids = _archived_row_ids(db, root, root_id)
+    conditions = _selection(db, root, root_id, archived=True)
     removed = 0
-    for table in reversed([root, *dependent_tables(root)]):
-        row_ids = ids.get(table) or []
-        if not row_ids:
-            continue
-        twin = archive_metadata.tables[f"{table}_archive"]
-        db.execute(delete(twin).where(twin.c.id.in_(row_ids)))
-        removed += len(row_ids)
+    for name in reversed([root, *dependent_tables(root)]):
+        twin = archive_metadata.tables[f"{name}_archive"]
+        result = db.execute(delete(twin).where(conditions[name]))
+        removed += getattr(result, "rowcount", 0) or 0
     db.expire_all()
     logger.info("archive_purged", root=root, entity_id=root_id, rows=removed)
     return removed
+
+
+def find_one(db: Session, table: str, column: str, value: Any) -> Any:
+    """One archived row by any column, or ``None``.
+
+    The public read paths use this when the live tables come up empty:
+    an item that was archived is Gone rather than never-existed, and a
+    feedback link emailed before the archive still has to work.
+    """
+    twin = archive_metadata.tables[f"{table}_archive"]
+    return db.execute(select(twin).where(twin.c[column] == value)).mappings().first()
+
+
+def add_row(db: Session, table: str, values: dict[str, Any]) -> None:
+    """Write a row straight into an archive twin.
+
+    The one write the archive takes that is not a move: a feedback
+    response submitted against an event that was archived while the
+    email sat in somebody's inbox. It belongs with the occurrence it
+    answers, and that occurrence is here."""
+    twin = archive_metadata.tables[f"{table}_archive"]
+    db.execute(insert(twin).values(**values))
+
+
+def delete_row(db: Session, table: str, column: str, value: Any) -> None:
+    """Delete archived rows by any column. Used to burn a feedback token
+    that has been redeemed, wherever it lives."""
+    twin = archive_metadata.tables[f"{table}_archive"]
+    db.execute(delete(twin).where(twin.c[column] == value))
+
+
+def child_counts(db: Session, table: str, column: str, parent_ids: list[str]) -> dict[str, int]:
+    """``parent_id -> COUNT(*)`` over an archive twin.
+
+    The list pages show how many chores a roster had, how many people
+    came. Those children are in the archive too, so the counts have to be
+    read there — the live table is empty of them by design."""
+    if not parent_ids:
+        return {}
+    twin = archive_metadata.tables[f"{table}_archive"]
+    rows = db.execute(
+        select(twin.c[column], func.count()).where(twin.c[column].in_(parent_ids)).group_by(twin.c[column])
+    )
+    return {parent_id: int(count) for parent_id, count in rows}
+
+
+def child_sums(db: Session, table: str, column: str, value: str, parent_ids: list[str]) -> dict[str, int]:
+    """``parent_id -> SUM(value)`` over an archive twin, for the counts
+    that add something up rather than count rows — a headcount is the
+    sum of party sizes, not the number of bookings."""
+    if not parent_ids:
+        return {}
+    twin = archive_metadata.tables[f"{table}_archive"]
+    rows = db.execute(
+        select(twin.c[column], func.coalesce(func.sum(twin.c[value]), 0))
+        .where(twin.c[column].in_(parent_ids))
+        .group_by(twin.c[column])
+    )
+    return {parent_id: int(total or 0) for parent_id, total in rows}
 
 
 def _assert_root(root: str) -> None:

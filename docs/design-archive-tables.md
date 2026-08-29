@@ -130,19 +130,36 @@ only looks at rows that still exist. The archived row carries
 
 ## Order of work
 
-1. **Fix the image leak first**, independently of the rest. It is a
-   handful of lines in the four delete routes and it is a real leak
-   today. (`services/image.py::delete`, called from `crud.hard_delete`.)
-2. The `mirror()` helper and the twins it generates, plus the migration
-   that creates them. A test asserts every twin has exactly the columns
-   of its live table, so a hand-edited migration cannot introduce the
-   drift the generation exists to prevent.
-3. `services/archive.py`: `archive(entity)` and `restore(kind, id)`,
-   walking the SQLAlchemy relationship graph so the child list is
-   derived rather than hand-written per entity.
-4. Move the four archive/restore/delete route pairs onto it.
-5. Backfill migration: every row with `archived_at IS NOT NULL`, and
-   its children, moves to the twins.
+1. ~~**Fix the image leak first**~~, done. The image now goes with the
+   row that knows its path.
+2. ~~The `mirror()` helper and the twins it generates~~, done: 24 tables
+   in `backend/models/archive.py`, with a test that fails if a twin's
+   columns stop matching its live table.
+3. ~~`services/archive.py`~~, done: archive, restore and purge over the
+   derived graph.
+4. ~~The four archive/restore/delete route pairs~~, done. Two things
+   fell out of doing it that the plan had not seen:
+
+   * **`archived_at` needed somewhere to live.** A twin is a mirror and
+     cannot carry a column its live table lacks, so the fact of
+     archiving is its own small live table, `archive_index`: root,
+     entity id, and when. It is what the archive list sorts on.
+   * **Archiving twice is a 404 now, not a 409.** The second call looks
+     in the live table and the item is not there. Same for restoring
+     something that was never archived, and for deleting something not
+     yet archived. Each is more truthful than the 409 was.
+
+   And one decision the plan had to make: an in-flight feedback link.
+   The token bearer earned the right to answer when the email was sent,
+   and tokens last 30 days, so archiving does not revoke them. The
+   feedback route reads the live tables and then the archive, and a
+   response submitted against an archived event is written into
+   `feedback_responses_archive` — the one write the archive takes that is
+   not a move. Public pages need no such fallback: `resolve_by_slug`
+   already answers 410 for a row it cannot find, which is what an
+   archived slug should say anyway.
+5. Backfill migration: every row with `archived_at IS NOT NULL`, and its
+   children, moves to the twins, with an `archive_index` row each.
 6. Drop `archived_at` from the four live models, and the
    `archived_at IS NULL` filters with it. This is the payoff, and it is
    also the point of no return, so it goes last and on its own.

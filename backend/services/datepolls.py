@@ -10,10 +10,11 @@ Chapter-scoped lookups live in ``services.access``
 (``get_datepoll_for_user`` / ``datepoll_scope_filter``).
 """
 
+from collections.abc import Mapping
 from datetime import date, time
-from typing import TYPE_CHECKING, Final, get_args
+from typing import TYPE_CHECKING, Any, Final, get_args
 
-from sqlalchemy import distinct, func
+from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
@@ -26,6 +27,7 @@ from ..schemas.datepolls import (
     DatepollSubmissionOut,
     PublicDatepollOut,
 )
+from . import archive as archive_svc
 from . import image as image_svc
 from . import tenancy
 
@@ -145,6 +147,48 @@ def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
             submission_count=sub_counts.get(p.id, 0),
         )
         for p in polls
+    ]
+
+
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[DatepollListOut]:
+    """The same DTO for polls that have left the live tables: columns
+    from the twin, the date summary and submission count from the
+    archived slots and submissions."""
+    if not rows:
+        return []
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    poll_ids = [r["id"] for r in rows]
+    slots = archive_svc.archive_metadata.tables["datepoll_slots_archive"]
+    summary: dict[str, tuple[int, date | None, date | None]] = {}
+    for pid, count, first, last in db.execute(
+        select(
+            slots.c.datepoll_id,
+            func.count(distinct(slots.c.on_date)),
+            func.min(slots.c.on_date),
+            func.max(slots.c.on_date),
+        )
+        .where(slots.c.datepoll_id.in_(poll_ids))
+        .group_by(slots.c.datepoll_id)
+    ):
+        summary[pid] = (int(count), first, last)
+    sub_counts = archive_svc.child_counts(db, "datepoll_submissions", "datepoll_id", poll_ids)
+    return [
+        DatepollListOut(
+            id=r["id"],
+            slug=r["slug"],
+            name_nl=r["name_nl"],
+            name_en=r["name_en"],
+            locale=r["locale"],
+            chapter_id=r["chapter_id"],
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            archived=True,
+            created_at=r["created_at"],
+            date_count=summary.get(r["id"], (0, None, None))[0],
+            first_date=summary.get(r["id"], (0, None, None))[1],
+            last_date=summary.get(r["id"], (0, None, None))[2],
+            submission_count=sub_counts.get(r["id"], 0),
+        )
+        for r in rows
     ]
 
 

@@ -9,8 +9,9 @@ Chapter-scoped lookups live in ``services.access``
 (``get_roster_for_user`` / ``roster_scope_filter``).
 """
 
+from collections.abc import Mapping
 from datetime import date, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -37,7 +38,7 @@ from ..schemas.chores import (
     ScheduleStatsOut,
     VolunteerSummaryOut,
 )
-from . import chore_tick, tenancy
+from . import archive, chore_tick, tenancy
 from . import image as image_svc
 from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
@@ -152,6 +153,35 @@ def enrich(db: Session, rosters: list[Roster]) -> list[RosterListOut]:
             volunteer_count=vol_counts.get(r.id, 0),
         )
         for r in rosters
+    ]
+
+
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[RosterListOut]:
+    """The same DTO for rosters that have left the live tables. Columns
+    from the twin, counts from the archived chores and volunteers,
+    chapter names from ``chapters``, which is still live."""
+    if not rows:
+        return []
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    ids = [r["id"] for r in rows]
+    chore_counts = archive.child_counts(db, "chores", "roster_id", ids)
+    vol_counts = archive.child_counts(db, "volunteers", "roster_id", ids)
+    return [
+        RosterListOut(
+            id=r["id"],
+            slug=r["slug"],
+            name_nl=r["name_nl"],
+            name_en=r["name_en"],
+            locale=r["locale"],
+            chapter_id=r["chapter_id"],
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            archived=True,
+            created_at=r["created_at"],
+            period_weeks=r["period_weeks"],
+            chore_count=chore_counts.get(r["id"], 0),
+            volunteer_count=vol_counts.get(r["id"], 0),
+        )
+        for r in rows
     ]
 
 

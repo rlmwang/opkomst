@@ -46,8 +46,9 @@ def test_list_row_omits_raw_slots_but_carries_summary(client, organiser_headers)
 def test_archive_restore_delete_guard(client, organiser_headers):
     poll = _create(client, organiser_headers, dates=["2026-07-01"])
     pid = poll["id"]
-    # Cannot hard-delete a live poll.
-    assert client.delete(f"/api/v1/datepolls/{pid}", headers=organiser_headers).status_code == 409
+    # A live poll is not in the archive, so the delete route cannot find
+    # it: archiving first is still the only way to delete one.
+    assert client.delete(f"/api/v1/datepolls/{pid}", headers=organiser_headers).status_code == 404
     # Archive → leaves active list, appears on archived list.
     assert client.post(f"/api/v1/datepolls/{pid}/archive", headers=organiser_headers).status_code == 200
     assert client.get("/api/v1/datepolls", headers=organiser_headers).json() == []

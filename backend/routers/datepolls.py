@@ -78,13 +78,7 @@ def list_archived_datepolls(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollListOut]:
-    rows = (
-        db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_not(None))
-        .order_by(Datepoll.archived_at.desc())
-        .all()
-    )
-    return datepolls_svc.enrich(db, rows)
+    return datepolls_svc.archived_enrich(db, access.archived_rows(db, "datepolls", user, chapter_id))
 
 
 @router.get("/{datepoll_id}", response_model=DatepollOut)
@@ -142,8 +136,10 @@ def archive_datepoll(
     user: User = Depends(require_approved),
 ) -> DatepollOut:
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.archive(db, poll, log_event="datepoll_archived", actor_id=user.id)
-    return datepolls_svc.to_out(db, poll)
+    # Projected before the move: afterwards there is no live row to read.
+    out = datepolls_svc.to_out(db, poll)
+    crud.archive_entity(db, poll, root="datepolls", log_event="datepoll_archived", actor_id=user.id)
+    return out.model_copy(update={"archived": True})
 
 
 @router.post("/{datepoll_id}/restore", response_model=DatepollOut)
@@ -154,9 +150,9 @@ def restore_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.restore(db, poll, log_event="datepoll_restored", actor_id=user.id)
-    return datepolls_svc.to_out(db, poll)
+    access.archived_row(db, "datepolls", datepoll_id, user)
+    crud.restore_entity(db, root="datepolls", entity_id=datepoll_id, log_event="datepoll_restored", actor_id=user.id)
+    return datepolls_svc.to_out(db, access.get_datepoll_for_user(db, datepoll_id, user))
 
 
 @router.delete("/{datepoll_id}", status_code=204)
@@ -167,17 +163,17 @@ def delete_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> None:
-    """Hard-delete an archived poll. Refuses unless archived first —
-    deleting a live poll with responses would be a data-loss footgun.
-    Cascades through dates / submissions / responses via the FK
-    ON DELETE CASCADEs."""
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.hard_delete(
+    """Delete an archived poll for good, with its dates, submissions and
+    responses, and the image it owned. A live poll is not found here at
+    all, so deleting one still means archiving it first."""
+    row = access.archived_row(db, "datepolls", datepoll_id, user)
+    crud.purge_entity(
         db,
-        poll,
+        root="datepolls",
+        entity_id=datepoll_id,
+        image_path=row["image_path"],
         log_event="datepoll_deleted",
         actor_id=user.id,
-        conflict_detail="Archive the datepoll before deleting it",
     )
 
 

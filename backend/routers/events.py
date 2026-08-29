@@ -85,13 +85,11 @@ def list_archived_events(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[EventOut]:
-    rows = (
-        db.query(Event)
-        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_not(None))
-        .order_by(Event.created_at.desc())
-        .all()
-    )
-    return event_stats.enrich(db, rows)
+    # Archived events are not in ``events`` any more; they are in its
+    # twin, with ``archive_index`` holding when each left. The rows come
+    # back as mappings rather than ORM objects, because there is no live
+    # row for the ORM to be about.
+    return [event_stats.archived_to_out(db, row) for row in access.archived_rows(db, "events", user, chapter_id)]
 
 
 @router.post("/{event_id}/archive", response_model=EventOut)
@@ -103,8 +101,12 @@ def archive_event(
     user: User = Depends(require_approved),
 ) -> EventOut:
     event = access.get_event_for_user(db, event_id, user)
-    crud.archive(db, event, log_event="event_archived", actor_id=user.id)
-    return event_stats.to_out(db, event)
+    # Projected before the move: afterwards there is no live row to read.
+    out = event_stats.to_out(db, event)
+    crud.archive_entity(db, event, root="events", log_event="event_archived", actor_id=user.id)
+    # The projection was taken while the event was still live; the call
+    # it is answering is what made it archived.
+    return out.model_copy(update={"archived": True})
 
 
 @router.post("/{event_id}/restore", response_model=EventOut)
@@ -115,9 +117,9 @@ def restore_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    event = access.get_event_for_user(db, event_id, user)
-    crud.restore(db, event, log_event="event_restored", actor_id=user.id)
-    return event_stats.to_out(db, event)
+    access.archived_row(db, "events", event_id, user)
+    crud.restore_entity(db, root="events", entity_id=event_id, log_event="event_restored", actor_id=user.id)
+    return event_stats.to_out(db, access.get_event_for_user(db, event_id, user))
 
 
 @router.delete("/{event_id}", status_code=204)
@@ -128,19 +130,18 @@ def delete_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> None:
-    """Hard-delete an archived event. Refuses if the event isn't
-    archived first — accidentally hard-deleting a live event
-    with sign-ups would be a data-loss footgun. Cascades through
-    ``signups`` / ``email_dispatches`` / ``feedback_responses`` /
-    ``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the
-    schema; the row + its dependents go with one DELETE."""
-    event = access.get_event_for_user(db, event_id, user)
-    crud.hard_delete(
+    """Delete an archived event for good. A live event is not found
+    here at all — it is in ``events``, and this reads the archive — so
+    deleting one still means archiving it first. The item's whole graph
+    goes, plus the image it owned."""
+    row = access.archived_row(db, "events", event_id, user)
+    crud.purge_entity(
         db,
-        event,
+        root="events",
+        entity_id=event_id,
+        image_path=row["image_path"],
         log_event="event_deleted",
         actor_id=user.id,
-        conflict_detail="Archive the event before deleting it",
     )
 
 

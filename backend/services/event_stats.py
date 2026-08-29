@@ -15,13 +15,16 @@ Helpers the events routers compose:
 Routers stay thin; the SQL lives here where it can be unit-tested.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event, Occurrence, Registration, Signup
 from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
+from . import archive
 from . import image as image_svc
 from .events import now_wallclock
 
@@ -168,6 +171,62 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
         )
         for e in events
     ]
+
+
+def archived_to_out(db: Session, row: Mapping[str, Any]) -> EventOut:
+    """An ``EventOut`` for an event that has left the live tables.
+
+    Same DTO, different source: the columns come from the archive twin,
+    the headcount from the archived registrations, and the chapter name
+    from ``chapters``, which is still live. There is no next occurrence
+    for an archived event, and saying ``None`` is more honest than
+    computing one from dates nobody will act on.
+    """
+    chapter_name = None
+    if row["chapter_id"]:
+        chapter_name = db.query(Chapter.name).filter(Chapter.id == row["chapter_id"]).scalar()
+    totals = archive.child_sums(db, "registrations", "event_id", "party_size", [row["id"]])
+    return EventOut(
+        **{
+            key: row[key]
+            for key in (
+                "id",
+                "slug",
+                "name_nl",
+                "name_en",
+                "topic_nl",
+                "topic_en",
+                "location",
+                "latitude",
+                "longitude",
+                "starts_on",
+                "start_time",
+                "end_time",
+                "period_weeks",
+                "cycle_slots",
+                "span_weeks",
+                "horizon_days",
+                "source_options",
+                "source_enabled",
+                "help_options",
+                "help_enabled",
+                "feedback_enabled",
+                "reminder_enabled",
+                "listed",
+                "name_required",
+                "answers_editable",
+                "locale",
+                "chapter_id",
+                "image_artist_instagram",
+            )
+        },
+        chapter_name=chapter_name,
+        image_url=image_svc.public_url(row["image_path"]),
+        next_starts_at=None,
+        next_slug=None,
+        attendee_count=totals.get(row["id"], 0),
+        archived=True,
+    )
 
 
 def to_out(db: Session, event: Event) -> EventOut:

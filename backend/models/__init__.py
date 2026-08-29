@@ -1,3 +1,4 @@
+from .archive import ArchiveIndex, build_mirrors
 from .chapters import Chapter
 from .chores import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
 from .compass import CompassAxis
@@ -10,7 +11,13 @@ from .tenants import Tenant
 from .traffic import TrafficCount
 from .users import LoginToken, RegistrationToken, User, UserChapter
 
+# After every model above is registered, never at ``archive``'s own
+# import: generating the twins reads the foreign keys of tables this
+# module has only just finished defining.
+build_mirrors()
+
 __all__ = [
+    "ArchiveIndex",
     "Chapter",
     "Chore",
     "CompassAxis",

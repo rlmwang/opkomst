@@ -159,7 +159,7 @@ def test_archive_restore_delete_flow(client, organiser_headers):
     rid = roster["id"]
 
     # Delete a live roster is refused.
-    assert client.delete(f"/api/v1/chores/{rid}", headers=organiser_headers).status_code == 409
+    assert client.delete(f"/api/v1/chores/{rid}", headers=organiser_headers).status_code == 404
 
     assert client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers).status_code == 200
     # Now it shows in archived, not active.
@@ -167,8 +167,8 @@ def test_archive_restore_delete_flow(client, organiser_headers):
     archived = client.get("/api/v1/chores/archived", headers=organiser_headers).json()
     assert [r["id"] for r in archived] == [rid]
 
-    # Archive again → 409.
-    assert client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers).status_code == 409
+    # Archive again → 404: it is not in ``rosters`` any more.
+    assert client.post(f"/api/v1/chores/{rid}/archive", headers=organiser_headers).status_code == 404
 
     assert client.post(f"/api/v1/chores/{rid}/restore", headers=organiser_headers).status_code == 200
     # Archive then hard-delete.

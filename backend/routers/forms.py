@@ -124,13 +124,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormListOut]:
-        rows = (
-            forms_svc.query(db, _MODE)
-            .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_not(None))
-            .order_by(Form.archived_at.desc())
-            .all()
-        )
-        return forms_svc.enrich(db, rows)
+        return forms_svc.archived_enrich(db, access.archived_rows(db, "forms", user, chapter_id, mode=_MODE))
 
     @router.get("/{form_id}", response_model=FormOut)
     def get_form(
@@ -187,8 +181,10 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         user: User = Depends(require_approved),
     ) -> FormOut:
         form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.archive(db, form, log_event=f"{noun}_archived", actor_id=user.id)
-        return forms_svc.to_out(db, form)
+        # Projected before the move: afterwards there is no live row.
+        out = forms_svc.to_out(db, form)
+        crud.archive_entity(db, form, root="forms", log_event=f"{noun}_archived", actor_id=user.id)
+        return out.model_copy(update={"archived": True})
 
     @router.post("/{form_id}/restore", response_model=FormOut)
     @limiter.limit(Limits.ORG_RARE)
@@ -199,9 +195,9 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormOut:
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.restore(db, form, log_event=f"{noun}_restored", actor_id=user.id)
-        return forms_svc.to_out(db, form)
+        access.archived_row(db, "forms", form_id, user)
+        crud.restore_entity(db, root="forms", entity_id=form_id, log_event=f"{noun}_restored", actor_id=user.id)
+        return forms_svc.to_out(db, access.get_form_for_user(db, form_id, user, _MODE))
 
     @router.delete("/{form_id}", status_code=204)
     @limiter.limit(Limits.ORG_RARE)
@@ -212,18 +208,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> None:
-        """Hard-delete an archived form. Refuses if the form isn't
-        archived first — accidentally hard-deleting a live form with
-        responses would be a data-loss footgun. Cascades through
-        ``form_questions`` / ``form_responses`` via the FK ON DELETE
-        CASCADEs in the schema."""
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.hard_delete(
+        """Delete an archived form for good, with its questions,
+        submissions and responses, and the image it owned. A live form is
+        not found here at all, so deleting one still means archiving it
+        first."""
+        row = access.archived_row(db, "forms", form_id, user)
+        crud.purge_entity(
             db,
-            form,
+            root="forms",
+            entity_id=form_id,
+            image_path=row["image_path"],
             log_event=f"{noun}_deleted",
             actor_id=user.id,
-            conflict_detail=f"Archive the {noun} before deleting it",
         )
 
     @router.post("/{form_id}/image", response_model=FormOut)

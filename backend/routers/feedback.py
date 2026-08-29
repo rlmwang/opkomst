@@ -14,11 +14,13 @@ table.
 """
 
 import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from uuid_utils import uuid7
 
 from ..auth import require_approved
 from ..database import get_db
@@ -36,7 +38,7 @@ from ..schemas.feedback import (
     FeedbackSubmitIn,
     FeedbackSummaryOut,
 )
-from ..services import access, feedback_stats
+from ..services import access, archive, feedback_stats
 from ..services.feedback_questions import BY_KEY, QUESTIONS
 from ..services.rate_limit import Limits, limiter
 
@@ -59,19 +61,64 @@ def _question_dtos() -> list[FeedbackQuestionOut]:
     ]
 
 
-def _resolve_token(db: Session, token: str) -> FeedbackToken:
+@dataclass(frozen=True)
+class _Redeemable:
+    """A token that may still be spent, and where its rows live.
+
+    ``archived`` is the whole difference between the two cases: an event
+    archived while the feedback email sat in somebody's inbox has moved
+    to the twins, so the occurrence is read from there and the response
+    is written there. The person who was emailed keeps the right to
+    answer that they earned when the mail was sent — archiving is an
+    organiser tidying up, not a revocation."""
+
+    token: str
+    occurrence_id: str
+    expires_at: datetime
+    archived: bool
+
+
+def _archived_tenant(db: Session, occurrence_id: str) -> str:
+    """The tenant of an archived occurrence. Every row carries one, and
+    a write on behalf of a visitor has no bound tenant to inherit."""
+    row = archive.find_one(db, "occurrences", "id", occurrence_id)
+    if row is None:
+        raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
+    return row["tenant_id"]
+
+
+def _resolve_token(db: Session, token: str) -> _Redeemable:
     row = db.query(FeedbackToken).filter(FeedbackToken.token == token).first()
-    if not row:
+    archived_row = None if row else archive.find_one(db, "feedback_tokens", "token", token)
+    if not row and not archived_row:
         # 410 Gone matches the contract: the token may exist on a printed
         # email but is no longer redeemable (already used, expired, or
         # the send failed and we deleted it).
         raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
-    if row.expires_at <= datetime.now(UTC):
+    if row is not None:
+        found = _Redeemable(token=token, occurrence_id=row.occurrence_id, expires_at=row.expires_at, archived=False)
+    else:
+        assert archived_row is not None  # the guard above proved it
+        found = _Redeemable(
+            token=token,
+            occurrence_id=archived_row["occurrence_id"],
+            expires_at=archived_row["expires_at"],
+            archived=True,
+        )
+    if found.expires_at <= datetime.now(UTC):
         # Stale — clean up and refuse.
-        db.delete(row)
+        _burn(db, found)
         db.commit()
         raise HTTPException(status_code=410, detail="This feedback link has expired.")
-    return row
+    return found
+
+
+def _burn(db: Session, found: _Redeemable) -> None:
+    """One-shot: the token stops existing, wherever it was."""
+    if found.archived:
+        archive.delete_row(db, "feedback_tokens", "token", found.token)
+    else:
+        db.query(FeedbackToken).filter(FeedbackToken.token == found.token).delete()
 
 
 # --- Organiser: questionnaire preview list -----------------------------
@@ -92,8 +139,19 @@ def list_questions(
 
 @router.get("/feedback/{token}", response_model=FeedbackFormOut)
 def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackFormOut:
-    row = _resolve_token(db, token)
-    occurrence = db.query(Occurrence).filter(Occurrence.id == row.occurrence_id).first()
+    found = _resolve_token(db, token)
+    if found.archived:
+        occurrence = archive.find_one(db, "occurrences", "id", found.occurrence_id)
+        event = archive.find_one(db, "events", "id", occurrence["event_id"]) if occurrence else None
+        if not occurrence or not event:
+            raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
+        return FeedbackFormOut(
+            event_name=pick_localized(event["name_nl"], event["name_en"], event["locale"]) or "",
+            event_slug=occurrence["slug"],
+            event_locale=event["locale"],
+            questions=_question_dtos(),
+        )
+    occurrence = db.query(Occurrence).filter(Occurrence.id == found.occurrence_id).first()
     if not occurrence:
         raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
     event = occurrence.event
@@ -113,7 +171,7 @@ def submit_feedback(
     data: FeedbackSubmitIn,
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    row = _resolve_token(db, token)
+    found = _resolve_token(db, token)
 
     # Validate every required question has a non-null answer of the
     # right type. ``BY_KEY`` is the in-code question table.
@@ -141,21 +199,42 @@ def submit_feedback(
     submission_id = secrets.token_urlsafe(16)
     for key, value in submitted_by_key.items():
         q = BY_KEY[key]
+        answer_int = value if q.kind == "rating" else None
+        answer_text = value if q.kind == "text" else None
+        if found.archived:
+            # The event was archived while this link sat in an inbox, so
+            # the answer belongs where the occurrence it answers lives.
+            archive.add_row(
+                db,
+                "feedback_responses",
+                {
+                    "id": str(uuid7()),
+                    "tenant_id": _archived_tenant(db, found.occurrence_id),
+                    "occurrence_id": found.occurrence_id,
+                    "question_key": key,
+                    "submission_id": submission_id,
+                    "answer_int": answer_int,
+                    "answer_text": answer_text,
+                    "created_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
+                },
+            )
+            continue
         db.add(
             FeedbackResponse(
-                occurrence_id=row.occurrence_id,
+                occurrence_id=found.occurrence_id,
                 question_key=key,
                 submission_id=submission_id,
-                answer_int=value if q.kind == "rating" else None,  # type: ignore[arg-type]
-                answer_text=value if q.kind == "text" else None,  # type: ignore[arg-type]
+                answer_int=answer_int,  # type: ignore[arg-type]
+                answer_text=answer_text,  # type: ignore[arg-type]
             )
         )
 
     # One-shot: the token is gone the moment we accept a response. The
     # privacy invariant is that no row in the system can map this
     # submission back to the attendee from this point on.
-    occurrence_id = row.occurrence_id
-    db.delete(row)
+    occurrence_id = found.occurrence_id
+    _burn(db, found)
     db.commit()
     logger.info("feedback_submitted", occurrence_id=occurrence_id, submission_id=submission_id)
     return {"status": "ok"}

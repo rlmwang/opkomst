@@ -26,7 +26,8 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 mode for the same reason.
 """
 
-from typing import TYPE_CHECKING, Final, cast, get_args
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
 from sqlalchemy import func
@@ -49,6 +50,7 @@ from ..schemas.forms import (
     QuestionKind,
     QuizSubmissionOut,
 )
+from . import archive as archive_svc
 from . import compass, numbers, public_access, quizzes, tenancy
 from . import image as image_svc
 from .ratings import rating_distribution
@@ -366,6 +368,31 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
             submission_count=counts.get(f.id, 0),
         )
         for f in forms
+    ]
+
+
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[FormListOut]:
+    """The same DTO for forms that have left the live tables: columns
+    from the twin, submission counts from the archived submissions."""
+    if not rows:
+        return []
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    counts = archive_svc.child_counts(db, "form_submissions", "form_id", [r["id"] for r in rows])
+    return [
+        FormListOut(
+            id=r["id"],
+            slug=r["slug"],
+            mode=as_mode(r["mode"]),
+            name_nl=r["name_nl"],
+            name_en=r["name_en"],
+            locale=r["locale"],
+            chapter_id=r["chapter_id"],
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            archived=True,
+            created_at=r["created_at"],
+            submission_count=counts.get(r["id"], 0),
+        )
+        for r in rows
     ]
 
 
