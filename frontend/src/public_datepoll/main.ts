@@ -8,9 +8,9 @@
  * from ``window.location.pathname`` inside the component.
  */
 
-import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
+import { mountPublic } from "@/public_shared/mount";
 import PublicDatepoll from "./PublicDatepoll.svelte";
 
-mount(PublicDatepoll, { target: document.getElementById("app")! });
+mountPublic(PublicDatepoll);

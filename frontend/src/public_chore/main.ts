@@ -6,9 +6,9 @@
  * page); both are parsed from the URL inside the component.
  */
 
-import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
+import { mountPublic } from "@/public_shared/mount";
 import PublicChore from "./PublicChore.svelte";
 
-mount(PublicChore, { target: document.getElementById("app")! });
+mountPublic(PublicChore);

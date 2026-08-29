@@ -11,9 +11,9 @@
  * visual language as the admin SPA.
  */
 
-import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
+import { mountPublic } from "@/public_shared/mount";
 import PublicEvent from "./PublicEvent.svelte";
 
-mount(PublicEvent, { target: document.getElementById("app")! });
+mountPublic(PublicEvent);
