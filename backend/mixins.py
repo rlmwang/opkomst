@@ -161,9 +161,14 @@ class OrgEntityMixin:
     def locale(cls) -> Mapped[Literal["nl", "en"]]:
         return mapped_column(Text, nullable=False, default="nl")
 
+    # No index. A foreign key is not indexed by Postgres automatically,
+    # and the reasons to add one are a query that follows it or a cascade
+    # that deletes by it. Neither applies: nothing outside the seed
+    # filters an entity by who made it, and the FK is ``SET NULL``, which
+    # a full scan handles once in the life of a deleted user.
     @declared_attr
     def created_by(cls) -> Mapped[str]:
-        return mapped_column(Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
+        return mapped_column(Text, ForeignKey("users.id", ondelete="SET NULL"), nullable=False)
 
     @declared_attr
     def chapter_id(cls) -> Mapped[str | None]:

@@ -101,8 +101,11 @@ class Form(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # Mirrors the events index — list queries filter on
     # ``archived_at IS NULL`` and ``chapter_id IN (...)`` together.
     __table_args__ = (
-        # ``mode`` leads: every list query names it before it filters
-        # anything else.
+        # The organiser's list. ``tenant_id`` leads because every read is
+        # scoped to one; ``mode`` next because this table holds three
+        # products and a list only ever wants one of them; then the
+        # chapter set, then the order the page shows.
+        Index("ix_forms_tenant_mode_chapter_created", "tenant_id", "mode", "chapter_id", "created_at"),
         Index("ix_forms_mode_archived_chapter", "mode", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_forms_name_present"),
         CheckConstraint("mode IN ('survey', 'quiz', 'compass')", name="ck_forms_mode"),

@@ -60,11 +60,11 @@ class EmailDispatch(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     __tablename__ = "email_dispatches"
 
+    # No ``index=True``: ``(occurrence_id, channel)`` below leads with it.
     occurrence_id: Mapped[str] = mapped_column(
         Text,
         ForeignKey("occurrences.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     channel: Mapped[EmailChannel] = mapped_column(
         SAEnum(EmailChannel, name="email_channel", native_enum=True),
@@ -131,11 +131,15 @@ class EmailSendCount(UUIDMixin, TimestampMixin, TenantMixin, Base):
         nullable=False,
     )
     # UTC, matching the send cap's window and the reapers' clock.
-    day: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    day: Mapped[date] = mapped_column(Date, nullable=False)
     sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
     failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default=text("0"))
 
     __table_args__ = (
         # One row per pair; the increment is an upsert onto it.
         UniqueConstraint("occurrence_id", "channel", "day", name="uq_email_send_counts_occurrence_channel_day"),
+        # The personal-account daily cap: everything this tenant sent
+        # since a date. Two separate indexes make the planner combine
+        # bitmaps; this answers it in one.
+        Index("ix_email_send_counts_tenant_day", "tenant_id", "day"),
     )

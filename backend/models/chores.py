@@ -106,6 +106,10 @@ class Roster(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
+        # The organiser's list: one tenant, the chapters its user
+        # belongs to, newest first, with the ordering column in the
+        # index so the planner stops at the page instead of sorting.
+        Index("ix_rosters_tenant_chapter_created", "tenant_id", "chapter_id", "created_at"),
         Index("ix_rosters_archived_chapter", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_rosters_name_present"),
     )
@@ -191,7 +195,8 @@ class Shift(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     __tablename__ = "shifts"
 
-    chore_id: Mapped[str] = mapped_column(Text, ForeignKey("chores.id", ondelete="CASCADE"), nullable=False, index=True)
+    # No ``index=True``: ``(chore_id, on_date)`` below leads with it.
+    chore_id: Mapped[str] = mapped_column(Text, ForeignKey("chores.id", ondelete="CASCADE"), nullable=False)
     on_date: Mapped[date] = mapped_column(Date, nullable=False)
     slot_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     volunteer_id: Mapped[str | None] = mapped_column(

@@ -87,6 +87,10 @@ class Datepoll(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
 
     # Mirrors the events/forms list index.
     __table_args__ = (
+        # The organiser's list: one tenant, the chapters its user
+        # belongs to, newest first, with the ordering column in the
+        # index so the planner stops at the page instead of sorting.
+        Index("ix_datepolls_tenant_chapter_created", "tenant_id", "chapter_id", "created_at"),
         Index("ix_datepolls_archived_chapter", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_datepolls_name_present"),
     )

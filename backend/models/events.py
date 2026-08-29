@@ -101,6 +101,11 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     horizon_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90, server_default=text("90"))
 
     __table_args__ = (
+        # The organiser's list, which is the hottest authenticated read:
+        # one tenant, the chapters that tenant's user belongs to, newest
+        # first. The ordering column is in the index so the planner takes
+        # the rows in order and stops, instead of sorting what it matched.
+        Index("ix_events_tenant_chapter_created", "tenant_id", "chapter_id", "created_at"),
         Index("ix_events_archived_chapter", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_events_name_present"),
     )
@@ -125,7 +130,10 @@ class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     __tablename__ = "occurrences"
 
-    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    # No ``index=True``: ``(event_id, starts_at)`` below leads with this
+    # column, so a single-column index would be a second copy of the same
+    # information, updated on every write.
+    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
     # 8-char nanoid, the public URL (/e/{slug}). Unique across the table.
     slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     # Naive wall-clock = on_date + event.start_time / end_time.
@@ -134,7 +142,12 @@ class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("event_id", "starts_at", name="uq_occurrences_event_starts_at"),
+        # "The sessions of this event."
         Index("ix_occurrences_event_starts", "event_id", "starts_at"),
+        # "The sessions in this window", which is what the public chapter
+        # agenda asks, across every listed event at once. The table grows
+        # with every session of every recurring event.
+        Index("ix_occurrences_tenant_starts", "tenant_id", "starts_at"),
     )
 
     event: Mapped["Event"] = relationship(back_populates="occurrences")
