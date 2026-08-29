@@ -1,35 +1,27 @@
-import type { Router } from "vue-router";
+import { currentPath, subscribeRoute } from "./router-bridge";
+
+export { push } from "./router-bridge";
 
 /**
- * The router, readable from a Svelte component.
+ * The router, as Svelte sees it.
  *
- * There is one router and it is vue-router's, because every page still
- * reaches for it through ``useRouter`` and ``useRoute``. It is the last
- * thing that crosses (``docs/tasks/svelte``), so until it does, the
- * Svelte side reads it here rather than running a second one: two
- * routers over one history is two answers to where the visitor is.
+ * One line of state over ``./router-bridge``, which is where the router
+ * itself is held. A component reads ``routePath()`` and is re-rendered
+ * on every navigation.
  *
- * ``main.ts`` hands the instance over once, at boot. A component reads
- * ``path`` and gets re-rendered on every navigation, because
- * ``afterEach`` writes it.
+ * Module level rather than per component: there is one location, and a
+ * subscription per component would be a subscription per component to
+ * tear down.
  *
- * Temporary: it goes when the route table does.
+ * Temporary: it goes when the route table crosses
+ * (``docs/tasks/svelte``).
  */
-let instance: Router | null = null;
-let current = $state(window.location.pathname);
-
-export function connectRouter(router: Router): void {
-  instance = router;
-  router.afterEach((to) => {
-    current = to.path;
-  });
-}
+let tracked = $state(currentPath());
+subscribeRoute(() => {
+  tracked = currentPath();
+});
 
 /** The path of the route on screen, without the app's base. */
 export function routePath(): string {
-  return current;
-}
-
-export function push(to: string): void {
-  void instance?.push(to);
+  return tracked;
 }

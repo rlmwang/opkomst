@@ -24,6 +24,7 @@
     "src/components/WeekdayGrid.svelte",
     "src/components/RosterCalendarView.svelte",
     "src/lib/router.svelte.ts",
+    "src/i18n.svelte.ts",
     "src/lib/svelte-bridge.svelte.ts"
   ]
 }

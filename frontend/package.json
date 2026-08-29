@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@sentry/vue": "^10.50.0",
+    "@tanstack/svelte-query": "^5.90.2",
     "@tanstack/vue-query": "^5.100.6",
     "pinia": "^3.0.0",
     "vue": "^3.5.0",
