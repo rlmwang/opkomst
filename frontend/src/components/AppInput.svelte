@@ -25,6 +25,7 @@ let {
   disabled,
   class: className,
   onblur,
+  oninput,
 }: {
   value?: string | null;
   placeholder?: string;
@@ -39,6 +40,7 @@ let {
   disabled?: boolean;
   class?: string;
   onblur?: (event: FocusEvent) => void;
+  oninput?: (event: Event) => void;
 } = $props();
 </script>
 
@@ -62,6 +64,7 @@ let {
   {autofocus}
   {disabled}
   {onblur}
+  {oninput}
 />
 
 <style>

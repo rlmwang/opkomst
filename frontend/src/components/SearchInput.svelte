@@ -6,10 +6,14 @@
 import AppInput from "@/components/AppInput.svelte";
 import AppIcon from "@/components/AppIcon.svelte";
 
-let { value = $bindable(""), placeholder }: { value: string; placeholder: string } = $props();
+let {
+  value = $bindable(""),
+  placeholder,
+  class: className,
+}: { value: string; placeholder: string; class?: string } = $props();
 </script>
 
-<div class="icon-field">
+<div class="icon-field {className ?? ''}">
   <AppIcon name="search" />
   <AppInput bind:value {placeholder} fluid />
 </div>
