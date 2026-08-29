@@ -50,11 +50,13 @@ const rows = $derived.by<Row[]>(() => {
   if (q.kind === "single_choice" || q.kind === "multi_choice") {
     // Every option, in the order it was asked, so the question reads
     // the way it read on the night.
+    // ``given`` is option ids and ``key`` is the labels the reveal
+    // sends, so each is matched against its own kind of thing.
     return q.options.map((opt) => ({
-      key: opt,
-      label: opt,
-      right: reveal && key.includes(opt),
-      picked: given.includes(opt),
+      key: opt.id,
+      label: opt.label,
+      right: reveal && key.includes(opt.label),
+      picked: given.includes(opt.id),
     }));
   }
 

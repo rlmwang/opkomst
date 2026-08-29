@@ -50,7 +50,7 @@ test("an admin widens the agenda window and a far-off event appears", async ({
       starts_on: startsAt.toISOString().slice(0, 10),
       start_time: "20:00:00",
       end_time: "22:00:00",
-      source_options: ["Mond-tot-mond"],
+      source_options: [{ label: "Mond-tot-mond" }],
       source_enabled: true,
       help_options: [],
       feedback_enabled: false,

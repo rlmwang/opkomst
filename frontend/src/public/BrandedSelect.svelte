@@ -24,7 +24,12 @@ let {
   ariaLabel,
 }: {
   value: string | null;
-  options: readonly string[];
+  /** The rows to pick from. A value is what the answer stores (an
+   *  option id) and the label is what the visitor reads, which are two
+   *  different things: the organiser can reword the label afterwards
+   *  and the answers still point at it
+   *  (``docs/design-question-edits.md``). */
+  options: readonly { value: string; label: string }[];
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -46,7 +51,7 @@ interface Item {
 }
 const items = $derived<Item[]>([
   { value: null, label: placeholder ?? "" },
-  ...options.map((o) => ({ value: o, label: o })),
+  ...options.map((o) => ({ value: o.value, label: o.label })),
 ]);
 
 const selectedLabel = $derived.by(() => {

@@ -1,10 +1,21 @@
 <script lang="ts" module>
+/** One choice as a respondent's browser is allowed to see it: what it
+ *  says, and the id an answer names it by. Never its direction on a
+ *  kompas, nor whether it is a quiz's right answer. */
+export interface OptionShape {
+  id: string;
+  label: string;
+}
+
 export interface QuestionShape {
   id: string;
   kind: string;
   prompt: string;
   required: boolean;
-  options: string[];
+  /** The answer is submitted by option id, not by the label somebody
+   *  read, so that an organiser fixing a typo afterwards does not
+   *  detach it (``docs/design-question-edits.md``). */
+  options: OptionShape[];
   low_label: string | null;
   high_label: string | null;
   min_value: number | null;
@@ -149,29 +160,29 @@ function toggleMulti(opt: string, on: boolean) {
     />
   {:else if question.kind === "single_choice"}
     <div class="choice-list" role="group" aria-labelledby="{question.id}-prompt">
-      {#each question.options as opt (opt)}
+      {#each question.options as opt (opt.id)}
         <label class="choice-row">
           <input
             type="radio"
             name="q-{question.id}"
-            value={opt}
-            checked={chosen[0] === opt}
-            onchange={() => onupdate({ answer_choices: [opt] })}
+            value={opt.id}
+            checked={chosen[0] === opt.id}
+            onchange={() => onupdate({ answer_choices: [opt.id] })}
           />
-          <span>{opt}</span>
+          <span>{opt.label}</span>
         </label>
       {/each}
     </div>
   {:else if question.kind === "multi_choice"}
     <div class="choice-list" role="group" aria-labelledby="{question.id}-prompt">
-      {#each question.options as opt (opt)}
+      {#each question.options as opt (opt.id)}
         <label class="choice-row">
           <input
             type="checkbox"
-            checked={chosen.includes(opt)}
-            onchange={(e) => toggleMulti(opt, (e.currentTarget as HTMLInputElement).checked)}
+            checked={chosen.includes(opt.id)}
+            onchange={(e) => toggleMulti(opt.id, (e.currentTarget as HTMLInputElement).checked)}
           />
-          <span>{opt}</span>
+          <span>{opt.label}</span>
         </label>
       {/each}
     </div>

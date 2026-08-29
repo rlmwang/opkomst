@@ -654,10 +654,11 @@ $effect(() => {
           <section class="form-section help-section">
             <h2 id="help-heading">{t.helpHeading}</h2>
             <div class="help-choices" role="group" aria-labelledby="help-heading">
-              {#each event.help_options as opt (opt)}
+              {#each event.help_options as opt (opt.id)}
                 <label class="help-row">
-                  <input type="checkbox" bind:group={helpChoices} value={opt} />
-                  <span>{opt}</span>
+                  <!-- The tick stores the option's id, not its wording. -->
+                  <input type="checkbox" bind:group={helpChoices} value={opt.id} />
+                  <span>{opt.label}</span>
                 </label>
               {/each}
             </div>
@@ -677,7 +678,7 @@ $effect(() => {
             {#if event.source_options.length > 0}
               <BrandedSelect
                 bind:value={sourceChoice}
-                options={event.source_options}
+                options={event.source_options.map((o) => ({ value: o.id, label: o.label }))}
                 placeholder={t.sourcePlaceholder}
                 ariaLabel={t.sourcePlaceholder}
               />

@@ -37,8 +37,10 @@ export interface PublicEvent {
   location: string | null;
   latitude: number | null;
   longitude: number | null;
-  source_options: string[];
-  help_options: string[];
+  /** Both lists are rows: the label to show and the id the sign-up
+   *  names it by (``docs/design-question-edits.md``). */
+  source_options: { id: string; label: string }[];
+  help_options: { id: string; label: string }[];
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: string;

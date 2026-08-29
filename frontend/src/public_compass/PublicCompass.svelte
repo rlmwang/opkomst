@@ -270,8 +270,11 @@ function optionPole(line: CompassAnswerResult, index: number): string {
   return poleName(line.option_poles?.[index] ?? null);
 }
 
-function isPicked(line: CompassAnswerResult, option: string): boolean {
-  return (line.given_choices ?? []).includes(option);
+/** Both sides are option ids: what was answered is the id, not the
+ *  wording, which is what lets the organiser reword it afterwards
+ *  (``docs/design-question-edits.md``). */
+function isPicked(line: CompassAnswerResult, optionId: string): boolean {
+  return (line.given_choices ?? []).includes(optionId);
 }
 
 /** What one rating answer did to the map, in words: the side a 5 meant,
@@ -451,10 +454,10 @@ function startWalk() {
                        order, the pick marked in place and each option's
                        direction named beside it. -->
                   <span class="option-list">
-                    {#each byId[line.question_id]?.options ?? [] as option, index (option)}
-                      <span class="option-row" class:is-picked={isPicked(line, option)}>
+                    {#each byId[line.question_id]?.options ?? [] as option, index (option.id)}
+                      <span class="option-row" class:is-picked={isPicked(line, option.id)}>
                         <span class="option-mark" aria-hidden="true"></span>
-                        <span class="option-name">{option}</span>
+                        <span class="option-name">{option.label}</span>
                         <span class="option-pole muted">{optionPole(line, index)}</span>
                       </span>
                     {/each}

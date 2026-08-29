@@ -49,7 +49,7 @@ const QUIZ = {
       kind: "single_choice",
       prompt: "Hoofdstad?",
       required: true,
-      options: ["Rotterdam", "Amsterdam"],
+      options: [{ id: "opt-rotterdam", label: "Rotterdam" }, { id: "opt-amsterdam", label: "Amsterdam" }],
       low_label: null,
       high_label: null,
       min_value: null,
@@ -182,7 +182,10 @@ describe("playing a quiz", () => {
     // Every question, answered or not: the server decides what an empty
     // optional answer is worth.
     expect(payload.answers.map((a) => a.question_id)).toEqual(["one", "two"]);
-    expect(payload.answers[0].answer_choices).toEqual(["Amsterdam"]);
+    // The answer names the option by id. The label is what was read on
+    // screen, and the organiser can reword it afterwards without
+    // detaching this (``docs/design-question-edits.md``).
+    expect(payload.answers[0].answer_choices).toEqual(["opt-amsterdam"]);
 
     // The score is the response's, not a sum the page did itself.
     expect(text()).toContain("2/ 5 punten");

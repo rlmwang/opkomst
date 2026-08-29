@@ -12,7 +12,9 @@ export interface PublicFormQuestion {
   kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
   prompt: string;
   required: boolean;
-  options: string[];
+  /** Choices as rows: the label to show and the id an answer names it
+   *  by (``docs/design-question-edits.md``). */
+  options: { id: string; label: string }[];
   low_label: string | null;
   high_label: string | null;
   min_value: number | null;

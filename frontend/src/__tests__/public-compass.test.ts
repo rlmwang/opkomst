@@ -82,7 +82,7 @@ const COMPASS = {
       kind: "single_choice",
       prompt: "Waar moet het geld heen?",
       required: true,
-      options: ["Zorg", "Defensie"],
+      options: [{ id: "opt-zorg", label: "Zorg" }, { id: "opt-defensie", label: "Defensie" }],
       low_label: null,
       high_label: null,
       min_value: null,
@@ -236,7 +236,8 @@ describe("PublicCompass", () => {
     expect(payload.display_name).toBe("Sam");
     expect(payload.answers).toEqual([
       { question_id: "one", answer_int: 2 },
-      { question_id: "two", answer_choices: ["Zorg"] },
+      // By option id, not by the wording that was on screen.
+      { question_id: "two", answer_choices: ["opt-zorg"] },
     ]);
 
     // The map, and a sentence per axis built from the organiser's own

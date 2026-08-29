@@ -159,8 +159,12 @@ test("a visitor walks a kompas and lands on the map", async ({ browser, request 
         {
           kind: "single_choice",
           prompt: "Waar moet het geld heen?",
-          options: ["Zorg", "Defensie"],
-          option_poles: ["x_low", "y_high"],
+          // Each option carries its own side; there is no second list
+          // to keep in step (``docs/design-question-edits.md``).
+          options: [
+            { label: "Zorg", pole: "x_low" },
+            { label: "Defensie", pole: "y_high" },
+          ],
         },
       ],
     },

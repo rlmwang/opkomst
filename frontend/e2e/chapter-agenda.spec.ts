@@ -37,7 +37,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
     starts_on: startsAt.toISOString().slice(0, 10),
     start_time: "19:00:00",
     end_time: "21:00:00",
-    source_options: ["Mond-tot-mond"],
+    source_options: [{ label: "Mond-tot-mond" }],
     source_enabled: true,
     help_options: [],
     feedback_enabled: false,
