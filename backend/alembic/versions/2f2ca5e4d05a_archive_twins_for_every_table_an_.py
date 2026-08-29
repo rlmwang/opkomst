@@ -1,6 +1,6 @@
 """archive twins for every table an archived item reaches
 
-Twenty-four tables, one per live table that an archived event, form,
+Twenty-three tables, one per live table that an archived event, form,
 datepoll or roster can reach through a foreign key. Generated from the
 live models rather than written out (backend/models/archive.py), so
 a later migration that adds a column emits the ALTER for the pair.
@@ -109,18 +109,6 @@ def upgrade() -> None:
     sa.Column('created_by', sa.Text(), nullable=False),
     sa.Column('chapter_id', sa.Text(), nullable=True),
     sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('tenant_id', sa.Text(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('email_dispatches_archive',
-    sa.Column('occurrence_id', sa.Text(), nullable=False),
-    sa.Column('channel', postgresql.ENUM('REMINDER', 'FEEDBACK', name='email_channel', create_type=False), nullable=False),
-    sa.Column('encrypted_email', sa.LargeBinary(), nullable=True),
-    sa.Column('message_id', sa.Text(), nullable=True),
-    sa.Column('locale', sa.Text(), nullable=False),
-    sa.Column('id', sa.Text(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('tenant_id', sa.Text(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
@@ -408,7 +396,6 @@ def downgrade() -> None:
     op.drop_table('events_archive')
     op.drop_table('enrollments_archive')
     op.drop_table('email_send_counts_archive')
-    op.drop_table('email_dispatches_archive')
     op.drop_table('datepolls_archive')
     op.drop_table('datepoll_submissions_archive')
     op.drop_table('datepoll_slots_archive')

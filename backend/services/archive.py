@@ -32,7 +32,9 @@ from sqlalchemy import delete, false, func, insert, select
 from sqlalchemy.orm import Session
 
 from ..database import Base
+from ..models import EmailDispatch
 from ..models.archive import ARCHIVABLE_ROOTS, archive_metadata, dependent_tables
+from .mail_lifecycle import record_send
 
 logger = structlog.get_logger()
 
@@ -122,12 +124,43 @@ def _move(db: Session, root: str, conditions: dict[str, Any], *, to_archive: boo
     return moved
 
 
+def _discard_dispatches(db: Session, conditions: dict[str, Any]) -> int:
+    """Delete the mail this item still owed, and count it failed.
+
+    An ``EmailDispatch`` row is an email nobody has sent yet, and the
+    only place the recipient's address lives. Archiving the event says
+    that email is never going to be sent, so the row goes and
+    ``EmailSendCount`` keeps the tally: the same thing the daily reaper
+    does to a dispatch whose window has closed.
+
+    It has to happen here, at the move. Deleting the row is what wipes
+    the address, and nothing sweeps the archive, so a dispatch that
+    travelled into it would keep its ciphertext for ever. That is why
+    ``email_dispatches`` is in ``NEVER_ARCHIVED`` and has no twin.
+    """
+    if "occurrences" not in conditions:
+        return 0
+    occurrences = Base.metadata.tables["occurrences"]
+    owed = db.query(EmailDispatch).filter(
+        EmailDispatch.occurrence_id.in_(select(occurrences.c.id).where(conditions["occurrences"]))
+    )
+    discarded = 0
+    for row in owed.all():
+        record_send(db, occurrence_id=row.occurrence_id, channel=row.channel, tenant_id=row.tenant_id, sent=False)
+        db.delete(row)
+        discarded += 1
+    if discarded:
+        db.flush()
+    return discarded
+
+
 def archive_item(db: Session, root: str, root_id: str) -> int:
     """Move an item and everything under it into the archive. Returns the
     number of rows moved. Does not commit: the caller owns the
     transaction, so the move and whatever else it does are one."""
     _assert_root(root)
     conditions = _selection(db, root, root_id, archived=False)
+    _discard_dispatches(db, conditions)
     moved = _move(db, root, conditions, to_archive=True)
     # The rows moved out from under any ORM object the caller is holding.
     # Expiring says so, rather than letting the next attribute read raise

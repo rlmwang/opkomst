@@ -58,13 +58,36 @@ def test_archiving_empties_the_live_tables_and_fills_the_twins(db: Any) -> None:
     tables = ["events", *dependent_tables("events")]
     before = {t: _live_count(db, t) for t in tables}
     assert before["signups"] == 1 and before["occurrences"] >= 1
+    # Counted before the move, because the move is what turns each of
+    # them into a failed tally.
+    # One per channel: the reminder and the feedback mail.
+    owed = _live_count(db, "email_dispatches")
+    assert owed == 2
 
     archive.archive_item(db, "events", event.id)
     commit(db)
 
     for table in tables:
         assert _live_count(db, table) == 0, f"{table} still holds live rows"
-        assert _archived_count(db, table) == before[table], table
+        expected = before[table] + owed if table == "email_send_counts" else before[table]
+        assert _archived_count(db, table) == expected, table
+
+
+def test_archiving_discards_the_mail_it_still_owed(db: Any) -> None:
+    """The dispatch row is the only place an attendee's address lives,
+    and nothing sweeps the archive. So archiving deletes it rather than
+    moving it, and ``email_send_counts`` keeps the tally."""
+    event = _event_with_everything(db)
+    assert _live_count(db, "email_dispatches") == 2
+
+    archive.archive_item(db, "events", event.id)
+    commit(db)
+
+    assert _live_count(db, "email_dispatches") == 0
+    assert "email_dispatches_archive" not in archive_metadata.tables
+    # The tally travels with the event, so it is in the twin by now.
+    counts = archive_metadata.tables["email_send_counts_archive"]
+    assert db.execute(select(func.sum(counts.c.failed))).scalar() == 2
 
 
 def test_restore_puts_every_row_back_unchanged(db: Any) -> None:
@@ -79,6 +102,10 @@ def test_restore_puts_every_row_back_unchanged(db: Any) -> None:
     commit(db)
 
     for table in tables:
+        if table == "email_send_counts":
+            # Archiving wrote a failed tally for the mail it discarded,
+            # so this one table is deliberately not what it was.
+            continue
         assert _snapshot(db, table) == before[table], f"{table} came back different"
         assert _archived_count(db, table) == 0, f"{table} left rows in the archive"
 

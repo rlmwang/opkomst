@@ -46,11 +46,13 @@ from typing import Any
 from urllib.parse import quote
 
 import structlog
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
 from ..models import (
+    ArchiveIndex,
     Chore,
     EmailChannel,
     EmailDispatch,
@@ -62,6 +64,7 @@ from ..models import (
     Shift,
     Volunteer,
 )
+from ..models.archive import archive_metadata
 from ..schemas.common import pick_localized
 from . import encryption, limits, tenancy
 from . import image as image_svc
@@ -716,23 +719,26 @@ def reap_expired() -> int:
         # past the grace window (the roster is gone; the address has no
         # more work to do). Same force-wipe backstop as the event
         # ciphertext above — normal paths (mute/leave) clear it earlier.
+        #
+        # Archiving is a move, so those volunteers are in the twin, and
+        # when the roster was archived is in ``ArchiveIndex``. A live
+        # roster is never archived, so there is nothing to sweep on this
+        # side of the fence.
         chore_cutoff = datetime.now(UTC) - CHORE_ARCHIVE_PURGE_DELAY
-        purged = (
-            db.query(Volunteer)
-            .filter(
-                Volunteer.encrypted_email.is_not(None),
-                Volunteer.roster_id.in_(
-                    db.query(Roster.id).filter(
-                        Roster.archived_at.is_not(None),
-                        Roster.archived_at < chore_cutoff,
-                    )
-                ),
-            )
-            .update(
-                {Volunteer.encrypted_email: None, Volunteer.email_reminders: False},
-                synchronize_session=False,
-            )
+        volunteers = archive_metadata.tables["volunteers_archive"]
+        archived_rosters = select(ArchiveIndex.entity_id).where(
+            ArchiveIndex.root == "rosters",
+            ArchiveIndex.archived_at < chore_cutoff,
         )
+        wiped = db.execute(
+            update(volunteers)
+            .where(
+                volunteers.c.encrypted_email.is_not(None),
+                volunteers.c.roster_id.in_(archived_rosters),
+            )
+            .values(encrypted_email=None, email_reminders=False)
+        )
+        purged = getattr(wiped, "rowcount", 0) or 0
         db.commit()
         if finalised:
             logger.warning("reaped_expired_dispatches", count=finalised)

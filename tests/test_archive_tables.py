@@ -17,6 +17,7 @@ from backend.database import Base, engine
 from backend.models.archive import (
     ARCHIVABLE_ROOTS,
     MIRRORED,
+    NEVER_ARCHIVED,
     archive_metadata,
     archived_tables,
     dependent_tables,
@@ -57,7 +58,6 @@ def test_the_mirrored_set_is_the_foreign_key_graph() -> None:
         "events",
         "occurrences",
         "registrations",
-        "email_dispatches",
         "email_send_counts",
         "feedback_responses",
         "feedback_tokens",
@@ -65,6 +65,18 @@ def test_the_mirrored_set_is_the_foreign_key_graph() -> None:
     ]
     assert graph["forms"] == ["forms", "compass_axes", "form_questions", "form_responses", "form_submissions"]
     assert graph["datepolls"] == ["datepolls", "datepoll_slots", "datepoll_submissions", "datepoll_responses"]
+
+
+def test_email_dispatches_never_travels_and_has_no_twin() -> None:
+    """A dispatch row is an email still owed, and the only place an
+    attendee's address lives. Archiving says that email is never going
+    to be sent, so the row is deleted and counted failed at the move
+    (``services/archive.py::_discard_dispatches``). Nothing sweeps the
+    archive, so a twin here would hold the ciphertext for ever."""
+    assert "email_dispatches" in NEVER_ARCHIVED
+    assert "email_dispatches" not in MIRRORED
+    assert all("email_dispatches" not in names for names in archived_tables().values())
+    assert "email_dispatches_archive" not in archive_metadata.tables
 
 
 def test_dependents_come_after_the_tables_they_reference() -> None:

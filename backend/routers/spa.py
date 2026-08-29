@@ -285,6 +285,18 @@ def _nonce(request: Request) -> str:
     return request.state.csp_nonce
 
 
+def _inline_json(value: Any) -> str:
+    """``value`` as JSON that is safe to put between ``<script>`` tags.
+
+    ``json.dumps`` leaves ``<`` alone, so an organiser who types
+    ``</script>`` into an event name would close the element and have
+    the rest of the payload parsed as page HTML. Escaping the three
+    characters that can start a tag closes that: ``\\u003c`` and friends
+    are ordinary JSON escapes, and parse back to the same string.
+    """
+    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
 def _allow_ads(request: Request, brand_slug: str) -> None:
     """Say whether this response may carry advertising, for
     ``SecurityHeadersMiddleware`` to pick the CSP from (see
@@ -360,7 +372,7 @@ def _serve_public_app(
         return _serve_admin_shell(brand_slug, request)
     _allow_ads(request, brand_slug)
     nonce = _nonce(request)
-    inlined = f'<script nonce="{nonce}">window.{window_var} = ' + json.dumps(payload, ensure_ascii=False) + ";</script>"
+    inlined = f'<script nonce="{nonce}">window.{window_var} = ' + _inline_json(payload) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
         .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_slug, nonce), 1)

@@ -132,7 +132,7 @@ only looks at rows that still exist. The archived row carries
 
 1. ~~**Fix the image leak first**~~, done. The image now goes with the
    row that knows its path.
-2. ~~The `mirror()` helper and the twins it generates~~, done: 24 tables
+2. ~~The `mirror()` helper and the twins it generates~~, done: 23 tables
    in `backend/models/archive.py`, with a test that fails if a twin's
    columns stop matching its live table.
 3. ~~`services/archive.py`~~, done: archive, restore and purge over the

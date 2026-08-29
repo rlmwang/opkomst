@@ -38,6 +38,18 @@ from ..mixins import TenantMixin, TimestampMixin, UUIDMixin
 # is there because it hangs off one of them.
 ARCHIVABLE_ROOTS: tuple[str, ...] = ("events", "forms", "datepolls", "rosters")
 
+# Tables that hang off a root and still never travel with it, so they
+# get no twin and the graph walk stops at them.
+#
+# ``email_dispatches`` is the whole list. A dispatch row is an email
+# still owed, and the only place an attendee's address lives; archiving
+# an item says that work is never going to happen. So the rows are
+# deleted and counted failed at archive time
+# (``services/archive.py::_discard_dispatches``), which is also the
+# wipe. Copying them into an archive nothing sweeps would keep the
+# ciphertext for ever.
+NEVER_ARCHIVED: frozenset[str] = frozenset({"email_dispatches"})
+
 # Its own MetaData, so ``Base.metadata`` stays the live schema and the
 # twins cannot be picked up by anything that iterates the live tables
 # (the tenancy audit, the seed, a naive "delete everything" in a test).
@@ -101,6 +113,8 @@ def dependent_tables(root: str) -> list[str]:
     queue: deque[str] = deque([root])
     while queue:
         for child in sorted(dependents.get(queue.popleft(), ())):
+            if child in NEVER_ARCHIVED:
+                continue
             if child not in seen:
                 seen.append(child)
                 queue.append(child)
