@@ -331,8 +331,6 @@ def test_a_score_follows_the_quiz_when_it_changes(client, organiser_headers) -> 
     # The organiser's page agrees, because it marks the same way.
     summary = client.get(f"/api/v1/quiz/{quiz['id']}/summary", headers=organiser_headers).json()
     assert (summary["score_average"], summary["score_best"], summary["max_score"]) == (5.0, 5, 9)
-    rows = client.get(f"/api/v1/quiz/{quiz['id']}/submissions", headers=organiser_headers).json()
-    assert (rows[0]["score"], rows[0]["max_score"]) == (5, 9)
 
 
 def test_fixing_a_wrong_key_corrects_everybody(client, organiser_headers) -> None:
@@ -410,14 +408,17 @@ def test_a_taker_can_still_withdraw(client, organiser_headers) -> None:
 # --- the organiser's side ---------------------------------------------
 
 
-def test_the_organiser_sees_who_scored_what(client, organiser_headers) -> None:
+def test_the_organiser_sees_how_the_room_did(client, organiser_headers) -> None:
     quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 2, "correct_int": 7}])
     qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
-    _take(client, quiz, [{"question_id": qid, "answer_int": 7}], name="Sam")
-    _take(client, quiz, [{"question_id": qid, "answer_int": 1}], name="Kim")
+    sam = _take(client, quiz, [{"question_id": qid, "answer_int": 7}], name="Sam").json()
+    kim = _take(client, quiz, [{"question_id": qid, "answer_int": 1}], name="Kim").json()
+    # Each player is told their own mark; the organiser is told what the
+    # room did with it.
+    assert (sam["score"], kim["score"]) == (2, 0)
 
     rows = client.get(f"/api/v1/quiz/{quiz['id']}/submissions", headers=organiser_headers).json()
-    assert {(r["display_name"], r["score"], r["max_score"]) for r in rows} == {("Sam", 2, 2), ("Kim", 0, 2)}
+    assert {r["display_name"] for r in rows} == {"Sam", "Kim"}
 
     summary = client.get(f"/api/v1/quiz/{quiz['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 2

@@ -1240,13 +1240,11 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. The download
-         *     is its own route below, written by the database; this is the
-         *     shape the page reads.
+         * @description Who filled this in and when. What they said is the
+         *     download, written by the database, on the route below.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
-         *     with no link back to whoever submitted — same contract as
-         *     the post-event feedback CSV.
+         *     with no link back to whoever submitted.
          */
         get: operations["form_submissions_api_v1_compass__form_id__submissions_get"];
         put?: never;
@@ -2493,13 +2491,11 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. The download
-         *     is its own route below, written by the database; this is the
-         *     shape the page reads.
+         * @description Who filled this in and when. What they said is the
+         *     download, written by the database, on the route below.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
-         *     with no link back to whoever submitted — same contract as
-         *     the post-event feedback CSV.
+         *     with no link back to whoever submitted.
          */
         get: operations["form_submissions_api_v1_form__form_id__submissions_get"];
         put?: never;
@@ -2820,13 +2816,11 @@ export interface paths {
         };
         /**
          * Form Submissions
-         * @description Per-submission rows, keyed by question id. The download
-         *     is its own route below, written by the database; this is the
-         *     shape the page reads.
+         * @description Who filled this in and when. What they said is the
+         *     download, written by the database, on the route below.
          *
          *     Privacy: ``submission_id`` is a random per-submission token
-         *     with no link back to whoever submitted — same contract as
-         *     the post-event feedback CSV.
+         *     with no link back to whoever submitted.
          */
         get: operations["form_submissions_api_v1_quiz__form_id__submissions_get"];
         put?: never;
@@ -5075,20 +5069,16 @@ export interface components {
         };
         /**
          * FormSubmissionOut
-         * @description One submission as a flat row for the CSV export. ``answers``
-         *     is keyed by question id; values match the kind: int for
-         *     rating, string for text/short_text, list[str] for choice
-         *     kinds. Missing answers are absent from the dict.
+         * @description One submission, as the organiser's page lists them.
          *
-         *     ``submission_id`` is the random per-submission token with no
-         *     link back to the submitter — same privacy contract as the
-         *     post-event feedback CSV.
+         *     Who filled the form in and when, not what they said: the answers
+         *     are the download's business (``services/csv_export``), and this
+         *     list exists so an organiser can hand somebody their edit link back.
+         *
+         *     ``submission_id`` is the random per-submission token with no link
+         *     back to the submitter.
          */
         FormSubmissionOut: {
-            /** Answers */
-            answers: {
-                [key: string]: number | string | string[];
-            };
             /**
              * Created At
              * Format: date-time
@@ -5100,10 +5090,6 @@ export interface components {
             link_recovered_at?: string | null;
             /** Submission Id */
             submission_id: string;
-            /** X */
-            x?: number | null;
-            /** Y */
-            y?: number | null;
         };
         /**
          * FormSubmitAck
@@ -5796,33 +5782,6 @@ export interface components {
             max_score: number;
             /** Reveal Answers */
             reveal_answers: boolean;
-            /** Score */
-            score: number;
-            /** Submission Id */
-            submission_id: string;
-        };
-        /**
-         * QuizSubmissionOut
-         * @description One taken quiz, for the organiser's list. Same privacy contract
-         *     as the survey row: the id is opaque and the pseudonym is the only
-         *     identifier.
-         */
-        QuizSubmissionOut: {
-            /** Answers */
-            answers: {
-                [key: string]: number | string | string[];
-            };
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Display Name */
-            display_name: string | null;
-            /** Link Recovered At */
-            link_recovered_at?: string | null;
-            /** Max Score */
-            max_score: number;
             /** Score */
             score: number;
             /** Submission Id */
@@ -11683,7 +11642,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["QuizSubmissionOut"][];
+                    "application/json": components["schemas"]["FormSubmissionOut"][];
                 };
             };
             /** @description Validation Error */

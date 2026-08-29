@@ -305,8 +305,6 @@ class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     @property
     def answer_choices(self) -> list[str]:
-        """The ticked option ids. The graders and the kompas read this
-        name off Core rows too (``services/form_answers`` aggregates the
-        join into a column of the same name), so both shapes answer it
-        and the folds are one piece of code."""
+        """The ticked option ids, for the public routes that read one
+        person's answers back to them."""
         return [c.option_id for c in self.choices]

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tests._helpers.forms import option_ids
+from tests._helpers.forms import csv_rows, option_ids
 
 AXES = [
     {
@@ -441,12 +441,12 @@ def test_the_result_carries_the_room_as_well_as_you(client, organiser_headers) -
     assert x_axis["average"] > -1.0
 
 
-def test_the_csv_rows_carry_the_coordinates(client, organiser_headers) -> None:
+def test_the_download_carries_the_coordinates(client, organiser_headers) -> None:
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 1}])
-    rows = client.get(f"/api/v1/compass/{kompas['id']}/submissions", headers=organiser_headers).json()
-    assert (rows[0]["x"], rows[0]["y"]) == (1.0, -1.0)
+    rows = csv_rows(client.get(f"/api/v1/compass/{kompas['id']}/submissions.csv", headers=organiser_headers))
+    assert rows[1][2:4] == ["1.0", "-1.0"]
 
 
 # --- the refusals ----------------------------------------------------

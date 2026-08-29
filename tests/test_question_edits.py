@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 from tests._helpers.events import public_option_ids
-from tests._helpers.forms import option_ids
+from tests._helpers.forms import answer_cells, option_ids
 
 AXES = [
     {"axis": "x", "name": "Economie", "low_name": "Links", "high_name": "Rechts"},
@@ -105,11 +105,6 @@ def _counts(client: Any, headers: Any, form: dict[str, Any], mode: str = "form")
     return question["choice_counts"], question["response_count"]
 
 
-def _csv_answers(client: Any, headers: Any, form: dict[str, Any], mode: str = "form") -> list[Any]:
-    rows = client.get(f"/api/v1/{mode}/{form['id']}/submissions", headers=headers).json()
-    return [list(row["answers"].values()) for row in rows]
-
-
 _CHOICE = [
     {
         "kind": "single_choice",
@@ -139,7 +134,7 @@ def test_renaming_an_option_keeps_the_answers_to_it(client, organiser_headers) -
     assert total == 3
     assert sum(counts.values()) == total
     # The export follows too: it prints the option as it reads now.
-    assert _csv_answers(client, organiser_headers, form) == [[["Elke week"]], [["Elke week"]], [["Maandelijks"]]]
+    assert answer_cells(client, organiser_headers, form) == [["Elke week"], ["Elke week"], ["Maandelijks"]]
 
 
 def test_reordering_options_keeps_every_count(client, organiser_headers) -> None:
@@ -254,12 +249,8 @@ def test_changing_the_kind_replaces_the_question_and_its_answers(client, organis
     assert after[0]["id"] != before
     # Its two answers went; the open question's two stayed.
     assert db.query(FormResponse).filter(FormResponse.form_id == form["id"]).count() == 2
-    assert [
-        row["answers"] for row in client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
-    ] == [
-        {after[1]["id"]: "omdat"},
-        {after[1]["id"]: "omdat"},
-    ]
+    # The retyped question's column is empty; the open question kept its answers.
+    assert answer_cells(client, organiser_headers, form) == [["", "omdat"], ["", "omdat"]]
 
 
 def test_retyping_a_question_drops_its_answers(client, organiser_headers, db) -> None:

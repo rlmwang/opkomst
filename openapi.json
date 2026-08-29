@@ -4844,28 +4844,8 @@
         "type": "object"
       },
       "FormSubmissionOut": {
-        "description": "One submission as a flat row for the CSV export. ``answers``\nis keyed by question id; values match the kind: int for\nrating, string for text/short_text, list[str] for choice\nkinds. Missing answers are absent from the dict.\n\n``submission_id`` is the random per-submission token with no\nlink back to the submitter \u2014 same privacy contract as the\npost-event feedback CSV.",
+        "description": "One submission, as the organiser's page lists them.\n\nWho filled the form in and when, not what they said: the answers\nare the download's business (``services/csv_export``), and this\nlist exists so an organiser can hand somebody their edit link back.\n\n``submission_id`` is the random per-submission token with no link\nback to the submitter.",
         "properties": {
-          "answers": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                }
-              ]
-            },
-            "title": "Answers",
-            "type": "object"
-          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -4897,35 +4877,12 @@
           "submission_id": {
             "title": "Submission Id",
             "type": "string"
-          },
-          "x": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "X"
-          },
-          "y": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Y"
           }
         },
         "required": [
           "submission_id",
           "display_name",
-          "created_at",
-          "answers"
+          "created_at"
         ],
         "title": "FormSubmissionOut",
         "type": "object"
@@ -6696,81 +6653,6 @@
           "answers"
         ],
         "title": "QuizResultOut",
-        "type": "object"
-      },
-      "QuizSubmissionOut": {
-        "description": "One taken quiz, for the organiser's list. Same privacy contract\nas the survey row: the id is opaque and the pseudonym is the only\nidentifier.",
-        "properties": {
-          "answers": {
-            "additionalProperties": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "items": {
-                    "type": "string"
-                  },
-                  "type": "array"
-                }
-              ]
-            },
-            "title": "Answers",
-            "type": "object"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "display_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Display Name"
-          },
-          "link_recovered_at": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Link Recovered At"
-          },
-          "max_score": {
-            "title": "Max Score",
-            "type": "integer"
-          },
-          "score": {
-            "title": "Score",
-            "type": "integer"
-          },
-          "submission_id": {
-            "title": "Submission Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "submission_id",
-          "display_name",
-          "created_at",
-          "score",
-          "max_score",
-          "answers"
-        ],
-        "title": "QuizSubmissionOut",
         "type": "object"
       },
       "RenameUserRequest": {
@@ -12075,7 +11957,7 @@
     },
     "/api/v1/compass/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Who filled this in and when. What they said is the\ndownload, written by the database, on the route below.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted.",
         "operationId": "form_submissions_api_v1_compass__form_id__submissions_get",
         "parameters": [
           {
@@ -16086,7 +15968,7 @@
     },
     "/api/v1/form/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Who filled this in and when. What they said is the\ndownload, written by the database, on the route below.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted.",
         "operationId": "form_submissions_api_v1_form__form_id__submissions_get",
         "parameters": [
           {
@@ -17155,7 +17037,7 @@
     },
     "/api/v1/quiz/{form_id}/submissions": {
       "get": {
-        "description": "Per-submission rows, keyed by question id. The download\nis its own route below, written by the database; this is the\nshape the page reads.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted \u2014 same contract as\nthe post-event feedback CSV.",
+        "description": "Who filled this in and when. What they said is the\ndownload, written by the database, on the route below.\n\nPrivacy: ``submission_id`` is a random per-submission token\nwith no link back to whoever submitted.",
         "operationId": "form_submissions_api_v1_quiz__form_id__submissions_get",
         "parameters": [
           {
@@ -17190,7 +17072,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/QuizSubmissionOut"
+                    "$ref": "#/components/schemas/FormSubmissionOut"
                   },
                   "title": "Response Form Submissions Api V1 Quiz  Form Id  Submissions Get",
                   "type": "array"

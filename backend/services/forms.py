@@ -60,9 +60,8 @@ from ..schemas.forms import (
     PublicFormOut,
     PublicQuestionOut,
     QuestionKind,
-    QuizSubmissionOut,
 )
-from . import access, compass, form_answers, numbers, public_access, quizzes, tenancy
+from . import access, compass, numbers, public_access, quizzes, tenancy
 from . import archive as archive_svc
 from . import image as image_svc
 from .ratings import rating_distribution
@@ -1078,79 +1077,32 @@ def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> Compass
     )
 
 
-def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
-    """The organiser's list of played quizzes: the survey projection
-    plus what each one scored, marked against the quiz as it stands
-    now (``services/quiz``)."""
-    questions = _questions(db, form_id)
-    rows = _submissions_with_answers(db, form_id, questions, mode="quiz")
-    out_of = quizzes.max_score(questions)
-    marked = quizzes.scores(db, form_id)
-    return [
-        QuizSubmissionOut(
-            submission_id=row.submission_id,
-            display_name=row.display_name,
-            created_at=row.created_at,
-            score=marked.get(row.submission_id, 0),
-            max_score=out_of,
-            answers=row.answers,
-            link_recovered_at=row.link_recovered_at,
-        )
-        for row in rows
-    ]
+def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
+    """Who filled the form in and when, oldest first.
 
-
-def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[FormSubmissionOut]:
-    """Per-submission rows, keyed by question id.
-    One ``FormSubmissionOut`` per fill-out, carrying the pseudonym
-    (``display_name``, NULL = anonymous); the answer value matches the
-    question kind (int / str / list[str]).
+    Not what they said: that is the download's business, written by the
+    database (``submissions_csv``). This list is read by the page that
+    hands somebody their edit link back, so it carries the pseudonym
+    and whether the link has already been recovered.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
-    return _submissions_with_answers(db, form_id, _questions(db, form_id), mode=mode)
-
-
-def _submissions_with_answers(
-    db: Session, form_id: str, questions: Sequence[Any], *, mode: str
-) -> list[FormSubmissionOut]:
-    """Every submission on the form, with its answers as CSV cells."""
-    kinds = {q.id: q.kind for q in questions}
-    # The CSV writes what people saw, so a tick is exported as its
-    # option's current label rather than the id it is stored as.
-    labels = {o.id: o.label for q in questions for o in q.options}
-    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
-    if not subs:
-        return []
-    sub_ids = [s.id for s in subs]
-    # Every answer on the form, grouped by who gave it, read once. The
-    # CSV cells and a kompas' two coordinate columns are the same rows
-    # asked two questions.
-    grouped = form_answers.by_submission(db, form_id)
-    # Two more CSV columns on a kompas, derived like everything else
-    # about a position (``services/compass``).
-    places = compass.positions(db, form_id) if mode == "compass" else {}
-    answers: dict[str, dict[str, int | str | list[str]]] = {sid: {} for sid in sub_ids}
-    for r in (row for sid in sub_ids for row in grouped.get(sid, [])):
-        kind = kinds.get(r.question_id)
-        if kind is None:
-            continue
-        if kind in ("rating", "number") and r.answer_int is not None:
-            answers[r.submission_id][r.question_id] = r.answer_int
-        elif kind in _TEXT_KINDS and r.answer_text is not None:
-            answers[r.submission_id][r.question_id] = r.answer_text
-        elif kind in _CHOICE_KINDS and r.answer_choices:
-            answers[r.submission_id][r.question_id] = [labels[c] for c in r.answer_choices if c in labels]
-
+    rows = db.execute(
+        select(
+            FormSubmission.id,
+            FormSubmission.display_name,
+            FormSubmission.created_at,
+            FormSubmission.link_recovered_at,
+        )
+        .where(FormSubmission.form_id == form_id)
+        .order_by(FormSubmission.created_at)
+    ).all()
     return [
         FormSubmissionOut(
-            submission_id=s.id,
-            display_name=s.display_name,
-            created_at=s.created_at,
-            answers=answers[s.id],
-            x=places[s.id].x if s.id in places else None,
-            y=places[s.id].y if s.id in places else None,
-            link_recovered_at=s.link_recovered_at,
+            submission_id=r.id,
+            display_name=r.display_name,
+            created_at=r.created_at,
+            link_recovered_at=r.link_recovered_at,
         )
-        for s in subs
+        for r in rows
     ]

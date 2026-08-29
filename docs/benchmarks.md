@@ -35,6 +35,49 @@ Read the p50 column for what an endpoint costs, and the rps column only
 as a rough shape. Proving a real server-side ceiling needs a load
 generator on another machine.
 
+## 2026-08-29 - after the `/submissions` reads stopped pivoting
+
+Same machine and same 500 submissions per form as the run below. One
+uvicorn worker.
+
+| endpoint | p50 c=1 | p50 c=8 | p50 c=32 | rps c=32 |
+|---|---|---|---|---|
+| chapters | 16 | 84 | 276 | 113 |
+| auth/me | 17 | 84 | 306 | 113 |
+| form public | 19 | 101 | 280 | 116 |
+| form list | 21 | 99 | 306 | 109 |
+| chapter agenda | 23 | 131 | 397 | 86 |
+| event feedback csv | 24 | 137 | 356 | 89 |
+| form details | 26 | 105 | 407 | 77 |
+| roster details | 26 | 133 | 425 | 75 |
+| event occurrences | 27 | 167 | 493 | 63 |
+| compass details | 28 | 127 | 467 | 69 |
+| datepoll csv | 28 | 142 | 429 | 74 |
+| event details | 29 | 155 | 640 | 53 |
+| datepoll summary | 30 | 157 | 431 | 72 |
+| **form submissions** | 32 | 204 | 799 | 39 |
+| **compass submissions** | 30 | 181 | 535 | 60 |
+| roster accountability | 32 | 179 | 493 | 65 |
+| form summary | 33 | 127 | 434 | 73 |
+| event feedback-summary | 36 | 211 | 547 | 60 |
+| event list | 39 | 164 | 433 | 78 |
+| roster schedule | 44 | 256 | 625 | 49 |
+| form csv | 62 | 231 | 658 | 48 |
+| compass summary | 80 | 261 | 763 | 45 |
+| compass csv | 82 | 224 | 568 | 59 |
+
+### What this run said
+
+* **The two `/submissions` reads halved.** They pivoted every answer in
+  Python to serve a popover that wants four fields. Form: 65 ms to 32.
+  Kompas: 93 ms to 30, and 20 rps to 60 at c=32. The endpoint is now
+  one `SELECT` of four columns, 4 queries against 5 and 6.
+* `services/form_answers` had no callers left afterwards and is gone.
+* **The slowest reads are now `compass summary` and `compass csv`**, at
+  80 ms each. Both walk the same statement: every answer poled, meaned
+  per axis, once for the map and once per exported row.
+* `roster schedule` at 44 ms and 11 queries is unchanged.
+
 ## 2026-08-29 - after the SQL rewrites and the streamed CSV
 
 Machine: 12th Gen Intel i5-1235U, 12 cores, 15 GB, Postgres 16.13,

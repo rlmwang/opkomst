@@ -568,37 +568,18 @@ class FormSummaryOut(BaseModel):
     questions: list[FormQuestionSummary]
 
 
-class QuizSubmissionOut(BaseModel):
-    """One taken quiz, for the organiser's list. Same privacy contract
-    as the survey row: the id is opaque and the pseudonym is the only
-    identifier."""
-
-    submission_id: str
-    display_name: str | None
-    created_at: datetime
-    score: int
-    max_score: int
-    answers: dict[str, int | str | list[str]]
-    link_recovered_at: datetime | None = None
-
-
 class FormSubmissionOut(BaseModel):
-    """One submission as a flat row for the CSV export. ``answers``
-    is keyed by question id; values match the kind: int for
-    rating, string for text/short_text, list[str] for choice
-    kinds. Missing answers are absent from the dict.
+    """One submission, as the organiser's page lists them.
 
-    ``submission_id`` is the random per-submission token with no
-    link back to the submitter — same privacy contract as the
-    post-event feedback CSV."""
+    Who filled the form in and when, not what they said: the answers
+    are the download's business (``services/csv_export``), and this
+    list exists so an organiser can hand somebody their edit link back.
+
+    ``submission_id`` is the random per-submission token with no link
+    back to the submitter."""
 
     submission_id: str
     display_name: str | None
     created_at: datetime
-    answers: dict[str, int | str | list[str]]
-    # Where this submission landed, on a kompas. Two more CSV columns,
-    # null on the other two products.
-    x: float | None = None
-    y: float | None = None
     # Non-NULL = an organiser recovered this submission's edit link.
     link_recovered_at: datetime | None = None

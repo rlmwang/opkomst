@@ -12,7 +12,7 @@ from typing import Any
 
 from backend.database import SessionLocal
 from backend.models import FormResponse
-from tests._helpers.forms import option_ids
+from tests._helpers.forms import answer_cells, option_ids
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -142,7 +142,7 @@ def test_submit_stores_pseudonym(client, organiser_headers):
     subs = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
     assert len(subs) == 1
     assert subs[0]["display_name"] == "Sam"
-    assert subs[0]["answers"][qid] == 4
+    assert answer_cells(client, organiser_headers, form) == [["4"]]
 
 
 def test_submit_anonymous_pseudonym_is_null(client, organiser_headers):
@@ -384,7 +384,7 @@ def test_submit_rate_limit_fires(client, organiser_headers):
     assert r.status_code == 429
 
 
-def test_submit_then_csv_source_includes_row(client, organiser_headers):
+def test_submit_then_the_download_includes_the_row(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
@@ -397,10 +397,7 @@ def test_submit_then_csv_source_includes_row(client, organiser_headers):
         f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"answers": [{"question_id": qid, "answer_int": 5}]},
     )
-    r = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers)
-    rows = r.json()
-    assert len(rows) == 1
-    assert rows[0]["answers"][qid] == 5
+    assert answer_cells(client, organiser_headers, form) == [["5"]]
 
 
 # --- number ---------------------------------------------------------
@@ -518,15 +515,14 @@ def test_the_summary_reports_average_and_range(client, organiser_headers):
     assert (q["number_min"], q["number_max"]) == (10, 30)
 
 
-def test_the_csv_projection_carries_the_number(client, organiser_headers):
+def test_the_download_carries_the_number(client, organiser_headers):
     form = _number_form(client, organiser_headers)
     qid = client.get(f"/api/v1/form/by-slug/{form['slug']}").json()["questions"][0]["id"]
     client.post(
         f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 42}]},
     )
-    rows = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
-    assert rows[0]["answers"][qid] == 42
+    assert answer_cells(client, organiser_headers, form) == [["42"]]
 
 
 def test_a_number_question_can_demand_a_step(client, organiser_headers):

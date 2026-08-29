@@ -46,7 +46,6 @@ from ..schemas.forms import (
     FormSubmissionOut,
     FormSummaryOut,
     FormUpdate,
-    QuizSubmissionOut,
 )
 from ..services import access, crud, csv_export, edit_token, entities, limits, quizzes
 from ..services import forms as forms_svc
@@ -334,28 +333,19 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         logger.info(f"{noun}_edit_link_recovered", form_id=form.id, submission_id=submission_id, actor_id=user.id)
         return EditLinkRecoverOut(edit_token=raw)
 
-    @router.get(
-        "/{form_id}/submissions",
-        # A taken quiz carries a score; a filled-in questionnaire does
-        # not. One route, one shape per product.
-        response_model=list[QuizSubmissionOut] if mode == "quiz" else list[FormSubmissionOut],
-    )
+    @router.get("/{form_id}/submissions", response_model=list[FormSubmissionOut])
     def form_submissions(
         form_id: str,
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
-    ) -> list[FormSubmissionOut] | list[QuizSubmissionOut]:
-        """Per-submission rows, keyed by question id. The download
-        is its own route below, written by the database; this is the
-        shape the page reads.
+    ) -> list[FormSubmissionOut]:
+        """Who filled this in and when. What they said is the
+        download, written by the database, on the route below.
 
         Privacy: ``submission_id`` is a random per-submission token
-        with no link back to whoever submitted — same contract as
-        the post-event feedback CSV."""
+        with no link back to whoever submitted."""
         access.get_form_for_user(db, form_id, user, _MODE)
-        if _MODE == "quiz":
-            return forms_svc.quiz_submissions(db, form_id)
-        return forms_svc.submissions(db, form_id, mode=_MODE)
+        return forms_svc.submissions(db, form_id)
 
     @router.get("/{form_id}/submissions.csv", response_class=StreamingResponse)
     def form_submissions_csv(
