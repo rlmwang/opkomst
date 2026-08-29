@@ -23,6 +23,7 @@
     "src/stores/auth.svelte.ts",
     "src/router/*.svelte.ts",
     "src/router/*.svelte",
-    "src/api/queries.svelte.ts"
+    "src/api/queries.svelte.ts",
+    "src/composables/*.svelte.ts"
   ]
 }

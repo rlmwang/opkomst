@@ -12,6 +12,7 @@ import { brand, isPersonalApp } from "@/lib/branding";
 const {
   publicLink,
   wordmark,
+  class: className,
 }: {
   /** Public-facing mode (event signup, feedback form). Both logo and
    *  wordmark wrap a single external link to the organisation's own
@@ -23,6 +24,7 @@ const {
    *  home; routing stays in the admin bundle, which is the only one
    *  that has a router. */
   wordmark?: Snippet;
+  class?: string;
 } = $props();
 
 const b = brand();
@@ -40,14 +42,14 @@ const href = external ? b.org_url : "/";
     href={href}
     target={external ? "_blank" : undefined}
     rel={external ? "noopener" : undefined}
-    class="brand-mark public-link"
+    class="brand-mark public-link {className ?? ''}"
     aria-label={label}
   >
     {#if b.logo_url}<img src={b.logo_url} alt="" class="party-logo" />{/if}
     <span class="wordmark">{b.wordmark}</span>
   </a>
 {:else}
-  <div class="brand-mark">
+  <div class="brand-mark {className ?? ''}">
     <a
       href={href}
       target={external ? "_blank" : undefined}

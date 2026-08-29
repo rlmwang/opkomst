@@ -7,7 +7,7 @@
  */
 import type { Snippet } from "svelte";
 
-import { go } from "./navigation.svelte";
+import { go, route } from "./navigation.svelte";
 import { withBase } from "./router.svelte";
 
 const {
@@ -15,6 +15,10 @@ const {
   class: className,
   children,
 }: { to: string; class?: string; children: Snippet } = $props();
+
+// vue-router added this class for free and the styles rely on it: a
+// subtab is styled by whether it is the page you are on.
+const active = $derived(route.path === to);
 
 function onclick(event: MouseEvent) {
   // Leave the browser to it when the visitor asked for a new tab or
@@ -25,4 +29,6 @@ function onclick(event: MouseEvent) {
 }
 </script>
 
-<a href={withBase(to)} class={className} {onclick}>{@render children()}</a>
+<a href={withBase(to)} class={className} class:router-link-active={active} {onclick}>
+  {@render children()}
+</a>

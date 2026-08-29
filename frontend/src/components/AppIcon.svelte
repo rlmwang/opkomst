@@ -15,13 +15,17 @@ export type { IconName } from "./app-icons";
  */
 import { PATHS, type IconName } from "./app-icons";
 
-const { name, size = 16 }: { name: IconName; size?: number } = $props();
+const {
+  name,
+  size = 16,
+  class: className,
+}: { name: IconName; size?: number; class?: string } = $props();
 
 const paths = $derived(PATHS[name] ?? []);
 </script>
 
 <svg
-  class="app-icon"
+  class="app-icon {className ?? ''}"
   width={size}
   height={size}
   viewBox="0 0 24 24"
