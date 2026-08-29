@@ -9,7 +9,7 @@
 
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import { mountPublic } from "@/public_shared/mount";
+import { mountApp } from "@/lib/mount";
 import PublicCompass from "./PublicCompass.svelte";
 
-mountPublic(PublicCompass);
+mountApp(PublicCompass);

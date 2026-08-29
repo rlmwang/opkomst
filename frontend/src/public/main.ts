@@ -13,7 +13,7 @@
 
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import { mountPublic } from "@/public_shared/mount";
+import { mountApp } from "@/lib/mount";
 import PublicEvent from "./PublicEvent.svelte";
 
-mountPublic(PublicEvent);
+mountApp(PublicEvent);

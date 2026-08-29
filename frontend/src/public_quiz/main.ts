@@ -9,7 +9,7 @@
 
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import { mountPublic } from "@/public_shared/mount";
+import { mountApp } from "@/lib/mount";
 import PublicQuiz from "./PublicQuiz.svelte";
 
-mountPublic(PublicQuiz);
+mountApp(PublicQuiz);

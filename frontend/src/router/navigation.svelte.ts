@@ -1,4 +1,7 @@
+import type { Component } from "svelte";
+
 import { auth, fetchMe } from "@/stores/auth.svelte";
+import { captureError } from "@/lib/sentry";
 import { getToken } from "@/api/client";
 import { isPersonalApp } from "@/lib/branding";
 
@@ -87,46 +90,89 @@ async function redirectFor(meta: RouteDef["meta"]): Promise<string | null> {
  * ``sessionStorage`` guards against a loop if the chunk is genuinely
  * gone rather than merely stale.
  */
-function recoverFromStaleChunk(path: string, error: unknown): void {
+function recoverFromStaleChunk(path: string, error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   const stale =
     /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically imported module/i.test(
       message,
     );
-  if (!stale) throw error;
+  if (!stale) return false;
   const key = `chunk-reload:${path}`;
-  if (sessionStorage.getItem(key)) return; // already tried, avoid a loop
+  if (sessionStorage.getItem(key)) return true; // already tried, avoid a loop
   sessionStorage.setItem(key, "1");
   window.location.assign(withBase(path));
+  return true;
 }
 
-async function land(path: string, search: string): Promise<void> {
-  const found = matchRoute(routes, path);
-  if (!found) return;
-  const redirect = await redirectFor(found.route.meta);
-  if (redirect !== null && redirect !== path) {
-    await go(redirect, { replace: true });
-    return;
-  }
+/**
+ * Go to a path and put something on screen.
+ *
+ * Something, always. The shell shows a spinner until the first
+ * navigation lands, so a path that resolves to nothing is a spinner
+ * that never goes away, and this has shipped twice. Every way out of
+ * this function either sets ``current``, or hands off to a navigation
+ * that will, or reloads the page.
+ */
+async function land(path: string, search: string, depth = 0): Promise<void> {
   navigating = true;
   try {
+    const found = matchRoute(routes, path);
+    // The table ends in a catch-all, so this is unreachable. It is
+    // handled rather than assumed because the cost of being wrong is a
+    // page that never renders.
+    if (!found) {
+      show(path, search, {}, {}, await notFoundPage());
+      return;
+    }
+
+    const redirect = await redirectFor(found.route.meta);
+    if (redirect !== null && redirect !== path) {
+      // A guard sending a visitor to a page whose guard sends them back
+      // is a loop, and a loop with an await in it is a hung page. Three
+      // hops is more than any chain in the table needs.
+      if (depth >= 3) {
+        show(path, search, {}, {}, await notFoundPage());
+        return;
+      }
+      window.history.replaceState(null, "", withBase(redirect));
+      await land(redirect, "", depth + 1);
+      return;
+    }
+
     const module = await found.route.load();
-    current = {
-      path,
-      params: found.params,
-      meta: found.route.meta ?? {},
-      component: module.default,
-    };
-    query = new URLSearchParams(search);
+    show(path, search, found.params, found.route.meta ?? {}, module.default);
     // Clear the one-shot reload guard once a navigation actually lands,
     // so a later genuine stale-chunk hit can recover again.
     sessionStorage.removeItem(`chunk-reload:${path}`);
   } catch (error) {
-    recoverFromStaleChunk(path, error);
+    // A chunk that 404s after a redeploy reloads the page. Anything
+    // else is a real fault, and the visitor gets a page saying so
+    // rather than a spinner: an error on screen can be reported, and a
+    // spinner cannot.
+    if (!recoverFromStaleChunk(path, error)) {
+      captureError(error);
+      show(path, search, {}, {}, await notFoundPage());
+    }
   } finally {
     navigating = false;
   }
 }
+
+/** The one place ``current`` is written. */
+function show(
+  path: string,
+  search: string,
+  params: Record<string, string>,
+  meta: RouteDef["meta"],
+  component: Component<never>,
+): void {
+  current = { path, params, meta: meta ?? {}, component };
+  query = new URLSearchParams(search);
+}
+
+/** What renders when there is nothing else to render. */
+const notFoundPage = async (): Promise<Component<never>> =>
+  (await import("@/pages/NotFoundPage.svelte")).default;
 
 /** Navigate. ``replace`` swaps the history entry rather than adding
  *  one, which is what a guard's redirect wants. */

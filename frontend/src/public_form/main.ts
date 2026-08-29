@@ -10,7 +10,7 @@
 
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import { mountPublic } from "@/public_shared/mount";
+import { mountApp } from "@/lib/mount";
 import PublicForm from "./PublicForm.svelte";
 
-mountPublic(PublicForm);
+mountApp(PublicForm);

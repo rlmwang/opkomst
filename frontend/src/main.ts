@@ -1,6 +1,5 @@
-import { mount } from "svelte";
-
 import App from "./App.svelte";
+import { mountApp } from "@/lib/mount";
 import { initI18n } from "./i18n.svelte";
 import { routes } from "./router/routes";
 import { startRouter } from "./router/navigation.svelte";
@@ -22,10 +21,8 @@ sentry.arm();
 // visitor asked for rather than an empty column that fills in a tick
 // later. Its own loading state covers the wait.
 initI18n().then(async () => {
-  const target = document.getElementById("app");
-  if (!target) throw new Error("#app is missing");
   void startRouter(routes);
-  mount(App, { target });
+  mountApp(App);
   // After mount on purpose: the download competes with nothing, and
   // anything that went wrong before this point is buffered and replayed
   // the moment it lands.

@@ -64,6 +64,29 @@ const Page = $derived(route.component);
 {/if}
 
 <style>
+/* Global on purpose: the element that has to be the column is the mount
+ * point, which is outside every component, and the box-sizing reset is
+ * the whole document's. Only this bundle mounts ``App``, so the public
+ * mini-apps are left as they are. Inside ``@layer app`` like every other
+ * global rule. */
+@layer app {
+  /* Padding and border count inside a declared width. PrimeVue's reset
+   * used to set this for the whole page; it left with PrimeVue, and
+   * without it every fluid input overflows its column by its own
+   * padding. */
+  :global(*),
+  :global(*::before),
+  :global(*::after) {
+    box-sizing: border-box;
+  }
+
+  :global(#app) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+  }
+}
+
 .app-main {
   flex: 1 0 auto;
 }

@@ -8,7 +8,7 @@
 
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import { mountPublic } from "@/public_shared/mount";
+import { mountApp } from "@/lib/mount";
 import PublicChore from "./PublicChore.svelte";
 
-mountPublic(PublicChore);
+mountApp(PublicChore);
