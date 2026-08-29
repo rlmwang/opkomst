@@ -31,7 +31,10 @@ const slug = window.location.pathname.replace(/^\/f\//, "").split("/")[0];
 // submission and PUT instead of POST on save. ``confirmSaved`` records
 // the token AND routes the URL onto it so a refresh reopens the edit
 // page.
-const { editToken, confirmSaved, ...link } = useEditLink("f", () => slug);
+// Held whole, not spread: ``editUrl`` is a getter, and spreading
+// would copy the empty string it has before a submit.
+const link = useEditLink("f", () => slug);
+const editToken = link.editToken;
 
 let form = $state<PublicForm | null>(null);
 let status = $state<"loading" | "ready" | "unavailable" | "load-failed" | "submitted" | "withdrawn">("loading");
@@ -167,7 +170,7 @@ async function submit() {
       edit.flashSaved();
     } else {
       const ack = await postSubmission(slug, body);
-      confirmSaved(ack.edit_token);
+      link.confirmSaved(ack.edit_token);
       status = "submitted";
     }
   } catch (e) {

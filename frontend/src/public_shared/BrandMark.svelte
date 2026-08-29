@@ -27,14 +27,17 @@ const {
 
 const b = brand();
 const label = `${b.org_name}, ${b.org_url.replace("https://", "")}`;
+// The house brand's ``org_url`` is this same site, so the mark points at
+// the landing page on this host: an absolute URL would send a local or
+// staging build to production. An organisation's site is somewhere else,
+// and that is the only one that earns a new tab.
 const external = !isPersonalApp();
+const href = external ? b.org_url : "/";
 </script>
 
-<!-- ``org_url`` is somewhere else for an organisation and is this same
-     site for the house brand, so only the first deserves a new tab. -->
 {#if publicLink}
   <a
-    href={b.org_url}
+    href={href}
     target={external ? "_blank" : undefined}
     rel={external ? "noopener" : undefined}
     class="brand-mark public-link"
@@ -46,7 +49,7 @@ const external = !isPersonalApp();
 {:else}
   <div class="brand-mark">
     <a
-      href={b.org_url}
+      href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener" : undefined}
       class="party-logo-link"

@@ -7,9 +7,9 @@
  * ``window.location.pathname`` directly.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicQuiz from "./PublicQuiz.vue";
+import PublicQuiz from "./PublicQuiz.svelte";
 
-createApp(PublicQuiz).mount("#app");
+mount(PublicQuiz, { target: document.getElementById("app")! });

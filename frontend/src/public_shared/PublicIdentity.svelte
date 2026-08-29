@@ -29,16 +29,18 @@ const {
 } = $props();
 
 const b = brand();
+// The house brand's ``org_url`` is this same site, so the logo points at
+// the landing page on this host rather than at the production domain.
+// An organisation's site is somewhere else, and opens in its own tab.
 const external = !isPersonalApp();
+const href = external ? b.org_url : "/";
 </script>
 
 <div class="identity">
-  <!-- ``org_url`` is somewhere else for an organisation and is this same
-       site for the house brand, so only the first deserves a new tab. -->
   {#if b.logo_url}
     <a
       class="identity__logo"
-      href={b.org_url}
+      href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener" : undefined}
       aria-label="{b.org_name}, {b.org_url.replace('https://', '')}"

@@ -13,6 +13,7 @@
     "src/public_shared/**/*.svelte",
     "src/public_chapter/**/*",
     "src/public_form/**/*",
+    "src/public_quiz/**/*",
     "src/components/AppToast.svelte"
   ]
 }

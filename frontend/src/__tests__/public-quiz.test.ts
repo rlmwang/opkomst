@@ -1,5 +1,5 @@
 /**
- * Playing a quiz (``PublicQuiz.vue``): the walk, the gate on a required
+ * Playing a quiz (``PublicQuiz.svelte``): the walk, the gate on a required
  * question, and what the result screen says.
  *
  * The cover comes first and the walk follows it, so every test here
@@ -9,11 +9,21 @@
  * never shows a question it should be gating, and that the score comes
  * from the response rather than from anything the page worked out.
  */
-import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "@/public_quiz/api";
-import PublicQuiz from "@/public_quiz/PublicQuiz.vue";
+import PublicQuiz from "@/public_quiz/PublicQuiz.svelte";
+
+/** Let every pending promise and the effects they schedule settle. */
+async function settle() {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+const text = () => document.body.textContent ?? "";
+const buttons = () => [...document.querySelectorAll("button")];
+const byLabel = (label: string) => buttons().find((b) => b.textContent?.trim() === label);
 
 vi.mock("@/public_quiz/api", () => ({
   ApiError: class ApiError extends Error {},
@@ -66,17 +76,21 @@ const QUIZ = {
 
 function mountQuiz() {
   window.__OPKOMST_QUIZ__ = structuredClone(QUIZ) as never;
-  return mount(PublicQuiz, { global: { stubs: { PublicShell: { template: "<div><slot /></div>" } } } });
+  return render(PublicQuiz);
 }
 
 /** The cover, then the first question. The name is asked here, so a
  *  test that wants one passes it. */
-async function start(wrapper: ReturnType<typeof mountQuiz>, name?: string) {
-  if (name) await wrapper.find("input[type=text]").setValue(name);
+async function start(name?: string) {
+  if (name) {
+    const box = document.querySelector("input[type=text]") as HTMLInputElement;
+    box.value = name;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  }
   // The cover's button submits its form; a click on it does not fire a
   // submit event in happy-dom, so the form is submitted directly.
-  await wrapper.find("form").trigger("submit");
-  await flushPromises();
+  document.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await settle();
 }
 
 beforeEach(() => {
@@ -84,28 +98,32 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/q/abc12345");
 });
 
+afterEach(() => {
+  document.body.innerHTML = "";
+});
+
 describe("playing a quiz", () => {
   it("opens on a cover, then shows one question at a time", async () => {
-    const wrapper = mountQuiz();
-    await flushPromises();
+    mountQuiz();
+    await settle();
     // The cover: what this is, and the one thing it asks.
-    expect(wrapper.text()).toContain("Pubquiz");
-    expect(wrapper.text()).not.toContain("Hoofdstad?");
-    await start(wrapper);
-    expect(wrapper.text()).toContain("Vraag 1 van 2");
-    expect(wrapper.text()).toContain("Hoofdstad?");
-    expect(wrapper.text()).not.toContain("Hoeveel provincies?");
+    expect(text()).toContain("Pubquiz");
+    expect(text()).not.toContain("Hoofdstad?");
+    await start();
+    expect(text()).toContain("Vraag 1 van 2");
+    expect(text()).toContain("Hoofdstad?");
+    expect(text()).not.toContain("Hoeveel provincies?");
   });
 
   it("will not move past a required question that has no answer", async () => {
-    const wrapper = mountQuiz();
-    await flushPromises();
-    await start(wrapper);
-    await wrapper.findAll("button").find((b) => b.text() === "Volgende")!.trigger("click");
-    await flushPromises();
+    mountQuiz();
+    await settle();
+    await start();
+    byLabel("Volgende")!.click();
+    await settle();
     // Still on the first question, and told why.
-    expect(wrapper.text()).toContain("Vraag 1 van 2");
-    expect(wrapper.text()).toContain("Geef eerst een antwoord op deze vraag.");
+    expect(text()).toContain("Vraag 1 van 2");
+    expect(text()).toContain("Geef eerst een antwoord op deze vraag.");
   });
 
   it("sends every answer in one submit and shows what came back", async () => {
@@ -142,17 +160,20 @@ describe("playing a quiz", () => {
         },
       ],
     });
-    const wrapper = mountQuiz();
-    await flushPromises();
-    await start(wrapper, "Sam");
+    mountQuiz();
+    await settle();
+    await start("Sam");
 
-    await wrapper.findAll("input[type=radio]")[1].setValue(true);
-    await wrapper.findAll("button").find((b) => b.text() === "Volgende")!.trigger("click");
-    await flushPromises();
-    expect(wrapper.text()).toContain("Vraag 2 van 2");
+    const radio = document.querySelectorAll("input[type=radio]")[1] as HTMLInputElement;
+    radio.checked = true;
+    radio.dispatchEvent(new Event("change", { bubbles: true }));
+    await settle();
+    byLabel("Volgende")!.click();
+    await settle();
+    expect(text()).toContain("Vraag 2 van 2");
 
-    await wrapper.findAll("button").find((b) => b.text() === "Klaar")!.trigger("click");
-    await flushPromises();
+    byLabel("Klaar")!.click();
+    await settle();
 
     const [slug, payload] = vi.mocked(api.postQuizAnswers).mock.calls[0];
     expect(slug).toBe("abc12345");
@@ -164,10 +185,10 @@ describe("playing a quiz", () => {
     expect(payload.answers[0].answer_choices).toEqual(["Amsterdam"]);
 
     // The score is the response's, not a sum the page did itself.
-    expect(wrapper.text()).toContain("2/ 5 punten");
+    expect(text()).toContain("2/ 5 punten");
     // Both halves of the comparison: what was given and what was right.
-    expect(wrapper.text()).toContain("7");
-    expect(wrapper.text()).toContain("12");
+    expect(text()).toContain("7");
+    expect(text()).toContain("12");
   });
 
   it("shows the link back to the attempt, and does not promise an edit", async () => {
@@ -182,12 +203,12 @@ describe("playing a quiz", () => {
       reveal_answers: false,
       answers: [],
     });
-    const wrapper = mountQuiz();
-    await flushPromises();
+    mountQuiz();
+    await settle();
 
-    expect(wrapper.find("a.link").attributes("href")).toContain("/q/abc12345?s=tok");
-    expect(wrapper.find("button.copy-btn").exists()).toBe(true);
-    expect(wrapper.text()).toContain("terug te zien");
+    expect(document.querySelector("a.link")!.getAttribute("href")).toContain("/q/abc12345?s=tok");
+    expect(document.querySelector("button.copy-btn")).not.toBeNull();
+    expect(text()).toContain("terug te zien");
   });
 
   it("reopens a finished attempt read-only from its token", async () => {
@@ -200,12 +221,12 @@ describe("playing a quiz", () => {
       reveal_answers: false,
       answers: [],
     });
-    const wrapper = mountQuiz();
-    await flushPromises();
+    mountQuiz();
+    await settle();
     expect(api.fetchQuizResult).toHaveBeenCalledWith("tok");
-    expect(wrapper.text()).toContain("5/ 5 punten");
+    expect(text()).toContain("5/ 5 punten");
     // Nothing to answer again: a quiz submission has no edit.
-    expect(wrapper.findAll("button").some((b) => b.text() === "Volgende")).toBe(false);
-    expect(wrapper.findAll("button").some((b) => b.text() === "Beginnen")).toBe(false);
+    expect(byLabel("Volgende")).toBeUndefined();
+    expect(byLabel("Beginnen")).toBeUndefined();
   });
 });

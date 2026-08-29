@@ -26,19 +26,21 @@ defineProps<{
 }>();
 
 const b = brand();
+// The house brand's ``org_url`` is this same site, so the logo points at
+// the landing page on this host rather than at the production domain.
+// An organisation's site is somewhere else, and opens in its own tab.
+const house = isPersonalApp();
+const href = house ? "/" : b.org_url;
 </script>
 
 <template>
   <div class="identity">
-    <!-- ``org_url`` is somewhere else for an organisation and is this
-         same site for the house brand, so only the first deserves a new
-         tab. -->
     <a
       v-if="b.logo_url"
       class="identity__logo"
-      :href="b.org_url"
-      :target="isPersonalApp() ? undefined : '_blank'"
-      :rel="isPersonalApp() ? undefined : 'noopener'"
+      :href="href"
+      :target="house ? undefined : '_blank'"
+      :rel="house ? undefined : 'noopener'"
       :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     ><img :src="b.logo_url" alt="" /></a>
     <div class="identity__text">

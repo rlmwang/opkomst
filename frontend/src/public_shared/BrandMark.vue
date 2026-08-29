@@ -18,17 +18,20 @@ defineProps<{
 }>();
 
 const b = brand();
+// The house brand's ``org_url`` is this same site, so the mark points at
+// the landing page on this host: an absolute URL would send a local or
+// staging build to production. An organisation's site is somewhere else,
+// and that is the only one that earns a new tab.
+const house = isPersonalApp();
+const href = house ? "/" : b.org_url;
 </script>
 
 <template>
-  <!-- ``org_url`` is somewhere else for an organisation and is this
-       same site for the house brand, so only the first deserves a new
-       tab. -->
   <a
     v-if="publicLink"
-    :href="b.org_url"
-    :target="isPersonalApp() ? undefined : '_blank'"
-    :rel="isPersonalApp() ? undefined : 'noopener'"
+    :href="href"
+    :target="house ? undefined : '_blank'"
+    :rel="house ? undefined : 'noopener'"
     class="brand-mark public-link"
     :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
   >
@@ -37,9 +40,9 @@ const b = brand();
   </a>
   <div v-else class="brand-mark">
     <a
-      :href="b.org_url"
-      :target="isPersonalApp() ? undefined : '_blank'"
-      :rel="isPersonalApp() ? undefined : 'noopener'"
+      :href="href"
+      :target="house ? undefined : '_blank'"
+      :rel="house ? undefined : 'noopener'"
       class="party-logo-link"
       :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     >

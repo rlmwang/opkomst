@@ -433,6 +433,11 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // Under vitest, modules are resolved the way a server would resolve
+    // them, and Svelte's server build has no ``mount``. Asking for the
+    // browser condition is what gives a test the component that
+    // renders. Only under test: the real build resolves normally.
+    conditions: process.env.VITEST ? ["browser"] : undefined,
   },
   server: {
     port: 5173,
