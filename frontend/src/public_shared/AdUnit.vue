@@ -14,8 +14,15 @@
  * Both rails and the phone banner render through here, so the formats
  * cannot drift apart. ``variant`` only decides how things stack: down
  * the rail, across the banner.
+ *
+ * A live unit asks for its ad when it comes near the viewport, not when
+ * it mounts. The phone banner is at the foot of the page and on most
+ * visits is never reached, so asking on mount bills an advertiser for an
+ * impression nobody had and costs the visitor a request they did not
+ * need. A desktop rail is beside the content and asks immediately,
+ * because it is already on screen.
  */
-import { computed, onMounted } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import type { BrandAds } from "@/lib/branding";
 import { type Locale, chromeStrings } from "./strings";
 import { supportLinks } from "./support";
@@ -32,13 +39,57 @@ const c = computed(() => chromeStrings(props.locale));
 const live = Boolean(props.ads.client_id && props.slotId);
 const support = computed(() => supportLinks());
 
-onMounted(() => {
-  if (!live) return;
-  // Pushing an empty object is how the tag is told a slot is ready.
-  // The queue exists before the script does, which is the documented
-  // way to declare a slot the page rendered client-side.
+/** The ``<ins>`` itself, so the observer has something to watch. */
+const unit = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+let requested = false;
+
+/** Ask for an ad, once and once only.
+ *
+ * Pushing an empty object is how the tag is told a slot is ready. The
+ * queue exists before the script does, which is the documented way to
+ * declare a slot the page rendered client-side.
+ *
+ * Exactly once is the part that matters: a second push against the same
+ * ``<ins>`` is an ad request that can never render, and requests that
+ * do not render are what Google warns lazy loading tends to produce. */
+function request() {
+  if (!live || requested) return;
+  requested = true;
+  observer?.disconnect();
+  observer = null;
   const w = window as unknown as { adsbygoogle?: unknown[] };
   (w.adsbygoogle = w.adsbygoogle ?? []).push({});
+}
+
+onMounted(() => {
+  if (!live) return;
+  // The phone banner sits at the foot of the page, so on most visits it
+  // is never seen. Asking for it on mount bills an advertiser for an
+  // impression nobody had, and costs the visitor the request. It is
+  // asked for when it comes near the viewport instead.
+  //
+  // ``rootMargin`` is the lead time: 300px is roughly a flick of the
+  // thumb, enough for the ad to arrive before the slot is on screen and
+  // not so much that scrolling past the fold requests everything below
+  // it. A rail, which is beside the content at desktop width, is already
+  // intersecting when the observer starts and fires immediately.
+  if (!("IntersectionObserver" in window) || !unit.value) {
+    request();
+    return;
+  }
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) request();
+    },
+    { rootMargin: "300px" },
+  );
+  observer.observe(unit.value);
+});
+
+onBeforeUnmount(() => {
+  observer?.disconnect();
+  observer = null;
 });
 </script>
 
@@ -48,6 +99,7 @@ onMounted(() => {
        transforming what it delivers, which it forbids. -->
   <ins
     v-if="live"
+    ref="unit"
     class="adsbygoogle"
     :data-ad-client="props.ads.client_id"
     :data-ad-slot="props.slotId"

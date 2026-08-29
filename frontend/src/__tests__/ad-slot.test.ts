@@ -41,6 +41,53 @@ function setBrand(ads: BrandAds | null) {
   window.__OPKOMST_BRAND__ = { ...BASE_BRAND, ads } as typeof window.__OPKOMST_BRAND__;
 }
 
+/** Every unit the observer was pointed at, so a test can decide when a
+ *  slot comes near the viewport. happy-dom has no IntersectionObserver,
+ *  and without one the component asks for its ad immediately, which is
+ *  the fallback rather than the behaviour under test. */
+let observed: Array<{ element: Element; fire: (visible: boolean) => void }> = [];
+
+function installIntersectionObserver() {
+  observed = [];
+  class FakeObserver {
+    constructor(private cb: (entries: Array<{ isIntersecting: boolean }>) => void) {}
+    observe(element: Element) {
+      observed.push({ element, fire: (visible) => this.cb([{ isIntersecting: visible }]) });
+    }
+    disconnect() {}
+    unobserve() {}
+  }
+  (window as unknown as { IntersectionObserver: unknown }).IntersectionObserver = FakeObserver;
+}
+
+function removeIntersectionObserver() {
+  delete (window as unknown as { IntersectionObserver?: unknown }).IntersectionObserver;
+}
+
+/** The ad queue the tag drains. Its length is how many ads the page has
+ *  asked for. */
+function adRequests(): number {
+  return ((window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle ?? []).length;
+}
+
+let idleQueue: Array<() => void> = [];
+
+/** ``requestIdleCallback`` is not implemented in happy-dom either, and
+ *  the script waits for it. */
+function installIdleCallback() {
+  idleQueue = [];
+  (window as unknown as { requestIdleCallback: unknown }).requestIdleCallback = (cb: () => void) => {
+    idleQueue.push(cb);
+    return 1;
+  };
+}
+
+function runIdleCallbacks() {
+  const queue = idleQueue;
+  idleQueue = [];
+  queue.forEach((cb) => cb());
+}
+
 /** ``matchMedia`` is not implemented in happy-dom, and it is what picks
  *  the rails over the banner. */
 function setViewport(railsFit: boolean) {
@@ -57,6 +104,9 @@ const original = window.__OPKOMST_BRAND__;
 beforeEach(() => {
   setViewport(true);
   document.getElementById("adsense-tag")?.remove();
+  installIntersectionObserver();
+  installIdleCallback();
+  (window as unknown as { adsbygoogle?: unknown[] }).adsbygoogle = [];
 });
 afterEach(() => {
   window.__OPKOMST_BRAND__ = original;
@@ -142,7 +192,75 @@ describe("with a network configured", () => {
     setBrand(CONFIGURED);
     mount(AdSlot, { props: { locale: "nl" } });
     mount(AdSlot, { props: { locale: "nl" } });
+    runIdleCallbacks();
     expect(document.querySelectorAll("script#adsense-tag")).toHaveLength(1);
+  });
+
+  it("waits for the browser to be idle before fetching Google's script", () => {
+    // ``async`` already keeps it from blocking parsing. This is about
+    // the seconds after that, while the app is hydrating and an async
+    // script is still competing for bandwidth and the main thread.
+    setBrand(CONFIGURED);
+    mount(AdSlot, { props: { locale: "nl" } });
+    expect(document.getElementById("adsense-tag")).toBeNull();
+
+    runIdleCallbacks();
+    const tag = document.getElementById("adsense-tag") as HTMLScriptElement | null;
+    expect(tag).not.toBeNull();
+    expect(tag?.async).toBe(true);
+    expect(tag?.crossOrigin).toBe("anonymous");
+    expect(tag?.src).toContain("client=ca-pub-0000000000000000");
+  });
+
+  it("loads the script even on a page that never goes idle", async () => {
+    // Without ``requestIdleCallback`` at all there is a plain timer, so
+    // an ad slot never stays empty for ever.
+    setBrand(CONFIGURED);
+    delete (window as unknown as { requestIdleCallback?: unknown }).requestIdleCallback;
+    mount(AdSlot, { props: { locale: "nl" } });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(document.getElementById("adsense-tag")).not.toBeNull();
+  });
+
+  it("asks for no ad until the slot comes near the viewport", () => {
+    setViewport(false); // the phone banner, at the foot of the page
+    setBrand(CONFIGURED);
+    mount(AdSlot, { props: { locale: "nl" } });
+
+    expect(observed).toHaveLength(1);
+    expect(adRequests()).toBe(0);
+
+    observed[0].fire(true);
+    expect(adRequests()).toBe(1);
+  });
+
+  it("asks for each ad exactly once", () => {
+    // A second push against the same ``<ins>`` is a request that can
+    // never render, which is the thing that gets lazy loading flagged.
+    setViewport(false);
+    setBrand(CONFIGURED);
+    mount(AdSlot, { props: { locale: "nl" } });
+
+    observed[0].fire(true);
+    observed[0].fire(true);
+    expect(adRequests()).toBe(1);
+  });
+
+  it("never asks while the slot stays away from the viewport", () => {
+    setViewport(false);
+    setBrand(CONFIGURED);
+    mount(AdSlot, { props: { locale: "nl" } });
+
+    observed[0].fire(false);
+    expect(adRequests()).toBe(0);
+  });
+
+  it("asks straight away where there is no observer to wait for", () => {
+    setViewport(false);
+    setBrand(CONFIGURED);
+    removeIntersectionObserver();
+    mount(AdSlot, { props: { locale: "nl" } });
+    expect(adRequests()).toBe(1);
   });
 
   it("uses the banner unit below the rail breakpoint", () => {

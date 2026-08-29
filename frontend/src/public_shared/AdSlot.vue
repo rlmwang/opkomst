@@ -68,16 +68,38 @@ onBeforeUnmount(() => media?.removeEventListener("change", onChange));
 /** The AdSense tag, added once per document however many units mount.
  *  It brings Google's consent dialog with it, so this function is the
  *  only thing in the app that can put a cookie banner on the screen.
- *  Without a client id it is never called. */
+ *  Without a client id it is never called.
+ *
+ *  **Injected when the browser is idle**, not the moment this mounts.
+ *  ``async`` already keeps the tag from blocking parsing — it is what
+ *  Google publishes and what they mean by "fully asynchronous" — but an
+ *  async script still competes for bandwidth and the main thread while
+ *  the app is hydrating, which is the part of a page load a visitor
+ *  feels. Waiting for idle moves that competition to after the page has
+ *  settled, and changes nothing about the ad code itself: what Google
+ *  forbids modifying is how ads are placed and targeted, not when their
+ *  tag is added to the page.
+ *
+ *  The 3-second timeout is the promise that idle eventually arrives. A
+ *  page that never goes idle would otherwise never load an ad, and an
+ *  ad slot that stays empty for ever is worse for a reader than one
+ *  that fills a moment late. */
 function loadAdSense(clientId: string) {
   const id = "adsense-tag";
   if (document.getElementById(id)) return;
-  const tag = document.createElement("script");
-  tag.id = id;
-  tag.async = true;
-  tag.crossOrigin = "anonymous";
-  tag.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
-  document.head.appendChild(tag);
+  const inject = () => {
+    if (document.getElementById(id)) return;
+    const tag = document.createElement("script");
+    tag.id = id;
+    tag.async = true;
+    tag.crossOrigin = "anonymous";
+    tag.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(clientId)}`;
+    document.head.appendChild(tag);
+  };
+  const idle = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: object) => number })
+    .requestIdleCallback;
+  if (idle) idle(inject, { timeout: 3000 });
+  else window.setTimeout(inject, 200);
 }
 </script>
 
