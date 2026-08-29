@@ -41,7 +41,7 @@ const toasts = useToasts();
 const api = useFormsApi();
 const { L, isQuiz: quizProduct, isCompass: compassProduct } = useFormText();
 /** The create body's wire name at the root's front door, per product. */
-const START_KIND: Record<string, StartKind> = { forms: "form", quizzes: "quiz", compasses: "compass" };
+const START_KIND: Record<string, StartKind> = { form: "form", quiz: "quiz", compass: "compass" };
 const isQuiz = computed(() => quizProduct);
 const isCompass = computed(() => compassProduct);
 
