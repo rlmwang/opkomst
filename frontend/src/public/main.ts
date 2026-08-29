@@ -11,9 +11,9 @@
  * visual language as the admin SPA.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicEvent from "./PublicEvent.vue";
+import PublicEvent from "./PublicEvent.svelte";
 
-createApp(PublicEvent).mount("#app");
+mount(PublicEvent, { target: document.getElementById("app")! });
