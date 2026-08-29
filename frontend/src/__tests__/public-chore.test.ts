@@ -1,14 +1,37 @@
 /**
- * Public chore mini-app (``PublicChore.vue``): enrol payload shape,
+ * Public chore mini-app (``PublicChore.svelte``): enrol payload shape,
  * personal-mode rendering, and the shift actions. The bare-fetch api
  * module is mocked; the roster payload is set on ``window`` as the
  * backend would inline it.
  */
-import { flushPromises, mount } from "@vue/test-utils";
+import { render } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "@/public_chore/api";
-import PublicChore from "@/public_chore/PublicChore.vue";
+import PublicChore from "@/public_chore/PublicChore.svelte";
+
+/** Let every pending promise and the effects they schedule settle. */
+async function settle() {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+const text = () => document.body.textContent ?? "";
+const buttons = () => [...document.querySelectorAll("button")];
+const byLabel = (label: string) => buttons().find((b) => b.textContent?.trim() === label);
+
+/** Check a box the way a person does: the DOM flag, then the event. */
+async function tick(box: HTMLInputElement) {
+  box.checked = true;
+  box.dispatchEvent(new Event("change", { bubbles: true }));
+  await settle();
+}
+async function type(selector: string, value: string) {
+  const el = document.querySelector(selector) as HTMLInputElement;
+  el.value = value;
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  await settle();
+}
 
 vi.mock("@/public_chore/api", () => ({
   ApiError: class ApiError extends Error {},
@@ -62,15 +85,16 @@ describe("PublicChore enrol mode", () => {
   it("submits the picked chores + name, no email", async () => {
     setUrl("/c/abc12345");
     vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
     // Pick the first chore + type a name.
-    const checks = w.findAll('input[type="checkbox"]');
-    await checks[0].setValue(true); // c1
-    await w.find('input[type="text"]').setValue("Sam");
-    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
-    await flushPromises();
+    const checks = [...document.querySelectorAll('input[type="checkbox"]')] as HTMLInputElement[];
+    await tick(checks[0]); // c1
+    await type('input[type="text"]', "Sam");
+    byLabel("Sign up")!.click();
+    await settle();
+    await settle();
 
     expect(api.postEnrolment).toHaveBeenCalledWith("abc12345", {
       display_name: "Sam",
@@ -80,7 +104,7 @@ describe("PublicChore enrol mode", () => {
     });
     // The standardized confirmation card (shared across all four entity
     // types) is shown, with the edit link.
-    expect(w.text()).toContain("Thank you!");
+    expect(text()).toContain("Thank you!");
   });
 
   it("takes a nameless enrolment by default and refuses one when the organiser asked", async () => {
@@ -88,11 +112,12 @@ describe("PublicChore enrol mode", () => {
     // switched it on; the enrol page reads that off the roster.
     setUrl("/c/abc12345");
     vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
-    let w = mount(PublicChore);
-    await flushPromises();
-    await w.findAll('input[type="checkbox"]')[0].setValue(true);
-    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
-    await flushPromises();
+    render(PublicChore);
+    await settle();
+    await tick(document.querySelectorAll('input[type="checkbox"]')[0] as HTMLInputElement);
+    byLabel("Sign up")!.click();
+    await settle();
+    await settle();
     expect(api.postEnrolment).toHaveBeenCalledWith(
       "abc12345",
       expect.objectContaining({ display_name: null }),
@@ -101,25 +126,27 @@ describe("PublicChore enrol mode", () => {
     vi.mocked(api.postEnrolment).mockClear();
     window.__OPKOMST_CHORE__ = { ...structuredClone(ROSTER), name_required: true };
     setUrl("/c/abc12345");
-    w = mount(PublicChore);
-    await flushPromises();
-    await w.findAll('input[type="checkbox"]')[0].setValue(true);
-    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
-    await flushPromises();
+    render(PublicChore);
+    await settle();
+    await tick(document.querySelectorAll('input[type="checkbox"]')[0] as HTMLInputElement);
+    byLabel("Sign up")!.click();
+    await settle();
+    await settle();
     expect(api.postEnrolment).not.toHaveBeenCalled();
   });
 
   it("giving an email turns reminders on (no separate opt-in)", async () => {
     setUrl("/c/abc12345");
     vi.mocked(api.postEnrolment).mockResolvedValueOnce({ edit_token: "tok" });
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
-    await w.findAll('input[type="checkbox"]')[0].setValue(true); // c1 pick
-    await w.find('input[type="text"]').setValue("Sam"); // name is required
-    await w.find('input[type="email"]').setValue("sam@local.dev");
-    await w.findAll("button").find((b) => b.text() === "Sign up")!.trigger("click");
-    await flushPromises();
+    await tick(document.querySelectorAll('input[type="checkbox"]')[0] as HTMLInputElement); // c1 pick
+    await type('input[type="text"]', "Sam"); // name is required
+    await type('input[type="email"]', "sam@local.dev");
+    byLabel("Sign up")!.click();
+    await settle();
+    await settle();
 
     expect(api.postEnrolment).toHaveBeenCalledWith(
       "abc12345",
@@ -169,26 +196,28 @@ describe("PublicChore personal mode", () => {
   it("renders my shifts + available shifts as calendars", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
-    expect(w.text()).toContain("My shifts");
-    expect(w.text()).toContain("Bins"); // my confirmed shift, in the calendar
-    expect(w.text()).toContain("Pitch in");
-    expect(w.text()).toContain("Sweep"); // an open shift, in the calendar
+    expect(text()).toContain("My shifts");
+    expect(text()).toContain("Bins"); // my confirmed shift, in the calendar
+    expect(text()).toContain("Pitch in");
+    expect(text()).toContain("Sweep"); // an open shift, in the calendar
   });
 
   it("done calls the endpoint (via the day popover) and refetches", async () => {
     setUrl("/c/abc12345?s=tok");
     vi.mocked(api.fetchPersonalPage).mockResolvedValueOnce(structuredClone(PAGE));
     vi.mocked(api.postShiftAction).mockResolvedValueOnce({ ...structuredClone(PAGE), my_shifts: [] });
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
     // Click the cell of my Bins shift to open its popover, then Done.
-    await w.find(`[aria-label="${MY_DAY}"]`).trigger("click");
-    await w.findAll("button").find((b) => b.text() === "Done")!.trigger("click");
-    await flushPromises();
+    (document.querySelector(`[aria-label="${MY_DAY}"]`) as HTMLElement).click();
+    await settle();
+    byLabel("Done")!.click();
+    await settle();
+    await settle();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s1", "done");
   });
 
@@ -213,13 +242,15 @@ describe("PublicChore personal mode", () => {
       },
     ]);
     vi.mocked(api.postShiftAction).mockResolvedValueOnce(structuredClone(PAGE));
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
     // Click the open Sweep shift's cell, then Take it on.
-    await w.find(`[aria-label="${OPEN_DAY}"]`).trigger("click");
-    await w.findAll("button").find((b) => b.text() === "Take it on")!.trigger("click");
-    await flushPromises();
+    (document.querySelector(`[aria-label="${OPEN_DAY}"]`) as HTMLElement).click();
+    await settle();
+    byLabel("Take it on")!.click();
+    await settle();
+    await settle();
     expect(api.postShiftAction).toHaveBeenCalledWith("tok", "s2", "claim");
   });
 
@@ -229,11 +260,12 @@ describe("PublicChore personal mode", () => {
     vi.mocked(api.postLeave).mockResolvedValueOnce(undefined);
     const confirmMock = vi.fn(() => true);
     window.confirm = confirmMock;
-    const w = mount(PublicChore);
-    await flushPromises();
+    render(PublicChore);
+    await settle();
 
-    await w.findAll("button").find((b) => b.text() === "Withdraw")!.trigger("click");
-    await flushPromises();
+    byLabel("Withdraw")!.click();
+    await settle();
+    await settle();
     expect(confirmMock).toHaveBeenCalled();
     expect(api.postLeave).toHaveBeenCalledWith("tok");
   });

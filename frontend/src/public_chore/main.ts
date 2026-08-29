@@ -6,9 +6,9 @@
  * page); both are parsed from the URL inside the component.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicChore from "./PublicChore.vue";
+import PublicChore from "./PublicChore.svelte";
 
-createApp(PublicChore).mount("#app");
+mount(PublicChore, { target: document.getElementById("app")! });

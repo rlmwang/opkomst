@@ -17,7 +17,11 @@
     "src/public_compass/**/*",
     "src/public_datepoll/**/*",
     "src/public/**/*",
+    "src/public_chore/**/*",
     "src/components/AppToast.svelte",
-    "src/components/MonthGrid.svelte"
+    "src/components/MonthGrid.svelte",
+    "src/components/DatePicker.svelte",
+    "src/components/WeekdayGrid.svelte",
+    "src/components/RosterCalendarView.svelte"
   ]
 }

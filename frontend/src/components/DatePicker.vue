@@ -25,6 +25,18 @@
 import { computed, ref, watch } from "vue";
 
 import { useOverlayPanel } from "@/composables/useOverlayPanel";
+import "./date-picker.css";
+import {
+  type Cell,
+  formatDate,
+  formatTime as formatTimeIn,
+  isoOf,
+  monthKeyOf,
+  monthWeeks,
+  pad,
+  parseDate,
+  parseTime as parseTimeFrom,
+} from "./date-picker";
 
 const props = withDefaults(
   defineProps<{
@@ -81,16 +93,10 @@ const selected = computed<Date[]>(() => {
   return Array.isArray(v) ? v.filter(Boolean) : [v];
 });
 
-function isoOf(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 const selectedIsos = computed(() => new Set(selected.value.map(isoOf)));
 const todayIso = isoOf(new Date());
 
 // --- the month on show ----------------------------------------------
-function monthKeyOf(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 const viewMonth = ref(monthKeyOf(selected.value[0] ?? new Date()));
 // Opening the panel lands on the selected date's month, not wherever it
 // was left. A value arriving from the server after mount does the same.
@@ -119,112 +125,20 @@ const weekdayNames = computed(() => {
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
 });
 
-interface Cell {
-  date: Date;
-  iso: string;
-  day: number;
-  otherMonth: boolean;
-}
-// Six weeks, always, so the panel does not change height between months.
-// Leading and trailing days from the neighbouring months are shown but
-// not selectable, which is PrimeVue's showOtherMonths without
-// selectOtherMonths.
-const weeks = computed<Cell[][]>(() => {
-  const first = new Date(viewYear.value, viewMonthIdx.value, 1);
-  const lead = (first.getDay() + 6) % 7;
-  const start = new Date(viewYear.value, viewMonthIdx.value, 1 - lead);
-  const out: Cell[][] = [];
-  for (let w = 0; w < 6; w++) {
-    const row: Cell[] = [];
-    for (let d = 0; d < 7; d++) {
-      const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
-      row.push({ date, iso: isoOf(date), day: date.getDate(), otherMonth: date.getMonth() !== viewMonthIdx.value });
-    }
-    out.push(row);
-  }
-  return out;
-});
+const weeks = computed<Cell[][]>(() => monthWeeks(viewMonth.value));
 
 // --- formatting and parsing -----------------------------------------
-/** PrimeVue's ``formatDate`` for the tokens this app uses. */
-function formatDate(date: Date, format: string): string {
-  let out = "";
-  for (let i = 0; i < format.length; i++) {
-    const c = format[i];
-    const doubled = format[i + 1] === c;
-    if (c === "d") {
-      out += doubled ? String(date.getDate()).padStart(2, "0") : String(date.getDate());
-      if (doubled) i++;
-    } else if (c === "m") {
-      out += doubled ? String(date.getMonth() + 1).padStart(2, "0") : String(date.getMonth() + 1);
-      if (doubled) i++;
-    } else if (c === "y") {
-      // ``yy`` is the four-digit year, ``y`` the last two. PrimeVue
-      // inherited that from jQuery UI and the call sites rely on it.
-      out += doubled ? String(date.getFullYear()) : String(date.getFullYear() % 100).padStart(2, "0");
-      if (doubled) i++;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
 function formatTime(date: Date): string {
-  if (props.hourFormat === "12") {
-    const h = date.getHours() % 12 || 12;
-    return `${pad(h)}:${pad(date.getMinutes())} ${date.getHours() < 12 ? "AM" : "PM"}`;
-  }
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return formatTimeIn(date, props.hourFormat);
+}
+function parseTime(text: string): Date | null {
+  return parseTimeFrom(text, selected.value[0] ?? null);
 }
 
 const displayValue = computed(() => {
   if (props.timeOnly) return selected.value[0] ? formatTime(selected.value[0]) : "";
   return selected.value.map((d) => formatDate(d, props.dateFormat)).join(", ");
 });
-
-/** Read back what the format writes. Anything that does not parse to a
- *  real date leaves the model alone, so a half-typed day is not a
- *  deletion. */
-function parseDate(text: string, format: string): Date | null {
-  const order: string[] = [];
-  for (let i = 0; i < format.length; i++) {
-    const c = format[i];
-    if (c === "d" || c === "m" || c === "y") {
-      order.push(c);
-      while (format[i + 1] === c) i++;
-    }
-  }
-  const parts = text.split(/\D+/).filter(Boolean);
-  if (parts.length !== order.length) return null;
-  let day = 1;
-  let month = 1;
-  let year = new Date().getFullYear();
-  order.forEach((token, i) => {
-    const n = Number(parts[i]);
-    if (token === "d") day = n;
-    else if (token === "m") month = n;
-    else year = parts[i].length <= 2 ? 2000 + n : n;
-  });
-  const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
-  return date;
-}
-
-function parseTime(text: string): Date | null {
-  const m = /^(\d{1,2})[:.](\d{1,2})/.exec(text.trim());
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  if (h > 23 || min > 59) return null;
-  const base = selected.value[0] ? new Date(selected.value[0]) : new Date();
-  base.setHours(h, min, 0, 0);
-  return base;
-}
 
 function onInputTyped(event: Event): void {
   const text = (event.target as HTMLInputElement).value;
@@ -464,188 +378,5 @@ function show(): void {
   opacity: 1;
   background: var(--brand-bg);
   color: var(--brand-text-muted);
-}
-</style>
-
-<style>
-/* The panel is teleported to the body, so it cannot carry the scope
- * attribute. Prefixed class names keep it to itself. */
-.dp-panel {
-  width: auto;
-  padding: 0.75rem;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  border: 1px solid var(--brand-border);
-  border-radius: 6px;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  z-index: 1100;
-}
-.dp-panel-inline {
-  display: inline-block;
-  overflow-x: auto;
-  box-shadow: none;
-  position: static;
-}
-.dp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0 0.5rem 0;
-  background: var(--brand-surface);
-  color: var(--brand-text);
-  border-block-end: 1px solid var(--brand-border);
-}
-.dp-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-weight: 500;
-}
-.dp-title-month {
-  text-transform: capitalize;
-}
-/* Aura's prev/next are text-secondary rounded icon buttons. */
-.dp-navbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  flex: 0 0 auto;
-  border: none;
-  border-radius: 2rem;
-  background: transparent;
-  color: var(--brand-text-muted);
-  cursor: pointer;
-  transition:
-    background 120ms,
-    color 120ms;
-}
-.dp-navbtn:hover {
-  background: color-mix(in srgb, var(--brand-border) 60%, transparent);
-  color: var(--brand-text);
-}
-.dp-navbtn:active {
-  background: var(--brand-border);
-}
-.dp-navbtn:focus-visible {
-  outline: 1px solid var(--brand-red);
-  outline-offset: 2px;
-}
-.dp-dayview {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 1rem;
-  margin: 0.5rem 0 0 0;
-}
-.dp-weekday-cell {
-  padding: 0.25rem;
-}
-.dp-weekday {
-  font-weight: 500;
-  color: var(--brand-text-muted);
-  text-transform: capitalize;
-}
-.dp-day-cell {
-  padding: 0.25rem;
-}
-.dp-day {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  margin: 0 auto;
-  overflow: hidden;
-  position: relative;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  border: 1px solid transparent;
-  outline-color: transparent;
-  color: var(--brand-text);
-  transition:
-    background 120ms,
-    color 120ms,
-    border-color 120ms,
-    box-shadow 120ms,
-    outline-color 120ms;
-}
-.dp-day:not(.dp-day-selected):not(.dp-day-other):hover {
-  background: color-mix(in srgb, var(--brand-border) 60%, transparent);
-  color: var(--brand-text);
-}
-.dp-day:focus-visible {
-  outline: 1px solid var(--brand-red);
-  outline-offset: 2px;
-}
-/* Days from the neighbouring month are shown but not selectable, which
- * is Aura's showOtherMonths without selectOtherMonths. 0.4 is the
- * preset's disabledOpacity. */
-.dp-day-other {
-  opacity: 0.4;
-  cursor: default;
-}
-/* Today is the muted marker MonthGrid uses, so the two calendars agree
- * on what "today" looks like. Selected outranks it. */
-.dp-today > .dp-day {
-  background: var(--brand-text-muted);
-  color: #fff;
-  font-weight: 600;
-}
-.dp-day-selected,
-.dp-today > .dp-day-selected {
-  background: var(--brand-red);
-  color: #fff;
-  font-weight: normal;
-}
-.dp-buttonbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0 0 0;
-  border-block-start: 1px solid var(--brand-border);
-}
-.dp-barbtn {
-  border: none;
-  background: transparent;
-  color: var(--brand-red);
-  font-family: inherit;
-  font-size: 1rem;
-  font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 120ms;
-}
-.dp-barbtn:hover {
-  background: color-mix(in srgb, var(--brand-red) 8%, transparent);
-}
-.dp-barbtn:focus-visible {
-  outline: 1px solid var(--brand-red);
-  outline-offset: 2px;
-}
-.dp-timepicker {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-block-start: 1px solid var(--brand-border);
-  padding: 0.5rem 0 0 0;
-  gap: 0.5rem;
-}
-.dp-panel-timeonly .dp-timepicker {
-  border-block-start: 0 none;
-  padding: 0;
-}
-.dp-timepicker > div {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.dp-timepicker span {
-  font-size: 1rem;
 }
 </style>

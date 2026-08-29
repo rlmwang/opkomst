@@ -1,0 +1,192 @@
+/*
+ * The date picker's panel, which is moved to the body so no card's
+ * ``overflow`` can clip it and therefore carries no component's scope
+ * attribute. Prefixed class names keep it to itself.
+ *
+ * A file rather than a style block in either component, because both the
+ * Vue picker and the Svelte one render this markup while the front end
+ * moves across (``docs/tasks/svelte``), and one panel should not have
+ * two stylesheets.
+ */
+@layer app {
+  /* The panel is teleported to the body, so it cannot carry the scope
+   * attribute. Prefixed class names keep it to itself. */
+  .dp-panel {
+    width: auto;
+    padding: 0.75rem;
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    border: 1px solid var(--brand-border);
+    border-radius: 6px;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    z-index: 1100;
+  }
+  .dp-panel-inline {
+    display: inline-block;
+    overflow-x: auto;
+    box-shadow: none;
+    position: static;
+  }
+  .dp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 0.5rem 0;
+    background: var(--brand-surface);
+    color: var(--brand-text);
+    border-block-end: 1px solid var(--brand-border);
+  }
+  .dp-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-weight: 500;
+  }
+  .dp-title-month {
+    text-transform: capitalize;
+  }
+  /* Aura's prev/next are text-secondary rounded icon buttons. */
+  .dp-navbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: 2rem;
+    background: transparent;
+    color: var(--brand-text-muted);
+    cursor: pointer;
+    transition:
+      background 120ms,
+      color 120ms;
+  }
+  .dp-navbtn:hover {
+    background: color-mix(in srgb, var(--brand-border) 60%, transparent);
+    color: var(--brand-text);
+  }
+  .dp-navbtn:active {
+    background: var(--brand-border);
+  }
+  .dp-navbtn:focus-visible {
+    outline: 1px solid var(--brand-red);
+    outline-offset: 2px;
+  }
+  .dp-dayview {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+    margin: 0.5rem 0 0 0;
+  }
+  .dp-weekday-cell {
+    padding: 0.25rem;
+  }
+  .dp-weekday {
+    font-weight: 500;
+    color: var(--brand-text-muted);
+    text-transform: capitalize;
+  }
+  .dp-day-cell {
+    padding: 0.25rem;
+  }
+  .dp-day {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    margin: 0 auto;
+    overflow: hidden;
+    position: relative;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    outline-color: transparent;
+    color: var(--brand-text);
+    transition:
+      background 120ms,
+      color 120ms,
+      border-color 120ms,
+      box-shadow 120ms,
+      outline-color 120ms;
+  }
+  .dp-day:not(.dp-day-selected):not(.dp-day-other):hover {
+    background: color-mix(in srgb, var(--brand-border) 60%, transparent);
+    color: var(--brand-text);
+  }
+  .dp-day:focus-visible {
+    outline: 1px solid var(--brand-red);
+    outline-offset: 2px;
+  }
+  /* Days from the neighbouring month are shown but not selectable, which
+   * is Aura's showOtherMonths without selectOtherMonths. 0.4 is the
+   * preset's disabledOpacity. */
+  .dp-day-other {
+    opacity: 0.4;
+    cursor: default;
+  }
+  /* Today is the muted marker MonthGrid uses, so the two calendars agree
+   * on what "today" looks like. Selected outranks it. */
+  .dp-today > .dp-day {
+    background: var(--brand-text-muted);
+    color: #fff;
+    font-weight: 600;
+  }
+  .dp-day-selected,
+  .dp-today > .dp-day-selected {
+    background: var(--brand-red);
+    color: #fff;
+    font-weight: normal;
+  }
+  .dp-buttonbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0 0 0;
+    border-block-start: 1px solid var(--brand-border);
+  }
+  .dp-barbtn {
+    border: none;
+    background: transparent;
+    color: var(--brand-red);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  .dp-barbtn:hover {
+    background: color-mix(in srgb, var(--brand-red) 8%, transparent);
+  }
+  .dp-barbtn:focus-visible {
+    outline: 1px solid var(--brand-red);
+    outline-offset: 2px;
+  }
+  .dp-timepicker {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-block-start: 1px solid var(--brand-border);
+    padding: 0.5rem 0 0 0;
+    gap: 0.5rem;
+  }
+  .dp-panel-timeonly .dp-timepicker {
+    border-block-start: 0 none;
+    padding: 0;
+  }
+  .dp-timepicker > div {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .dp-timepicker span {
+    font-size: 1rem;
+  }
+}

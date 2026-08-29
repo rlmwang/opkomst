@@ -1,5 +1,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
+import { placePanel } from "./overlay-panel";
+
 /**
  * A panel that opens against a field and is teleported to the body.
  *
@@ -41,24 +43,10 @@ export function useOverlayPanel(
   const flipped = ref(false);
 
   function place(): void {
-    const box = anchor.value;
-    const el = panel.value;
-    if (!box || !el) return;
-    const rect = box.getBoundingClientRect();
-    const height = el.offsetHeight;
-    const width = el.offsetWidth;
-    const below = window.innerHeight - rect.bottom;
-    const flip = below < height + gutter + 8 && rect.top > height + gutter + 8;
-    flipped.value = flip;
-    // Kept inside the viewport: a menu hanging off a button near the
-    // right edge would otherwise run past it.
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    style.value = {
-      position: "absolute",
-      insetInlineStart: `${left + window.scrollX}px`,
-      top: `${(flip ? rect.top - height - gutter : rect.bottom + gutter) + window.scrollY}px`,
-      ...(matchAnchorWidth ? { minWidth: `${rect.width}px` } : {}),
-    };
+    if (!anchor.value || !panel.value) return;
+    const next = placePanel(anchor.value, panel.value, { matchAnchorWidth, gutter });
+    style.value = next.style;
+    flipped.value = next.flipped;
   }
 
   function show(target?: HTMLElement): void {

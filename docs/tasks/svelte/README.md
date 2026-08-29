@@ -3,9 +3,10 @@
 A proposal, then a plan. The decision is taken; what follows is how to
 take it without a six-week stop.
 
-**Phase 0 has landed and the number is in.** `public-chapter` went from
-46,871 gz to 29,968, a saving of 36%. See the phase list below for what
-that measured and what it cost.
+**Phases 0 and 1 have landed.** All seven public entries are Svelte and
+no public page ships Vue: **97,550 gz off them**, about a quarter of
+each. The organiser app is phases 2 to 4 and has not started. See the
+phase list below for the numbers and what they cost.
 
 ## Why
 
@@ -137,18 +138,57 @@ Three things the spike found:
 each: `tsconfig.svelte.json` lists the directories Svelte owns and grows
 as phase 1 does. `npm run check` runs both.
 
-**1. The public half.** The other six entries, in ascending order of
-size: `public-form`, `public-quiz`, `public-compass`,
-`public-datepoll`, `public-event`, `public-chore`. `public_shared/` is
-24 files that all seven use, so it moves in phase 0 and the rest is
-one entry at a time.
+**1. The public half.** *(Landed.)* The other six entries, smallest
+first. Vue now ships only on `index.html`; no public entry pulls
+`vue-core` at all.
 
-The public entries have no router, no Pinia, no Vue Query and, already,
-no vue-i18n. They are the easy 9,000 lines and they hold most of the
-prize.
+| entry | before | after | saving |
+|---|---|---|---|
+| `public-chapter` | 46,871 | 32,095 | 14,776 (32%) |
+| `public-form` | 52,753 | 38,468 | 14,285 (27%) |
+| `public-quiz` | 52,983 | 39,364 | 13,619 (26%) |
+| `public-datepoll` | 56,324 | 42,382 | 13,942 (25%) |
+| `public-compass` | 55,667 | 42,539 | 13,128 (24%) |
+| `public-event` | 61,923 | 48,477 | 13,446 (22%) |
+| `public-chore` | 64,300 | 49,946 | 14,354 (22%) |
 
-At the end of this phase both halves build, and Vue ships only on
-`index.html`.
+**97,550 gz off the seven pages a stranger actually loads**, and about
+a quarter off each. The percentage falls as the page grows, which is
+the trade phase 0 measured: the runtime saving is fixed at 32.6 kB and
+the compiled components cost more than the templates did. `PublicShell`
+is now one 21.1 kB chunk every public page shares and a returning
+visitor downloads once.
+
+**Five components are drawn by both frameworks** for the length of
+phases 2 to 4, because the organiser app renders them too. Rather than
+keeping two copies of each rule, their arithmetic was extracted and both
+components run it:
+
+| component | shared module |
+|---|---|
+| `CompassPlot` | `public_shared/compass-plot.ts` |
+| `MonthGrid` | `components/month-grid.ts` |
+| `DatePicker` | `components/date-picker.ts`, `components/date-picker.css` |
+| `useOverlayPanel` | `composables/overlay-panel.ts` |
+
+Each extraction is proved by the Vue component's own tests passing
+unedited: the date picker's thirteen, the plot's, the roster view's.
+
+**What the compiler found.** Svelte type-checks the template, and
+`svelte-check` reports a11y and dead CSS. Across phase 1 that surfaced
+nine real defects the Vue versions had shipped: a `<figcaption>` outside
+any `<figure>`; a question prompt that was a `<label>` around nothing;
+map dots that were focusable `listitem`s a keyboard could reach and not
+read; a date input carrying `aria-expanded` with no combobox role; and
+five blocks of CSS for markup that no longer existed.
+
+**Two idioms have no Svelte spelling** and were translated rather than
+kept. A `computed` with a setter becomes a `$derived` for reading plus
+the state behind it for writing, bound through a getter and setter pair.
+And a `watch` that must not fire on mount becomes either a handler on
+the thing that changed or an effect with an explicit guard, because an
+effect always runs once first: the sign-up page's draft would have been
+wiped by the select-all watcher otherwise.
 
 **2. The organiser shell.** `main.ts`, `App.vue`, the router, the auth
 store, the Vue Query client, the toast and confirm singletons, and
