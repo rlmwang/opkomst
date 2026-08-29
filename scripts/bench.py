@@ -211,6 +211,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case(f"{noun} details", f"/api/v1/{noun}/{one['id']}"),
             Case(f"{noun} summary", f"/api/v1/{noun}/{one['id']}/summary"),
             Case(f"{noun} submissions", f"/api/v1/{noun}/{one['id']}/submissions"),
+            Case(f"{noun} csv", f"/api/v1/{noun}/{one['id']}/submissions.csv"),
             Case(f"{noun} public", f"/api/v1/{noun}/by-slug/{one['slug']}", auth=False),
         ]
 
@@ -221,6 +222,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case("event details", f"/api/v1/event/{one['id']}"),
             Case("event occurrences", f"/api/v1/event/{one['id']}/occurrences"),
             Case("event feedback-summary", f"/api/v1/event/{one['id']}/feedback-summary"),
+            Case("event feedback csv", f"/api/v1/event/{one['id']}/feedback-submissions.csv"),
         ]
 
     rosters = (await client.get("/api/v1/chore", headers=headers)).json()
@@ -233,7 +235,10 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
 
     polls = (await client.get("/api/v1/datepoll", headers=headers)).json()
     if polls:
-        cases.append(Case("datepoll summary", f"/api/v1/datepoll/{polls[0]['id']}/summary"))
+        cases += [
+            Case("datepoll summary", f"/api/v1/datepoll/{polls[0]['id']}/summary"),
+            Case("datepoll csv", f"/api/v1/datepoll/{polls[0]['id']}/submissions.csv"),
+        ]
 
     chapters = (await client.get("/api/v1/chapters", headers=headers)).json()
     if chapters:
