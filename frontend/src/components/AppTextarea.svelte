@@ -4,10 +4,9 @@
  * thing a textarea does that an input does not: grow to fit what has
  * been typed into it, when the caller asks.
  *
- * The root element is the ``<textarea>`` itself, so a caller holding a
- * template ref reaches the real field through ``$el`` and can read
- * ``selectionStart`` on it. ``AdminWhatsAppPage`` inserts emoji at the
- * caret that way.
+ * ``element`` hands the real ``<textarea>`` back to a caller that needs
+ * the caret. ``AdminWhatsAppPage`` reads ``selectionStart`` off it to
+ * insert an emoji where the cursor is.
  */
 let {
   value = $bindable(),
@@ -17,6 +16,8 @@ let {
   disabled,
   fluid,
   autoResize,
+  element = $bindable(),
+  class: className,
 }: {
   value?: string | null;
   placeholder?: string;
@@ -25,9 +26,16 @@ let {
   disabled?: boolean;
   fluid?: boolean;
   autoResize?: boolean;
+  /** The field itself, for a caller that needs the caret. */
+  element?: HTMLTextAreaElement;
+  class?: string;
 } = $props();
 
 let field = $state<HTMLTextAreaElement>();
+
+$effect(() => {
+  element = field;
+});
 
 function fit(): void {
   if (!field || !autoResize) return;
@@ -47,7 +55,7 @@ $effect(() => {
 <textarea
   bind:this={field}
   bind:value
-  class="app-textarea"
+  class="app-textarea {className ?? ''}"
   class:app-textarea-fluid={fluid}
   class:app-textarea-auto={autoResize}
   {rows}
