@@ -45,7 +45,13 @@ const external = !isPersonalApp();
   </a>
 {:else}
   <div class="brand-mark">
-    <a href={b.org_url} target="_blank" rel="noopener" class="party-logo-link" aria-label={label}>
+    <a
+      href={b.org_url}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener" : undefined}
+      class="party-logo-link"
+      aria-label={label}
+    >
       <!-- A brand without a logo file (the house brand, worn by pages
            no organisation owns) renders its wordmark alone rather than
            a broken image. -->

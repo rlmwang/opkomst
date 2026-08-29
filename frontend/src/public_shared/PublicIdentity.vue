@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { brand } from "@/lib/branding";
+import { brand, isPersonalApp } from "@/lib/branding";
 
 /**
  * Whose page this is, in the header: the organisation's logo, a small
@@ -30,12 +30,15 @@ const b = brand();
 
 <template>
   <div class="identity">
+    <!-- ``org_url`` is somewhere else for an organisation and is this
+         same site for the house brand, so only the first deserves a new
+         tab. -->
     <a
       v-if="b.logo_url"
       class="identity__logo"
       :href="b.org_url"
-      target="_blank"
-      rel="noopener"
+      :target="isPersonalApp() ? undefined : '_blank'"
+      :rel="isPersonalApp() ? undefined : 'noopener'"
       :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     ><img :src="b.logo_url" alt="" /></a>
     <div class="identity__text">

@@ -12,6 +12,7 @@
     "src/vite-env.d.ts",
     "src/public_shared/**/*.svelte",
     "src/public_chapter/**/*",
+    "src/public_form/**/*",
     "src/components/AppToast.svelte"
   ]
 }

@@ -38,8 +38,8 @@ const b = brand();
   <div v-else class="brand-mark">
     <a
       :href="b.org_url"
-      target="_blank"
-      rel="noopener"
+      :target="isPersonalApp() ? undefined : '_blank'"
+      :rel="isPersonalApp() ? undefined : 'noopener'"
       class="party-logo-link"
       :aria-label="`${b.org_name}, ${b.org_url.replace('https://', '')}`"
     >

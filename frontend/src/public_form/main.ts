@@ -8,9 +8,9 @@
  * parsed from ``window.location.pathname`` directly.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicForm from "./PublicForm.vue";
+import PublicForm from "./PublicForm.svelte";
 
-createApp(PublicForm).mount("#app");
+mount(PublicForm, { target: document.getElementById("app")! });
