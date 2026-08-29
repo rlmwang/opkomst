@@ -18,11 +18,7 @@
     "src/public_datepoll/**/*",
     "src/public/**/*",
     "src/public_chore/**/*",
-    "src/components/AppToast.svelte",
-    "src/components/MonthGrid.svelte",
-    "src/components/DatePicker.svelte",
-    "src/components/WeekdayGrid.svelte",
-    "src/components/RosterCalendarView.svelte",
+    "src/components/*.svelte",
     "src/lib/router.svelte.ts",
     "src/i18n.svelte.ts",
     "src/lib/svelte-bridge.svelte.ts"
