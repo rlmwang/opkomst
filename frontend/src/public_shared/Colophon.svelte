@@ -15,9 +15,9 @@
  * sentence-long title a search result needs, with the title travelling
  * as the link's own label.
  *
- * Not rendered on a brand an organisation owns: their pages carry their
- * own identity, and a list of our essays is not part of it. The same
- * test the ad slot uses.
+ * The blogs are the one part an organisation's pages leave out: the
+ * policy, the source and the way to report something belong on every
+ * page, while a list of our essays is not part of their identity.
  *
  * The page list is duplicated from `backend/services/content.py`, which
  * is the canonical one. `tests/test_content.py` fails if the two ever
@@ -54,32 +54,33 @@ const PAGES = [
   { slug: "gratis-alternatief-voor-eventbrite", title: "Gratis alternatief voor Eventbrite" },
 ];
 
-const show = isPersonalApp();
+/** The written pages are ours, so they show on our own brand only. */
+const house = isPersonalApp();
 </script>
 
-{#if show}
-  <footer class="site-footer">
-    <div class={column}>
-      <nav class="footer-links" aria-label={c.footerLabel}>
-        <a href="/privacy">{c.footerPrivacy}</a>
-        <a href="/voorwaarden">{c.footerTerms}</a>
-        <a href={GITHUB_URL} target="_blank" rel="noopener">{c.footerSource}</a>
-        <a href={GITHUB_ISSUE_URL} target="_blank" rel="noopener">{c.footerFeedback}</a>
-        <!-- Numbered rather than named, and last: the footer is here so
-             a crawler finds the written pages from every app page, while
-             a reader wants the policy, the source and the way to report
-             something. The title still travels, as the link's own
-             label. -->
+<footer class="site-footer">
+  <div class={column}>
+    <nav class="footer-links" aria-label={c.footerLabel}>
+      <a href="/privacy">{c.footerPrivacy}</a>
+      <a href="/voorwaarden">{c.footerTerms}</a>
+      <a href={GITHUB_URL} target="_blank" rel="noopener">{c.footerSource}</a>
+      <a href={GITHUB_ISSUE_URL} target="_blank" rel="noopener">{c.footerFeedback}</a>
+      <!-- Numbered rather than named, and last: the footer is here so
+           a crawler finds the written pages from every app page, while
+           a reader wants the policy, the source and the way to report
+           something. The title still travels, as the link's own
+           label. -->
+      {#if house}
         <span class="blogs">
           {c.footerBlogs}
           {#each PAGES as page, i (page.slug)}
             <a href="/{page.slug}" title={page.title} aria-label={page.title}>{i + 1}</a>
           {/each}
         </span>
-      </nav>
-    </div>
-  </footer>
-{/if}
+      {/if}
+    </nav>
+  </div>
+</footer>
 
 <style>
 /* One wrapping row of short names, in the muted treatment the

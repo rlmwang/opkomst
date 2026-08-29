@@ -7,9 +7,9 @@
  * ``window.location.pathname`` directly.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicCompass from "./PublicCompass.vue";
+import PublicCompass from "./PublicCompass.svelte";
 
-createApp(PublicCompass).mount("#app");
+mount(PublicCompass, { target: document.getElementById("app")! });

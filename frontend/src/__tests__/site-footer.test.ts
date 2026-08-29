@@ -70,8 +70,15 @@ describe("SiteFooter", () => {
     expect((await mountAt("/chore/abc/edit")).find("footer").exists()).toBe(false);
   });
 
-  it("stays off a brand an organisation owns", async () => {
+  it("drops the blogs on a brand an organisation owns", async () => {
     window.__OPKOMST_BRAND__ = { ...BRAND, slug: "rsp", app_base: "/rsp/" } as typeof window.__OPKOMST_BRAND__;
-    expect((await mountAt("/")).find("footer").exists()).toBe(false);
+    const wrapper = await mountAt("/");
+    const hrefs = wrapper.findAll("a").map((a) => a.attributes("href"));
+    // The policy, the source and the way to report something belong on
+    // every page; our essays are not part of their identity.
+    expect(hrefs).toContain("/privacy");
+    expect(hrefs).toContain("/voorwaarden");
+    expect(hrefs.some((h) => h?.includes("github.com"))).toBe(true);
+    expect(hrefs).not.toContain("/datumplanner-zonder-account");
   });
 });

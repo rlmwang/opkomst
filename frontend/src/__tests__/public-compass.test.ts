@@ -1,5 +1,5 @@
 /**
- * Filling in a kompas (``PublicCompass.vue``): the cover, the walk, and
+ * Filling in a kompas (``PublicCompass.svelte``): the cover, the walk, and
  * what the map says afterwards.
  *
  * The arithmetic is the server's and is tested in
@@ -9,11 +9,19 @@
  * from anything the page worked out, and that "change your answers"
  * reopens the walk with the answers still in it.
  */
-import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "@/public_compass/api";
-import PublicCompass from "@/public_compass/PublicCompass.vue";
+import PublicCompass from "@/public_compass/PublicCompass.svelte";
+
+/** Let every pending promise and the effects they schedule settle. */
+async function settle() {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+const text = () => document.body.textContent ?? "";
 
 vi.mock("@/public_compass/api", () => ({
   ApiError: class ApiError extends Error {},
@@ -127,27 +135,35 @@ const RESULT = {
 
 function mountCompass(over: Record<string, unknown> = {}) {
   window.__OPKOMST_COMPASS__ = { ...structuredClone(COMPASS), ...over } as never;
-  return mount(PublicCompass, { global: { stubs: { PublicShell: { template: "<div><slot /></div>" } } } });
+  return render(PublicCompass);
 }
 
 /** The cover, then the first question. */
-async function start(wrapper: ReturnType<typeof mountCompass>, name?: string) {
-  if (name) await wrapper.find("input[type=text]").setValue(name);
-  await wrapper.find("form").trigger("submit");
-  await flushPromises();
+async function start(name?: string) {
+  if (name) {
+    const box = document.querySelector("input[type=text]") as HTMLInputElement;
+    box.value = name;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  document.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  await settle();
 }
 
-function buttonWith(wrapper: ReturnType<typeof mountCompass>, label: string) {
-  return wrapper.findAll("button").find((b) => b.text() === label);
+function buttonWith(label: string) {
+  return [...document.querySelectorAll("button")].find((b) => b.textContent?.trim() === label);
 }
 
 /** A rating is five buttons, not five radios (``QuestionField``). */
-function rate(wrapper: ReturnType<typeof mountCompass>, value: number) {
-  return wrapper.findAll(".rating-row button")[value - 1].trigger("click");
+async function rate(value: number) {
+  (document.querySelectorAll(".rating-row button")[value - 1] as HTMLElement).click();
+  await settle();
 }
 
-function pick(wrapper: ReturnType<typeof mountCompass>, index: number) {
-  return wrapper.findAll("input[type=radio]")[index].setValue(true);
+async function pick(index: number) {
+  const radio = document.querySelectorAll("input[type=radio]")[index] as HTMLInputElement;
+  radio.checked = true;
+  radio.dispatchEvent(new Event("change", { bubbles: true }));
+  await settle();
 }
 
 beforeEach(() => {
@@ -155,57 +171,65 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/k/abc123");
 });
 
+afterEach(() => {
+  document.body.innerHTML = "";
+});
+
 describe("PublicCompass", () => {
   it("says on the cover that the name goes on a shared map", async () => {
-    const wrapper = mountCompass();
-    await flushPromises();
+    mountCompass();
+    await settle();
     // The privacy contract of this feature, above the box rather than
     // after the submit (``docs/design-kompas.md`` 5.1).
-    expect(wrapper.text()).toContain("Je naam komt op de kaart");
+    expect(text()).toContain("Je naam komt op de kaart");
     // And what the kompas places people on, which is not a secret.
-    expect(wrapper.text()).toContain("Economie");
+    expect(text()).toContain("Economie");
   });
 
   it("never shows which answer points where before the result", async () => {
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper);
+    mountCompass();
+    await settle();
+    await start();
     // The rating's own side, and the two option sides, are all absent
     // from the walk: the payload does not carry them at all.
-    expect(wrapper.text()).not.toContain("Rechts");
-    await rate(wrapper, 4);
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    expect(wrapper.text()).not.toContain("Links");
+    expect(text()).not.toContain("Rechts");
+    await rate(4);
+    buttonWith("Volgende")?.click();
+    await settle();
+    expect(text()).not.toContain("Links");
   });
 
   it("walks one question at a time and gates a required one", async () => {
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper);
+    mountCompass();
+    await settle();
+    await start();
 
-    expect(wrapper.text()).toContain("Vraag 1 van 2");
-    expect(wrapper.text()).toContain("De overheid moet meer huizen bouwen");
-    expect(wrapper.text()).not.toContain("Waar moet het geld heen?");
+    expect(text()).toContain("Vraag 1 van 2");
+    expect(text()).toContain("De overheid moet meer huizen bouwen");
+    expect(text()).not.toContain("Waar moet het geld heen?");
 
     // Nothing answered: Next refuses rather than the submit doing it
     // ten questions later.
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    expect(wrapper.text()).toContain("Geef eerst een antwoord");
-    expect(wrapper.text()).toContain("Vraag 1 van 2");
+    buttonWith("Volgende")?.click();
+    await settle();
+    expect(text()).toContain("Geef eerst een antwoord");
+    expect(text()).toContain("Vraag 1 van 2");
   });
 
   it("sends every answer in one call and takes the position from the response", async () => {
     vi.mocked(api.postCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper, "Sam");
+    mountCompass();
+    await settle();
+    await start("Sam");
 
     // A 2 on the first statement, the first option on the second.
-    await rate(wrapper, 2);
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    await pick(wrapper, 0);
-    await buttonWith(wrapper, "Klaar")?.trigger("click");
-    await flushPromises();
+    await rate(2);
+    buttonWith("Volgende")?.click();
+    await settle();
+    await pick(0);
+    buttonWith("Klaar")?.click();
+    await settle();
+    await settle();
 
     expect(api.postCompassAnswers).toHaveBeenCalledTimes(1);
     const [, payload] = vi.mocked(api.postCompassAnswers).mock.calls[0];
@@ -217,43 +241,47 @@ describe("PublicCompass", () => {
 
     // The map, and a sentence per axis built from the organiser's own
     // words. Nothing here was computed by the page.
-    expect(wrapper.text()).toContain("Je staat aan de kant van Links");
-    expect(wrapper.text()).toContain("Je staat aan de kant van Behoud");
+    expect(text()).toContain("Je staat aan de kant van Links");
+    expect(text()).toContain("Je staat aan de kant van Behoud");
     // And the direction each answer carried, hidden until now.
-    expect(wrapper.text()).toContain("Een 5 was Rechts, jij zei 2");
+    expect(text()).toContain("Een 5 was Rechts, jij zei 2");
   });
 
   it("says which reason a zero on an axis has", async () => {
     const nothingSaid = { ...structuredClone(RESULT), y: 0, counted_y: 0 };
     vi.mocked(api.postCompassAnswers).mockResolvedValue(nothingSaid as never);
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper);
-    await rate(wrapper, 2);
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    await pick(wrapper, 0);
-    await buttonWith(wrapper, "Klaar")?.trigger("click");
-    await flushPromises();
+    mountCompass();
+    await settle();
+    await start();
+    await rate(2);
+    buttonWith("Volgende")?.click();
+    await settle();
+    await pick(0);
+    buttonWith("Klaar")?.click();
+    await settle();
+    await settle();
 
     // A dot on the centre line has two possible reasons and the screen
     // says which one this is.
-    expect(wrapper.text()).toContain("Over deze as heb je niks ingevuld");
-    expect(wrapper.text()).not.toContain("Je staat in het midden");
+    expect(text()).toContain("Over deze as heb je niks ingevuld");
+    expect(text()).not.toContain("Je staat in het midden");
   });
 
   it("draws the room's band behind your own marker", async () => {
     vi.mocked(api.postCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper);
-    await rate(wrapper, 2);
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    await pick(wrapper, 0);
-    await buttonWith(wrapper, "Klaar")?.trigger("click");
-    await flushPromises();
+    mountCompass();
+    await settle();
+    await start();
+    await rate(2);
+    buttonWith("Volgende")?.click();
+    await settle();
+    await pick(0);
+    buttonWith("Klaar")?.click();
+    await settle();
+    await settle();
 
-    expect(wrapper.findAll(".axis-room")).toHaveLength(2);
-    expect(wrapper.text()).toContain("waar de groep staat");
+    expect(document.querySelectorAll(".axis-room")).toHaveLength(2);
+    expect(text()).toContain("waar de groep staat");
   });
 
   it("draws no band when the room is a point rather than a range", async () => {
@@ -263,17 +291,19 @@ describe("PublicCompass", () => {
     const noRoom = structuredClone(RESULT);
     noRoom.axes = noRoom.axes.map((row) => ({ ...row, ci_low: 0, ci_high: 0 }));
     vi.mocked(api.postCompassAnswers).mockResolvedValue(noRoom as never);
-    const wrapper = mountCompass();
-    await flushPromises();
-    await start(wrapper);
-    await rate(wrapper, 2);
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    await pick(wrapper, 0);
-    await buttonWith(wrapper, "Klaar")?.trigger("click");
-    await flushPromises();
+    mountCompass();
+    await settle();
+    await start();
+    await rate(2);
+    buttonWith("Volgende")?.click();
+    await settle();
+    await pick(0);
+    buttonWith("Klaar")?.click();
+    await settle();
+    await settle();
 
-    expect(wrapper.find(".axis-room").exists()).toBe(false);
-    expect(wrapper.text()).not.toContain("waar de groep staat");
+    expect(document.querySelector(".axis-room")).toBeNull();
+    expect(text()).not.toContain("waar de groep staat");
   });
 
   it("shows the secret link back to this fill-in, with a way to copy it", async () => {
@@ -282,25 +312,25 @@ describe("PublicCompass", () => {
     // address bar (the same card every other mini-app shows).
     vi.mocked(api.fetchCompassResult).mockResolvedValue(structuredClone(RESULT) as never);
     window.history.replaceState(null, "", "/k/abc123?s=tok");
-    const wrapper = mountCompass();
-    await flushPromises();
+    mountCompass();
+    await settle();
 
-    const link = wrapper.find("a.link");
-    expect(link.attributes("href")).toContain("/k/abc123?s=tok");
-    expect(wrapper.find("button.copy-btn").exists()).toBe(true);
+    const link = document.querySelector("a.link")!;
+    expect(link.getAttribute("href")).toContain("/k/abc123?s=tok");
+    expect(document.querySelector("button.copy-btn")).not.toBeNull();
   });
 
   it("offers no way back into the answers when the organiser closed them", async () => {
     vi.mocked(api.fetchCompassResult).mockResolvedValue(structuredClone(RESULT) as never);
     window.history.replaceState(null, "", "/k/abc123?s=tok");
-    const wrapper = mountCompass({ answers_editable: false });
-    await flushPromises();
+    mountCompass({ answers_editable: false });
+    await settle();
 
-    expect(buttonWith(wrapper, "Verander je antwoorden")).toBeUndefined();
+    expect(buttonWith("Verander je antwoorden")).toBeUndefined();
     // The link still opens the result: seeing what you said is the
     // other half of what it is for.
-    expect(wrapper.find("a.link").exists()).toBe(true);
-    expect(wrapper.text()).toContain("terug te zien");
+    expect(document.querySelector("a.link")).not.toBeNull();
+    expect(text()).toContain("terug te zien");
   });
 
   it("reopens a finished fill-in and lets the answers change", async () => {
@@ -308,21 +338,24 @@ describe("PublicCompass", () => {
     vi.mocked(api.putCompassAnswers).mockResolvedValue(structuredClone(RESULT) as never);
     window.history.replaceState(null, "", "/k/abc123?s=tok");
 
-    const wrapper = mountCompass();
-    await flushPromises();
-    expect(wrapper.text()).toContain("Waar je staat");
+    mountCompass();
+    await settle();
+    expect(text()).toContain("Waar je staat");
 
     // Unlike a quiz, changing your mind is allowed, and the walk comes
     // back with the answers still in it.
-    await buttonWith(wrapper, "Verander je antwoorden")?.trigger("click");
-    await flushPromises();
-    expect(wrapper.text()).toContain("Vraag 1 van 2");
+    buttonWith("Verander je antwoorden")?.click();
+    await settle();
+    await settle();
+    expect(text()).toContain("Vraag 1 van 2");
     // The 2 that was given is still the one marked.
-    expect(wrapper.findAll(".rating-row button")[1].classes()).toContain("active");
+    expect([...document.querySelectorAll(".rating-row button")][1].classList).toContain("active");
 
-    await buttonWith(wrapper, "Volgende")?.trigger("click");
-    await buttonWith(wrapper, "Klaar")?.trigger("click");
-    await flushPromises();
+    buttonWith("Volgende")?.click();
+    await settle();
+    buttonWith("Klaar")?.click();
+    await settle();
+    await settle();
     // A second save is a correction of the same submission, not a new
     // one.
     expect(api.putCompassAnswers).toHaveBeenCalledTimes(1);

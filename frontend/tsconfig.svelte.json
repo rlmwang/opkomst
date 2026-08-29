@@ -14,6 +14,7 @@
     "src/public_chapter/**/*",
     "src/public_form/**/*",
     "src/public_quiz/**/*",
+    "src/public_compass/**/*",
     "src/components/AppToast.svelte"
   ]
 }

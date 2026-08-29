@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
-/** The two shapes this reads, declared here rather than imported from
- *  the generated schema: the mini-app bundles do not pull ``api/types``
- *  in, and a plot needs four numbers and a name. */
-export interface PlotAxis {
-  axis: string;
-  low_name: string;
-  high_name: string;
-}
+import {
+  BOX,
+  PAD,
+  SIZE,
+  type Cluster,
+  type PlotAxis,
+  type PlotPoint,
+  clusterPoints,
+  label,
+  px,
+  py,
+  radius,
+} from "./compass-plot";
 
-export interface PlotPoint {
-  name?: string | null;
-  x: number;
-  y: number;
-  you?: boolean;
-}
+export type { PlotAxis, PlotPoint };
 
 /**
  * The map: one square, two axes, one dot per submission
@@ -40,7 +40,10 @@ export interface PlotPoint {
  * budget. It lives in ``public_shared`` and carries no i18n of its own
  * for the same reason ``QuestionField`` does: the organiser's page and
  * the respondent's map are the same picture, and the mini-apps ship
- * without vue-i18n. The two words it needs come in as props.
+ * without any. The two words it needs come in as props.
+ *
+ * The arithmetic is ``./compass-plot``, shared with the Svelte one the
+ * respondent's page renders while the app moves across.
  */
 const props = defineProps<{
   axes: PlotAxis[];
@@ -55,62 +58,10 @@ const props = defineProps<{
   compact?: boolean;
 }>();
 
-// The drawing box. The plot area is 100x100 user units with room
-// around it for the four side names; the SVG scales to its container.
-const PAD = 22;
-const SIZE = 100;
-const BOX = SIZE + PAD * 2;
-
 const xAxis = computed(() => props.axes.find((a) => a.axis === "x") ?? null);
 const yAxis = computed(() => props.axes.find((a) => a.axis === "y") ?? null);
 
-/** [-1, 1] to the plot box. ``y`` is flipped: the high side of an axis
- *  is drawn at the top, and SVG counts downward. */
-function px(value: number): number {
-  return PAD + ((value + 1) / 2) * SIZE;
-}
-function py(value: number): number {
-  return PAD + ((1 - value) / 2) * SIZE;
-}
-
-interface Cluster {
-  x: number;
-  y: number;
-  names: string[];
-  count: number;
-  you: boolean;
-}
-
-/** Submissions at the same coordinate are one dot. Keyed on the
- *  rounded pair the server already rounded, so two identical answer
- *  sets always land in the same cluster. */
-const clusters = computed<Cluster[]>(() => {
-  const bySpot = new Map<string, Cluster>();
-  for (const point of props.points) {
-    const key = `${point.x}:${point.y}`;
-    const found = bySpot.get(key);
-    const name = point.name ?? props.anonymousLabel;
-    if (found) {
-      found.names.push(name);
-      found.count += 1;
-      found.you = found.you || Boolean(point.you);
-    } else {
-      bySpot.set(key, { x: point.x, y: point.y, names: [name], count: 1, you: Boolean(point.you) });
-    }
-  }
-  // The reader's own dot last, so it draws on top of the room.
-  return [...bySpot.values()].sort((a, b) => Number(a.you) - Number(b.you));
-});
-
-/** Radius grows with the count and stops growing: a cluster of forty
- *  should read as bigger than one of four and still be a dot. */
-function radius(cluster: Cluster): number {
-  return 2.2 + Math.min(2.8, Math.sqrt(cluster.count - 1) * 1.1);
-}
-
-function label(cluster: Cluster): string {
-  return cluster.names.join(", ");
-}
+const clusters = computed<Cluster[]>(() => clusterPoints(props.points, props.anonymousLabel));
 
 // Hover and focus both open the same label, so the map is readable
 // with a keyboard and on a phone, where there is no hover at all.
