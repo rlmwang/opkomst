@@ -69,12 +69,7 @@ def list_rosters(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[RosterListOut]:
-    rows = db.execute(
-        access.scoped_select(db, Roster, user, *chores_svc.LIST_COLUMNS, chapter_id=chapter_id)
-        .where(Roster.archived_at.is_(None))
-        .order_by(Roster.created_at.desc())
-    ).all()
-    return chores_svc.enrich(db, rows)
+    return chores_svc.list_for_user(db, user, chapter_id)
 
 
 @router.get("/archived", response_model=list[RosterListOut])

@@ -384,9 +384,9 @@ def test_one_answer_has_a_mean_and_no_interval(client, organiser_headers) -> Non
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 5}], "Sam")
-    x_axis = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()["compass"][
-        "axes"
-    ][0]
+    x_axis = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()["compass"]["axes"][
+        0
+    ]
     assert (x_axis["average"], x_axis["ci_low"], x_axis["ci_high"]) == (1.0, 1.0, 1.0)
 
 

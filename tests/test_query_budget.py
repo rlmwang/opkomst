@@ -55,7 +55,7 @@ BUDGETS: dict[str, int] = {
     "/api/v1/tenants/{tenant_slug}/chapters": 2,
     "/api/v1/tenants/{tenant_slug}/agenda/{slug}": 3,
     # -- events --------------------------------------------------------
-    "/api/v1/event": 6,
+    "/api/v1/event": 3,
     "/api/v1/event/archived": 3,
     "/api/v1/event/{event_id}": 6,
     "/api/v1/event/{event_id}/occurrences": 6,
@@ -73,7 +73,7 @@ BUDGETS: dict[str, int] = {
     "/api/v1/feedback/questions": 1,
     "/api/v1/feedback/{token}": 4,
     # -- forms / quizzes / kompassen (one factory, three mounts) -------
-    "/api/v1/form": 5,
+    "/api/v1/form": 3,
     "/api/v1/form/archived": 3,
     "/api/v1/form/{form_id}": 6,
     "/api/v1/form/{form_id}/summary": 6,
@@ -81,16 +81,15 @@ BUDGETS: dict[str, int] = {
     "/api/v1/form/by-slug/{slug}": 3,
     "/api/v1/form/by-slug/{slug}/qr.svg": 2,
     "/api/v1/form/by-token/{token}": 5,
-    "/api/v1/quiz": 5,
+    "/api/v1/quiz": 3,
     "/api/v1/quiz/archived": 3,
     "/api/v1/quiz/{form_id}": 6,
     "/api/v1/quiz/{form_id}/summary": 8,
-    # Reads the answers twice: once to score, once for the CSV cells.
-    "/api/v1/quiz/{form_id}/submissions": 7,
+    "/api/v1/quiz/{form_id}/submissions": 5,
     "/api/v1/quiz/by-slug/{slug}": 3,
     "/api/v1/quiz/by-slug/{slug}/qr.svg": 2,
     "/api/v1/quiz/by-token/{token}": 5,
-    "/api/v1/compass": 5,
+    "/api/v1/compass": 3,
     "/api/v1/compass/archived": 3,
     "/api/v1/compass/{form_id}": 7,
     "/api/v1/compass/{form_id}/summary": 9,
@@ -99,17 +98,16 @@ BUDGETS: dict[str, int] = {
     "/api/v1/compass/by-slug/{slug}/qr.svg": 2,
     "/api/v1/compass/by-token/{token}": 5,
     # -- datepolls -----------------------------------------------------
-    "/api/v1/datepoll": 6,
+    "/api/v1/datepoll": 3,
     "/api/v1/datepoll/archived": 3,
     "/api/v1/datepoll/{datepoll_id}": 6,
-    # Counts the submissions twice.
-    "/api/v1/datepoll/{datepoll_id}/summary": 7,
+    "/api/v1/datepoll/{datepoll_id}/summary": 6,
     "/api/v1/datepoll/{datepoll_id}/submissions": 4,
     "/api/v1/datepoll/by-slug/{slug}": 3,
     "/api/v1/datepoll/by-slug/{slug}/qr.svg": 2,
     "/api/v1/datepoll/by-token/{token}": 5,
     # -- chore rosters -------------------------------------------------
-    "/api/v1/chore": 6,
+    "/api/v1/chore": 3,
     "/api/v1/chore/archived": 3,
     "/api/v1/chore/{roster_id}": 6,
     "/api/v1/chore/{roster_id}/schedule": 6,
@@ -408,6 +406,83 @@ def test_user_list_does_not_query_per_user(client, admin_headers, db) -> None:
         f"/api/v1/admin/users issued {len(before)} queries for 2 users and {len(after)} for 7: "
         "it is loading each user's chapters one row at a time."
     )
+
+
+@pytest.mark.parametrize(
+    ("path", "body"),
+    [
+        (
+            "/api/v1/event",
+            {
+                "name_nl": "Row count",
+                "topic_nl": None,
+                "location": "Rotterdam",
+                "starts_on": "2027-08-01",
+                "start_time": "18:00:00",
+                "end_time": "20:00:00",
+                "source_options": ["Flyer"],
+                "help_options": [],
+                "help_enabled": False,
+                "feedback_enabled": False,
+                "reminder_enabled": False,
+                "locale": "nl",
+                # Weekly for six weeks, so the event materialises several
+                # occurrences. With one occurrence a bad join to them
+                # duplicates nothing and this test proves nothing.
+                "period_weeks": 1,
+                "cycle_slots": [0, 3],
+                "span_weeks": 6,
+            },
+        ),
+        (
+            "/api/v1/form",
+            {
+                "name_nl": "Row count",
+                "locale": "nl",
+                "questions": [{"kind": "short_text", "prompt": "?", "required": False}],
+            },
+        ),
+        (
+            "/api/v1/chore",
+            {
+                "name_nl": "Row count",
+                "starts_on": "2027-03-01",
+                "chores": [{"name": "Mop", "cycle_slots": [1]}, {"name": "Bins", "cycle_slots": [3]}],
+            },
+        ),
+        (
+            "/api/v1/datepoll",
+            {"name_nl": "Row count", "locale": "nl", "slots": [{"on_date": "2027-09-01"}, {"on_date": "2027-09-02"}]},
+        ),
+    ],
+)
+def test_list_returns_one_row_per_entity(client, organiser_headers, path: str, body: dict) -> None:
+    """One entity, one card.
+
+    These lists are built by a single statement that also fetches each
+    row's counts and related names. Those are scalar subqueries and
+    ``LATERAL ... LIMIT 1`` precisely so the result stays one row per
+    entity. Rewriting any of them as a plain join to a child table
+    (registrations, occurrences, submissions, chores, volunteers, slots)
+    returns a row per combination instead, which shows up as repeated
+    cards and as counts that are silently multiplied.
+
+    A query budget cannot catch that: it is still one query. The row
+    count is what catches it, so it is asserted here.
+    """
+    ids = _build_fixtures(client, organiser_headers)
+    body = {**body, "chapter_id": ids["chapter_id"]}
+
+    before = len(client.get(path, headers=organiser_headers).json())
+    created = client.post(path, headers=organiser_headers, json=body)
+    assert created.status_code == 201, created.text
+    after = client.get(path, headers=organiser_headers).json()
+
+    assert len(after) == before + 1, (
+        f"{path} returned {len(after)} rows after adding one entity to {before}. "
+        "A child table is joined directly instead of aggregated, so entities repeat."
+    )
+    assert len({row["id"] for row in after}) == len(after), f"{path} returned the same entity more than once"
 
 
 @pytest.mark.parametrize("path", ["/api/v1/event", "/api/v1/form", "/api/v1/chore"])

@@ -63,12 +63,7 @@ def list_datepolls(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollListOut]:
-    rows = db.execute(
-        access.scoped_select(db, Datepoll, user, *datepolls_svc.LIST_COLUMNS, chapter_id=chapter_id)
-        .where(Datepoll.archived_at.is_(None))
-        .order_by(Datepoll.created_at.desc())
-    ).all()
-    return datepolls_svc.enrich(db, rows)
+    return datepolls_svc.list_for_user(db, user, chapter_id)
 
 
 @router.get("/archived", response_model=list[DatepollListOut])
@@ -245,9 +240,12 @@ def datepoll_summary(
     user: User = Depends(require_approved),
 ) -> DatepollSummaryOut:
     access.get_datepoll_for_user(db, datepoll_id, user)
-    slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id)
+    # Counted once: the page prints it and the tallies measure their
+    # blanks against it.
+    total = datepolls_svc.submission_count(db, datepoll_id)
+    slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id, total)
     return DatepollSummaryOut(
-        submission_count=datepolls_svc.submission_count(db, datepoll_id),
+        submission_count=total,
         slots=slots,
         best_slot_id=best_slot_id,
     )

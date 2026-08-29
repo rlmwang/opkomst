@@ -110,14 +110,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormListOut]:
-        rows = db.execute(
-            access.scoped_select(db, Form, user, *forms_svc.LIST_COLUMNS, chapter_id=chapter_id)
-            # The table holds three products, so the mode predicate is
-            # part of every read of it (``forms_svc.query``).
-            .where(Form.mode == _MODE, Form.archived_at.is_(None))
-            .order_by(Form.created_at.desc())
-        ).all()
-        return forms_svc.enrich(db, rows)
+        return forms_svc.list_for_user(db, user, _MODE, chapter_id)
 
     @router.get("/archived", response_model=list[FormListOut])
     def list_archived_forms(

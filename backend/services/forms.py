@@ -30,10 +30,10 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission
+from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission, User
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -50,8 +50,8 @@ from ..schemas.forms import (
     QuestionKind,
     QuizSubmissionOut,
 )
+from . import access, compass, form_answers, numbers, public_access, quizzes, tenancy
 from . import archive as archive_svc
-from . import compass, form_answers, numbers, public_access, quizzes, tenancy
 from . import image as image_svc
 from .ratings import rating_distribution
 
@@ -368,6 +368,41 @@ FULL_COLUMNS = (
     Form.answers_editable,
     Form.name_required,
 )
+
+
+def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) -> list[FormListOut]:
+    """The organiser's list of one product, in one statement.
+
+    The row, its chapter's name and how many people filled it in, asked
+    together instead of as three round trips stitched back together in
+    Python. The count is a scalar subquery rather than a join to
+    ``form_submissions``, so one form stays one row."""
+    submissions_count = select(func.count(FormSubmission.id)).where(FormSubmission.form_id == Form.id).scalar_subquery()
+    rows = db.execute(
+        select(*LIST_COLUMNS, Chapter.name.label("chapter_name"), submissions_count.label("submission_count"))
+        .select_from(Form)
+        .outerjoin(Chapter, and_(Chapter.id == Form.chapter_id, Chapter.deleted_at.is_(None)))
+        # The table holds three products, so the mode predicate is part
+        # of every read of it (``query``).
+        .where(access.list_filter(db, user, Form, chapter_id), Form.mode == mode, Form.archived_at.is_(None))
+        .order_by(Form.created_at.desc())
+    ).all()
+    return [
+        FormListOut(
+            id=r.id,
+            slug=r.slug,
+            mode=as_mode(r.mode),
+            name_nl=r.name_nl,
+            name_en=r.name_en,
+            locale=r.locale,
+            chapter_id=r.chapter_id,
+            chapter_name=r.chapter_name,
+            archived=r.archived_at is not None,
+            created_at=r.created_at,
+            submission_count=int(r.submission_count or 0),
+        )
+        for r in rows
+    ]
 
 
 def enrich(db: Session, forms: Sequence[Any]) -> list[FormListOut]:
@@ -746,7 +781,7 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
     plus what each one scored, marked against the quiz as it stands
     now (``services/quiz``)."""
     questions = _questions(db, form_id)
-    grouped = form_answers.by_submission(db, form_id)
+    rows, grouped = _submissions_with_answers(db, form_id, questions, mode="quiz")
     out_of = quizzes.max_score(questions)
     return [
         QuizSubmissionOut(
@@ -758,7 +793,7 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
             answers=row.answers,
             link_recovered_at=row.link_recovered_at,
         )
-        for row in submissions(db, form_id, mode="quiz")
+        for row in rows
     ]
 
 
@@ -770,11 +805,21 @@ def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[Form
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
-    questions = _questions(db, form_id)
+    return _submissions_with_answers(db, form_id, _questions(db, form_id), mode=mode)[0]
+
+
+def _submissions_with_answers(
+    db: Session, form_id: str, questions: Sequence[Any], *, mode: str
+) -> tuple[list[FormSubmissionOut], dict[str, list[Any]]]:
+    """The rows, and the answers they were built from.
+
+    A quiz marks the same answers the CSV cells came from, so it takes
+    both and reads the table once. Handing back the grouping is what
+    stops ``quiz_submissions`` from repeating this function's work."""
     kinds = {q.id: q.kind for q in questions}
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
     if not subs:
-        return []
+        return [], {}
     sub_ids = [s.id for s in subs]
     # Every answer on the form, grouped by who gave it, read once. The
     # CSV cells and a kompas' two coordinate columns are the same rows
@@ -806,4 +851,4 @@ def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[Form
             link_recovered_at=s.link_recovered_at,
         )
         for s in subs
-    ]
+    ], grouped

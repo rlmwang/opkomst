@@ -14,10 +14,10 @@ from collections.abc import Mapping, Sequence
 from datetime import date, time
 from typing import TYPE_CHECKING, Any, Final, get_args
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import and_, distinct, func, select
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
+from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission, User
 from ..schemas.datepolls import (
     Availability,
     DatepollListOut,
@@ -27,9 +27,9 @@ from ..schemas.datepolls import (
     DatepollSubmissionOut,
     PublicDatepollOut,
 )
+from . import access, tenancy
 from . import archive as archive_svc
 from . import image as image_svc
-from . import tenancy
 
 if TYPE_CHECKING:
     from ..schemas.datepolls import DatepollSlotIn
@@ -122,6 +122,50 @@ FULL_COLUMNS = (
     Datepoll.name_required,
     Datepoll.answers_editable,
 )
+
+
+def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[DatepollListOut]:
+    """The organiser's poll list, in one statement.
+
+    ``date_count`` counts distinct candidate days, not slots: a day with
+    three time-slots is still one day in the list summary. All three
+    date facts are scalar subqueries, so one poll stays one row."""
+    days = select(func.count(distinct(DatepollSlot.on_date))).where(DatepollSlot.datepoll_id == Datepoll.id)
+    first = select(func.min(DatepollSlot.on_date)).where(DatepollSlot.datepoll_id == Datepoll.id)
+    last = select(func.max(DatepollSlot.on_date)).where(DatepollSlot.datepoll_id == Datepoll.id)
+    filled = select(func.count(DatepollSubmission.id)).where(DatepollSubmission.datepoll_id == Datepoll.id)
+    rows = db.execute(
+        select(
+            *LIST_COLUMNS,
+            Chapter.name.label("chapter_name"),
+            days.scalar_subquery().label("date_count"),
+            first.scalar_subquery().label("first_date"),
+            last.scalar_subquery().label("last_date"),
+            filled.scalar_subquery().label("submission_count"),
+        )
+        .select_from(Datepoll)
+        .outerjoin(Chapter, and_(Chapter.id == Datepoll.chapter_id, Chapter.deleted_at.is_(None)))
+        .where(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_(None))
+        .order_by(Datepoll.created_at.desc())
+    ).all()
+    return [
+        DatepollListOut(
+            id=r.id,
+            slug=r.slug,
+            name_nl=r.name_nl,
+            name_en=r.name_en,
+            locale=r.locale,
+            chapter_id=r.chapter_id,
+            chapter_name=r.chapter_name,
+            archived=r.archived_at is not None,
+            created_at=r.created_at,
+            date_count=int(r.date_count or 0),
+            first_date=r.first_date,
+            last_date=r.last_date,
+            submission_count=int(r.submission_count or 0),
+        )
+        for r in rows
+    ]
 
 
 def enrich(db: Session, polls: Sequence[Any]) -> list[DatepollListOut]:
@@ -292,9 +336,13 @@ def submission_count(db: Session, datepoll_id: str) -> int:
     )
 
 
-def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSummary], str | None]:
+def slot_aggregates(db: Session, datepoll_id: str, total_subs: int) -> tuple[list[DatepollSlotSummary], str | None]:
     """Per-slot yes/maybe/no tallies and the winning slot id (most yes,
-    tie-break fewest no, ``None`` when there are no responses at all)."""
+    tie-break fewest no, ``None`` when there are no responses at all).
+
+    ``total_subs`` is the respondent pool the blanks are measured
+    against, passed in because the page that asks for these tallies
+    prints the same number next to them and counted it already."""
     slots = _slots(db, datepoll_id)
     slot_ids = [s.id for s in slots]
     if not slot_ids:
@@ -326,11 +374,7 @@ def slot_aggregates(db: Session, datepoll_id: str) -> tuple[list[DatepollSlotSum
 
     # Best slot: most yes, then most maybe, then most "not filled"
     # (submissions that didn't answer this slot) — ``no`` is ignored,
-    # so an explicit no never helps a slot place. ``total_subs`` is the
-    # respondent pool the blanks are measured against.
-    total_subs = (
-        db.query(func.count(DatepollSubmission.id)).filter(DatepollSubmission.datepoll_id == datepoll_id).scalar() or 0
-    )
+    # so an explicit no never helps a slot place.
     total_responses = sum(s.yes + s.maybe + s.no for s in summaries)
     best_slot_id: str | None = None
     if total_responses:

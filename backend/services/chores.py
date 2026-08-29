@@ -13,10 +13,20 @@ from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
+from ..models import (
+    Chapter,
+    Chore,
+    Enrollment,
+    Roster,
+    Shift,
+    ShiftEvent,
+    User,
+    Volunteer,
+    VolunteerAvailability,
+)
 from ..schemas.chores import (
     AvailabilityRange,
     CalendarAssigneeOut,
@@ -38,7 +48,7 @@ from ..schemas.chores import (
     ScheduleStatsOut,
     VolunteerSummaryOut,
 )
-from . import archive, chore_tick, tenancy
+from . import access, archive, chore_tick, tenancy
 from . import image as image_svc
 from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
@@ -160,6 +170,43 @@ FULL_COLUMNS = (
     Roster.commit_horizon_days,
     Roster.activated_at,
 )
+
+
+def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[RosterListOut]:
+    """The organiser's roster list, in one statement. Both counts are
+    scalar subqueries rather than joins to ``chores`` and
+    ``volunteers``, so one roster stays one row."""
+    chore_count = select(func.count(Chore.id)).where(Chore.roster_id == Roster.id).scalar_subquery()
+    volunteer_count = select(func.count(Volunteer.id)).where(Volunteer.roster_id == Roster.id).scalar_subquery()
+    rows = db.execute(
+        select(
+            *LIST_COLUMNS,
+            Chapter.name.label("chapter_name"),
+            chore_count.label("chore_count"),
+            volunteer_count.label("volunteer_count"),
+        )
+        .select_from(Roster)
+        .outerjoin(Chapter, and_(Chapter.id == Roster.chapter_id, Chapter.deleted_at.is_(None)))
+        .where(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_(None))
+        .order_by(Roster.created_at.desc())
+    ).all()
+    return [
+        RosterListOut(
+            id=r.id,
+            slug=r.slug,
+            name_nl=r.name_nl,
+            name_en=r.name_en,
+            locale=r.locale,
+            chapter_id=r.chapter_id,
+            chapter_name=r.chapter_name,
+            archived=r.archived_at is not None,
+            created_at=r.created_at,
+            period_weeks=r.period_weeks,
+            chore_count=int(r.chore_count or 0),
+            volunteer_count=int(r.volunteer_count or 0),
+        )
+        for r in rows
+    ]
 
 
 def enrich(db: Session, rosters: Sequence[Any]) -> list[RosterListOut]:

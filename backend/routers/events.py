@@ -72,12 +72,7 @@ def list_events(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[EventListOut]:
-    rows = db.execute(
-        access.scoped_select(db, Event, user, *event_stats.LIST_COLUMNS, chapter_id=chapter_id)
-        .where(Event.archived_at.is_(None))
-        .order_by(Event.starts_on.desc())
-    ).all()
-    return event_stats.list_enrich(db, rows)
+    return event_stats.list_for_user(db, user, chapter_id)
 
 
 @router.get("/archived", response_model=list[EventListOut])

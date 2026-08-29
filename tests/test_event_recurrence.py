@@ -263,11 +263,7 @@ def test_reconcile_migrates_pending_dispatch_with_signups(db):
         .one()
     )
     make_signup(db, event, occurrence=occ_wed, email=None)
-    db.add(
-        EmailDispatch(
-            occurrence_id=occ_wed.id, channel=EmailChannel.FEEDBACK, encrypted_email=b"x"
-        )
-    )
+    db.add(EmailDispatch(occurrence_id=occ_wed.id, channel=EmailChannel.FEEDBACK, encrypted_email=b"x"))
     db.flush()
     event.cycle_slots = [0, 3]  # Wed -> Thu
     db.flush()
