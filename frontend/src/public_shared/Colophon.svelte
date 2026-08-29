@@ -43,7 +43,7 @@ const c = $derived(chromeStrings(locale));
 
 const PAGES = [
   { slug: "aanmeldpagina-voor-je-evenement", title: "Aanmeldpagina voor je evenement, zonder kosten per aanmelding" },
-  { slug: "datumplanner-zonder-account", title: "Datumplanner zonder account of cookies" },
+  { slug: "datumplanner-zonder-account", title: "Datumplanner zonder account, ook niet voor je deelnemers" },
   { slug: "aanmeldformulier-zonder-google", title: "Aanmeldformulier maken zonder Google Forms" },
   { slug: "wat-gebeurt-er-met-je-mailadres", title: "Wat er met je e-mailadres gebeurt" },
   { slug: "pubquiz-maken-zonder-account", title: "Pubquiz maken zonder account of abonnement" },

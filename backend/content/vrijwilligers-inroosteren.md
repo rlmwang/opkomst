@@ -34,8 +34,8 @@ dat te doen.
 
 ## Wat het je deelnemers kost
 
-Een naam en één klik. Geen account, geen wachtwoord, geen cookies. Zelf
-kom je binnen met een link in je mail. Hoe dat werkt staat op de
+Een naam en één klik. Geen account en geen wachtwoord. Zelf kom je
+binnen met een link in je mail. Hoe dat werkt staat op de
 [pagina over de datumplanner](/datumplanner-zonder-account).
 
 ## Waar het niet voor is

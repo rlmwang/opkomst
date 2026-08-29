@@ -1,6 +1,6 @@
 ---
-title: Datumplanner zonder account of cookies
-description: Een datum prikken met een groep, zonder dat iemand een account maakt en zonder cookies. Wat andere datumplanners opslaan, en wat wij niet doen.
+title: Datumplanner zonder account, ook niet voor je deelnemers
+description: Een datum prikken met een groep, zonder dat iemand een account maakt. Wat andere datumplanners opslaan, en wat wij niet doen.
 cta_path: /datepoll/new
 cta_label: Maak een datumplanner
 order: 2
@@ -20,8 +20,7 @@ krijg je er drie dingen bij die daar niks mee te maken hebben:
 - **Een lijstje dat blijft staan.** Wie wanneer kon, blijft achteraf
   bewaard bij een bedrijf waar je verder niks mee te maken hebt.
 
-Om een datum te kiezen heb je die drie niet nodig. Hier zitten ze er
-dus ook niet in.
+Om een datum te kiezen heb je die drie niet nodig.
 
 ## Hoe het hier werkt
 
@@ -30,7 +29,8 @@ dus ook niet in.
 - Wie de link opent vult een naam in en vinkt aan welke dagen passen.
   Een schuilnaam mag ook.
 - Je deelnemers maken geen account aan.
-- We zetten geen cookies, dus er is ook niks weg te klikken.
+- Wij zetten zelf geen cookies. Staat er een advertentie, dan vraagt
+  die het je eerst.
 - Iedereen met de link ziet dezelfde pagina. Je hoeft niemand toe te
   voegen of uit te nodigen.
 

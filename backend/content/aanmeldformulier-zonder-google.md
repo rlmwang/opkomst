@@ -24,7 +24,7 @@ je deelnemers ervoor moeten doen en waar hun antwoorden belanden.
   <tr><th>Vragen</th><td>Zelf samen te stellen: open tekst, meerkeuze, een getal of een cijfer op een schaal.</td></tr>
   <tr><th>Naam</th><td>Een schuilnaam mag. Het antwoord telt, wie het gaf niet.</td></tr>
   <tr><th>Mailadres</th><td>Vragen we niet. Een vragenlijst verstuurt geen mail, dus er valt niets te bewaren.</td></tr>
-  <tr><th>Cookies</th><td>Geen.</td></tr>
+  <tr><th>Cookies</th><td>Van ons geen. Staat er een advertentie, dan vraagt die het je eerst.</td></tr>
   <tr><th>Prijs</th><td>Gratis.</td></tr>
 </table>
 
