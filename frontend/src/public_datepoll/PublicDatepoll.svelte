@@ -1,19 +1,20 @@
-<script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import Disclosure from "@/public_shared/Disclosure.vue";
-import PublicConfirmation from "@/public_shared/PublicConfirmation.vue";
-import PublicEditBar from "@/public_shared/PublicEditBar.vue";
-import SupportButtons from "@/public_shared/SupportButtons.vue";
-import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
-import PublicMetaRow from "@/public_shared/PublicMetaRow.vue";
-import PublicTopCard from "@/public_shared/PublicTopCard.vue";
-import PublicNotice from "@/public_shared/PublicNotice.vue";
-import PublicShell from "@/public_shared/PublicShell.vue";
+<script lang="ts">
+import { tick } from "svelte";
+
+import Disclosure from "@/public_shared/Disclosure.svelte";
+import PublicConfirmation from "@/public_shared/PublicConfirmation.svelte";
+import PublicEditBar from "@/public_shared/PublicEditBar.svelte";
+import SupportButtons from "@/public_shared/SupportButtons.svelte";
+import RecoveredNotice from "@/public_shared/RecoveredNotice.svelte";
+import PublicMetaRow from "@/public_shared/PublicMetaRow.svelte";
+import PublicTopCard from "@/public_shared/PublicTopCard.svelte";
+import PublicNotice from "@/public_shared/PublicNotice.svelte";
+import PublicShell from "@/public_shared/PublicShell.svelte";
 import { showToast } from "@/lib/toast";
 import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
-import { useEditForm } from "@/public_shared/useEditForm";
-import { useEditLink } from "@/public_shared/useEditLink";
+import { useEditForm } from "@/public_shared/useEditForm.svelte";
+import { useEditLink } from "@/public_shared/useEditLink.svelte";
 import {
   type Availability,
   type PublicDatepoll,
@@ -26,31 +27,29 @@ import {
 } from "./api";
 import { mapLink } from "@/lib/map-link";
 import { datepollStrings, formatTimeRange } from "./i18n";
-import MonthCalendar from "./MonthCalendar.vue";
+import MonthCalendar from "./MonthCalendar.svelte";
 
 type Status = "loading" | "ready" | "unavailable" | "load-failed" | "submitted" | "withdrawn";
 
-const status = ref<Status>("loading");
-const poll = ref<PublicDatepoll | null>(null);
-const locale = ref<Locale>("nl");
-const pollTitle = computed(() =>
-  poll.value ? resolveText(poll.value.name_nl, poll.value.name_en, locale.value) : null,
+let status = $state<Status>("loading");
+let poll = $state<PublicDatepoll | null>(null);
+let locale = $state<Locale>("nl");
+const pollTitle = $derived(poll ? resolveText(poll.name_nl, poll.name_en, locale) : null);
+const pollDescription = $derived(
+  poll ? resolveText(poll.description_nl, poll.description_en, locale) : null,
 );
-const pollDescription = computed(() =>
-  poll.value ? resolveText(poll.value.description_nl, poll.value.description_en, locale.value) : null,
-);
-const c = computed(() => chromeStrings(locale.value));
-const d = computed(() => datepollStrings(locale.value));
+const c = $derived(chromeStrings(locale));
+const d = $derived(datepollStrings(locale));
 
-const displayName = ref("");
-const note = ref("");
-const submitting = ref(false);
-const errorMsg = ref("");
+let displayName = $state("");
+let note = $state("");
+let submitting = $state(false);
+let errorMsg = $state("");
 
 // Auto-grow the note textarea to fit its content (no manual drag).
-const noteEl = ref<HTMLTextAreaElement | null>(null);
+let noteEl = $state<HTMLTextAreaElement | null>(null);
 function growNote(): void {
-  const el = noteEl.value;
+  const el = noteEl;
   if (!el) return;
   el.style.height = "auto";
   el.style.height = `${el.scrollHeight}px`;
@@ -58,7 +57,7 @@ function growNote(): void {
 
 // One answers map keyed by slot id — the single source of truth the
 // inline calendar binds to (``null`` = unset).
-const answers = reactive<Record<string, Availability | null>>({});
+let answers = $state<Record<string, Availability | null>>({});
 
 const slug = (): string => {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -68,61 +67,64 @@ const slug = (): string => {
 // ``?s={token}`` puts the page in edit mode: pre-fill from the existing
 // submission and PUT instead of POST on save. ``confirmSaved`` records the
 // token AND routes the URL onto it so a refresh reopens the edit page.
-const { editToken, editUrl, confirmSaved } = useEditLink("d", slug);
+// Held whole, not spread: ``editUrl`` is a getter.
+const link = useEditLink("d", slug);
+const editToken = link.editToken;
 
 function hydrate(p: PublicDatepoll): void {
-  poll.value = p;
-  locale.value = pickLocale(p.locale);
+  poll = p;
+  locale = pickLocale(p.locale);
   for (const s of p.slots) answers[s.id] = null;
 }
 
-const recoveredAt = ref<string | null>(null);
+let recoveredAt = $state<string | null>(null);
 
 async function prefillFromSubmission(): Promise<void> {
   const sub = await fetchSubmission(editToken!);
-  recoveredAt.value = sub.link_recovered_at ?? null;
-  displayName.value = sub.display_name ?? "";
-  note.value = sub.note ?? "";
+  recoveredAt = sub.link_recovered_at ?? null;
+  displayName = sub.display_name ?? "";
+  note = sub.note ?? "";
   for (const [slotId, availability] of Object.entries(sub.answers)) {
     if (slotId in answers) answers[slotId] = availability;
   }
 }
 
 // Dirty/revert/saved state for the shared edit bar (edit mode only).
-const { dirty, justSaved, captureBaseline, revert, flashSaved } = useEditForm({
-  snapshot: () => ({ name: displayName.value, note: note.value, answers: { ...answers } }),
+const edit = useEditForm({
+  snapshot: () => ({ name: displayName, note, answers: { ...answers } }),
   apply: (s) => {
-    displayName.value = s.name;
-    note.value = s.note;
+    displayName = s.name;
+    note = s.note;
     for (const slotId of Object.keys(answers)) answers[slotId] = s.answers[slotId] ?? null;
   },
 });
 
-onMounted(async () => {
+async function load() {
   const inlined = window.__OPKOMST_DATEPOLL__;
   if (inlined === null) {
-    status.value = "unavailable";
+    status = "unavailable";
     return;
   }
   try {
     const loaded = inlined ?? (await fetchDatepollBySlug(slug()));
     hydrate(loaded);
     if (editToken) await prefillFromSubmission();
-    captureBaseline();
-    status.value = "ready";
-    await nextTick();
+    edit.captureBaseline();
+    status = "ready";
+    await tick();
     growNote(); // fit a pre-filled note on first paint
   } catch (e) {
-    status.value = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
+    status = e instanceof ApiError && e.status === 410 ? "unavailable" : "load-failed";
   }
-});
+}
+void load();
 
 // Slots come pre-sorted (date, then whole-day before timed, then start
 // time). Group them by day for the calendar cells, and derive the
 // distinct months to render.
-const slotsByIso = computed<Record<string, { id: string; label: string | null }[]>>(() => {
+const slotsByIso = $derived.by<Record<string, { id: string; label: string | null }[]>>(() => {
   const out: Record<string, { id: string; label: string | null }[]> = {};
-  for (const s of poll.value?.slots ?? []) {
+  for (const s of poll?.slots ?? []) {
     (out[s.on_date] ??= []).push({
       id: s.id,
       label: s.start_time && s.end_time ? formatTimeRange(s.start_time, s.end_time) : null,
@@ -137,8 +139,8 @@ const slotsByIso = computed<Record<string, { id: string; label: string | null }[
 // horizontal scroll (the card grows to match) instead of squashing the cells.
 // Timed polls carry wider pills ("19:30–21:30 ✓") than whole-day dots, so
 // they get a roomier floor.
-const calendarColumns = computed(() => {
-  const timed = (poll.value?.slots ?? []).some((s) => s.start_time && s.end_time);
+const calendarColumns = $derived.by(() => {
+  const timed = (poll?.slots ?? []).some((s) => s.start_time && s.end_time);
   return `repeat(7, minmax(${timed ? "5.25rem" : "3rem"}, 1fr))`;
 });
 
@@ -147,34 +149,32 @@ const calendarColumns = computed(() => {
 // — reliable on every browser, unlike page-level ``scrollX`` which reads
 // inconsistently across mobile engines. Show the arrow whenever there's more
 // calendar to the right of the current position; hide it once at the end.
-const canScrollRight = ref(false);
-const calScroll = ref<HTMLElement | null>(null);
+let canScrollRight = $state(false);
+let calScroll = $state<HTMLElement | null>(null);
 function updateScrollHint(): void {
-  const el = calScroll.value;
-  canScrollRight.value = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1;
+  const el = calScroll;
+  canScrollRight = !!el && el.scrollWidth - el.clientWidth - el.scrollLeft > 1;
 }
 function nudgeRight(): void {
-  const el = calScroll.value;
+  const el = calScroll;
   el?.scrollBy({ left: el.clientWidth * 0.6, behavior: "smooth" });
 }
 // Recompute when the scroller mounts and whenever its size/content changes
 // (poll load, viewport resize, rotation). The template's ``@scroll`` handles
 // scrolling itself.
-let scrollObserver: ResizeObserver | null = null;
-watch(calScroll, (el) => {
-  scrollObserver?.disconnect();
-  if (el) {
-    scrollObserver = new ResizeObserver(() => updateScrollHint());
-    scrollObserver.observe(el);
-    updateScrollHint();
-  }
+$effect(() => {
+  const el = calScroll;
+  if (!el) return;
+  const observer = new ResizeObserver(() => updateScrollHint());
+  observer.observe(el);
+  updateScrollHint();
+  return () => observer.disconnect();
 });
-onUnmounted(() => scrollObserver?.disconnect());
 
-const months = computed(() => {
+const months = $derived.by(() => {
   const seen = new Set<string>();
   const out: { year: number; month: number }[] = [];
-  for (const s of poll.value?.slots ?? []) {
+  for (const s of poll?.slots ?? []) {
     const [y, m] = s.on_date.split("-").map(Number);
     const key = `${y}-${m}`;
     if (!seen.has(key)) {
@@ -191,175 +191,175 @@ function toggle(slotId: string): void {
 }
 
 async function submit(): Promise<void> {
-  errorMsg.value = "";
-  if (poll.value?.name_required && !displayName.value.trim()) {
-    showToast(c.value.nameRequired);
+  errorMsg = "";
+  if (poll?.name_required && !displayName.trim()) {
+    showToast(c.nameRequired);
     return;
   }
   const picked = Object.entries(answers)
     .filter(([, a]) => a !== null)
     .map(([slotId, a]) => ({ datepoll_slot_id: slotId, availability: a as Availability }));
   if (picked.length === 0) {
-    showToast(d.value.pickOne);
+    showToast(d.pickOne);
     return;
   }
-  submitting.value = true;
-  const body = { display_name: displayName.value.trim() || null, note: note.value.trim() || null, answers: picked };
+  submitting = true;
+  const body = { display_name: displayName.trim() || null, note: note.trim() || null, answers: picked };
   try {
     if (editToken) {
       await putSubmission(editToken, body);
       // Edit-mode save stays on the page: re-baseline + flash "Saved".
-      captureBaseline();
-      flashSaved();
+      edit.captureBaseline();
+      edit.flashSaved();
     } else {
       const ack = await postSubmission(slug(), body);
-      confirmSaved(ack.edit_token);
-      status.value = "submitted";
+      link.confirmSaved(ack.edit_token);
+      status = "submitted";
     }
   } catch (e) {
     if (e instanceof ApiError && e.status === 410) {
-      status.value = "unavailable";
+      status = "unavailable";
     } else {
       // 409 is the poll having no places left, which the visitor can
       // understand; everything else is a failure to submit.
-      errorMsg.value = e instanceof ApiError && e.status === 409 ? c.value.full : c.value.submitFail;
+      errorMsg = e instanceof ApiError && e.status === 409 ? c.full : c.submitFail;
     }
   } finally {
-    submitting.value = false;
+    submitting = false;
   }
 }
 
 async function withdraw(): Promise<void> {
   if (!editToken) return;
-  if (!window.confirm(d.value.withdrawConfirm)) return;
-  submitting.value = true;
+  if (!window.confirm(d.withdrawConfirm)) return;
+  submitting = true;
   try {
     await withdrawSubmission(editToken);
-    status.value = "withdrawn";
+    status = "withdrawn";
   } catch {
-    errorMsg.value = c.value.submitFail;
+    errorMsg = c.submitFail;
   } finally {
-    submitting.value = false;
+    submitting = false;
   }
 }
 </script>
 
-<template>
-  <PublicShell v-model:locale="locale" :hide-ads="status === 'submitted' || status === 'withdrawn'">
-    <PublicNotice v-if="status === 'loading'" :message="c.loading" />
-    <PublicNotice v-else-if="status === 'unavailable'" :message="c.unavailable" />
-    <PublicNotice v-else-if="status === 'load-failed'" :message="c.loadFailed" />
-    <PublicNotice v-else-if="status === 'withdrawn'" :message="d.withdrawn" />
-
+<PublicShell bind:locale hideAds={status === "submitted" || status === "withdrawn"}>
+  {#if status === "loading"}
+    <PublicNotice message={c.loading} />
+  {:else if status === "unavailable"}
+    <PublicNotice message={c.unavailable} />
+  {:else if status === "load-failed"}
+    <PublicNotice message={c.loadFailed} />
+  {:else if status === "withdrawn"}
+    <PublicNotice message={d.withdrawn} />
+  {:else if poll}
     <!-- On submit the whole page collapses to a single confirmation card
          (the top card is dropped) so nothing competes with saving the
          secret link. -->
-    <template v-else-if="poll">
-      <PublicConfirmation v-if="status === 'submitted'" :url="editUrl" :locale="locale" />
-
-      <template v-else>
-        <PublicTopCard
-          :title="pollTitle"
-          :image-url="poll.image_url"
-          :artist="poll.image_artist_instagram"
-          :credit-label="c.imageCredit"
-          :description-html="pollDescription"
-        >
-          <template v-if="poll.location" #meta>
+    {#if status === "submitted"}
+      <PublicConfirmation url={link.editUrl} {locale} />
+    {:else}
+      <PublicTopCard
+        title={pollTitle}
+        imageUrl={poll.image_url}
+        artist={poll.image_artist_instagram}
+        creditLabel={c.imageCredit}
+        descriptionHtml={pollDescription}
+      >
+        {#snippet meta()}
+          {#if poll!.location}
             <PublicMetaRow
-              :href="mapLink({ location: poll.location, latitude: poll.latitude, longitude: poll.longitude })"
+              href={mapLink({ location: poll!.location, latitude: poll!.latitude, longitude: poll!.longitude })}
             >
-              <template #icon>
+              {#snippet icon()}
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
-              </template>
-              {{ poll.location }}
+              {/snippet}
+              {poll!.location}
             </PublicMetaRow>
-          </template>
-        </PublicTopCard>
+          {/if}
+        {/snippet}
+      </PublicTopCard>
 
-        <RecoveredNotice v-if="editToken" :recovered-at="recoveredAt" :locale="locale" />
-        <Disclosure :locale="locale" />
+      {#if editToken}<RecoveredNotice {recoveredAt} {locale} />{/if}
+      <Disclosure {locale} />
 
-        <!-- Pseudonym + the optional note up top, mirroring the events
-             sign-up form. The note auto-grows to its content. -->
-        <div class="card name-card">
-          <input v-model="displayName" class="input" type="text" :placeholder="c.displayName" maxlength="100" />
-          <textarea
-            ref="noteEl"
-            v-model="note"
-            class="input note"
-            :placeholder="d.notePlaceholder"
-            maxlength="280"
-            rows="2"
-            @input="growNote"
-          />
-        </div>
+      <!-- Pseudonym and the optional note up top, mirroring the events
+           sign-up form. The note auto-grows to its content. -->
+      <div class="card name-card">
+        <input bind:value={displayName} class="input" type="text" placeholder={c.displayName} maxlength="100" />
+        <textarea
+          bind:this={noteEl}
+          bind:value={note}
+          class="input note"
+          placeholder={d.notePlaceholder}
+          maxlength="280"
+          rows="2"
+          oninput={growNote}
+        ></textarea>
+      </div>
 
-        <div class="card poll-calendar">
-          <p class="legend">
-            <span class="intro-text">{{ d.intro }}</span>
-            <span class="swatch yes">{{ d.yes }}</span>
-            <span class="swatch maybe">{{ d.maybe }}</span>
-            <span class="swatch no">{{ d.no }}</span>
-          </p>
-          <div ref="calScroll" class="cal-scroll" @scroll="updateScrollHint">
+      <div class="card poll-calendar">
+        <p class="legend">
+          <span class="intro-text">{d.intro}</span>
+          <span class="swatch yes">{d.yes}</span>
+          <span class="swatch maybe">{d.maybe}</span>
+          <span class="swatch no">{d.no}</span>
+        </p>
+        <div bind:this={calScroll} class="cal-scroll" onscroll={updateScrollHint}>
+          {#each months as m (`${m.year}-${m.month}`)}
             <MonthCalendar
-              v-for="m in months"
-              :key="`${m.year}-${m.month}`"
-              :year="m.year"
-              :month="m.month"
-              :slots-by-iso="slotsByIso"
-              :answers="answers"
-              :locale="locale"
-              :columns="calendarColumns"
-              @toggle="toggle"
+              year={m.year}
+              month={m.month}
+              {slotsByIso}
+              {answers}
+              {locale}
+              columns={calendarColumns}
+              ontoggle={toggle}
             />
-          </div>
+          {/each}
+        </div>
+        {#if canScrollRight}
           <button
-            v-show="canScrollRight"
             type="button"
             class="scroll-hint"
-            :aria-label="d.scrollHint"
-            :title="d.scrollHint"
-            @click="nudgeRight"
+            aria-label={d.scrollHint}
+            title={d.scrollHint}
+            onclick={nudgeRight}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
           </button>
-        </div>
+        {/if}
+      </div>
 
-        <div class="card submit-card">
-          <p v-if="errorMsg" class="error" role="alert">{{ errorMsg }}</p>
-          <button
-            v-if="!editToken"
-            type="button"
-            class="btn-primary full"
-            :disabled="submitting"
-            @click="submit"
-          >
-            {{ submitting ? c.submitting : c.submit }}
+      <div class="card submit-card">
+        {#if errorMsg}<p class="error" role="alert">{errorMsg}</p>{/if}
+        {#if !editToken}
+          <button type="button" class="btn-primary full" disabled={submitting} onclick={submit}>
+            {submitting ? c.submitting : c.submit}
           </button>
+        {:else}
           <PublicEditBar
-            v-else
-            :can-edit="poll?.answers_editable ?? true"
-            :dirty="dirty"
-            :saving="submitting"
-            :just-saved="justSaved"
-            :locale="locale"
-            @save="submit"
-            @revert="revert"
-            @withdraw="withdraw"
+            canEdit={poll?.answers_editable ?? true}
+            dirty={edit.dirty}
+            saving={submitting}
+            justSaved={edit.justSaved}
+            {locale}
+            onsave={submit}
+            onrevert={edit.revert}
+            onwithdraw={withdraw}
           />
-          <!-- This page's primary action is full width rather than a
-               right-aligned row, so the ask sits under it on the left
-               instead of beside it. -->
-          <SupportButtons class="support-row" />
-        </div>
-      </template>
-    </template>
-  </PublicShell>
-</template>
+        {/if}
+        <!-- This page's primary action is full width rather than a
+             right-aligned row, so the ask sits under it on the left
+             instead of beside it. -->
+        <div class="support-row"><SupportButtons /></div>
+      </div>
+    {/if}
+  {/if}
+</PublicShell>
 
-<style scoped>
+<style>
 .support-row {
   margin-top: 1rem;
 }

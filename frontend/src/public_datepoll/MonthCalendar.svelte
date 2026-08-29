@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script lang="ts">
 /**
  * One month of a datepoll's candidate days for public voting, built on the
  * shared ``MonthGrid`` (so it matches every other calendar). Each candidate
@@ -6,8 +6,7 @@
  * a pill per time range). Tapping a pill cycles its state; the parent owns
  * the cycle. Rendered one grid per month (no navigator — months stack).
  */
-import { computed } from "vue";
-import MonthGrid from "@/components/MonthGrid.vue";
+import MonthGrid from "@/components/MonthGrid.svelte";
 import type { Availability } from "./api";
 import type { Locale } from "@/public_shared/strings";
 
@@ -16,7 +15,15 @@ interface SlotCell {
   label: string | null; // null = whole-day
 }
 
-const props = defineProps<{
+const {
+  year,
+  month,
+  slotsByIso,
+  answers,
+  locale,
+  columns,
+  ontoggle,
+}: {
   year: number;
   month: number; // 0-based
   slotsByIso: Record<string, SlotCell[]>;
@@ -25,41 +32,45 @@ const props = defineProps<{
   // Shared column template (see PublicDatepoll): one fixed grid so every
   // stacked month lines up with the next and with the weekday header.
   columns: string;
-}>();
-const emit = defineEmits<{ toggle: [slotId: string] }>();
+  ontoggle: (slotId: string) => void;
+} = $props();
 
 const GLYPH: Record<Availability, string> = { yes: "✓", maybe: "~", no: "✕" };
-const monthStr = computed(() => `${props.year}-${String(props.month + 1).padStart(2, "0")}`);
-const weekdays = computed(() => {
-  const fmt = new Intl.DateTimeFormat(props.locale === "en" ? "en-GB" : "nl-NL", { weekday: "short" });
+const monthStr = $derived(`${year}-${String(month + 1).padStart(2, "0")}`);
+const weekdays = $derived.by(() => {
+  const fmt = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nl-NL", { weekday: "short" });
   return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)));
 });
 function dayClass(iso: string) {
-  return { occ: !!props.slotsByIso[iso]?.length };
+  return { occ: !!slotsByIso[iso]?.length };
 }
 </script>
 
-<template>
-  <MonthGrid :month="monthStr" :locale="locale" :weekdays="weekdays" :nav="false" :day-class="dayClass" :columns="columns">
-    <template #day="{ iso }">
-      <div v-if="slotsByIso[iso]?.length" class="votes">
-        <button
-          v-for="s in slotsByIso[iso]"
-          :key="s.id"
-          type="button"
-          class="vote"
-          :class="answers[s.id] ?? 'unset'"
-          @click.stop="emit('toggle', s.id)"
-        >
-          <span v-if="s.label" class="vote-time">{{ s.label }}</span>
-          <span class="vote-glyph">{{ answers[s.id] ? GLYPH[answers[s.id] as Availability] : s.label ? "" : "·" }}</span>
-        </button>
+<MonthGrid month={monthStr} {locale} {weekdays} nav={false} {dayClass} {columns}>
+  {#snippet day({ iso })}
+    {#if slotsByIso[iso]?.length}
+      <div class="votes">
+        {#each slotsByIso[iso] as s (s.id)}
+          <button
+            type="button"
+            class="vote {answers[s.id] ?? 'unset'}"
+            onclick={(e) => {
+              e.stopPropagation();
+              ontoggle(s.id);
+            }}
+          >
+            {#if s.label}<span class="vote-time">{s.label}</span>{/if}
+            <span class="vote-glyph"
+              >{answers[s.id] ? GLYPH[answers[s.id] as Availability] : s.label ? "" : "·"}</span
+            >
+          </button>
+        {/each}
       </div>
-    </template>
-  </MonthGrid>
-</template>
+    {/if}
+  {/snippet}
+</MonthGrid>
 
-<style scoped>
+<style>
 .votes {
   display: flex;
   flex-direction: column;

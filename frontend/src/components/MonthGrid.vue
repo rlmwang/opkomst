@@ -14,6 +14,15 @@
  */
 import { computed } from "vue";
 
+import {
+  type Cell,
+  columnTemplate as columnsFor,
+  isoOf,
+  monthCells,
+  monthLabel as labelFor,
+  shiftMonth,
+} from "./month-grid";
+
 const props = withDefaults(
   defineProps<{
     month: string; // YYYY-MM
@@ -21,84 +30,37 @@ const props = withDefaults(
     weekdays: readonly string[];
     prevLabel?: string;
     nextLabel?: string;
-    // Show the ‹ month › navigator. Off for stacked-months views (datepoll
+    // Show the month navigator. Off for stacked-months views (datepoll
     // voting) that render one grid per month with a plain title instead.
-    // Default true — Vue would otherwise coerce an absent boolean to false.
+    // Default true: Vue would otherwise coerce an absent boolean to false.
     nav?: boolean;
     dayClass?: (iso: string) => Record<string, boolean> | undefined;
     clickable?: (iso: string) => boolean;
-    // The day whose slot currently renders an open popover: it's lifted into
-    // its own stacking context above sibling cells so the popover (and its
-    // buttons) reliably sit on top and receive hover/clicks.
+    // The day whose slot currently renders an open popover: it is lifted
+    // into its own stacking context above sibling cells so the popover
+    // (and its buttons) reliably sit on top and receive hover and clicks.
     activeIso?: string | null;
-    // An explicit ``grid-template-columns`` shared by the header and every
-    // stacked grid. Callers that render several months at once (datepoll)
-    // pass one fixed template so the day columns line up across months and
-    // with the weekday header — and can give it a min column width so the
-    // grid scrolls rather than squashing when every weekday is in play.
-    // Unset: each grid sizes its own columns by which carry content.
+    // An explicit ``grid-template-columns`` shared by the header and
+    // every stacked grid. Callers that render several months at once
+    // (datepoll) pass one fixed template so the day columns line up
+    // across months and with the weekday header, and can give it a min
+    // column width so the grid scrolls rather than squashing when every
+    // weekday is in play. Unset: each grid sizes its own columns by
+    // which carry content.
     columns?: string;
   }>(),
   { nav: true },
 );
 const emit = defineEmits<{ "update:month": [value: string]; "day-click": [iso: string] }>();
 
-function isoOf(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 const todayIso = isoOf(new Date());
+const monthLabel = computed(() => labelFor(props.month, props.locale));
+const cells = computed<Cell[]>(() => monthCells(props.month, todayIso));
+const columnTemplate = computed(() => columnsFor(cells.value, props.dayClass));
 
-const year = computed(() => Number(props.month.split("-")[0]));
-const monthIdx = computed(() => Number(props.month.split("-")[1]) - 1);
-const intlLocale = computed(() => (props.locale === "en" ? "en-GB" : props.locale === "nl" ? "nl-NL" : props.locale));
-const monthLabel = computed(() =>
-  new Date(year.value, monthIdx.value, 1).toLocaleDateString(intlLocale.value, { month: "long", year: "numeric" }),
-);
 function shift(delta: number) {
-  const d = new Date(year.value, monthIdx.value + delta, 1);
-  emit("update:month", `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  emit("update:month", shiftMonth(props.month, delta));
 }
-
-interface Cell {
-  day: number | null;
-  iso: string | null;
-  today: boolean;
-}
-const cells = computed<Cell[]>(() => {
-  const lead = (new Date(year.value, monthIdx.value, 1).getDay() + 6) % 7; // Mon = 0
-  const dim = new Date(year.value, monthIdx.value + 1, 0).getDate();
-  const out: Cell[] = Array.from({ length: lead }, () => ({ day: null, iso: null, today: false }));
-  for (let d = 1; d <= dim; d++) {
-    const iso = `${year.value}-${String(monthIdx.value + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    out.push({ day: d, iso, today: iso === todayIso });
-  }
-  while (out.length < 42) out.push({ day: null, iso: null, today: false }); // always six weeks
-  return out;
-});
-
-// Most weekday columns are empty (a chore runs on one or two days); the ones
-// that do carry content need room. Size each of the seven columns by whether
-// any day in it has content: content columns grow toward 1.5/7, empty ones
-// shrink toward 1/14 (half of 1/7), balanced so the row always sums to full
-// width (fr units → responsive). Both the header and grid use this template.
-const columnTemplate = computed<string>(() => {
-  if (!props.dayClass) return "repeat(7, 1fr)";
-  const has = Array<boolean>(7).fill(false);
-  cells.value.forEach((c, i) => {
-    if (c.iso && props.dayClass!(c.iso)?.occ) has[i % 7] = true;
-  });
-  const k = has.filter(Boolean).length;
-  if (k === 0 || k === 7) return "repeat(7, 1fr)";
-  const MAX = 1.5; // 1.5× 1/7
-  const MIN = 0.5; // half 1/7
-  const diff = 7 - (k * MAX + (7 - k) * MIN); // slack to balance out to 7 units
-  // Slack ≥ 0: content is capped at MAX, spare width widens the empty columns.
-  // Slack < 0: too many content columns to all reach MAX, so they share the
-  // deficit (empty columns stay at MIN).
-  const content = diff >= 0 ? MAX : MAX + diff / k;
-  const empty = diff >= 0 ? MIN + diff / (7 - k) : MIN;
-  return has.map((h) => `${(h ? content : empty).toFixed(4)}fr`).join(" ");
-});
 
 function isClickable(c: Cell): boolean {
   return !!(c.iso && props.clickable?.(c.iso));

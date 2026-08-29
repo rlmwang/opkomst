@@ -15,6 +15,8 @@
     "src/public_form/**/*",
     "src/public_quiz/**/*",
     "src/public_compass/**/*",
-    "src/components/AppToast.svelte"
+    "src/public_datepoll/**/*",
+    "src/components/AppToast.svelte",
+    "src/components/MonthGrid.svelte"
   ]
 }

@@ -8,9 +8,9 @@
  * from ``window.location.pathname`` inside the component.
  */
 
-import { createApp } from "vue";
+import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicDatepoll from "./PublicDatepoll.vue";
+import PublicDatepoll from "./PublicDatepoll.svelte";
 
-createApp(PublicDatepoll).mount("#app");
+mount(PublicDatepoll, { target: document.getElementById("app")! });
