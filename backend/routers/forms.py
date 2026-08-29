@@ -294,12 +294,16 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         # own copy of them.
         questions = forms_svc.questions_of(db, form_id)
         average, best, out_of = quizzes.score_stats(db, form_id, questions) if _MODE == "quiz" else (None, None, None)
+        compass = forms_svc.compass_summary(db, form, questions)
         return FormSummaryOut(
-            submission_count=forms_svc.submission_count(db, form_id),
+            # A kompas already read every submission to place it, and
+            # there is exactly one dot per fill-out, so counting them
+            # again is a round trip for a number in hand.
+            submission_count=len(compass.points) if compass is not None else forms_svc.submission_count(db, form_id),
             score_average=average,
             score_best=best,
             max_score=out_of,
-            compass=forms_svc.compass_summary(db, form, questions),
+            compass=compass,
             questions=forms_svc.question_aggregates(db, form_id, questions),
         )
 

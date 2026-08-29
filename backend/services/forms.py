@@ -30,10 +30,10 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission, User
+from ..models import Chapter, CompassAxis, Form, FormQuestion, FormSubmission, User
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -567,67 +567,74 @@ def _summary(q: FormQuestion, correct_share: float | None, **fields: object) -> 
     )
 
 
-def _numeric_counts(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[tuple[int, int]]]:
-    """``question_id -> [(answer, times given)]`` for every rating and
-    number question at once. The database does the counting; a rating
-    reads the pairs as its distribution and a number expands them back
-    into values."""
-    if not question_ids:
-        return {}
-    out: dict[str, list[tuple[int, int]]] = {}
-    for qid, value, n in (
-        db.query(FormResponse.question_id, FormResponse.answer_int, func.count(FormResponse.id))
-        .filter(
-            FormResponse.form_id == form_id,
-            FormResponse.question_id.in_(question_ids),
-            FormResponse.answer_int.is_not(None),
-        )
-        .group_by(FormResponse.question_id, FormResponse.answer_int)
-        .all()
-    ):
-        out.setdefault(qid, []).append((value, n))
-    return out
+# One statement for every tally an answers page shows.
+#
+# The three shapes are three grains: a rating wants a row per distinct
+# value, a choice question a row per option, an open question every
+# answer it was given. Each is aggregated in its own CTE and joined back
+# to one row per question, which is why the unnest of ``answer_choices``
+# cannot multiply anything: it happens inside its own subquery, and only
+# its finished tally comes out.
+#
+# ``json_typeof(...) = 'array'`` rather than ``IS NOT NULL``: a
+# non-choice answer stores the JSON scalar ``null``, not SQL NULL, so
+# ``IS NOT NULL`` matches every row and Postgres then raises on the
+# scalar. See the note on the column in ``models/forms``.
+_AGGREGATES_SQL = text("""
+WITH resp AS (
+    SELECT question_id, answer_int, answer_text, answer_choices, created_at
+    FROM form_responses WHERE form_id = :form_id
+),
+numbers AS (
+    SELECT question_id, json_agg(json_build_array(value, n) ORDER BY value) AS pairs
+    FROM (
+        SELECT question_id, answer_int AS value, count(*) AS n
+        FROM resp WHERE answer_int IS NOT NULL GROUP BY 1, 2
+    ) counted
+    GROUP BY question_id
+),
+options AS (
+    SELECT question_id, json_agg(json_build_array(choice, n)) AS pairs
+    FROM (
+        SELECT r.question_id, c.value AS choice, count(*) AS n
+        FROM resp r, LATERAL json_array_elements_text(r.answer_choices) c
+        WHERE json_typeof(r.answer_choices) = 'array'
+        GROUP BY 1, 2
+    ) counted
+    GROUP BY question_id
+),
+option_totals AS (
+    SELECT question_id, count(*)::int AS n
+    FROM resp WHERE json_typeof(answer_choices) = 'array' GROUP BY 1
+),
+texts AS (
+    SELECT question_id,
+           json_agg(answer_text ORDER BY created_at DESC) AS answers,
+           count(*)::int AS n
+    FROM resp WHERE answer_text IS NOT NULL GROUP BY 1
+)
+SELECT q.id AS question_id,
+       numbers.pairs AS number_pairs,
+       options.pairs AS option_pairs,
+       coalesce(option_totals.n, 0) AS option_total,
+       texts.answers AS texts,
+       coalesce(texts.n, 0) AS text_total
+FROM form_questions q
+LEFT JOIN numbers ON numbers.question_id = q.id
+LEFT JOIN options ON options.question_id = q.id
+LEFT JOIN option_totals ON option_totals.question_id = q.id
+LEFT JOIN texts ON texts.question_id = q.id
+WHERE q.form_id = :form_id
+""")
 
 
-def _texts(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[str]]:
-    """``question_id -> answers, newest first`` for every open question
-    at once."""
-    if not question_ids:
-        return {}
-    out: dict[str, list[str]] = {}
-    for qid, text in (
-        db.query(FormResponse.question_id, FormResponse.answer_text)
-        .filter(
-            FormResponse.form_id == form_id,
-            FormResponse.question_id.in_(question_ids),
-            FormResponse.answer_text.is_not(None),
-        )
-        .order_by(FormResponse.created_at.desc())
-        .all()
-    ):
-        out.setdefault(qid, []).append(text)
-    return out
-
-
-def _chosen(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[list[str]]]:
-    """``question_id -> one list per answer`` for every choice question
-    at once. The ticks live in an array column, so the tally is folded
-    here rather than grouped in SQL."""
-    if not question_ids:
-        return {}
-    out: dict[str, list[list[str]]] = {}
-    for qid, choices in (
-        db.query(FormResponse.question_id, FormResponse.answer_choices)
-        .filter(
-            FormResponse.form_id == form_id,
-            FormResponse.question_id.in_(question_ids),
-            FormResponse.answer_choices.is_not(None),
-        )
-        .all()
-    ):
-        if choices:
-            out.setdefault(qid, []).append(list(choices))
-    return out
+def _pairs(row: Any, field: str) -> list[tuple[Any, int]]:
+    """A tally column as ``[(value, count)]``. ``json_agg`` gives back
+    ``null`` for a question nobody answered, which is an empty tally."""
+    if row is None:
+        return []
+    raw = getattr(row, field)
+    return [(value, int(n)) for value, n in raw] if raw else []
 
 
 def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> list[FormQuestionSummary]:
@@ -639,23 +646,23 @@ def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> 
     * ``text`` / ``short_text`` — raw answers, newest first.
     * ``single_choice`` / ``multi_choice`` — option → count map.
 
-    Batched by kind, not by question: four queries for the whole page
-    however many questions it has, because a form with thirty of them
-    is exactly the form whose results page is worth loading fast.
+    Every tally comes from one statement (``_AGGREGATES_SQL``) whatever
+    the form asks and however many questions it has. Grading is the one
+    thing left over: it reads the stored key in Python (tolerance
+    windows, part marks) and so cannot be a ``GROUP BY``.
     """
     if not questions:
         return []
 
-    numeric = _numeric_counts(db, form_id, [q.id for q in questions if q.kind in ("rating", "number")])
-    texts = _texts(db, form_id, [q.id for q in questions if q.kind in _TEXT_KINDS])
-    chosen = _chosen(db, form_id, [q.id for q in questions if q.kind in _CHOICE_KINDS])
+    tallies = {r.question_id: r for r in db.execute(_AGGREGATES_SQL, {"form_id": form_id}).all()}
     shares = quizzes.correct_shares(db, form_id, questions)
 
     summaries: list[FormQuestionSummary] = []
     for q in questions:
         share = shares.get(q.id)
+        row = tallies.get(q.id)
         if q.kind == "rating":
-            distribution, total, average = rating_distribution(numeric.get(q.id, []))
+            distribution, total, average = rating_distribution(_pairs(row, "number_pairs"))
             summaries.append(
                 _summary(
                     q,
@@ -668,7 +675,7 @@ def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> 
         elif q.kind == "number":
             # Back to one entry per answer: the average, the extremes and
             # the histogram are all about the values as given.
-            values = [value for value, n in numeric.get(q.id, []) for _ in range(n)]
+            values = [value for value, n in _pairs(row, "number_pairs") for _ in range(n)]
             summaries.append(
                 _summary(
                     q,
@@ -681,20 +688,21 @@ def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> 
                 )
             )
         elif q.kind in _TEXT_KINDS:
-            answers = texts.get(q.id, [])
+            answers = list(row.texts) if row is not None and row.texts else []
             summaries.append(_summary(q, share, response_count=len(answers), texts=answers))
         elif q.kind in _CHOICE_KINDS:
+            # Seeded from the question's own options so one nobody picked
+            # still shows as zero, and a stored answer whose option has
+            # since been renamed away simply does not land anywhere.
             counts: dict[str, int] = {opt: 0 for opt in q.options}
-            answers_given = chosen.get(q.id, [])
-            for choices in answers_given:
-                for c in choices:
-                    if c in counts:
-                        counts[c] += 1
+            for choice, n in _pairs(row, "option_pairs"):
+                if choice in counts:
+                    counts[choice] = n
             summaries.append(
                 _summary(
                     q,
                     share,
-                    response_count=len(answers_given),
+                    response_count=(row.option_total if row is not None else 0),
                     choice_counts=counts,
                 )
             )
@@ -728,7 +736,11 @@ def compass_points(
     passes nothing, because on their page nobody is "you". The name is
     the self-chosen pseudonym and the only identifier there is
     (``docs/design-kompas.md`` 2.4)."""
-    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form.id).order_by(FormSubmission.created_at).all()
+    subs = db.execute(
+        select(FormSubmission.id, FormSubmission.display_name)
+        .where(FormSubmission.form_id == form.id)
+        .order_by(FormSubmission.created_at)
+    ).all()
     out: list[CompassPoint] = []
     for sub in subs:
         place = places.get(sub.id)

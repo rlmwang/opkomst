@@ -92,7 +92,7 @@ BUDGETS: dict[str, int] = {
     "/api/v1/compass": 3,
     "/api/v1/compass/archived": 3,
     "/api/v1/compass/{form_id}": 7,
-    "/api/v1/compass/{form_id}/summary": 9,
+    "/api/v1/compass/{form_id}/summary": 8,
     "/api/v1/compass/{form_id}/submissions": 5,
     "/api/v1/compass/by-slug/{slug}": 4,
     "/api/v1/compass/by-slug/{slug}/qr.svg": 2,
