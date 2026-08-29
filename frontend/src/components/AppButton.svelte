@@ -35,6 +35,7 @@ const {
   loading,
   type = "button",
   ariaLabel,
+  class: className,
   onclick,
   children,
 }: {
@@ -52,6 +53,7 @@ const {
   /** What an icon-only button is called, for anything not looking at
    *  it. A labelled one names itself. */
   ariaLabel?: string;
+  class?: string;
   onclick?: (event: MouseEvent) => void;
   children?: Snippet;
 } = $props();
@@ -59,7 +61,7 @@ const {
 
 <button
   {type}
-  class="app-btn {severity ? `app-btn-${severity}` : 'app-btn-primary'}"
+  class="app-btn {severity ? `app-btn-${severity}` : 'app-btn-primary'} {className ?? ''}"
   class:app-btn-text={text}
   class:app-btn-sm={size === "small"}
   class:app-btn-icon-only={!label && !children}
