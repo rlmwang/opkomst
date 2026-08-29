@@ -187,6 +187,7 @@ def score_stats(
     db: Session,
     form_id: str,
     questions: Sequence[Any],
+    rows: Sequence[Any] | None = None,
 ) -> tuple[float | None, int | None, int | None]:
     """Average score, best score, and what a perfect run is worth. All
     three are None before anybody has played.
@@ -194,28 +195,44 @@ def score_stats(
     Derived, like every other score here: re-weight a question and this
     moves with it, which is what an organiser means when they change
     the weight."""
-    grouped = form_answers.by_submission(db, form_id)
+    grouped = (
+        form_answers.group(rows, "submission_id") if rows is not None else form_answers.by_submission(db, form_id)
+    )
     if not grouped:
         return None, None, None
     scores = [score_of(questions, rows) for rows in grouped.values()]
     return round(sum(scores) / len(scores), 1), max(scores), max_score(questions)
 
 
-def correct_shares(db: Session, form_id: str, questions: Sequence[Any]) -> dict[str, float]:
+def correct_shares(
+    db: Session,
+    form_id: str,
+    questions: Sequence[Any],
+    rows: Sequence[Any] | None = None,
+) -> dict[str, float]:
     """Question id to the share of its answers that earned full marks.
 
     Marking reads the stored key in Python (part marks, tolerance
     windows, choice sets), so this cannot be a ``GROUP BY``. What it can
-    be is one query: the whole quiz's answers come back together and are
+    be is one read: the whole quiz's answers come back together and are
     folded per question here, rather than a query per question each
     hydrating its own slice of the same table.
+
+    ``rows`` is those answers when the caller has already read them, as
+    the summary has: it scores every submission from the same table and
+    used to make this read it a second time.
 
     A question nobody scored is absent from the map, which includes
     every question on a survey. The caller reads a missing key as None."""
     scored = [q for q in questions if q.points > 0]
     if not scored:
         return {}
-    rows_by_question = form_answers.by_question(db, form_id, [q.id for q in scored])
+    wanted = {q.id for q in scored}
+    rows_by_question = (
+        {qid: rs for qid, rs in form_answers.group(rows, "question_id").items() if qid in wanted}
+        if rows is not None
+        else form_answers.by_question(db, form_id, [q.id for q in scored])
+    )
 
     out: dict[str, float] = {}
     for q in scored:

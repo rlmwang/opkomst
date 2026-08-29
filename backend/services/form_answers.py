@@ -21,6 +21,7 @@ which is what ``quizzes.as_fields`` and ``compass.as_fields`` read, so
 the folds are the same code against either shape.
 """
 
+from collections.abc import Sequence
 from typing import Any
 
 from sqlalchemy import Text, func, select
@@ -47,18 +48,36 @@ COLUMNS = (
 )
 
 
+def all_of(db: Session, form_id: str) -> list[Any]:
+    """Every answer the form holds, once.
+
+    A quiz summary needs the same rows twice over, grouped two ways:
+    per person to score them, per question to say how many got it. It
+    reads them once and groups here, because the second grouping is a
+    dictionary and the second read was a round trip and a second
+    hydration of the largest table on the page."""
+    return list(
+        db.execute(
+            select(*COLUMNS)
+            .outerjoin(FormResponseChoice, FormResponseChoice.response_id == FormResponse.id)
+            .where(FormResponse.form_id == form_id)
+            .group_by(FormResponse.id)
+        ).all()
+    )
+
+
+def group(rows: Sequence[Any], key: str) -> dict[str, list[Any]]:
+    """Rows by one of their own columns, in the order they arrived."""
+    grouped: dict[str, list[Any]] = {}
+    for row in rows:
+        grouped.setdefault(getattr(row, key), []).append(row)
+    return grouped
+
+
 def by_submission(db: Session, form_id: str) -> dict[str, list[Any]]:
     """``submission_id -> that person's answers``. One query, because
     every caller places or marks all of them at once."""
-    grouped: dict[str, list[Any]] = {}
-    for row in db.execute(
-        select(*COLUMNS)
-        .outerjoin(FormResponseChoice, FormResponseChoice.response_id == FormResponse.id)
-        .where(FormResponse.form_id == form_id)
-        .group_by(FormResponse.id)
-    ).all():
-        grouped.setdefault(row.submission_id, []).append(row)
-    return grouped
+    return group(all_of(db, form_id), "submission_id")
 
 
 def by_question(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[Any]]:

@@ -584,6 +584,23 @@ def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
 
 
 @dataclass(frozen=True, slots=True)
+class LoadedOption:
+    """One choice of a question, as the read hands it over.
+
+    A column-for-column stand-in for the ``form_question_options`` row,
+    built from the JSON the questions query gathers, so every caller
+    reads ``o.label`` and ``o.is_correct`` the same way whichever path
+    loaded it.
+    """
+
+    id: str
+    ordinal: int
+    label: str
+    pole: str | None
+    is_correct: bool
+
+
+@dataclass(frozen=True, slots=True)
 class LoadedQuestion:
     """A question row with its choices attached.
 
@@ -602,26 +619,42 @@ class LoadedQuestion:
         return getattr(self.row, name)
 
 
+# The questions and their choices, in one statement.
+#
+# A question's options are gathered by the database rather than read as
+# a second result set and grouped here: the join happens inside the
+# aggregate, so one question stays one row and nothing multiplies. Every
+# read path in this file goes through it, so the saving is a round trip
+# on the details page, the public page, the summary and the CSV alike.
+_QUESTIONS_SQL = text("""
+SELECT q.*,
+       coalesce(
+           (SELECT json_agg(json_build_object(
+                       'id', o.id,
+                       'ordinal', o.ordinal,
+                       'label', o.label,
+                       'pole', o.pole,
+                       'is_correct', o.is_correct
+                   ) ORDER BY o.ordinal)
+            FROM form_question_options o WHERE o.question_id = q.id),
+           '[]'::json
+       ) AS options
+FROM form_questions q
+WHERE q.form_id = :form_id
+ORDER BY q.ordinal
+""")
+
+
 def _questions(db: Session, form_id: str) -> Sequence[Any]:
     """The form's questions in display order, each carrying its choices.
 
-    Two queries whatever the form asks: the questions, then every option
-    of the form at once, grouped here. Core on both, because a question
-    is never written back through this path (``apply_questions`` owns
-    that, on the ORM)."""
-    rows = db.execute(
-        select(*FormQuestion.__table__.c).where(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal)
-    ).all()
-    if not rows:
-        return []
-    grouped: dict[str, list[Any]] = {}
-    for opt in db.execute(
-        select(*FormQuestionOption.__table__.c)
-        .where(FormQuestionOption.question_id.in_([r.id for r in rows]))
-        .order_by(FormQuestionOption.ordinal)
-    ).all():
-        grouped.setdefault(opt.question_id, []).append(opt)
-    return [LoadedQuestion(row=r, options=grouped.get(r.id, [])) for r in rows]
+    One query whatever the form asks. Core rather than the ORM, because
+    a question is never written back through this path
+    (``apply_questions`` owns that)."""
+    return [
+        LoadedQuestion(row=row, options=[LoadedOption(**o) for o in row.options])
+        for row in db.execute(_QUESTIONS_SQL, {"form_id": form_id}).all()
+    ]
 
 
 def questions_of(db: Session, form_id: str) -> Sequence[Any]:
@@ -631,10 +664,34 @@ def questions_of(db: Session, form_id: str) -> Sequence[Any]:
     return _questions(db, form_id)
 
 
+def _row_extras(db: Session, form: Any) -> tuple[str | None, int]:
+    """The chapter's name and how many people filled the form in.
+
+    Two scalars off two different tables, asked together: neither has a
+    row to hang off, so they were two round trips for two numbers. The
+    list endpoint already reads them this way, as subqueries beside the
+    form.
+    """
+    row = db.execute(
+        select(
+            select(Chapter.name)
+            .where(Chapter.id == form.chapter_id, Chapter.deleted_at.is_(None))
+            .scalar_subquery()
+            .label("chapter_name"),
+            select(func.count(FormSubmission.id))
+            .where(FormSubmission.form_id == form.id)
+            .scalar_subquery()
+            .label("submissions"),
+        )
+    ).one()
+    return (row.chapter_name if form.chapter_id else None), int(row.submissions or 0)
+
+
 def to_out(db: Session, form: Any) -> FormOut:
     """Single-form organiser DTO: the list-row fields plus the full
-    question list. One chapter-name lookup + one question query."""
-    chapter_name = _chapter_names(db, {form.chapter_id}).get(form.chapter_id) if form.chapter_id else None
+    question list. One statement for the two derived numbers, one for
+    the questions."""
+    chapter_name, submissions_total = _row_extras(db, form)
     return FormOut(
         id=form.id,
         slug=form.slug,
@@ -646,7 +703,7 @@ def to_out(db: Session, form: Any) -> FormOut:
         chapter_name=chapter_name,
         archived=form.archived_at is not None,
         created_at=form.created_at,
-        submission_count=submission_count(db, form.id),
+        submission_count=submissions_total,
         description_nl=form.description_nl,
         description_en=form.description_en,
         image_url=image_svc.public_url(form.image_path),
@@ -785,7 +842,12 @@ def _pairs(row: Any, field: str) -> list[tuple[Any, int]]:
     return [(value, int(n)) for value, n in raw] if raw else []
 
 
-def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> list[FormQuestionSummary]:
+def question_aggregates(
+    db: Session,
+    form_id: str,
+    questions: Sequence[Any],
+    answers: Sequence[Any] | None = None,
+) -> list[FormQuestionSummary]:
     """One ``FormQuestionSummary`` per question, ordinal-ordered.
     Per-kind shape:
 
@@ -798,12 +860,16 @@ def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> 
     the form asks and however many questions it has. Grading is the one
     thing left over: it reads the stored key in Python (tolerance
     windows, part marks) and so cannot be a ``GROUP BY``.
+
+    ``answers`` is the quiz's own answers when the caller already holds
+    them, which the summary does: it scores every submission from the
+    same rows this marks per question.
     """
     if not questions:
         return []
 
     tallies = {r.question_id: r for r in db.execute(_AGGREGATES_SQL, {"form_id": form_id}).all()}
-    shares = quizzes.correct_shares(db, form_id, questions)
+    shares = quizzes.correct_shares(db, form_id, questions, answers)
 
     summaries: list[FormQuestionSummary] = []
     for q in questions:
