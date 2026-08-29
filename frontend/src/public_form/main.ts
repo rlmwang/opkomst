@@ -8,9 +8,9 @@
  * parsed from ``window.location.pathname`` directly.
  */
 
-import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
+import { mountPublic } from "@/public_shared/mount";
 import PublicForm from "./PublicForm.svelte";
 
-mount(PublicForm, { target: document.getElementById("app")! });
+mountPublic(PublicForm);

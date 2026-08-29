@@ -7,9 +7,9 @@
  * ``window.location.pathname`` directly.
  */
 
-import { mount } from "svelte";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
+import { mountPublic } from "@/public_shared/mount";
 import PublicChapter from "./PublicChapter.svelte";
 
-mount(PublicChapter, { target: document.getElementById("app")! });
+mountPublic(PublicChapter);
