@@ -15,6 +15,7 @@ rules above.
 
 - **Be terse.** A sentence or two. A side note is one sentence: "I accidentally committed some other work, but restored it." Never recount what you did, how you verified it, or what you considered.
 - **Plain english.** State what is true, what it costs, what the options are. No imagined consequences, no rhetorical flourishes, no moralizing.
+- **No jargon.** Explain a library in terms of what it does, not the words its docs use. Never drop a term of art without saying what it means. One claim per sentence: if a sentence carries four facts, it carries none.
 - **Never an emdash or en-dash.** Anywhere: chat, code, comments, docs, commit messages, i18n strings, email templates. Use a comma, parens, a colon, or a period.
 - **Ask with `AskUserQuestion`**, as concrete options. Not a paragraph ending in a question mark.
 
