@@ -479,14 +479,14 @@ def submission_count(db: Session, form_id: str) -> int:
     return db.query(func.count(FormSubmission.id)).filter(FormSubmission.form_id == form_id).scalar() or 0
 
 
-def _summary(q: FormQuestion, db: Session, form_id: str, **fields: object) -> FormQuestionSummary:
+def _summary(q: FormQuestion, correct_share: float | None, **fields: object) -> FormQuestionSummary:
     """One aggregate row, plus the one number only a quiz has."""
     return FormQuestionSummary(
         id=q.id,
         ordinal=q.ordinal,
         kind=q.kind,
         prompt=q.prompt,
-        correct_share=quizzes.correct_share(db, form_id, q),
+        correct_share=correct_share,
         # Which way this question pushed. The organiser's page reads a
         # count next to the direction that earned it, which is the
         # difference between "34 picked Rotterdam" and "34 moved
@@ -497,7 +497,70 @@ def _summary(q: FormQuestion, db: Session, form_id: str, **fields: object) -> Fo
     )
 
 
-def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
+def _numeric_counts(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[tuple[int, int]]]:
+    """``question_id -> [(answer, times given)]`` for every rating and
+    number question at once. The database does the counting; a rating
+    reads the pairs as its distribution and a number expands them back
+    into values."""
+    if not question_ids:
+        return {}
+    out: dict[str, list[tuple[int, int]]] = {}
+    for qid, value, n in (
+        db.query(FormResponse.question_id, FormResponse.answer_int, func.count(FormResponse.id))
+        .filter(
+            FormResponse.form_id == form_id,
+            FormResponse.question_id.in_(question_ids),
+            FormResponse.answer_int.is_not(None),
+        )
+        .group_by(FormResponse.question_id, FormResponse.answer_int)
+        .all()
+    ):
+        out.setdefault(qid, []).append((value, n))
+    return out
+
+
+def _texts(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[str]]:
+    """``question_id -> answers, newest first`` for every open question
+    at once."""
+    if not question_ids:
+        return {}
+    out: dict[str, list[str]] = {}
+    for qid, text in (
+        db.query(FormResponse.question_id, FormResponse.answer_text)
+        .filter(
+            FormResponse.form_id == form_id,
+            FormResponse.question_id.in_(question_ids),
+            FormResponse.answer_text.is_not(None),
+        )
+        .order_by(FormResponse.created_at.desc())
+        .all()
+    ):
+        out.setdefault(qid, []).append(text)
+    return out
+
+
+def _chosen(db: Session, form_id: str, question_ids: list[str]) -> dict[str, list[list[str]]]:
+    """``question_id -> one list per answer`` for every choice question
+    at once. The ticks live in an array column, so the tally is folded
+    here rather than grouped in SQL."""
+    if not question_ids:
+        return {}
+    out: dict[str, list[list[str]]] = {}
+    for qid, choices in (
+        db.query(FormResponse.question_id, FormResponse.answer_choices)
+        .filter(
+            FormResponse.form_id == form_id,
+            FormResponse.question_id.in_(question_ids),
+            FormResponse.answer_choices.is_not(None),
+        )
+        .all()
+    ):
+        if choices:
+            out.setdefault(qid, []).append(list(choices))
+    return out
+
+
+def question_aggregates(db: Session, form_id: str, questions: list[FormQuestion]) -> list[FormQuestionSummary]:
     """One ``FormQuestionSummary`` per question, ordinal-ordered.
     Per-kind shape:
 
@@ -505,47 +568,41 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
     * ``number`` — average, lowest, highest.
     * ``text`` / ``short_text`` — raw answers, newest first.
     * ``single_choice`` / ``multi_choice`` — option → count map.
+
+    Batched by kind, not by question: four queries for the whole page
+    however many questions it has, because a form with thirty of them
+    is exactly the form whose results page is worth loading fast.
     """
+    if not questions:
+        return []
+
+    numeric = _numeric_counts(db, form_id, [q.id for q in questions if q.kind in ("rating", "number")])
+    texts = _texts(db, form_id, [q.id for q in questions if q.kind in _TEXT_KINDS])
+    chosen = _chosen(db, form_id, [q.id for q in questions if q.kind in _CHOICE_KINDS])
+    shares = quizzes.correct_shares(db, form_id, questions)
+
     summaries: list[FormQuestionSummary] = []
-    for q in _questions(db, form_id):
+    for q in questions:
+        share = shares.get(q.id)
         if q.kind == "rating":
-            rows = (
-                db.query(FormResponse.answer_int, func.count(FormResponse.id))
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_int.is_not(None),
-                )
-                .group_by(FormResponse.answer_int)
-                .all()
-            )
-            distribution, total, average = rating_distribution([(v, c) for v, c in rows])
+            distribution, total, average = rating_distribution(numeric.get(q.id, []))
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
+                    share,
                     response_count=total,
                     rating_distribution=distribution,
                     rating_average=average,
                 )
             )
         elif q.kind == "number":
-            values = [
-                v
-                for (v,) in db.query(FormResponse.answer_int)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_int.is_not(None),
-                )
-                .all()
-            ]
+            # Back to one entry per answer: the average, the extremes and
+            # the histogram are all about the values as given.
+            values = [value for value, n in numeric.get(q.id, []) for _ in range(n)]
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
+                    share,
                     response_count=len(values),
                     number_average=round(sum(values) / len(values), 1) if values else None,
                     number_min=min(values) if values else None,
@@ -554,50 +611,20 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                 )
             )
         elif q.kind in _TEXT_KINDS:
-            texts = (
-                db.query(FormResponse.answer_text)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_text.is_not(None),
-                )
-                .order_by(FormResponse.created_at.desc())
-                .all()
-            )
-            summaries.append(
-                _summary(
-                    q,
-                    db,
-                    form_id,
-                    response_count=len(texts),
-                    texts=[t[0] for t in texts],
-                )
-            )
+            answers = texts.get(q.id, [])
+            summaries.append(_summary(q, share, response_count=len(answers), texts=answers))
         elif q.kind in _CHOICE_KINDS:
             counts: dict[str, int] = {opt: 0 for opt in q.options}
-            rows = (
-                db.query(FormResponse.answer_choices)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_choices.is_not(None),
-                )
-                .all()
-            )
-            response_count = 0
-            for (choices,) in rows:
-                if not choices:
-                    continue
-                response_count += 1
+            answers_given = chosen.get(q.id, [])
+            for choices in answers_given:
                 for c in choices:
                     if c in counts:
                         counts[c] += 1
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
-                    response_count=response_count,
+                    share,
+                    response_count=len(answers_given),
                     choice_counts=counts,
                 )
             )
@@ -605,20 +632,23 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
             # Unknown kind — unreachable in practice (validated on
             # write + DB CHECK), but the summary endpoint shouldn't
             # crash on a malformed row.
-            summaries.append(
-                _summary(
-                    q,
-                    db,
-                    form_id,
-                    response_count=0,
-                )
-            )
+            summaries.append(_summary(q, share, response_count=0))
     return summaries
+
+
+def compass_places(db: Session, form: Form, questions: list[FormQuestion]) -> dict[str, compass.Position]:
+    """Where every submission sits, read once for a whole page.
+
+    Both halves of a kompas page (the axes and the dots) place the same
+    people from the same answers. Reading it here and handing it to both
+    is what keeps one page from loading every answer twice."""
+    return compass.positions(db, questions, form.id)
 
 
 def compass_points(
     db: Session,
     form: Form,
+    places: dict[str, compass.Position],
     *,
     you: str | None = None,
 ) -> list[CompassPoint]:
@@ -628,8 +658,6 @@ def compass_points(
     passes nothing, because on their page nobody is "you". The name is
     the self-chosen pseudonym and the only identifier there is
     (``docs/design-kompas.md`` 2.4)."""
-    questions = _questions(db, form.id)
-    places = compass.positions(db, questions, form.id)
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form.id).order_by(FormSubmission.created_at).all()
     out: list[CompassPoint] = []
     for sub in subs:
@@ -643,18 +671,17 @@ def compass_points(
     return out
 
 
-def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
+def compass_axis_summaries(db: Session, form: Form, places: dict[str, compass.Position]) -> list[CompassAxisSummary]:
     """The two axes, each with where the room sits on it.
 
     Read by the organiser's summary and by every respondent's result,
     so the band under one person's marker and the band on the
     organiser's page are the same number rather than two computations
     that can drift apart."""
-    questions = _questions(db, form.id)
-    places = list(compass.positions(db, questions, form.id).values())
+    placed = list(places.values())
     out: list[CompassAxisSummary] = []
     for row in compass.axes_of(db, form.id):
-        stats = compass.axis_stats(places, row.axis)
+        stats = compass.axis_stats(placed, row.axis)
         out.append(
             CompassAxisSummary(
                 axis=CompassAxisOut.model_validate(row),
@@ -666,13 +693,17 @@ def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
     return out
 
 
-def compass_summary(db: Session, form: Form) -> CompassSummary | None:
+def compass_summary(db: Session, form: Form, questions: list[FormQuestion]) -> CompassSummary | None:
     """The kompas half of the organiser's summary: the two axes with
     where the room sits on each, and every dot. ``None`` on the two
     products that place nobody."""
     if form.mode != "compass":
         return None
-    return CompassSummary(axes=compass_axis_summaries(db, form), points=compass_points(db, form))
+    places = compass_places(db, form, questions)
+    return CompassSummary(
+        axes=compass_axis_summaries(db, form, places),
+        points=compass_points(db, form, places),
+    )
 
 
 def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:

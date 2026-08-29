@@ -248,7 +248,7 @@ def update_event(
 
 @router.post("/{event_id}/image", response_model=EventOut)
 @limiter.limit(Limits.ORG_RARE)
-async def upload_event_image(
+def upload_event_image(
     request: Request,
     event_id: str,
     file: UploadFile = File(...),
@@ -270,7 +270,9 @@ async def upload_event_image(
         logger.warning("event_image_upload_disabled", event_id=event_id, actor_id=user.id)
         raise HTTPException(status_code=503, detail="Event-image storage is not configured")
     event = access.get_event_for_user(db, event_id, user)
-    raw = await file.read()
+    # Sync ``def``, so this runs in the threadpool: the processing and
+    # the upload that follow both block (``services/image.py``).
+    raw = file.file.read()
     try:
         jpeg = image_svc.process_upload(raw)
     except image_svc.ImageProcessingError as exc:

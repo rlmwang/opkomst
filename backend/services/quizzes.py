@@ -9,7 +9,7 @@ when there is a right answer:
 * ``validate_kinds`` / ``validate_keys`` — can this question be marked
   at all, checked when the organiser saves rather than when somebody
   submits.
-* ``score_of`` / ``score_stats`` / ``correct_share`` — the reads that
+* ``score_of`` / ``score_stats`` / ``correct_shares`` — the reads that
   only a marked submission can produce.
 
 Grading happens here and only here, from the stored key. The key is
@@ -207,16 +207,35 @@ def score_stats(
     return round(sum(scores) / len(scores), 1), max(scores), max_score(questions)
 
 
-def correct_share(db: Session, form_id: str, question: FormQuestion) -> float | None:
-    """The share of answers to this question that earned full marks.
-    None for a question nobody scored, which includes every question on
-    a survey."""
-    if question.points <= 0:
-        return None
-    rows = db.query(FormResponse).filter(FormResponse.form_id == form_id, FormResponse.question_id == question.id).all()
-    if not rows:
-        return None
-    # Full marks, not part marks: the question this answers is "how
-    # many of them got it", and half a multiple-choice answer is not
-    # getting it.
-    return round(sum(1 for r in rows if grade(question, as_fields(r)) >= question.points) / len(rows), 2)
+def correct_shares(db: Session, form_id: str, questions: list[FormQuestion]) -> dict[str, float]:
+    """Question id to the share of its answers that earned full marks.
+
+    Marking reads the stored key in Python (part marks, tolerance
+    windows, choice sets), so this cannot be a ``GROUP BY``. What it can
+    be is one query: the whole quiz's answers come back together and are
+    folded per question here, rather than a query per question each
+    hydrating its own slice of the same table.
+
+    A question nobody scored is absent from the map, which includes
+    every question on a survey. The caller reads a missing key as None."""
+    scored = [q for q in questions if q.points > 0]
+    if not scored:
+        return {}
+    rows_by_question: dict[str, list[FormResponse]] = {}
+    for row in (
+        db.query(FormResponse)
+        .filter(FormResponse.form_id == form_id, FormResponse.question_id.in_([q.id for q in scored]))
+        .all()
+    ):
+        rows_by_question.setdefault(row.question_id, []).append(row)
+
+    out: dict[str, float] = {}
+    for q in scored:
+        rows = rows_by_question.get(q.id)
+        if not rows:
+            continue
+        # Full marks, not part marks: the question this answers is "how
+        # many of them got it", and half a multiple-choice answer is not
+        # getting it.
+        out[q.id] = round(sum(1 for r in rows if grade(q, as_fields(r)) >= q.points) / len(rows), 2)
+    return out

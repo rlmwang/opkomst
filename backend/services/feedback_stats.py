@@ -90,21 +90,47 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
     """One ``FeedbackQuestionSummary`` per question in ``QUESTIONS``,
     in declaration order. Rating questions return a 5-bucket
     distribution + average; text questions return the raw answers
-    in newest-first order."""
+    in newest-first order.
+
+    Two queries for the page, not two per question: the ratings are
+    counted together and the open answers are read together, then split
+    by key here."""
+    occurrence_ids = _event_occurrence_ids(db, event_id)
+    rating_keys = [q.key for q in QUESTIONS if q.kind == "rating"]
+    text_keys = [q.key for q in QUESTIONS if q.kind != "rating"]
+
+    counts: dict[str, list[tuple[int, int]]] = {}
+    if rating_keys:
+        for key, value, n in (
+            db.query(FeedbackResponse.question_key, FeedbackResponse.answer_int, func.count(FeedbackResponse.id))
+            .filter(
+                FeedbackResponse.occurrence_id.in_(occurrence_ids),
+                FeedbackResponse.question_key.in_(rating_keys),
+                FeedbackResponse.answer_int.is_not(None),
+            )
+            .group_by(FeedbackResponse.question_key, FeedbackResponse.answer_int)
+            .all()
+        ):
+            counts.setdefault(key, []).append((value, n))
+
+    texts: dict[str, list[str]] = {}
+    if text_keys:
+        for key, text in (
+            db.query(FeedbackResponse.question_key, FeedbackResponse.answer_text)
+            .filter(
+                FeedbackResponse.occurrence_id.in_(occurrence_ids),
+                FeedbackResponse.question_key.in_(text_keys),
+                FeedbackResponse.answer_text.is_not(None),
+            )
+            .order_by(FeedbackResponse.created_at.desc())
+            .all()
+        ):
+            texts.setdefault(key, []).append(text)
+
     summaries: list[FeedbackQuestionSummary] = []
     for q in QUESTIONS:
         if q.kind == "rating":
-            rows = (
-                db.query(FeedbackResponse.answer_int, func.count(FeedbackResponse.id))
-                .filter(
-                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
-                    FeedbackResponse.question_key == q.key,
-                    FeedbackResponse.answer_int.is_not(None),
-                )
-                .group_by(FeedbackResponse.answer_int)
-                .all()
-            )
-            distribution, total, avg = rating_distribution([(v, c) for v, c in rows])
+            distribution, total, avg = rating_distribution(counts.get(q.key, []))
             summaries.append(
                 FeedbackQuestionSummary(
                     key=q.key,
@@ -115,22 +141,13 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
                 )
             )
         else:
-            texts = (
-                db.query(FeedbackResponse.answer_text)
-                .filter(
-                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
-                    FeedbackResponse.question_key == q.key,
-                    FeedbackResponse.answer_text.is_not(None),
-                )
-                .order_by(FeedbackResponse.created_at.desc())
-                .all()
-            )
+            answers = texts.get(q.key, [])
             summaries.append(
                 FeedbackQuestionSummary(
                     key=q.key,
                     kind="text",
-                    response_count=len(texts),
-                    texts=[t[0] for t in texts],
+                    response_count=len(answers),
+                    texts=answers,
                 )
             )
     return summaries

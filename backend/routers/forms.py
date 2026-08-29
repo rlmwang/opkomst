@@ -284,19 +284,19 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormSummaryOut:
-        average, best, out_of = (
-            quizzes.score_stats(db, form_id, forms_svc.questions_of(db, form_id))
-            if _MODE == "quiz"
-            else (None, None, None)
-        )
         form = access.get_form_for_user(db, form_id, user, _MODE)
+        # Read once and handed to each half below. Every part of this
+        # page is about the same questions, and each used to fetch its
+        # own copy of them.
+        questions = forms_svc.questions_of(db, form_id)
+        average, best, out_of = quizzes.score_stats(db, form_id, questions) if _MODE == "quiz" else (None, None, None)
         return FormSummaryOut(
             submission_count=forms_svc.submission_count(db, form_id),
             score_average=average,
             score_best=best,
             max_score=out_of,
-            compass=forms_svc.compass_summary(db, form),
-            questions=forms_svc.question_aggregates(db, form_id),
+            compass=forms_svc.compass_summary(db, form, questions),
+            questions=forms_svc.question_aggregates(db, form_id, questions),
         )
 
     @router.post("/{form_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)

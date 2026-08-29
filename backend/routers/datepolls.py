@@ -179,7 +179,7 @@ def delete_datepoll(
 
 @router.post("/{datepoll_id}/image", response_model=DatepollOut)
 @limiter.limit(Limits.ORG_RARE)
-async def upload_datepoll_image(
+def upload_datepoll_image(
     request: Request,
     datepoll_id: str,
     file: UploadFile = File(...),
@@ -191,7 +191,9 @@ async def upload_datepoll_image(
     if not settings.event_images_enabled:
         raise HTTPException(status_code=503, detail="Image storage is not configured")
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    raw = await file.read()
+    # Sync ``def``, so this runs in the threadpool: the processing and
+    # the upload that follow both block (``services/image.py``).
+    raw = file.file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
         poll.image_path = image_svc.replace_entity_image(

@@ -31,6 +31,16 @@ The image is rewritten end-to-end before upload:
 * JPEG q=85, ``optimize=True``. Strips alpha (flattens onto white)
   and any colour profile that isn't sRGB.
 
+**Everything here blocks, so every caller is a sync ``def``.**
+``process_upload`` is Pillow decoding and re-encoding, and ``store``,
+``fetch`` and ``delete`` are synchronous ``httpx`` calls with timeouts
+up to 30 s. In an ``async def`` route that runs on the event loop and
+stalls every other request the worker is serving, for the whole decode
+plus however long the storage host takes to answer. A plain ``def``
+route hands the same work to Starlette's threadpool, where one slow
+upload costs one thread. The upload routes are ``def`` for that reason
+and must stay that way.
+
 Files are deleted when nothing points at them any more: when an image
 is replaced, when it is removed, and when the entity holding it has
 been archived long enough (``services/image_reaper.py``). A delete

@@ -39,7 +39,14 @@ class User(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     chapters: Mapped[list["Chapter"]] = relationship(  # noqa: F821
         secondary="user_chapters",
-        lazy="selectin",
+        # Loaded on demand, not eagerly. Every authenticated request
+        # loads a ``User``, and exactly one surface reads this
+        # collection (``routers/auth`` building the /me payload);
+        # everything else scopes through
+        # ``access.chapter_ids_for_user``, which asks its own narrower
+        # question. Eager loading spent a round trip per request on a
+        # list almost nobody looked at.
+        lazy="select",
     )
 
     __table_args__ = (

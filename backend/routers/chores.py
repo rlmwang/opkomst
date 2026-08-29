@@ -374,7 +374,7 @@ def delete_roster(
 
 @router.post("/{roster_id}/image", response_model=RosterOut)
 @limiter.limit(Limits.ORG_RARE)
-async def upload_roster_image(
+def upload_roster_image(
     request: Request,
     roster_id: str,
     file: UploadFile = File(...),
@@ -386,7 +386,9 @@ async def upload_roster_image(
     if not settings.event_images_enabled:
         raise HTTPException(status_code=503, detail="Image storage is not configured")
     roster = access.get_roster_for_user(db, roster_id, user)
-    raw = await file.read()
+    # Sync ``def``, so this runs in the threadpool: the processing and
+    # the upload that follow both block (``services/image.py``).
+    raw = file.file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
         roster.image_path = image_svc.replace_entity_image(
