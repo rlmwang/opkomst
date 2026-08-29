@@ -17,7 +17,7 @@ from backend.services.content import BY_SLUG, PAGES
 from backend.services.slug import RESERVED_SLUGS
 
 _FRONTEND = pathlib.Path(__file__).resolve().parent.parent / "frontend"
-_FOOTER = _FRONTEND / "src" / "components" / "SiteFooter.vue"
+_FOOTER = _FRONTEND / "src" / "public_shared" / "Colophon.vue"
 _VITE_CONFIG = _FRONTEND / "vite.config.ts"
 
 

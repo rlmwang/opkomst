@@ -2,6 +2,7 @@
 import { watch } from "vue";
 import AdSlot from "./AdSlot.vue";
 import BrandMark from "./BrandMark.vue";
+import Colophon from "./Colophon.vue";
 import AppToast from "@/components/AppToast.vue";
 import type { Locale } from "./strings";
 
@@ -56,6 +57,10 @@ watch(locale, (l) => {
     <!-- Advertising, on the pages that carry any. ``AdSlot`` decides:
          organisation-branded pages get nothing at all. -->
     <AdSlot :locale="locale" :hide="hideAds" />
+
+    <!-- The colophon, on house-brand pages only. ``Colophon`` decides,
+         the same test the ad slot uses. -->
+    <Colophon :locale="locale" />
   </div>
 </template>
 

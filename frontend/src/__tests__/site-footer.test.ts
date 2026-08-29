@@ -26,10 +26,11 @@ const BRAND = {
   favicon_url: "",
 };
 
-// The five pages a stranger can land on: the root and the four things
-// it offers to make. The same five the server writes a title and a
-// description for.
-const INDEXED = ["/", "/event/new", "/form/new", "/datepoll/new", "/chore/new"];
+// The pages a stranger can land on: the root and every create page.
+// The create pages carry ``startable`` in the real router, which is
+// what the footer reads, so the routes here carry it too.
+const CREATE = ["/event/new", "/form/new", "/datepoll/new", "/chore/new", "/quiz/new", "/compass/new"];
+const INDEXED = ["/", ...CREATE];
 
 const blank = { template: "<div />" };
 
@@ -44,7 +45,10 @@ function makeI18n() {
 async function mountAt(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [...INDEXED, "/event", "/chore/abc/edit"].map((p) => ({ path: p, component: blank })),
+    routes: [
+      ...["/", "/event", "/chore/abc/edit"].map((p) => ({ path: p, component: blank })),
+      ...CREATE.map((p) => ({ path: p, component: blank, meta: { startable: true } })),
+    ],
   });
   router.push(path);
   await router.isReady();
