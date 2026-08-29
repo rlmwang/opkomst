@@ -600,7 +600,6 @@ class LoadedOption:
     is_correct: bool
 
 
-@dataclass(frozen=True, slots=True)
 class LoadedQuestion:
     """A question row with its choices attached.
 
@@ -609,14 +608,21 @@ class LoadedQuestion:
     rather than a bare row plus a dictionary every caller has to carry.
     The fields mirror the columns; ``options`` is the rows from
     ``form_question_options``, in their own order.
+
+    The columns are copied onto the instance rather than reached through
+    a ``__getattr__`` that forwards to the row. The kompas reads a
+    question's fields once per answer per submission, and forwarding
+    made that a Python-level call every time: 77,000 of them to write
+    one CSV of five hundred, which profiled at a fifth of the whole
+    request.
     """
 
-    row: Any
-    options: list[Any]
+    __slots__ = ("row", "options", "__dict__")
 
-    def __getattr__(self, name: str) -> Any:
-        # Everything that isn't ``options`` is a column on the question.
-        return getattr(self.row, name)
+    def __init__(self, row: Any, options: list[Any]) -> None:
+        self.row = row
+        self.options = options
+        self.__dict__.update(row._mapping)
 
 
 # The questions and their choices, in one statement.
@@ -652,7 +658,7 @@ def _questions(db: Session, form_id: str) -> Sequence[Any]:
     a question is never written back through this path
     (``apply_questions`` owns that)."""
     return [
-        LoadedQuestion(row=row, options=[LoadedOption(**o) for o in row.options])
+        LoadedQuestion(row, [LoadedOption(**o) for o in row.options])
         for row in db.execute(_QUESTIONS_SQL, {"form_id": form_id}).all()
     ]
 
