@@ -6,6 +6,7 @@ import * as sentry from "@/lib/sentry";
 import { tooltip } from "@/lib/tooltip";
 import App from "./App.vue";
 import { initI18n } from "./i18n";
+import { connectRouter } from "@/lib/router.svelte";
 import router from "./router";
 import "./assets/theme.css";
 import "./assets/forms.css";
@@ -48,6 +49,9 @@ const queryClient = new QueryClient({
 app.use(VueQueryPlugin, { queryClient });
 
 app.use(router);
+// The Svelte half reads the same router rather than running its own
+// (``lib/router.svelte``), until the route table itself crosses.
+connectRouter(router);
 app.directive("tooltip", tooltip);
 
 // The active language is fetched, not bundled, so it has to be in hand

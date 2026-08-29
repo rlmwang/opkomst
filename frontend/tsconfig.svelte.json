@@ -22,6 +22,8 @@
     "src/components/MonthGrid.svelte",
     "src/components/DatePicker.svelte",
     "src/components/WeekdayGrid.svelte",
-    "src/components/RosterCalendarView.svelte"
+    "src/components/RosterCalendarView.svelte",
+    "src/lib/router.svelte.ts",
+    "src/lib/svelte-bridge.svelte.ts"
   ]
 }
