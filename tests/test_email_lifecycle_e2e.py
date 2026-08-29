@@ -13,7 +13,7 @@ from _helpers.events import first_occurrence, make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Occurrence, Signup
+from backend.models import EmailChannel, Occurrence, Signup
 from backend.services import mail_lifecycle
 
 # ---- Helpers --------------------------------------------------
@@ -79,8 +79,8 @@ def test_e2e_both_channels_send_then_wipe(db: Any, client: Any, fake_email: Any,
     try:
         d_r = get_dispatch(fresh, row, EmailChannel.REMINDER)
         d_f = get_dispatch(fresh, row, EmailChannel.FEEDBACK)
-        assert d_r is not None and d_r.status == EmailStatus.PENDING
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_r is not None  # still owed
+        assert d_f is not None  # still owed
     finally:
         fresh.close()
 
@@ -95,8 +95,8 @@ def test_e2e_both_channels_send_then_wipe(db: Any, client: Any, fake_email: Any,
     try:
         d_r = get_dispatch(fresh, row, EmailChannel.REMINDER)
         d_f = get_dispatch(fresh, row, EmailChannel.FEEDBACK)
-        assert d_r is not None and d_r.status == EmailStatus.SENT
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_r is None  # sent: counted and deleted
+        assert d_f is not None  # still owed
         # Ciphertext NOT wiped — feedback still pending.
         row_now = fresh.query(Signup).filter(Signup.id == row.id).first()
         assert row_now is not None
@@ -113,7 +113,7 @@ def test_e2e_both_channels_send_then_wipe(db: Any, client: Any, fake_email: Any,
     fresh = SessionLocal()
     try:
         d_f = get_dispatch(fresh, row, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.SENT
+        assert d_f is None  # sent: counted and deleted
         row_now = fresh.query(Signup).filter(Signup.id == row.id).first()
         assert row_now is not None
         assert not has_any_ciphertext(fresh, row_now)
@@ -169,7 +169,7 @@ def test_e2e_reminder_only_event_wipes_after_reminder(db: Any, client: Any, fake
     try:
         assert get_dispatch(fresh, row, EmailChannel.FEEDBACK) is None
         d_r = get_dispatch(fresh, row, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.PENDING
+        assert d_r is not None  # still owed
     finally:
         fresh.close()
 
@@ -179,7 +179,7 @@ def test_e2e_reminder_only_event_wipes_after_reminder(db: Any, client: Any, fake
     fresh = SessionLocal()
     try:
         d_r = get_dispatch(fresh, row, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.SENT
+        assert d_r is None  # sent: counted and deleted
         row_now = fresh.query(Signup).filter(Signup.id == row.id).first()
         assert row_now is not None
         assert not has_any_ciphertext(fresh, row_now)
@@ -279,10 +279,10 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
         future_signup = _signup_for_event(fresh, future_event.id)
         assert past_signup is not None and future_signup is not None
         d_past = get_dispatch(fresh, past_signup, EmailChannel.REMINDER)
-        assert d_past is not None and d_past.status == EmailStatus.FAILED
-        assert d_past.encrypted_email is None
+        assert d_past is None  # failed: counted and deleted
+        # The address lived on that row; the delete is the wipe.
         d_future = get_dispatch(fresh, future_signup, EmailChannel.REMINDER)
-        assert d_future is not None and d_future.status == EmailStatus.PENDING
+        assert d_future is not None  # still owed
     finally:
         fresh.close()
 
@@ -297,7 +297,7 @@ def test_e2e_reminder_window_passed_during_outage_reaper_cleans_up(
         past_signup = _signup_for_event(fresh, past_event.id)
         assert past_signup is not None
         d_f = get_dispatch(fresh, past_signup, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.SENT
+        assert d_f is None  # sent: counted and deleted
         # Both dispatches settled (reminder deleted, feedback sent)
         # → ciphertext wiped.
         assert not has_any_ciphertext(fresh, past_signup)
@@ -324,7 +324,7 @@ def test_e2e_smtp_failure_wipes_via_failed_path(db: Any, client: Any, fake_email
     fresh = SessionLocal()
     try:
         d_r = get_dispatch(fresh, row, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.FAILED
+        assert d_r is None  # failed: counted and deleted
         # Reminder failed; feedback still pending → ciphertext kept.
         row_now = fresh.query(Signup).filter(Signup.id == row.id).first()
         assert row_now is not None
@@ -339,7 +339,7 @@ def test_e2e_smtp_failure_wipes_via_failed_path(db: Any, client: Any, fake_email
     fresh = SessionLocal()
     try:
         d_f = get_dispatch(fresh, row, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.SENT
+        assert d_f is None  # sent: counted and deleted
         row_now = fresh.query(Signup).filter(Signup.id == row.id).first()
         assert row_now is not None
         assert not has_any_ciphertext(fresh, row_now)

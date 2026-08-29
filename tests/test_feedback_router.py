@@ -19,7 +19,7 @@ from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     FeedbackResponse,
     FeedbackToken,
     Occurrence,
@@ -282,18 +282,20 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
                 help_choices=[],
             )
         )
+        # The feedback mail already went out: a tally, no row.
         db.add(
-            EmailDispatch(
+            EmailSendCount(
                 occurrence_id=occ_id,
                 channel=EmailChannel.FEEDBACK,
-                status=EmailStatus.SENT,
+                day=datetime.now(UTC).date(),
+                sent=1,
             )
         )
+        # The reminder has not: a row, carrying its address.
         db.add(
             EmailDispatch(
                 occurrence_id=occ_id,
                 channel=EmailChannel.REMINDER,
-                status=EmailStatus.PENDING,
                 encrypted_email=b"some-ciphertext",
             )
         )

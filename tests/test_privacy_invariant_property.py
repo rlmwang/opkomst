@@ -39,7 +39,6 @@ from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
     Event,
     Occurrence,
     Registration,
@@ -128,7 +127,6 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
                 EmailDispatch(
                     occurrence_id="occ-1",
                     channel=channel,
-                    status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt("alice@example.test"),
                 )
             )
@@ -138,36 +136,40 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         db.close()
 
 
+# Every dispatch row id this run has ever seen alive, so a row that
+# disappears can be checked for never returning.
+_ALL_SEEN: set[str] = set()
+
+
 def _check_invariant(signup_id: str) -> None:
-    """Per-row property: every non-PENDING dispatch row carries
-    ``encrypted_email IS NULL``. The address lives on the same
-    row that finalises; no cross-table existence check needed."""
+    """Existence is the property. A dispatch row is an email still owed,
+    and it is the only place an address lives, so a row that is still
+    here must still have work to do: an address to send to, or a
+    message_id proving a worker is mid-send. Anything finished has no
+    row at all, which is what makes the wipe unconditional."""
     db = SessionLocal()
     try:
         rows = db.query(EmailDispatch).filter(EmailDispatch.occurrence_id == "occ-1").all()
         for d in rows:
-            if d.status != EmailStatus.PENDING:
-                assert d.encrypted_email is None, (
-                    f"wipe invariant broken: {d.channel.value} status={d.status.value} still carries ciphertext"
-                )
+            assert d.encrypted_email is not None or d.message_id is not None, (
+                f"wipe invariant broken: {d.channel.value} row is owed but carries no address"
+            )
     finally:
         db.close()
 
 
-def _check_no_state_regression(signup_id: str, last_seen: dict[str, EmailStatus]) -> None:
-    """A dispatch row's status only progresses (PENDING → SENT /
-    FAILED). Reverts are forbidden."""
+def _check_no_state_regression(signup_id: str, seen_gone: set[str]) -> None:
+    """A dispatch row never comes back. Finishing deletes it, and
+    nothing in the lifecycle recreates one — only a fresh sign-up makes
+    work, and this machine makes no sign-ups."""
     db = SessionLocal()
     try:
         rows = db.query(EmailDispatch).filter(EmailDispatch.occurrence_id == "occ-1").all()
-        for r in rows:
-            key = f"{r.id}"
-            prev = last_seen.get(key)
-            if prev is not None and prev != EmailStatus.PENDING:
-                # Once non-pending, must stay non-pending. SENT and
-                # FAILED are both terminal — PENDING is one-way out.
-                assert r.status != EmailStatus.PENDING, f"row {key} regressed {prev} → {r.status}"
-            last_seen[key] = r.status
+        alive = {r.id for r in rows}
+        for gone_id in seen_gone:
+            assert gone_id not in alive, f"row {gone_id} came back from the dead"
+        seen_gone.update(_ALL_SEEN - alive)
+        _ALL_SEEN.update(alive)
     finally:
         db.close()
 
@@ -187,7 +189,8 @@ class WipeInvariantMachine(RuleBasedStateMachine):
             starts_at=_NOW + timedelta(hours=24),
             ends_at=_NOW + timedelta(hours=26),
         )
-        self.last_status: dict[str, EmailStatus] = {}
+        self.seen_gone: set[str] = set()
+        _ALL_SEEN.clear()
         self._sender_should_fail = False
 
     # --- Rules ------------------------------------------------------
@@ -239,7 +242,7 @@ class WipeInvariantMachine(RuleBasedStateMachine):
     @invariant()
     def wipe_invariant(self) -> None:
         _check_invariant(self.signup_id)
-        _check_no_state_regression(self.signup_id, self.last_status)
+        _check_no_state_regression(self.signup_id, self.seen_gone)
 
     # --- Helpers ----------------------------------------------------
 

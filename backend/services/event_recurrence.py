@@ -27,7 +27,7 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from ..models import EmailDispatch, EmailStatus, Occurrence, Signup
+from ..models import EmailDispatch, Occurrence, Signup
 from . import tenancy
 from .recurrence import occurs_on
 from .slug import new_slug
@@ -211,9 +211,7 @@ def _move_signups_and_dispatches(db: Session, src: Occurrence, dst: Occurrence) 
         else:
             su.occurrence_id = dst.id
             dst_regs.add(su.registration_id)
-    for disp in db.query(EmailDispatch).filter(
-        EmailDispatch.occurrence_id == src.id, EmailDispatch.status == EmailStatus.PENDING
-    ):
+    for disp in db.query(EmailDispatch).filter(EmailDispatch.occurrence_id == src.id):
         disp.occurrence_id = dst.id
     db.flush()
 

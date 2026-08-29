@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from ..database import SessionLocal
-from ..models import EmailDispatch, EmailStatus
+from ..models import EmailDispatch
 from ..services.mail import get_executor
 
 router = APIRouter()
@@ -130,10 +130,9 @@ def health_full() -> JSONResponse:
         head_row = db.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).first()
         schema_head = head_row[0] if head_row else None
         oldest = (
-            db.query(EmailDispatch.created_at)
-            .filter(EmailDispatch.status == EmailStatus.PENDING)
-            .order_by(EmailDispatch.created_at.asc())
-            .first()
+            # Every row in the table is outstanding work, so the
+            # oldest row is the oldest thing still waiting to be sent.
+            db.query(EmailDispatch.created_at).order_by(EmailDispatch.created_at.asc()).first()
         )
         if oldest is not None:
             age = datetime.now(UTC) - oldest[0]

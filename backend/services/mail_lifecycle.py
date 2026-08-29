@@ -46,6 +46,7 @@ from typing import Any
 from urllib.parse import quote
 
 import structlog
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
@@ -53,7 +54,7 @@ from ..models import (
     Chore,
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     Event,
     FeedbackToken,
     Occurrence,
@@ -287,16 +288,15 @@ def _process_one(
     off them and no transaction deletes them mid-sweep, so the
     expiration risk doesn't apply."""
 
-    # Step 1 — atomic claim. Set message_id only when the row is
-    # still pending AND no message_id has been minted yet. Two
-    # parallel workers fighting for the same row will only have
-    # one win; the loser's claim returns 0 rows, we bail.
+    # Step 1 — atomic claim. Set message_id only when no message_id
+    # has been minted yet, on a row that still exists. Two parallel
+    # workers fighting for the same row will only have one win; the
+    # loser's claim returns 0 rows, we bail.
     message_id = new_message_id()
     claimed = (
         db.query(EmailDispatch)
         .filter(
             EmailDispatch.id == dispatch_id,
-            EmailDispatch.status == EmailStatus.PENDING,
             EmailDispatch.message_id.is_(None),
         )
         .update(
@@ -362,6 +362,37 @@ def _process_one(
     )
 
 
+def record_send(db: Session, *, occurrence_id: str, channel: EmailChannel, tenant_id: str, sent: bool) -> None:
+    """Add one to an occurrence's send tally for a channel.
+
+    An upsert rather than a read-modify-write, so two workers finishing
+    a send at the same moment add up instead of overwriting each other.
+    The row holds two integers against a date: enough for the organiser's
+    counts and the daily cap, not enough to say who was mailed.
+
+    ``tenant_id`` is named here rather than left to the column default,
+    because the sweeps run across every tenant with none bound: the
+    tally belongs to the dispatch it is counting, not to whatever
+    context the worker happens to be in."""
+    column = "sent" if sent else "failed"
+    stmt = (
+        insert(EmailSendCount)
+        .values(
+            occurrence_id=occurrence_id,
+            channel=channel,
+            tenant_id=tenant_id,
+            day=datetime.now(UTC).date(),
+            sent=1 if sent else 0,
+            failed=0 if sent else 1,
+        )
+        .on_conflict_do_update(
+            index_elements=[EmailSendCount.occurrence_id, EmailSendCount.channel, EmailSendCount.day],
+            set_={column: getattr(EmailSendCount, column) + 1},
+        )
+    )
+    db.execute(stmt)
+
+
 def _finalise(
     db: Session,
     channel: EmailChannel,
@@ -371,42 +402,33 @@ def _finalise(
     message_id: str | None,
     feedback_token: str | None,
 ) -> None:
-    """Conditional status flip + null the ciphertext + drop the
-    feedback token on failure. The status UPDATE is filtered on
-    ``status='pending'`` so a parallel worker / toggle-off cleanup
-    that flipped the row out from under us isn't stomped.
+    """Count the outcome and delete the row.
 
-    The same UPDATE that transitions to a terminal state nulls
-    ``encrypted_email``: under the dispatch-owns-its-address
-    contract, finalising *is* the wipe."""
-    new_status = EmailStatus.SENT if sent else EmailStatus.FAILED
-    updated = (
-        db.query(EmailDispatch)
-        .filter(
-            EmailDispatch.id == dispatch_id,
-            EmailDispatch.status == EmailStatus.PENDING,
-        )
-        .update(
-            {
-                EmailDispatch.status: new_status,
-                EmailDispatch.sent_at: datetime.now(UTC),
-                EmailDispatch.message_id: message_id,
-                EmailDispatch.encrypted_email: None,
-            },
-            synchronize_session=False,
-        )
-    )
-    if updated == 0:
-        # Status moved out from under us — drop any feedback
-        # token we minted; the email never went out so the link
-        # is unredeemable in practice.
+    The delete is the wipe: the address lives on the row, so removing
+    the row removes it, and there is no state where the work is over
+    and the address is still here. It is also why the table stays the
+    size of the queue instead of the size of everything ever sent.
+
+    The delete is filtered on the row still existing, so a parallel
+    worker or a toggle-off cleanup that removed it first is not
+    double-counted: ``deleted == 0`` means somebody else finished it."""
+    # Read the occurrence before the row is gone: the count hangs off
+    # it, and after the delete there is nothing left to ask.
+    row = db.query(EmailDispatch.occurrence_id, EmailDispatch.tenant_id).filter(EmailDispatch.id == dispatch_id).first()
+    deleted = db.query(EmailDispatch).filter(EmailDispatch.id == dispatch_id).delete(synchronize_session=False)
+    if deleted == 0 or row is None:
+        # The row went out from under us — drop any feedback token we
+        # minted; the email never went out so the link is unredeemable
+        # in practice.
         _drop_feedback_token(db, feedback_token)
         logger.info(
-            "dispatch_skipped_status_changed",
+            "dispatch_skipped_row_gone",
             channel=channel.value,
             dispatch_id=dispatch_id,
         )
         return
+
+    record_send(db, occurrence_id=row[0], channel=channel, tenant_id=row[1], sent=sent)
 
     if not sent:
         _drop_feedback_token(db, feedback_token)
@@ -442,7 +464,6 @@ def _run_with_filter(channel: EmailChannel, extra_filters: list[Any]) -> int:
             .join(Event, Event.id == Occurrence.event_id)
             .filter(
                 EmailDispatch.channel == channel,
-                EmailDispatch.status == EmailStatus.PENDING,
                 EmailDispatch.encrypted_email.is_not(None),
                 *extra_filters,
             )
@@ -512,26 +533,21 @@ def run_for_event(channel: EmailChannel, event_id: str) -> int:
 
 
 def reap_partial_sends(db: Session) -> int:
-    """Sweep dispatches stuck at ``pending`` with a message_id —
-    those crashed mid-send. Flip to ``failed`` so the regular
-    worker query no longer returns them; the same UPDATE nulls
-    ``encrypted_email`` (finalising is the wipe)."""
-    now = datetime.now(UTC)
-    reaped = (
-        db.query(EmailDispatch)
-        .filter(
-            EmailDispatch.status == EmailStatus.PENDING,
-            EmailDispatch.message_id.is_not(None),
-        )
-        .update(
-            {
-                EmailDispatch.status: EmailStatus.FAILED,
-                EmailDispatch.sent_at: now,
-                EmailDispatch.encrypted_email: None,
-            },
-            synchronize_session=False,
-        )
+    """Sweep dispatches that claimed a ``message_id`` and never came
+    back — those crashed mid-send.
+
+    A row with a message_id is one a worker was in the middle of. If it
+    is still here on the next sweep, that worker is gone. Count it
+    failed and delete it: the row's disappearance is the wipe, and the
+    regular dispatcher no longer sees it."""
+    stranded = (
+        db.query(EmailDispatch.occurrence_id, EmailDispatch.channel, EmailDispatch.tenant_id)
+        .filter(EmailDispatch.message_id.is_not(None))
+        .all()
     )
+    for occurrence_id, channel, tenant_id in stranded:
+        record_send(db, occurrence_id=occurrence_id, channel=channel, tenant_id=tenant_id, sent=False)
+    reaped = db.query(EmailDispatch).filter(EmailDispatch.message_id.is_not(None)).delete(synchronize_session=False)
     db.commit()
     if reaped:
         logger.warning("reaped_partial_sends", count=reaped)
@@ -555,7 +571,6 @@ def retire_event_channels(
     db.query(EmailDispatch).filter(
         EmailDispatch.occurrence_id.in_(event_occurrences),
         EmailDispatch.channel.in_(channels),
-        EmailDispatch.status == EmailStatus.PENDING,
         EmailDispatch.message_id.is_(None),
     ).delete(synchronize_session=False)
 
@@ -686,21 +701,17 @@ def reap_expired() -> int:
             )
             .exists()
         )
-        finalised = (
-            db.query(EmailDispatch)
-            .filter(
-                EmailDispatch.status == EmailStatus.PENDING,
-                occurrence_window_closed,
-            )
-            .update(
-                {
-                    EmailDispatch.status: EmailStatus.FAILED,
-                    EmailDispatch.sent_at: now,
-                    EmailDispatch.encrypted_email: None,
-                },
-                synchronize_session=False,
-            )
+        # A row whose window has closed is work that will never happen:
+        # the reminder's date has passed, or the feedback mail is a week
+        # late. Count it failed and delete it, which is the wipe.
+        expired = (
+            db.query(EmailDispatch.occurrence_id, EmailDispatch.channel, EmailDispatch.tenant_id)
+            .filter(occurrence_window_closed)
+            .all()
         )
+        for occurrence_id, channel, tenant_id in expired:
+            record_send(db, occurrence_id=occurrence_id, channel=channel, tenant_id=tenant_id, sent=False)
+        finalised = db.query(EmailDispatch).filter(occurrence_window_closed).delete(synchronize_session=False)
         # Chore side: wipe retained volunteer email on rosters archived
         # past the grace window (the roster is gone; the address has no
         # more work to do). Same force-wipe backstop as the event

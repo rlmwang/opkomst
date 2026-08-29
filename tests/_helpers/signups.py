@@ -5,15 +5,18 @@ link) with one ``Signup`` line item per occurrence. ``make_signup``
 mirrors the public router: a booking on the event's first occurrence
 (override with ``occurrence=``), with one ``EmailDispatch`` per applicable
 channel keyed on that occurrence. Tests can override per-channel to seed
-any (occurrence, channel, status) state directly.
+any (occurrence, channel) state directly.
 """
 
+from datetime import UTC, datetime
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     Event,
     Occurrence,
     Registration,
@@ -51,11 +54,13 @@ def make_signup(
     ``feedback`` / ``reminder`` accept:
 
     * ``None`` (default) — derive from ``email`` and the event's toggle,
-      mirroring the signups router. ``"pending"`` if the channel applies,
-      otherwise no dispatch row.
+      mirroring the signups router: a pending row if the channel
+      applies, otherwise nothing.
     * ``False`` — explicitly skip the dispatch row.
-    * a status string (``"pending"``, ``"sent"``, ``"failed"``) — insert
-      a dispatch row at that status.
+    * ``"pending"`` / ``True`` — insert the dispatch row.
+    * ``"sent"`` / ``"failed"`` — the send already happened, so there is
+      no row: record it in ``EmailSendCount`` instead, which is what the
+      production lifecycle leaves behind.
     """
     occ = occurrence or first_occurrence(event)
     if feedback is None:
@@ -81,35 +86,53 @@ def make_signup(
     db.add(signup)
     db.flush()
 
-    # Pending dispatches carry the encrypted address; terminal-state rows
-    # have it nulled (matches the production lifecycle).
-    def _ciphertext_for(status: EmailStatus) -> bytes | None:
-        if email is None or status != EmailStatus.PENDING:
-            return None
-        return encryption.encrypt(email)
+    def _place(channel: EmailChannel, state: str | bool) -> None:
+        """A pending state is a row carrying the address; a finished one
+        is a number and no row at all."""
+        if state in (True, "pending"):
+            db.add(
+                EmailDispatch(
+                    occurrence_id=occ.id,
+                    channel=channel,
+                    encrypted_email=encryption.encrypt(email) if email else None,
+                )
+            )
+            return
+        db.add(
+            EmailSendCount(
+                occurrence_id=occ.id,
+                channel=channel,
+                day=datetime.now(UTC).date(),
+                sent=1 if state == "sent" else 0,
+                failed=1 if state == "failed" else 0,
+            )
+        )
 
     if feedback:
-        st = EmailStatus(feedback)
-        db.add(
-            EmailDispatch(
-                occurrence_id=occ.id,
-                channel=EmailChannel.FEEDBACK,
-                status=st,
-                encrypted_email=_ciphertext_for(st),
-            )
-        )
+        _place(EmailChannel.FEEDBACK, feedback)
     if reminder:
-        st = EmailStatus(reminder)
-        db.add(
-            EmailDispatch(
-                occurrence_id=occ.id,
-                channel=EmailChannel.REMINDER,
-                status=st,
-                encrypted_email=_ciphertext_for(st),
-            )
-        )
+        _place(EmailChannel.REMINDER, reminder)
     db.flush()
     return signup
+
+
+def send_counts(db: Session, signup_or_occurrence: object, channel: EmailChannel) -> tuple[int, int]:
+    """``(sent, failed)`` recorded for an (occurrence, channel), summed
+    across days. A finished send leaves no dispatch row, so this is what
+    the assertions that used to read ``status`` ask instead."""
+    occurrence_id = _occurrence_id(signup_or_occurrence)
+    row = (
+        db.query(
+            func.coalesce(func.sum(EmailSendCount.sent), 0),
+            func.coalesce(func.sum(EmailSendCount.failed), 0),
+        )
+        .filter(
+            EmailSendCount.occurrence_id == occurrence_id,
+            EmailSendCount.channel == channel,
+        )
+        .one()
+    )
+    return int(row[0]), int(row[1])
 
 
 def get_dispatch(db: Session, signup_or_occurrence: object, channel: EmailChannel) -> EmailDispatch | None:

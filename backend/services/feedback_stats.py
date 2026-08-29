@@ -10,7 +10,7 @@ without a router fixture.
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session
 
-from ..models import EmailChannel, EmailDispatch, FeedbackResponse, Occurrence, Signup
+from ..models import EmailChannel, EmailDispatch, EmailSendCount, FeedbackResponse, Occurrence, Signup
 from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary
 from .feedback_questions import QUESTIONS
 from .ratings import rating_distribution
@@ -44,33 +44,44 @@ def signup_count(db: Session, event_id: str) -> int:
 
 def email_health(db: Session, event_id: str, signups: int) -> dict[str, EmailHealthOut]:
     """Per-channel delivery health across the event's occurrences.
-    ``not_applicable`` is line items without a dispatch row for the
-    channel — derived from the gap between ``signups`` and the channel's
-    row count (a missing row means no email was queued)."""
-    rows = (
-        db.query(
-            EmailDispatch.channel,
-            EmailDispatch.status,
-            func.count(EmailDispatch.id),
-        )
-        .filter(EmailDispatch.occurrence_id.in_(_event_occurrence_ids(db, event_id)))
-        .group_by(EmailDispatch.channel, EmailDispatch.status)
+
+    Two sources, because a send leaves no row behind. Outstanding work
+    is the ``EmailDispatch`` rows that still exist; what already
+    happened is the ``EmailSendCount`` tally the worker increments as it
+    deletes them. ``not_applicable`` is the rest of the line items: a
+    sign-up with no email, or a channel that was off when they signed
+    up, has neither a row nor a count.
+    """
+    occurrence_ids = _event_occurrence_ids(db, event_id)
+    pending_rows = (
+        db.query(EmailDispatch.channel, func.count(EmailDispatch.id))
+        .filter(EmailDispatch.occurrence_id.in_(occurrence_ids))
+        .group_by(EmailDispatch.channel)
         .all()
     )
-    counts_by_channel: dict[str, dict[str, int]] = {ch.value: {} for ch in EmailChannel}
-    for channel, status, count in rows:
-        ch_name = getattr(channel, "value", channel)
-        st_name = getattr(status, "value", status)
-        counts_by_channel[ch_name][st_name] = int(count)
+    tallies = (
+        db.query(
+            EmailSendCount.channel,
+            func.coalesce(func.sum(EmailSendCount.sent), 0),
+            func.coalesce(func.sum(EmailSendCount.failed), 0),
+        )
+        .filter(EmailSendCount.occurrence_id.in_(occurrence_ids))
+        .group_by(EmailSendCount.channel)
+        .all()
+    )
+
+    pending_by_channel = {getattr(ch, "value", ch): int(n) for ch, n in pending_rows}
+    sent_by_channel = {getattr(ch, "value", ch): (int(s), int(f)) for ch, s, f in tallies}
 
     out: dict[str, EmailHealthOut] = {}
-    for ch_name, ch_counts in counts_by_channel.items():
-        dispatched = sum(ch_counts.values())
-        out[ch_name] = EmailHealthOut(
-            not_applicable=max(0, signups - dispatched),
-            pending=ch_counts.get("pending", 0),
-            sent=ch_counts.get("sent", 0),
-            failed=ch_counts.get("failed", 0),
+    for ch in EmailChannel:
+        pending = pending_by_channel.get(ch.value, 0)
+        sent, failed = sent_by_channel.get(ch.value, (0, 0))
+        out[ch.value] = EmailHealthOut(
+            not_applicable=max(0, signups - pending - sent - failed),
+            pending=pending,
+            sent=sent,
+            failed=failed,
         )
     return out
 

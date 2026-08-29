@@ -19,7 +19,7 @@ from _helpers.events import make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus
+from backend.models import EmailChannel
 from backend.services import mail_lifecycle
 
 
@@ -35,9 +35,8 @@ def test_reap_finalises_expired_pending_reminder(db: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
-        assert d.encrypted_email is None
+        assert d is None  # reaped: counted and deleted
+        # The row carried the address; deleting it is the wipe.
     finally:
         fresh.close()
 
@@ -52,7 +51,7 @@ def test_reap_skips_events_still_in_future(db: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None and d.status == EmailStatus.PENDING
+        assert d is not None
     finally:
         fresh.close()
 
@@ -69,7 +68,7 @@ def test_reap_skips_already_settled_dispatches(db: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None and d.status == EmailStatus.SENT
+        assert d is None  # sent: counted and deleted
     finally:
         fresh.close()
 
@@ -88,7 +87,7 @@ def test_reap_wipes_ciphertext_when_only_channel_pending(db: Any) -> None:
     try:
         assert not has_any_ciphertext(fresh, s)
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None and d.status == EmailStatus.FAILED
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()
 
@@ -107,9 +106,9 @@ def test_reap_keeps_feedback_ciphertext_when_event_still_recent(db: Any) -> None
     try:
         assert has_any_ciphertext(fresh, s)
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.FAILED
+        assert d_r is None  # reaped: counted and deleted
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_f is not None
     finally:
         fresh.close()
 
@@ -142,6 +141,6 @@ def test_reap_with_clock_advanced_past_window(db: Any, clock: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None and d.status == EmailStatus.FAILED
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()

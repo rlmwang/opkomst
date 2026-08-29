@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from ..models import (
     Datepoll,
     DatepollSubmission,
-    EmailDispatch,
+    EmailSendCount,
     Event,
     Form,
     FormSubmission,
@@ -175,9 +175,18 @@ def mail_budget_remaining(db: Session, tenant: Tenant) -> int | None:
     stranger can run up."""
     if not tenant.is_personal:
         return None
+    # Sends are counted, not kept: a dispatch row is deleted the moment
+    # its send finishes, so yesterday's mail is a number in
+    # ``EmailSendCount`` rather than a set of rows. The tally is per day,
+    # so "the last day" is today and yesterday — deliberately generous at
+    # the boundary rather than letting a cap be dodged by the clock.
     since = datetime.now(UTC) - timedelta(days=1)
+    since_day = since.date()
     dispatched = (
-        db.query(EmailDispatch).filter(EmailDispatch.tenant_id == tenant.id, EmailDispatch.sent_at >= since).count()
+        db.query(func.coalesce(func.sum(EmailSendCount.sent), 0))
+        .filter(EmailSendCount.tenant_id == tenant.id, EmailSendCount.day >= since_day)
+        .scalar()
+        or 0
     )
     chore_reminders = db.query(Shift).filter(Shift.tenant_id == tenant.id, Shift.reminder_sent_at >= since).count()
     # One welcome mail per volunteer, sent as they enrol. It consumes

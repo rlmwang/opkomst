@@ -13,18 +13,18 @@ from typing import Any
 
 from _helpers import commit
 from _helpers.events import make_event
-from _helpers.signups import has_any_ciphertext, make_signup
+from _helpers.signups import has_any_ciphertext, make_signup, send_counts
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailDispatch, EmailStatus
+from backend.models import EmailChannel, EmailDispatch
 from backend.services import mail_lifecycle
 
 
 def test_purge_finalises_pending_for_old_event(db: Any) -> None:
-    """Event ended 8 days ago, dispatch still pending → finalise +
-    null ciphertext. ``make_signup`` here seeds only the FEEDBACK
-    row (reminder is moot for a past event); the purge transitions
-    the one pending dispatch to FAILED."""
+    """Event ended 8 days ago and its feedback mail never went out, so
+    the purge deletes the row — which is the wipe — and counts the
+    failure. ``make_signup`` seeds only the FEEDBACK row here; a
+    reminder is moot for a past event."""
     e = make_event(db, starts_in=timedelta(days=-9), duration=timedelta(hours=2))
     s = make_signup(db, e, email="alice@example.test", reminder=False)
     commit(db)
@@ -34,10 +34,11 @@ def test_purge_finalises_pending_for_old_event(db: Any) -> None:
 
     fresh = SessionLocal()
     try:
-        # Pending dispatch transitioned to FAILED; ciphertext nulled.
-        d = fresh.query(EmailDispatch).filter(EmailDispatch.occurrence_id == s.occurrence_id).one()
-        assert d.status == EmailStatus.FAILED
-        assert d.encrypted_email is None
+        # The window closed on work that never happened: the row is
+        # deleted, which takes the ciphertext with it, and the failure
+        # is counted.
+        assert fresh.query(EmailDispatch).filter(EmailDispatch.occurrence_id == s.occurrence_id).count() == 0
+        assert send_counts(fresh, s, EmailChannel.FEEDBACK) == (0, 1)
         assert not has_any_ciphertext(fresh, s)
     finally:
         fresh.close()
@@ -142,15 +143,15 @@ def test_purge_is_a_backstop_for_stuck_pending(db: Any) -> None:
 
     fresh = SessionLocal()
     try:
-        d = (
+        assert (
             fresh.query(EmailDispatch)
             .filter(
                 EmailDispatch.occurrence_id == s.occurrence_id,
                 EmailDispatch.channel == EmailChannel.FEEDBACK,
             )
-            .one()
+            .count()
+            == 0
         )
-        assert d.status == EmailStatus.FAILED
-        assert d.encrypted_email is None
+        assert send_counts(fresh, s, EmailChannel.FEEDBACK) == (0, 1)
     finally:
         fresh.close()

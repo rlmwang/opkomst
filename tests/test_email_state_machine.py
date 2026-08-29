@@ -1,13 +1,19 @@
 """State-transition table-test for the email lifecycle.
 
-One row per (start_state, trigger) → (end_state, end_ciphertext).
-A regression in any state-changing path (dispatcher, reaper,
-channel retirement, post-event purge) breaks exactly one row in
-the table, which is faster to localise than a logical-chain test
-failure.
+A dispatch row is outstanding work, so there are three states, not
+five: ``queued`` (a row nobody has claimed), ``claimed`` (a row whose
+message_id was minted, meaning a worker was mid-send), and ``gone``
+(no row, because the send finished one way or the other).
 
-The wipe invariant is asserted after every transition: a dispatch
-row's own ``encrypted_email`` is set iff its status is PENDING.
+One row per (start_state, trigger) → (end_state, sent, failed). A
+regression in any state-changing path — dispatcher, reaper, channel
+retirement, post-event purge — breaks exactly one row in the table,
+which is faster to localise than a logical-chain failure.
+
+The wipe invariant is asserted after every transition, and it is now a
+statement about existence rather than about a column: a row that is
+still here is work still owed, and every row that leaves takes its
+address with it.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -17,60 +23,59 @@ from unittest.mock import patch
 import pytest
 from _helpers import commit
 from _helpers.events import make_event
-from _helpers.signups import get_dispatch, make_signup
+from _helpers.signups import get_dispatch, make_signup, send_counts
 
 from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
     Event,
     Occurrence,
 )
 from backend.services import mail_lifecycle
 
+QUEUED = "queued"
+CLAIMED = "claimed"
+GONE = "gone"
 
-def _set_status(
-    signup,  # noqa: ANN001
-    channel: EmailChannel,
-    status: EmailStatus,
-    *,
-    message_id: str | None = None,
-) -> None:
+
+def _put_in_state(signup, channel: EmailChannel, state: str) -> None:  # noqa: ANN001
+    """Move the seeded row into the start state under test."""
     db = SessionLocal()
     try:
         d = get_dispatch(db, signup, channel)
         assert d is not None, "dispatch row missing"
-        d.status = status
-        if message_id is not None:
-            d.message_id = message_id
+        if state == GONE:
+            db.delete(d)
+        elif state == CLAIMED:
+            d.message_id = "<mid-send>"
         db.commit()
     finally:
         db.close()
 
 
-def _read(signup, channel: EmailChannel) -> tuple[EmailStatus | None, bool]:  # noqa: ANN001
-    """Return (status, has_ciphertext). status=None means no row.
-    has_ciphertext reads the dispatch row's own encrypted_email."""
+def _read(signup, channel: EmailChannel) -> str:  # noqa: ANN001
+    """The row's state: gone, claimed, or queued."""
     db = SessionLocal()
     try:
         d = get_dispatch(db, signup, channel)
-        return (d.status if d else None, bool(d and d.encrypted_email is not None))
+        if d is None:
+            return GONE
+        return CLAIMED if d.message_id is not None else QUEUED
     finally:
         db.close()
 
 
 def _check_wipe_invariant() -> None:
-    """Per-row property: every non-PENDING dispatch row has its
-    own ``encrypted_email`` nulled. No cross-table existence
-    check — the address lives on the same row that finalises."""
+    """Existence is the invariant. A dispatch row is work still owed,
+    and it is the only place an address lives; anything finished has no
+    row, so there is nothing left to carry an address."""
     db = SessionLocal()
     try:
         for d in db.query(EmailDispatch).all():
-            if d.status != EmailStatus.PENDING:
-                assert d.encrypted_email is None, (
-                    f"invariant broken: {d.channel.value} status={d.status.value} still carries ciphertext"
-                )
+            assert d.encrypted_email is not None or d.message_id is not None, (
+                f"invariant broken: {d.channel.value} row is owed but carries no address"
+            )
     finally:
         db.close()
 
@@ -132,13 +137,12 @@ def _post_event_purge(_signup_id: str) -> None:
 
 # --- Table -------------------------------------------------------------
 #
-# Each row: (start_status, start_message_id, trigger_name,
-#           expected_end_status_or_None, expected_end_ciphertext)
+# Each row: (start_state, trigger_name, expected_end_state, expected
+# (sent, failed) counted by that trigger).
 #
-# ``trigger_name`` indexes ``_TRIGGERS`` below. ``message_id=None``
-# means leave it null; a string sets it explicitly. ``end_status=
-# None`` means "row no longer exists" (channel retired). The
-# ciphertext column is the post-trigger expected value.
+# ``trigger_name`` indexes ``_TRIGGERS`` below. A ``gone`` start state
+# is a send that already finished: the triggers must leave it alone and
+# count nothing, because there is nothing left to act on.
 
 _TRIGGERS = {
     "worker_success": _worker_success,
@@ -148,95 +152,59 @@ _TRIGGERS = {
     "post_event_purge": _post_event_purge,
 }
 
-_TABLE: list[tuple[EmailStatus, str | None, str, EmailStatus | None, bool]] = [
-    # Start: PENDING. Worker drives.
-    (EmailStatus.PENDING, None, "worker_success", EmailStatus.SENT, False),
-    (EmailStatus.PENDING, None, "worker_failure", EmailStatus.FAILED, False),
-    # Reaper paths.
-    (EmailStatus.PENDING, "<m1>", "reap_partial", EmailStatus.FAILED, False),
-    (EmailStatus.PENDING, None, "reap_partial", EmailStatus.PENDING, True),
-    # Channel retirement deletes the pending row.
-    (EmailStatus.PENDING, None, "retire_reminder", None, False),
-    (EmailStatus.PENDING, "<m2>", "retire_reminder", EmailStatus.PENDING, True),
-    # Post-event purge finalises orphaned pending rows.
-    (
-        EmailStatus.PENDING,
-        None,
-        "post_event_purge",
-        EmailStatus.FAILED,
-        False,
-    ),
-    # Start: SENT. Terminal — reaper / retire / worker are no-ops.
-    (EmailStatus.SENT, "<m3>", "retire_reminder", EmailStatus.SENT, False),
-    (EmailStatus.SENT, "<m4>", "reap_partial", EmailStatus.SENT, False),
-    # Worker doesn't pick up SENT rows.
-    (EmailStatus.SENT, "<m5>", "worker_success", EmailStatus.SENT, False),
-    # Start: FAILED. Terminal — reaper / retire / worker are no-ops.
-    (EmailStatus.FAILED, "<m6>", "reap_partial", EmailStatus.FAILED, False),
-    (EmailStatus.FAILED, "<m7>", "retire_reminder", EmailStatus.FAILED, False),
-    (EmailStatus.FAILED, None, "worker_success", EmailStatus.FAILED, False),
-    # post_event_purge wipes ciphertext but doesn't disturb terminal
-    # statuses — the orphaned-PENDING transition only fires on PENDING.
-    (
-        EmailStatus.SENT,
-        "<m13>",
-        "post_event_purge",
-        EmailStatus.SENT,
-        False,
-    ),
-    (
-        EmailStatus.FAILED,
-        "<m14>",
-        "post_event_purge",
-        EmailStatus.FAILED,
-        False,
-    ),
+_TABLE: list[tuple[str, str, str, tuple[int, int]]] = [
+    # Queued work, and the worker drives it to done either way.
+    (QUEUED, "worker_success", GONE, (1, 0)),
+    (QUEUED, "worker_failure", GONE, (0, 1)),
+    # A claimed row is a worker that never came back: the reaper counts
+    # the failure and deletes it. An unclaimed one is left alone.
+    (CLAIMED, "reap_partial", GONE, (0, 1)),
+    (QUEUED, "reap_partial", QUEUED, (0, 0)),
+    # Retiring a channel drops work nobody asked for any more. It is not
+    # a failed send, so nothing is counted. A claimed row is mid-send and
+    # left to finish on its own.
+    (QUEUED, "retire_reminder", GONE, (0, 0)),
+    (CLAIMED, "retire_reminder", CLAIMED, (0, 0)),
+    # The window closed on work that never happened.
+    (QUEUED, "post_event_purge", GONE, (0, 1)),
+    (CLAIMED, "post_event_purge", GONE, (0, 1)),
+    # Already finished: every trigger is a no-op, and none of them
+    # invents a second outcome for a send that already had one.
+    (GONE, "worker_success", GONE, (0, 0)),
+    (GONE, "worker_failure", GONE, (0, 0)),
+    (GONE, "reap_partial", GONE, (0, 0)),
+    (GONE, "retire_reminder", GONE, (0, 0)),
+    (GONE, "post_event_purge", GONE, (0, 0)),
 ]
 
 
 @pytest.mark.parametrize(
-    "start_status,start_msg_id,trigger,end_status,end_ciphertext",
+    "start_state,trigger,end_state,expected_counts",
     _TABLE,
 )
 def test_state_transition_table(
     db: Any,
     fake_email: Any,
-    start_status: EmailStatus,
-    start_msg_id: str | None,
+    start_state: str,
     trigger: str,
-    end_status: EmailStatus | None,
-    end_ciphertext: bool,
+    end_state: str,
+    expected_counts: tuple[int, int],
 ) -> None:
-    # ``feedback=False`` keeps the table focused on the EmailChannel.REMINDER
-    # lifecycle: the wipe semantics only fire when there are no
-    # other pending dispatches, so a phantom feedback row would
-    # mask every "ciphertext wiped" transition.
+    # ``feedback=False`` keeps the table focused on the REMINDER
+    # lifecycle: a phantom feedback row would keep the booking's
+    # ciphertext alive and mask every transition being asserted.
     e = make_event(db, starts_in=timedelta(hours=24), feedback_enabled=False)
     s = make_signup(db, e, email="alice@example.test", feedback=False)
     commit(db)
 
-    if start_status != EmailStatus.PENDING or start_msg_id is not None:
-        # Move the row off the default PENDING / ciphertext-set
-        # state. Null the dispatch's own encrypted_email if the
-        # start state is terminal (matches the production
-        # invariant: terminal rows have no ciphertext).
-        _set_status(s, EmailChannel.REMINDER, start_status, message_id=start_msg_id)
-        if start_status != EmailStatus.PENDING:
-            fresh = SessionLocal()
-            try:
-                fresh.query(EmailDispatch).filter(
-                    EmailDispatch.occurrence_id == s.occurrence_id,
-                    EmailDispatch.channel == EmailChannel.REMINDER,
-                ).update({EmailDispatch.encrypted_email: None})
-                fresh.commit()
-            finally:
-                fresh.close()
+    _put_in_state(s, EmailChannel.REMINDER, start_state)
 
     _TRIGGERS[trigger](s.id)
 
-    status, has_ciphertext = _read(s, EmailChannel.REMINDER)
-    assert status == end_status, f"status: got {status}, expected {end_status}"
-    assert has_ciphertext == end_ciphertext, (
-        f"ciphertext: got {'set' if has_ciphertext else 'null'}, expected {'set' if end_ciphertext else 'null'}"
-    )
+    assert _read(s, EmailChannel.REMINDER) == end_state, f"state: expected {end_state}"
+    fresh = SessionLocal()
+    try:
+        assert send_counts(fresh, s, EmailChannel.REMINDER) == expected_counts
+    finally:
+        fresh.close()
     _check_wipe_invariant()

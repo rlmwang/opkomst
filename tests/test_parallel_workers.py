@@ -12,10 +12,10 @@ from typing import Any
 
 from _helpers import commit
 from _helpers.events import make_event
-from _helpers.signups import get_dispatch, make_signup
+from _helpers.signups import get_dispatch, make_signup, send_counts
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Registration, Signup
+from backend.models import EmailChannel, Registration, Signup
 from backend.services import mail_lifecycle
 
 
@@ -46,9 +46,9 @@ def test_parallel_reminder_sweeps_send_each_row_once(truncating_db: Any, fake_em
     fresh = SessionLocal()
     try:
         for s in signups:
-            d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-            assert d is not None
-            assert d.status == EmailStatus.SENT, d.status
+            assert get_dispatch(fresh, s, EmailChannel.REMINDER) is None
+        # Five bookings on one occurrence: five sends, one tally.
+        assert send_counts(fresh, signups[0], EmailChannel.REMINDER) == (5, 0)
         # Sanity: no signup was left stranded.
         rows = fresh.query(Signup).join(Registration).filter(Registration.display_name.like("P%")).all()
         assert len(rows) == 5
@@ -86,8 +86,8 @@ def test_parallel_feedback_sweeps_send_each_row_once(truncating_db: Any, fake_em
     fresh = SessionLocal()
     try:
         for s in signups:
-            d = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-            assert d is not None
-            assert d.status == EmailStatus.SENT, d.status
+            assert get_dispatch(fresh, s, EmailChannel.FEEDBACK) is None
+        # Five bookings on one occurrence: five sends, counted once each.
+        assert send_counts(fresh, signups[0], EmailChannel.FEEDBACK) == (5, 0)
     finally:
         fresh.close()

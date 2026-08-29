@@ -56,7 +56,7 @@ Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organ
 
 - **No PII in logs.** Routes log a route name + outcome only. Email-send is the only place `to=` ever appears.
 - **Email decryption only by the lifecycle worker.** Static check: `tests/test_privacy.py::test_decrypt_only_called_from_mail_lifecycle` greps the backend tree for `encryption.decrypt` callers.
-- **The wipe rule, asserted by the Hypothesis state machine** in `tests/test_privacy_invariant_property.py` and the table-test in `tests/test_email_state_machine.py`: ``Signup.encrypted_email IS NULL`` ⇔ no PENDING dispatch row pointing at this signup.
+- **The wipe rule, asserted by the Hypothesis state machine** in `tests/test_privacy_invariant_property.py` and the table-test in `tests/test_email_state_machine.py`: an ``EmailDispatch`` row is an email still owed, and the only place an address lives. Finishing a send **deletes the row**, so the address' lifetime is the work's lifetime and the wipe needs no separate step. What survives is ``EmailSendCount``: sent and failed totals per (occurrence, channel, day), with no address and no recipient. The table therefore holds the queue, not the history.
 - **Encrypt write sites are an allowlist.** `tests/test_privacy.py::test_encrypted_email_writes_only_from_allowlisted_modules` keeps it tight.
 - **Feedback responses carry no signup link.** No `signup_id` column on `FeedbackResponse`.
 - **Open-source disclosure on every public sign-up form.** Never remove that copy.

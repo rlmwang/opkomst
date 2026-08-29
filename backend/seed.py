@@ -30,7 +30,7 @@ from .models import (
     DatepollSubmission,
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     Enrollment,
     Event,
     FeedbackResponse,
@@ -340,9 +340,7 @@ def run_local_demo() -> None:
             source: str,
             help_choices: list[str],
             email: str | None = None,
-            feedback_status: EmailStatus | None = None,
-            feedback_sent_at: datetime | None = None,
-            feedback_message_id: str | None = None,
+            feedback_pending: bool = False,
         ) -> None:
             _, token_hash = edit_token.new_edit_token()
             registration = Registration(
@@ -361,20 +359,17 @@ def run_local_demo() -> None:
                     help_choices=help_choices,
                 )
             )
-            if feedback_status is not None:
-                # Pending dispatches carry the encrypted address; terminal-state
-                # rows have it nulled (matches the production lifecycle). The
-                # dispatch row points at the occurrence directly — no link to
-                # the booking or line item.
-                ciphertext = encryption.encrypt(email) if email and feedback_status == EmailStatus.PENDING else None
+            if feedback_pending and email:
+                # A dispatch row is outstanding work and carries the
+                # address it needs. Sends that already happened leave no
+                # row: they are counted in ``EmailSendCount`` below. The
+                # row points at the occurrence directly, never at the
+                # booking or the line item.
                 db.add(
                     EmailDispatch(
                         occurrence_id=occurrence_id,
                         channel=EmailChannel.FEEDBACK,
-                        status=feedback_status,
-                        sent_at=feedback_sent_at,
-                        message_id=feedback_message_id,
-                        encrypted_email=ciphertext,
+                        encrypted_email=encryption.encrypt(email),
                     )
                 )
 
@@ -403,7 +398,7 @@ def run_local_demo() -> None:
                 source="Flyer",
                 help_choices=["Afbreken"],
                 email="pim@local.dev",
-                feedback_status=EmailStatus.PENDING,
+                feedback_pending=True,
             )
             _seed_signup(
                 occurrence_id=past_occ.id,
@@ -411,9 +406,6 @@ def run_local_demo() -> None:
                 party_size=2,
                 source="Mond-tot-mond",
                 help_choices=["Opbouwen"],
-                feedback_status=EmailStatus.SENT,
-                feedback_sent_at=now - timedelta(days=1, hours=23),
-                feedback_message_id="<demo-sent@local.dev>",
             )
             _seed_signup(
                 occurrence_id=past_occ.id,
@@ -421,8 +413,18 @@ def run_local_demo() -> None:
                 party_size=3,
                 source="Mond-tot-mond",
                 help_choices=["Afbreken"],
-                feedback_status=EmailStatus.FAILED,
-                feedback_sent_at=now - timedelta(days=1, hours=20),
+            )
+
+            # The two sends that already happened, as the tally that
+            # outlives them: one delivered, one that failed.
+            db.add(
+                EmailSendCount(
+                    occurrence_id=past_occ.id,
+                    channel=EmailChannel.FEEDBACK,
+                    day=(now - timedelta(days=1)).date(),
+                    sent=1,
+                    failed=1,
+                )
             )
 
         existing_resp = db.query(FeedbackResponse).filter(FeedbackResponse.occurrence_id == past_occ.id).first()

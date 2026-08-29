@@ -25,7 +25,6 @@ from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
     Event,
     Occurrence,
     Registration,
@@ -120,7 +119,6 @@ def _seed_event_and_signup(
                     id=str(uuid7()),
                     occurrence_id="occ-1",
                     channel=ch,
-                    status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt("alice@example.test"),
                 )
             )

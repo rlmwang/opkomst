@@ -19,7 +19,7 @@ from _helpers.events import first_occurrence, make_event
 from backend.auth import create_token
 from backend.cli import _tenant_plan
 from backend.database import SessionLocal
-from backend.models import Chore, EmailChannel, EmailDispatch, EmailStatus, Event, Roster, Tenant, User, Volunteer
+from backend.models import Chore, EmailChannel, EmailDispatch, Event, Roster, Tenant, User, Volunteer
 from backend.services import mail_lifecycle
 from backend.services import tenants as tenants_svc
 
@@ -212,7 +212,6 @@ def test_the_worker_sends_nothing_for_a_free_account(db, tenant_id, fake_email) 
         EmailDispatch(
             occurrence_id=first_occurrence(event).id,
             channel=EmailChannel.REMINDER,
-            status=EmailStatus.PENDING,
             encrypted_email=_ciphertext(),
         )
     )
@@ -252,7 +251,7 @@ def test_dropping_to_free_clears_the_toggles_and_the_queue(free, client, db) -> 
         json={"display_name": "Alice", "party_size": 1, "email": "alice@example.org", "all_upcoming": True},
     )
     assert r.status_code == 201, r.text
-    assert db.query(EmailDispatch).filter(EmailDispatch.status == EmailStatus.PENDING).count() > 0
+    assert db.query(EmailDispatch).count() > 0
 
     assert _tenant_plan("solo@example.org", "free") == 0
 
@@ -261,7 +260,7 @@ def test_dropping_to_free_clears_the_toggles_and_the_queue(free, client, db) -> 
         event = fresh.query(Event).filter(Event.id == created["id"]).one()
         assert event.reminder_enabled is False
         assert event.feedback_enabled is False
-        assert fresh.query(EmailDispatch).filter(EmailDispatch.status == EmailStatus.PENDING).count() == 0
+        assert fresh.query(EmailDispatch).count() == 0
         assert fresh.query(Tenant).filter(Tenant.id == tenant.id).one().is_paid is False
     finally:
         fresh.close()

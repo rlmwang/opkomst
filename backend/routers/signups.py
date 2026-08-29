@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..database import get_db
-from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Occurrence, Registration, Signup, User
+from ..models import EmailChannel, EmailDispatch, Event, Occurrence, Registration, Signup, User
 from ..schemas.common import EditLinkRecoverOut, pick_localized
 from ..schemas.events import (
     BookingEditIn,
@@ -126,7 +126,6 @@ def create_signup(
                 EmailDispatch(
                     occurrence_id=occ.id,
                     channel=ch,
-                    status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt(data.email),
                     # Mail this attendee in the language they signed up in;
                     # fall back to the event's primary locale.
