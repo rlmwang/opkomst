@@ -25,6 +25,16 @@ from backend.services import brand as brand_svc
 from backend.services.security_headers import CSP_ADS_TEMPLATE, CSP_TEMPLATE
 
 
+def _csp_sources(csp: str) -> set[str]:
+    """Every source named in a CSP header, as its own token.
+
+    Asserted against the token set rather than by substring: a header
+    that happens to contain ``pagead2.googlesyndication.com`` inside a
+    longer host would satisfy ``in`` and prove nothing, which is also
+    what CodeQL flags the substring form for."""
+    return {token for directive in csp.split(";") for token in directive.split()}
+
+
 def test_only_the_house_brand_carries_an_ad_configuration() -> None:
     """``ads`` is the whole switch: null means the page shows nothing,
     and every brand an organisation owns is null."""
@@ -79,8 +89,9 @@ def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configure
     """The other half of the gate: with a network configured, the page
     that may carry ads is served the policy that lets them load."""
     csp = client.get("/event").headers["content-security-policy"]
-    assert "https://pagead2.googlesyndication.com" in csp
-    assert "https://fundingchoicesmessages.google.com" in csp
+    sources = _csp_sources(csp)
+    assert "https://pagead2.googlesyndication.com" in sources
+    assert "https://fundingchoicesmessages.google.com" in sources
 
 
 def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> None:
@@ -214,12 +225,12 @@ def test_a_written_page_carries_the_slot_once_configured(client, configured) -> 
     have to arrive in the HTML, because there is no bundle here to
     fetch them later."""
     body = client.get("/datumplanner-zonder-account").text
-    assert "pagead2.googlesyndication.com" in body
+    assert "//pagead2.googlesyndication.com/" in body
     assert "ca-pub-0000000000000000" in body
     assert '"1111111111"' in body or "1111111111" in body
     assert "2222222222" in body
     csp = client.get("/datumplanner-zonder-account").headers["content-security-policy"]
-    assert "https://pagead2.googlesyndication.com" in csp
+    assert "https://pagead2.googlesyndication.com" in _csp_sources(csp)
 
 
 def test_the_written_pages_advertise_under_a_nonce(client, configured) -> None:

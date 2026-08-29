@@ -56,6 +56,19 @@ beforeEach(() => {
   window.__OPKOMST_BRAND__ = { ...BRAND } as typeof window.__OPKOMST_BRAND__;
 });
 
+/** Whether a footer href points at github.com, by host rather than by
+ *  substring: "github.com.example.org" contains the string and is not
+ *  the site. The list mixes absolute links with in-app paths, so the
+ *  base is what stops a relative one throwing. */
+function isGithubLink(href: string | null): boolean {
+  if (!href) return false;
+  try {
+    return new URL(href, "https://opkomst.nu").hostname === "github.com";
+  } catch {
+    return false;
+  }
+}
+
 describe("SiteFooter", () => {
   it.each(INDEXED)("renders on %s, the pages a stranger lands on", (path) => {
     const hrefs = hrefsIn(renderAt(path));
@@ -64,7 +77,7 @@ describe("SiteFooter", () => {
     expect(hrefs).toContain("/wat-gebeurt-er-met-je-mailadres");
     expect(hrefs).toContain("/vrijwilligers-inroosteren");
     expect(hrefs).toContain("/privacy");
-    expect(hrefs.some((h) => h?.includes("github.com"))).toBe(true);
+    expect(hrefs.some(isGithubLink)).toBe(true);
   });
 
   it("stays off the organiser's working pages", () => {
@@ -79,7 +92,7 @@ describe("SiteFooter", () => {
     // every page; our essays are not part of their identity.
     expect(hrefs).toContain("/privacy");
     expect(hrefs).toContain("/voorwaarden");
-    expect(hrefs.some((h) => h?.includes("github.com"))).toBe(true);
+    expect(hrefs.some(isGithubLink)).toBe(true);
     expect(hrefs).not.toContain("/datumplanner-zonder-account");
   });
 });
