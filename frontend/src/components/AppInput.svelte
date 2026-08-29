@@ -26,6 +26,7 @@ let {
   class: className,
   onblur,
   oninput,
+  onkeydown,
 }: {
   value?: string | null;
   placeholder?: string;
@@ -41,6 +42,7 @@ let {
   class?: string;
   onblur?: (event: FocusEvent) => void;
   oninput?: (event: Event) => void;
+  onkeydown?: (event: KeyboardEvent) => void;
 } = $props();
 </script>
 
@@ -65,6 +67,7 @@ let {
   {disabled}
   {onblur}
   {oninput}
+  {onkeydown}
 />
 
 <style>
