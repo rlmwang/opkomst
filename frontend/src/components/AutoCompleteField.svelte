@@ -41,6 +41,7 @@ let {
   delay = 300,
   minLength = 1,
   fluid,
+  class: className,
   optionSnippet,
   oncomplete,
   onoptionSelect,
@@ -57,6 +58,7 @@ let {
   /** Shortest text worth asking about. */
   minLength?: number;
   fluid?: boolean;
+  class?: string;
   optionSnippet?: Snippet<[{ option: T; index: number }]>;
   oncomplete?: (event: AutoCompleteCompleteEvent) => void;
   onoptionSelect?: (event: AutoCompleteOptionSelectEvent) => void;
@@ -212,7 +214,7 @@ function portal(node: HTMLElement) {
 }
 </script>
 
-<div bind:this={overlay.anchor} class="ac" class:ac-fluid={fluid}>
+<div bind:this={overlay.anchor} class="ac {className ?? ''}" class:ac-fluid={fluid}>
   <input
     bind:this={input}
     type="text"

@@ -23,6 +23,8 @@ let {
   spellcheck,
   autofocus,
   disabled,
+  class: className,
+  onblur,
 }: {
   value?: string | null;
   placeholder?: string;
@@ -35,6 +37,8 @@ let {
   spellcheck?: boolean;
   autofocus?: boolean;
   disabled?: boolean;
+  class?: string;
+  onblur?: (event: FocusEvent) => void;
 } = $props();
 </script>
 
@@ -47,7 +51,7 @@ let {
 <!-- svelte-ignore a11y_autofocus -->
 <input
   bind:value
-  class="app-input"
+  class="app-input {className ?? ''}"
   class:app-input-fluid={fluid}
   {type}
   {name}
@@ -57,6 +61,7 @@ let {
   {spellcheck}
   {autofocus}
   {disabled}
+  {onblur}
 />
 
 <style>
