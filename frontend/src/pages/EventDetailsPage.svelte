@@ -392,10 +392,13 @@ async function exportCsv(): Promise<void> {
                 {#each daySignups as s (s.id)}
                   <div class="signup-row">
                     <span class="signup-name">{s.display_name ?? t("event.signupAnonymous")}</span>
-                    {#each helpColumns as opt (opt)}
+                    {#each helpColumns as opt (opt.id)}
                       <span class="help-cell">
-                        {#if s.help_choices.includes(opt)}
-                          <span class="help-chip">{opt}</span>
+                        <!-- A sign-up records the words it was offered,
+                             not the row, so the two are matched on the
+                             label. -->
+                        {#if s.help_choices.includes(opt.label)}
+                          <span class="help-chip">{opt.label}</span>
                         {/if}
                       </span>
                     {/each}

@@ -62,6 +62,12 @@ export function occurrenceStatsQuery(eventId: () => string, occurrenceId: () => 
  * derived ``attendee_count`` and ``chapter_name``, so the new values are
  * on screen before the round trip; the settle invalidation reconciles
  * the derived pair.
+ *
+ * The two option lists are left out of the patch. An option the
+ * organiser has just added has no id until the server gives it one, so
+ * writing the form's copy into the cache would put a row there that
+ * every other reader believes is saved. They come back with the
+ * invalidation, which is one round trip away.
  */
 export const updateEvent = () =>
   mutation(
@@ -70,14 +76,17 @@ export const updateEvent = () =>
     {
       invalidate: [["event"]],
       optimistic: (vars) => {
+        const { source_options, help_options, ...patch } = vars.payload;
+        void source_options;
+        void help_options;
         const single = ["event", "single", vars.eventId];
         const snapList = queryClient.getQueryData<EventListOut[]>(["event", "active"]);
         const snapSingle = queryClient.getQueryData<EventOut>(single);
         queryClient.setQueryData<EventListOut[]>(["event", "active"], (old) =>
-          old?.map((e) => (e.id === vars.eventId ? { ...e, ...vars.payload } : e)),
+          old?.map((e) => (e.id === vars.eventId ? { ...e, ...patch } : e)),
         );
         if (snapSingle) {
-          queryClient.setQueryData<EventOut>(single, { ...snapSingle, ...vars.payload });
+          queryClient.setQueryData<EventOut>(single, { ...snapSingle, ...patch });
         }
         return () => {
           queryClient.setQueryData(["event", "active"], snapList);
