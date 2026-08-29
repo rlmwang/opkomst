@@ -26,11 +26,11 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 mode for the same reason.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Query, Session
 
 from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission
@@ -51,7 +51,7 @@ from ..schemas.forms import (
     QuizSubmissionOut,
 )
 from . import archive as archive_svc
-from . import compass, numbers, public_access, quizzes, tenancy
+from . import compass, form_answers, numbers, public_access, quizzes, tenancy
 from . import image as image_svc
 from .ratings import rating_distribution
 
@@ -344,7 +344,33 @@ def _submission_counts(db: Session, form_ids: list[str]) -> dict[str, int]:
     }
 
 
-def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
+# The columns the projections below read. A GET selects exactly these;
+# a write route hands over the ORM entity it just saved, which answers
+# the same attribute names, so one projection serves both.
+LIST_COLUMNS = (
+    Form.id,
+    Form.slug,
+    Form.mode,
+    Form.name_nl,
+    Form.name_en,
+    Form.locale,
+    Form.chapter_id,
+    Form.archived_at,
+    Form.created_at,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Form.description_nl,
+    Form.description_en,
+    Form.image_path,
+    Form.image_artist_instagram,
+    Form.reveal_answers,
+    Form.answers_editable,
+    Form.name_required,
+)
+
+
+def enrich(db: Session, forms: Sequence[Any]) -> list[FormListOut]:
     """Build ``FormListOut`` rows with batched lookups: one chapter-name
     lookup + one grouped submission-count query, regardless of how many
     forms. The list views never render questions, so this projection
@@ -405,18 +431,27 @@ def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
     return [CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)]
 
 
-def _questions(db: Session, form_id: str) -> list[FormQuestion]:
-    return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
+def _questions(db: Session, form_id: str) -> Sequence[Any]:
+    """The form's questions in display order.
+
+    Core, and every column: the projections, the grader and the kompas
+    each read a different subset, and a question is never written back
+    through here (``apply_questions`` owns that, on the ORM). Selecting
+    the table rather than listing columns means a new question field
+    reaches the DTOs without this line having to be remembered."""
+    return db.execute(
+        select(*FormQuestion.__table__.c).where(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal)
+    ).all()
 
 
-def questions_of(db: Session, form_id: str) -> list[FormQuestion]:
+def questions_of(db: Session, form_id: str) -> Sequence[Any]:
     """The question rows, for a caller that has to mark answers against
     them (``routers/form`` asking ``services/quiz`` for the score
     stats)."""
     return _questions(db, form_id)
 
 
-def to_out(db: Session, form: Form) -> FormOut:
+def to_out(db: Session, form: Any) -> FormOut:
     """Single-form organiser DTO: the list-row fields plus the full
     question list. One chapter-name lookup + one question query."""
     chapter_name = _chapter_names(db, {form.chapter_id}).get(form.chapter_id) if form.chapter_id else None
@@ -560,7 +595,7 @@ def _chosen(db: Session, form_id: str, question_ids: list[str]) -> dict[str, lis
     return out
 
 
-def question_aggregates(db: Session, form_id: str, questions: list[FormQuestion]) -> list[FormQuestionSummary]:
+def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> list[FormQuestionSummary]:
     """One ``FormQuestionSummary`` per question, ordinal-ordered.
     Per-kind shape:
 
@@ -636,7 +671,7 @@ def question_aggregates(db: Session, form_id: str, questions: list[FormQuestion]
     return summaries
 
 
-def compass_places(db: Session, form: Form, questions: list[FormQuestion]) -> dict[str, compass.Position]:
+def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str, compass.Position]:
     """Where every submission sits, read once for a whole page.
 
     Both halves of a kompas page (the axes and the dots) place the same
@@ -693,7 +728,7 @@ def compass_axis_summaries(db: Session, form: Form, places: dict[str, compass.Po
     return out
 
 
-def compass_summary(db: Session, form: Form, questions: list[FormQuestion]) -> CompassSummary | None:
+def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> CompassSummary | None:
     """The kompas half of the organiser's summary: the two axes with
     where the room sits on each, and every dot. ``None`` on the two
     products that place nobody."""
@@ -711,7 +746,7 @@ def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
     plus what each one scored, marked against the quiz as it stands
     now (``services/quiz``)."""
     questions = _questions(db, form_id)
-    grouped = quizzes.rows_by_submission(db, form_id)
+    grouped = form_answers.by_submission(db, form_id)
     out_of = quizzes.max_score(questions)
     return [
         QuizSubmissionOut(
@@ -737,15 +772,19 @@ def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[Form
     identifier is the self-chosen pseudonym."""
     questions = _questions(db, form_id)
     kinds = {q.id: q.kind for q in questions}
-    # Two more CSV columns on a kompas, derived like everything else
-    # about a position (``services/compass``).
-    places = compass.positions(db, questions, form_id) if mode == "compass" else {}
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
     if not subs:
         return []
     sub_ids = [s.id for s in subs]
+    # Every answer on the form, grouped by who gave it, read once. The
+    # CSV cells and a kompas' two coordinate columns are the same rows
+    # asked two questions.
+    grouped = form_answers.by_submission(db, form_id)
+    # Two more CSV columns on a kompas, derived like everything else
+    # about a position (``services/compass``).
+    places = {sid: compass.position_of(questions, rows) for sid, rows in grouped.items()} if mode == "compass" else {}
     answers: dict[str, dict[str, int | str | list[str]]] = {sid: {} for sid in sub_ids}
-    for r in db.query(FormResponse).filter(FormResponse.submission_id.in_(sub_ids)).all():
+    for r in (row for sid in sub_ids for row in grouped.get(sid, [])):
         kind = kinds.get(r.question_id)
         if kind is None:
             continue

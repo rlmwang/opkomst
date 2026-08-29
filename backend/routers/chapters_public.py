@@ -15,6 +15,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models import Tenant
 from ..schemas.agenda import ChapterAgendaOut
 from ..schemas.chapters import ChapterPublicOut
 from ..services import agenda as agenda_svc
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/api/v1/tenants", tags=["public"])
 _CACHE = "public, s-maxage=60, stale-while-revalidate=300"
 
 
-def _bind_tenant(db: Session, tenant_slug: str) -> None:
+def _bind_tenant(db: Session, tenant_slug: str) -> Tenant:
     """Resolve the organisation in the URL and scope the request to it.
     An unknown slug is a 404, the same answer as a chapter that doesn't
     exist, so the surface doesn't enumerate organisations.
@@ -39,6 +40,7 @@ def _bind_tenant(db: Session, tenant_slug: str) -> None:
     if tenant is None:
         raise HTTPException(status_code=404, detail="Not found")
     tenancy.bind(tenant.id, tenant.brand_slug)
+    return tenant
 
 
 @router.get("/{tenant_slug}/chapters", response_model=list[ChapterPublicOut])
@@ -51,9 +53,9 @@ def tenant_chapters(tenant_slug: str, response: Response, db: Session = Depends(
 
 @router.get("/{tenant_slug}/agenda/{slug}", response_model=ChapterAgendaOut)
 def chapter_agenda(tenant_slug: str, slug: str, response: Response, db: Session = Depends(get_db)) -> ChapterAgendaOut:
-    _bind_tenant(db, tenant_slug)
+    tenant = _bind_tenant(db, tenant_slug)
     chapter = chapters_svc.find_live_by_slug(db, slug)
     if chapter is None:
         raise HTTPException(status_code=404, detail="Chapter not found")
     response.headers["Cache-Control"] = _CACHE
-    return agenda_svc.build_agenda(db, chapter)
+    return agenda_svc.build_agenda(db, chapter, tenant)

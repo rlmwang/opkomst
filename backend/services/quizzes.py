@@ -26,12 +26,14 @@ number and it is computed the same way everywhere.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import FormQuestion, FormResponse
+from . import form_answers
 
 # The kinds a quiz can ask. Both free-text kinds are out: no rule
 # grades a paragraph, and an exact-match short answer is a quiz that
@@ -110,7 +112,7 @@ def grade(question: FormQuestion, fields: dict[str, Any] | None) -> int:
     return question.points if is_correct(question, fields) else 0
 
 
-def max_score(questions: list[FormQuestion]) -> int:
+def max_score(questions: Sequence[Any]) -> int:
     """What a perfect run is worth."""
     return sum(q.points for q in questions if q.points > 0)
 
@@ -124,20 +126,11 @@ def as_fields(row: FormResponse) -> dict[str, Any]:
     }
 
 
-def score_of(questions: list[FormQuestion], rows: list[FormResponse]) -> int:
+def score_of(questions: Sequence[Any], rows: Sequence[Any]) -> int:
     """One submission's score: every stored answer marked against the
     quiz as it stands now."""
     by_id = {q.id: q for q in questions}
     return sum(grade(by_id[r.question_id], as_fields(r)) for r in rows if r.question_id in by_id)
-
-
-def rows_by_submission(db: Session, form_id: str) -> dict[str, list[FormResponse]]:
-    """Every stored answer for this quiz, grouped by who gave it. One
-    query, because the organiser's page marks every submission."""
-    grouped: dict[str, list[FormResponse]] = {}
-    for row in db.query(FormResponse).filter(FormResponse.form_id == form_id).all():
-        grouped.setdefault(row.submission_id, []).append(row)
-    return grouped
 
 
 def validate_kinds(questions: list[Any]) -> None:
@@ -192,7 +185,7 @@ def validate_keys(questions: list[Any]) -> None:
 def score_stats(
     db: Session,
     form_id: str,
-    questions: list[FormQuestion],
+    questions: Sequence[Any],
 ) -> tuple[float | None, int | None, int | None]:
     """Average score, best score, and what a perfect run is worth. All
     three are None before anybody has played.
@@ -200,14 +193,14 @@ def score_stats(
     Derived, like every other score here: re-weight a question and this
     moves with it, which is what an organiser means when they change
     the weight."""
-    grouped = rows_by_submission(db, form_id)
+    grouped = form_answers.by_submission(db, form_id)
     if not grouped:
         return None, None, None
     scores = [score_of(questions, rows) for rows in grouped.values()]
     return round(sum(scores) / len(scores), 1), max(scores), max_score(questions)
 
 
-def correct_shares(db: Session, form_id: str, questions: list[FormQuestion]) -> dict[str, float]:
+def correct_shares(db: Session, form_id: str, questions: Sequence[Any]) -> dict[str, float]:
     """Question id to the share of its answers that earned full marks.
 
     Marking reads the stored key in Python (part marks, tolerance
@@ -221,13 +214,7 @@ def correct_shares(db: Session, form_id: str, questions: list[FormQuestion]) -> 
     scored = [q for q in questions if q.points > 0]
     if not scored:
         return {}
-    rows_by_question: dict[str, list[FormResponse]] = {}
-    for row in (
-        db.query(FormResponse)
-        .filter(FormResponse.form_id == form_id, FormResponse.question_id.in_([q.id for q in scored]))
-        .all()
-    ):
-        rows_by_question.setdefault(row.question_id, []).append(row)
+    rows_by_question = form_answers.by_question(db, form_id, [q.id for q in scored])
 
     out: dict[str, float] = {}
     for q in scored:

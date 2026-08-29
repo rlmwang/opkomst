@@ -136,6 +136,49 @@ def get_scoped(
     return row
 
 
+def scoped_select(
+    db: Session,
+    model: type[_Scoped],
+    user: User,
+    *columns: Any,
+    chapter_id: str | None = None,
+) -> Any:
+    """A Core ``SELECT`` of ``columns``, scoped the way ``list_filter``
+    scopes an ORM list.
+
+    The read counterpart of ``get_scoped``. A GET endpoint builds a DTO
+    and never writes what it read, so it selects the columns its
+    response needs instead of hydrating entities the request will throw
+    away. The scope rule is the same object in both, so a Core read
+    cannot drift from the ORM one it replaced.
+
+    Writes keep using ``get_scoped``: you cannot flush a row that the
+    session is not tracking, and the tenant write guard
+    (``services/tenancy.install_write_guard``) reads the session's
+    identity map to decide whether a write is allowed."""
+    return select(*columns).where(list_filter(db, user, model, chapter_id))
+
+
+def get_scoped_row(
+    db: Session,
+    model: type[_Scoped],
+    entity_id: str,
+    user: User,
+    *columns: Any,
+    not_found: str,
+    where: ColumnElement[bool] | None = None,
+) -> Any:
+    """One row's ``columns``, under exactly the scope ``get_scoped``
+    applies, and the same 404 when there is nothing to show."""
+    predicates = [model.id == entity_id, scope_filter(db, user, model)]
+    if where is not None:
+        predicates.append(where)
+    row = db.execute(select(*columns).where(*predicates)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail=not_found)
+    return row
+
+
 def archived_row(db: Session, root: str, entity_id: str, user: User) -> Any:
     """One archived item's own row, scoped to what this user may see.
 

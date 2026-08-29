@@ -63,12 +63,11 @@ def list_datepolls(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollListOut]:
-    rows = (
-        db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_(None))
+    rows = db.execute(
+        access.scoped_select(db, Datepoll, user, *datepolls_svc.LIST_COLUMNS, chapter_id=chapter_id)
+        .where(Datepoll.archived_at.is_(None))
         .order_by(Datepoll.created_at.desc())
-        .all()
-    )
+    ).all()
     return datepolls_svc.enrich(db, rows)
 
 
@@ -87,8 +86,12 @@ def get_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    return datepolls_svc.to_out(db, poll)
+    return datepolls_svc.to_out(
+        db,
+        access.get_scoped_row(
+            db, Datepoll, datepoll_id, user, *datepolls_svc.FULL_COLUMNS, not_found="Datepoll not found"
+        ),
+    )
 
 
 @router.put("/{datepoll_id}", response_model=DatepollOut)

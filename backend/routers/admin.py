@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..auth import require_approved, require_organisation
 from ..database import get_db
@@ -137,7 +137,15 @@ def list_users(
     No "see only your own row" mode; the visibility matches the
     organising context the project is built for."""
     _require(actor, Action.LIST_USERS)
-    q = db.query(User).filter(User.tenant_id == actor.tenant_id, User.deleted_at.is_(None))
+    q = (
+        db.query(User)
+        # ``_user_out`` reads each user's chapters, and the relationship
+        # is lazy by default because almost nothing else does. This is
+        # the page that does, so it asks for them in one query for the
+        # whole list rather than one per row.
+        .options(selectinload(User.chapters), joinedload(User.tenant))
+        .filter(User.tenant_id == actor.tenant_id, User.deleted_at.is_(None))
+    )
     if pending:
         q = q.filter(User.is_approved.is_(False))
     rows = q.order_by(User.created_at.desc()).all()

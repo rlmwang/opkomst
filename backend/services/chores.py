@@ -9,11 +9,11 @@ Chapter-scoped lookups live in ``services.access``
 (``get_roster_for_user`` / ``roster_scope_filter``).
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, VolunteerAvailability
@@ -129,7 +129,40 @@ def _counts(db: Session, roster_ids: list[str]) -> tuple[dict[str, int], dict[st
     return chores, volunteers
 
 
-def enrich(db: Session, rosters: list[Roster]) -> list[RosterListOut]:
+# The columns the projections below read. A GET selects exactly these;
+# a write route hands over the ORM entity it just saved, which answers
+# the same attribute names, so one projection serves both.
+LIST_COLUMNS = (
+    Roster.id,
+    Roster.slug,
+    Roster.name_nl,
+    Roster.name_en,
+    Roster.locale,
+    Roster.chapter_id,
+    Roster.archived_at,
+    Roster.created_at,
+    Roster.period_weeks,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Roster.description_nl,
+    Roster.description_en,
+    Roster.location,
+    Roster.latitude,
+    Roster.longitude,
+    Roster.image_path,
+    Roster.image_artist_instagram,
+    Roster.starts_on,
+    Roster.ends_on,
+    Roster.name_required,
+    Roster.reminder_enabled,
+    Roster.reminder_days_before,
+    Roster.commit_horizon_days,
+    Roster.activated_at,
+)
+
+
+def enrich(db: Session, rosters: Sequence[Any]) -> list[RosterListOut]:
     """Build ``RosterListOut`` rows with batched lookups: one query for
     chapter names, two grouped count queries. No N+1."""
     if not rosters:
@@ -185,11 +218,14 @@ def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[RosterLi
     ]
 
 
-def _chores(db: Session, roster_id: str) -> list[Chore]:
-    return db.query(Chore).filter(Chore.roster_id == roster_id).order_by(Chore.ordinal).all()
+def _chores(db: Session, roster_id: str) -> Sequence[Any]:
+    """The roster's chores in display order. Read-only: every caller
+    projects or schedules from them, and ``apply_chores`` does the
+    writing on the ORM."""
+    return db.execute(select(*Chore.__table__.c).where(Chore.roster_id == roster_id).order_by(Chore.ordinal)).all()
 
 
-def to_out(db: Session, roster: Roster) -> RosterOut:
+def to_out(db: Session, roster: Any) -> RosterOut:
     """Single-roster organiser DTO: list fields + recurrence config +
     the full chore list. One chapter lookup + one chore query + one
     volunteer count."""
@@ -357,22 +393,25 @@ def _personal_outlook(db: Session, volunteer: Volunteer, today: date) -> list[Pe
     )
 
 
-def _roster_loads(db: Session, roster_id: str) -> dict[str, int]:
-    """Per-volunteer load (scheduled + done shifts) across the roster."""
-    chore_ids = [row[0] for row in db.query(Chore.id).filter(Chore.roster_id == roster_id).all()]
-    if not chore_ids:
-        return {}
-    rows = (
-        db.query(Shift.volunteer_id, func.count(Shift.id))
-        .filter(
-            Shift.chore_id.in_(chore_ids),
-            Shift.volunteer_id.is_not(None),
-            Shift.status.in_(["scheduled", "done"]),
-        )
-        .group_by(Shift.volunteer_id)
+def _roster_shift_facts(db: Session, roster_id: str) -> tuple[dict[str, int], set[str]]:
+    """``(load per volunteer, who holds any shift at all)`` in one pass.
+
+    Both facts are the same rows read two ways: the load counts the
+    scheduled and done ones, and holding any shift at all is what makes
+    a volunteer no longer pending. Asking the database twice for one
+    table's rows about one roster is a round trip spent on nothing."""
+    loads: dict[str, int] = {}
+    held: set[str] = set()
+    for volunteer_id, status in (
+        db.query(Shift.volunteer_id, Shift.status)
+        .join(Chore, Chore.id == Shift.chore_id)
+        .filter(Chore.roster_id == roster_id, Shift.volunteer_id.is_not(None))
         .all()
-    )
-    return {vid: int(n) for vid, n in rows}
+    ):
+        held.add(volunteer_id)
+        if status in ("scheduled", "done"):
+            loads[volunteer_id] = loads.get(volunteer_id, 0) + 1
+    return loads, held
 
 
 def _accountability(db: Session, roster_id: str) -> dict[str, AccountabilityCounts]:
@@ -387,7 +426,7 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
     """Organiser-facing volunteer list: pseudonym + enrolled chores +
     current load + lifetime accountability counts (from the ShiftEvent
     log). No email/ciphertext/token."""
-    volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+    volunteers = db.execute(select(*Volunteer.__table__.c).where(Volunteer.roster_id == roster.id)).all()
     if not volunteers:
         return []
     vol_ids = [v.id for v in volunteers]
@@ -396,16 +435,9 @@ def volunteer_summaries(db: Session, roster: Roster) -> list[VolunteerSummaryOut
         db.query(Enrollment.volunteer_id, Enrollment.chore_id).filter(Enrollment.volunteer_id.in_(vol_ids)).all()
     ):
         by_vol.setdefault(vid, []).append(cid)
-    loads = _roster_loads(db, roster.id)
-    counts = _accountability(db, roster.id)
     # A volunteer is "pending" until they hold any shift (pinned or past).
-    held = {
-        row[0]
-        for row in db.query(Shift.volunteer_id)
-        .join(Chore, Chore.id == Shift.chore_id)
-        .filter(Chore.roster_id == roster.id, Shift.volunteer_id.is_not(None))
-        .distinct()
-    }
+    loads, held = _roster_shift_facts(db, roster.id)
+    counts = _accountability(db, roster.id)
     return [
         VolunteerSummaryOut(
             id=v.id,
@@ -433,7 +465,7 @@ def chore_accountability(db: Session, roster: Roster) -> list[ChoreAccountabilit
     chores = _chores(db, roster.id)
     if not chores:
         return []
-    vols = {v.id: v for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id)}
+    vols = {v.id: v for v in db.execute(select(*Volunteer.__table__.c).where(Volunteer.roster_id == roster.id))}
 
     enrolled: dict[str, list[str]] = {}
     if vols:
@@ -522,7 +554,10 @@ def chore_calendar(db: Session, roster: Roster, year: int, month: int, today: da
     chore_ids = [c.id for c in chores]
     m_start, m_end = _month_bounds(year, month)
     horizon_end = chore_tick.horizon_end(roster, today)
-    vol_names = {v.id: v.display_name for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id)}
+    vol_names = {
+        v.id: v.display_name
+        for v in db.execute(select(Volunteer.id, Volunteer.display_name).where(Volunteer.roster_id == roster.id))
+    }
 
     actual: dict[tuple[str, date], list[CalendarAssigneeOut]] = {}
     real_end = min(m_end, horizon_end)
@@ -653,7 +688,10 @@ def schedule(db: Session, roster: Roster) -> ScheduleOut:
         if outlook_start <= outlook_until:
             chore_names = {c.id: c.name for c in chores}
             vol_names = {
-                v.id: v.display_name for v in db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+                v.id: v.display_name
+                for v in db.execute(
+                    select(Volunteer.id, Volunteer.display_name).where(Volunteer.roster_id == roster.id)
+                )
             }
             proj = chore_tick.project_range(db, roster, chores, outlook_start, outlook_until)
             outlook = sorted(

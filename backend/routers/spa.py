@@ -43,7 +43,7 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Chapter, Datepoll, Form, Occurrence, Roster
+from ..models import Chapter, Datepoll, Form, Occurrence, Roster, Tenant
 from ..schemas.common import pick_localized
 from ..services import agenda as agenda_svc
 from ..services import brand as brand_svc
@@ -514,19 +514,26 @@ def brand_slug_for(db: Session, prefix: str, slug: str) -> str:
     to guess."""
     resolve = _PUBLIC_RESOLVERS.get(prefix)
     entity = _resolve_public(db, slug, resolve) if resolve is not None else None
-    return _brand_slug_for(db, entity)
+    return _brand_slug_for(entity)
 
 
-def _brand_slug_for(db: Session, entity: object | None) -> str:
+def _brand_slug_for(entity: object | None) -> str:
     """Which brand a public page wears: the one belonging to the tenant
     that owns the entity behind the slug. An unknown or archived slug
     resolved to nothing, so there is no owner to ask, and those pages
     wear the house brand. So does a personal account's page: its slug
-    names no brand folder, which is what ``brand_slug`` decides."""
+    names no brand folder, which is what ``brand_slug`` decides. A
+    tenant that has been dropped from ``TENANTS`` is soft-deleted and no
+    longer has a brand folder committed, so its pages fall back too.
+
+    Read off the row the resolver already loaded. Resolving a public
+    slug binds the owning tenant (``services/tenancy``), which loads
+    that same row, so asking the database again was a second round trip
+    on every public page for a brand it had already fetched."""
     if entity is None:
         return brand_svc.HOUSE_BRAND
-    tenant = tenants_svc.get_live(db, entity.tenant_id)  # type: ignore[attr-defined]
-    return tenant.brand_slug if tenant is not None else brand_svc.HOUSE_BRAND
+    tenant = entity.tenant  # type: ignore[attr-defined]
+    return tenant.brand_slug if tenant.deleted_at is None else brand_svc.HOUSE_BRAND
 
 
 def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLResponse:
@@ -537,7 +544,7 @@ def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLRespons
     payload = (
         json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
     )
-    brand_slug = _brand_slug_for(db, occurrence)
+    brand_slug = _brand_slug_for(occurrence)
     return _serve_public_app(
         html_name="public-event.html",
         window_var="__OPKOMST_EVENT__",
@@ -557,7 +564,7 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
     # "no longer available" state it would on a 410.
     form = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="survey"))
     payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
-    brand_slug = _brand_slug_for(db, form)
+    brand_slug = _brand_slug_for(form)
     return _serve_public_app(
         html_name="public-form.html",
         window_var="__OPKOMST_FORM__",
@@ -579,7 +586,7 @@ def _serve_public_quiz(slug: str, db: Session, request: Request) -> HTMLResponse
     traffic.record("public_quiz")
     quiz = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="quiz"))
     payload = json.loads(forms_svc.to_public_out(db, quiz).model_dump_json()) if quiz is not None else None
-    brand_slug = _brand_slug_for(db, quiz)
+    brand_slug = _brand_slug_for(quiz)
     return _serve_public_app(
         html_name="public-quiz.html",
         window_var="__OPKOMST_QUIZ__",
@@ -601,7 +608,7 @@ def _serve_public_compass(slug: str, db: Session, request: Request) -> HTMLRespo
     traffic.record("public_compass")
     kompas = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="compass"))
     payload = json.loads(forms_svc.to_public_out(db, kompas).model_dump_json()) if kompas is not None else None
-    brand_slug = _brand_slug_for(db, kompas)
+    brand_slug = _brand_slug_for(kompas)
     return _serve_public_app(
         html_name="public-compass.html",
         window_var="__OPKOMST_COMPASS__",
@@ -620,7 +627,7 @@ def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResp
     # Archived/unknown polls inline null, same as forms.
     poll = _resolve_public(db, slug, datepolls_svc.get_datepoll_by_slug_any)
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
-    brand_slug = _brand_slug_for(db, poll)
+    brand_slug = _brand_slug_for(poll)
     return _serve_public_app(
         html_name="public-datepoll.html",
         window_var="__OPKOMST_DATEPOLL__",
@@ -639,7 +646,7 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = _resolve_public(db, slug, chores_svc.get_roster_by_slug_any)
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
-    brand_slug = _brand_slug_for(db, roster)
+    brand_slug = _brand_slug_for(roster)
     return _serve_public_app(
         html_name="public-chore.html",
         window_var="__OPKOMST_CHORE__",
@@ -653,13 +660,15 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
     )
 
 
-def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, brand_slug: str) -> HTMLResponse:
-    traffic.record("chapter_agenda")
+def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, tenant: Tenant) -> HTMLResponse:
     """The organisation's agenda for one of its chapters, at
     ``/{tenant}/{chapter}``. The caller has already resolved both — the
     tenant from the first path segment, the chapter within it — so the
-    brand is the tenant's, not a lookup through the entity."""
-    payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json())
+    brand is the tenant's, not a lookup through the entity, and the
+    agenda window is read off the row rather than fetched again."""
+    traffic.record("chapter_agenda")
+    brand_slug = tenant.slug
+    payload = json.loads(agenda_svc.build_agenda(db, chapter, tenant).model_dump_json())
     return _serve_public_app(
         html_name="public-chapter.html",
         window_var="__OPKOMST_CHAPTER__",
@@ -759,5 +768,5 @@ def mount(app: FastAPI) -> None:
         second = rest.split("/", 1)[0]
         chapter = chapters_svc.find_live_by_slug(db, second) if second else None
         if chapter is not None:
-            return _serve_public_chapter(chapter, second, db, request, tenant.slug)
+            return _serve_public_chapter(chapter, second, db, request, tenant)
         return _serve_admin_shell(tenant.slug, request)

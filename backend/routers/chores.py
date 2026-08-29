@@ -69,12 +69,11 @@ def list_rosters(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[RosterListOut]:
-    rows = (
-        db.query(Roster)
-        .filter(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_(None))
+    rows = db.execute(
+        access.scoped_select(db, Roster, user, *chores_svc.LIST_COLUMNS, chapter_id=chapter_id)
+        .where(Roster.archived_at.is_(None))
         .order_by(Roster.created_at.desc())
-        .all()
-    )
+    ).all()
     return chores_svc.enrich(db, rows)
 
 
@@ -94,8 +93,10 @@ def get_roster(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> RosterOut:
-    roster = access.get_roster_for_user(db, roster_id, user)
-    return chores_svc.to_out(db, roster)
+    return chores_svc.to_out(
+        db,
+        access.get_scoped_row(db, Roster, roster_id, user, *chores_svc.FULL_COLUMNS, not_found="Roster not found"),
+    )
 
 
 @router.get("/{roster_id}/volunteers", response_model=list[VolunteerSummaryOut])

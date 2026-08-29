@@ -30,13 +30,16 @@ chosen option supplies both and lands on one of the two endpoints.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Final
 
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import CompassAxis, FormQuestion, FormResponse
+from . import form_answers
 
 # The kinds a kompas can ask. A rating is the classic compass question:
 # a statement, a five-point scale, one direction. A choice is the
@@ -141,7 +144,7 @@ def as_fields(row: FormResponse) -> dict[str, Any]:
     }
 
 
-def position_of(questions: list[FormQuestion], rows: list[FormResponse]) -> Position:
+def position_of(questions: Sequence[Any], rows: Sequence[Any]) -> Position:
     """One submission's place on the map: the mean of its answers'
     contributions, per axis.
 
@@ -169,25 +172,15 @@ def position_of(questions: list[FormQuestion], rows: list[FormResponse]) -> Posi
     )
 
 
-def rows_by_submission(db: Session, form_id: str) -> dict[str, list[FormResponse]]:
-    """Every stored answer for this kompas, grouped by who gave it. One
-    query, because both the organiser's page and every respondent's map
-    place all of them at once."""
-    grouped: dict[str, list[FormResponse]] = {}
-    for row in db.query(FormResponse).filter(FormResponse.form_id == form_id).all():
-        grouped.setdefault(row.submission_id, []).append(row)
-    return grouped
-
-
-def positions(db: Session, questions: list[FormQuestion], form_id: str) -> dict[str, Position]:
+def positions(db: Session, questions: Sequence[Any], form_id: str) -> dict[str, Position]:
     """Submission id to place on the map, for every submission."""
-    return {sid: position_of(questions, rows) for sid, rows in rows_by_submission(db, form_id).items()}
+    return {sid: position_of(questions, rows) for sid, rows in form_answers.by_submission(db, form_id).items()}
 
 
-def axes_of(db: Session, form_id: str) -> list[CompassAxis]:
+def axes_of(db: Session, form_id: str) -> list[Any]:
     """The two axis rows, ``x`` first. Empty on a form that is not a
     kompas, which is how every caller tells."""
-    rows = db.query(CompassAxis).filter(CompassAxis.form_id == form_id).all()
+    rows = db.execute(select(*CompassAxis.__table__.c).where(CompassAxis.form_id == form_id)).all()
     return sorted(rows, key=lambda a: a.axis)
 
 

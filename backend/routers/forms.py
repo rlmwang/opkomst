@@ -110,12 +110,13 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormListOut]:
-        rows = (
-            forms_svc.query(db, _MODE)
-            .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_(None))
+        rows = db.execute(
+            access.scoped_select(db, Form, user, *forms_svc.LIST_COLUMNS, chapter_id=chapter_id)
+            # The table holds three products, so the mode predicate is
+            # part of every read of it (``forms_svc.query``).
+            .where(Form.mode == _MODE, Form.archived_at.is_(None))
             .order_by(Form.created_at.desc())
-            .all()
-        )
+        ).all()
         return forms_svc.enrich(db, rows)
 
     @router.get("/archived", response_model=list[FormListOut])
@@ -132,8 +133,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormOut:
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        return forms_svc.to_out(db, form)
+        return forms_svc.to_out(
+            db,
+            access.get_scoped_row(
+                db,
+                Form,
+                form_id,
+                user,
+                *forms_svc.FULL_COLUMNS,
+                not_found="Form not found",
+                where=Form.mode == _MODE,
+            ),
+        )
 
     @router.put("/{form_id}", response_model=FormOut)
     @limiter.limit(Limits.ORG_WRITE)

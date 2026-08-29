@@ -10,7 +10,7 @@ Chapter-scoped lookups live in ``services.access``
 (``get_datepoll_for_user`` / ``datepoll_scope_filter``).
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date, time
 from typing import TYPE_CHECKING, Any, Final, get_args
 
@@ -97,7 +97,34 @@ def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
     return {cid: name for cid, name in rows}
 
 
-def enrich(db: Session, polls: list[Datepoll]) -> list[DatepollListOut]:
+# The columns the projections below read. A GET selects exactly these;
+# a write route hands over the ORM entity it just saved, which answers
+# the same attribute names, so one projection serves both.
+LIST_COLUMNS = (
+    Datepoll.id,
+    Datepoll.slug,
+    Datepoll.name_nl,
+    Datepoll.name_en,
+    Datepoll.locale,
+    Datepoll.chapter_id,
+    Datepoll.archived_at,
+    Datepoll.created_at,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Datepoll.description_nl,
+    Datepoll.description_en,
+    Datepoll.location,
+    Datepoll.latitude,
+    Datepoll.longitude,
+    Datepoll.image_path,
+    Datepoll.image_artist_instagram,
+    Datepoll.name_required,
+    Datepoll.answers_editable,
+)
+
+
+def enrich(db: Session, polls: Sequence[Any]) -> list[DatepollListOut]:
     """Build ``DatepollListOut`` rows with batched lookups: one query
     for chapter names, one grouped query for the per-poll date
     count + earliest/latest. No N+1 regardless of list size."""
@@ -192,18 +219,17 @@ def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[Datepoll
     ]
 
 
-def _slots(db: Session, datepoll_id: str) -> list[DatepollSlot]:
+def _slots(db: Session, datepoll_id: str) -> Sequence[Any]:
     """Candidate slots in display order: by date, then whole-day
     (NULL start) before timed, then by start time."""
-    return (
-        db.query(DatepollSlot)
-        .filter(DatepollSlot.datepoll_id == datepoll_id)
+    return db.execute(
+        select(*DatepollSlot.__table__.c)
+        .where(DatepollSlot.datepoll_id == datepoll_id)
         .order_by(DatepollSlot.on_date, DatepollSlot.start_time.nulls_first())
-        .all()
-    )
+    ).all()
 
 
-def to_out(db: Session, poll: Datepoll) -> DatepollOut:
+def to_out(db: Session, poll: Any) -> DatepollOut:
     """Single-poll organiser DTO: list-row fields + description + the
     full candidate-slot list. One chapter lookup + one slot query."""
     chapter_name = _chapter_names(db, {poll.chapter_id}).get(poll.chapter_id) if poll.chapter_id else None

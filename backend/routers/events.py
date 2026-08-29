@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -71,12 +72,11 @@ def list_events(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[EventListOut]:
-    rows = (
-        db.query(Event)
-        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
+    rows = db.execute(
+        access.scoped_select(db, Event, user, *event_stats.LIST_COLUMNS, chapter_id=chapter_id)
+        .where(Event.archived_at.is_(None))
         .order_by(Event.starts_on.desc())
-        .all()
-    )
+    ).all()
     return event_stats.list_enrich(db, rows)
 
 
@@ -120,7 +120,10 @@ def restore_event(
 ) -> EventOut:
     access.archived_row(db, "events", event_id, user)
     crud.restore_entity(db, root="events", entity_id=event_id, log_event="event_restored", actor_id=user.id)
-    return event_stats.to_out(db, access.get_event_for_user(db, event_id, user))
+    return event_stats.to_out(
+        db,
+        access.get_scoped_row(db, Event, event_id, user, *event_stats.FULL_COLUMNS, not_found="Event not found"),
+    )
 
 
 @router.delete("/{event_id}", status_code=204)
@@ -347,7 +350,10 @@ def get_event(
     """One event. The detail and edit pages read the event they are
     about from here; they used to filter it out of the full list, which
     made opening either one cost every event in the chapter."""
-    return event_stats.to_out(db, access.get_event_for_user(db, event_id, user))
+    return event_stats.to_out(
+        db,
+        access.get_scoped_row(db, Event, event_id, user, *event_stats.FULL_COLUMNS, not_found="Event not found"),
+    )
 
 
 @router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)
@@ -360,32 +366,50 @@ def event_occurrences(
     occurrences with per-session headcount + line-item counts, plus the
     projected future dates that aren't rows yet. Strictly read-only per
     occurrence — the only actions are on the event itself."""
-    event = access.get_event_for_user(db, event_id, user)
-    occs = db.query(Occurrence).filter(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc()).all()
+    event = access.get_scoped_row(
+        db,
+        Event,
+        event_id,
+        user,
+        Event.id,
+        Event.cycle_slots,
+        Event.span_weeks,
+        Event.period_weeks,
+        Event.starts_on,
+        Event.start_time,
+        Event.end_time,
+        Event.horizon_days,
+        not_found="Event not found",
+    )
+    occs = db.execute(
+        select(*Occurrence.__table__.c).where(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc())
+    ).all()
     occ_ids = [o.id for o in occs]
     totals = event_stats.occurrence_totals(db, occ_ids)
     counts = event_stats.occurrence_signup_counts(db, occ_ids)
     projected = event_recurrence.projected_future_specs(event, now_wallclock())
+    # ``occs`` is already every session of this event, in date order,
+    # which is exactly what "sessie i van N" is counted from. Asking
+    # ``event_recurrence`` would reach back through ``event.occurrences``
+    # and fetch the same rows a second time to number them.
     return OccurrenceListOut(
-        total_sessions=event_recurrence.total_sessions(event),
+        total_sessions=None if (event.cycle_slots and event.span_weeks is None) else len(occs),
         occurrences=[
             OccurrenceOut(
                 id=o.id,
                 slug=o.slug,
-                index=event_recurrence.session_index(event, o),
+                index=i,
                 starts_at=o.starts_at,
                 ends_at=o.ends_at,
                 attendee_count=int(totals.get(o.id, 0)),
                 signup_count=int(counts.get(o.id, 0)),
             )
-            for o in occs
+            for i, o in enumerate(occs)
         ],
         # Numbered on from the last materialised session: a projected date
         # is the next session, it just has no row yet.
         projected=[
-            ProjectedOccurrenceOut(
-                index=event_recurrence.session_count(event) + i, starts_at=s.starts_at, ends_at=s.ends_at
-            )
+            ProjectedOccurrenceOut(index=len(occs) + i, starts_at=s.starts_at, ends_at=s.ends_at)
             for i, s in enumerate(projected)
         ],
     )

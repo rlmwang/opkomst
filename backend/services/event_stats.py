@@ -17,7 +17,7 @@ Helpers the events routers compose:
 Routers stay thin; the SQL lives here where it can be unit-tested.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -128,7 +128,7 @@ def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
     return {cid: name for cid, name in rows}
 
 
-def _derived(db: Session, events: list[Event]) -> tuple[dict[str, str], dict[str, int], dict]:
+def _derived(db: Session, events: Sequence[Any]) -> tuple[dict[str, str], dict[str, int], dict]:
     """The three batched lookups both enrichers need: chapter names,
     booking headcount, and the next occurrence."""
     event_ids = [e.id for e in events]
@@ -139,7 +139,48 @@ def _derived(db: Session, events: list[Event]) -> tuple[dict[str, str], dict[str
     )
 
 
-def list_enrich(db: Session, events: list[Event]) -> list[EventListOut]:
+# The columns the two projections below read. A GET selects exactly
+# these; a write route hands over the ORM entity it just saved, which
+# answers the same attribute names. So one projection serves both and
+# the response after a PUT cannot drift from the response to a GET.
+LIST_COLUMNS = (
+    Event.id,
+    Event.name_nl,
+    Event.name_en,
+    Event.locale,
+    Event.chapter_id,
+    Event.archived_at,
+    Event.location,
+    Event.latitude,
+    Event.longitude,
+    Event.starts_on,
+    Event.start_time,
+    Event.period_weeks,
+    Event.cycle_slots,
+    Event.span_weeks,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Event.slug,
+    Event.topic_nl,
+    Event.topic_en,
+    Event.end_time,
+    Event.horizon_days,
+    Event.source_options,
+    Event.source_enabled,
+    Event.help_options,
+    Event.help_enabled,
+    Event.feedback_enabled,
+    Event.reminder_enabled,
+    Event.listed,
+    Event.name_required,
+    Event.answers_editable,
+    Event.image_path,
+    Event.image_artist_instagram,
+)
+
+
+def list_enrich(db: Session, events: Sequence[Any]) -> list[EventListOut]:
     """The list DTO: what a dashboard card draws. Same batched lookups as
     ``enrich``, minus every field only the event's own page reads."""
     if not events:
@@ -170,7 +211,7 @@ def list_enrich(db: Session, events: list[Event]) -> list[EventListOut]:
     ]
 
 
-def enrich(db: Session, events: list[Event]) -> list[EventOut]:
+def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
     """The full DTO: the list fields plus the sign-up form's own
     definition. Single-event endpoints wrap a 1-list and unwrap the
     result."""
@@ -266,7 +307,7 @@ def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[EventLis
     ]
 
 
-def to_out(db: Session, event: Event) -> EventOut:
+def to_out(db: Session, event: Any) -> EventOut:
     """Single-event convenience — wraps ``enrich`` for a 1-list."""
     return enrich(db, [event])[0]
 

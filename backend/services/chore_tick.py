@@ -20,7 +20,9 @@ resolving eligibility and the favour ledger (``ledger_weights``).
 ``reassign_shift`` is the single-shift variant used by the handoff route.
 """
 
+from collections.abc import Sequence
 from datetime import date, timedelta
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -155,7 +157,7 @@ def _eligible_by_chore(db: Session, chore_ids: list[str]) -> dict[str, list[str]
     return out
 
 
-def _chore_specs(chores: list[Chore]) -> list[ChoreSpec]:
+def _chore_specs(chores: Sequence[Any]) -> list[ChoreSpec]:
     return [
         ChoreSpec(chore_id=c.id, cycle_slots=tuple(c.cycle_slots), people_per_shift=c.people_per_shift) for c in chores
     ]
@@ -253,7 +255,7 @@ def _fixed_rows(db: Session, chore_ids: list[str], end: date, *, exclude_shift_i
 def _fold_range(
     db: Session,
     roster: Roster,
-    chores: list[Chore],
+    chores: Sequence[Any],
     end: date,
     *,
     exclude_shift_id: str | None = None,
@@ -284,7 +286,7 @@ def _fold_range(
     )
 
 
-def project_range(db: Session, roster: Roster, chores: list[Chore], start: date, end: date):
+def project_range(db: Session, roster: Roster, chores: Sequence[Any], start: date, end: date):
     """The assignments for one roster over ``[start, end]`` — the shared
     oracle behind both the tick's pin step and the read-side outlook, so
     confirmed and outlook never disagree. The fold runs from the roster's
@@ -293,7 +295,7 @@ def project_range(db: Session, roster: Roster, chores: list[Chore], start: date,
     return [pa for pa in _fold_range(db, roster, chores, end) if pa.occurrence.on_date >= start]
 
 
-def _pin_window(db: Session, roster: Roster, chores: list[Chore], today: date) -> int:
+def _pin_window(db: Session, roster: Roster, chores: Sequence[Any], today: date) -> int:
     """Pin the incoming edge + prune stale window pins. Returns inserted."""
     chore_ids = [c.id for c in chores]
     end = horizon_end(roster, today)

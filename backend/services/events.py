@@ -66,12 +66,13 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
     and the projected beyond-horizon dates shown as not-yet-open."""
     event = current.event
     now = now_wallclock()
-    upcoming_rows = (
-        db.query(Occurrence)
-        .filter(Occurrence.event_id == event.id, Occurrence.ends_at > now)
-        .order_by(Occurrence.starts_at.asc())
-        .all()
-    )
+    # Filtered from the event's own sessions rather than queried
+    # separately. The "sessie i van N" on this page already reads the
+    # full list (``session_index`` / ``total_sessions``), so a second
+    # query for the subset of it that hasn't ended was fetching rows the
+    # request had in hand. The relationship is ordered by ``starts_at``,
+    # which is the order this list wants.
+    upcoming_rows = [o for o in event.occurrences if o.ends_at > now]
     projected = event_recurrence.projected_future_specs(event, now)
     return PublicEventOut(
         event_slug=event.slug,
