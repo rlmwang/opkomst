@@ -1,4 +1,5 @@
 import { cleanup, render } from "@testing-library/svelte";
+import type { ComponentProps } from "svelte";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { bindable } from "@/__tests__/bind.svelte";
@@ -17,7 +18,11 @@ afterEach(cleanup);
  *  The panel is moved to the body, so panel queries go through
  *  ``document``; everything the field owns is in the container. */
 function picker(value: Date | Date[] | null, rest: Record<string, unknown> = {}) {
-  const model = bindable("modelValue", value, rest);
+  const model = bindable<Date | Date[] | null, ComponentProps<typeof DatePicker>>(
+    "modelValue",
+    value,
+    rest,
+  );
   const { container, unmount } = render(DatePicker, { props: model.props });
   const input = container.querySelector("input") as HTMLInputElement;
   return {

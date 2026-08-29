@@ -1,4 +1,4 @@
-import type { FormResource } from "@/composables/useForms";
+import type { FormResource } from "@/composables/useForms.svelte";
 import { publicUrl, qrUrl } from "@/lib/public-urls";
 
 /**

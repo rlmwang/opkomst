@@ -4,6 +4,7 @@
  * for a k-week cycle.
  */
 import { render } from "@testing-library/svelte";
+import type { ComponentProps } from "svelte";
 import { describe, expect, it } from "vitest";
 
 import { bindable } from "@/__tests__/bind.svelte";
@@ -20,7 +21,9 @@ useTestMessages("en", {
 });
 
 function picker(value: number[], periodWeeks: number) {
-  const slots = bindable("value", value, { periodWeeks });
+  const slots = bindable<number[], ComponentProps<typeof CycleGridPicker>>("value", value, {
+    periodWeeks,
+  });
   const { container } = render(CycleGridPicker, { props: slots.props });
   const all = (selector: string) => [...container.querySelectorAll(selector)];
   return {

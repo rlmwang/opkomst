@@ -1,3 +1,4 @@
+import type { ComponentProps } from "svelte";
 import { render } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -110,7 +111,9 @@ describe("AppDialog", () => {
   });
 
   it("tells the parent when the close button is pressed", async () => {
-    const open = bindable("visible", true, { header: "T" });
+    const open = bindable<boolean, ComponentProps<typeof DialogHarness>>("visible", true, {
+      header: "T",
+    });
     const { container } = render(DialogHarness, { props: open.props });
     (container.querySelector(".app-dialog-close") as HTMLElement).click();
     await settle();

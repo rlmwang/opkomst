@@ -14,7 +14,8 @@
 import { render } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
 
-import CompassPlot, { type PlotPoint } from "@/public_shared/CompassPlot.svelte";
+import CompassPlot from "@/public_shared/CompassPlot.svelte";
+import type { PlotPoint } from "@/public_shared/compass-plot";
 
 const AXES = [
   { axis: "x", low_name: "Links", high_name: "Rechts" },

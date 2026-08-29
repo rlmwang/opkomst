@@ -29,9 +29,20 @@ export interface RouteMeta {
   resource?: "form" | "quiz" | "compass";
 }
 
+/**
+ * A page.
+ *
+ * Its props are the route's parameters, and a page declares only the
+ * ones its own path carries: the dashboard takes none, the event editor
+ * takes an ``eventId``. There is no type that is both, so the table
+ * holds them loosely and each page states what it needs.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type PageComponent = Component<any>;
+
 export interface RouteDef {
   path: string;
-  load: () => Promise<{ default: Component<never> }>;
+  load: () => Promise<{ default: PageComponent }>;
   meta?: RouteMeta;
 }
 
@@ -39,7 +50,7 @@ export interface Matched {
   path: string;
   params: Record<string, string>;
   meta: RouteMeta;
-  component: Component<never>;
+  component: PageComponent;
 }
 
 const BASE = brand().app_base.replace(/\/$/, "");

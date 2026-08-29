@@ -1,5 +1,3 @@
-import type { Component } from "svelte";
-
 import { auth, fetchMe } from "@/stores/auth.svelte";
 import { captureError } from "@/lib/sentry";
 import { getToken } from "@/api/client";
@@ -7,6 +5,7 @@ import { isPersonalApp } from "@/lib/branding";
 
 import {
   type Matched,
+  type PageComponent,
   type RouteDef,
   matchRoute,
   stripBase,
@@ -164,14 +163,14 @@ function show(
   search: string,
   params: Record<string, string>,
   meta: RouteDef["meta"],
-  component: Component<never>,
+  component: PageComponent,
 ): void {
   current = { path, params, meta: meta ?? {}, component };
   query = new URLSearchParams(search);
 }
 
 /** What renders when there is nothing else to render. */
-const notFoundPage = async (): Promise<Component<never>> =>
+const notFoundPage = async (): Promise<PageComponent> =>
   (await import("@/pages/NotFoundPage.svelte")).default;
 
 /** Navigate. ``replace`` swaps the history entry rather than adding

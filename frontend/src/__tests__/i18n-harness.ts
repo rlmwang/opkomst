@@ -1,12 +1,12 @@
-import { locale, setCatalogue, type Locale } from "@/i18n";
+import { setCatalogue, setLocale, type Locale } from "@/i18n.svelte";
 
 /**
  * Give a test the strings the component under test asks for, and put
  * the app in that language.
  *
- * Was ``createI18n({ messages })`` handed to ``global.plugins``, which
- * ``src/i18n.ts`` no longer needs: the translations are a module, not a
- * Vue plugin, so a test installs a catalogue rather than an app.
+ * Was ``createI18n({ messages })`` handed to a plugin list, which the
+ * app no longer has: the translations are a module, so a test installs
+ * a catalogue rather than an app.
  *
  * Vitest gives every test file its own module registry, so a catalogue
  * installed here is not visible to another file. Keys the catalogue
@@ -15,5 +15,5 @@ import { locale, setCatalogue, type Locale } from "@/i18n";
  */
 export function useTestMessages(target: Locale, messages: object): void {
   setCatalogue(target, messages);
-  locale.value = target;
+  setLocale(target);
 }

@@ -9,6 +9,7 @@
  * screen still works.
  */
 import { cleanup, render } from "@testing-library/svelte";
+import type { ComponentProps } from "svelte";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { bindable } from "@/__tests__/bind.svelte";
@@ -51,7 +52,7 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
 
 /** The draft, and the editor driven the way an organiser drives it. */
 function editor(draft: QuestionDraft) {
-  const model = bindable<QuestionDraft>("value", draft, {
+  const model = bindable<QuestionDraft, ComponentProps<typeof QuestionEditor>>("value", draft, {
     canMoveUp: true,
     canMoveDown: true,
     ondelete: () => {},

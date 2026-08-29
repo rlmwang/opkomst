@@ -1,7 +1,7 @@
 import type { AuthResponse, User } from "@/api/types";
 import { clearToken, get, getToken, post, setToken } from "@/api/client";
 import { brand, isPersonalApp } from "@/lib/branding";
-import { clearAllDrafts } from "@/composables/useFormDraft";
+import { clearAllDrafts } from "@/composables/useFormDraft.svelte";
 
 export type { User };
 

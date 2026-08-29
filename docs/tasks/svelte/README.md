@@ -3,22 +3,35 @@
 A proposal, then a plan. The decision is taken; what follows is how to
 take it without a six-week stop.
 
-**Phases 0 to 4 have landed.** Nothing in the app is drawn by Vue any
-more. The organiser app's critical path went **81,738 gz to 47,779**,
-and the public pages, already Svelte, came down another 800 to 1,600
-bytes each on the way. Phase 5, deleting the Vue packages, is what is
-left.
+**Done.** Vue is gone from the tree: no ``.vue`` file, no ``vue``,
+``vue-router``, ``pinia``, ``@tanstack/vue-query``, ``@sentry/vue``,
+``@vue/test-utils``, ``vue-tsc`` or ``@vitejs/plugin-vue``, one
+``tsconfig.json`` again, and one checker. Nothing in ``dist`` mentions
+Vue.
 
-| entry | before Svelte | after | off |
+| entry | before | after | off |
 |---|---|---|---|
-| organiser (`index.html`) | 81,738 | 47,779 | 33,959 (42%) |
-| public-chapter | 46,871 | 30,930 | 15,941 (34%) |
-| public-form | 52,753 | 37,291 | 15,462 (29%) |
-| public-quiz | 52,983 | 38,392 | 14,591 (28%) |
-| public-compass | 55,667 | 41,288 | 14,379 (26%) |
-| public-datepoll | 56,324 | 41,091 | 15,233 (27%) |
-| public-event | 61,923 | 47,142 | 14,781 (24%) |
-| public-chore | 64,300 | 48,082 | 16,218 (25%) |
+| organiser (`index.html`) | 170,966 | 48,023 | 122,943 (72%) |
+| public-chapter | 46,871 | 30,938 | 15,933 (34%) |
+| public-form | 52,753 | 37,285 | 15,468 (29%) |
+| public-quiz | 52,983 | 38,391 | 14,592 (28%) |
+| public-compass | 55,667 | 41,280 | 14,387 (26%) |
+| public-datepoll | 56,324 | 41,080 | 15,244 (27%) |
+| public-event | 61,923 | 47,446 | 14,477 (23%) |
+| public-chore | 64,300 | 48,271 | 16,029 (25%) |
+
+The organiser figure is three pieces of work: PrimeVue and its icon
+font, then vue-i18n, then Vue itself with its router and Pinia. The
+last of those was 81,738 to 48,023.
+
+**The tests came across with the components.** Sixteen files mounted
+Vue or hosted a composable in a Vue app. A bindable prop is observed
+through an accessor the test hands over (``__tests__/bind.svelte.ts``),
+backed by reactive state because a component reads its own bindable
+prop back; a snippet cannot be written from a test, so three harness
+components carry them; and a composable that subscribes runs inside an
+``$effect.root`` (``__tests__/effect-root.svelte.ts``) rather than a
+mounted component.
 
 **The build is two passes now** (`frontend/scripts/build.mjs`). Eight
 entries in one Rollup graph was right while the two halves shared a

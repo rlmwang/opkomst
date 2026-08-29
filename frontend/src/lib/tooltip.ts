@@ -1,4 +1,3 @@
-import type { Directive } from "vue";
 
 /**
  * ``v-tooltip.top``, the app's own, and the Svelte action beside it.
@@ -62,15 +61,6 @@ function bind(el: HTMLElement, text: () => string): () => void {
     hide();
   };
 }
-
-export const tooltip: Directive<HTMLElement, string | undefined> = {
-  mounted(el, binding) {
-    bind(el, () => binding.value ?? "");
-  },
-  unmounted() {
-    hide();
-  },
-};
 
 /** ``use:tip={"Kopieer link"}``, the same label from a Svelte
  *  component. */

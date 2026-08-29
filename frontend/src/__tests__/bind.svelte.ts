@@ -16,7 +16,11 @@
  * toggling a row off is exactly that: without a signal to re-read, the
  * write reaches the test and the component still sees the old value.
  */
-export function bindable<T>(name: string, initial: T, rest: Record<string, unknown> = {}) {
+export function bindable<T, P = Record<string, unknown>>(
+  name: string,
+  initial: T,
+  rest: Record<string, unknown> = {},
+) {
   let current = $state(initial);
   const writes: T[] = [];
   const props: Record<string, unknown> = { ...rest };
@@ -30,7 +34,9 @@ export function bindable<T>(name: string, initial: T, rest: Record<string, unkno
     },
   });
   return {
-    props,
+    // The accessor is defined by name at runtime, so it is not on the
+    // literal's type. The caller says what the component asks for.
+    props: props as P,
     get current() {
       return current;
     },

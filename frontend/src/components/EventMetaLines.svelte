@@ -1,6 +1,6 @@
 <script lang="ts">
 import { locale, t } from "@/i18n.svelte";
-import type { EventListOut } from "@/composables/useEvents";
+import type { EventListOut } from "@/composables/useEvents.svelte";
 import { formatDateTime } from "@/lib/format";
 import { mapLink } from "@/lib/map-link";
 import { recurrenceHint } from "@/lib/recurrence";

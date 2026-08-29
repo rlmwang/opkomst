@@ -2,12 +2,12 @@
  * The ``usersTitle`` regression: ``t("usersTitle")`` resolved against no
  * value and rendered the literal string. vue-i18n was silent about that
  * in production, and these tests pin the strict handler in
- * ``src/i18n.ts`` that replaced its silence. They outlived vue-i18n
- * itself, which is the point of them.
+ * ``lib/i18n-core`` that replaced its silence. They outlived vue-i18n
+ * itself, and Vue, which is the point of them.
  */
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { initI18n, locale, setLocale, t } from "@/i18n";
+import { initI18n, locale, setLocale, t } from "@/i18n.svelte";
 
 // The catalogues are fetched rather than bundled, so the active one has
 // to be loaded before any lookup resolves.
@@ -50,14 +50,14 @@ describe("i18n missing-key handler", () => {
 
 describe("lazy catalogues", () => {
   it("has the active language after init, and resolves real copy from it", () => {
-    expect(locale.value).toBe("nl");
+    expect(locale()).toBe("nl");
     expect(t("auth.sendLink")).not.toMatch(/^\[/);
   });
 
   it("fetches the other language on switch, then renders it", async () => {
     const dutch = t("auth.sendLink");
     await setLocale("en");
-    expect(locale.value).toBe("en");
+    expect(locale()).toBe("en");
     const english = t("auth.sendLink");
     expect(english).not.toMatch(/^\[/);
     expect(english).not.toBe(dutch);
