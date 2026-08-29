@@ -186,7 +186,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
                     "kind": "single_choice",
                     "prompt": "Pick",
                     "required": True,
-                    "options": ["only-one"],
+                    "options": [{"label": "only-one"}],
                 }
             ],
         },
@@ -208,7 +208,7 @@ def test_choice_with_duplicate_options_400s(client, organiser_headers):
                     "kind": "multi_choice",
                     "prompt": "Pick many",
                     "required": False,
-                    "options": ["a", "a", "b"],
+                    "options": [{"label": "a"}, {"label": "a"}, {"label": "b"}],
                 }
             ],
         },
@@ -229,7 +229,7 @@ def test_kind_normalisation_strips_options_for_non_choice(client, organiser_head
                 "kind": "text",
                 "prompt": "Free form",
                 "required": False,
-                "options": ["leftover-a", "leftover-b"],
+                "options": [{"label": "leftover-a"}, {"label": "leftover-b"}],
                 "low_label": "ignored",
                 "high_label": "also ignored",
             },

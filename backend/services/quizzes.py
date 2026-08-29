@@ -55,11 +55,13 @@ def is_correct(question: FormQuestion, fields: dict[str, Any]) -> bool:
         return abs(answer - question.correct_int) <= (question.tolerance or 0)
 
     if question.kind in ("single_choice", "multi_choice"):
-        chosen = fields.get("answer_choices") or []
-        key = question.correct_choices or []
+        # Both sides are option ids, so a renamed option is still the
+        # same option and a right answer stays right.
+        chosen = {str(c) for c in (fields.get("answer_choices") or [])}
+        key = {str(o.id) for o in question.options if o.is_correct}
         if not key:
             return False
-        return set(map(str, chosen)) == set(map(str, key))
+        return chosen == key
 
     return False
 
@@ -88,7 +90,7 @@ def multi_choice_share(question: FormQuestion, fields: dict[str, Any]) -> float:
 
     Negative is clamped to zero: a quiz question cannot take points off
     a score somebody earned elsewhere."""
-    key = {str(c) for c in (question.correct_choices or [])}
+    key = {str(o.id) for o in question.options if o.is_correct}
     if not key:
         return 0.0
     chosen = {str(c) for c in (fields.get("answer_choices") or [])}
@@ -172,13 +174,12 @@ def validate_keys(questions: list[Any]) -> None:
                 if q.max_value is not None and q.correct_int > q.max_value:
                     raise bad("the correct answer is above the highest allowed number.")
         elif q.kind in ("single_choice", "multi_choice"):
-            key = [c.strip() for c in (q.correct_choices or []) if c.strip()]
-            options = [o.strip() for o in q.options if o.strip()]
-            if not key:
+            # The key is which options are marked correct, so it cannot
+            # name something that is not an option.
+            marked = [o for o in q.options if o.is_correct]
+            if not marked:
                 raise bad("a scored question needs a correct answer.")
-            if any(c not in options for c in key):
-                raise bad("the correct answer has to be one of the options.")
-            if q.kind == "single_choice" and len(key) != 1:
+            if q.kind == "single_choice" and len(marked) != 1:
                 raise bad("a single-choice question has exactly one correct option.")
 
 

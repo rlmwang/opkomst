@@ -36,7 +36,9 @@ from .models import (
     FeedbackResponse,
     Form,
     FormQuestion,
+    FormQuestionOption,
     FormResponse,
+    FormResponseChoice,
     FormSubmission,
     Occurrence,
     Registration,
@@ -763,11 +765,13 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
             kind=kind,
             prompt=prompt,
             required=required,
-            options=options or [],
             low_label=low,
             high_label=high,
         )
         db.add(q)
+        db.flush()
+        for ordinal_option, label in enumerate(options or [], start=1):
+            db.add(FormQuestionOption(question_id=q.id, ordinal=ordinal_option, label=label))
         db.flush()
         return q
 
@@ -779,16 +783,21 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
         for q, ans in zip(questions, answers, strict=True):
             if ans is None:
                 continue
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=q.id,
-                    submission_id=sub.id,
-                    answer_int=ans if isinstance(ans, int) else None,
-                    answer_text=ans if isinstance(ans, str) else None,
-                    answer_choices=ans if isinstance(ans, list) else None,
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=q.id,
+                submission_id=sub.id,
+                answer_int=ans if isinstance(ans, int) else None,
+                answer_text=ans if isinstance(ans, str) else None,
             )
+            db.add(response)
+            db.flush()
+            # The seed writes answers by the label a person saw; the
+            # stored tick is the option's id.
+            if isinstance(ans, list):
+                by_label = {o.label: o.id for o in q.options}
+                for label in ans:
+                    db.add(FormResponseChoice(response_id=response.id, option_id=by_label[label]))
 
     # --- A. active, with a spread of responses -----------------------
     survey = _form("Lidmaatschapsenquête", "Help ons de afdeling beter te maken — duurt twee minuten.")
@@ -887,7 +896,6 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
             kind="rating",
             prompt=prompt,
             required=required,
-            options=[],
             low_label="Oneens",
             high_label="Eens",
             pole=pole,
@@ -910,10 +918,11 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
             kind="single_choice",
             prompt=prompt,
             required=required,
-            options=[text for text, _ in pairs],
-            option_poles=[pole for _, pole in pairs],
         )
         db.add(q)
+        db.flush()
+        for ordinal_option, (label, pole) in enumerate(pairs, start=1):
+            db.add(FormQuestionOption(question_id=q.id, ordinal=ordinal_option, label=label, pole=pole))
         db.flush()
         return q
 

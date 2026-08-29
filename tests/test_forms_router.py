@@ -80,13 +80,13 @@ def test_create_form_with_initial_questions(client, organiser_headers):
                 "kind": "single_choice",
                 "prompt": "Pick one",
                 "required": True,
-                "options": ["A", "B", "C"],
+                "options": [{"label": "A"}, {"label": "B"}, {"label": "C"}],
             },
         ],
     )
     assert len(form["questions"]) == 2
     assert [q["ordinal"] for q in form["questions"]] == [1, 2]
-    assert form["questions"][1]["options"] == ["A", "B", "C"]
+    assert [o["label"] for o in form["questions"][1]["options"]] == ["A", "B", "C"]
 
 
 def test_create_form_rejects_chapter_outside_user_membership(client, admin_headers, organiser_headers):

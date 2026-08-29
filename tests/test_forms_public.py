@@ -12,6 +12,7 @@ from typing import Any
 
 from backend.database import SessionLocal
 from backend.models import FormResponse
+from tests._helpers.forms import option_ids
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -187,7 +188,7 @@ def test_submit_text_happy_path(client, organiser_headers):
         row = db.query(FormResponse).filter(FormResponse.form_id == form["id"]).one()
         assert row.answer_text == "Nice work"
         assert row.answer_int is None
-        assert row.answer_choices is None
+        assert row.answer_choices == []
     finally:
         db.close()
 
@@ -217,19 +218,21 @@ def test_submit_single_choice_happy_path(client, organiser_headers):
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
-    qid = form["questions"][0]["id"]
+    question = form["questions"][0]
+    qid = question["id"]
+    picked = option_ids(question, "B")
     r = client.post(
         f"/api/v1/form/by-slug/{form['slug']}/submit",
-        json={"answers": [{"question_id": qid, "answer_choices": ["B"]}]},
+        json={"answers": [{"question_id": qid, "answer_choices": picked}]},
     )
     assert r.status_code == 201
     db = SessionLocal()
     try:
         row = db.query(FormResponse).filter(FormResponse.form_id == form["id"]).one()
-        assert row.answer_choices == ["B"]
+        assert row.answer_choices == picked
     finally:
         db.close()
 
@@ -239,7 +242,7 @@ def test_submit_single_choice_rejects_value_not_in_options(client, organiser_hea
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
     qid = form["questions"][0]["id"]
@@ -255,7 +258,7 @@ def test_submit_single_choice_rejects_more_than_one(client, organiser_headers):
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": ["A", "B"]},
+            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
     qid = form["questions"][0]["id"]
@@ -274,19 +277,21 @@ def test_submit_multi_choice_dedupes(client, organiser_headers):
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
-    qid = form["questions"][0]["id"]
+    question = form["questions"][0]
+    qid = question["id"]
+    a, b = option_ids(question, "A", "B")
     r = client.post(
         f"/api/v1/form/by-slug/{form['slug']}/submit",
-        json={"answers": [{"question_id": qid, "answer_choices": ["A", "A", "B"]}]},
+        json={"answers": [{"question_id": qid, "answer_choices": [a, a, b]}]},
     )
     assert r.status_code == 201
     db = SessionLocal()
     try:
         row = db.query(FormResponse).filter(FormResponse.form_id == form["id"]).one()
-        assert row.answer_choices == ["A", "B"]
+        assert row.answer_choices == [a, b]
     finally:
         db.close()
 
@@ -296,7 +301,7 @@ def test_submit_multi_choice_rejects_unknown_option(client, organiser_headers):
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
     qid = form["questions"][0]["id"]
@@ -312,7 +317,7 @@ def test_submit_optional_multi_choice_empty_is_skipped(client, organiser_headers
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": ["A", "B"]},
+            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
         ],
     )
     qid = form["questions"][0]["id"]

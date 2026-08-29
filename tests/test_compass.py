@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests._helpers.forms import option_ids
+
 AXES = [
     {
         "axis": "x",
@@ -52,8 +54,7 @@ def _choice(prompt: str, pairs: list[tuple[str, str]], **extra: Any) -> dict[str
     return {
         "kind": "single_choice",
         "prompt": prompt,
-        "options": [text for text, _ in pairs],
-        "option_poles": [pole for _, pole in pairs],
+        "options": [{"label": text, "pole": pole} for text, pole in pairs],
         **extra,
     }
 
@@ -79,7 +80,21 @@ def _compass(client: Any, headers: Any, questions: list[dict[str, Any]], **extra
     return r.json()
 
 
+def _public_questions(client: Any, kompas: dict[str, Any]) -> list[dict[str, Any]]:
+    return client.get(f"/api/v1/compass/by-slug/{kompas['slug']}").json()["questions"]
+
+
 def _fill(client: Any, kompas: dict[str, Any], answers: list[dict[str, Any]], name: str | None = "Sam") -> Any:
+    """Answers name options by label; the wire wants ids, so translate
+    against the public shape (``docs/design-question-edits.md``)."""
+    by_question = {q["id"]: q for q in _public_questions(client, kompas)}
+    resolved = []
+    for a in answers:
+        if "answer_choices" in a and a["answer_choices"]:
+            question = by_question[a["question_id"]]
+            a = {**a, "answer_choices": option_ids(question, *a["answer_choices"])}
+        resolved.append(a)
+    answers = resolved
     return client.post(
         f"/api/v1/compass/by-slug/{kompas['slug']}/submit",
         json={"display_name": name, "answers": answers},
@@ -238,7 +253,13 @@ def test_moving_an_option_to_the_other_side_moves_the_dot(client, organiser_head
 
     body = dict(kompas)
     body["questions"] = [
-        {**kompas["questions"][0], "option_poles": ["x_high", "x_low"]},
+        {
+            **kompas["questions"][0],
+            "options": [
+                {**o, "pole": pole}
+                for o, pole in zip(kompas["questions"][0]["options"], ["x_high", "x_low"], strict=True)
+            ],
+        },
         kompas["questions"][1],
     ]
     body["axes"] = AXES
@@ -278,7 +299,7 @@ def test_the_walk_never_learns_which_answer_points_where(client, organiser_heade
     public = client.get(f"/api/v1/compass/by-slug/{kompas['slug']}").json()
     for question in public["questions"]:
         assert "pole" not in question
-        assert "option_poles" not in question
+        assert all("pole" not in option for option in question["options"])
     # What the two axes are called is not a secret: the cover names it.
     assert [a["name"] for a in public["axes"]] == ["Economie", "Cultuur"]
 
@@ -448,7 +469,13 @@ def test_an_option_without_a_side_is_refused(client, organiser_headers) -> None:
     r = _create(
         client,
         organiser_headers,
-        [{"kind": "single_choice", "prompt": "Waarheen?", "options": ["A", "B"], "option_poles": ["x_low"]}],
+        [
+            {
+                "kind": "single_choice",
+                "prompt": "Waarheen?",
+                "options": [{"label": "A", "pole": "x_low"}, {"label": "B"}],
+            }
+        ],
     )
     assert r.status_code == 400
     assert "every answer" in r.json()["detail"]

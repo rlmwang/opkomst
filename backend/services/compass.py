@@ -122,15 +122,15 @@ def contribution(question: FormQuestion, fields: dict[str, Any] | None) -> tuple
         chosen = fields.get("answer_choices") or []
         if len(chosen) != 1:
             return None
-        poles = question.option_poles or []
-        options = question.options or []
-        try:
-            index = options.index(str(chosen[0]))
-        except ValueError:
+        # The direction is a column on the option the answer points at.
+        # It used to be read by finding the answer's text among the
+        # options and taking the pole at that position, so renaming an
+        # option lost the answer and reordering changed what it meant.
+        poles = {str(o.id): o.pole for o in question.options}
+        pole = poles.get(str(chosen[0]))
+        if pole not in POLES:
             return None
-        if index >= len(poles) or poles[index] not in POLES:
-            return None
-        axis, direction = split_pole(poles[index])
+        axis, direction = split_pole(pole)
         return axis, float(direction)
 
     return None
@@ -293,17 +293,13 @@ def validate_questions(questions: list[Any], axes: list[Any]) -> None:
             used.add(split_pole(pole)[0])
             continue
 
-        # Against the payload's own options, not the cleaned list: the
-        # two arrive parallel and are filtered together on write, so a
-        # length that disagrees here is a client that built them apart.
-        options = list(q.options)
-        poles = list(q.option_poles or [])
-        if len(poles) != len(options):
-            raise _bad(f"Question {idx}: pick a side of an axis for every answer.")
-        for option, pole in zip(options, poles, strict=True):
-            if not option.strip():
+        # Each option carries its own side, so there is no second list
+        # to fall out of step with this one.
+        for option in q.options:
+            if not option.label.strip():
                 continue
-            if not (pole or "").strip():
+            pole = (option.pole or "").strip()
+            if not pole:
                 raise _bad(f"Question {idx}: pick a side of an axis for every answer.")
             if pole not in POLES:
                 raise _bad(f"Question {idx}: that answer belongs to an axis that does not exist.")

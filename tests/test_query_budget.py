@@ -41,6 +41,11 @@ from sqlalchemy import event as sa_event
 # One query of the ceiling is the authenticated user; endpoints that
 # scope by chapter spend a second on the membership set. The rest is the
 # endpoint's own work, and should be one query per fact it reports.
+#
+# Every read that loads questions spends one more on their choices,
+# which are rows rather than a JSON column
+# (``docs/design-question-edits.md``). Two queries for the whole form,
+# not per question.
 BUDGETS: dict[str, int] = {
     # -- infrastructure ------------------------------------------------
     "/health": 0,
@@ -75,26 +80,26 @@ BUDGETS: dict[str, int] = {
     # -- forms / quizzes / kompassen (one factory, three mounts) -------
     "/api/v1/form": 3,
     "/api/v1/form/archived": 3,
-    "/api/v1/form/{form_id}": 6,
-    "/api/v1/form/{form_id}/summary": 6,
-    "/api/v1/form/{form_id}/submissions": 5,
-    "/api/v1/form/by-slug/{slug}": 3,
+    "/api/v1/form/{form_id}": 7,
+    "/api/v1/form/{form_id}/summary": 7,
+    "/api/v1/form/{form_id}/submissions": 6,
+    "/api/v1/form/by-slug/{slug}": 4,
     "/api/v1/form/by-slug/{slug}/qr.svg": 2,
     "/api/v1/form/by-token/{token}": 5,
     "/api/v1/quiz": 3,
     "/api/v1/quiz/archived": 3,
-    "/api/v1/quiz/{form_id}": 6,
-    "/api/v1/quiz/{form_id}/summary": 8,
-    "/api/v1/quiz/{form_id}/submissions": 5,
-    "/api/v1/quiz/by-slug/{slug}": 3,
+    "/api/v1/quiz/{form_id}": 7,
+    "/api/v1/quiz/{form_id}/summary": 9,
+    "/api/v1/quiz/{form_id}/submissions": 6,
+    "/api/v1/quiz/by-slug/{slug}": 4,
     "/api/v1/quiz/by-slug/{slug}/qr.svg": 2,
     "/api/v1/quiz/by-token/{token}": 5,
     "/api/v1/compass": 3,
     "/api/v1/compass/archived": 3,
-    "/api/v1/compass/{form_id}": 7,
-    "/api/v1/compass/{form_id}/summary": 8,
-    "/api/v1/compass/{form_id}/submissions": 5,
-    "/api/v1/compass/by-slug/{slug}": 4,
+    "/api/v1/compass/{form_id}": 8,
+    "/api/v1/compass/{form_id}/summary": 9,
+    "/api/v1/compass/{form_id}/submissions": 6,
+    "/api/v1/compass/by-slug/{slug}": 5,
     "/api/v1/compass/by-slug/{slug}/qr.svg": 2,
     "/api/v1/compass/by-token/{token}": 5,
     # -- datepolls -----------------------------------------------------
@@ -239,8 +244,7 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
                     "kind": "single_choice",
                     "prompt": "Welke?",
                     "required": True,
-                    "options": ["A", "B"],
-                    "correct_choices": ["A"],
+                    "options": [{"label": "A", "is_correct": True}, {"label": "B"}],
                     "points": 1,
                 }
             ]

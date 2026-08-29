@@ -27,13 +27,14 @@ mode for the same reason.
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, CompassAxis, Form, FormQuestion, FormSubmission, User
+from ..models import Chapter, CompassAxis, Form, FormQuestion, FormQuestionOption, FormSubmission, User
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -129,7 +130,7 @@ def _validate_questions(questions: list["FormQuestionIn"], mode: str, axes: list
                 detail=f"Question {idx}: unknown kind '{q.kind}'.",
             )
         if q.kind in _CHOICE_KINDS:
-            cleaned = [opt.strip() for opt in q.options if opt.strip()]
+            cleaned = [o.label.strip() for o in q.options if o.label.strip()]
             if len(cleaned) < 2:
                 raise HTTPException(
                     status_code=400,
@@ -203,6 +204,56 @@ def apply_axes(db: Session, form_id: str, axes: list["CompassAxisIn"]) -> None:
     db.flush()
 
 
+def _apply_options(
+    db: Session,
+    question: FormQuestion,
+    payload: Sequence[Any],
+    *,
+    scored: bool,
+    pointed: bool,
+) -> None:
+    """Diff-apply one question's choices, matched by id.
+
+    The same shape as the question diff a level up, for the same reason:
+    an option carrying an id is the option the answers already point at,
+    so a rename is an update to ``label`` and nothing detaches. An option
+    with no id is new. One on disk that the payload no longer mentions is
+    deleted, and the cascade takes the ticks with it, which is the
+    destructive edit ``docs/design-question-edits.md`` gates.
+
+    ``pole`` and ``is_correct`` are dropped unless the product asks for
+    them, on the same terms as the question's own key and direction:
+    decided here rather than trusted from the payload.
+    """
+    existing = {o.id: o for o in question.options}
+    seen: set[str] = set()
+    for ordinal, opt in enumerate(payload, start=1):
+        pole = opt.pole if pointed and question.kind == "single_choice" else None
+        correct = bool(opt.is_correct) if scored else False
+        if opt.id and opt.id in existing:
+            row = existing[opt.id]
+            row.ordinal = ordinal
+            row.label = opt.label.strip()
+            row.pole = pole
+            row.is_correct = correct
+            seen.add(opt.id)
+        else:
+            # A fresh uuid always, so a client naming another question's
+            # option cannot capture it. Same rule as the questions.
+            db.add(
+                FormQuestionOption(
+                    question_id=question.id,
+                    ordinal=ordinal,
+                    label=opt.label.strip(),
+                    pole=pole,
+                    is_correct=correct,
+                )
+            )
+    for oid, row in existing.items():
+        if oid not in seen:
+            db.delete(row)
+
+
 def apply_questions(
     db: Session,
     form_id: str,
@@ -232,7 +283,10 @@ def apply_questions(
         # non-rating kinds drop the scale labels. Keeps the stored
         # row tidy and makes the public form's render kind-driven
         # without per-kind defensive checks.
-        clean_options = [opt.strip() for opt in payload.options if opt.strip()] if payload.kind in _CHOICE_KINDS else []
+        # Choices are rows, diffed by id like the questions themselves.
+        # A payload option carrying an id updates that row, so a rename
+        # is a label edit and every answer stays pointed at it.
+        wanted_options = [o for o in payload.options if o.label.strip()] if payload.kind in _CHOICE_KINDS else []
         low_label = payload.low_label if payload.kind == "rating" else None
         high_label = payload.high_label if payload.kind == "rating" else None
         is_number = payload.kind == "number"
@@ -251,29 +305,24 @@ def apply_questions(
         required = True if mode == "quiz" else payload.required
         correct_int = payload.correct_int if scored and payload.kind in ("rating", "number") else None
         correct_text = None
-        correct_choices = (
-            [c.strip() for c in (payload.correct_choices or []) if c.strip()]
-            if scored and payload.kind in _CHOICE_KINDS
-            else None
-        )
         tolerance = payload.tolerance if scored and payload.kind == "number" else None
         # The direction, on the same terms: only a kompas has one, and
         # only on the half of the question its kind puts it on.
         pointed = mode == "compass"
         pole = payload.pole if pointed and payload.kind == "rating" else None
-        option_poles = (
-            [p for p, opt in zip(payload.option_poles or [], payload.options, strict=False) if opt.strip()]
-            if pointed and payload.kind == "single_choice"
-            else None
-        )
 
-        if payload.id and payload.id in existing:
+        # A kind change is a different question, not an edit to this one:
+        # every stored answer sits in a column the new kind does not read.
+        # So it falls through to the insert below, the old row is left out
+        # of ``seen_ids``, and the delete pass takes it and its answers.
+        # That is what retyping a question already does, and the two mean
+        # the same thing to an organiser (``docs/design-question-edits``).
+        if payload.id and payload.id in existing and existing[payload.id].kind == payload.kind:
             row = existing[payload.id]
             row.ordinal = ordinal
             row.kind = payload.kind
             row.prompt = payload.prompt.strip()
             row.required = required
-            row.options = clean_options
             row.low_label = low_label
             row.high_label = high_label
             row.min_value = min_value
@@ -282,10 +331,9 @@ def apply_questions(
             row.points = points
             row.correct_int = correct_int
             row.correct_text = correct_text
-            row.correct_choices = correct_choices
             row.tolerance = tolerance
             row.pole = pole
-            row.option_poles = option_poles
+            _apply_options(db, row, wanted_options, scored=scored, pointed=pointed)
             seen_ids.add(payload.id)
         else:
             # Insert. An id submitted that doesn't exist on disk is
@@ -293,13 +341,12 @@ def apply_questions(
             # a client guessing at ids can't collide with another
             # form's question.
             db.add(
-                FormQuestion(
+                fresh := FormQuestion(
                     form_id=form_id,
                     ordinal=ordinal,
                     kind=payload.kind,
                     prompt=payload.prompt.strip(),
                     required=required,
-                    options=clean_options,
                     low_label=low_label,
                     high_label=high_label,
                     min_value=min_value,
@@ -308,12 +355,12 @@ def apply_questions(
                     points=points,
                     correct_int=correct_int,
                     correct_text=correct_text,
-                    correct_choices=correct_choices,
                     tolerance=tolerance,
                     pole=pole,
-                    option_poles=option_poles,
                 )
             )
+            db.flush()
+            _apply_options(db, fresh, wanted_options, scored=scored, pointed=pointed)
 
     for qid, row in existing.items():
         if qid not in seen_ids:
@@ -466,17 +513,45 @@ def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
     return [CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)]
 
 
-def _questions(db: Session, form_id: str) -> Sequence[Any]:
-    """The form's questions in display order.
+@dataclass(frozen=True, slots=True)
+class LoadedQuestion:
+    """A question row with its choices attached.
 
-    Core, and every column: the projections, the grader and the kompas
-    each read a different subset, and a question is never written back
-    through here (``apply_questions`` owns that, on the ORM). Selecting
-    the table rather than listing columns means a new question field
-    reaches the DTOs without this line having to be remembered."""
-    return db.execute(
+    The graders, the kompas and the DTOs all ask a question for its
+    ``options``, so the read hands back something that answers that,
+    rather than a bare row plus a dictionary every caller has to carry.
+    The fields mirror the columns; ``options`` is the rows from
+    ``form_question_options``, in their own order.
+    """
+
+    row: Any
+    options: list[Any]
+
+    def __getattr__(self, name: str) -> Any:
+        # Everything that isn't ``options`` is a column on the question.
+        return getattr(self.row, name)
+
+
+def _questions(db: Session, form_id: str) -> Sequence[Any]:
+    """The form's questions in display order, each carrying its choices.
+
+    Two queries whatever the form asks: the questions, then every option
+    of the form at once, grouped here. Core on both, because a question
+    is never written back through this path (``apply_questions`` owns
+    that, on the ORM)."""
+    rows = db.execute(
         select(*FormQuestion.__table__.c).where(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal)
     ).all()
+    if not rows:
+        return []
+    grouped: dict[str, list[Any]] = {}
+    for opt in db.execute(
+        select(*FormQuestionOption.__table__.c)
+        .where(FormQuestionOption.question_id.in_([r.id for r in rows]))
+        .order_by(FormQuestionOption.ordinal)
+    ).all():
+        grouped.setdefault(opt.question_id, []).append(opt)
+    return [LoadedQuestion(row=r, options=grouped.get(r.id, [])) for r in rows]
 
 
 def questions_of(db: Session, form_id: str) -> Sequence[Any]:
@@ -562,7 +637,10 @@ def _summary(q: FormQuestion, correct_share: float | None, **fields: object) -> 
         # difference between "34 picked Rotterdam" and "34 moved
         # toward Rechts" (``docs/design-kompas.md`` 4.5).
         pole=q.pole,
-        option_poles=list(q.option_poles) if q.option_poles else None,
+        # Derived per request from each option's own pole, in the
+        # options' order, so the page can print a count beside the
+        # direction that earned it.
+        option_poles=[o.pole or "" for o in q.options] if any(o.pole for o in q.options) else None,
         **fields,  # type: ignore[arg-type]
     )
 
@@ -572,17 +650,17 @@ def _summary(q: FormQuestion, correct_share: float | None, **fields: object) -> 
 # The three shapes are three grains: a rating wants a row per distinct
 # value, a choice question a row per option, an open question every
 # answer it was given. Each is aggregated in its own CTE and joined back
-# to one row per question, which is why the unnest of ``answer_choices``
-# cannot multiply anything: it happens inside its own subquery, and only
-# its finished tally comes out.
+# to one row per question, which is why joining the ticks cannot
+# multiply anything: the join happens inside its own subquery, and only
+# the finished tally comes out.
 #
-# ``json_typeof(...) = 'array'`` rather than ``IS NOT NULL``: a
-# non-choice answer stores the JSON scalar ``null``, not SQL NULL, so
-# ``IS NOT NULL`` matches every row and Postgres then raises on the
-# scalar. See the note on the column in ``models/forms``.
+# The choice tally is a plain join now that a tick is a row keyed by
+# option id, so it counts by id and the labels are applied afterwards.
+# A renamed option keeps its answers because the count never touched
+# the text.
 _AGGREGATES_SQL = text("""
 WITH resp AS (
-    SELECT question_id, answer_int, answer_text, answer_choices, created_at
+    SELECT id, question_id, answer_int, answer_text, created_at
     FROM form_responses WHERE form_id = :form_id
 ),
 numbers AS (
@@ -594,18 +672,18 @@ numbers AS (
     GROUP BY question_id
 ),
 options AS (
-    SELECT question_id, json_agg(json_build_array(choice, n)) AS pairs
+    SELECT question_id, json_agg(json_build_array(option_id, n)) AS pairs
     FROM (
-        SELECT r.question_id, c.value AS choice, count(*) AS n
-        FROM resp r, LATERAL json_array_elements_text(r.answer_choices) c
-        WHERE json_typeof(r.answer_choices) = 'array'
+        SELECT r.question_id, c.option_id, count(*) AS n
+        FROM resp r JOIN form_response_choices c ON c.response_id = r.id
         GROUP BY 1, 2
     ) counted
     GROUP BY question_id
 ),
 option_totals AS (
-    SELECT question_id, count(*)::int AS n
-    FROM resp WHERE json_typeof(answer_choices) = 'array' GROUP BY 1
+    SELECT r.question_id, count(DISTINCT r.id)::int AS n
+    FROM resp r JOIN form_response_choices c ON c.response_id = r.id
+    GROUP BY 1
 ),
 texts AS (
     SELECT question_id,
@@ -694,10 +772,11 @@ def question_aggregates(db: Session, form_id: str, questions: Sequence[Any]) -> 
             # Seeded from the question's own options so one nobody picked
             # still shows as zero, and a stored answer whose option has
             # since been renamed away simply does not land anywhere.
-            counts: dict[str, int] = {opt: 0 for opt in q.options}
-            for choice, n in _pairs(row, "option_pairs"):
-                if choice in counts:
-                    counts[choice] = n
+            # Keyed by option id in SQL, labelled here. An option the
+            # organiser has since renamed still carries its answers,
+            # because the tally joined on the id.
+            tally = dict(_pairs(row, "option_pairs"))
+            counts: dict[str, int] = {o.label: int(tally.get(o.id, 0)) for o in q.options}
             summaries.append(
                 _summary(
                     q,
@@ -829,6 +908,9 @@ def _submissions_with_answers(
     both and reads the table once. Handing back the grouping is what
     stops ``quiz_submissions`` from repeating this function's work."""
     kinds = {q.id: q.kind for q in questions}
+    # The CSV writes what people saw, so a tick is exported as its
+    # option's current label rather than the id it is stored as.
+    labels = {o.id: o.label for q in questions for o in q.options}
     subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
     if not subs:
         return [], {}
@@ -849,8 +931,8 @@ def _submissions_with_answers(
             answers[r.submission_id][r.question_id] = r.answer_int
         elif kind in _TEXT_KINDS and r.answer_text is not None:
             answers[r.submission_id][r.question_id] = r.answer_text
-        elif kind in _CHOICE_KINDS and r.answer_choices is not None:
-            answers[r.submission_id][r.question_id] = list(r.answer_choices)
+        elif kind in _CHOICE_KINDS and r.answer_choices:
+            answers[r.submission_id][r.question_id] = [labels[c] for c in r.answer_choices if c in labels]
 
     return [
         FormSubmissionOut(

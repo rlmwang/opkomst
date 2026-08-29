@@ -72,6 +72,25 @@ class CompassAxisOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FormQuestionOptionIn(BaseModel):
+    """One choice on the create / update payload.
+
+    ``id`` is null for a newly-typed option and carries the server's
+    uuid for one that already exists, which is what keeps the answers
+    pointing at it across a rename. An editor that drops the id is
+    asking for the option to be replaced, and the answers to it to go
+    (``docs/design-question-edits.md``).
+    """
+
+    id: str | None = None
+    label: str = Field(min_length=1, max_length=200)
+    # Kompas only, and only on a ``single_choice``: which way picking
+    # this moves somebody. The service drops it elsewhere.
+    pole: Pole | None = None
+    # Quiz only: part of the answer key. The service drops it elsewhere.
+    is_correct: bool = False
+
+
 class FormQuestionIn(BaseModel):
     """One question on the create / update payload. ``id`` is null
     for newly-added rows; existing questions carry their server-
@@ -86,7 +105,7 @@ class FormQuestionIn(BaseModel):
     kind: QuestionKind
     prompt: str = Field(min_length=1, max_length=500)
     required: bool = True
-    options: list[str] = Field(default_factory=list, max_length=50)
+    options: list["FormQuestionOptionIn"] = Field(default_factory=list, max_length=50)
     low_label: str | None = Field(default=None, max_length=80)
     high_label: str | None = Field(default=None, max_length=80)
     # ``number`` only; the service drops them on every other kind.
@@ -104,14 +123,38 @@ class FormQuestionIn(BaseModel):
     points: int | None = Field(default=None, ge=0, le=100)
     correct_int: int | None = None
     correct_text: str | None = Field(default=None, max_length=200)
-    correct_choices: list[str] | None = Field(default=None, max_length=50)
     tolerance: int | None = Field(default=None, ge=0)
-    # Kompas only; the service drops both on the other two products.
-    # A rating poles the statement (``pole``, the side a 5 means); a
-    # choice poles each option (``option_poles``, parallel to
-    # ``options``, same length).
+    # Kompas only, and only on a rating: which side a 5 means. A choice
+    # poles each option, so its pole rides on the option
+    # (``FormQuestionOptionIn.pole``).
     pole: Pole | None = None
-    option_poles: list[Pole] | None = Field(default=None, max_length=50)
+
+
+class FormQuestionOptionOut(BaseModel):
+    """One choice as the organiser's editor sees it: the label plus the
+    two things only they may know, the direction it moves somebody and
+    whether it is a right answer."""
+
+    id: str
+    label: str
+    pole: str | None = None
+    is_correct: bool = False
+    model_config = {"from_attributes": True}
+
+
+class PublicOptionOut(BaseModel):
+    """One choice as a respondent's browser sees it, before they submit.
+
+    The id and the label, and deliberately nothing else. Listing the
+    fields rather than excluding them is the same rule
+    ``PublicQuestionOut`` follows: a column added to the option model
+    does not silently reach the page. The id travels because the answer
+    is submitted by id, which is what survives the organiser renaming
+    the label afterwards."""
+
+    id: str
+    label: str
+    model_config = {"from_attributes": True}
 
 
 class FormQuestionOut(BaseModel):
@@ -125,23 +168,22 @@ class FormQuestionOut(BaseModel):
     kind: str
     prompt: str
     required: bool
-    options: list[str]
+    options: list[FormQuestionOptionOut]
     low_label: str | None = None
     high_label: str | None = None
     min_value: int | None = None
     max_value: int | None = None
     step: int | None = None
     # The key. Organiser-side only: it is what they typed, and it is
-    # what the edit page has to show them again.
+    # what the edit page has to show them again. A choice question's key
+    # is ``is_correct`` on each option instead.
     points: int = 0
     correct_int: int | None = None
     correct_text: str | None = None
-    correct_choices: list[str] | None = None
     tolerance: int | None = None
-    # The directions. Organiser-side only, for the same reason the key
-    # is: it is what they chose, and the edit page has to show it back.
+    # Which side a 5 means, on a kompas rating. A choice question's
+    # directions ride on its options.
     pole: str | None = None
-    option_poles: list[str] | None = None
     model_config = {"from_attributes": True}
 
 
@@ -160,7 +202,7 @@ class PublicQuestionOut(BaseModel):
     kind: str
     prompt: str
     required: bool
-    options: list[str]
+    options: list[PublicOptionOut]
     low_label: str | None = None
     high_label: str | None = None
     min_value: int | None = None

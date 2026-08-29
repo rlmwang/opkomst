@@ -46,15 +46,15 @@ Four tables:
 """
 
 from sqlalchemy import (
-    JSON,
     Boolean,
     CheckConstraint,
     ForeignKey,
     Index,
     Integer,
     Text,
+    text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
 from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin, UUIDMixin
@@ -128,7 +128,13 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # The choices live in ``form_question_options``, one row each. See
+    # that class for why they are not a list of strings here.
+    options: Mapped[list["FormQuestionOption"]] = relationship(
+        back_populates="question",
+        cascade="all, delete-orphan",
+        order_by="FormQuestionOption.ordinal",
+    )
     low_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     high_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     # ``number`` only, and all three are about which numbers count as
@@ -154,7 +160,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     points: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     correct_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
     correct_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    correct_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # A choice question's key is ``is_correct`` on each option row.
     tolerance: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # The kompas half: which way an answer moves somebody. A pole is
@@ -163,25 +169,17 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     #
     # Which thing carries it depends on the kind, because the two kinds
     # put the choice in different places. A ``rating`` poles the
-    # statement: ``pole`` is the side a 5 means, a 1 is the other end
-    # of the same axis and a 3 is the middle. A ``single_choice`` poles
-    # each option: ``option_poles`` is index-parallel to ``options``,
-    # same length, so renaming an option keeps its direction and the
-    # options need not share an axis.
+    # statement, and that is this column: ``pole`` is the side a 5
+    # means, a 1 is the other end of the same axis and a 3 is the
+    # middle. A ``single_choice`` poles each option, so its pole is a
+    # column on ``form_question_options`` instead.
     #
-    # Index-parallel rather than keyed by option text, which is what
-    # ``correct_choices`` does: a key by string is right for a
-    # reference into the options and wrong for an attribute of each of
-    # them.
-    #
-    # Both are null on a survey and on a quiz, dropped on write rather
-    # than trusted from the payload, and neither ever reaches a
-    # respondent's browser before they submit
-    # (``schemas/forms.PublicQuestionOut``): a kompas whose page says
-    # which button moves you where is one people answer to land
-    # somewhere.
+    # Null on a survey and on a quiz, dropped on write rather than
+    # trusted from the payload, and never reaching a respondent's
+    # browser before they submit (``schemas/forms.PublicQuestionOut``):
+    # a kompas whose page says which button moves you where is one
+    # people answer to land somewhere.
     pole: Mapped[str | None] = mapped_column(Text, nullable=True)
-    option_poles: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     # DB-level backstop for the kind vocabulary. The canonical set
     # is the ``QuestionKind`` literal in ``schemas/forms.py`` (the
@@ -195,6 +193,62 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
             name="ck_form_questions_kind",
         ),
     )
+
+
+class FormQuestionOption(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One selectable choice on one question.
+
+    A row rather than a string in a list, because answers point at it.
+    ``form_response_choices`` carries a foreign key here, so renaming a
+    choice is an update to ``label`` and every answer still points at
+    the same row. Stored as text it was the answer's only link, and a
+    rename silently detached every one of them
+    (``docs/design-question-edits.md``).
+
+    ``pole`` and ``is_correct`` live here for the same reason. A
+    direction and a right answer are attributes of a choice, not of its
+    position in a list, and keeping them parallel to the options meant a
+    reorder could move them apart.
+    """
+
+    __tablename__ = "form_question_options"
+
+    question_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("form_questions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    # Kompas only, and only on a ``single_choice``: which way picking
+    # this moves somebody. Null everywhere else.
+    pole: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Quiz only: part of the answer key. A question can have more than
+    # one correct option (``multi_choice``).
+    is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+
+    question: Mapped["FormQuestion"] = relationship(back_populates="options")
+
+    __table_args__ = (Index("ix_form_question_options_question_ordinal", "question_id", "ordinal"),)
+
+
+class FormResponseChoice(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One tick: this answer picked that option.
+
+    ``single_choice`` produces one row, ``multi_choice`` one per tick.
+    The foreign key is the point: an answer cannot name an option that
+    does not exist, so the tallies are a join and a ``GROUP BY`` rather
+    than a JSON unnest that has to guard against its own nulls.
+    """
+
+    __tablename__ = "form_response_choices"
+
+    response_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("form_responses.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    option_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("form_question_options.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    __table_args__ = (Index("ix_form_response_choices_option", "option_id", "response_id"),)
 
 
 class FormSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base):
@@ -241,6 +295,18 @@ class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     )
     answer_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
     answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # JSON list of chosen option strings. ``single_choice`` carries
-    # a one-element list; ``multi_choice`` carries the full subset.
-    answer_choices: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # The ticks live in ``form_response_choices``, one row each, keyed
+    # by option id. ``single_choice`` has one; ``multi_choice`` has the
+    # full subset.
+    choices: Mapped[list["FormResponseChoice"]] = relationship(
+        cascade="all, delete-orphan",
+        primaryjoin="FormResponse.id == FormResponseChoice.response_id",
+    )
+
+    @property
+    def answer_choices(self) -> list[str]:
+        """The ticked option ids. The graders and the kompas read this
+        name off Core rows too (``services/form_answers`` aggregates the
+        join into a column of the same name), so both shapes answer it
+        and the folds are one piece of code."""
+        return [c.option_id for c in self.choices]

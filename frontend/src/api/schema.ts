@@ -4796,8 +4796,6 @@ export interface components {
          *     "send back in the new order".
          */
         FormQuestionIn: {
-            /** Correct Choices */
-            correct_choices?: string[] | null;
             /** Correct Int */
             correct_int?: number | null;
             /** Correct Text */
@@ -4817,10 +4815,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
-            /** Option Poles */
-            option_poles?: ("x_low" | "x_high" | "y_low" | "y_high")[] | null;
             /** Options */
-            options?: string[];
+            options?: components["schemas"]["FormQuestionOptionIn"][];
             /** Points */
             points?: number | null;
             /** Pole */
@@ -4838,6 +4834,48 @@ export interface components {
             tolerance?: number | null;
         };
         /**
+         * FormQuestionOptionIn
+         * @description One choice on the create / update payload.
+         *
+         *     ``id`` is null for a newly-typed option and carries the server's
+         *     uuid for one that already exists, which is what keeps the answers
+         *     pointing at it across a rename. An editor that drops the id is
+         *     asking for the option to be replaced, and the answers to it to go
+         *     (``docs/design-question-edits.md``).
+         */
+        FormQuestionOptionIn: {
+            /** Id */
+            id?: string | null;
+            /**
+             * Is Correct
+             * @default false
+             */
+            is_correct: boolean;
+            /** Label */
+            label: string;
+            /** Pole */
+            pole?: ("x_low" | "x_high" | "y_low" | "y_high") | null;
+        };
+        /**
+         * FormQuestionOptionOut
+         * @description One choice as the organiser's editor sees it: the label plus the
+         *     two things only they may know, the direction it moves somebody and
+         *     whether it is a right answer.
+         */
+        FormQuestionOptionOut: {
+            /** Id */
+            id: string;
+            /**
+             * Is Correct
+             * @default false
+             */
+            is_correct: boolean;
+            /** Label */
+            label: string;
+            /** Pole */
+            pole?: string | null;
+        };
+        /**
          * FormQuestionOut
          * @description Question shape on the wire. Organiser endpoints + the
          *     public-by-slug endpoint both return this; the public form
@@ -4845,8 +4883,6 @@ export interface components {
          *     verbatim. ``ordinal`` is server-assigned (1..N).
          */
         FormQuestionOut: {
-            /** Correct Choices */
-            correct_choices?: string[] | null;
             /** Correct Int */
             correct_int?: number | null;
             /** Correct Text */
@@ -4863,10 +4899,8 @@ export interface components {
             max_value?: number | null;
             /** Min Value */
             min_value?: number | null;
-            /** Option Poles */
-            option_poles?: string[] | null;
             /** Options */
-            options: string[];
+            options: components["schemas"]["FormQuestionOptionOut"][];
             /** Ordinal */
             ordinal: number;
             /**
@@ -5490,6 +5524,23 @@ export interface components {
             starts_at: string;
         };
         /**
+         * PublicOptionOut
+         * @description One choice as a respondent's browser sees it, before they submit.
+         *
+         *     The id and the label, and deliberately nothing else. Listing the
+         *     fields rather than excluding them is the same rule
+         *     ``PublicQuestionOut`` follows: a column added to the option model
+         *     does not silently reach the page. The id travels because the answer
+         *     is submitted by id, which is what survives the organiser renaming
+         *     the label afterwards.
+         */
+        PublicOptionOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /**
          * PublicQuestionOut
          * @description What a respondent's browser is allowed to know about a question.
          *
@@ -5514,7 +5565,7 @@ export interface components {
             /** Min Value */
             min_value?: number | null;
             /** Options */
-            options: string[];
+            options: components["schemas"]["PublicOptionOut"][];
             /** Ordinal */
             ordinal: number;
             /**

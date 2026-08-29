@@ -63,7 +63,15 @@ def test_the_mirrored_set_is_the_foreign_key_graph() -> None:
         "feedback_tokens",
         "signups",
     ]
-    assert graph["forms"] == ["forms", "compass_axes", "form_questions", "form_responses", "form_submissions"]
+    assert graph["forms"] == [
+        "forms",
+        "compass_axes",
+        "form_questions",
+        "form_responses",
+        "form_submissions",
+        "form_question_options",
+        "form_response_choices",
+    ]
     assert graph["datepolls"] == ["datepolls", "datepoll_slots", "datepoll_submissions", "datepoll_responses"]
 
 

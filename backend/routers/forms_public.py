@@ -44,11 +44,12 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Form, FormQuestion, FormResponse, FormSubmission
+from ..models import Form, FormQuestion, FormResponse, FormResponseChoice, FormSubmission
 from ..schemas.forms import (
     CompassAnswerResult,
     CompassResultOut,
@@ -181,7 +182,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     continue
                 if len(choices) != 1:
                     raise HTTPException(status_code=400, detail=f"Question {q.id} expects one choice.")
-                if choices[0] not in q.options:
+                if choices[0] not in {o.id for o in q.options}:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choice not in options.")
                 submitted[q.id] = {"answer_choices": list(choices)}
             elif q.kind == "multi_choice":
@@ -196,7 +197,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     if is_quiz:
                         submitted[q.id] = {"answer_choices": []}
                     continue
-                invalid = [c for c in choices if c not in q.options]
+                option_ids = {o.id for o in q.options}
+                invalid = [c for c in choices if c not in option_ids]
                 if invalid:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choices not in options: {invalid}")
                 # Drop duplicates while preserving order — multi-choice is a set.
@@ -218,26 +220,36 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         submitted: dict[str, dict[str, object]],
     ) -> None:
         for qid, fields in submitted.items():
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=qid,
-                    submission_id=submission_id,
-                    answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
-                    answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
-                    answer_choices=fields.get("answer_choices"),  # type: ignore[arg-type]
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=qid,
+                submission_id=submission_id,
+                answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
+                answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
             )
+            db.add(response)
+            db.flush()
+            # One row per tick, pointing at the option itself. The
+            # answer survives the organiser renaming that option.
+            for option_id in cast(list[str], fields.get("answer_choices") or []):
+                db.add(FormResponseChoice(response_id=response.id, option_id=option_id))
 
     def _answers_for(db: Session, submission_id: str) -> dict[str, object]:
         out: dict[str, object] = {}
+        picked: dict[str, list[str]] = {}
+        for question_id, option_id in db.execute(
+            select(FormResponse.question_id, FormResponseChoice.option_id)
+            .join(FormResponseChoice, FormResponseChoice.response_id == FormResponse.id)
+            .where(FormResponse.submission_id == submission_id)
+        ).all():
+            picked.setdefault(question_id, []).append(option_id)
         for r in db.query(FormResponse).filter(FormResponse.submission_id == submission_id).all():
             if r.answer_int is not None:
                 out[r.question_id] = r.answer_int
             elif r.answer_text is not None:
                 out[r.question_id] = r.answer_text
-            elif r.answer_choices is not None:
-                out[r.question_id] = list(r.answer_choices)
+            elif r.question_id in picked:
+                out[r.question_id] = picked[r.question_id]
         return out
 
     def _submission_by_token(db: Session, token: str) -> FormSubmission:
@@ -285,7 +297,11 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     # has it off.
                     correct_int=q.correct_int if form.reveal_answers else None,
                     correct_text=q.correct_text if form.reveal_answers else None,
-                    correct_choices=q.correct_choices if form.reveal_answers else None,
+                    # The key as labels: this is what the page prints,
+                    # and it is only sent once the answer is in.
+                    correct_choices=(
+                        [o.label for o in q.options if o.is_correct] if form.reveal_answers and q.options else None
+                    ),
                 )
             )
         answers.sort(key=lambda a: questions[a.question_id].ordinal)
@@ -322,7 +338,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     question_id=q.id,
                     kind=q.kind,
                     pole=q.pole,
-                    option_poles=list(q.option_poles) if q.option_poles else None,
+                    option_poles=[o.pole or "" for o in q.options] if any(o.pole for o in q.options) else None,
                     given_int=row.answer_int,
                     given_choices=list(row.answer_choices) if row.answer_choices else None,
                     axis=found[0] if found else None,

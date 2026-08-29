@@ -22,6 +22,7 @@ from typing import Any
 
 from backend.database import SessionLocal
 from backend.models import Form
+from tests._helpers.forms import option_ids
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -60,8 +61,7 @@ def test_a_right_answer_scores_and_a_wrong_one_does_not(client, organiser_header
                 "kind": "single_choice",
                 "prompt": "Hoofdstad?",
                 "points": 3,
-                "options": ["Rotterdam", "Amsterdam"],
-                "correct_choices": ["Amsterdam"],
+                "options": [{"label": "Rotterdam"}, {"label": "Amsterdam", "is_correct": True}],
             },
             {"kind": "number", "prompt": "Hoeveel provincies?", "points": 2, "correct_int": 12},
         ],
@@ -71,7 +71,7 @@ def test_a_right_answer_scores_and_a_wrong_one_does_not(client, organiser_header
         client,
         quiz,
         [
-            {"question_id": qs[0]["id"], "answer_choices": ["Amsterdam"]},
+            {"question_id": qs[0]["id"], "answer_choices": option_ids(qs[0], "Amsterdam")},
             {"question_id": qs[1]["id"], "answer_int": 11},
         ],
     )
@@ -96,15 +96,21 @@ def test_multi_choice_pays_part_marks_and_charges_for_wrong_ones(client, organis
                 "kind": "multi_choice",
                 "prompt": "Welke twee?",
                 "points": 6,
-                "options": ["A", "B", "C", "D"],
-                "correct_choices": ["A", "B"],
+                "options": [
+                    {"label": "A", "is_correct": True},
+                    {"label": "B", "is_correct": True},
+                    {"label": "C"},
+                    {"label": "D"},
+                ],
             }
         ],
     )
-    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    question = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]
+    qid = question["id"]
 
     def score(choices: list[str]) -> int:
-        return _take(client, quiz, [{"question_id": qid, "answer_choices": choices}]).json()["score"]
+        picked = option_ids(question, *choices)
+        return _take(client, quiz, [{"question_id": qid, "answer_choices": picked}]).json()["score"]
 
     assert score(["A", "B"]) == 6  # (2 - 0) / 2
     assert score(["A"]) == 3  # (1 - 0) / 2
@@ -126,15 +132,22 @@ def test_a_wrong_tick_costs_what_a_right_one_pays(client, organiser_headers) -> 
                 "kind": "multi_choice",
                 "prompt": "Welke?",
                 "points": 8,
-                "options": ["A", "B", "C", "D", "E"],
-                "correct_choices": ["A"],
+                "options": [
+                    {"label": "A", "is_correct": True},
+                    {"label": "B"},
+                    {"label": "C"},
+                    {"label": "D"},
+                    {"label": "E"},
+                ],
             }
         ],
     )
-    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    question = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]
+    qid = question["id"]
 
     def score(choices: list[str]) -> int:
-        return _take(client, quiz, [{"question_id": qid, "answer_choices": choices}]).json()["score"]
+        picked = option_ids(question, *choices)
+        return _take(client, quiz, [{"question_id": qid, "answer_choices": picked}]).json()["score"]
 
     assert score(["A"]) == 8
     assert score(["A", "B"]) == 0
@@ -223,8 +236,7 @@ def test_the_public_shape_carries_no_answer_key(client, organiser_headers) -> No
                 "kind": "single_choice",
                 "prompt": "Welke?",
                 "points": 1,
-                "options": ["Rotterdam", "Zwolle"],
-                "correct_choices": ["Zwolle"],
+                "options": [{"label": "Rotterdam"}, {"label": "Zwolle", "is_correct": True}],
             },
             {"kind": "number", "prompt": "Hoeveel?", "points": 1, "correct_int": 42, "tolerance": 2},
         ],
@@ -255,7 +267,7 @@ def test_the_public_shape_carries_no_answer_key(client, organiser_headers) -> No
     # The one key value distinctive enough to grep for safely.
     assert "Zwolle" not in response.text.split('"options"')[0]
     # And what it may carry.
-    assert response.json()["questions"][0]["options"] == ["Rotterdam", "Zwolle"]
+    assert [o["label"] for o in response.json()["questions"][0]["options"]] == ["Rotterdam", "Zwolle"]
 
 
 def test_the_result_reveals_the_key_only_when_the_quiz_says_so(client, organiser_headers) -> None:
@@ -476,8 +488,7 @@ def test_a_correct_option_has_to_be_one_of_the_options(client, organiser_headers
                     "kind": "single_choice",
                     "prompt": "Welke?",
                     "points": 1,
-                    "options": ["A", "B"],
-                    "correct_choices": ["C"],
+                    "options": [{"label": "A"}, {"label": "B"}],
                 }
             ],
         },
@@ -528,8 +539,7 @@ def test_ticking_nothing_is_an_answer_on_a_quiz(client, organiser_headers) -> No
                 "kind": "multi_choice",
                 "prompt": "Welke?",
                 "points": 4,
-                "options": ["A", "B"],
-                "correct_choices": ["A"],
+                "options": [{"label": "A", "is_correct": True}, {"label": "B"}],
             }
         ],
     )

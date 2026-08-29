@@ -6,7 +6,7 @@ from .datepolls import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmiss
 from .email_dispatch import EmailChannel, EmailDispatch, EmailSendCount
 from .events import Event, Occurrence, Registration, Signup
 from .feedback import FeedbackResponse, FeedbackToken
-from .forms import Form, FormQuestion, FormResponse, FormSubmission
+from .forms import Form, FormQuestion, FormQuestionOption, FormResponse, FormResponseChoice, FormSubmission
 from .tenants import Tenant
 from .traffic import TrafficCount
 from .users import LoginToken, RegistrationToken, User, UserChapter
@@ -34,7 +34,9 @@ __all__ = [
     "FeedbackToken",
     "Form",
     "FormQuestion",
+    "FormQuestionOption",
     "FormResponse",
+    "FormResponseChoice",
     "FormSubmission",
     "LoginToken",
     "Occurrence",

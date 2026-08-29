@@ -4248,21 +4248,6 @@
       "FormQuestionIn": {
         "description": "One question on the create / update payload. ``id`` is null\nfor newly-added rows; existing questions carry their server-\nassigned uuid so the diff-apply on update matches by id (and\nthe row's responses stay attached across a prompt edit).\n``ordinal`` is not on this shape \u2014 the server re-numbers from\ninput order, which means reordering on the frontend is just\n\"send back in the new order\".",
         "properties": {
-          "correct_choices": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "maxItems": 50,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Correct Choices"
-          },
           "correct_int": {
             "anyOf": [
               {
@@ -4355,30 +4340,9 @@
             ],
             "title": "Min Value"
           },
-          "option_poles": {
-            "anyOf": [
-              {
-                "items": {
-                  "enum": [
-                    "x_low",
-                    "x_high",
-                    "y_low",
-                    "y_high"
-                  ],
-                  "type": "string"
-                },
-                "maxItems": 50,
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Option Poles"
-          },
           "options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/FormQuestionOptionIn"
             },
             "maxItems": 50,
             "title": "Options",
@@ -4457,23 +4421,93 @@
         "title": "FormQuestionIn",
         "type": "object"
       },
-      "FormQuestionOut": {
-        "description": "Question shape on the wire. Organiser endpoints + the\npublic-by-slug endpoint both return this; the public form\nrenders ``prompt`` / ``options`` / ``low_label`` / ``high_label``\nverbatim. ``ordinal`` is server-assigned (1..N).",
+      "FormQuestionOptionIn": {
+        "description": "One choice on the create / update payload.\n\n``id`` is null for a newly-typed option and carries the server's\nuuid for one that already exists, which is what keeps the answers\npointing at it across a rename. An editor that drops the id is\nasking for the option to be replaced, and the answers to it to go\n(``docs/design-question-edits.md``).",
         "properties": {
-          "correct_choices": {
+          "id": {
             "anyOf": [
               {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Correct Choices"
+            "title": "Id"
           },
+          "is_correct": {
+            "default": false,
+            "title": "Is Correct",
+            "type": "boolean"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "pole": {
+            "anyOf": [
+              {
+                "enum": [
+                  "x_low",
+                  "x_high",
+                  "y_low",
+                  "y_high"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pole"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "FormQuestionOptionIn",
+        "type": "object"
+      },
+      "FormQuestionOptionOut": {
+        "description": "One choice as the organiser's editor sees it: the label plus the\ntwo things only they may know, the direction it moves somebody and\nwhether it is a right answer.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_correct": {
+            "default": false,
+            "title": "Is Correct",
+            "type": "boolean"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pole"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "FormQuestionOptionOut",
+        "type": "object"
+      },
+      "FormQuestionOut": {
+        "description": "Question shape on the wire. Organiser endpoints + the\npublic-by-slug endpoint both return this; the public form\nrenders ``prompt`` / ``options`` / ``low_label`` / ``high_label``\nverbatim. ``ordinal`` is server-assigned (1..N).",
+        "properties": {
           "correct_int": {
             "anyOf": [
               {
@@ -4548,23 +4582,9 @@
             ],
             "title": "Min Value"
           },
-          "option_poles": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Option Poles"
-          },
           "options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/FormQuestionOptionOut"
             },
             "title": "Options",
             "type": "array"
@@ -6183,6 +6203,25 @@
         "title": "PublicOccurrenceOut",
         "type": "object"
       },
+      "PublicOptionOut": {
+        "description": "One choice as a respondent's browser sees it, before they submit.\n\nThe id and the label, and deliberately nothing else. Listing the\nfields rather than excluding them is the same rule\n``PublicQuestionOut`` follows: a column added to the option model\ndoes not silently reach the page. The id travels because the answer\nis submitted by id, which is what survives the organiser renaming\nthe label afterwards.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "PublicOptionOut",
+        "type": "object"
+      },
       "PublicQuestionOut": {
         "description": "What a respondent's browser is allowed to know about a question.\n\nEverything ``FormQuestionOut`` has except the answer key and the\ndirections. This is the one class standing between a quiz and being\nsolved by view-source, and between a kompas and being answered by\nreading which button moves you where, so it lists its fields rather\nthan excluding: a field added to the question model does not\nsilently appear here.",
         "properties": {
@@ -6240,7 +6279,7 @@
           },
           "options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/PublicOptionOut"
             },
             "title": "Options",
             "type": "array"
