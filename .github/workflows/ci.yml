@@ -48,12 +48,12 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install
         run: npm ci
-      - name: Type-check (vue-tsc)
-        run: npx vue-tsc --noEmit
+      - name: Type-check (svelte-check)
+        run: npx svelte-check --threshold error
       - name: Unit tests (vitest)
         run: npm run test
       - name: Build the SPA
-        # ``build-only`` skips vue-tsc, which the step above already did.
+        # ``build-only`` skips svelte-check, which the step above did.
         run: npm run build-only
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

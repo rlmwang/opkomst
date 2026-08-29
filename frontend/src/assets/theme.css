@@ -166,7 +166,7 @@
   /* The meta line a details page writes into ``DetailHeaderCard``'s
    * ``#meta`` slot. Slot content carries the page's scope, not the
    * card's, so this one stays global; the card's own layout lives in
-   * ``DetailHeaderCard.vue``. */
+   * ``DetailHeaderCard.svelte``. */
   .overview-meta {
     margin: 0;
   }

@@ -3,11 +3,9 @@
 Sets the standard hardening headers on every response:
 
 - ``Content-Security-Policy`` — pinned strict policy that allows
-  PrimeVue 4's runtime style injection (``'unsafe-inline'`` for
-  styles only — they're injected as ``<style>`` tags by the
-  component library, blocking them renders every PrimeVue
-  component as unstyled HTML), the OSM tile server, and PDOK
-  Locatieserver for the address autocomplete. Scripts get a
+  inline styles (``'unsafe-inline'`` for styles only, see below),
+  the OSM tile server, and PDOK Locatieserver for the address
+  autocomplete. Scripts get a
   per-response nonce, which the HTML shells stamp on the two blocks
   they inline (the brand and the first-paint payload) — see
   ``routers/spa.py``.
@@ -30,11 +28,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-# Pinned policy. ``'unsafe-inline'`` for ``style-src`` is required
-# because PrimeVue 4 generates component CSS at runtime via
-# JavaScript and injects it as ``<style>`` tags. Without this every
-# PrimeVue component renders unstyled. The same trade-off is
-# documented in CLAUDE.md.
+# Pinned policy. ``'unsafe-inline'`` for ``style-src`` is required by
+# two things the pages actually do. The brand's palette is a
+# server-rendered ``<style>`` block in every page head
+# (``services/brand.py``), because the colours have to be there on the
+# first paint. And the app writes ``style`` attributes in its markup,
+# which a nonce does not cover: only ``style-src-attr`` does, and it
+# would still need ``'unsafe-inline'``.
+#
+# It was PrimeVue's runtime style injection that first required this,
+# and PrimeVue is gone. The requirement is not: tightening it means
+# giving the brand block the nonce the scripts already get and then
+# finding every ``style`` attribute the app renders.
 CSP_TEMPLATE = (
     "default-src 'self'; "
     # Hero images are same-origin now: they are served by ``/i/{path}``

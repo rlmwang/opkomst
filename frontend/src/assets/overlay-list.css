@@ -4,7 +4,7 @@
  * list: the same rows, the same focus colour, the same scroll cap.
  *
  * Global rather than scoped because the panel is teleported to the body
- * and so carries no scope attribute, which is what ``DatePicker.vue``
+ * and so carries no scope attribute, which is what ``DatePicker.svelte``
  * does with its own panel. The ``ovl-`` prefix keeps the rules to
  * themselves.
  *

@@ -47,7 +47,7 @@
      * uses: the column is right for the page, the paragraph is not. */
     /* The column is 720px and the text used to stop at 34rem, which
      * left a third of it empty. It fills the column now; the ad
-     * rails are measured off that same 720 (``AdSlot.vue``). */
+     * rails are measured off that same 720 (``AdSlot.svelte``). */
     p, li { max-width: 42rem; }
     ul { padding-left: 1.25rem; }
     a { color: var(--brand-red); }
@@ -74,7 +74,7 @@
       padding: 0.875rem 1rem;
     }
     /* One wrapping row of short names, the same colophon the app
-     * renders (``public_shared/Colophon.vue``). The rules live twice
+     * renders (``public_shared/Colophon.svelte``). The rules live twice
      * because these pages carry no bundle on purpose. */
     .site-footer {
       margin-top: 3.5rem;
@@ -97,7 +97,7 @@
       gap: 0.5rem;
     }
     /* The advertising slot, in the shape ``docs/ads.md`` describes and
-     * ``public_shared/AdSlot.vue`` renders in the app: rails pinned to
+     * ``public_shared/AdSlot.svelte`` renders in the app: rails pinned to
      * the window edges well clear of the text, or one banner at the
      * foot of the page. The rules live twice because these pages carry
      * no bundle on purpose, so they cannot reach the component's own
@@ -156,7 +156,7 @@
       between the rails and the banner has to decide whether the unit is
       *created*: an ad script measures its container, and one hidden by
       a media query is a zero-width box it refuses to fill. That is the
-      same reason ``AdSlot.vue`` resolves the breakpoint in script
+      same reason ``AdSlot.svelte`` resolves the breakpoint in script
       rather than in CSS. -#}
   <div id="ad-slot"
        data-client="{{ ads.client_id }}"
@@ -168,7 +168,7 @@
       var client = el.getAttribute("data-client");
       /* 16 + 178 + 64 + 720 + 64 + 178 + 16: the reading column, a
          framed rail either side, and the gutter that keeps them off
-         the text. Mirrors ``RAILS_FROM`` in ``AdSlot.vue``. */
+         the text. Mirrors ``RAILS_FROM`` in ``AdSlot.svelte``. */
       var wide = window.matchMedia("(min-width: 1236px)").matches;
       var unit = wide ? el.getAttribute("data-rail") : el.getAttribute("data-banner");
       /* A client id with no unit id yet is step one of turning this on:

@@ -8,7 +8,7 @@
  * the same. This is that one look with one implementation behind it.
  *
  * One module-level queue; ``<AppToast>`` renders it, mounted once in
- * ``App.vue`` and once in ``PublicShell``.
+ * ``App.svelte`` and once in ``PublicShell``.
  *
  * The queue itself knows no framework: a plain array and a set of
  * listeners. Each ``AppToast`` subscribes and keeps its own reactive

@@ -55,7 +55,7 @@ pre-push:
           uv sync --frozen --quiet
         fi
     2_checks:
-      # Frontend build (vue-tsc + vite), vitest and the openapi drift
+      # Frontend build (svelte-check + vite), vitest and the openapi drift
       # check, concurrently. None of them holds a timeout, so they may
       # fight each other for cores all they like.
       run: make -j3 pre-push-checks

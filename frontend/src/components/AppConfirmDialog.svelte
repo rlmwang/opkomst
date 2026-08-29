@@ -1,6 +1,6 @@
 <script lang="ts">
 /** Renders whatever ``useConfirms().ask`` last asked (``lib/confirms``).
- *  Mounted once in ``App.vue``, the way PrimeVue's ConfirmDialog was. */
+ *  Mounted once in ``App.svelte``, the way PrimeVue's ConfirmDialog was. */
 import AppButton from "@/components/AppButton.svelte";
 import AppDialog from "@/components/AppDialog.svelte";
 import AppIcon from "@/components/AppIcon.svelte";

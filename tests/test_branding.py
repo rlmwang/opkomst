@@ -154,7 +154,7 @@ def test_a_brand_without_a_logo_renders_its_wordmark_in_email(monkeypatch) -> No
     """A brand with no logo file renders its wordmark as text. An
     ``<img>`` pointing at nothing is a broken box in a mail client,
     showing the alt text clipped to the image's width, so the chrome
-    falls back to words, the same rule ``BrandMark.vue`` follows on the
+    falls back to words, the same rule ``BrandMark.svelte`` follows on the
     page.
 
     Every brand committed today has a logo, so the branch is exercised

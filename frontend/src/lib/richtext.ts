@@ -1,6 +1,6 @@
 /** The rich-text body, without an editor library.
  *
- * ``RichTextField.vue`` is a plain ``contenteditable`` driven by
+ * ``RichTextField.svelte`` is a plain ``contenteditable`` driven by
  * ``document.execCommand``. The browser does the editing; this module
  * does the two jobs the browser does badly.
  *

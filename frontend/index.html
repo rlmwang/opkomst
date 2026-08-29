@@ -22,7 +22,9 @@
     <!-- OPKOMST_HEAD_INJECTION -->
     <!--
       Inline first-paint loader. Visible the instant the HTML
-      arrives, replaced when Vue mounts onto ``#app``. Kills the
+      arrives, cleared when the app mounts onto ``#app``
+      (``src/lib/mount.ts``, which is the only thing that may).
+      Kills the
       "blank screen for a long time" perception on slow connections
       while the JS bundle downloads + parses. Inlined (not a CSS
       file) so it never costs an extra request.

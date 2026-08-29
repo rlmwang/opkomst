@@ -1,6 +1,6 @@
 <script lang="ts">
 /** Renders the app's toast queue (``lib/toast.ts``). Mounted once in
- *  ``App.vue`` for the organiser app and once in ``PublicShell`` for
+ *  ``App.svelte`` for the organiser app and once in ``PublicShell`` for
  *  the public mini-apps, so both share one region and one look. */
 import { onMount } from "svelte";
 import { fly } from "svelte/transition";

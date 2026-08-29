@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # Multi-stage build:
-#   1. ``frontend-builder``  builds the Vue/Vite SPA into ``frontend/dist``.
+#   1. ``frontend-builder``  builds the front end into ``frontend/dist``.
 #   2. ``backend-runtime``   installs Python deps with ``uv``, copies the
 #                            backend source and the built SPA, and runs
 #                            uvicorn with multiple workers.
@@ -29,10 +29,11 @@ COPY frontend/package.json frontend/package-lock.json* ./
 # but tarballs come from the cache instead of the network.
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
-# ``build-only`` = ``vite build`` without ``vue-tsc``. Type-checking runs in
-# pre-push (lefthook) and CI, so re-running it here is redundant — and
-# ``vue-tsc`` is the memory hog that OOM-kills the build on the 1.9 GB VPS,
-# taking the site down. The image build just needs the bundle.
+# ``build-only`` = the two-pass build without ``svelte-check``.
+# Type-checking runs in pre-push (lefthook) and CI, so re-running it here
+# is redundant, and the checker is the memory hog that OOM-kills the
+# build on the 1.9 GB VPS, taking the site down. The image build just
+# needs the bundle.
 RUN npm run build-only
 
 # ---------------------------------------------------------------------------

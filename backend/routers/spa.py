@@ -1,4 +1,4 @@
-"""Serve the Vue SPA in production.
+"""Serve the built front end in production.
 
 The Vite build is copied to ``frontend/dist`` by the Dockerfile.
 The hashed ``assets/`` directory mounts with a 1-year ``immutable``

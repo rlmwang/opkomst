@@ -11,7 +11,7 @@ help:
 	@echo "make test         Run backend pytest with coverage gate."
 	@echo "make test-fast    Run pytest without coverage."
 	@echo "make lint         ruff + pyright."
-	@echo "make typecheck    pyright + vue-tsc."
+	@echo "make typecheck    pyright + svelte-check."
 	@echo "make e2e          Playwright critical-path on a fresh stack."
 	@echo "make openapi      Regenerate openapi.json + frontend/src/api/schema.ts."
 	@echo "make pre-push-checks  What git push runs: build, vitest, schema drift (use -j3)."
@@ -46,7 +46,7 @@ lint:
 
 typecheck:
 	uv run pyright backend
-	cd frontend && npx vue-tsc --noEmit
+	cd frontend && npx svelte-check --threshold error
 
 e2e:
 	cd frontend && CI=1 npx playwright test

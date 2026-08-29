@@ -263,7 +263,7 @@ def upload_event_image(
     Replacing an image deletes the file it replaces, once the row
     points at the new one.
 
-    Returns the updated ``EventOut`` so the caller's Vue Query
+    Returns the updated ``EventOut`` so the caller's query
     cache patches in-place without an extra refetch."""
     if not settings.event_images_enabled:
         logger.warning("event_image_upload_disabled", event_id=event_id, actor_id=user.id)
