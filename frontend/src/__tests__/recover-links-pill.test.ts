@@ -6,11 +6,10 @@
  */
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import PrimeVue from "primevue/config";
-import Tooltip from "primevue/tooltip";
 import { createI18n } from "vue-i18n";
 
 import RecoverLinksPill from "@/components/RecoverLinksPill.vue";
+import { tooltip } from "@/lib/tooltip";
 import * as client from "@/api/client";
 
 vi.mock("@/api/client", () => ({ post: vi.fn(async () => ({ edit_token: "tok123" })) }));
@@ -56,7 +55,7 @@ function mountPill() {
       recoverPath: (id: string) => `/api/x/${id}/edit-link`,
       publicUrl: (tok: string) => `https://pub/e/slug?s=${tok}`,
     },
-    global: { plugins: [PrimeVue, makeI18n()], directives: { tooltip: Tooltip } },
+    global: { plugins: [makeI18n()], directives: { tooltip } },
   });
 }
 

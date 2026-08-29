@@ -346,6 +346,27 @@
     opacity: 0.6;
     cursor: default;
   }
+  /* ``v-tooltip.top`` (``lib/tooltip.ts``). One node reused for every
+   * trigger, appended to the body so no card that hides its overflow
+   * can clip it. Aura's values: a 12.5rem cap and 0.5rem by 0.75rem of
+   * padding, dark surface on light text. */
+  .app-tooltip {
+    position: absolute;
+    display: none;
+    z-index: 1200;
+    max-width: 12.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    background: var(--brand-surface-700);
+    color: var(--brand-surface-0);
+    font-size: 0.875rem;
+    line-height: 1.35;
+    pointer-events: none;
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  }
+
   .privacy-notice {
     font-size: 0.875rem;
     color: var(--brand-text-muted);

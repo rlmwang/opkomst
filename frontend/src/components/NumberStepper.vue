@@ -13,6 +13,10 @@ const props = withDefaults(
     min?: number;
     max?: number;
     ariaLabel?: string;
+    /** A unit shown after the number, e.g. ``s``. Inside the field, so
+     *  it scrolls and aligns with the value rather than floating beside
+     *  the control. */
+    suffix?: string;
   }>(),
   { min: 0, max: 999 },
 );
@@ -69,6 +73,7 @@ function onBlur(ev: FocusEvent): void {
       @input="onInput($event)"
       @blur="onBlur($event as FocusEvent)"
     />
+    <span v-if="suffix" class="num-suffix">{{ suffix }}</span>
     <button
       type="button"
       class="num-step"
@@ -80,6 +85,16 @@ function onBlur(ev: FocusEvent): void {
 </template>
 
 <style scoped>
+/* The unit sits in the field's own box, between the value and the +
+ * button, so the two read as one number. */
+.num-suffix {
+  display: inline-flex;
+  align-items: center;
+  padding-inline-end: 0.5rem;
+  border-block: 1px solid var(--brand-border);
+  background: var(--brand-surface-0);
+  color: var(--brand-text-muted);
+}
 /* Ported verbatim from the public event sign-up stepper so the counter
  * reads the same everywhere. Sized to its content, not fluid. */
 .number-field {

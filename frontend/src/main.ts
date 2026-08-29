@@ -1,12 +1,10 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import PrimeVue from "primevue/config";
-import ConfirmationService from "primevue/confirmationservice";
-import Tooltip from "primevue/tooltip";
-import ToastService from "primevue/toastservice";
 import { createApp } from "vue";
 import { ApiError } from "@/api/client";
 import * as sentry from "@/lib/sentry";
+import { tooltip } from "@/lib/tooltip";
 import App from "./App.vue";
 import { i18n, initI18n } from "./i18n";
 import { primeVueConfig } from "./primevue-preset";
@@ -55,9 +53,7 @@ app.use(VueQueryPlugin, { queryClient });
 app.use(i18n);
 app.use(router);
 app.use(PrimeVue, primeVueConfig);
-app.use(ToastService);
-app.use(ConfirmationService);
-app.directive("tooltip", Tooltip);
+app.directive("tooltip", tooltip);
 
 // The active language is fetched, not bundled, so it has to be in hand
 // before the first render or every string would paint as ``[key]``. It

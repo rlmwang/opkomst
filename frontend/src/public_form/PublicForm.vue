@@ -9,7 +9,7 @@ import RecoveredNotice from "@/public_shared/RecoveredNotice.vue";
 import PublicTopCard from "@/public_shared/PublicTopCard.vue";
 import PublicNotice from "@/public_shared/PublicNotice.vue";
 import PublicShell from "@/public_shared/PublicShell.vue";
-import { showToast } from "@/public_shared/publicToast";
+import { showToast } from "@/lib/toast";
 import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";

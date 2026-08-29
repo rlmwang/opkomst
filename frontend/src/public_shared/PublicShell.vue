@@ -2,7 +2,7 @@
 import { watch } from "vue";
 import AdSlot from "./AdSlot.vue";
 import BrandMark from "./BrandMark.vue";
-import PublicToast from "./PublicToast.vue";
+import AppToast from "@/components/AppToast.vue";
 import type { Locale } from "./strings";
 
 /** Page chrome shared by all three public mini-apps: the 720px
@@ -27,7 +27,7 @@ watch(locale, (l) => {
        it doesn't count as the stack's first child and push the header
        down by one gap — which is what made this header sit 12px lower
        than the organisation's front page. -->
-  <PublicToast />
+  <AppToast />
   <div class="stack" :class="wide ? 'container-wide' : 'container'">
     <header class="public-header">
       <slot name="brand"><BrandMark public-link /></slot>

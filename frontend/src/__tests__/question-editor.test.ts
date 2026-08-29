@@ -7,8 +7,9 @@
  * widget's interaction model.
  */
 import { mount } from "@vue/test-utils";
-import PrimeVue from "primevue/config";
 import { describe, expect, it } from "vitest";
+// PrimeVue stays until task 03: this editor still renders its Select.
+import PrimeVue from "primevue/config";
 import { createI18n } from "vue-i18n";
 
 import QuestionEditor, { type QuestionDraft } from "@/components/QuestionEditor.vue";

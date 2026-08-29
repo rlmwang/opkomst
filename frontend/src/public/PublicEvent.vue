@@ -15,7 +15,7 @@ import MonthGrid from "@/components/MonthGrid.vue";
 import { chromeStrings } from "@/public_shared/strings";
 import { resolveText } from "@/public_shared/bilingual";
 import { stripHtml } from "@/public_shared/stripHtml";
-import { showToast } from "@/public_shared/publicToast";
+import { showToast } from "@/lib/toast";
 import { useEditForm } from "@/public_shared/useEditForm";
 import { useEditLink } from "@/public_shared/useEditLink";
 import BrandedSelect from "./BrandedSelect.vue";
@@ -301,10 +301,10 @@ const emailUseBullets = computed<EmailUseBullet[]>(() => {
   if (!e) return [];
   const bullets: EmailUseBullet[] = [];
   if (e.reminder_enabled) {
-    bullets.push({ text: t.value.emailUses.reminder, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/reminder` });
+    bullets.push({ text: t.value.emailUses.reminder, previewUrl: `/api/v1/event/by-slug/${slug}/email-preview/reminder` });
   }
   if (e.feedback_enabled) {
-    bullets.push({ text: t.value.emailUses.feedback, previewUrl: `/api/v1/events/by-slug/${slug}/email-preview/feedback` });
+    bullets.push({ text: t.value.emailUses.feedback, previewUrl: `/api/v1/event/by-slug/${slug}/email-preview/feedback` });
   }
   return bullets;
 });
@@ -338,7 +338,7 @@ const calLinks = computed(() => {
     new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const publicUrl = `${window.location.origin}/e/${e.current.slug}`;
   const desc = [stripHtml(eventTopic.value ?? ""), publicUrl].filter(Boolean).join("\n\n");
-  const ics = `/api/v1/events/by-slug/${e.current.slug}/event.ics`;
+  const ics = `/api/v1/event/by-slug/${e.current.slug}/event.ics`;
   const google =
     `https://calendar.google.com/calendar/render?action=TEMPLATE` +
     `&text=${enc(eventTitle.value ?? "")}` +

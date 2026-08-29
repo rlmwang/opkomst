@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import ConfirmDialog from "primevue/confirmdialog";
-import Toast from "primevue/toast";
+import AppConfirmDialog from "@/components/AppConfirmDialog.vue";
+import AppToast from "@/components/AppToast.vue";
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import AdSlot from "@/public_shared/AdSlot.vue";
@@ -35,11 +35,11 @@ router.isReady().finally(() => {
 </script>
 
 <template>
-  <Toast position="top-center" />
+  <AppToast />
   <!-- Match AppDialog's default width so confirmation dialogs and
        form dialogs sit at exactly the same size, regardless of how
        long the message text happens to be. -->
-  <ConfirmDialog :style="{ width: '420px' }" />
+  <AppConfirmDialog />
 
   <!-- The shell is a column as tall as the viewport and this is the
        part of it that grows, so the colophon lands on the bottom edge

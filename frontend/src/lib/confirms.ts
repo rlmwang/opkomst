@@ -1,32 +1,46 @@
-import { useConfirm } from "primevue/useconfirm";
+import { reactive, readonly } from "vue";
 
-interface ConfirmOpts {
+/**
+ * The app's confirmation dialog. Was a wrapper over PrimeVue's
+ * ``useConfirm``; the queue underneath is the app's own now, and
+ * ``<AppConfirmDialog>`` in ``App.vue`` renders it over ``AppDialog``.
+ *
+ * One request at a time, which is what a modal means. ``ask`` from six
+ * call sites, and none of them changed for this: reject is a secondary
+ * text button, accept is the brand-red primary, so dialog buttons never
+ * drift.
+ */
+export interface ConfirmRequest {
   header: string;
   message: string;
   acceptLabel: string;
   rejectLabel: string;
-  /** Optional PrimeIcon class for the dialog header icon. */
+  /** Optional icon class shown beside the message. */
   icon?: string;
   accept: () => void | Promise<void>;
 }
 
-/** Brand-consistent confirmation dialog. Reject = secondary text
- * button (matches ``AppDialog`` cancel); Accept = brand-red primary
- * button. Every ``confirm.require`` call site goes through this so
- * dialog buttons never drift. */
+const state = reactive<{ request: ConfirmRequest | null }>({ request: null });
+
 export function useConfirms() {
-  const confirm = useConfirm();
   return {
-    ask(opts: ConfirmOpts) {
-      confirm.require({
-        header: opts.header,
-        message: opts.message,
-        icon: opts.icon,
-        rejectLabel: opts.rejectLabel,
-        rejectProps: { severity: "secondary", text: true },
-        acceptLabel: opts.acceptLabel,
-        accept: opts.accept,
-      });
+    ask(opts: ConfirmRequest) {
+      state.request = opts;
+    },
+  };
+}
+
+/** For the one component that renders the dialog. */
+export function useConfirmRequest() {
+  return {
+    state: readonly(state),
+    async accept() {
+      const request = state.request;
+      state.request = null;
+      await request?.accept();
+    },
+    reject() {
+      state.request = null;
     },
   };
 }

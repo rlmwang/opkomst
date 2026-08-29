@@ -10,7 +10,7 @@ import PublicShell from "@/public_shared/PublicShell.vue";
 import DatePicker from "@/components/DatePicker.vue";
 import WeekdayGrid from "@/components/WeekdayGrid.vue";
 import { isValidEmail } from "@/lib/validate";
-import { showToast } from "@/public_shared/publicToast";
+import { showToast } from "@/lib/toast";
 import { resolveText } from "@/public_shared/bilingual";
 import { type Locale, GITHUB_URL, chromeStrings, pickLocale } from "@/public_shared/strings";
 import { useEditForm } from "@/public_shared/useEditForm";

@@ -47,7 +47,7 @@ when the chore page's date fields became `DatePicker.vue`.
 | # | Task | What goes | Depends on |
 |---|---|---|---|
 | 01 | Plain controls *(landed; spec deleted)* | Button, InputText, Textarea, ToggleSwitch, ProgressBar, IconField, InputIcon | none |
-| 02 | [The ones we already own](02-house-equivalents.md) | Toast, InputNumber, Dialog, ConfirmDialog, Tooltip | 01 |
+| 02 | The ones we already own *(landed; spec deleted)* | Toast, InputNumber, Dialog, ConfirmDialog, Tooltip | 01 |
 | 03 | [Overlay lists](03-overlay-lists.md) | Select, MultiSelect, AutoComplete, Popover, then PrimeVue itself | 01, 02 |
 
 01 and 02 are independent of each other in principle. 02 lists after 01
@@ -57,6 +57,14 @@ over each file.
 **Counting call sites, not files.** Task 01's spec said 61 call sites and
 the real number was 135, because the first count was of import
 statements. Button alone is 78. Count tags before estimating.
+
+**Shell components pay in the critical path, route components do not.**
+Both specs said the critical path would not move until task 03. That
+held for 01 and was wrong for 02, which took 19,917 gz off it. Toast,
+ConfirmDialog and Tooltip are registered in `main.ts` and rendered in
+`App.vue`, so they were in the entry chunk, not behind a route. What is
+left of `primevue-base` is 32,944 gz, not the 45,244 the table below
+still quotes.
 
 ## Where the reference lives
 

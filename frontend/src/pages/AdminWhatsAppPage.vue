@@ -15,11 +15,11 @@
  *  - Server-side watchdog catches anything those two miss.
  */
 import AppButton from "@/components/AppButton.vue";
-import Dialog from "primevue/dialog";
-import InputNumber from "primevue/inputnumber";
+import AppDialog from "@/components/AppDialog.vue";
 import AppInput from "@/components/AppInput.vue";
 import Select from "primevue/select";
 import AppTextarea from "@/components/AppTextarea.vue";
+import NumberStepper from "@/components/NumberStepper.vue";
 import { computed, ref, watch } from "vue";
 import { onBeforeUnmount, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -605,15 +605,12 @@ onBeforeUnmount(() => {
           <div v-if="!sending && !finished" class="delay-row">
             <label class="delay-label">
               <span>{{ t("whatsapp.compose.delayLabel") }}</span>
-              <InputNumber
+              <NumberStepper
                 v-model="delaySeconds"
                 :min="DELAY_MIN"
                 :max="DELAY_MAX"
-                :step="1"
-                showButtons
-                buttonLayout="horizontal"
-                suffix=" s"
-                :inputStyle="{ width: '4rem', textAlign: 'right' }"
+                suffix="s"
+                :aria-label="t('whatsapp.compose.delayLabel')"
               />
             </label>
             <p class="muted delay-hint">{{ t("whatsapp.compose.delayHint") }}</p>
@@ -720,13 +717,7 @@ onBeforeUnmount(() => {
       </template>
     </AppCard>
 
-    <Dialog
-      v-model:visible="confirmOpen"
-      modal
-      :header="t('whatsapp.compose.confirmHeader')"
-      :style="{ width: '420px' }"
-      :closable="true"
-    >
+    <AppDialog v-model:visible="confirmOpen" :header="t('whatsapp.compose.confirmHeader')">
       <p class="confirm-lead">
         {{ t("whatsapp.compose.confirmLead", { count: validRows.length }) }}
       </p>
@@ -748,7 +739,7 @@ onBeforeUnmount(() => {
           @click="acceptConfirm"
         />
       </template>
-    </Dialog>
+    </AppDialog>
   </div>
 </template>
 

@@ -89,6 +89,18 @@ watch(model, () => {
   border-color: var(--brand-primary-500);
   outline: none;
 }
+/* Chrome paints an autofilled field its own yellow, and refuses to let
+ * ``background`` override it. An inset shadow is the only thing that
+ * covers it, and the text colour has to be set through
+ * ``-webkit-text-fill-color`` for the same reason. The login field is
+ * the one every password manager fills. */
+.app-textarea:-webkit-autofill,
+.app-textarea:-webkit-autofill:hover,
+.app-textarea:-webkit-autofill:focus {
+  box-shadow: 0 0 0 100px var(--brand-surface-0) inset;
+  -webkit-text-fill-color: var(--brand-surface-900);
+  caret-color: var(--brand-surface-900);
+}
 .app-textarea::placeholder {
   color: var(--brand-surface-500);
 }
