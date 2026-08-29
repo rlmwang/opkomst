@@ -23,54 +23,72 @@ past them, and every backup copies them.
 ## What is proposed
 
 Move an archived item, and everything that hangs off it, out of the live
-tables and into one archive table. The live tables then contain only
-live data, and no query needs `archived_at IS NULL` at all.
+tables and into a mirror of those tables. The live tables then contain
+only live data, and no query needs `archived_at IS NULL` at all.
 
-```
-archived_entities
-  id            text        the archived item's own id, kept
-  tenant_id     text        NOT NULL, as everywhere
-  kind          text        'event' | 'form' | 'datepoll' | 'roster'
-  chapter_id    text        nullable, for the list's filter
-  name_nl       text        }  what the archive list shows, so the
-  name_en       text        }  page never opens the payload
-  archived_at   timestamptz }
-  starts_on     date        } nullable, kind-specific summary
-  participants  integer     } precomputed at archive time
-  image_path    text        the image the item still owns
-  payload       jsonb       the whole object graph
+For every table that can hold archived data there is a
+`<table>_archive` twin with the same columns. Archiving is
+
+```sql
+INSERT INTO signups_archive SELECT * FROM signups WHERE occurrence_id IN (…);
+DELETE FROM signups WHERE occurrence_id IN (…);
 ```
 
-One row per archived item. The columns above the payload are what the
-archive page lists and filters on; the payload is everything else, as a
-JSON document: the item's own columns plus every child row, keyed by
-table name.
+and restoring is the same two statements the other way round.
 
-### Why one table with a JSON payload
+### The twin is generated, never written
 
-The obvious alternative is a mirror of every table — `events_archive`,
-`occurrences_archive`, `signups_archive` and so on. It is worse for one
-reason: every future migration has to touch two tables that must stay
-identical, and nothing enforces that they do. The mirror rots the first
-time somebody adds a column to `signups` and forgets its twin.
+A hand-maintained mirror rots the first time somebody adds a column to
+`signups` and forgets its twin. So it is not hand-maintained: each
+archive table is derived from the live model at import time.
 
-A second alternative is Postgres declarative partitioning, splitting each
-table on `archived_at IS NULL`. It needs no application code, and the
-planner prunes the archived partition automatically. It also requires
-the partition key in every primary key, converts a dozen tables, and
-leaves the archive in the same tables it was meant to leave. It is the
-right answer at a scale this project is nowhere near.
+```python
+def mirror(live: Table, metadata: MetaData) -> Table:
+    """A copy of the live table with no foreign keys and no indexes:
+    these rows point at a world that may not exist any more, and
+    nothing queries them until a restore."""
+    columns = [
+        Column(c.name, c.type, primary_key=c.primary_key, nullable=c.nullable)
+        for c in live.columns
+    ]
+    return Table(f"{live.name}_archive", metadata, *columns)
+```
 
-The payload is written once and read on restore. It does not need to be
-queryable, so JSON costs nothing here, and it cannot drift from the live
-schema because it *is* whatever the live schema was at archive time.
+One definition, two tables. Alembic autogenerate sees both, so a
+migration that adds a column emits the `ALTER` for the live table and
+its twin together — they cannot drift, because nobody is asked to
+remember.
+
+The twins carry no foreign keys, because an archived sign-up points at
+an archived occurrence and neither is in the table the key would
+reference. Referential integrity is enforced where rows are live, which
+is where it matters, and the restore re-inserts into tables that have
+it. They carry no indexes either: nothing reads them except a restore,
+which reads by the id it already has.
+
+### Why not a JSON payload
+
+The first draft of this document proposed one archive table holding each
+item's whole graph as `jsonb`. It is simpler and it is wrong: a payload
+written under today's schema has to be read back under a schema years
+newer, and nobody writes migration scripts for blobs. The failure is
+silent until somebody restores, and it lands on the person who wanted
+their event back.
+
+### Why not partitioning
+
+Splitting each table on an `archived` flag has no drift problem at all —
+there is only one schema. It also puts the flag in every primary key,
+denormalises it onto every child table, and converts a dozen tables in
+one migration. It is the right answer at a scale this project is nowhere
+near.
 
 ### Restore
 
-`restore` reads the payload, re-inserts the rows in dependency order
-with their original ids, and deletes the archive row. Ids are preserved,
-so public links and edit links keep working — an archived-then-restored
-event is the same event, not a copy.
+`restore` copies the rows back in dependency order — parents before the
+children that reference them — with their original ids, and deletes them
+from the twins. Ids are preserved, so public links and edit links keep
+working: an archived-then-restored event is the same event, not a copy.
 
 Three things have to be checked on the way back, because the world moved
 while the item was away:
@@ -86,40 +104,45 @@ while the item was away:
 Everything that cascades today moves with the item: occurrences,
 registrations, sign-ups, feedback responses and tokens, form questions
 and submissions, datepoll slots and votes, chores, volunteers, shifts.
+The set is derived from the relationship graph rather than written out
+per entity, for the same reason the twins are generated.
 
-Two things do not go into the payload:
+Two things do not move:
 
 * **`email_dispatches`** — a dispatch row is work still owed. Archiving
   an item means that work is not going to happen, so the rows are
   deleted and counted failed, exactly as `retire_event_channels` already
   does. Nothing about a queue belongs in an archive.
-* **`email_send_counts`** — the totals stay reachable, so they move into
-  the payload as plain numbers alongside the summary columns.
+* **`email_send_counts`** — the totals stay reachable, so they move to
+  their own twin like everything else.
 
 ### What deleting from the archive does
 
-Deleting an archived item deletes its `archived_entities` row. That is
-the whole graph, in one statement, with no cascade to reason about.
+Deleting an archived item deletes its rows from the twins, in the same
+derived order. There are no cascades here — the twins have no foreign
+keys — so the delete walks the same graph the archive did.
 
-It must also delete the image, which is the bug this design is next to:
-`crud.hard_delete` removes the row today and leaves the file in the
-image repository for ever, and `image_reaper` cannot find it because the
-reaper only looks at rows that still exist. With the image path on the
-archive row, the delete path has it in hand.
+It must also delete the image, which is the bug this design sits next
+to: `crud.hard_delete` removes the row today and leaves the file in the
+image repository for ever, and `image_reaper` cannot find it because it
+only looks at rows that still exist. The archived row carries
+`image_path` like any other column, so the delete path has it in hand.
 
 ## Order of work
 
 1. **Fix the image leak first**, independently of the rest. It is a
    handful of lines in the four delete routes and it is a real leak
    today. (`services/image.py::delete`, called from `crud.hard_delete`.)
-2. `archived_entities` table and its migration.
+2. The `mirror()` helper and the twins it generates, plus the migration
+   that creates them. A test asserts every twin has exactly the columns
+   of its live table, so a hand-edited migration cannot introduce the
+   drift the generation exists to prevent.
 3. `services/archive.py`: `archive(entity)` and `restore(kind, id)`,
-   built on the SQLAlchemy relationship graph so the child list is
-   derived rather than hand-written per entity. A hand-written list is
-   the same rot as the mirror tables.
+   walking the SQLAlchemy relationship graph so the child list is
+   derived rather than hand-written per entity.
 4. Move the four archive/restore/delete route pairs onto it.
-5. Backfill migration: every row with `archived_at IS NOT NULL` becomes
-   an archive row, and leaves the live tables.
+5. Backfill migration: every row with `archived_at IS NOT NULL`, and
+   its children, moves to the twins.
 6. Drop `archived_at` from the four live models, and the
    `archived_at IS NULL` filters with it. This is the payoff, and it is
    also the point of no return, so it goes last and on its own.
@@ -134,8 +157,7 @@ archive row, the delete path has it in hand.
 * **The archive itself grows for ever.** That is the intent. If it ever
   needs bounding, one table partitioned by year is a much easier thing
   to do than what we have now.
-* **Deletion requests.** The payload holds display names and party
-  sizes, so "delete everything about me" has to reach into it. Today
-  that means deleting the archive row; a finer-grained answer would need
-  the payload to be searchable, which is the one thing this shape gives
-  up.
+* **Deletion requests.** The twins hold display names and party sizes,
+  so "delete everything about me" has to reach into them. Unlike a JSON
+  payload they are ordinary tables, so it is an ordinary `DELETE` with a
+  `WHERE` — one of the reasons this shape won.
