@@ -30,3 +30,53 @@ const {
     </a>
   {/each}
 </div>
+
+<style>
+/* The same grid the agenda lays its event cards out on: up to three
+ * across the wide column, dropping to two and then one as the viewport
+ * narrows. One chapter per tile. */
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+.chapter-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 4.5rem;
+  padding: 1rem;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: var(--brand-surface);
+  text-decoration: none;
+  transition: border-color 120ms, background 120ms;
+}
+.chapter-tile:hover {
+  border-color: var(--brand-red);
+  background: var(--brand-red-soft);
+}
+.chapter-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--brand-red);
+}
+.chapter-city {
+  font-size: 0.875rem;
+}
+
+@media (max-width: 380px) {
+  .chapter-tile {
+    min-height: 3.5rem;
+    padding: 0.75rem;
+    justify-content: center;
+  }
+  .chapter-name {
+    font-size: 1rem;
+  }
+  .chapter-city {
+    display: none;
+  }
+}
+</style>
