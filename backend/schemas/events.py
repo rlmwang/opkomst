@@ -1,9 +1,29 @@
+from collections.abc import Sequence
 from datetime import date, datetime, time
 from typing import ClassVar
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
+
+
+class EventOptionIn(BaseModel):
+    """One answer offered by a sign-up question, on the create / update
+    payload. ``id`` carries the server's uuid for an option that already
+    exists, which is what keeps existing sign-ups attached across a
+    rename (``docs/design-question-edits.md``)."""
+
+    id: str | None = None
+    label: str = Field(min_length=1, max_length=200)
+
+
+class EventOptionOut(BaseModel):
+    """One answer as anyone reading the event sees it. The id travels
+    because a sign-up is submitted by id."""
+
+    id: str
+    label: str
+    model_config = {"from_attributes": True}
 
 
 class EventCreate(BilingualTitleMixin):
@@ -52,10 +72,10 @@ class EventCreate(BilingualTitleMixin):
     # Every switch starts off. An event asks for a name and a headcount
     # and nothing else until its organiser says otherwise: no extra
     # questions, no mail, and not on the agenda.
-    source_options: list[str] = Field(default_factory=list)
+    source_options: list["EventOptionIn"] = Field(default_factory=list)
     source_enabled: bool = False
     image_artist_instagram: InstagramHandle
-    help_options: list[str] = Field(default_factory=list)
+    help_options: list["EventOptionIn"] = Field(default_factory=list)
     help_enabled: bool = False
     feedback_enabled: bool = False
     reminder_enabled: bool = False
@@ -104,11 +124,11 @@ class EventCreate(BilingualTitleMixin):
 
     @field_validator("source_options")
     @classmethod
-    def _validate_source_options(cls, v: list[str]) -> list[str]:
-        cleaned = [opt.strip() for opt in v if opt.strip()]
-        if len(set(cleaned)) != len(cleaned):
+    def _validate_source_options(cls, v: list["EventOptionIn"]) -> list["EventOptionIn"]:
+        kept = [o for o in v if o.label.strip()]
+        if len({o.label.strip() for o in kept}) != len(kept):
             raise ValueError("Source options must be unique")
-        return cleaned
+        return kept
 
     @model_validator(mode="after")
     def _an_asked_question_needs_answers(self) -> "EventCreate":
@@ -124,11 +144,11 @@ class EventCreate(BilingualTitleMixin):
 
     @field_validator("help_options")
     @classmethod
-    def _validate_help_options(cls, v: list[str]) -> list[str]:
-        cleaned = [opt.strip() for opt in v if opt.strip()]
-        if len(set(cleaned)) != len(cleaned):
+    def _validate_help_options(cls, v: list["EventOptionIn"]) -> list["EventOptionIn"]:
+        kept = [o for o in v if o.label.strip()]
+        if len({o.label.strip() for o in kept}) != len(kept):
             raise ValueError("Help options must be unique")
-        return cleaned
+        return kept
 
 
 class EventUpdate(EventCreate):
@@ -189,9 +209,9 @@ class EventOut(EventListOut):
     topic_en: str | None
     end_time: time
     horizon_days: int
-    source_options: list[str]
+    source_options: list["EventOptionOut"]
     source_enabled: bool
-    help_options: list[str]
+    help_options: list["EventOptionOut"]
     help_enabled: bool
     feedback_enabled: bool
     reminder_enabled: bool
@@ -297,8 +317,8 @@ class PublicEventOut(BaseModel):
     # Empty when the organiser switched that question off. The page has
     # no business knowing about a question it isn't asking, so the
     # options simply aren't sent rather than being sent with a flag.
-    source_options: list[str]
-    help_options: list[str]
+    source_options: Sequence["EventOptionOut"]
+    help_options: Sequence["EventOptionOut"]
     image_url: str | None
     image_artist_instagram: str | None
     locale: Locale
@@ -333,6 +353,8 @@ class SignupCreate(BaseModel):
 
     display_name: DisplayName
     party_size: int = Field(ge=1, le=50)
+    # Option ids, not the labels a person read. An organiser fixing a
+    # typo afterwards leaves both pointing at the same rows.
     source_choice: str | None = None
     help_choices: list[str] = Field(default_factory=list)
     # Optional — encrypted at rest, used once per occurrence for reminder

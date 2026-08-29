@@ -167,7 +167,7 @@ def test_chapter_usage_counts_users_and_events(client, admin_headers, chapter_id
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },

@@ -27,6 +27,7 @@ from backend.database import Base, engine
 from backend.models import Chapter, Event, Tenant, User
 from backend.services import tenancy
 from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
+from tests._helpers.events import public_option_ids
 
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
@@ -84,7 +85,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
             "starts_on": "2099-01-05",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
+            "source_options": [{"label": "Flyer"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
@@ -99,7 +100,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
         json={
             "display_name": "Sam",
             "party_size": 2,
-            "source_choice": "Flyer",
+            **public_option_ids(client, occ["slug"], source="Flyer"),
             "help_choices": [],
             "email": None,
             "all_upcoming": True,
@@ -144,7 +145,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
             "starts_on": "2099-02-05",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
+            "source_options": [{"label": "Flyer"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
@@ -170,7 +171,6 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
             starts_on="2099-03-05",
             start_time="18:00:00",
             end_time="20:00:00",
-            source_options=["Flyer"],
             feedback_enabled=False,
             reminder_enabled=False,
             locale="nl",

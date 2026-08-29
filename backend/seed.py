@@ -33,6 +33,8 @@ from .models import (
     EmailSendCount,
     Enrollment,
     Event,
+    EventHelpOption,
+    EventSourceOption,
     FeedbackResponse,
     Form,
     FormQuestion,
@@ -46,6 +48,7 @@ from .models import (
     Shift,
     ShiftEvent,
     Signup,
+    SignupHelpChoice,
     User,
     Volunteer,
     VolunteerAvailability,
@@ -117,9 +120,7 @@ def _ensure_event(
         # The demo data shows the app with its questions asked, its mail
         # on and its events on the agenda. A real event starts with every
         # switch off and its organiser turns on what they want.
-        source_options=source_options,
         source_enabled=bool(source_options),
-        help_options=help_options,
         help_enabled=bool(help_options),
         feedback_enabled=True,
         reminder_enabled=True,
@@ -129,6 +130,11 @@ def _ensure_event(
         locale="nl",
     )
     db.add(event)
+    db.flush()
+    for ordinal, label in enumerate(source_options, start=1):
+        db.add(EventSourceOption(event_id=event.id, ordinal=ordinal, label=label))
+    for ordinal, label in enumerate(help_options, start=1):
+        db.add(EventHelpOption(event_id=event.id, ordinal=ordinal, label=label))
     db.flush()
     # Back-fill past sessions too, so a demo course that straddles "now" (and
     # the past demo events) have believable history on first boot. Production
@@ -353,14 +359,25 @@ def run_local_demo() -> None:
             )
             db.add(registration)
             db.flush()
-            db.add(
-                Signup(
-                    registration_id=registration.id,
-                    occurrence_id=occurrence_id,
-                    source_choice=source,
-                    help_choices=help_choices,
-                )
+            # The seed names options by label; a stored answer is the
+            # option's id, so resolve them through the occurrence's event.
+            event_id = db.query(Occurrence.event_id).filter(Occurrence.id == occurrence_id).scalar()
+            sources = {
+                o.label: o.id for o in db.query(EventSourceOption).filter(EventSourceOption.event_id == event_id).all()
+            }
+            helps = {
+                o.label: o.id for o in db.query(EventHelpOption).filter(EventHelpOption.event_id == event_id).all()
+            }
+            signup = Signup(
+                registration_id=registration.id,
+                occurrence_id=occurrence_id,
+                source_option_id=sources.get(source) if source else None,
             )
+            db.add(signup)
+            db.flush()
+            for label in help_choices:
+                if label in helps:
+                    db.add(SignupHelpChoice(signup_id=signup.id, help_option_id=helps[label]))
             if feedback_pending and email:
                 # A dispatch row is outstanding work and carries the
                 # address it needs. Sends that already happened leave no

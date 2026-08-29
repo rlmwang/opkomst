@@ -32,7 +32,7 @@ def _event_body() -> dict[str, Any]:
         "cycle_slots": [],
         "span_weeks": None,
         "horizon_days": 90,
-        "source_options": ["Van een vriend"],
+        "source_options": [{"label": "Van een vriend"}],
         "help_options": [],
         "feedback_enabled": False,
         "reminder_enabled": False,

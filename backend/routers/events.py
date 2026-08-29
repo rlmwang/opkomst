@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import EmailChannel, Event, Occurrence, User
+from ..models import EmailChannel, Event, EventHelpOption, EventSourceOption, Occurrence, User
 from ..schemas.events import (
     EventCreate,
     EventListOut,
@@ -37,6 +37,7 @@ from ..schemas.events import (
     SignupSummaryOut,
 )
 from ..services import access, crud, entities, event_recurrence, event_stats, limits, mail_lifecycle
+from ..services import events as events_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
@@ -211,9 +212,9 @@ def update_event(
     event.cycle_slots = data.cycle_slots
     event.span_weeks = data.span_weeks
     event.horizon_days = data.horizon_days
-    event.source_options = data.source_options
+    events_svc.apply_options(db, event, EventSourceOption, event.source_options, data.source_options)
     event.source_enabled = data.source_enabled
-    event.help_options = data.help_options
+    events_svc.apply_options(db, event, EventHelpOption, event.help_options, data.help_options)
     event.help_enabled = data.help_enabled
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled

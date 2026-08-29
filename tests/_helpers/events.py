@@ -14,7 +14,7 @@ from datetime import date, time, timedelta
 
 from sqlalchemy.orm import Session
 
-from backend.models import Chapter, Event, Occurrence, User
+from backend.models import Chapter, Event, EventSourceOption, Occurrence, User
 from backend.services import event_recurrence
 from backend.services.events import now_wallclock
 
@@ -112,9 +112,7 @@ def make_event(
         cycle_slots=cycle_slots if cycle_slots is not None else [],
         span_weeks=span_weeks,
         horizon_days=horizon_days,
-        source_options=["Mond-tot-mond"],
         source_enabled=source_enabled,
-        help_options=[],
         feedback_enabled=feedback_enabled,
         reminder_enabled=reminder_enabled,
         listed=listed,
@@ -123,6 +121,9 @@ def make_event(
         created_by=created_by,
     )
     db.add(event)
+    db.flush()
+    # Options are rows (``docs/design-question-edits.md``).
+    db.add(EventSourceOption(event_id=event.id, ordinal=1, label="Mond-tot-mond"))
     db.flush()
     # ``include_past`` so past-dated fixtures (dispatcher / reaper / reconcile
     # tests) materialise their occurrences; production skips past for
@@ -141,3 +142,48 @@ def first_occurrence(event: Event) -> Occurrence:
     """The event's earliest materialised occurrence. Always present after
     ``make_event`` because the first occurrence is always materialised."""
     return min(event.occurrences, key=lambda o: o.starts_at)
+
+
+def source_option_id(db: Session, event: Event, label: str) -> str:
+    """The id of the event's source option with that label.
+
+    A sign-up names an option by id, not by the text a person read
+    (``docs/design-question-edits.md``), so tests that know the label
+    translate here."""
+    from backend.models import EventSourceOption
+
+    return (
+        db.query(EventSourceOption.id)
+        .filter(EventSourceOption.event_id == event.id, EventSourceOption.label == label)
+        .scalar()
+    )
+
+
+def help_option_ids(db: Session, event: Event, *labels: str) -> list[str]:
+    """Ids of the event's help options with those labels."""
+    from backend.models import EventHelpOption
+
+    found = {
+        label: oid
+        for oid, label in db.query(EventHelpOption.id, EventHelpOption.label).filter(
+            EventHelpOption.event_id == event.id
+        )
+    }
+    return [found[label] for label in labels]
+
+
+def public_option_ids(client, slug: str, source: str | None = None, help_labels: tuple[str, ...] = ()) -> dict:
+    """``{"source_choice": id, "help_choices": [ids]}`` for a public
+    sign-up payload, resolved from the labels the test knows.
+
+    A sign-up names an option by id (``docs/design-question-edits.md``),
+    so the label a person reads is not what goes on the wire."""
+    page = client.get(f"/api/v1/event/by-slug/{slug}").json()
+    sources = {o["label"]: o["id"] for o in page.get("source_options", [])}
+    helps = {o["label"]: o["id"] for o in page.get("help_options", [])}
+    out: dict = {}
+    if source is not None:
+        out["source_choice"] = sources[source]
+    if help_labels:
+        out["help_choices"] = [helps[label] for label in help_labels]
+    return out

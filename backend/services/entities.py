@@ -19,7 +19,7 @@ mail on a free account is refused here rather than in each router
 import structlog
 from sqlalchemy.orm import Session
 
-from ..models import Datepoll, Event, Form, Roster, User
+from ..models import Datepoll, Event, EventHelpOption, EventSourceOption, Form, Roster, User
 from ..schemas.chores import RosterCreate
 from ..schemas.datepolls import DatepollCreate
 from ..schemas.events import EventCreate
@@ -27,6 +27,7 @@ from ..schemas.forms import FormCreate
 from . import chores as chores_svc
 from . import datepolls as datepolls_svc
 from . import event_recurrence, limits
+from . import events as events_svc
 from . import forms as forms_svc
 from .events import now_wallclock
 from .slug import new_slug
@@ -53,9 +54,7 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
         cycle_slots=data.cycle_slots,
         span_weeks=data.span_weeks,
         horizon_days=data.horizon_days,
-        source_options=data.source_options,
         source_enabled=data.source_enabled,
-        help_options=data.help_options,
         help_enabled=data.help_enabled,
         feedback_enabled=data.feedback_enabled,
         reminder_enabled=data.reminder_enabled,
@@ -68,6 +67,9 @@ def create_event(db: Session, data: EventCreate, user: User) -> Event:
         image_artist_instagram=data.image_artist_instagram,
     )
     db.add(event)
+    db.flush()  # Need event.id for the option rows below.
+    events_svc.apply_options(db, event, EventSourceOption, [], data.source_options)
+    events_svc.apply_options(db, event, EventHelpOption, [], data.help_options)
     db.flush()
     # Materialise the in-horizon occurrences at once so the event's
     # public pages work immediately; a one-off gets its single

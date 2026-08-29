@@ -22,10 +22,11 @@ from backend.services import mail_lifecycle
 def _public_signup(client: Any, event: Any, *, email: str | None) -> Any:
     """Sign up on the event's first (public) occurrence, booking every
     upcoming session so the fixture stays a single-line-item booking."""
+    public = client.get(f"/api/v1/event/by-slug/{first_occurrence(event).slug}").json()
     payload: dict[str, object] = {
         "display_name": "Alice",
         "party_size": 1,
-        "source_choice": "Mond-tot-mond",
+        "source_choice": next(o["id"] for o in public["source_options"] if o["label"] == "Mond-tot-mond"),
         "all_upcoming": True,
     }
     if email is not None:

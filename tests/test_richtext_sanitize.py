@@ -107,7 +107,6 @@ def _event(topic: str) -> EventCreate:
         starts_on=date(2026, 7, 1),
         start_time=time(10, 0),
         end_time=time(12, 0),
-        source_options=["w"],
         image_artist_instagram=None,
     )
 

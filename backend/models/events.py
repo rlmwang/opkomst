@@ -61,9 +61,21 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # Every switch here starts off, mail and agenda listing included: an
     # event asks for a name and a headcount until its organiser says
     # otherwise.
-    source_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # Both option lists are rows, in ``event_source_options`` and
+    # ``event_help_options``. A sign-up points at one, so renaming an
+    # option had to stay a rename rather than detach every answer to it
+    # (``docs/design-question-edits.md``).
+    source_options: Mapped[list["EventSourceOption"]] = relationship(
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventSourceOption.ordinal",
+    )
     source_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
-    help_options: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    help_options: Mapped[list["EventHelpOption"]] = relationship(
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventHelpOption.ordinal",
+    )
     help_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     feedback_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     reminder_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -176,6 +188,54 @@ class Registration(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin, Base)
     )
 
 
+class EventSourceOption(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One answer to "how did you hear about this?".
+
+    A row rather than a string in a list, for the reason
+    ``FormQuestionOption`` is one: sign-ups point at it, so a rename has
+    to keep them attached (``docs/design-question-edits.md``).
+    """
+
+    __tablename__ = "event_source_options"
+
+    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+
+    event: Mapped["Event"] = relationship(back_populates="source_options")
+
+    __table_args__ = (Index("ix_event_source_options_event_ordinal", "event_id", "ordinal"),)
+
+
+class EventHelpOption(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One thing an attendee can offer to help with."""
+
+    __tablename__ = "event_help_options"
+
+    event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+
+    event: Mapped["Event"] = relationship(back_populates="help_options")
+
+    __table_args__ = (Index("ix_event_help_options_event_ordinal", "event_id", "ordinal"),)
+
+
+class SignupHelpChoice(UUIDMixin, TimestampMixin, TenantMixin, Base):
+    """One tick: this sign-up offered to help with that."""
+
+    __tablename__ = "signup_help_choices"
+
+    signup_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("signups.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    help_option_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("event_help_options.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+
+    __table_args__ = (Index("ix_signup_help_choices_option", "help_option_id", "signup_id"),)
+
+
 class Signup(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """A line item: one booking (``registration_id``) attending one occurrence
     (``occurrence_id``). Headcount for an occurrence is ``SUM(party_size)``
@@ -194,8 +254,22 @@ class Signup(UUIDMixin, TimestampMixin, TenantMixin, Base):
     occurrence_id: Mapped[str] = mapped_column(
         Text, ForeignKey("occurrences.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    source_choice: Mapped[str | None] = mapped_column(Text, nullable=True)
-    help_choices: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    # How they heard, as a key into the event's own list. NULL means
+    # they did not say, which is different from an option that has since
+    # been renamed: that keeps pointing at the same row.
+    source_option_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("event_source_options.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    help_ticks: Mapped[list["SignupHelpChoice"]] = relationship(
+        cascade="all, delete-orphan",
+        primaryjoin="Signup.id == SignupHelpChoice.signup_id",
+    )
+
+    @property
+    def help_choices(self) -> list[str]:
+        """The ticked help-option ids, under the name every reader
+        already uses."""
+        return [t.help_option_id for t in self.help_ticks]
 
     __table_args__ = (UniqueConstraint("registration_id", "occurrence_id", name="uq_signups_registration_occurrence"),)
 

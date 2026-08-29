@@ -80,8 +80,6 @@ def make_signup(
     signup = Signup(
         registration_id=registration.id,
         occurrence_id=occ.id,
-        source_choice="Mond-tot-mond",
-        help_choices=[],
     )
     db.add(signup)
     db.flush()

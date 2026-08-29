@@ -42,10 +42,10 @@ from sqlalchemy import event as sa_event
 # scope by chapter spend a second on the membership set. The rest is the
 # endpoint's own work, and should be one query per fact it reports.
 #
-# Every read that loads questions spends one more on their choices,
-# which are rows rather than a JSON column
-# (``docs/design-question-edits.md``). Two queries for the whole form,
-# not per question.
+# Options are rows rather than JSON columns
+# (``docs/design-question-edits.md``), so a read that shows them spends
+# a query on them: one for a form's choices, two for an event's source
+# and help lists. Per page, never per question or per option.
 BUDGETS: dict[str, int] = {
     # -- infrastructure ------------------------------------------------
     "/health": 0,
@@ -62,13 +62,13 @@ BUDGETS: dict[str, int] = {
     # -- events --------------------------------------------------------
     "/api/v1/event": 3,
     "/api/v1/event/archived": 3,
-    "/api/v1/event/{event_id}": 6,
+    "/api/v1/event/{event_id}": 8,
     "/api/v1/event/{event_id}/occurrences": 6,
-    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": 5,
-    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": 6,
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": 6,
+    "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": 7,
     "/api/v1/event/{event_id}/feedback-summary": 9,
     "/api/v1/event/{event_id}/feedback-submissions": 4,
-    "/api/v1/event/by-slug/{slug}": 3,
+    "/api/v1/event/by-slug/{slug}": 4,
     "/api/v1/event/by-slug/{slug}/qr.svg": 2,
     "/api/v1/event/by-slug/{slug}/event.ics": 2,
     "/api/v1/event/by-slug/{slug}/feedback-preview": 2,
@@ -203,8 +203,8 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
             "starts_on": "2027-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
-            "help_options": ["opbouwen"],
+            "source_options": [{"label": "Flyer"}],
+            "help_options": [{"label": "opbouwen"}],
             "help_enabled": True,
             "feedback_enabled": True,
             # Both channels on, so the two email-preview routes render
@@ -424,7 +424,7 @@ def test_user_list_does_not_query_per_user(client, admin_headers, db) -> None:
                 "starts_on": "2027-08-01",
                 "start_time": "18:00:00",
                 "end_time": "20:00:00",
-                "source_options": ["Flyer"],
+                "source_options": [{"label": "Flyer"}],
                 "help_options": [],
                 "help_enabled": False,
                 "feedback_enabled": False,
@@ -513,7 +513,7 @@ def test_list_endpoints_do_not_scale_queries_with_row_count(client, organiser_he
             "starts_on": "2027-07-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
+            "source_options": [{"label": "Flyer"}],
             "help_options": [],
             "help_enabled": False,
             "feedback_enabled": False,

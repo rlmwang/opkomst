@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from backend.database import SessionLocal
+from tests._helpers.events import public_option_ids
 
 
 def _first_chapter_id(client: Any, headers: Any) -> str:
@@ -40,7 +41,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "starts_on": "2026-09-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
+        "source_options": [{"label": "Flyer"}],
         "source_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
@@ -79,7 +80,7 @@ def test_create_event_missing_chapter_id_returns_422(client, organiser_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -106,7 +107,7 @@ def test_create_event_with_chapter_outside_users_set_returns_403(client, admin_h
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -133,7 +134,7 @@ def test_create_event_with_admin_globally_works(client, admin_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -311,7 +312,7 @@ def test_create_event_with_invalid_time_window_returns_400(client, organiser_hea
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
             "end_time": "18:00:00",  # backwards
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -336,7 +337,7 @@ def test_update_event_happy_path(client, organiser_headers):
             "starts_on": "2026-05-02",
             "start_time": "18:00:00",
             "end_time": "21:00:00",
-            "source_options": ["Flyer", "Word"],
+            "source_options": [{"label": "Flyer"}, {"label": "Word"}],
             "feedback_enabled": False,
             "reminder_enabled": True,
             "locale": "en",
@@ -366,7 +367,7 @@ def test_update_event_invalid_time_window_returns_400(client, organiser_headers)
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
             "end_time": "18:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -387,7 +388,7 @@ def test_update_unknown_event_returns_404(client, organiser_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -483,7 +484,7 @@ def _public_signup(client, occ_slug: str, *, name: str | None = "Anon") -> dict:
         json={
             "display_name": name,
             "party_size": 1,
-            "source_choice": "Flyer",
+            **public_option_ids(client, occ_slug, source="Flyer"),
             "help_choices": [],
             "email": None,
             "all_upcoming": True,
@@ -547,8 +548,8 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
     event = _new_event(
         client,
         organiser_headers,
-        source_options=["Flyer"],
-        help_options=["Opbouwen", "Afbreken"],
+        source_options=[{"label": "Flyer"}],
+        help_options=[{"label": "Opbouwen"}, {"label": "Afbreken"}],
         help_enabled=True,
     )
     occ = _first_occurrence(client, organiser_headers, event["id"])
@@ -559,8 +560,7 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
             json={
                 "display_name": name,
                 "party_size": size,
-                "source_choice": "Flyer",
-                "help_choices": help_choices,
+                **public_option_ids(client, occ["slug"], source="Flyer", help_labels=tuple(help_choices)),
                 "email": None,
                 "all_upcoming": True,
             },

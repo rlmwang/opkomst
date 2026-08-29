@@ -24,7 +24,17 @@ from typing import Any
 from sqlalchemy import and_, func, select, true
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Event, Occurrence, Registration, Signup, User
+from ..models import (
+    Chapter,
+    Event,
+    EventHelpOption,
+    EventSourceOption,
+    Occurrence,
+    Registration,
+    Signup,
+    SignupHelpChoice,
+    User,
+)
 from ..schemas.events import EventListOut, EventOut, EventStatsOut, SignupSummaryOut
 from . import access, archive
 from . import image as image_svc
@@ -128,6 +138,25 @@ def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
     return {cid: name for cid, name in rows}
 
 
+def _option_lists(db: Session, event_ids: list[str]) -> tuple[dict[str, list[Any]], dict[str, list[Any]]]:
+    """``(source options, help options)`` per event, batched.
+
+    Both lists are rows now, so a Core read of the events table cannot
+    carry them and a write path's entity should not be trusted to have
+    loaded them. Two queries for the page either way."""
+    if not event_ids:
+        return {}, {}
+    out: list[dict[str, list[Any]]] = []
+    for model in (EventSourceOption, EventHelpOption):
+        grouped: dict[str, list[Any]] = {}
+        for row in db.execute(
+            select(*model.__table__.c).where(model.event_id.in_(event_ids)).order_by(model.ordinal)
+        ).all():
+            grouped.setdefault(row.event_id, []).append(row)
+        out.append(grouped)
+    return out[0], out[1]
+
+
 def _derived(db: Session, events: Sequence[Any]) -> tuple[dict[str, str], dict[str, int], dict]:
     """The three batched lookups both enrichers need: chapter names,
     booking headcount, and the next occurrence."""
@@ -166,9 +195,7 @@ FULL_COLUMNS = (
     Event.topic_en,
     Event.end_time,
     Event.horizon_days,
-    Event.source_options,
     Event.source_enabled,
-    Event.help_options,
     Event.help_enabled,
     Event.feedback_enabled,
     Event.reminder_enabled,
@@ -301,6 +328,7 @@ def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
     if not events:
         return []
     chapter_names, totals, next_occ = _derived(db, events)
+    sources, helps = _option_lists(db, [e.id for e in events])
 
     return [
         EventOut(
@@ -320,9 +348,9 @@ def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
             cycle_slots=e.cycle_slots,
             span_weeks=e.span_weeks,
             horizon_days=e.horizon_days,
-            source_options=e.source_options,
+            source_options=sources.get(e.id, []),
             source_enabled=e.source_enabled,
-            help_options=e.help_options,
+            help_options=helps.get(e.id, []),
             help_enabled=e.help_enabled,
             feedback_enabled=e.feedback_enabled,
             reminder_enabled=e.reminder_enabled,
@@ -395,36 +423,45 @@ def to_out(db: Session, event: Any) -> EventOut:
     return enrich(db, [event])[0]
 
 
-def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventStatsOut:
+def _stats_for(db: Session, *, help_options: Sequence[Any], signup_filter) -> EventStatsOut:
     """Source/help breakdowns over the line items matching ``signup_filter``
     (an event's occurrences, or a single occurrence). Both breakdowns count
     people, not line items: a booking of three that ticked "Opbouwen" is
     three helpers, so the columns add up to ``total_attendees``. Aggregated
     only: the ``by_source`` counts never link a source answer to a person."""
     rows = (
-        db.query(Signup.source_choice, func.count(Signup.id), func.coalesce(func.sum(Registration.party_size), 0))
+        db.query(
+            EventSourceOption.label,
+            func.count(Signup.id),
+            func.coalesce(func.sum(Registration.party_size), 0),
+        )
+        .outerjoin(EventSourceOption, EventSourceOption.id == Signup.source_option_id)
         .join(Occurrence, Occurrence.id == Signup.occurrence_id)
         .join(Registration, Registration.id == Signup.registration_id)
         .filter(signup_filter)
-        .group_by(Signup.source_choice)
+        .group_by(EventSourceOption.label)
         .all()
     )
     total_signups = sum(int(c) for _, c, _ in rows)
     total_attendees = sum(int(s or 0) for _, _, s in rows)
     by_source = {src: int(s or 0) for src, _, s in rows if src is not None}
 
-    by_help: dict[str, int] = {opt: 0 for opt in help_options}
+    # Counted by option id and labelled from the event's own rows, so a
+    # renamed option keeps the offers made against it.
+    by_help: dict[str, int] = {o.label: 0 for o in help_options}
     if help_options:
-        choice_lists = (
-            db.query(Signup.help_choices, Registration.party_size)
+        labels = {o.id: o.label for o in help_options}
+        rows_help = (
+            db.query(SignupHelpChoice.help_option_id, func.coalesce(func.sum(Registration.party_size), 0))
+            .join(Signup, Signup.id == SignupHelpChoice.signup_id)
             .join(Occurrence, Occurrence.id == Signup.occurrence_id)
             .join(Registration, Registration.id == Signup.registration_id)
             .filter(signup_filter)
+            .group_by(SignupHelpChoice.help_option_id)
         ).all()
-        for choices, party_size in choice_lists:
-            for choice in choices or []:
-                if choice in by_help:
-                    by_help[choice] += int(party_size or 0)
+        for option_id, people in rows_help:
+            if option_id in labels:
+                by_help[labels[option_id]] = int(people or 0)
 
     return EventStatsOut(
         total_signups=total_signups,
@@ -434,7 +471,7 @@ def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventS
     )
 
 
-def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: list[str]) -> EventStatsOut:
+def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: Sequence[Any]) -> EventStatsOut:
     """The same source/help breakdown scoped to one occurrence — the "stats
     of that day" behind the detail page's calendar day switcher."""
     return _stats_for(db, help_options=help_options, signup_filter=Signup.occurrence_id == occurrence.id)
@@ -451,13 +488,22 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
             Registration.display_name,
             Registration.party_size,
             Registration.link_recovered_at,
-            Signup.help_choices,
         )
         .join(Registration, Registration.id == Signup.registration_id)
         .filter(Signup.occurrence_id == occurrence.id)
         .order_by(Signup.created_at.asc())
         .all()
     )
+    # What each of them offered, as the labels the page prints.
+    offered: dict[str, list[str]] = {}
+    for signup_id, label in db.execute(
+        select(SignupHelpChoice.signup_id, EventHelpOption.label)
+        .join(EventHelpOption, EventHelpOption.id == SignupHelpChoice.help_option_id)
+        .join(Signup, Signup.id == SignupHelpChoice.signup_id)
+        .where(Signup.occurrence_id == occurrence.id)
+        .order_by(EventHelpOption.ordinal)
+    ).all():
+        offered.setdefault(signup_id, []).append(label)
     return [
         SignupSummaryOut(
             id=sid,
@@ -465,7 +511,7 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
             display_name=name,
             party_size=size,
             link_recovered_at=recovered,
-            help_choices=help_choices or [],
+            help_choices=offered.get(sid, []),
         )
-        for sid, rid, name, size, recovered, help_choices in rows
+        for sid, rid, name, size, recovered in rows
     ]

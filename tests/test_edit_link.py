@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests._helpers.events import public_option_ids
+
 
 def _chapter_id(client: Any, headers: Any) -> str:
     return client.get("/api/v1/auth/me", headers=headers).json()["chapters"][0]["id"]
@@ -140,8 +142,8 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
         "starts_on": "2027-05-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
-        "help_options": ["opbouwen"],
+        "source_options": [{"label": "Flyer"}],
+        "help_options": [{"label": "opbouwen"}],
         "help_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
@@ -179,13 +181,15 @@ def _dispatch_count(event_id: str) -> int:
 def test_event_edit_roundtrip(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
+    picked = public_option_ids(client, occ["slug"], help_labels=("opbouwen",))
     token = client.post(
         f"/api/v1/event/by-slug/{occ['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 2, "help_choices": ["opbouwen"], "all_upcoming": True},
+        json={"display_name": "Sam", "party_size": 2, **picked, "all_upcoming": True},
     ).json()["edit_token"]
 
     pre = client.get(f"/api/v1/event/by-token/{token}").json()
-    assert pre["party_size"] == 2 and pre["occurrences"][0]["help_choices"] == ["opbouwen"]
+    assert pre["party_size"] == 2
+    assert pre["occurrences"][0]["help_choices"] == picked["help_choices"]
     assert "email" not in pre  # email never reachable from a signup
 
     r = client.put(
@@ -304,7 +308,7 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
     db = SessionLocal()
     try:
         reg = db.query(Registration).filter(Registration.event_id == event["id"]).one()
-        db.add(Signup(registration_id=reg.id, occurrence_id=past[-1]["id"], source_choice=None, help_choices=[]))
+        db.add(Signup(registration_id=reg.id, occurrence_id=past[-1]["id"]))
         db.commit()
     finally:
         db.close()

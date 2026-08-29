@@ -4165,7 +4165,7 @@ export interface components {
              */
             help_enabled: boolean;
             /** Help Options */
-            help_options?: string[];
+            help_options?: components["schemas"]["EventOptionIn"][];
             /**
              * Horizon Days
              * @default 90
@@ -4215,7 +4215,7 @@ export interface components {
              */
             source_enabled: boolean;
             /** Source Options */
-            source_options?: string[];
+            source_options?: components["schemas"]["EventOptionIn"][];
             /** Span Weeks */
             span_weeks?: number | null;
             /**
@@ -4289,6 +4289,30 @@ export interface components {
             starts_on: string;
         };
         /**
+         * EventOptionIn
+         * @description One answer offered by a sign-up question, on the create / update
+         *     payload. ``id`` carries the server's uuid for an option that already
+         *     exists, which is what keeps existing sign-ups attached across a
+         *     rename (``docs/design-question-edits.md``).
+         */
+        EventOptionIn: {
+            /** Id */
+            id?: string | null;
+            /** Label */
+            label: string;
+        };
+        /**
+         * EventOptionOut
+         * @description One answer as anyone reading the event sees it. The id travels
+         *     because a sign-up is submitted by id.
+         */
+        EventOptionOut: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /**
          * EventOut
          * @description Organiser-side event DTO: everything a row carries, plus the
          *     definition of the sign-up form itself.
@@ -4316,7 +4340,7 @@ export interface components {
             /** Help Enabled */
             help_enabled: boolean;
             /** Help Options */
-            help_options: string[];
+            help_options: components["schemas"]["EventOptionOut"][];
             /** Horizon Days */
             horizon_days: number;
             /** Id */
@@ -4357,7 +4381,7 @@ export interface components {
             /** Source Enabled */
             source_enabled: boolean;
             /** Source Options */
-            source_options: string[];
+            source_options: components["schemas"]["EventOptionOut"][];
             /** Span Weeks */
             span_weeks: number | null;
             /**
@@ -4426,7 +4450,7 @@ export interface components {
              */
             help_enabled: boolean;
             /** Help Options */
-            help_options?: string[];
+            help_options?: components["schemas"]["EventOptionIn"][];
             /**
              * Horizon Days
              * @default 90
@@ -4476,7 +4500,7 @@ export interface components {
              */
             source_enabled: boolean;
             /** Source Options */
-            source_options?: string[];
+            source_options?: components["schemas"]["EventOptionIn"][];
             /** Span Weeks */
             span_weeks?: number | null;
             /**
@@ -5418,7 +5442,7 @@ export interface components {
             /** Feedback Enabled */
             feedback_enabled: boolean;
             /** Help Options */
-            help_options: string[];
+            help_options: components["schemas"]["EventOptionOut"][];
             /** Image Artist Instagram */
             image_artist_instagram: string | null;
             /** Image Url */
@@ -5447,7 +5471,7 @@ export interface components {
             /** Reminder Enabled */
             reminder_enabled: boolean;
             /** Source Options */
-            source_options: string[];
+            source_options: components["schemas"]["EventOptionOut"][];
             /** Topic En */
             topic_en: string | null;
             /** Topic Nl */

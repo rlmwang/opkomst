@@ -24,6 +24,7 @@ from _helpers.events import first_occurrence, make_event
 
 from backend.database import SessionLocal
 from backend.models import Event
+from tests._helpers.events import public_option_ids
 
 
 def _archive(slug: str) -> None:
@@ -81,7 +82,7 @@ def test_signup_404s_on_archived(client, db: Any) -> None:
     payload = {
         "display_name": "Anon",
         "party_size": 1,
-        "source_choice": "Mond-tot-mond",
+        **public_option_ids(client, first_occurrence(e).slug, source="Mond-tot-mond"),
         "email": None,
         "all_upcoming": True,
     }

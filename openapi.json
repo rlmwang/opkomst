@@ -2572,7 +2572,7 @@
           },
           "help_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionIn"
             },
             "title": "Help Options",
             "type": "array"
@@ -2696,7 +2696,7 @@
           },
           "source_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionIn"
             },
             "title": "Source Options",
             "type": "array"
@@ -2936,6 +2936,52 @@
         "title": "EventListOut",
         "type": "object"
       },
+      "EventOptionIn": {
+        "description": "One answer offered by a sign-up question, on the create / update\npayload. ``id`` carries the server's uuid for an option that already\nexists, which is what keeps existing sign-ups attached across a\nrename (``docs/design-question-edits.md``).",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "EventOptionIn",
+        "type": "object"
+      },
+      "EventOptionOut": {
+        "description": "One answer as anyone reading the event sees it. The id travels\nbecause a sign-up is submitted by id.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "EventOptionOut",
+        "type": "object"
+      },
       "EventOut": {
         "description": "Organiser-side event DTO: everything a row carries, plus the\ndefinition of the sign-up form itself.",
         "properties": {
@@ -2995,7 +3041,7 @@
           },
           "help_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionOut"
             },
             "title": "Help Options",
             "type": "array"
@@ -3142,7 +3188,7 @@
           },
           "source_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionOut"
             },
             "title": "Source Options",
             "type": "array"
@@ -3309,7 +3355,7 @@
           },
           "help_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionIn"
             },
             "title": "Help Options",
             "type": "array"
@@ -3433,7 +3479,7 @@
           },
           "source_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionIn"
             },
             "title": "Source Options",
             "type": "array"
@@ -5851,7 +5897,7 @@
           },
           "help_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionOut"
             },
             "title": "Help Options",
             "type": "array"
@@ -5962,7 +6008,7 @@
           },
           "source_options": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/EventOptionOut"
             },
             "title": "Source Options",
             "type": "array"

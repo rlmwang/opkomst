@@ -88,8 +88,6 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
             start_time=starts_at.replace(tzinfo=None).time(),
             end_time=ends_at.replace(tzinfo=None).time(),
             cycle_slots=[],
-            source_options=["x"],
-            help_options=[],
             feedback_enabled=True,
             reminder_enabled=True,
             locale="nl",
@@ -117,8 +115,6 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         s = Signup(
             registration_id=registration.id,
             occurrence_id="occ-1",
-            source_choice="x",
-            help_choices=[],
         )
         db.add(s)
         db.flush()

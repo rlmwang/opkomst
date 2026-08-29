@@ -47,8 +47,6 @@ def _seed_minimal_event_and_signup() -> str:
             start_time=time(18, 0),
             end_time=time(20, 0),
             cycle_slots=[],
-            source_options=["x"],
-            help_options=[],
             feedback_enabled=True,
             reminder_enabled=False,
             locale="nl",
@@ -72,8 +70,6 @@ def _seed_minimal_event_and_signup() -> str:
         s = Signup(
             registration_id=registration.id,
             occurrence_id="occ-tok",
-            source_choice="x",
-            help_choices=[],
         )
         db.add(s)
         # The send already happened, so production would have deleted

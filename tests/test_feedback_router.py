@@ -42,7 +42,7 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
         "starts_on": "2026-05-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
+        "source_options": [{"label": "Flyer"}],
         "feedback_enabled": True,
         "locale": "nl",
         **overrides,
@@ -74,8 +74,6 @@ def _seed_signup_with_token(event_id: str, *, email: str = "alice@x.test") -> tu
         signup = Signup(
             registration_id=registration.id,
             occurrence_id=occ_id,
-            source_choice="Flyer",
-            help_choices=[],
         )
         db.add(signup)
         db.flush()
@@ -278,8 +276,6 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
             Signup(
                 registration_id=registration.id,
                 occurrence_id=occ_id,
-                source_choice="Flyer",
-                help_choices=[],
             )
         )
         # The feedback mail already went out: a tally, no row.

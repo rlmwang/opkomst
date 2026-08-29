@@ -8,6 +8,8 @@
 4. Feedback responses carry no link to the originating signup.
 """
 
+from tests._helpers.events import public_option_ids
+
 
 def test_decrypt_only_called_from_mail_lifecycle():
     """Static check: the only call site of ``encryption.decrypt``
@@ -42,7 +44,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "starts_on": "2026-09-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "locale": "nl",
@@ -55,7 +57,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
         json={
             "display_name": "Alice",
             "party_size": 2,
-            "source_choice": "F",
+            **public_option_ids(client, occ["slug"], source="F"),
             "email": "alice@local.dev",
             "occurrence_ids": [occ["id"]],
         },

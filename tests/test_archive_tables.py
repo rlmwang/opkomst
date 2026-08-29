@@ -56,12 +56,15 @@ def test_the_mirrored_set_is_the_foreign_key_graph() -> None:
     # drops a dependent table is visible in a diff rather than silent.
     assert graph["events"] == [
         "events",
+        "event_help_options",
+        "event_source_options",
         "occurrences",
         "registrations",
+        "signup_help_choices",
+        "signups",
         "email_send_counts",
         "feedback_responses",
         "feedback_tokens",
-        "signups",
     ]
     assert graph["forms"] == [
         "forms",

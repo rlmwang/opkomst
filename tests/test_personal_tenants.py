@@ -21,6 +21,7 @@ from backend.auth import create_token
 from backend.models import Event, Form, Tenant, User
 from backend.services import access, limits
 from backend.services import tenants as tenants_svc
+from tests._helpers.events import public_option_ids
 
 
 @pytest.fixture()
@@ -54,7 +55,7 @@ def _event_payload(**over: Any) -> dict[str, Any]:
         "cycle_slots": [],
         "span_weeks": None,
         "horizon_days": 90,
-        "source_options": ["Van een vriend"],
+        "source_options": [{"label": "Van een vriend"}],
         "source_enabled": True,
         "help_options": [],
         "feedback_enabled": False,
@@ -195,7 +196,7 @@ def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch
     signup = {
         "display_name": "Aisha",
         "party_size": 4,
-        "source_choice": "Van een vriend",
+        **public_option_ids(client, slug, source="Van een vriend"),
         "help_choices": [],
         "all_upcoming": True,
     }
@@ -213,7 +214,7 @@ def test_an_organisations_event_has_no_participant_ceiling(client, organiser_hea
     signup = {
         "display_name": "Bo",
         "party_size": 3,
-        "source_choice": "Van een vriend",
+        **public_option_ids(client, slug, source="Van een vriend"),
         "help_choices": [],
         "all_upcoming": True,
     }

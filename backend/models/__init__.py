@@ -4,7 +4,7 @@ from .chores import Chore, Enrollment, Roster, Shift, ShiftEvent, Volunteer, Vol
 from .compass import CompassAxis
 from .datepolls import Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission
 from .email_dispatch import EmailChannel, EmailDispatch, EmailSendCount
-from .events import Event, Occurrence, Registration, Signup
+from .events import Event, EventHelpOption, EventSourceOption, Occurrence, Registration, Signup, SignupHelpChoice
 from .feedback import FeedbackResponse, FeedbackToken
 from .forms import Form, FormQuestion, FormQuestionOption, FormResponse, FormResponseChoice, FormSubmission
 from .tenants import Tenant
@@ -30,6 +30,8 @@ __all__ = [
     "EmailSendCount",
     "Enrollment",
     "Event",
+    "EventHelpOption",
+    "EventSourceOption",
     "FeedbackResponse",
     "FeedbackToken",
     "Form",
@@ -46,6 +48,7 @@ __all__ = [
     "Shift",
     "ShiftEvent",
     "Signup",
+    "SignupHelpChoice",
     "Tenant",
     "TrafficCount",
     "User",
