@@ -5,8 +5,8 @@ How the app is wired today. Keep it in step with the code.
 ## Stack
 
 FastAPI on Python 3.13 with SQLAlchemy 2.0 and Alembic, Postgres
-everywhere. Vue 3 with TypeScript and Vite on the front,
-with types generated from the OpenAPI schema. Mail is Jinja templates
+everywhere. Svelte 5 with TypeScript and Vite on the front, with types
+generated from the OpenAPI schema. Mail is Jinja templates
 per locale over a pluggable backend. Address autocomplete comes from
 PDOK.
 
@@ -90,7 +90,7 @@ backend/
   alembic/     migrations
 frontend/src/
   pages/       one page per route
-  composables/ Vue Query, one per domain
+  composables/ queries and mutations, one per domain
   public*/     the mini-apps behind the public links, no bundle shared
 brands/{slug}/ palette, logo, icons, per organisation
 tests/         see docs/runbook.md for what each file proves
@@ -98,4 +98,7 @@ tests/         see docs/runbook.md for what each file proves
 
 The public pages are their own small bundles rather than routes in the
 app, because a visitor who opens one link should not download an
-organiser's tool to read it.
+organiser's tool to read it. They are built as their own Rollup graph
+too (``frontend/scripts/build.mjs``): both halves draw the same
+components now, and one graph over all eight entries made every public
+page carry the organiser app's share of what they have in common.

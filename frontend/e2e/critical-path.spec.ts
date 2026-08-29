@@ -67,7 +67,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   const occSlug = (await occRes.json()).occurrences[0].slug as string;
 
   // --- act: visitor opens the public link, fills + submits the form ---
-  // The page now lives in its own Vue mini-app
+  // The page now lives in its own mini-app
   // (``frontend/public-event.html`` + ``src/public/``) using
   // native ``<input>`` / ``<button>`` plus a custom
   // ``BrandedSelect`` component (button trigger + role=listbox

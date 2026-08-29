@@ -243,6 +243,20 @@ composables move with the pages that use them.
 Measure the critical path and record it. Confirm nothing in `dist`
 mentions vue.
 
+## Two things decided quietly, on the record
+
+**The sign-in door's spacing.** It had `margin-top: 2rem` on an
+organisation's front page and `3rem` at the root. The two pages were
+written separately and the difference reads as incidental rather than
+designed, so the shared `OrganiserDoor` uses `3rem` and the tenant page
+moved a rem. Say so if it was deliberate.
+
+**A page is typed `Component<any>`.** A route's props are its
+parameters, and a page declares only the ones its own path carries: the
+dashboard takes none, the event editor takes an `eventId`. There is no
+type that is both, so the table holds them loosely and each page states
+what it needs (`router/router.svelte.ts`, `PageComponent`).
+
 ## What this costs, said plainly
 
 - **Phases 2 to 4 are 22,000 lines with no user-visible result.** The

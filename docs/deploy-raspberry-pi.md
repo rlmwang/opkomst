@@ -27,7 +27,7 @@ One `docker compose` project, four containers:
 
 | Container     | Image                          | Role                                            |
 |---------------|--------------------------------|-------------------------------------------------|
-| `api`         | built from this repo's `Dockerfile` | FastAPI + the built Vue SPA (served by the SPA fallback) + the one-shot cron CLI |
+| `api`         | built from this repo's `Dockerfile` | FastAPI + the built front end (served by the SPA fallback) + the one-shot cron CLI |
 | `postgres`    | `postgres:16-alpine`           | the application database                        |
 | `cloudflared` | `cloudflare/cloudflared`       | outbound-only tunnel; publishes `opkomst.nu` → `api:8000` |
 | `evolution-*` | optional                       | WhatsApp blast tool (see §11), only if you use it |

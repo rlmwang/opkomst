@@ -8,8 +8,9 @@ else.
 draft, a confirm dialog or a search box gets the shared one, not a
 fourth copy.
 
-**Server state is Vue Query, user state is Pinia.** There is one store,
-`auth.ts`. Everything else is a query with a key.
+**Server state is a query, the session is a module.** There is one
+piece of state that is not a query, `stores/auth.svelte.ts`, and it
+holds who is signed in. Everything else is a query with a key.
 
 **Drafts survive a refresh.** Mid-edit form state is kept per entity, so
 a lost tab does not cost somebody their evening's work.

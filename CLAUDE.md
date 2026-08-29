@@ -29,7 +29,7 @@ rules above.
 - **Build exactly what was asked.** No invented gates, thresholds, smart empty states, or extra breakpoints. "A search bar" means always there.
 - **Write product code inline.** Never hand a whole implementation to one background agent. Read-only research fan-out is fine.
 - **A UI complaint is about one screen.** Fix the viewport the user was looking at; leave the other pixel-identical. Ask if it is ambiguous.
-- **"Still showing" / "never loads" is a logic bug**, not a slow request. Read the `v-if` chain and the state resets before reaching for telemetry.
+- **"Still showing" / "never loads" is a logic bug**, not a slow request. Read the branch chain and the state resets before reaching for telemetry.
 
 **Copy**
 
@@ -121,10 +121,13 @@ Daily `python -m backend.cli reap-auth-tokens` deletes expired rows from both to
 
 ## Frontend
 
-- **Vue 3 Composition API + TypeScript + Vite.** No component library: every control in `src/components/` is the app's own, built against Aura's geometry when it replaced a PrimeVue one. `AppIcon.vue` holds all 23 icons as SVG paths.
-- **State lives in TanStack Vue Query composables** (`frontend/src/composables/use*.ts`). The only Pinia store is `auth.ts`. Optimistic mutations carry an explicit `onMutate` snapshot + `onError` rollback so a failed write can't silently desync the cache from the server.
+- **Svelte 5 runes + TypeScript + Vite.** No component library: every control in `src/components/` is the app's own, built against Aura's geometry when it replaced a PrimeVue one. `AppIcon.svelte` holds all 23 icons as SVG paths.
+- **State lives in TanStack Svelte Query composables** (`frontend/src/composables/*.svelte.ts`). The session is `stores/auth.svelte.ts`, a module with getters. Optimistic mutations pass `mutation(run, { optimistic })` a function that patches the cache and returns its own undo, so a patch cannot be added without one.
+- **A component takes props, never a spread over its own attributes.** Svelte has no attribute fallthrough: a spread carrying `class` replaces the attribute rather than adding to it, which is how every card given a class of its own lost `card` and rendered with no panel. Take `class` by name and join it.
+- **Mount through `lib/mount.ts`, always.** Svelte's `mount` appends to the container where Vue's replaced its children, so an entry that mounts by hand leaves the shell's boot spinner on top of the page. Shipped twice.
 - **Types are auto-generated from the OpenAPI schema.** `make openapi` regenerates `openapi.json` + `frontend/src/api/schema.ts`. CI fails on drift.
-- **All global CSS goes inside `@layer app { }`**, so page-level rules stay orderable against each other. `App.vue` carries the `box-sizing: border-box` reset for the organiser app; the public mini-apps do not load it.
+- **All global CSS goes inside `@layer app { }`**, so page-level rules stay orderable against each other. `App.svelte` carries the `box-sizing: border-box` reset for the organiser app; the public mini-apps do not load it.
+- **The build is two passes** (`frontend/scripts/build.mjs`): the seven public mini-apps in one Rollup graph, the organiser app in another. Both halves draw the same components, and one graph over both made every public page carry the organiser app's share of what they share.
 
 ## What's where
 
@@ -149,10 +152,12 @@ backend/
 
 frontend/src/
   api/                        schema.ts (generated), types.ts, client.ts
-  composables/                Vue Query queries + mutations (one per domain)
-  stores/auth.ts              the only Pinia store
+  composables/                queries + mutations (one per domain)
+  stores/auth.svelte.ts       the session, and the gates that read it
+  router/                     the table, the guard, the link
   pages/                      one page per route
   locales/                    i18n strings (nl + en)
+  scripts/build.mjs           the two-pass build, one graph per half
 
 brands/rsp/                   one folder per organisation: brand.json,
                               tokens.css (the palette), logo + icons.

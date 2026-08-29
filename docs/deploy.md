@@ -16,8 +16,8 @@ Opkomst runs as **one image, two invocation patterns** behind
 Coolify:
 
 * **API**, uvicorn behind Coolify's reverse proxy, serving both
-  the FastAPI routes (``/api/v1/*``, ``/health``) and the Vue
-  SPA (every other path). Stateless.
+  the FastAPI routes (``/api/v1/*``, ``/health``) and the built
+  front end (every other path). Stateless.
 * **Cron jobs**, same image, different ``python -m backend.cli
   <verb>`` per cadence, invoked by Coolify's "Scheduled Tasks"
   feature. Each invocation does one sweep and exits. No
@@ -409,8 +409,8 @@ restore. ``docs/runbook.md`` → "Backups" has the command.
 
 Free tier is more than enough for opkomst's scale.
 
-1. Sign up at https://sentry.io. Create a project, select **Vue**
-   (or **FastAPI**, either works; we set both).
+1. Sign up at https://sentry.io. Create a project, select
+   **Svelte** (or **FastAPI**, either works; we set both).
 2. **Settings → Client Keys (DSN)** → copy the DSN.
 3. Coolify env: set both ``SENTRY_DSN`` and ``VITE_SENTRY_DSN``
    to the DSN. Redeploy.

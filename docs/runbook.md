@@ -174,10 +174,10 @@ push to ``main``, so the question is whether it saw the push:
 * **Is the image the problem?** CI's ``image`` job builds the same
   Dockerfile and boots it. If that job is green and Coolify's build
   is red, the difference is the environment, env vars, the build
-  cache, or the VPS running out of memory. If ``vue-tsc`` appears in
-  the log, something has reintroduced type-checking into the image
-  build: that is the OOM killer on a 1.9 GB box, and the Dockerfile
-  uses ``build-only`` precisely to avoid it.
+  cache, or the VPS running out of memory. If ``svelte-check``
+  appears in the log, something has reintroduced type-checking into
+  the image build: that is the OOM killer on a 1.9 GB box, and the
+  Dockerfile uses ``build-only`` precisely to avoid it.
 
 ## "The email queue is stuck"
 

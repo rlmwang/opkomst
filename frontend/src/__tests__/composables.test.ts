@@ -251,7 +251,7 @@ describe("the event writes", () => {
 
   // ``usePublicSignup`` removed: the public sign-up form moved to
   // its own mini-app (``frontend/src/public/``) which uses raw
-  // ``fetch`` instead of Vue Query. Coverage for that POST shape
+  // ``fetch`` instead of a query. Coverage for that POST shape
   // lives in the backend's ``test_events_router_extras.py`` /
   // ``test_public_archived.py`` end-to-end tests.
 });
