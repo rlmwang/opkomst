@@ -500,6 +500,14 @@ export default defineConfig({
         // app chunk drops below the 500 kB warning threshold; the
         // vendor chunks cache separately and survive across deploys
         // that touch app code but not deps.
+        // Both halves of the app draw the same components now, so a
+        // module reachable from the organiser entry and from a public
+        // one lands in a chunk of its own. Left alone that fragmented
+        // the public pages into a dozen small files, and a dozen small
+        // gzip streams cost more than one big one: every public page
+        // grew by about 4.5 kB for code that had not changed. Rollup
+        // merges anything below this back into its importer.
+        experimentalMinChunkSize: 20_000,
         manualChunks(id) {
           if (id.includes("/node_modules/vue-router/")) return "vue-router";
           if (id.includes("/node_modules/pinia/")) return "pinia";

@@ -13,14 +13,14 @@
  * hearing about. So this module goes in two steps.
  *
  * ``arm`` runs before mount and costs nothing. It installs plain
- * listeners that hold what they catch in memory.
+ * listeners that hold what they catch in memory. They are the window's
+ * own, not a framework's: an error thrown while rendering reaches them
+ * either way, and nothing here has to know what drew the page.
  *
  * ``start`` runs after mount, fetches Sentry, and replays everything the
  * buffer collected. From then on reports go straight through and the
  * temporary listeners are removed, so nothing is counted twice.
  */
-import type { App } from "vue";
-
 type Report =
   | { kind: "message"; message: string; level: "warning" }
   | { kind: "error"; error: unknown };
@@ -60,13 +60,9 @@ function onRejection(event: PromiseRejectionEvent): void {
  * Start catching errors, before the app mounts. Synchronous and tiny:
  * two listeners and a Vue error handler that push onto an array.
  */
-export function arm(app: App): void {
+export function arm(): void {
   window.addEventListener("error", onWindowError);
   window.addEventListener("unhandledrejection", onRejection);
-  app.config.errorHandler = (error) => {
-    captureError(error);
-    if (import.meta.env.DEV) console.error(error);
-  };
 }
 
 /**
@@ -77,7 +73,7 @@ export function arm(app: App): void {
  * dev, which is the same rule as before: a local run should not need a
  * network round trip to report an error to somewhere it cannot reach.
  */
-export async function start(app: App): Promise<void> {
+export async function start(): Promise<void> {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn || import.meta.env.DEV) return;
 
@@ -85,7 +81,6 @@ export async function start(app: App): Promise<void> {
   // dynamic import of the whole namespace keeps every integration.
   const loaded = await import("./sentry-client");
   loaded.init({
-    app,
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "production",
     // PII is off: no usernames, IPs or request bodies.
@@ -96,8 +91,8 @@ export async function start(app: App): Promise<void> {
     tracesSampleRate: Number(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? 0),
   });
 
-  // ``init`` installs Sentry's own global handlers and its Vue error
-  // handler, so ours would double-report from here on.
+  // ``init`` installs Sentry's own global handlers, so ours would
+  // double-report from here on.
   window.removeEventListener("error", onWindowError);
   window.removeEventListener("unhandledrejection", onRejection);
 

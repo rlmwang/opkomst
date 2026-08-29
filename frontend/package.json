@@ -15,6 +15,7 @@
     "check": "vue-tsc --noEmit && svelte-check --tsconfig ./tsconfig.svelte.json --threshold error"
   },
   "dependencies": {
+    "@sentry/browser": "^10.72.0",
     "@sentry/vue": "^10.50.0",
     "@tanstack/svelte-query": "^5.90.2",
     "@tanstack/vue-query": "^5.102.8",

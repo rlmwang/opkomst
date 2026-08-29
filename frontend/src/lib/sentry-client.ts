@@ -12,4 +12,4 @@
  * that gets imported dynamically, puts the tree-shaking boundary back
  * where it belongs.
  */
-export { captureException, captureMessage, init } from "@sentry/vue";
+export { captureException, captureMessage, init } from "@sentry/browser";
