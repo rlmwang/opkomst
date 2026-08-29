@@ -25,7 +25,17 @@ export interface BarSegment {
  *
  * Height is themeable per call via ``--segmented-bar-height``.
  */
-const { segments, max }: { segments: BarSegment[]; max?: number } = $props();
+const {
+  segments,
+  max,
+  ariaLabel,
+}: {
+  segments: BarSegment[];
+  max?: number;
+  /** What the bar says, for anything not looking at it. The segments
+   *  themselves are decoration; this is the sentence. */
+  ariaLabel?: string;
+} = $props();
 
 const denominator = $derived.by(() => {
   if (max != null) return Math.max(max, 1);
@@ -34,7 +44,7 @@ const denominator = $derived.by(() => {
 });
 </script>
 
-<div class="segmented-bar">
+<div class="segmented-bar" aria-label={ariaLabel} role={ariaLabel ? "img" : undefined}>
   {#each segments as s, i (i)}
     {#if s.value > 0}
       <div
