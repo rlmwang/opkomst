@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/vue";
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query";
 import { createPinia } from "pinia";
 import PrimeVue from "primevue/config";
@@ -7,6 +6,7 @@ import Tooltip from "primevue/tooltip";
 import ToastService from "primevue/toastservice";
 import { createApp } from "vue";
 import { ApiError } from "@/api/client";
+import * as sentry from "@/lib/sentry";
 import App from "./App.vue";
 import { i18n, initI18n } from "./i18n";
 import { primeVueConfig } from "./primevue-preset";
@@ -17,28 +17,11 @@ import "./assets/forms.css";
 
 const app = createApp(App);
 
-// Sentry. The DSN is injected at build time via
-// ``VITE_SENTRY_DSN``; left unset in dev (``import.meta.env.DEV``)
-// so a noisy ``console`` doesn't spam during local work. PII is
-// off — usernames, IPs, and request bodies are not captured. The
-// app's own ``app.config.errorHandler`` is replaced by Sentry's,
-// so a render error or unhandled promise reaches the same DSN as
-// backend exceptions.
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
-if (sentryDsn && !import.meta.env.DEV) {
-  Sentry.init({
-    app,
-    dsn: sentryDsn,
-    environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "production",
-    sendDefaultPii: false,
-    // Lower the trace sample rate to zero by default — opkomst
-    // gets little traffic and tracing every event would burn
-    // the free-tier quota fast. Bump in env if you want spans.
-    tracesSampleRate: Number(
-      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE ?? 0,
-    ),
-  });
-}
+// Start catching errors now, and fetch Sentry itself once the app is
+// on screen (``lib/sentry.ts``). Arming is two listeners and an array;
+// the 31 kB that does the reporting is not something an organiser
+// should wait behind to see their dashboard.
+sentry.arm(app);
 
 app.use(createPinia());
 
@@ -79,4 +62,10 @@ app.directive("tooltip", Tooltip);
 // The active language is fetched, not bundled, so it has to be in hand
 // before the first render or every string would paint as ``[key]``. It
 // is one small request that starts alongside the entry chunk.
-initI18n().then(() => app.mount("#app"));
+initI18n().then(() => {
+  app.mount("#app");
+  // After mount on purpose: the download competes with nothing, and
+  // anything that went wrong before this point is buffered and replayed
+  // the moment it lands.
+  void sentry.start(app);
+});

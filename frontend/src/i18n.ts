@@ -1,6 +1,6 @@
-import * as Sentry from "@sentry/vue";
 import { createI18n } from "vue-i18n";
 import { APP_NAME } from "@/lib/branding";
+import { captureMessage } from "@/lib/sentry";
 import nl from "@/locales/nl.json";
 
 export type Locale = "nl" | "en";
@@ -69,7 +69,7 @@ function missingKeyHandler(
     if (import.meta.env.DEV) {
       console.warn(`[i18n] missing key "${key}" in locale "${locale}"`);
     } else {
-      Sentry.captureMessage(`i18n missing key: ${locale}/${key}`, "warning");
+      captureMessage(`i18n missing key: ${locale}/${key}`, "warning");
     }
   }
   return `[${key}]`;
