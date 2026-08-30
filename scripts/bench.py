@@ -343,9 +343,17 @@ def _fill_datepoll(db, tenant, target: int) -> None:
 
 
 def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
-    """A roster with two years of shifts behind it, which is what the
-    accountability page counts."""
-    from datetime import date, timedelta
+    """A roster that has been running for two years.
+
+    Running, not merely populated: the schedule page projects the rest
+    of its window on demand, and that projection is skipped entirely on
+    a roster nobody started. A roster left forming measures three
+    queries and none of the work.
+
+    Half the shifts are behind today, which is what the accountability
+    page counts, and half ahead, which is what the schedule shows.
+    """
+    from datetime import UTC, date, datetime, timedelta
 
     from backend.models import Chore, Enrollment, Roster, Shift, Volunteer
 
@@ -357,9 +365,9 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
     if not chores:
         print("  roster: no chores")
         return
+    chore_ids = [c.id for c in chores]
 
     have_volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).count()
-    people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
     rows: list[object] = []
     for n in range(have_volunteers, volunteers):
         vid = _uuid7()
@@ -369,22 +377,23 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
     if rows:
         db.bulk_save_objects(rows)
         db.commit()
-        people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+    people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
 
-    have_shifts = db.query(Shift).filter(Shift.chore_id.in_([c.id for c in chores])).count()
-    if have_shifts >= shifts:
-        print(f"  roster: {have_shifts} shifts, already at target")
-        return
-    first = date.today() - timedelta(days=730)
+    first = date.today() - timedelta(days=shifts // 2)
+    have = db.query(Shift).filter(Shift.chore_id.in_(chore_ids)).count()
+    ahead = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= date.today()).count()
     rows = []
-    for n in range(have_shifts, shifts):
-        chore = chores[n % len(chores)]
+    for n in range(shifts):
         on = first + timedelta(days=n)
+        if on < date.today() and have >= shifts // 2:
+            continue
+        if on >= date.today() and ahead >= shifts // 2:
+            continue
         who = people[n % len(people)] if people else None
         rows.append(
             Shift(
                 id=_uuid7(),
-                chore_id=chore.id,
+                chore_id=chores[n % len(chores)].id,
                 on_date=on,
                 slot_index=0,
                 volunteer_id=who.id if who else None,
@@ -392,9 +401,15 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
                 tenant_id=tenant.id,
             )
         )
-    db.bulk_save_objects(rows)
+    if rows:
+        db.bulk_save_objects(rows)
+    if roster.activated_at is None:
+        # A forming roster projects nothing, so the page it is measured
+        # through does none of its work.
+        roster.activated_at = datetime.now(UTC)
+        roster.starts_on = first
     db.commit()
-    print(f"  roster: {have_shifts} -> {shifts} shifts, {len(people)} volunteers")
+    print(f"  roster: {have} -> {have + len(rows)} shifts, {len(people)} volunteers, running")
 
 
 def _fill(profile: dict[str, int]) -> None:

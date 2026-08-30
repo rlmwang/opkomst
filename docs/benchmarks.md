@@ -121,8 +121,15 @@ Endpoints, same database:
   the feedback summary. Five of them are the same event. That is the
   page to fix, and the fix is fewer requests rather than faster ones.
 * **`roster details` fires five** and is the slowest under load: 1.2 s
-  at eight organisers, on a roster with 520 shifts. `roster schedule`
-  alone is 11 queries.
+  at eight organisers. Both roster rows understate it: the seeded
+  roster was still forming when this ran, and a forming roster skips
+  the projection that is most of the work. `--fill` starts it now.
+* **`roster schedule` recomputes rather than reads.** Its outlook is a
+  replay of the roster from its first day: every date the pattern ever
+  produced, every ledger event, then the rotation rule applied to what
+  is not pinned yet. Four of its eight queries feed that replay rather
+  than the page. It costs 15 ms on a roster six months old and 41 ms on
+  one ten years old, showing the same 78 rows either way.
 * **Filling the events changed almost nothing on the endpoint table.**
   `event list` went from 39 ms to 29 with fifteen times the events,
   which is noise: those reads were already indexed for the shape they
@@ -170,7 +177,7 @@ uvicorn worker.
 * **The slowest reads are now `compass summary` and `compass csv`**, at
   80 ms each. Both walk the same statement: every answer poled, meaned
   per axis, once for the map and once per exported row.
-* `roster schedule` at 44 ms and 11 queries is unchanged.
+* `roster schedule` at 44 ms is unchanged.
 
 ## 2026-08-29 - after the SQL rewrites and the streamed CSV
 
@@ -225,4 +232,4 @@ from it.
 * **`compass csv` is the expensive one** at 99 ms: it nests the
   positions statement as a CTE, so every row carries the map's
   arithmetic beside its answers.
-* **`roster schedule` is 11 queries** and shows it. Untouched so far.
+* **`roster schedule` is the slowest of the reads.** Untouched so far.
