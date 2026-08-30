@@ -104,80 +104,10 @@
     "archive": "Archive",
     "users": "Users",
     "chapters": "Chapters",
-    "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} sign-ups awaiting approval",
     "logout": "Log out",
     "settings": "Settings",
     "compasses": "Compasses"
-  },
-  "whatsapp": {
-    "title": "WhatsApp blast",
-    "lede": "One-off tool for sending a personalised WhatsApp message to a list of recipients. Nothing here is stored. Close the tab and the linked session is wiped.",
-    "state": {
-      "open": "linked",
-      "connecting": "connecting…",
-      "close": "not linked",
-      "unknown": "unknown",
-      "not_configured": "not configured"
-    },
-    "connect": {
-      "title": "Link your WhatsApp",
-      "step1": "Open WhatsApp on your phone.",
-      "step2": "Go to Settings, then Linked Devices, then Link a device.",
-      "step3": "Scan the QR code below.",
-      "qrAlt": "QR code to link WhatsApp",
-      "pairingCode": "Or enter pairing code:",
-      "statusLabel": "Status:"
-    },
-    "connected": {
-      "linked": "WhatsApp linked",
-      "reconnecting": "reconnecting…",
-      "disconnect": "Disconnect"
-    },
-    "recipients": {
-      "title": "Recipients",
-      "hint": "Paste a CSV with a header row. One column holds the phone numbers (set its name below). Other columns become merge tags you can use in the message body.",
-      "phoneColumnLabel": "Phone number column",
-      "countryCodeLabel": "Default country code",
-      "validCount": "valid",
-      "invalidCount": "invalid",
-      "alreadySent": "already sent",
-      "clear": "Clear and start over",
-      "availableTags": "Merge tags:",
-      "status": "Status",
-      "errors": {
-        "emptyInput": "No CSV provided.",
-        "missingPhoneColumn": "The header must include the phone-number column you specified.",
-        "emptyNumber": "missing number",
-        "invalidNumber": "not a valid phone number",
-        "duplicateNumber": "duplicate"
-      }
-    },
-    "compose": {
-      "title": "Your message",
-      "hint": "Wrap any CSV column name in curly braces to insert that column's value. The preview shows what your first valid recipient sees.",
-      "placeholder": "Type your message here…",
-      "bold": "bold",
-      "italic": "italic",
-      "strike": "strikethrough",
-      "mono": "monospace",
-      "previewEmpty": "(empty message)",
-      "delayLabel": "Delay between messages",
-      "delayHint": "Lower is faster but riskier. WhatsApp can throttle or unlink the device if you send too fast. 6s is a safe default.",
-      "dontCloseWarning": "Sending in progress. Keep this tab open until it finishes. Closing it stops the send loop and unlinks the WhatsApp session.",
-      "sendButton": "Send to {count} recipients",
-      "confirmHeader": "Send WhatsApp blast?",
-      "confirmLead": "About to send to {count} recipients. The first message will read:",
-      "confirmAccept": "Send to {count}",
-      "pause": "Pause",
-      "resume": "Resume",
-      "cancel": "Cancel",
-      "sent": "sent",
-      "failed": "failed",
-      "of": "of {total}",
-      "sendStatus": "Send",
-      "download": "Download results (.csv)"
-    }
   },
   "auth": {
     "email": "Email address",

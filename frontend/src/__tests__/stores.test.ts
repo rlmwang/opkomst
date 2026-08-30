@@ -2,8 +2,8 @@
  * The session, and the questions the app asks it.
  *
  * Every gate in the app reads one of these: whether somebody is signed
- * in, approved, an admin, on a paid plan, or allowed the WhatsApp
- * tool. The store is exercised against a mocked API client, so an
+ * in, approved, an admin, or on a paid plan. The store is exercised
+ * against a mocked API client, so an
  * accidental network call fails loudly rather than quietly returning
  * undefined.
  *
@@ -33,7 +33,6 @@ vi.mock("@/api/client", () => ({
 }));
 
 const mockGet = vi.mocked(apiClient.get);
-const mockPost = vi.mocked(apiClient.post);
 
 const BASE = {
   id: "u1",
@@ -46,7 +45,6 @@ const BASE = {
   tenant_kind: "organisation",
   participant_cap: null,
   participant_mail: true,
-  whatsapp_available: false,
 };
 
 beforeEach(() => {
@@ -116,41 +114,20 @@ describe("the session", () => {
     expect(store.auth.participantMail).toBe(true);
   });
 
-  it("reads whatsappAvailable off the user row, in one request", async () => {
-    const store = await signedInAs({
-      ...BASE,
-      role: "admin",
-      is_approved: true,
-      whatsapp_available: true,
-    });
-    expect(store.auth.whatsappAvailable).toBe(true);
+  it("reads the user row in one request", async () => {
+    const store = await signedInAs({ ...BASE, role: "admin", is_approved: true });
+    expect(store.auth.isAdmin).toBe(true);
     expect(mockGet).toHaveBeenCalledTimes(1);
     expect(mockGet).toHaveBeenCalledWith("/api/v1/auth/me");
   });
 
-  it("whatsappAvailable is false when the server does not open the tool", async () => {
-    const store = await signedInAs({
-      ...BASE,
-      role: "admin",
-      is_approved: true,
-      whatsapp_available: false,
-    });
-    expect(store.auth.whatsappAvailable).toBe(false);
-  });
-
   it("clears the session on logout", async () => {
-    const store = await signedInAs({
-      ...BASE,
-      role: "admin",
-      is_approved: true,
-      whatsapp_available: true,
-    });
-    expect(store.auth.whatsappAvailable).toBe(true);
+    const store = await signedInAs({ ...BASE, role: "admin", is_approved: true });
+    expect(store.auth.isAuthenticated).toBe(true);
 
-    mockPost.mockResolvedValueOnce(undefined);
-    await store.logout();
+    store.logout();
     expect(store.auth.user).toBeNull();
     expect(store.auth.isAuthenticated).toBe(false);
-    expect(store.auth.whatsappAvailable).toBe(false);
+    expect(store.auth.isAdmin).toBe(false);
   });
 });

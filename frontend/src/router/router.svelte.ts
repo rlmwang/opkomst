@@ -22,7 +22,6 @@ export interface RouteMeta {
   requiresApproved?: boolean;
   requiresAdmin?: boolean;
   requiresOrganisation?: boolean;
-  requiresWhatsApp?: boolean;
   /** At the root these are also the signed-out front door. */
   startable?: boolean;
   /** Which product a shared page is rendering. */

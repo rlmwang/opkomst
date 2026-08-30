@@ -69,8 +69,7 @@ const {
 <style>
 /* The URL row and the QR thumbnail themselves. They live here rather
  * than in ``theme.css`` because this is the only thing that renders
- * them; the AdminWhatsApp join QR is a different, larger control with
- * its own scoped ``.qr``. */
+ * them. */
 .link-row {
   display: flex;
   align-items: center;

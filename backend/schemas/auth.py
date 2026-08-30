@@ -59,8 +59,8 @@ class UserOut(BaseModel):
     role: str
     is_approved: bool
     # ``organisation`` or ``personal`` — what the account *is*, which is
-    # what decides whether the app shows admin pages, chapters and the
-    # WhatsApp tool at all.
+    # what decides whether the app shows admin pages and chapters at
+    # all.
     tenant_kind: str
     # People one event / form / datepoll / roster of this account may
     # hold, or ``null`` when there is no ceiling. The organiser sees
@@ -73,14 +73,6 @@ class UserOut(BaseModel):
     # (``docs/design-paywall.md``). Hiding is not the enforcement, the
     # write paths are.
     participant_mail: bool
-    # Whether the WhatsApp blast tool is open to this user: they are an
-    # approved admin of an organisation and the deployment has the
-    # EVOLUTION_* variables set. Drives the nav tab and the route guard.
-    # It rides on this DTO rather than its own endpoint because the
-    # answer is an environment check, and asking for it separately put
-    # a second blocking round-trip (and an outbound call to Evolution)
-    # in front of every admin's first page.
-    whatsapp_available: bool
     # Live chapters the user belongs to, sorted by name. Soft-deleted
     # chapters are filtered out at the DTO layer so a user re-acquires
     # them automatically when an admin restores the chapter.

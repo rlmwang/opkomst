@@ -302,16 +302,3 @@ we pulled the integration). The SMTP provider's own dashboard is
 the source of truth for bounce / complaint rates and reputation
 warnings, check there if mail starts disappearing.
 
-## WhatsApp blast tool
-
-An admin page at `/admin/whatsapp` that proxies to a self-hosted
-Evolution API for one-off personalised blasts. Stateless: no database
-writes, no numbers at rest, and the session forgets itself when the tab
-closes. `docs/plan-whatsapp-blast.md` has the design.
-
-Operationally it is one thing to know: the linked phone is the whole
-dependency. WhatsApp unlinks an inactive device after about two weeks,
-Evolution then reports the session as closed, and the page shows "not
-linked" until somebody re-scans the QR. Sends fail one by one with a
-4xx when a number is not on WhatsApp, which is expected rather than an
-outage.

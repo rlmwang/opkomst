@@ -31,7 +31,6 @@ from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
 from .routers import tenant_settings as tenant_settings_router
-from .routers import whatsapp as whatsapp_router
 from .services.canonical_host import CanonicalHostMiddleware
 from .services.observability import TimingMiddleware
 from .services.observability import install as install_timing
@@ -67,11 +66,6 @@ async def _lifespan(_app: FastAPI):  # type: ignore[no-untyped-def]
     from .services import traffic as _traffic  # noqa: PLC0415
 
     _traffic.flush()
-
-    # And drain the WhatsApp Evolution proxy's HTTP pool.
-    from .services import whatsapp as _whatsapp  # noqa: PLC0415
-
-    await _whatsapp.shutdown()
 
 
 app = FastAPI(title="Opkomst", version="0.1.0", lifespan=_lifespan)
@@ -157,7 +151,6 @@ app.include_router(chores_router.router)
 app.include_router(start_router.router)
 app.include_router(tenant_settings_router.router)
 app.include_router(health_router.router)
-app.include_router(whatsapp_router.router)
 # ``/i/{path}`` — the hero images, under this app's own domain. Before
 # the SPA fallback, like every other route.
 app.include_router(images_router.router)

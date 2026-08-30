@@ -92,26 +92,6 @@ describe("AppToggle", () => {
 });
 
 describe("AppTextarea", () => {
-  it("hands back the real field, so a caller can read the caret", async () => {
-    // AdminWhatsAppPage inserts emoji at the selection through this.
-    let element: HTMLTextAreaElement | undefined;
-    render(AppTextarea, {
-      props: {
-        value: "hallo",
-        // ``bind:element`` from a call site; here the same write, by hand.
-        get element() {
-          return element;
-        },
-        set element(el: HTMLTextAreaElement | undefined) {
-          element = el;
-        },
-      },
-    });
-    await Promise.resolve();
-    expect(element?.tagName).toBe("TEXTAREA");
-    expect(element?.selectionStart).toBeDefined();
-  });
-
   it("only takes over the height when asked to", () => {
     const plain = render(AppTextarea, { props: { value: "" } });
     expect(classesOf(plain.container)).not.toContain("app-textarea-auto");

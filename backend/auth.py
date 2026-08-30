@@ -121,9 +121,9 @@ def require_approved(user: User = Depends(get_current_user)) -> User:
 
 
 def require_organisation(user: User = Depends(get_current_user)) -> User:
-    """Gate for the surfaces only an organisation has: users, chapters,
-    the WhatsApp tool. A personal tenant is one person with no chapters
-    and nobody to administer, so these routes don't exist for it.
+    """Gate for the surfaces only an organisation has: users and
+    chapters. A personal tenant is one person with no chapters and
+    nobody to administer, so these routes don't exist for it.
 
     404 rather than 403: the surface doesn't advertise what other kinds
     of account have. Mounted as a router-level dependency so a new

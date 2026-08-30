@@ -1,8 +1,8 @@
 """What a personal account is, and what it cannot reach.
 
 A personal tenant holds one person and no chapters. That shapes three
-things, each checked here: the surfaces it is refused (admin, chapters,
-WhatsApp), the scope rule that would otherwise hide its own rows (they
+things, each checked here: the surfaces it is refused (admin,
+chapters), the scope rule that would otherwise hide its own rows (they
 have no ``chapter_id`` to match), and the ceilings that exist because
 the root hands an account to anyone who types an address.
 
@@ -79,7 +79,6 @@ def _event_payload(**over: Any) -> dict[str, Any]:
         ("get", "/api/v1/chapters"),
         ("post", "/api/v1/chapters"),
         ("get", "/api/v1/settings"),
-        ("get", "/api/v1/whatsapp/status"),
     ],
 )
 def test_organisation_only_routes_are_not_there(client, personal, method, path) -> None:

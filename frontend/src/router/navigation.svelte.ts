@@ -76,7 +76,6 @@ async function redirectFor(meta: RouteDef["meta"]): Promise<string | null> {
   // Not to /event: that is itself approval-gated, and the landing page
   // is where an account waiting on an admin is told so.
   if (m.requiresApproved && !auth.isApproved) return "/";
-  if (m.requiresWhatsApp && !auth.whatsappAvailable) return "/event";
   return null;
 }
 
