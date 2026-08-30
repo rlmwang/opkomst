@@ -438,9 +438,10 @@ async function submit(): Promise<void> {
   color: var(--brand-text-muted);
   cursor: pointer;
 }
+/* The switch dims itself; dimming the label too would stack and wash the
+ * state out. */
 .admin-toggle.disabled {
   cursor: default;
-  opacity: 0.65;
 }
 /* The default arrow, so hovering your own switch does not flash a
  * "blocked" cursor. */

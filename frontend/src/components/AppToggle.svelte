@@ -110,9 +110,11 @@ let {
   inset-inline-start: calc(100% - 1.25rem);
 }
 .app-toggle-disabled {
-  opacity: 0.4;
+  opacity: 0.6;
 }
-.app-toggle-disabled .app-toggle-track {
+/* Only an off switch flattens: a disabled switch that is on still has to
+ * read as on. */
+.app-toggle-disabled:not(.app-toggle-checked) .app-toggle-track {
   background: var(--brand-bg);
 }
 </style>

@@ -27,6 +27,15 @@ export interface Placement {
  * hides its overflow. Flipped above the field when there is no room
  * below it, and kept inside the viewport horizontally, because a menu
  * hanging off a button near the right edge would otherwise run past it.
+ *
+ * ``fixed``, not ``absolute`` with the scroll offsets added. Those are
+ * document coordinates, and they are only the same thing while the
+ * panel hangs off the body: inside a modal they resolve against the
+ * dialog, which the browser positions itself, so the panel landed a
+ * screen below it and stretched the dialog's scroll area instead of
+ * showing. The panel is re-placed on every scroll
+ * (``useOverlayPanel``), so nothing is lost by leaving the page's
+ * scroll out of the arithmetic.
  */
 export function placePanel(
   anchor: HTMLElement,
@@ -42,9 +51,9 @@ export function placePanel(
   return {
     flipped,
     style: {
-      position: "absolute",
-      insetInlineStart: `${left + window.scrollX}px`,
-      top: `${(flipped ? rect.top - height - gutter : rect.bottom + gutter) + window.scrollY}px`,
+      position: "fixed",
+      insetInlineStart: `${left}px`,
+      top: `${flipped ? rect.top - height - gutter : rect.bottom + gutter}px`,
       ...(matchAnchorWidth ? { minWidth: `${rect.width}px` } : {}),
     },
   };

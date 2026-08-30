@@ -120,7 +120,17 @@ function close(refocus = true): void {
   if (refocus) overlay.anchor?.focus({ preventScroll: true });
 }
 
-function toggleOpen(): void {
+/** The field owns its click.
+
+ *  A ``<label>`` around it, which is how every caption on these pages
+ *  is written, forwards a click to the first labelable element in its
+ *  subtree. A combobox div is not one; a chip's remove button and the
+ *  clear cross are. So clicking the field to open it dropped the first
+ *  chip instead, and with one chapter picked that emptied the field on
+ *  the first click. Preventing the default stops that second,
+ *  synthetic click at its source. */
+function toggleOpen(event?: MouseEvent): void {
+  event?.preventDefault();
   if (overlay.open) close();
   else show();
 }

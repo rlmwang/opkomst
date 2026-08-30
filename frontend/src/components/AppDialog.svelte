@@ -84,6 +84,17 @@ function onCancel(event: Event): void {
 
 <style>
 .app-dialog {
+  display: flex;
+  flex-direction: column;
+  /* Centred. The browser's own rule zeroes the inline insets and
+     leaves the block ones auto, so ``margin: auto`` had nothing to
+     centre against and the dialog sat against the top of the screen.
+     With every inset zeroed it centres on both axes, and the
+     max-height keeps a long one on screen instead of running past the
+     bottom. */
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 2rem);
   max-width: calc(100vw - 1rem);
   padding: 0;
   border: 1px solid var(--brand-border);
@@ -132,6 +143,9 @@ function onCancel(event: Event): void {
   flex-direction: column;
   gap: 1rem;
   padding: 0 1.25rem 1.25rem;
+  /* A dialog taller than the screen scrolls here, so its title and its
+     buttons stay where they are. */
+  overflow: auto;
 }
 .app-dialog-footer {
   display: flex;
