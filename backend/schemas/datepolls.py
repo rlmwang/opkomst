@@ -6,9 +6,11 @@ diff-applies on update, matched on the natural key
 lightweight list row (scalars + a computed date summary, no raw slot
 list); ``DatepollOut`` is the single-poll shape. Public shapes are
 ``PublicDatepollOut`` (what ``/by-slug`` renders) and
-``DatepollSubmitIn`` (the public submission). The tri-state
-``Availability`` literal is the single source of truth for the three
-values, re-imported by the service + submit handler.
+``DatepollSubmitIn`` (the public submission). ``Availability`` is the
+single source of truth for the two values a respondent can send, and
+is re-imported by the service + submit handler. There is no third
+value for "I can't": a slot with no answer row *is* the refusal, so an
+explicit no and a blank cannot disagree.
 
 A slot is a date with an optional time range: ``start_time`` and
 ``end_time`` are both NULL (whole-day slot) or both set (timed slot,
@@ -22,7 +24,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, RichText
 
-Availability = Literal["yes", "no", "maybe"]
+Availability = Literal["yes", "maybe"]
 
 
 class DatepollSlotIn(BaseModel):
@@ -142,7 +144,8 @@ class PublicDatepollOut(BaseModel):
 
 
 class DatepollAnswerIn(BaseModel):
-    """One answered slot on the public submit payload."""
+    """One slot the respondent said yes or maybe to. A slot they can't
+    make is simply absent from the payload."""
 
     datepoll_slot_id: str
     availability: Availability
@@ -152,7 +155,8 @@ class DatepollSubmitIn(BaseModel):
     """Public submission. ``display_name`` is the shared pseudonym
     primitive (optional, <=100, real-or-not). ``note`` is one optional
     free-text note on the whole submission. ``answers`` carries one
-    entry per slot the respondent set a state for."""
+    entry per slot the respondent can make, and may be empty: somebody
+    who can't do any of the dates says so by sending none."""
 
     display_name: DisplayName
     note: str | None = Field(default=None, max_length=280)
@@ -170,7 +174,8 @@ class DatepollSubmitAck(BaseModel):
 class DatepollEditOut(BaseModel):
     """Current values of a submission, for pre-filling the edit form
     (reached via the edit-link token). ``answers`` maps slot id →
-    availability; ``note`` is the whole-submission note."""
+    availability, holding only the slots this person can make; ``note``
+    is the whole-submission note."""
 
     display_name: str | None
     note: str | None = None
@@ -181,7 +186,9 @@ class DatepollEditOut(BaseModel):
 
 
 class DatepollSlotSummary(BaseModel):
-    """Per-slot aggregate on the organiser details page."""
+    """Per-slot aggregate on the organiser details page. ``no`` is the
+    rest of the respondent pool: everyone who left this slot blank, and
+    so said they can't make it."""
 
     id: str
     on_date: date
@@ -195,8 +202,7 @@ class DatepollSlotSummary(BaseModel):
 class DatepollSummaryOut(BaseModel):
     """Organiser summary. ``submission_count`` is the number of
     fill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most
-    maybe, then most "not filled"; ``no`` is ignored), or ``None`` when
-    there are no responses."""
+    maybe), or ``None`` when nobody can make any date."""
 
     submission_count: int
     slots: list[DatepollSlotSummary]

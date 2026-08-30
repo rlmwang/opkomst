@@ -75,10 +75,16 @@ def test_submit_unknown_slot_400s(client, organiser_headers):
     assert r.status_code == 400
 
 
-def test_submit_empty_answers_400s(client, organiser_headers):
+def test_submit_with_no_answers_is_i_cant_do_any_of_these(client, organiser_headers):
+    """A blank slot is how somebody says they can't make it, so a
+    submission naming no slots at all is a full decline, not an error."""
     poll = _create(client, organiser_headers, ["2026-08-01"])
-    r = client.post(f"/api/v1/datepoll/by-slug/{poll['slug']}/submit", json={"answers": []})
-    assert r.status_code == 400
+    r = client.post(f"/api/v1/datepoll/by-slug/{poll['slug']}/submit", json={"display_name": "Sam", "answers": []})
+    assert r.status_code == 201, r.text
+    page = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()
+    assert page["summary"]["submission_count"] == 1
+    assert page["summary"]["slots"][0]["no"] == 1
+    assert page["summary"]["best_slot_id"] is None
 
 
 def test_submit_anonymous_stored_as_null(client, organiser_headers):

@@ -7,7 +7,8 @@ time range: ``(on_date, start_time, end_time)``. When the times are
 NULL the slot is the whole day — so a poll with only whole-day slots
 is the original dates-only Doodle, and time-slots are a pure
 generalisation (no separate code path, no discriminator). Anyone with
-the slug picks yes/maybe/no per slot and may leave one optional note
+the slug marks the slots they can make (yes or maybe) and may leave
+one optional note
 on the whole submission, under a self-chosen pseudonym (real or not).
 It is independent of Events / Forms and sends no email.
 
@@ -27,8 +28,9 @@ Four tables:
   because there *is* per-submission data; Forms had none and so has no
   parent table.
 * ``datepoll_responses`` — one row per (submission, slot) the
-  respondent answered. ``availability`` is the tri-state. Unanswered
-  slots have no row.
+  respondent can make: ``availability`` is ``yes`` or ``maybe``. A
+  slot they can't make has no row, so "can't" has exactly one
+  representation and a blank can never disagree with a stored no.
 
 Privacy: the only identifier is the self-chosen pseudonym, exactly as
 ``Signup.display_name``. No email, no encryption, no IP, no read-back
@@ -146,11 +148,10 @@ class DatepollSubmission(UUIDMixin, EditTokenMixin, TimestampMixin, TenantMixin,
 
 
 class DatepollResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
-    """One respondent's answer to one slot. Exists only for an
-    answered slot; an unset slot has no row. ``availability`` is
-    constrained to the three tri-state values (CHECK backstop, the
-    canonical set is the ``Availability`` literal in
-    ``schemas/datepolls.py``)."""
+    """One respondent's answer to one slot. Exists only for a slot
+    they can make; a slot they can't has no row. ``availability`` is
+    constrained to the two values (CHECK backstop, the canonical set
+    is the ``Availability`` literal in ``schemas/datepolls.py``)."""
 
     __tablename__ = "datepoll_responses"
 
@@ -165,7 +166,7 @@ class DatepollResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     __table_args__ = (
         UniqueConstraint("submission_id", "datepoll_slot_id", name="uq_datepoll_responses_submission_slot"),
         CheckConstraint(
-            "availability IN ('yes', 'no', 'maybe')",
+            "availability IN ('yes', 'maybe')",
             name="ck_datepoll_responses_availability",
         ),
     )

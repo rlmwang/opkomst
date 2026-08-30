@@ -66,16 +66,15 @@ def get_public_datepoll(slug: str, db: Session = Depends(get_db)) -> PublicDatep
 
 def _build_by_slot(db: Session, poll_id: str, data: DatepollSubmitIn) -> dict[str, str]:
     """Validate a submit/edit payload against the poll's slots →
-    ``{slot_id: availability}``. Duplicate slots collapse (last wins);
-    ≥1 answered slot required. Shared by submit + edit."""
+    ``{slot_id: availability}``. Duplicate slots collapse (last wins).
+    An empty map is a valid answer: somebody who can't make any of the
+    dates says so by naming none of them. Shared by submit + edit."""
     valid_slot_ids = {row[0] for row in db.query(DatepollSlot.id).filter(DatepollSlot.datepoll_id == poll_id).all()}
     by_slot: dict[str, str] = {}
     for ans in data.answers:
         if ans.datepoll_slot_id not in valid_slot_ids:
             raise HTTPException(status_code=400, detail="Unknown datepoll_slot_id")
         by_slot[ans.datepoll_slot_id] = ans.availability
-    if not by_slot:
-        raise HTTPException(status_code=400, detail="Pick a state for at least one slot.")
     return by_slot
 
 

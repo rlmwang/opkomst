@@ -245,7 +245,7 @@ def test_a_closed_datepoll_refuses_the_change(client, organiser_headers) -> None
         f"/api/v1/datepoll/by-token/{token}",
         json={
             "display_name": "Kim",
-            "answers": [{"datepoll_slot_id": public["slots"][0]["id"], "availability": "no"}],
+            "answers": [{"datepoll_slot_id": public["slots"][0]["id"], "availability": "maybe"}],
         },
     )
     assert r.status_code == 409, r.text

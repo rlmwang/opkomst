@@ -384,7 +384,7 @@
       "rank3": "3rd",
       "yes": "Yes",
       "maybe": "Maybe",
-      "no": "No",
+      "no": "Can't",
       "notFoundTitle": "Date poll not found",
       "notFoundBody": "This date poll doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
       "loadFailed": "Could not load this date poll.",

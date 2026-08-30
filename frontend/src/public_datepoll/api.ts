@@ -6,7 +6,9 @@
  */
 
 import { inlinedSubmission } from "@/public_shared/submission";
-export type Availability = "yes" | "no" | "maybe";
+/** The two things a respondent can say about a slot. There is no
+ *  third value for "I can't": that is a slot with no answer at all. */
+export type Availability = "yes" | "maybe";
 
 export interface PublicDatepollSlot {
   id: string;

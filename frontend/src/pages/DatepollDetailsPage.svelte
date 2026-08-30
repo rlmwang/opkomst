@@ -90,13 +90,14 @@ function nameOf(s: DatepollSubmission): string {
 
 const noted = $derived(subs.filter((s) => s.note?.trim()));
 
-const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~", no: "✕" };
+const AVAIL_GLYPH: Record<string, string> = { yes: "✓", maybe: "~" };
 
 // The bars are deliberately not normalised: every bar is measured
 // against the busiest date, so a date fewer people answered reads as a
 // shorter bar and the rows stay comparable. Inside a bar, yes, maybe and
-// no each carry their own count. No is grey and never red, because a
-// green and red pair says nothing to a red-green colour-blind reader.
+// no each carry their own count, and no is everybody who left the date
+// blank. No is grey and never red, because a green and red pair says
+// nothing to a red-green colour-blind reader.
 const maxTotal = $derived(
   Math.max(1, ...(summary?.slots ?? []).map((s) => s.yes + s.maybe + s.no)),
 );
@@ -132,15 +133,13 @@ $effect(() => {
 });
 
 // The top three dates, by the rule the backend uses to pick a winner:
-// most yes, then most maybe, then most left blank. A date nobody said
-// yes to does not rank. The chip sits in a reserved width so every row's
-// label starts in the same place, ranked or not.
+// most yes, then most maybe. A date nobody said yes to does not rank.
+// The chip sits in a reserved width so every row's label starts in the
+// same place, ranked or not.
 const rankById = $derived.by(() => {
-  const total = summary?.submission_count ?? 0;
-  const blanks = (s: { yes: number; maybe: number; no: number }) => total - s.yes - s.maybe - s.no;
   const ranked = [...(summary?.slots ?? [])]
     .filter((s) => s.yes > 0)
-    .sort((a, b) => b.yes - a.yes || b.maybe - a.maybe || blanks(b) - blanks(a))
+    .sort((a, b) => b.yes - a.yes || b.maybe - a.maybe)
     .slice(0, 3);
   const map: Record<string, number> = {};
   ranked.forEach((s, i) => {
@@ -305,8 +304,8 @@ async function exportCsv(): Promise<void> {
                   <tr>
                     <td class="who">{nameOf(sub)}</td>
                     {#each summary.slots as s (s.id)}
-                      <td class="cell {sub.answers[s.id] ?? 'none'}">
-                        {sub.answers[s.id] ? AVAIL_GLYPH[sub.answers[s.id]] : ""}
+                      <td class="cell {sub.answers[s.id] ?? 'no'}">
+                        {sub.answers[s.id] ? AVAIL_GLYPH[sub.answers[s.id]] : "✕"}
                       </td>
                     {/each}
                   </tr>
@@ -441,6 +440,8 @@ async function exportCsv(): Promise<void> {
   background: var(--brand-amber);
   color: #fff;
 }
+/* A date left blank is a date this person can't make: the same cell as
+ * any other answer, in the neutral grey. */
 .cell.no {
   background: var(--brand-neutral);
   color: var(--brand-text);

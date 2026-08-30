@@ -6,8 +6,17 @@ organiser sees the grid.
 ## What it is
 
 An organiser picks candidate dates on a calendar, optionally with time
-slots inside a day. Everybody else opens one public link and answers
-yes, no or maybe per date, with an optional note.
+slots inside a day. Everybody else opens one public link and taps the
+dates they can make, yes or maybe, with an optional note.
+
+Every date starts blank, and blank means "I can't". There is no fourth
+state for saying no: a blank date and an explicit no would tell the
+organiser the same thing while sitting in two different places on
+disk, which is what made the old four-state pill confusing to fill in.
+So a `DatepollResponse` row exists only for a date somebody can make,
+and the "can't" count on the organiser's page is the rest of the
+respondent pool. Sending no answers at all is a real submission: it
+says this person can't do any of the dates.
 
 No accounts, on either side of the link.
 
@@ -16,7 +25,8 @@ No accounts, on either side of the link.
 Four tables. A `Datepoll` owns its `DatepollSlot` rows (a date, and
 optionally a start and end time). Somebody who answers gets one
 `DatepollSubmission` holding their pseudonym, their note and their
-secret edit token, with one `DatepollResponse` per slot they answered.
+secret edit token, with one `DatepollResponse` per slot they can make
+(`yes` or `maybe`). A slot they can't make has no row.
 
 The name is optional unless the organiser switched it on, and there is
 no email field at all: a date poll never sends mail, so it never asks
