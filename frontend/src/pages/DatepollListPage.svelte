@@ -23,9 +23,9 @@ const share = shareClipboard({
   copyPrefix: "datepoll.share",
 });
 
-const sorted = $derived(
-  [...(query.data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-);
+// Newest first is the statement's order, and the list arrives one page
+// at a time.
+const page = $derived(query.data ?? null);
 
 /** How many dates are on offer and when they run. A poll with one date
  *  says that date; a poll with none says so, because it is a poll that
@@ -43,7 +43,9 @@ function dateRange(p: DatepollListOut): string {
 <EntityListPage
   {copy}
   {list}
-  items={sorted}
+  items={page?.items ?? []}
+  total={page?.total ?? 0}
+  perPage={page?.per_page ?? 0}
   loaded={!auth.isApproved || !query.isPending}
   isError={query.isError}
   newPath="/datepoll/new"

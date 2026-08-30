@@ -35,6 +35,7 @@ from ..models import (
     SignupHelpChoice,
     User,
 )
+from ..schemas.common import Page
 from ..schemas.events import (
     EventListOut,
     EventOut,
@@ -47,6 +48,7 @@ from ..schemas.events import (
 from . import access, archive, event_recurrence
 from . import image as image_svc
 from .events import now_wallclock
+from .paging import Paging, matching
 
 
 def registration_totals(db: Session, event_ids: list[str]) -> dict[str, int]:
@@ -215,8 +217,8 @@ FULL_COLUMNS = (
 )
 
 
-def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[EventListOut]:
-    """The dashboard list, in one statement.
+def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging) -> Page[EventListOut]:
+    """The dashboard list, in one statement, one page at a time.
 
     Every card needs four things about its event: the row itself, its
     chapter's name, how many people booked, and which session the share
@@ -232,6 +234,12 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Event
     the two, which reads as duplicate cards and, worse, an inflated
     ``SUM``. ``tests/test_query_budget`` asserts the row count matches
     the event count so a future join cannot reintroduce that quietly.
+
+    The order is what is coming first and then what happened, newest
+    back: an event with a session still ahead of it sorts by that
+    session, and one whose sessions have all run sorts after them all,
+    by the day the series began. The browser used to do that sort, and
+    the search, over every row it had been sent.
     """
     headcount = (
         select(func.coalesce(func.sum(Registration.party_size), 0))
@@ -257,6 +265,11 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Event
         .limit(1)
         .lateral("latest")
     )
+    where = (
+        access.list_filter(db, user, Event, chapter_id),
+        Event.archived_at.is_(None),
+        *matching(page.q, Event.name_nl, Event.name_en, Event.location),
+    )
     rows = db.execute(
         select(
             *LIST_COLUMNS,
@@ -270,32 +283,38 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Event
         .outerjoin(Chapter, and_(Chapter.id == Event.chapter_id, Chapter.deleted_at.is_(None)))
         .outerjoin(upcoming, true())
         .outerjoin(latest, true())
-        .where(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
-        .order_by(Event.starts_on.desc())
+        .where(*where)
+        .order_by(upcoming.c.starts_at.asc().nulls_last(), Event.starts_on.desc())
+        .limit(page.per_page)
+        .offset(page.offset)
     ).all()
-    return [
-        EventListOut(
-            id=r.id,
-            name_nl=r.name_nl,
-            name_en=r.name_en,
-            locale=r.locale,
-            chapter_id=r.chapter_id,
-            chapter_name=r.chapter_name,
-            archived=r.archived_at is not None,
-            location=r.location,
-            latitude=r.latitude,
-            longitude=r.longitude,
-            starts_on=r.starts_on,
-            start_time=r.start_time,
-            period_weeks=r.period_weeks,
-            cycle_slots=r.cycle_slots,
-            span_weeks=r.span_weeks,
-            next_starts_at=r.next_starts_at,
-            next_slug=r.next_slug if r.next_slug is not None else r.latest_slug,
-            attendee_count=int(r.attendee_count or 0),
-        )
-        for r in rows
-    ]
+    total = db.execute(select(func.count()).select_from(Event).where(*where)).scalar_one()
+    return page.of(
+        total,
+        [
+            EventListOut(
+                id=r.id,
+                name_nl=r.name_nl,
+                name_en=r.name_en,
+                locale=r.locale,
+                chapter_id=r.chapter_id,
+                chapter_name=r.chapter_name,
+                archived=r.archived_at is not None,
+                location=r.location,
+                latitude=r.latitude,
+                longitude=r.longitude,
+                starts_on=r.starts_on,
+                start_time=r.start_time,
+                period_weeks=r.period_weeks,
+                cycle_slots=r.cycle_slots,
+                span_weeks=r.span_weeks,
+                next_starts_at=r.next_starts_at,
+                next_slug=r.next_slug if r.next_slug is not None else r.latest_slug,
+                attendee_count=int(r.attendee_count or 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def list_enrich(db: Session, events: Sequence[Any]) -> list[EventListOut]:

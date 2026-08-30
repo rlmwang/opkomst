@@ -34,7 +34,7 @@ def test_create_returns_sorted_slots(client, organiser_headers):
 
 def test_list_row_omits_raw_slots_but_carries_summary(client, organiser_headers):
     _create(client, organiser_headers, dates=["2026-07-01", "2026-07-05"])
-    rows = client.get("/api/v1/datepoll", headers=organiser_headers).json()
+    rows = client.get("/api/v1/datepoll", headers=organiser_headers).json()["items"]
     assert len(rows) == 1
     row = rows[0]
     assert "slots" not in row
@@ -51,8 +51,8 @@ def test_archive_restore_delete_guard(client, organiser_headers):
     assert client.delete(f"/api/v1/datepoll/{pid}", headers=organiser_headers).status_code == 404
     # Archive → leaves active list, appears on archived list.
     assert client.post(f"/api/v1/datepoll/{pid}/archive", headers=organiser_headers).status_code == 200
-    assert client.get("/api/v1/datepoll", headers=organiser_headers).json() == []
-    assert len(client.get("/api/v1/datepoll/archived", headers=organiser_headers).json()) == 1
+    assert client.get("/api/v1/datepoll", headers=organiser_headers).json()["items"] == []
+    assert len(client.get("/api/v1/datepoll/archived", headers=organiser_headers).json()["items"]) == 1
     # Now deletable.
     assert client.delete(f"/api/v1/datepoll/{pid}", headers=organiser_headers).status_code == 204
     assert client.get(f"/api/v1/datepoll/{pid}", headers=organiser_headers).status_code == 404

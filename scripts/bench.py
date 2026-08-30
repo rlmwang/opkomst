@@ -560,13 +560,13 @@ async def _pages(client: httpx.AsyncClient, headers: dict[str, str]) -> list[Pag
     me = "/api/v1/auth/me"
     pages: list[Page] = [Page("dashboard", [me, "/api/v1/event", "/api/v1/chapters"])]
 
-    events = (await client.get("/api/v1/event", headers=headers)).json()
+    events = (await client.get("/api/v1/event", headers=headers)).json()["items"]
     if events:
         one = events[0]["id"]
         pages.append(Page("event details", [me, f"/api/v1/event/{one}/page"]))
 
     for noun in ("form", "quiz", "compass"):
-        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()
+        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()["items"]
         if not rows:
             continue
         one = rows[0]["id"]
@@ -575,12 +575,12 @@ async def _pages(client: httpx.AsyncClient, headers: dict[str, str]) -> list[Pag
             Page(f"{noun} details", [me, f"/api/v1/{noun}/{one}", f"/api/v1/{noun}/{one}/summary"]),
         ]
 
-    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()
+    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()["items"]
     if polls:
         one = polls[0]["id"]
         pages.append(Page("datepoll details", [me, f"/api/v1/datepoll/{one}/page"]))
 
-    rosters = (await client.get("/api/v1/chore", headers=headers)).json()
+    rosters = (await client.get("/api/v1/chore", headers=headers)).json()["items"]
     if rosters:
         one = rosters[0]["id"]
         pages.append(
@@ -614,7 +614,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
     ]
 
     for noun in ("form", "quiz", "compass"):
-        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()
+        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()["items"]
         if not rows:
             continue
         one = rows[0]
@@ -626,7 +626,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case(f"{noun} public", f"/api/v1/{noun}/by-slug/{one['slug']}", auth=False),
         ]
 
-    events = (await client.get("/api/v1/event", headers=headers)).json()
+    events = (await client.get("/api/v1/event", headers=headers)).json()["items"]
     if events:
         one = events[0]
         cases += [
@@ -635,7 +635,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case("event feedback csv", f"/api/v1/event/{one['id']}/feedback-submissions.csv"),
         ]
 
-    rosters = (await client.get("/api/v1/chore", headers=headers)).json()
+    rosters = (await client.get("/api/v1/chore", headers=headers)).json()["items"]
     if rosters:
         cases += [
             Case("roster details", f"/api/v1/chore/{rosters[0]['id']}"),
@@ -643,7 +643,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case("roster accountability", f"/api/v1/chore/{rosters[0]['id']}/accountability"),
         ]
 
-    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()
+    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()["items"]
     if polls:
         cases += [
             Case("datepoll page", f"/api/v1/datepoll/{polls[0]['id']}/page"),

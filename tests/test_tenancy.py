@@ -185,7 +185,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
     # Ours is visible; theirs is not, and the list shows only ours.
     assert client.get(f"/api/v1/event/{our_event_id}/page", headers=organiser_headers).status_code == 200
     assert client.get(f"/api/v1/event/{their_event_id}/page", headers=organiser_headers).status_code == 404
-    listed = client.get("/api/v1/event", headers=organiser_headers).json()
+    listed = client.get("/api/v1/event", headers=organiser_headers).json()["items"]
     assert {e["id"] for e in listed} == {our_event_id}
 
 

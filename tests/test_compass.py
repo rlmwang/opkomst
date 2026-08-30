@@ -530,4 +530,4 @@ def test_a_kompas_is_not_reachable_through_the_forms_urls(client, organiser_head
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     assert client.get(f"/api/v1/form/{kompas['id']}", headers=organiser_headers).status_code == 404
     assert client.get(f"/api/v1/quiz/by-slug/{kompas['slug']}").status_code == 410
-    assert [f["id"] for f in client.get("/api/v1/form", headers=organiser_headers).json()] == []
+    assert [f["id"] for f in client.get("/api/v1/form", headers=organiser_headers).json()["items"]] == []

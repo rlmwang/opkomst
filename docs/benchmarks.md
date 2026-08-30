@@ -60,6 +60,39 @@ Production sits behind Traefik with `compress=true`, so the bytes there
 are fewer and the CPU is the same. Repeats move 20-30% on a laptop:
 read a smaller change as noise.
 
+## 2026-08-30 - the lists answer with a page
+
+The load is thousands of events and polls with twenty sign-ups each,
+not one of either with thousands. So the lists were the hot path, and
+they answered with everything: 1,202 events was 511 KB, and the browser
+did the sorting and the searching over what it had been sent.
+
+Where that time went, on 1,202 events:
+
+| | |
+|---|---|
+| the statement | 11 ms |
+| building 1,202 DTOs in Python | 60 ms |
+| serialising to JSON | 2.5 ms |
+
+Fifty microseconds of Python per row, for rows nobody drew. Now:
+
+| endpoint | before | after |
+|---|---|---|
+| event list, p50 | 39 ms | 32 ms |
+| event list at c=8 | 225 ms | 144 ms |
+| event list, payload | 511 KB | 22 KB |
+| event list, page 12 | n/a | 38 ms |
+| event list, searched | n/a | 32 ms |
+
+* **Page 12 costs what page 1 costs.** That is the point: the read no
+  longer grows with the table.
+* **The count is the extra query.** Numbered pages need a total, so
+  every list is 4 queries where it was 3.
+* The sort moved with it. The dashboard's order (what is coming,
+  soonest first, then what has happened, newest back) is
+  ``ORDER BY next_starts_at NULLS LAST, starts_on DESC``.
+
 ## 2026-08-30 - one read per page, events and datepolls
 
 The details pages asked five and three times for one thing. Measured

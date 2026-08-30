@@ -21,7 +21,12 @@ interface BilingualName {
 }
 
 export interface EntityList<T> {
-  chapter: { value: string | null; readonly options: { id: string; name: string }[] };
+  chapter: {
+    value: string | null;
+    page: number;
+    search: string;
+    readonly options: { id: string; name: string }[];
+  };
   askArchive: (item: T) => void;
 }
 

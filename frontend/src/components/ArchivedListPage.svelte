@@ -28,12 +28,18 @@ import { tip } from "@/lib/tooltip";
 let {
   copy,
   items,
+  total,
+  perPage,
   loaded,
   list,
   meta,
 }: {
   copy: (key: string) => string;
   items: T[];
+  /** How many rows the filter and the search leave, and how many fit on
+   *  a page. */
+  total: number;
+  perPage: number;
   loaded: boolean;
   list: ArchivedList<T>;
   /** A line under the name, where the resource has one to show. */
@@ -49,7 +55,10 @@ let {
   bind:chapterFilter={list.chapter.value}
   chapterOptions={list.chapter.options}
   searchPlaceholder={copy("searchPlaceholder")}
-  searchKeys={(item: T) => [lt(item.name_nl, item.name_en) ?? ""]}
+  bind:search={list.chapter.search}
+  bind:page={list.chapter.page}
+  {total}
+  {perPage}
   emptyCopy={copy("empty")}
   noMatchesCopy={copy("noMatches")}
   skeletonRows={2}

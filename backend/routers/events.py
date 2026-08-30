@@ -18,13 +18,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
 from ..models import EmailChannel, Event, EventHelpOption, EventSourceOption, Occurrence, User
+from ..schemas.common import Page
 from ..schemas.events import (
     EventCreate,
     EventListOut,
@@ -38,6 +39,7 @@ from ..services import access, crud, entities, event_recurrence, event_stats, fe
 from ..services import events as events_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
+from ..services.paging import DEFAULT_PER_PAGE, MAX_PER_PAGE, Paging
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -65,26 +67,38 @@ def create_event(
     return event_stats.to_out(db, event)
 
 
-@router.get("", response_model=list[EventListOut])
+@router.get("", response_model=Page[EventListOut])
 def list_events(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventListOut]:
-    return event_stats.list_for_user(db, user, chapter_id)
+) -> Page[EventListOut]:
+    """One page of the organiser's events, what is coming first.
+
+    The search and the order are the statement's: the browser used to
+    do both over every row it had been sent."""
+    return event_stats.list_for_user(db, user, chapter_id, Paging(page, per_page, q))
 
 
-@router.get("/archived", response_model=list[EventListOut])
+@router.get("/archived", response_model=Page[EventListOut])
 def list_archived_events(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventListOut]:
+) -> Page[EventListOut]:
     # Archived events are not in ``events`` any more; they are in its
     # twin, with ``archive_index`` holding when each left. The rows come
     # back as mappings rather than ORM objects, because there is no live
     # row for the ORM to be about.
-    return event_stats.archived_enrich(db, access.archived_rows(db, "events", user, chapter_id))
+    window = Paging(page, per_page, q)
+    rows, total = access.archived_rows(db, "events", user, chapter_id, page=window)
+    return window.of(total, event_stats.archived_enrich(db, rows))
 
 
 @router.post("/{event_id}/archive", response_model=EventOut)

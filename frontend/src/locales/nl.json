@@ -23,7 +23,10 @@
     "advancedShow": "Geavanceerde opties tonen",
     "advancedHide": "Geavanceerde opties verbergen",
     "clear": "Wissen",
-    "noResults": "Geen resultaten"
+    "noResults": "Geen resultaten",
+    "pages": "Pagina's",
+    "previousPage": "Vorige",
+    "nextPage": "Volgende"
   },
   "recoverLink": {
     "open": "Aanmeldingen bekijken",

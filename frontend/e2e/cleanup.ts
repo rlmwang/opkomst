@@ -21,14 +21,20 @@ function isThrowaway(name: unknown): name is string {
 async function purge(request: APIRequestContext, path: string, headers: Record<string, string>): Promise<void> {
   const seen = new Set<string>();
   for (const listPath of [path, `${path}/archived`]) {
-    const res = await request.get(listPath, { headers });
-    if (!res.ok()) continue;
-    const items = (await res.json()) as { id: string; name?: string }[];
-    for (const item of items) {
-      if (!isThrowaway(item.name) || seen.has(item.id)) continue;
-      seen.add(item.id);
-      await request.post(`${path}/${item.id}/archive`, { headers }); // no-op if already archived
-      await request.delete(`${path}/${item.id}`, { headers });
+    // The lists are paged, so the sweep walks the pages: a run that
+    // left more than a page of throwaways would otherwise leave the
+    // rest behind.
+    for (let page = 1; ; page++) {
+      const res = await request.get(`${listPath}?page=${page}&per_page=200`, { headers });
+      if (!res.ok()) break;
+      const body = (await res.json()) as { items: { id: string; name?: string }[]; total: number };
+      for (const item of body.items) {
+        if (!isThrowaway(item.name) || seen.has(item.id)) continue;
+        seen.add(item.id);
+        await request.post(`${path}/${item.id}/archive`, { headers }); // no-op if already archived
+        await request.delete(`${path}/${item.id}`, { headers });
+      }
+      if (page * 200 >= body.total || body.items.length === 0) break;
     }
   }
 }

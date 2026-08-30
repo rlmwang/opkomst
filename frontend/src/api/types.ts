@@ -46,6 +46,15 @@ export type ChapterArchiveRequest = S["ChapterArchiveRequest"];
 export type ChapterUsage = S["ChapterUsageOut"];
 
 // --- Events ---
+/** One page of a list, and how many rows the filter and the search
+ *  leave in total. Every organiser list answers with this. */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
 export type EventListOut = S["EventListOut"];
 export type EventOut = S["EventOut"];
 export type EventCreate = S["EventCreate"];

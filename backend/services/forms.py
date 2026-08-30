@@ -46,6 +46,7 @@ from ..models import (
     FormSubmission,
     User,
 )
+from ..schemas.common import Page
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -64,6 +65,7 @@ from ..schemas.forms import (
 from . import access, compass, numbers, public_access, quizzes, tenancy
 from . import archive as archive_svc
 from . import image as image_svc
+from .paging import Paging, matching
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
@@ -487,7 +489,7 @@ FULL_COLUMNS = (
 )
 
 
-def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) -> list[FormListOut]:
+def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None, page: Paging) -> Page[FormListOut]:
     """The organiser's list of one product, in one statement.
 
     The row, its chapter's name and how many people filled it in, asked
@@ -495,31 +497,43 @@ def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) ->
     Python. The count is a scalar subquery rather than a join to
     ``form_submissions``, so one form stays one row."""
     submissions_count = select(func.count(FormSubmission.id)).where(FormSubmission.form_id == Form.id).scalar_subquery()
+    where = (
+        access.list_filter(db, user, Form, chapter_id),
+        Form.mode == mode,
+        Form.archived_at.is_(None),
+        *matching(page.q, Form.name_nl, Form.name_en),
+    )
     rows = db.execute(
         select(*LIST_COLUMNS, Chapter.name.label("chapter_name"), submissions_count.label("submission_count"))
         .select_from(Form)
         .outerjoin(Chapter, and_(Chapter.id == Form.chapter_id, Chapter.deleted_at.is_(None)))
         # The table holds three products, so the mode predicate is part
         # of every read of it (``query``).
-        .where(access.list_filter(db, user, Form, chapter_id), Form.mode == mode, Form.archived_at.is_(None))
+        .where(*where)
         .order_by(Form.created_at.desc())
+        .limit(page.per_page)
+        .offset(page.offset)
     ).all()
-    return [
-        FormListOut(
-            id=r.id,
-            slug=r.slug,
-            mode=as_mode(r.mode),
-            name_nl=r.name_nl,
-            name_en=r.name_en,
-            locale=r.locale,
-            chapter_id=r.chapter_id,
-            chapter_name=r.chapter_name,
-            archived=r.archived_at is not None,
-            created_at=r.created_at,
-            submission_count=int(r.submission_count or 0),
-        )
-        for r in rows
-    ]
+    total = db.execute(select(func.count()).select_from(Form).where(*where)).scalar_one()
+    return page.of(
+        total,
+        [
+            FormListOut(
+                id=r.id,
+                slug=r.slug,
+                mode=as_mode(r.mode),
+                name_nl=r.name_nl,
+                name_en=r.name_en,
+                locale=r.locale,
+                chapter_id=r.chapter_id,
+                chapter_name=r.chapter_name,
+                archived=r.archived_at is not None,
+                created_at=r.created_at,
+                submission_count=int(r.submission_count or 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def enrich(db: Session, forms: Sequence[Any]) -> list[FormListOut]:

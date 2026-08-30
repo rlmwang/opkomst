@@ -23,7 +23,10 @@
     "advancedShow": "Show advanced options",
     "advancedHide": "Hide advanced options",
     "clear": "Clear",
-    "noResults": "No results"
+    "noResults": "No results",
+    "pages": "Pages",
+    "previousPage": "Previous",
+    "nextPage": "Next"
   },
   "recoverLink": {
     "open": "View signups",

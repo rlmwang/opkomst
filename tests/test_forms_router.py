@@ -118,7 +118,7 @@ def test_list_forms_returns_active_only(client, organiser_headers):
 
     r = client.get("/api/v1/form", headers=organiser_headers)
     assert r.status_code == 200
-    ids = [f["id"] for f in r.json()]
+    ids = [f["id"] for f in r.json()["items"]]
     assert live["id"] in ids
     assert archived["id"] not in ids
 
@@ -130,7 +130,7 @@ def test_list_archived_returns_archived_only(client, organiser_headers):
 
     r = client.get("/api/v1/form/archived", headers=organiser_headers)
     assert r.status_code == 200
-    ids = [f["id"] for f in r.json()]
+    ids = [f["id"] for f in r.json()["items"]]
     assert a["id"] in ids
     assert b["id"] not in ids
 
@@ -145,7 +145,7 @@ def test_list_other_chapter_excluded(client, admin_headers, organiser_headers):
     other = _create_form(client, admin_headers, name="Theirs", chapter_id=other_chapter)
 
     r = client.get("/api/v1/form", headers=organiser_headers)
-    ids = [f["id"] for f in r.json()]
+    ids = [f["id"] for f in r.json()["items"]]
     assert mine["id"] in ids
     assert other["id"] not in ids
 

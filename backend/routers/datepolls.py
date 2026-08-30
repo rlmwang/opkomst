@@ -12,7 +12,7 @@ Public-by-slug surfaces live in ``routers/datepolls_public.py``.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -20,7 +20,7 @@ from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
 from ..models import Datepoll, DatepollSubmission, User
-from ..schemas.common import EditLinkRecoverOut
+from ..schemas.common import EditLinkRecoverOut, Page
 from ..schemas.datepolls import (
     DatepollCreate,
     DatepollListOut,
@@ -32,6 +32,7 @@ from ..schemas.datepolls import (
 from ..services import access, crud, csv_export, edit_token, entities, limits
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
+from ..services.paging import DEFAULT_PER_PAGE, MAX_PER_PAGE, Paging
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -58,22 +59,30 @@ def create_datepoll(
     return datepolls_svc.to_out(db, poll)
 
 
-@router.get("", response_model=list[DatepollListOut])
+@router.get("", response_model=Page[DatepollListOut])
 def list_datepolls(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[DatepollListOut]:
-    return datepolls_svc.list_for_user(db, user, chapter_id)
+) -> Page[DatepollListOut]:
+    return datepolls_svc.list_for_user(db, user, chapter_id, Paging(page, per_page, q))
 
 
-@router.get("/archived", response_model=list[DatepollListOut])
+@router.get("/archived", response_model=Page[DatepollListOut])
 def list_archived_datepolls(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[DatepollListOut]:
-    return datepolls_svc.archived_enrich(db, access.archived_rows(db, "datepolls", user, chapter_id))
+) -> Page[DatepollListOut]:
+    window = Paging(page, per_page, q)
+    rows, total = access.archived_rows(db, "datepolls", user, chapter_id, page=window)
+    return window.of(total, datepolls_svc.archived_enrich(db, rows))
 
 
 @router.get("/{datepoll_id}", response_model=DatepollOut)

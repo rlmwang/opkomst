@@ -48,10 +48,12 @@ from ..schemas.chores import (
     ScheduleStatsOut,
     VolunteerSummaryOut,
 )
+from ..schemas.common import Page
 from . import access, archive, chore_tick, tenancy
 from . import image as image_svc
 from .chore_assignment import AccountabilityCounts, summarize_accountability
 from .events import now_wallclock
+from .paging import Paging, matching
 
 # How far past the commit horizon the tentative outlook is projected for
 # display. Bounded so the projection is never an infinite list.
@@ -172,12 +174,17 @@ FULL_COLUMNS = (
 )
 
 
-def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[RosterListOut]:
+def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging) -> Page[RosterListOut]:
     """The organiser's roster list, in one statement. Both counts are
     scalar subqueries rather than joins to ``chores`` and
     ``volunteers``, so one roster stays one row."""
     chore_count = select(func.count(Chore.id)).where(Chore.roster_id == Roster.id).scalar_subquery()
     volunteer_count = select(func.count(Volunteer.id)).where(Volunteer.roster_id == Roster.id).scalar_subquery()
+    where = (
+        access.list_filter(db, user, Roster, chapter_id),
+        Roster.archived_at.is_(None),
+        *matching(page.q, Roster.name_nl, Roster.name_en, Roster.location),
+    )
     rows = db.execute(
         select(
             *LIST_COLUMNS,
@@ -187,26 +194,32 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Roste
         )
         .select_from(Roster)
         .outerjoin(Chapter, and_(Chapter.id == Roster.chapter_id, Chapter.deleted_at.is_(None)))
-        .where(access.list_filter(db, user, Roster, chapter_id), Roster.archived_at.is_(None))
+        .where(*where)
         .order_by(Roster.created_at.desc())
+        .limit(page.per_page)
+        .offset(page.offset)
     ).all()
-    return [
-        RosterListOut(
-            id=r.id,
-            slug=r.slug,
-            name_nl=r.name_nl,
-            name_en=r.name_en,
-            locale=r.locale,
-            chapter_id=r.chapter_id,
-            chapter_name=r.chapter_name,
-            archived=r.archived_at is not None,
-            created_at=r.created_at,
-            period_weeks=r.period_weeks,
-            chore_count=int(r.chore_count or 0),
-            volunteer_count=int(r.volunteer_count or 0),
-        )
-        for r in rows
-    ]
+    total = db.execute(select(func.count()).select_from(Roster).where(*where)).scalar_one()
+    return page.of(
+        total,
+        [
+            RosterListOut(
+                id=r.id,
+                slug=r.slug,
+                name_nl=r.name_nl,
+                name_en=r.name_en,
+                locale=r.locale,
+                chapter_id=r.chapter_id,
+                chapter_name=r.chapter_name,
+                archived=r.archived_at is not None,
+                created_at=r.created_at,
+                period_weeks=r.period_weeks,
+                chore_count=int(r.chore_count or 0),
+                volunteer_count=int(r.volunteer_count or 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def enrich(db: Session, rosters: Sequence[Any]) -> list[RosterListOut]:

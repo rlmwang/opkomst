@@ -17,22 +17,29 @@ const { L } = formText();
 const copy = (key: string, params?: Record<string, unknown>) => L(`list.${key}`, params);
 const archive = api.archive();
 const list = entityList<FormListOut>({ archive: archive.run, copy });
-const query = api.list({ enabled: () => auth.isApproved, chapterId: () => list.chapter.value });
+const query = api.list({
+  enabled: () => auth.isApproved,
+  chapterId: () => list.chapter.value,
+  page: () => list.chapter.page,
+  search: () => list.chapter.search,
+});
 const share = shareClipboard({
   publicUrlFor: (slug) => publicFormUrl(api.resource, slug),
   qrUrlFor: (slug) => formQrUrl(api.resource, slug),
   copyPrefix: "form.share",
 });
 
-const sorted = $derived(
-  [...(query.data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-);
+// Newest first is the statement's order, and the list arrives one page
+// at a time.
+const page = $derived(query.data ?? null);
 </script>
 
 <EntityListPage
   {copy}
   {list}
-  items={sorted}
+  items={page?.items ?? []}
+  total={page?.total ?? 0}
+  perPage={page?.per_page ?? 0}
   loaded={!auth.isApproved || !query.isPending}
   isError={query.isError}
   newPath={`/${api.resource}/new`}

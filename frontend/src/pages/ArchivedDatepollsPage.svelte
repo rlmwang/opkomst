@@ -11,12 +11,18 @@ const list = archivedList<DatepollListOut>({
   remove: remove.run,
   prefix: "datepoll.archived",
 });
-const query = datepolls.archived({ chapterId: () => list.chapter.value });
+const query = datepolls.archived({
+  chapterId: () => list.chapter.value,
+  page: () => list.chapter.page,
+  search: () => list.chapter.search,
+});
 </script>
 
 <ArchivedListPage
   copy={(key: string) => t(`datepoll.archived.${key}`)}
-  items={query.data ?? []}
+  items={query.data?.items ?? []}
+  total={query.data?.total ?? 0}
+  perPage={query.data?.per_page ?? 0}
   loaded={!query.isPending}
   {list}
 />

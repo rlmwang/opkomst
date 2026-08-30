@@ -1630,7 +1630,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Events */
+        /**
+         * List Events
+         * @description One page of the organiser's events, what is coming first.
+         *
+         *     The search and the order are the statement's: the browser used to
+         *     do both over every row it had been sent.
+         */
         get: operations["list_events_api_v1_event_get"];
         put?: never;
         /** Create Event */
@@ -5365,6 +5371,50 @@ export interface components {
              */
             on_date: string;
         };
+        /** Page[DatepollListOut] */
+        Page_DatepollListOut_: {
+            /** Items */
+            items: components["schemas"]["DatepollListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[EventListOut] */
+        Page_EventListOut_: {
+            /** Items */
+            items: components["schemas"]["EventListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[FormListOut] */
+        Page_FormListOut_: {
+            /** Items */
+            items: components["schemas"]["FormListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[RosterListOut] */
+        Page_RosterListOut_: {
+            /** Items */
+            items: components["schemas"]["RosterListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
         /**
          * PendingCountOut
          * @description Tiny DTO for the navbar's pending-approval indicator. Admin-
@@ -7036,6 +7086,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -7051,7 +7104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RosterListOut"][];
+                    "application/json": components["schemas"]["Page_RosterListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -7104,6 +7157,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -7119,7 +7175,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RosterListOut"][];
+                    "application/json": components["schemas"]["Page_RosterListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8102,6 +8158,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8117,7 +8176,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8170,6 +8229,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8185,7 +8247,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8763,6 +8825,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8778,7 +8843,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatepollListOut"][];
+                    "application/json": components["schemas"]["Page_DatepollListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8831,6 +8896,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8846,7 +8914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatepollListOut"][];
+                    "application/json": components["schemas"]["Page_DatepollListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -9391,6 +9459,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -9406,7 +9477,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventListOut"][];
+                    "application/json": components["schemas"]["Page_EventListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -9459,6 +9530,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -9474,7 +9548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventListOut"][];
+                    "application/json": components["schemas"]["Page_EventListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -10413,6 +10487,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -10428,7 +10505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -10481,6 +10558,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -10496,7 +10576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -11074,6 +11154,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -11089,7 +11172,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -11142,6 +11225,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -11157,7 +11243,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */

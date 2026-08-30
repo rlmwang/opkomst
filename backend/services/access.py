@@ -23,12 +23,13 @@ public by-slug routes).
 from typing import Any, TypeVar
 
 from fastapi import HTTPException
-from sqlalchemy import and_, false, select
+from sqlalchemy import and_, false, func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
 
 from ..models import ArchiveIndex, Chapter, Datepoll, Event, Form, Roster, Tenant, User, UserChapter
 from ..models.archive import archive_metadata
+from .paging import Paging, matching
 
 # ``Event`` / ``Form`` / ``Datepoll`` / ``Roster`` each carry an ``id``
 # and a chapter-scoping ``chapter_id`` — the only two columns the scope
@@ -209,8 +210,13 @@ def archived_rows(
     chapter_id: str | None = None,
     *,
     mode: str | None = None,
-) -> list[Any]:
-    """Every archived item of one kind this user may see, newest first.
+    page: Paging | None = None,
+) -> tuple[list[Any], int]:
+    """One page of the archived items of one kind this user may see,
+    newest first, and how many there are in total.
+
+    The archive is where a long-running organisation's thousands of
+    events end up, so it is paged and searched like the live list.
 
     Ordered by ``archive_index.archived_at``: the twin holds the item,
     the index holds when it left. Joined rather than denormalised so the
@@ -227,16 +233,22 @@ def archived_rows(
     elif not is_personal(db, user):
         ids = chapter_ids_for_user(db, user)
         if not ids:
-            return []
+            return [], 0
         predicates.append(twin.c.chapter_id.in_(ids))
+    window = page or Paging()
+    predicates.extend(matching(window.q, twin.c.name_nl, twin.c.name_en))
     index = ArchiveIndex.__table__
-    stmt = (
-        select(twin)
+    joined = select(twin).join(index, (index.c.entity_id == twin.c.id) & (index.c.root == root)).where(*predicates)
+    rows = db.execute(
+        joined.order_by(index.c.archived_at.desc()).limit(window.per_page).offset(window.offset)
+    ).mappings()
+    total = db.execute(
+        select(func.count())
+        .select_from(twin)
         .join(index, (index.c.entity_id == twin.c.id) & (index.c.root == root))
         .where(*predicates)
-        .order_by(index.c.archived_at.desc())
-    )
-    return [row for row in db.execute(stmt).mappings()]
+    ).scalar_one()
+    return [row for row in rows], total
 
 
 def assert_user_can_assign_chapter(db: Session, user: User, chapter_id: str | None) -> None:

@@ -42,7 +42,7 @@ def test_create_minimal(client, organiser_headers):
 
 def test_list_row_omits_chores_but_carries_counts(client, organiser_headers):
     _create(client, organiser_headers, chores=[{"name": "A", "cycle_slots": [1]}])
-    rows = client.get("/api/v1/chore", headers=organiser_headers).json()
+    rows = client.get("/api/v1/chore", headers=organiser_headers).json()["items"]
     assert len(rows) == 1
     row = rows[0]
     assert "chores" not in row
@@ -163,8 +163,8 @@ def test_archive_restore_delete_flow(client, organiser_headers):
 
     assert client.post(f"/api/v1/chore/{rid}/archive", headers=organiser_headers).status_code == 200
     # Now it shows in archived, not active.
-    assert client.get("/api/v1/chore", headers=organiser_headers).json() == []
-    archived = client.get("/api/v1/chore/archived", headers=organiser_headers).json()
+    assert client.get("/api/v1/chore", headers=organiser_headers).json()["items"] == []
+    archived = client.get("/api/v1/chore/archived", headers=organiser_headers).json()["items"]
     assert [r["id"] for r in archived] == [rid]
 
     # Archive again → 404: it is not in ``rosters`` any more.

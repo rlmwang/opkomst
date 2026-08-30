@@ -85,7 +85,7 @@ def test_a_quiz_row_stays_out_of_the_forms_list(client, organiser_headers) -> No
         row = db.get(Form, form["id"])
         row.mode = "quiz"
         db.commit()
-    listed = client.get("/api/v1/form", headers=organiser_headers).json()
+    listed = client.get("/api/v1/form", headers=organiser_headers).json()["items"]
     assert form["id"] not in [f["id"] for f in listed]
 
 
@@ -99,7 +99,7 @@ def test_a_quiz_is_not_reachable_through_a_form_url(client, organiser_headers) -
         db.commit()
     assert client.get(f"/api/v1/form/by-slug/{form['slug']}").status_code == 410
     assert client.get(f"/api/v1/form/{form['id']}", headers=organiser_headers).status_code == 404
-    archived = client.get("/api/v1/form/archived", headers=organiser_headers).json()
+    archived = client.get("/api/v1/form/archived", headers=organiser_headers).json()["items"]
     assert form["id"] not in [f["id"] for f in archived]
 
 

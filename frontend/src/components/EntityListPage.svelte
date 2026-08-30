@@ -30,6 +30,8 @@ import { go } from "@/router/navigation.svelte";
 let {
   copy,
   items,
+  total,
+  perPage,
   loaded,
   isError,
   list,
@@ -42,13 +44,16 @@ let {
   copyLink,
   copyQr,
   prefetch,
-  searchKeys = (item: T) => [lt(item.name_nl, item.name_en) ?? ""],
   meta,
   count,
   onboarding,
 }: {
   copy: (key: string, params?: Record<string, unknown>) => string;
   items: T[];
+  /** How many rows the filter and the search leave, and how many fit on
+   *  a page: what the page numbers are counted from. */
+  total: number;
+  perPage: number;
   loaded: boolean;
   isError: boolean;
   list: EntityList<T>;
@@ -66,7 +71,6 @@ let {
   copyQr: (item: T) => void;
   /** Warm the details page's queries for a row the pointer rests on. */
   prefetch: (id: string) => void;
-  searchKeys?: (item: T) => string[];
   meta?: Snippet<[T]>;
   count?: Snippet<[T]>;
   onboarding?: Snippet;
@@ -105,7 +109,10 @@ function openNew(): void {
     bind:chapterFilter={list.chapter.value}
     chapterOptions={list.chapter.options}
     searchPlaceholder={copy("searchPlaceholder")}
-    {searchKeys}
+    bind:search={list.chapter.search}
+    bind:page={list.chapter.page}
+    {total}
+    {perPage}
     emptyCopy={copy("empty")}
     noMatchesCopy={copy("noMatches")}
     skeletonRows={2}

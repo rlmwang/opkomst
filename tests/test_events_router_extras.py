@@ -254,12 +254,12 @@ def test_list_events_filter_by_chapter(client, admin_headers, organiser_headers)
     b = _new_event(client, organiser_headers, name="B", chapter_id=other)
 
     # No filter: both events.
-    rows = client.get("/api/v1/event", headers=organiser_headers).json()
+    rows = client.get("/api/v1/event", headers=organiser_headers).json()["items"]
     ids = {e["id"] for e in rows}
     assert {a["id"], b["id"]} <= ids
 
     # Filtered by primary: only A.
-    rows = client.get(f"/api/v1/event?chapter_id={primary}", headers=organiser_headers).json()
+    rows = client.get(f"/api/v1/event?chapter_id={primary}", headers=organiser_headers).json()["items"]
     ids = {e["id"] for e in rows}
     assert a["id"] in ids
     assert b["id"] not in ids
@@ -428,7 +428,7 @@ def test_restore_archived_event_happy_path(client, organiser_headers):
     r = client.post(f"/api/v1/event/{event['id']}/restore", headers=organiser_headers)
     assert r.status_code == 200
     # Lands back on the active list.
-    listed = client.get("/api/v1/event", headers=organiser_headers).json()
+    listed = client.get("/api/v1/event", headers=organiser_headers).json()["items"]
     assert any(e["id"] == event["id"] for e in listed)
 
 

@@ -2,7 +2,12 @@
 /** A search field with the magnifier sitting inside it. The icon and
  *  its clearance were PrimeVue's ``IconField`` / ``InputIcon``, which
  *  is a wrapper, an absolutely-positioned icon, and padding on the
- *  input. That is cheaper written here than imported. */
+ *  input. That is cheaper written here than imported.
+ *
+ *  The box answers every keystroke and ``value`` does not: the lists
+ *  search in the database, so a five-letter word would be five
+ *  requests, four of them for a word nobody has finished typing. It
+ *  settles a third of a second after the last key. */
 import AppInput from "@/components/AppInput.svelte";
 import AppIcon from "@/components/AppIcon.svelte";
 
@@ -11,11 +16,32 @@ let {
   placeholder,
   class: className,
 }: { value: string; placeholder: string; class?: string } = $props();
+
+const SETTLE_MS = 300;
+
+let typed = $state(value);
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+// Somebody else clearing the box (a chapter change, a back button)
+// shows through; what is being typed is not overwritten by the round
+// trip it caused.
+$effect(() => {
+  if (value !== typed && timer === undefined) typed = value;
+});
+
+function keyed(event: Event): void {
+  typed = (event.target as HTMLInputElement).value;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    timer = undefined;
+    value = typed;
+  }, SETTLE_MS);
+}
 </script>
 
 <div class="icon-field {className ?? ''}">
   <AppIcon name="search" />
-  <AppInput bind:value {placeholder} fluid />
+  <AppInput value={typed} oninput={keyed} {placeholder} fluid />
 </div>
 
 <style>
