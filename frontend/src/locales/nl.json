@@ -812,7 +812,6 @@
       "weeks": "Aantal weken"
     },
     "fillCycleSlots": "Kies minstens één dag in het rooster",
-    "nextSession": "eerstvolgende:",
     "recurrence": {
       "oneOff": "Eenmalig",
       "weekly": "Wekelijks",

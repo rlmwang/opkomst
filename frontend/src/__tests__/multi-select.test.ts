@@ -12,11 +12,22 @@
  * ``<dialog>`` opened with ``showModal``, which paints in the top
  * layer. A panel sent to the body renders underneath it, whatever its
  * z-index says, which is how the options came up below the popup.
+ *
+ * **And it is placed against the viewport.** Moving it into the dialog
+ * broke the other half: the offsets were the document's, and inside a
+ * modal they resolve against the dialog the browser positions, so the
+ * panel landed below it and stretched its scroll area instead of
+ * showing.
  */
-import { render } from "@testing-library/svelte";
-import { describe, expect, it } from "vitest";
+import { cleanup, render } from "@testing-library/svelte";
+import { afterEach, describe, expect, it } from "vitest";
 
 import MultiSelectInDialog from "@/__tests__/MultiSelectInDialog.svelte";
+import { placePanel } from "@/composables/overlay-panel";
+
+// Each test renders its own dialog; without this the next one finds
+// the last one's field still in the document.
+afterEach(cleanup);
 
 const CHAPTERS = [
   { id: "c1", name: "Amsterdam" },
@@ -49,5 +60,47 @@ describe("the chapter picker in a dialog", () => {
     const panel = document.querySelector(".ovl-panel");
     expect(panel).toBeTruthy();
     expect(panel?.closest("dialog")).toBeTruthy();
+  });
+});
+
+describe("where the panel is placed", () => {
+  it("is fixed to the viewport, so a positioned parent cannot move it", () => {
+    // The anchor is what the field's box would be; the panel is what
+    // hangs under it. The numbers are the viewport's, and the panel
+    // carries no scroll offsets, because a modal is positioned by the
+    // browser and an offset meant for the document lands a screen
+    // below it.
+    const anchor = document.createElement("div");
+    anchor.getBoundingClientRect = () =>
+      ({ left: 40, top: 100, bottom: 130, width: 200, height: 30 }) as DOMRect;
+    const panel = document.createElement("div");
+    Object.defineProperty(panel, "offsetHeight", { value: 150 });
+    Object.defineProperty(panel, "offsetWidth", { value: 200 });
+    window.scrollTo(0, 500);
+
+    const { style, flipped } = placePanel(anchor, panel);
+
+    expect(flipped).toBe(false);
+    expect(style.position).toBe("fixed");
+    expect(style.top).toBe("130px");
+    expect(style.insetInlineStart).toBe("40px");
+  });
+});
+
+describe("a caption wrapped around the field", () => {
+  it("cancels the click, so the label cannot forward it to a chip's cross", () => {
+    // A <label> forwards a click to the first labelable element in its
+    // subtree, as the click's default action. The combobox is a div
+    // and not one; a chip's remove button is. So clicking the field to
+    // open it dropped a chapter, and with one picked that emptied the
+    // field on the first click. The field cancels the default, which
+    // is what stops the browser dispatching that second click.
+    render(MultiSelectInDialog, { props: { value: ["c1", "c2"], options: CHAPTERS } });
+    const field = document.querySelector(".ms-field") as HTMLElement;
+
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    field.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
   });
 });

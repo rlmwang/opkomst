@@ -11,12 +11,12 @@ import { recurrenceHint } from "@/lib/recurrence";
 // plain in the other — so the same event read as two different things on
 // two screens. One component, one line:
 //
-//   Sporthal De Kaai · Tweewekelijks · 10 weken · eerstvolgende: 10-09-2026 19:00
+//   Sporthal De Kaai · Tweewekelijks · 10 weken · 10-09-2026 19:00
 //
-// A one-off has no "next" session, only its date, so it drops the word.
+// The date stands on its own. It was labelled "eerstvolgende:", which
+// is most of the line's width for a word the position already says,
+// and Dutch has no shorter one worth the space.
 const { event }: { event: EventListOut } = $props();
-
-const oneOff = $derived(event.cycle_slots.length === 0);
 </script>
 
 <p class="muted overview-meta">
@@ -35,7 +35,7 @@ const oneOff = $derived(event.cycle_slots.length === 0);
   {/if}
   {recurrenceHint(t, event)}
   {#if event.next_starts_at}
-    &middot; {#if !oneOff}{t("event.nextSession")} {/if}{formatDateTime(event.next_starts_at, locale())}
+    &middot; {formatDateTime(event.next_starts_at, locale())}
   {:else}
     &middot; {t("dashboard.noUpcoming")}
   {/if}

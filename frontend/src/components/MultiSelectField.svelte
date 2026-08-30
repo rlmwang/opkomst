@@ -105,7 +105,17 @@ function close(refocus = true): void {
   if (refocus) overlay.anchor?.focus({ preventScroll: true });
 }
 
-function toggleOpen(): void {
+/** The field owns its click.
+
+ *  A ``<label>`` around it, which is how every caption on these pages
+ *  is written, forwards a click to the first labelable element in its
+ *  subtree. A combobox div is not one; a chip's remove button and the
+ *  clear cross are. So clicking the field to open it dropped the first
+ *  chip instead, and with one chapter picked that emptied the field on
+ *  the first click. Preventing the default stops that second,
+ *  synthetic click at its source. */
+function toggleOpen(event?: MouseEvent): void {
+  event?.preventDefault();
   if (overlay.open) close();
   else show();
 }
@@ -332,9 +342,17 @@ function portal(node: HTMLElement) {
 
 <style>
 /* Chips wrap onto a second line rather than making the field scroll
- * sideways, which is what a chapter list with six picks needs. */
+ * sideways, which is what a chapter list with six picks needs. The
+ * chevron is not one of them: aligning the row to the top left it
+ * pinned to the field's top edge at the height of its own icon, which
+ * reads as a tiny arrow in the wrong place. It centres on the first
+ * line of chips, where the eye expects it whether there is one row of
+ * them or three. */
 .ms-field {
   align-items: flex-start;
+}
+.ms-field :global(.ovl-toggle) {
+  align-self: center;
 }
 .ms-value-chips {
   display: flex;

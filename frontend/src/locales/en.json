@@ -812,7 +812,6 @@
       "weeks": "Number of weeks"
     },
     "fillCycleSlots": "Pick at least one day in the grid",
-    "nextSession": "next:",
     "recurrence": {
       "oneOff": "One-off",
       "weekly": "Weekly",
