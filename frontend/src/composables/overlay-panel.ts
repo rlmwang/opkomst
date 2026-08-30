@@ -67,3 +67,19 @@ export function scrollRowIntoView(list: HTMLElement | null | undefined, index: n
   if (top < list.scrollTop) list.scrollTop = top;
   else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
 }
+
+/**
+ * Move a panel out of the tree it was declared in, so no card with
+ * hidden overflow can clip it. Its position is the viewport's already
+ * (``placePanel``), so the move changes nothing but the clipping.
+ *
+ * The body is the destination, except inside a modal. ``AppDialog`` is
+ * the browser's ``<dialog>`` opened with ``showModal``, which paints in
+ * the top layer: everything in the body renders underneath it, whatever
+ * its ``z-index`` says, so a panel sent to the body from a field in a
+ * dialog opened below the dialog instead of over it. The dialog is the
+ * top layer, so a panel that goes inside it is in the top layer too.
+ */
+export function portalTarget(anchor: HTMLElement | null | undefined): HTMLElement {
+  return anchor?.closest("dialog") ?? document.body;
+}

@@ -24,6 +24,7 @@
  */
 import { untrack } from "svelte";
 
+import { portalTarget } from "@/composables/overlay-panel";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 import "./date-picker.css";
 import {
@@ -90,7 +91,7 @@ function setValue(next: Date | Date[] | null): void {
  * (``useOverlayPanel``), so the move changes nothing but the clipping.
  */
 function portal(node: HTMLElement) {
-  document.body.appendChild(node);
+  portalTarget(overlay.anchor).appendChild(node);
   return {
     destroy() {
       node.remove();

@@ -13,7 +13,7 @@
 import { tick, type Snippet } from "svelte";
 
 import { t } from "@/i18n.svelte";
-import { scrollRowIntoView } from "@/composables/overlay-panel";
+import { scrollRowIntoView, portalTarget } from "@/composables/overlay-panel";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 import "@/assets/overlay-list.css";
 
@@ -212,7 +212,7 @@ function styleOf(style: Record<string, string>): string {
 }
 
 function portal(node: HTMLElement) {
-  document.body.appendChild(node);
+  portalTarget(overlay.anchor).appendChild(node);
   return {
     destroy() {
       node.remove();

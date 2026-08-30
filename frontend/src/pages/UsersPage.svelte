@@ -128,7 +128,11 @@ let open = $state(false);
 let mode = $state<EditMode>("approve");
 let target = $state<User | null>(null);
 let name = $state("");
-let picked = $state<Chapter[]>([]);
+// Chapter ids, not chapter rows. Held as rows, the picker matched them
+// against its options by object identity, so any refetch of the chapter
+// list (a window focus, a chapter renamed elsewhere) replaced those
+// objects and silently emptied the field.
+let picked = $state<string[]>([]);
 let isAdmin = $state(false);
 let submitting = $state(false);
 
@@ -147,8 +151,7 @@ function openEdit(u: User): void {
   mode = "edit";
   target = u;
   name = u.name;
-  const live = new Map(liveChapters.map((c) => [c.id, c]));
-  picked = u.chapters.map((ref) => live.get(ref.id)).filter((c): c is Chapter => c !== undefined);
+  picked = u.chapters.map((c) => c.id);
   isAdmin = u.role === "admin";
   open = true;
 }
@@ -177,7 +180,7 @@ async function submit(): Promise<void> {
     return;
   }
 
-  const wanted = picked.map((c) => c.id);
+  const wanted = picked;
   const current = user.chapters.map((c) => c.id);
 
   submitting = true;
@@ -310,6 +313,7 @@ async function submit(): Promise<void> {
         bind:value={picked}
         options={liveChapters}
         optionLabel="name"
+        optionValue="id"
         placeholder={t("admin.userEditPickChapter")}
         display="chip"
         filter

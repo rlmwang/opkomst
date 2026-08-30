@@ -16,6 +16,7 @@
 import type { Snippet } from "svelte";
 
 import { tick } from "svelte";
+import { portalTarget } from "@/composables/overlay-panel";
 import { useOverlayPanel } from "@/composables/useOverlayPanel.svelte";
 
 const {
@@ -80,7 +81,7 @@ $effect(() => {
 });
 
 function portal(node: HTMLElement) {
-  document.body.appendChild(node);
+  portalTarget(overlay.anchor).appendChild(node);
   return {
     destroy() {
       node.remove();
