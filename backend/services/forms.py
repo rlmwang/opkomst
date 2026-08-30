@@ -1003,77 +1003,29 @@ def submissions_csv(db: Session, form_id: str, *, mode: str) -> tuple[list[str],
     return header, rows
 
 
-def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str, compass.Position]:
-    """Where every submission sits, read once for a whole page.
+def compass_summary(db: Session, form: Any, *, you: str | None = None) -> CompassSummary | None:
+    """The kompas half of a page: the two axes with where the room sits
+    on each, and every dot. ``None`` on the two products that place
+    nobody.
 
-    Both halves of a kompas page (the axes and the dots) place the same
-    people from the same answers. Reading it here and handing it to both
-    is what keeps one page from loading every answer twice."""
-    return compass.positions(db, form.id)
-
-
-def compass_points(
-    db: Session,
-    form: Form,
-    places: dict[str, compass.Position],
-    *,
-    you: str | None = None,
-) -> list[CompassPoint]:
-    """Every submission as a dot, in submission order.
-
-    ``you`` marks one of them as the reader's own; the organiser's copy
-    passes nothing, because on their page nobody is "you". The name is
-    the self-chosen pseudonym and the only identifier there is
-    (``docs/design-kompas.md`` 2.4)."""
-    subs = db.execute(
-        select(FormSubmission.id, FormSubmission.display_name)
-        .where(FormSubmission.form_id == form.id)
-        .order_by(FormSubmission.created_at)
-    ).all()
-    out: list[CompassPoint] = []
-    for sub in subs:
-        place = places.get(sub.id)
-        if place is None:
-            # A submission with no answer rows at all: it exists, so it
-            # is on the map, at the origin like anybody who said
-            # nothing.
-            place = compass.Position(0.0, 0.0, 0, 0)
-        out.append(CompassPoint(name=sub.display_name, x=place.x, y=place.y, you=sub.id == you))
-    return out
-
-
-def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
-    """The two axes, each with where the room sits on it.
-
-    Read by the organiser's summary and by every respondent's result,
-    so the band under one person's marker and the band on the
-    organiser's page are the same number rather than two computations
-    that can drift apart."""
-    rooms = compass.axis_stats(db, form.id)
-    out: list[CompassAxisSummary] = []
-    for row in compass.axes_of(db, form.id):
-        stats = rooms.get(row.axis)
-        out.append(
-            CompassAxisSummary(
-                axis=CompassAxisOut.model_validate(row),
-                average=stats[0] if stats else None,
-                ci_low=stats[1] if stats else None,
-                ci_high=stats[2] if stats else None,
-            )
-        )
-    return out
-
-
-def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> CompassSummary | None:
-    """The kompas half of the organiser's summary: the two axes with
-    where the room sits on each, and every dot. ``None`` on the two
-    products that place nobody."""
+    One read (``compass.room``): the dots and the axes are the same
+    coordinates counted at two grains. ``you`` marks one dot as the
+    reader's own, which the organiser's copy leaves out because on
+    their page nobody is "you"."""
     if form.mode != "compass":
         return None
-    places = compass_places(db, form, questions)
+    room = compass.room(db, form.id)
     return CompassSummary(
-        axes=compass_axis_summaries(db, form),
-        points=compass_points(db, form, places),
+        axes=[
+            CompassAxisSummary(
+                axis=CompassAxisOut.model_validate(row),
+                average=room.axes.get(row.axis, (None, None, None))[0],
+                ci_low=room.axes.get(row.axis, (None, None, None))[1],
+                ci_high=room.axes.get(row.axis, (None, None, None))[2],
+            )
+            for row in compass.axes_of(db, form.id)
+        ],
+        points=[CompassPoint(name=dot.name, x=dot.x, y=dot.y, you=dot.submission_id == you) for dot in room.dots],
     )
 
 

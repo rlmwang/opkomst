@@ -294,7 +294,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         # own copy of them.
         questions = forms_svc.questions_of(db, form_id)
         marks = quizzes.summary_stats(db, form_id, questions) if _MODE == "quiz" else None
-        compass = forms_svc.compass_summary(db, form, questions)
+        compass = forms_svc.compass_summary(db, form)
         return FormSummaryOut(
             # A kompas already read every submission to place it, and
             # there is exactly one dot per fill-out, so counting them

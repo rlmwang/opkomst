@@ -352,7 +352,10 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 )
             )
         answers.sort(key=lambda a: by_id[a.question_id].ordinal)
-        places = forms_svc.compass_places(db, form, questions)
+        # The axes and the dots come out of one read, with this person's
+        # own dot marked in it.
+        room = forms_svc.compass_summary(db, form, you=submission.id)
+        assert room is not None
         return CompassResultOut(
             submission_id=submission.id,
             edit_token=token,
@@ -362,9 +365,9 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             y=place.y,
             counted_x=place.counted_x,
             counted_y=place.counted_y,
-            axes=forms_svc.compass_axis_summaries(db, form),
+            axes=room.axes,
             answers=answers,
-            points=forms_svc.compass_points(db, form, places, you=submission.id),
+            points=room.points,
         )
 
     @router.post(

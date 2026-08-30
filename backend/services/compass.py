@@ -95,6 +95,25 @@ class Position:
         return self.x if axis == "x" else self.y
 
 
+@dataclass(frozen=True, slots=True)
+class Dot:
+    """One person on the map: their pseudonym and where they landed."""
+
+    submission_id: str
+    name: str | None
+    x: float
+    y: float
+
+
+@dataclass(frozen=True, slots=True)
+class Room:
+    """The whole map in one read: every dot, and where the room sits on
+    each axis with the interval around it."""
+
+    dots: list[Dot]
+    axes: dict[str, tuple[float, float, float]]
+
+
 # What one answer is worth: an axis, and a value in [-1, 1].
 #
 # The two rules the page describes, as SQL. A rating poles the
@@ -235,11 +254,13 @@ def axes_of(db: Session, form_id: str) -> list[Any]:
 # ``stddev_samp`` is null at n = 1, and coalescing the half-width to
 # zero says the same thing. The ends are clamped to [-1, 1] because the
 # axis has no outside.
-_AXIS_STATS_SQL = text(
+_ROOM_SQL = text(
     f"""
 WITH contribution AS ({_CONTRIBUTION_CTE}),
 place AS (
     SELECT s.id,
+           s.display_name,
+           s.created_at,
            coalesce(avg(k.value) FILTER (WHERE k.axis = 'x'), 0) AS x,
            coalesce(avg(k.value) FILTER (WHERE k.axis = 'y'), 0) AS y
     FROM form_submissions s
@@ -263,26 +284,52 @@ t95 (df, crit) AS (
            (16, 2.120), (17, 2.110), (18, 2.101), (19, 2.093), (20, 2.086),
            (21, 2.080), (22, 2.074), (23, 2.069), (24, 2.064), (25, 2.060),
            (26, 2.056), (27, 2.052), (28, 2.048), (29, 2.045), (30, 2.042)
+),
+band AS (
+    SELECT room.axis,
+           round(room.mean, 3)::float AS average,
+           round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
+           round(least(1, room.mean + half.width), 3)::float AS ci_high
+    FROM room
+    LEFT JOIN t95 ON t95.df = room.n - 1
+    CROSS JOIN LATERAL (
+        SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
+    ) half
 )
-SELECT room.axis,
-       round(room.mean, 3)::float AS average,
-       round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
-       round(least(1, room.mean + half.width), 3)::float AS ci_high
-FROM room
-LEFT JOIN t95 ON t95.df = room.n - 1
-CROSS JOIN LATERAL (
-    SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
-) half
+SELECT
+    (
+        SELECT coalesce(
+            json_agg(
+                json_build_object(
+                    'id', id,
+                    'name', display_name,
+                    'x', round(x, 3)::float,
+                    'y', round(y, 3)::float
+                )
+                ORDER BY created_at
+            ),
+            '[]'::json
+        )
+        FROM place
+    ) AS dots,
+    (
+        SELECT coalesce(json_object_agg(axis, json_build_array(average, ci_low, ci_high)), '{{}}'::json)
+        FROM band
+    ) AS axes
 """
 )
 
 
-def axis_stats(db: Session, form_id: str) -> dict[str, tuple[float, float, float]]:
-    """Axis name to the room's mean and the two ends of the interval
-    around it. Empty before anybody has filled the kompas in."""
-    return {
-        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, params(form_id)).all()
-    }
+def room(db: Session, form_id: str) -> Room:
+    """Everybody's place on the map, and where the room sits on each
+    axis. One statement, because they are the same coordinates counted
+    at two grains: one per person for the dots, one per axis for the
+    band under them. Read twice they were derived twice."""
+    row = db.execute(_ROOM_SQL, params(form_id)).one()
+    return Room(
+        dots=[Dot(submission_id=d["id"], name=d["name"], x=d["x"], y=d["y"]) for d in row.dots],
+        axes={axis: (band[0], band[1], band[2]) for axis, band in (row.axes or {}).items()},
+    )
 
 
 # --- What the organiser is refused ------------------------------------
