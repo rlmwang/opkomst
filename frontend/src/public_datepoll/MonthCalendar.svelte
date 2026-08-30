@@ -2,9 +2,10 @@
 /**
  * One month of a datepoll's candidate days for public voting, built on the
  * shared ``MonthGrid`` (so it matches every other calendar). Each candidate
- * day shows one tri-state pill per slot (whole-day → a single pill; timed →
- * a pill per time range). Tapping a pill cycles its state; the parent owns
- * the cycle. Rendered one grid per month (no navigator — months stack).
+ * day shows one pill per slot (whole-day → a single pill; timed → a pill per
+ * time range). A pill starts blank, which already says "I can't"; tapping
+ * cycles it to yes, then maybe, then back. The parent owns the cycle.
+ * Rendered one grid per month (no navigator, months stack).
  */
 import MonthGrid from "@/components/MonthGrid.svelte";
 import type { Availability } from "./api";
@@ -35,7 +36,7 @@ const {
   ontoggle: (slotId: string) => void;
 } = $props();
 
-const GLYPH: Record<Availability, string> = { yes: "✓", maybe: "~", no: "✕" };
+const GLYPH: Record<Availability, string> = { yes: "✓", maybe: "~" };
 const monthStr = $derived(`${year}-${String(month + 1).padStart(2, "0")}`);
 const weekdays = $derived.by(() => {
   const fmt = new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "nl-NL", { weekday: "short" });
@@ -53,7 +54,7 @@ function dayClass(iso: string) {
         {#each slotsByIso[iso] as s (s.id)}
           <button
             type="button"
-            class="vote {answers[s.id] ?? 'unset'}"
+            class="vote {answers[s.id] ?? 'blank'}"
             onclick={(e) => {
               e.stopPropagation();
               ontoggle(s.id);
@@ -61,7 +62,7 @@ function dayClass(iso: string) {
           >
             {#if s.label}<span class="vote-time">{s.label}</span>{/if}
             <span class="vote-glyph"
-              >{answers[s.id] ? GLYPH[answers[s.id] as Availability] : s.label ? "" : "·"}</span
+              >{answers[s.id] ? GLYPH[answers[s.id] as Availability] : "✕"}</span
             >
           </button>
         {/each}
@@ -92,15 +93,17 @@ function dayClass(iso: string) {
   font-size: 0.6875rem;
   line-height: 1.1;
 }
-.vote.unset {
-  border-style: dashed;
+/* Blank is the refusal, so it reads as an answer already given: a muted
+ * ✕ on the page's own background, next to the filled yes/maybe pills. */
+.vote.blank {
+  color: var(--brand-text-muted);
 }
 .vote-time {
   white-space: nowrap;
 }
-/* Always reserve the toggle glyph's slot — a fixed-width box whether it's
- * empty (unset) or showing ✓/~/✕ — so the pill and its time label don't
- * shift sideways the moment you tap. */
+/* Always reserve the toggle glyph's slot, a fixed-width box whatever it
+ * shows, so the pill and its time label don't shift sideways the moment
+ * you tap. */
 .vote-glyph {
   flex: none;
   width: 1em;
@@ -115,10 +118,5 @@ function dayClass(iso: string) {
   background: var(--brand-amber);
   color: #fff;
   border-color: var(--brand-amber);
-}
-.vote.no {
-  background: var(--brand-neutral);
-  color: var(--brand-text);
-  border-color: var(--brand-neutral);
 }
 </style>

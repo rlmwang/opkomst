@@ -55,8 +55,9 @@ function growNote(): void {
   el.style.height = `${el.scrollHeight}px`;
 }
 
-// One answers map keyed by slot id — the single source of truth the
-// inline calendar binds to (``null`` = unset).
+// One answers map keyed by slot id, the single source of truth the
+// inline calendar binds to. ``null`` is a slot left blank, which is
+// how somebody says they can't make it.
 let answers = $state<Record<string, Availability | null>>({});
 
 const slug = (): string => {
@@ -185,7 +186,10 @@ const months = $derived.by(() => {
   return out;
 });
 
-const CYCLE: (Availability | null)[] = [null, "yes", "maybe", "no"];
+// Everything starts blank, which already means "I can't". A tap says
+// yes, a second says maybe, a third puts it back. There is no fourth
+// state: a blank slot and an explicit no would say the same thing.
+const CYCLE: (Availability | null)[] = [null, "yes", "maybe"];
 function toggle(slotId: string): void {
   answers[slotId] = CYCLE[(CYCLE.indexOf(answers[slotId]) + 1) % CYCLE.length];
 }
@@ -199,10 +203,6 @@ async function submit(): Promise<void> {
   const picked = Object.entries(answers)
     .filter(([, a]) => a !== null)
     .map(([slotId, a]) => ({ datepoll_slot_id: slotId, availability: a as Availability }));
-  if (picked.length === 0) {
-    showToast(d.pickOne);
-    return;
-  }
   submitting = true;
   const body = { display_name: displayName.trim() || null, note: note.trim() || null, answers: picked };
   try {
@@ -304,7 +304,7 @@ async function withdraw(): Promise<void> {
           <span class="intro-text">{d.intro}</span>
           <span class="swatch yes">{d.yes}</span>
           <span class="swatch maybe">{d.maybe}</span>
-          <span class="swatch no">{d.no}</span>
+          <span class="swatch blank">{d.blank}</span>
         </p>
         <div bind:this={calScroll} class="cal-scroll" onscroll={updateScrollHint}>
           {#each months as m (`${m.year}-${m.month}`)}
@@ -372,7 +372,7 @@ async function withdraw(): Promise<void> {
 .swatch { padding: 0.125rem 0.5rem; border-radius: 999px; color: #fff; }
 .swatch.yes { background: var(--brand-green); }
 .swatch.maybe { background: var(--brand-amber); }
-.swatch.no { background: var(--brand-neutral); color: var(--brand-text); }
+.swatch.blank { background: var(--brand-bg); color: var(--brand-text-muted); border: 1px solid var(--brand-border); }
 /* The card stays flush with its siblings; the calendars scroll inside their
  * own container when a full week is wider than the card, so the page never
  * scrolls sideways and the surface always frames the days. ``position:

@@ -111,14 +111,13 @@ def test_datepoll_edit_roundtrip(client, organiser_headers):
             "display_name": "Sam",
             "note": "changed my mind",
             "answers": [
-                {"datepoll_slot_id": d0, "availability": "no"},
                 {"datepoll_slot_id": d1, "availability": "maybe"},
             ],
         },
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["answers"][d0] == "no"
+    assert d0 not in body["answers"]
     assert body["answers"][d1] == "maybe"
     assert body["note"] == "changed my mind"
 

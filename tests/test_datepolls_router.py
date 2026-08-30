@@ -75,7 +75,8 @@ def test_summary_tallies_and_best_slot(client, organiser_headers):
     poll = _create(client, organiser_headers, dates=["2026-07-01", "2026-07-02"])
     d0, d1 = poll["slots"][0]["id"], poll["slots"][1]["id"]
     slug = poll["slug"]
-    # Two yes on d0, one yes + one no on d1.
+    # Two yes on d0; on d1 one yes and one left blank, which counts as
+    # "can't make it".
     client.post(
         f"/api/v1/datepoll/by-slug/{slug}/submit",
         json={
@@ -90,7 +91,6 @@ def test_summary_tallies_and_best_slot(client, organiser_headers):
         json={
             "answers": [
                 {"datepoll_slot_id": d0, "availability": "yes"},
-                {"datepoll_slot_id": d1, "availability": "no"},
             ],
         },
     )

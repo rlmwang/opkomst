@@ -1381,12 +1381,11 @@
         "type": "object"
       },
       "DatepollAnswerIn": {
-        "description": "One answered slot on the public submit payload.",
+        "description": "One slot the respondent said yes or maybe to. A slot they can't\nmake is simply absent from the payload.",
         "properties": {
           "availability": {
             "enum": [
               "yes",
-              "no",
               "maybe"
             ],
             "title": "Availability",
@@ -1548,13 +1547,12 @@
         "type": "object"
       },
       "DatepollEditOut": {
-        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` maps slot id \u2192\navailability; ``note`` is the whole-submission note.",
+        "description": "Current values of a submission, for pre-filling the edit form\n(reached via the edit-link token). ``answers`` maps slot id \u2192\navailability, holding only the slots this person can make; ``note``\nis the whole-submission note.",
         "properties": {
           "answers": {
             "additionalProperties": {
               "enum": [
                 "yes",
-                "no",
                 "maybe"
               ],
               "type": "string"
@@ -2048,7 +2046,7 @@
         "type": "object"
       },
       "DatepollSlotSummary": {
-        "description": "Per-slot aggregate on the organiser details page.",
+        "description": "Per-slot aggregate on the organiser details page. ``no`` is the\nrest of the respondent pool: everyone who left this slot blank, and\nso said they can't make it.",
         "properties": {
           "end_time": {
             "anyOf": [
@@ -2185,7 +2183,7 @@
         "type": "object"
       },
       "DatepollSubmitIn": {
-        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``note`` is one optional\nfree-text note on the whole submission. ``answers`` carries one\nentry per slot the respondent set a state for.",
+        "description": "Public submission. ``display_name`` is the shared pseudonym\nprimitive (optional, <=100, real-or-not). ``note`` is one optional\nfree-text note on the whole submission. ``answers`` carries one\nentry per slot the respondent can make, and may be empty: somebody\nwho can't do any of the dates says so by sending none.",
         "properties": {
           "answers": {
             "items": {
@@ -2227,7 +2225,7 @@
         "type": "object"
       },
       "DatepollSummaryOut": {
-        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most\nmaybe, then most \"not filled\"; ``no`` is ignored), or ``None`` when\nthere are no responses.",
+        "description": "Organiser summary. ``submission_count`` is the number of\nfill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most\nmaybe), or ``None`` when nobody can make any date.",
         "properties": {
           "best_slot_id": {
             "anyOf": [

@@ -1105,6 +1105,8 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
         slots: list[DatepollSlot],
         display_name: str | None,
         note: str | None,
+        # ``None`` leaves the slot blank, which is how somebody says
+        # they can't make it.
         avail: list[str | None],
     ) -> None:
         _, token_hash = edit_token.new_edit_token()
@@ -1128,9 +1130,9 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
             _slot(meeting.id, today + timedelta(days=9), time(19, 0), time(21, 0)),
             _slot(meeting.id, today + timedelta(days=14), time(20, 0), time(22, 0)),
         ]
-        _respond(meeting.id, slots, "Nore", "Kan het liefst vroeg.", ["yes", "yes", "no"])
+        _respond(meeting.id, slots, "Nore", "Kan het liefst vroeg.", ["yes", "yes", None])
         _respond(meeting.id, slots, "Teun", None, ["yes", "maybe", "yes"])
-        _respond(meeting.id, slots, "Yara", "Na 19:30 lukt beter.", ["no", "yes", "yes"])
+        _respond(meeting.id, slots, "Yara", "Na 19:30 lukt beter.", [None, "yes", "yes"])
         _respond(meeting.id, slots, "Anoniem", None, ["maybe", "yes", "maybe"])
 
     # --- B. active, no responses yet ---------------------------------
@@ -1151,7 +1153,7 @@ def _seed_datepolls(db: Session, *, created_by: str, chapter_id: str | None, now
             _slot(visit.id, today - timedelta(days=21)),
             _slot(visit.id, today - timedelta(days=18)),
         ]
-        _respond(visit.id, vslots, "Bo", None, ["yes", "no"])
+        _respond(visit.id, vslots, "Bo", None, ["yes", None])
         _respond(visit.id, vslots, "Kai", "Ik reed.", ["yes", "yes"])
         _respond(visit.id, vslots, "Sam", None, ["maybe", "yes"])
 

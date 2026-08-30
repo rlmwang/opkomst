@@ -12,7 +12,7 @@ Chapter-scoped lookups live in ``services.access``
 
 from collections.abc import Iterator, Mapping, Sequence
 from datetime import date, time
-from typing import TYPE_CHECKING, Any, Final, get_args
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, distinct, func, select, text
 from sqlalchemy.orm import Session
@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission, User
 from ..schemas.common import Page
 from ..schemas.datepolls import (
-    Availability,
     DatepollListOut,
     DatepollOut,
     DatepollSlotOut,
@@ -39,9 +38,6 @@ if TYPE_CHECKING:
 # Sort key for a slot's natural ordering: by date, then whole-day
 # (no start time) before timed, then by start time.
 _SlotKey = tuple[date, time | None, time | None]
-
-# Single source of truth for the tri-state, derived from the literal.
-ALLOWED_AVAILABILITY: Final[frozenset[str]] = frozenset(get_args(Availability))
 
 
 def get_datepoll_by_slug_any(db: Session, slug: str) -> Datepoll | None:
@@ -349,51 +345,55 @@ def submission_count(db: Session, datepoll_id: str) -> int:
     )
 
 
+# One row per slot with its tally: the yes and maybe counts, and the
+# rest of the respondent pool as ``no``: everyone who left the slot
+# blank said they can't make it. ``rank`` orders the winner: most yes,
+# then most maybe, and only among slots somebody can actually make.
+_SLOT_TALLY_SQL = text(
+    """
+SELECT s.id,
+       s.on_date,
+       s.start_time,
+       s.end_time,
+       count(*) FILTER (WHERE r.availability = 'yes') AS yes,
+       count(*) FILTER (WHERE r.availability = 'maybe') AS maybe,
+       :total_subs - count(r.id) AS no,
+       CASE WHEN count(r.id) = 0 THEN NULL ELSE
+            rank() OVER (
+                ORDER BY count(*) FILTER (WHERE r.availability = 'yes') DESC,
+                         count(*) FILTER (WHERE r.availability = 'maybe') DESC
+            )
+       END AS rank
+FROM datepoll_slots s
+LEFT JOIN datepoll_responses r ON r.datepoll_slot_id = s.id
+WHERE s.datepoll_id = :datepoll_id
+GROUP BY s.id, s.on_date, s.start_time, s.end_time
+ORDER BY s.on_date, s.start_time NULLS FIRST, s.end_time NULLS FIRST
+"""
+)
+
+
 def slot_aggregates(db: Session, datepoll_id: str, total_subs: int) -> tuple[list[DatepollSlotSummary], str | None]:
     """Per-slot yes/maybe/no tallies and the winning slot id (most yes,
-    tie-break fewest no, ``None`` when there are no responses at all).
+    tie-break most maybe, ``None`` when nobody can make any slot).
 
     ``total_subs`` is the respondent pool the blanks are measured
     against, passed in because the page that asks for these tallies
     prints the same number next to them and counted it already."""
-    slots = _slots(db, datepoll_id)
-    slot_ids = [s.id for s in slots]
-    if not slot_ids:
-        return [], None
-
-    tally: dict[str, dict[str, int]] = {sid: {"yes": 0, "no": 0, "maybe": 0} for sid in slot_ids}
-    count_rows = (
-        db.query(DatepollResponse.datepoll_slot_id, DatepollResponse.availability, func.count(DatepollResponse.id))
-        .filter(DatepollResponse.datepoll_slot_id.in_(slot_ids))
-        .group_by(DatepollResponse.datepoll_slot_id, DatepollResponse.availability)
-        .all()
-    )
-    for slot_id, availability, count in count_rows:
-        if availability in tally[slot_id]:
-            tally[slot_id][availability] = int(count)
-
+    rows = db.execute(_SLOT_TALLY_SQL, {"datepoll_id": datepoll_id, "total_subs": total_subs}).all()
     summaries = [
         DatepollSlotSummary(
-            id=s.id,
-            on_date=s.on_date,
-            start_time=s.start_time,
-            end_time=s.end_time,
-            yes=tally[s.id]["yes"],
-            maybe=tally[s.id]["maybe"],
-            no=tally[s.id]["no"],
+            id=row.id,
+            on_date=row.on_date,
+            start_time=row.start_time,
+            end_time=row.end_time,
+            yes=row.yes,
+            maybe=row.maybe,
+            no=row.no,
         )
-        for s in slots
+        for row in rows
     ]
-
-    # Best slot: most yes, then most maybe, then most "not filled"
-    # (submissions that didn't answer this slot) — ``no`` is ignored,
-    # so an explicit no never helps a slot place.
-    total_responses = sum(s.yes + s.maybe + s.no for s in summaries)
-    best_slot_id: str | None = None
-    if total_responses:
-        best = max(summaries, key=lambda s: (s.yes, s.maybe, total_subs - s.yes - s.maybe - s.no))
-        best_slot_id = best.id
-
+    best_slot_id = next((row.id for row in rows if row.rank == 1), None)
     return summaries, best_slot_id
 
 

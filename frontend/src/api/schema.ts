@@ -3648,14 +3648,15 @@ export interface components {
         };
         /**
          * DatepollAnswerIn
-         * @description One answered slot on the public submit payload.
+         * @description One slot the respondent said yes or maybe to. A slot they can't
+         *     make is simply absent from the payload.
          */
         DatepollAnswerIn: {
             /**
              * Availability
              * @enum {string}
              */
-            availability: "yes" | "no" | "maybe";
+            availability: "yes" | "maybe";
             /** Datepoll Slot Id */
             datepoll_slot_id: string;
         };
@@ -3705,12 +3706,13 @@ export interface components {
          * DatepollEditOut
          * @description Current values of a submission, for pre-filling the edit form
          *     (reached via the edit-link token). ``answers`` maps slot id →
-         *     availability; ``note`` is the whole-submission note.
+         *     availability, holding only the slots this person can make; ``note``
+         *     is the whole-submission note.
          */
         DatepollEditOut: {
             /** Answers */
             answers: {
-                [key: string]: "yes" | "no" | "maybe";
+                [key: string]: "yes" | "maybe";
             };
             /** Display Name */
             display_name: string | null;
@@ -3870,7 +3872,9 @@ export interface components {
         };
         /**
          * DatepollSlotSummary
-         * @description Per-slot aggregate on the organiser details page.
+         * @description Per-slot aggregate on the organiser details page. ``no`` is the
+         *     rest of the respondent pool: everyone who left this slot blank, and
+         *     so said they can't make it.
          */
         DatepollSlotSummary: {
             /** End Time */
@@ -3932,7 +3936,8 @@ export interface components {
          * @description Public submission. ``display_name`` is the shared pseudonym
          *     primitive (optional, <=100, real-or-not). ``note`` is one optional
          *     free-text note on the whole submission. ``answers`` carries one
-         *     entry per slot the respondent set a state for.
+         *     entry per slot the respondent can make, and may be empty: somebody
+         *     who can't do any of the dates says so by sending none.
          */
         DatepollSubmitIn: {
             /** Answers */
@@ -3946,8 +3951,7 @@ export interface components {
          * DatepollSummaryOut
          * @description Organiser summary. ``submission_count`` is the number of
          *     fill-outs; ``best_slot_id`` is the most-yes slot (tie-break: most
-         *     maybe, then most "not filled"; ``no`` is ignored), or ``None`` when
-         *     there are no responses.
+         *     maybe), or ``None`` when nobody can make any date.
          */
         DatepollSummaryOut: {
             /** Best Slot Id */
