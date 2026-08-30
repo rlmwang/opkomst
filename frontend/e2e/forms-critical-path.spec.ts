@@ -52,13 +52,13 @@ test("public visitor fills a form and sees the thanks state", async ({
           required: false,
         },
         {
-          kind: "single_choice",
+          kind: "multiple_choice",
           prompt: "Heb je vrienden meegenomen?",
           required: true,
           options: [{ label: "Ja" }, { label: "Nee" }],
         },
         {
-          kind: "multi_choice",
+          kind: "multiple_answer",
           prompt: "Welke onderdelen vond je sterk?",
           required: false,
           options: [{ label: "Programma" }, { label: "Eten" }, { label: "Ontmoetingen" }],

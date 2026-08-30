@@ -56,10 +56,10 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   expect(listedRes.ok()).toBeTruthy();
   const listed = await listedRes.json();
   // The agenda card + public page key on the OCCURRENCE slug now.
-  const listedOccRes = await request.get(`/api/v1/event/${listed.id}/occurrences`, {
+  const listedOccRes = await request.get(`/api/v1/event/${listed.id}/page`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const listedOccSlug = (await listedOccRes.json()).occurrences[0].slug as string;
+  const listedOccSlug = (await listedOccRes.json()).occurrences.occurrences[0].slug as string;
 
   const otherRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },

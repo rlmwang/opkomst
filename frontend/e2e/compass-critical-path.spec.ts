@@ -157,7 +157,7 @@ test("a visitor walks a kompas and lands on the map", async ({ browser, request 
           high_label: "Eens",
         },
         {
-          kind: "single_choice",
+          kind: "multiple_choice",
           prompt: "Waar moet het geld heen?",
           // Each option carries its own side; there is no second list
           // to keep in step (``docs/design-question-edits.md``).

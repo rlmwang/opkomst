@@ -61,10 +61,10 @@ test("public visitor signs up for an event and sees the thanks state", async ({
 
   // The public page is per OCCURRENCE now; fetch the event's first
   // materialised occurrence and use its slug for /e/{slug}.
-  const occRes = await request.get(`/api/v1/event/${event.id}/occurrences`, {
+  const occRes = await request.get(`/api/v1/event/${event.id}/page`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const occSlug = (await occRes.json()).occurrences[0].slug as string;
+  const occSlug = (await occRes.json()).occurrences.occurrences[0].slug as string;
 
   // --- act: visitor opens the public link, fills + submits the form ---
   // The page now lives in its own mini-app
