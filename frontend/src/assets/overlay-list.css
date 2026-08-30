@@ -61,6 +61,10 @@
   }
   .ovl-option {
     cursor: pointer;
+    /* Picking several rows quickly reads as a double-click, and a row
+     * is text, so the picked ones ended up wearing the browser's blue
+     * selection. The closed field already says this about itself. */
+    user-select: none;
     font-weight: normal;
     white-space: nowrap;
     position: relative;

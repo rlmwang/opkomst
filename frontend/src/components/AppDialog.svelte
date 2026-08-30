@@ -83,9 +83,14 @@ function onCancel(event: Event): void {
 </dialog>
 
 <style>
-.app-dialog {
+/* Only the open one lays out: ``display`` on the element itself beats
+   the browser's ``dialog:not([open]) { display: none }``, so a closed
+   dialog drew as an empty strip on the page. */
+.app-dialog[open] {
   display: flex;
   flex-direction: column;
+}
+.app-dialog {
   /* Centred. The browser's own rule zeroes the inline insets and
      leaves the block ones auto, so ``margin: auto`` had nothing to
      centre against and the dialog sat against the top of the screen.
