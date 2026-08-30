@@ -97,13 +97,16 @@ class Position:
 
 # What one answer is worth: an axis, and a value in [-1, 1].
 #
-# The three rules the page describes, as SQL. A rating poles the
+# The two rules the page describes, as SQL. A rating poles the
 # statement, so a 5 is all the way toward that side and a 1 all the way
-# to the other. A choice poles each option and lands on its own end, and
-# only a single pick counts: a question answered with two ticks points
-# two ways at once, which is not a direction. An answer that says
-# nothing about either axis contributes no row at all, which is how a
-# skipped question stops counting rather than counting as a zero.
+# to the other. A choice poles each option and lands on its own end.
+#
+# One row per answer, because that is what a kompas can be asked: the
+# two kinds it allows are a rating and a pick-one, and a pick-one is
+# refused at the door unless it carries exactly one tick. An answer
+# that says nothing about either axis contributes no row at all, which
+# is how a skipped question stops counting rather than counting as a
+# zero.
 _CONTRIBUTION_CTE = """
 SELECT r.submission_id,
        r.question_id,
@@ -119,24 +122,17 @@ WHERE r.form_id = :form_id
 
 UNION ALL
 
--- The ticks, counted once, in the same pass that reads them. A
--- question answered two ways points two ways at once, which is not a
--- direction, so ``count(*) = 1`` is the rule and ``min(o.pole)`` is
--- that one tick's pole. Grouping by the answer row carries its
--- submission and question out with it, so nothing is looked up twice.
-SELECT cr.submission_id,
-       cr.question_id,
-       split_part(min(o.pole), '_', 1) AS axis,
-       (CASE WHEN split_part(min(o.pole), '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
-FROM form_response_choices c
-JOIN form_responses cr ON cr.id = c.response_id
-JOIN form_questions q ON q.id = cr.question_id
+SELECT r.submission_id,
+       r.question_id,
+       split_part(o.pole, '_', 1) AS axis,
+       (CASE WHEN split_part(o.pole, '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+JOIN form_response_choices c ON c.response_id = r.id
 JOIN form_question_options o ON o.id = c.option_id
-WHERE cr.form_id = :form_id
+WHERE r.form_id = :form_id
   AND q.kind = 'multiple_choice'
-GROUP BY c.response_id, cr.submission_id, cr.question_id
-HAVING count(*) = 1
-   AND min(o.pole) = ANY(:poles)
+  AND o.pole = ANY(:poles)
 """
 
 # A position is the mean per axis, so an unbalanced kompas still reads
