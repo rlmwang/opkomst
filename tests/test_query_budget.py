@@ -60,13 +60,12 @@ BUDGETS: dict[str, int] = {
     "/api/v1/tenants/{tenant_slug}/chapters": 2,
     "/api/v1/tenants/{tenant_slug}/agenda/{slug}": 3,
     # -- events --------------------------------------------------------
-    "/api/v1/event": 3,
-    "/api/v1/event/archived": 3,
+    "/api/v1/event": 4,
+    "/api/v1/event/archived": 4,
     "/api/v1/event/{event_id}": 8,
-    "/api/v1/event/{event_id}/occurrences": 6,
+    "/api/v1/event/{event_id}/page": 23,
     "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": 6,
     "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": 7,
-    "/api/v1/event/{event_id}/feedback-summary": 9,
     "/api/v1/event/{event_id}/feedback-submissions.csv": 4,
     "/api/v1/event/by-slug/{slug}": 4,
     "/api/v1/event/by-slug/{slug}/qr.svg": 2,
@@ -78,8 +77,8 @@ BUDGETS: dict[str, int] = {
     "/api/v1/feedback/questions": 1,
     "/api/v1/feedback/{token}": 4,
     # -- forms / quizzes / kompassen (one factory, three mounts) -------
-    "/api/v1/form": 3,
-    "/api/v1/form/archived": 3,
+    "/api/v1/form": 4,
+    "/api/v1/form/archived": 4,
     "/api/v1/form/{form_id}": 5,
     "/api/v1/form/{form_id}/summary": 6,
     "/api/v1/form/{form_id}/submissions": 4,
@@ -87,8 +86,8 @@ BUDGETS: dict[str, int] = {
     "/api/v1/form/by-slug/{slug}": 3,
     "/api/v1/form/by-slug/{slug}/qr.svg": 2,
     "/api/v1/form/by-token/{token}": 5,
-    "/api/v1/quiz": 3,
-    "/api/v1/quiz/archived": 3,
+    "/api/v1/quiz": 4,
+    "/api/v1/quiz/archived": 4,
     "/api/v1/quiz/{form_id}": 5,
     "/api/v1/quiz/{form_id}/summary": 7,
     "/api/v1/quiz/{form_id}/submissions": 4,
@@ -96,28 +95,27 @@ BUDGETS: dict[str, int] = {
     "/api/v1/quiz/by-slug/{slug}": 3,
     "/api/v1/quiz/by-slug/{slug}/qr.svg": 2,
     "/api/v1/quiz/by-token/{token}": 5,
-    "/api/v1/compass": 3,
-    "/api/v1/compass/archived": 3,
+    "/api/v1/compass": 4,
+    "/api/v1/compass/archived": 4,
     "/api/v1/compass/{form_id}": 6,
     "/api/v1/compass/{form_id}/submissions.csv": 5,
-    "/api/v1/compass/{form_id}/summary": 9,
+    "/api/v1/compass/{form_id}/summary": 7,
     "/api/v1/compass/{form_id}/submissions": 4,
     "/api/v1/compass/by-slug/{slug}": 4,
     "/api/v1/compass/by-slug/{slug}/qr.svg": 2,
     "/api/v1/compass/by-token/{token}": 5,
     # -- datepolls -----------------------------------------------------
-    "/api/v1/datepoll": 3,
-    "/api/v1/datepoll/archived": 3,
+    "/api/v1/datepoll": 4,
+    "/api/v1/datepoll/archived": 4,
     "/api/v1/datepoll/{datepoll_id}": 6,
-    "/api/v1/datepoll/{datepoll_id}/summary": 6,
-    "/api/v1/datepoll/{datepoll_id}/submissions": 4,
+    "/api/v1/datepoll/{datepoll_id}/page": 10,
     "/api/v1/datepoll/{datepoll_id}/submissions.csv": 5,
     "/api/v1/datepoll/by-slug/{slug}": 3,
     "/api/v1/datepoll/by-slug/{slug}/qr.svg": 2,
     "/api/v1/datepoll/by-token/{token}": 5,
     # -- chore rosters -------------------------------------------------
-    "/api/v1/chore": 3,
-    "/api/v1/chore/archived": 3,
+    "/api/v1/chore": 4,
+    "/api/v1/chore/archived": 4,
     "/api/v1/chore/{roster_id}": 6,
     "/api/v1/chore/{roster_id}/schedule": 6,
     "/api/v1/chore/{roster_id}/volunteers": 4,
@@ -218,8 +216,8 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
         },
     ).json()
     ids["event_id"] = event["id"]
-    panel = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=headers).json()
-    occurrences = panel["occurrences"]
+    page = client.get(f"/api/v1/event/{event['id']}/page", headers=headers).json()
+    occurrences = page["occurrences"]["occurrences"]
     assert occurrences, "event fixture materialised no occurrence to measure against"
     ids["occurrence_id"] = occurrences[0]["id"]
     ids["event_slug"] = occurrences[0]["slug"]
@@ -245,7 +243,7 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
         if product == "quiz":
             body["questions"] = [
                 {
-                    "kind": "single_choice",
+                    "kind": "multiple_choice",
                     "prompt": "Welke?",
                     "required": True,
                     "options": [{"label": "A", "is_correct": True}, {"label": "B"}],
@@ -481,16 +479,21 @@ def test_list_returns_one_row_per_entity(client, organiser_headers, path: str, b
     ids = _build_fixtures(client, organiser_headers)
     body = {**body, "chapter_id": ids["chapter_id"]}
 
-    before = len(client.get(path, headers=organiser_headers).json())
+    before = client.get(path, headers=organiser_headers).json()["total"]
     created = client.post(path, headers=organiser_headers, json=body)
     assert created.status_code == 201, created.text
     after = client.get(path, headers=organiser_headers).json()
 
-    assert len(after) == before + 1, (
-        f"{path} returned {len(after)} rows after adding one entity to {before}. "
+    assert after["total"] == before + 1, (
+        f"{path} counted {after['total']} rows after adding one entity to {before}. "
         "A child table is joined directly instead of aggregated, so entities repeat."
     )
-    assert len({row["id"] for row in after}) == len(after), f"{path} returned the same entity more than once"
+    assert len(after["items"]) == min(after["total"], after["per_page"]), (
+        f"{path} returned {len(after['items'])} rows on a page of {after['per_page']}. "
+        "A child table is joined directly instead of aggregated, so entities repeat."
+    )
+    rows = after["items"]
+    assert len({row["id"] for row in rows}) == len(rows), f"{path} returned the same entity more than once"
 
 
 @pytest.mark.parametrize("path", ["/api/v1/event", "/api/v1/form", "/api/v1/chore"])

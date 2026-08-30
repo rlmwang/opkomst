@@ -58,7 +58,7 @@ def test_a_right_answer_scores_and_a_wrong_one_does_not(client, organiser_header
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Hoofdstad?",
                 "points": 3,
                 "options": [{"label": "Rotterdam"}, {"label": "Amsterdam", "is_correct": True}],
@@ -83,7 +83,7 @@ def test_a_right_answer_scores_and_a_wrong_one_does_not(client, organiser_header
     assert by_q[qs[1]["id"]]["correct"] is False
 
 
-def test_multi_choice_pays_part_marks_and_charges_for_wrong_ones(client, organiser_headers) -> None:
+def test_multiple_answer_pays_part_marks_and_charges_for_wrong_ones(client, organiser_headers) -> None:
     """``(right ticks - wrong ticks) / right options``, rounded down.
 
     One wrong tick cancels one right tick: a pick is worth the same
@@ -93,7 +93,7 @@ def test_multi_choice_pays_part_marks_and_charges_for_wrong_ones(client, organis
         organiser_headers,
         [
             {
-                "kind": "multi_choice",
+                "kind": "multiple_answer",
                 "prompt": "Welke twee?",
                 "points": 6,
                 "options": [
@@ -129,7 +129,7 @@ def test_a_wrong_tick_costs_what_a_right_one_pays(client, organiser_headers) -> 
         organiser_headers,
         [
             {
-                "kind": "multi_choice",
+                "kind": "multiple_answer",
                 "prompt": "Welke?",
                 "points": 8,
                 "options": [
@@ -233,7 +233,7 @@ def test_the_public_shape_carries_no_answer_key(client, organiser_headers) -> No
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Welke?",
                 "points": 1,
                 "options": [{"label": "Rotterdam"}, {"label": "Zwolle", "is_correct": True}],
@@ -486,7 +486,7 @@ def test_a_correct_option_has_to_be_one_of_the_options(client, organiser_headers
             "locale": "nl",
             "questions": [
                 {
-                    "kind": "single_choice",
+                    "kind": "multiple_choice",
                     "prompt": "Welke?",
                     "points": 1,
                     "options": [{"label": "A"}, {"label": "B"}],
@@ -537,7 +537,7 @@ def test_ticking_nothing_is_an_answer_on_a_quiz(client, organiser_headers) -> No
         organiser_headers,
         [
             {
-                "kind": "multi_choice",
+                "kind": "multiple_answer",
                 "prompt": "Welke?",
                 "points": 4,
                 "options": [{"label": "A", "is_correct": True}, {"label": "B"}],

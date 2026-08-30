@@ -7,22 +7,24 @@
  * point at 0.5 sits at the same place whether the busiest dot on the
  * chart is at 0.6 or at 1.0.
  *
- * **Coincident dots cluster.** Answer sets repeat, especially on a
+ * **Coincident dots are one dot.** Answer sets repeat, especially on a
  * short kompas. Jitter would put a dot where nobody is, so identical
- * coordinates become one bigger dot that names everybody in it.
+ * coordinates arrive as one spot: a count, and the first few names in
+ * it. The grouping is the database's (``services/compass``); what is
+ * tested here is the drawing of it.
  */
 import { render } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
 
 import CompassPlot from "@/public_shared/CompassPlot.svelte";
-import type { PlotPoint } from "@/public_shared/compass-plot";
+import type { PlotSpot } from "@/public_shared/compass-plot";
 
 const AXES = [
   { axis: "x", low_name: "Links", high_name: "Rechts" },
   { axis: "y", low_name: "Open", high_name: "Behoud" },
 ];
 
-function plot(points: PlotPoint[]) {
+function plot(points: PlotSpot[]) {
   return render(CompassPlot, { props: { axes: AXES, points, anonymousLabel: "Anoniem" } }).container;
 }
 
@@ -35,18 +37,18 @@ function centres(root: HTMLElement) {
 
 describe("CompassPlot", () => {
   it("draws the four sides in the organiser's own words", () => {
-    const root = plot([{ name: "Sam", x: 0, y: 0 }]);
+    const root = plot([{ x: 0, y: 0, count: 1, names: ["Sam"] }]);
     const labels = all(root, "text.edge-label").map((t) => t.textContent);
     expect(labels).toEqual(["Links", "Rechts", "Behoud", "Open"]);
   });
 
   it("puts a dot in the same place whatever else is on the chart", () => {
-    const alone = centres(plot([{ name: "Sam", x: 0.5, y: -0.5 }]));
+    const alone = centres(plot([{ x: 0.5, y: -0.5, count: 1, names: ["Sam"] }]));
     const crowded = centres(
       plot([
-        { name: "Sam", x: 0.5, y: -0.5 },
-        { name: "Kim", x: 1, y: 1 },
-        { name: "Bo", x: -1, y: -1 },
+        { x: 0.5, y: -0.5, count: 1, names: ["Sam"] },
+        { x: 1, y: 1, count: 1, names: ["Kim"] },
+        { x: -1, y: -1, count: 1, names: ["Bo"] },
       ]),
     );
     // The first dot did not move when two further-out ones arrived.
@@ -54,20 +56,19 @@ describe("CompassPlot", () => {
   });
 
   it("puts the centre in the centre and the ends at the ends", () => {
-    const [centre] = centres(plot([{ name: "Sam", x: 0, y: 0 }]));
-    const [topRight] = centres(plot([{ name: "Sam", x: 1, y: 1 }]));
-    const [bottomLeft] = centres(plot([{ name: "Sam", x: -1, y: -1 }]));
+    const [centre] = centres(plot([{ x: 0, y: 0, count: 1, names: ["Sam"] }]));
+    const [topRight] = centres(plot([{ x: 1, y: 1, count: 1, names: ["Sam"] }]));
+    const [bottomLeft] = centres(plot([{ x: -1, y: -1, count: 1, names: ["Sam"] }]));
     expect(centre).toEqual(["72", "72"]);
     // High is right and, because SVG counts downward, up.
     expect(topRight).toEqual(["122", "22"]);
     expect(bottomLeft).toEqual(["22", "122"]);
   });
 
-  it("makes one dot of the people who answered the same way", () => {
+  it("draws a crowded dot bigger, and names who is in it", () => {
     const root = plot([
-      { name: "Sam", x: 0.5, y: 0.5 },
-      { name: "Kim", x: 0.5, y: 0.5 },
-      { name: "Bo", x: -0.5, y: 0 },
+      { x: 0.5, y: 0.5, count: 2, names: ["Sam", "Kim"] },
+      { x: -0.5, y: 0, count: 1, names: ["Bo"] },
     ]);
     expect(all(root, "circle.dot")).toHaveLength(2);
     // The stacked one is bigger, and names both of them.
@@ -81,20 +82,27 @@ describe("CompassPlot", () => {
     );
   });
 
-  it("calls a nameless dot what the caller calls it, and still counts it", () => {
-    const root = plot([
-      { name: null, x: 0, y: 0 },
-      { name: "Sam", x: 0, y: 0 },
-    ]);
+  it("calls a nameless dot what the caller calls it", () => {
+    const root = plot([{ x: 0, y: 0, count: 2, names: [null, "Sam"] }]);
     expect(all(root, "circle.dot")).toHaveLength(1);
     expect(all(root, ".dot-group")[0].getAttribute("aria-label")).toBe("Anoniem, Sam");
   });
 
+  it("ends a crowded dot's label in an ellipsis", () => {
+    // The server sends the first five names of a dot holding nine
+    // hundred people. The label says so rather than pretending five is
+    // everybody.
+    const root = plot([
+      { x: 0, y: 0, count: 900, names: ["Sam", "Kim", "Bo", "Jo", "Robin"] },
+    ]);
+    expect(all(root, ".dot-group")[0].getAttribute("aria-label")).toBe("Sam, Kim, Bo, Jo, Robin, …");
+  });
+
   it("draws the reader's own dot last, so it lands on top", () => {
     const root = plot([
-      { name: "Sam", x: 0, y: 0 },
-      { name: "Kim", x: 0.5, y: 0.5, you: true },
-      { name: "Bo", x: -0.5, y: 0 },
+      { x: 0, y: 0, count: 1, names: ["Sam"] },
+      { x: 0.5, y: 0.5, count: 1, names: ["Kim"], you: true },
+      { x: -0.5, y: 0, count: 1, names: ["Bo"] },
     ]);
     const groups = all(root, ".dot-group");
     expect([...groups[groups.length - 1].classList]).toContain("is-you");

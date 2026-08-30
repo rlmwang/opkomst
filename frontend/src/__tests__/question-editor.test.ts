@@ -25,8 +25,8 @@ useTestMessages("en", {
         number: "Number",
         text: "Long text",
         short_text: "Short text",
-        single_choice: "Single choice",
-        multi_choice: "Multiple choice",
+        multiple_choice: "Single choice",
+        multiple_answer: "Multiple choice",
       },
       required: "Required",
       lowLabel: "Low",
@@ -79,8 +79,8 @@ const KIND_LABEL = {
   number: "Number",
   text: "Long text",
   short_text: "Short text",
-  single_choice: "Single choice",
-  multi_choice: "Multiple choice",
+  multiple_choice: "Single choice",
+  multiple_answer: "Multiple choice",
 };
 
 describe("QuestionEditor kind switching", () => {
@@ -112,7 +112,7 @@ describe("QuestionEditor kind switching", () => {
   it("clears options when switching away from a choice kind", async () => {
     const initial: QuestionDraft = {
       id: "q1",
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Pick one",
       required: true,
       options: [{ id: null, label: "A", pole: null, is_correct: false }, { id: null, label: "B", pole: null, is_correct: false }, { id: null, label: "C", pole: null, is_correct: false }],
@@ -136,7 +136,7 @@ describe("QuestionEditor kind switching", () => {
   it("preserves options when switching between the two choice kinds", async () => {
     const initial: QuestionDraft = {
       id: "q1",
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Pick one",
       required: false,
       options: [{ id: null, label: "A", pole: null, is_correct: false }, { id: null, label: "B", pole: null, is_correct: false }],
@@ -152,11 +152,11 @@ describe("QuestionEditor kind switching", () => {
     pole: null,
     };
     const q = editor(initial);
-    await q.setKind(KIND_LABEL.multi_choice);
+    await q.setKind(KIND_LABEL.multiple_answer);
     // The choices survive the switch between the two choice kinds:
     // same rows, same ids, so the answers to them stay attached.
     expect(q.get().options.map((o) => o.label)).toEqual(["A", "B"]);
-    expect(q.get().kind).toBe("multi_choice");
+    expect(q.get().kind).toBe("multiple_answer");
   });
 
   it("clears the number bounds when switching away from number", async () => {
@@ -187,7 +187,7 @@ describe("QuestionEditor kind switching", () => {
   it("drops a key that no longer fits when the kind changes", async () => {
     const initial: QuestionDraft = {
       id: "q1",
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Welke?",
       required: true,
       options: [

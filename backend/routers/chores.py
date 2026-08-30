@@ -14,7 +14,7 @@ the schedule / volunteers reads arrive with the data (task 06).
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -32,11 +32,12 @@ from ..schemas.chores import (
     ShiftReassignIn,
     VolunteerSummaryOut,
 )
-from ..schemas.common import EditLinkRecoverOut
+from ..schemas.common import EditLinkRecoverOut, Page
 from ..services import access, chore_tick, crud, edit_token, entities, limits
 from ..services import chores as chores_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
+from ..services.paging import DEFAULT_PER_PAGE, MAX_PER_PAGE, Paging
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -63,23 +64,31 @@ def create_roster(
     return chores_svc.to_out(db, roster)
 
 
-@router.get("", response_model=list[RosterListOut])
+@router.get("", response_model=Page[RosterListOut])
 def list_rosters(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[RosterListOut]:
-    return chores_svc.list_for_user(db, user, chapter_id)
+) -> Page[RosterListOut]:
+    return chores_svc.list_for_user(db, user, chapter_id, Paging(page, per_page, q))
 
 
-@router.get("/archived", response_model=list[RosterListOut])
+@router.get("/archived", response_model=Page[RosterListOut])
 def list_archived_rosters(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[RosterListOut]:
+) -> Page[RosterListOut]:
     # Archived rosters live in the twins now, ordered by when they left.
-    return chores_svc.archived_enrich(db, access.archived_rows(db, "rosters", user, chapter_id))
+    window = Paging(page, per_page, q)
+    rows, total = access.archived_rows(db, "rosters", user, chapter_id, page=window)
+    return window.of(total, chores_svc.archived_enrich(db, rows))
 
 
 @router.get("/{roster_id}", response_model=RosterOut)

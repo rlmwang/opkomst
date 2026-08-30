@@ -26,6 +26,7 @@ from backend.models import (
     Registration,
     Signup,
 )
+from tests._helpers.events import page_occurrences
 
 # The five fixed feedback questions are Python constants
 # (``backend.services.feedback_questions``); no seed required.
@@ -122,7 +123,7 @@ def test_feedback_form_happy_path(client, organiser_headers):
     assert body["event_name"] == event["name_nl"]
     # The feedback form is per occurrence, so ``event_slug`` is the
     # occurrence's public slug, not the event's internal slug.
-    occ = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = page_occurrences(client, organiser_headers, event['id'])[0]
     assert body["event_slug"] == occ["slug"]
     assert body["event_locale"] == "nl"
     assert len(body["questions"]) == 5
@@ -220,11 +221,11 @@ def test_submit_already_redeemed_token_410s(client, organiser_headers):
 def test_feedback_summary_empty_event(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.get(
-        f"/api/v1/event/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/page",
         headers=organiser_headers,
     )
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["feedback"]
     assert body["submission_count"] == 0
     assert body["signup_count"] == 0
     assert body["response_rate"] == 0.0
@@ -245,11 +246,11 @@ def test_feedback_summary_with_responses(client, organiser_headers):
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
     r = client.get(
-        f"/api/v1/event/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/page",
         headers=organiser_headers,
     )
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["feedback"]
     assert body["submission_count"] == 1
     assert body["signup_count"] == 1
     assert body["response_rate"] == 1.0
@@ -300,11 +301,11 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
         db.close()
 
     r = client.get(
-        f"/api/v1/event/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/page",
         headers=organiser_headers,
     )
     assert r.status_code == 200
-    body = r.json()
+    body = r.json()["feedback"]
     assert body["email_health"]["feedback"]["sent"] == 1
     assert body["email_health"]["reminder"]["pending"] == 1
 
@@ -327,7 +328,7 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
     outsider_token = token_for(uid)
 
     r = client.get(
-        f"/api/v1/event/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/page",
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert r.status_code == 404

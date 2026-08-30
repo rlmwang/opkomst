@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tests._helpers.events import public_option_ids
+from tests._helpers.events import page_occurrences, public_option_ids
 from tests._helpers.forms import answer_cells, option_ids
 
 AXES = [
@@ -107,7 +107,7 @@ def _counts(client: Any, headers: Any, form: dict[str, Any], mode: str = "form")
 
 _CHOICE = [
     {
-        "kind": "single_choice",
+        "kind": "multiple_choice",
         "prompt": "Hoe vaak kom je?",
         "required": True,
         "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}],
@@ -173,7 +173,7 @@ def test_deleting_an_answered_option_takes_its_answers(client, organiser_headers
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Hoe vaak kom je?",
                 "required": True,
                 "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}, {"label": "Nooit"}],
@@ -282,7 +282,7 @@ def _kompas(client: Any, headers: Any) -> Any:
         headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Waar sta je?",
                 "required": True,
                 "options": [
@@ -314,8 +314,10 @@ def _place(client: Any, kompas: dict[str, Any], choice: str) -> Any:
 
 
 def _dots(client: Any, headers: Any, kompas: dict[str, Any]) -> list[tuple[str, float, float]]:
+    """Who is on the map and where. One name per dot here, because
+    these cases put one person on each."""
     summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=headers).json()
-    return [(p["name"], p["x"], p["y"]) for p in summary["compass"]["points"]]
+    return [(p["names"][0], p["x"], p["y"]) for p in summary["compass"]["points"]]
 
 
 def test_renaming_a_kompas_option_leaves_the_dot_where_it_was(client, organiser_headers) -> None:
@@ -372,7 +374,7 @@ def _quiz(client: Any, headers: Any) -> Any:
         headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Welke stad?",
                 "required": True,
                 "points": 5,
@@ -459,7 +461,7 @@ def _sign_up(client: Any, event: dict[str, Any], source: str, help_labels: tuple
 
 
 def _breakdowns(client: Any, headers: Any, event: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
-    occ = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=headers).json()["occurrences"][0]
+    occ = page_occurrences(client, headers, event['id'])[0]
     stats = client.get(f"/api/v1/event/{event['id']}/occurrences/{occ['id']}/stats", headers=headers).json()
     return stats["by_source"], stats["by_help"]
 
@@ -517,7 +519,7 @@ def test_deleting_a_source_option_leaves_the_signup_standing(client, organiser_h
     sign-up along with the option would be worse than losing the answer."""
     event = _event(client, organiser_headers)
     _sign_up(client, event, "Flyer", ())
-    occ = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = page_occurrences(client, organiser_headers, event['id'])[0]
 
     def drop(full):
         full["source_options"] = [o for o in full["source_options"] if o["label"] != "Flyer"]
@@ -574,7 +576,7 @@ def test_deleting_an_answered_option_is_refused_until_confirmed(client, organise
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Hoe vaak kom je?",
                 "required": True,
                 "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}, {"label": "Nooit"}],

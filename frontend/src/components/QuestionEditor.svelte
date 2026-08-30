@@ -13,8 +13,8 @@ export type QuestionKind =
   | "rating"
   | "text"
   | "short_text"
-  | "single_choice"
-  | "multi_choice"
+  | "multiple_choice"
+  | "multiple_answer"
   | "number";
 
 /**
@@ -121,14 +121,14 @@ let newOption = $state("");
  *  because no rule grades a paragraph and an exact-match short answer
  *  is a quiz about spelling. Mirrors ``services/quizzes.QUIZ_KINDS``,
  *  which refuses them on save; this is why they are never offered. */
-const QUIZ_KINDS: QuestionKind[] = ["single_choice", "multi_choice", "number", "rating"];
+const QUIZ_KINDS: QuestionKind[] = ["multiple_choice", "multiple_answer", "number", "rating"];
 /** A kompas asks a statement you rate or a question you pick from.
  *  Nothing else: a multi-choice answer pulls three ways at once, a
  *  number has no direction, and no rule points a paragraph anywhere.
  *  Mirrors ``services/compass.COMPASS_KINDS``, which refuses the rest
  *  on save; this is why they are never offered. */
-const COMPASS_KINDS: QuestionKind[] = ["rating", "single_choice"];
-const FORM_KINDS: QuestionKind[] = ["rating", "short_text", "text", "single_choice", "multi_choice", "number"];
+const COMPASS_KINDS: QuestionKind[] = ["rating", "multiple_choice"];
+const FORM_KINDS: QuestionKind[] = ["rating", "short_text", "text", "multiple_choice", "multiple_answer", "number"];
 
 const kindOptions = $derived(
   (pointed ? COMPASS_KINDS : scored ? QUIZ_KINDS : FORM_KINDS).map((k) => ({
@@ -137,7 +137,7 @@ const kindOptions = $derived(
   })),
 );
 
-const isChoice = $derived(value.kind === "single_choice" || value.kind === "multi_choice");
+const isChoice = $derived(value.kind === "multiple_choice" || value.kind === "multiple_answer");
 const isRating = $derived(value.kind === "rating");
 const isNumber = $derived(value.kind === "number");
 /** A quiz question always has a key and a value; a questionnaire's
@@ -172,7 +172,7 @@ function patch<K extends keyof QuestionDraft>(key: K, patched: QuestionDraft[K])
       next.low_label = null;
       next.high_label = null;
     }
-    if (patched !== "single_choice" && patched !== "multi_choice") {
+    if (patched !== "multiple_choice" && patched !== "multiple_answer") {
       next.options = [];
     }
     if (patched !== "number") {
@@ -209,7 +209,7 @@ function patchOption(index: number, fields: Partial<OptionDraft>): void {
  *  it is picked rather than typed. Single choice replaces; multi
  *  toggles. */
 function toggleCorrect(index: number) {
-  if (value.kind === "single_choice") {
+  if (value.kind === "multiple_choice") {
     patch(
       "options",
       value.options.map((o, i) => ({ ...o, is_correct: i === index })),

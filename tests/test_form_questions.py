@@ -187,7 +187,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
             "locale": "nl",
             "questions": [
                 {
-                    "kind": "single_choice",
+                    "kind": "multiple_choice",
                     "prompt": "Pick",
                     "required": True,
                     "options": [{"label": "only-one"}],
@@ -209,7 +209,7 @@ def test_choice_with_duplicate_options_400s(client, organiser_headers):
             "locale": "nl",
             "questions": [
                 {
-                    "kind": "multi_choice",
+                    "kind": "multiple_answer",
                     "prompt": "Pick many",
                     "required": False,
                     "options": [{"label": "a"}, {"label": "a"}, {"label": "b"}],

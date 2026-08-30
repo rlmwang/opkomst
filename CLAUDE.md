@@ -4,12 +4,14 @@
 
 **#1 Rule: Always choose the cleanest design, not a shortcut. No backwards compat.** Every change should leave the codebase in a better state. We are pre-launch; never preserve old fields, shims, fallbacks, deprecated parameters, default values that exist "for legacy callers", transitional comments, or migration-time defensive checks. When you find code shaped by a previous version of itself, delete that shape — don't accommodate it. This rule applies to design docs and task specs too: do not write fix plans that step around old behaviour, audit-and-keep, or preserve any "before" state. Just write the right thing.
 
-**#2 Rule: Never contradict the user's direct instructions.** When the user gives an explicit directive, implement it. Do not argue, defer, or propose alternatives unless asked. Do not claim work is done without actually testing it end-to-end.
+**#2 Rule: Calculations happen in SQL.** Every aggregate, fold, pivot, interval and merge over stored rows is a statement the database runs. Python receives rows and maps them to DTOs; it is the API layer and nothing else. This covers work that looks like presentation: if the browser groups, sorts or merges rows before drawing them, that grouping belongs in the statement, and what crosses the wire is the picture rather than the room. Two reads deriving the same numbers at two grains are one statement, not two. When this rule is restated, treat it as evidence it is being broken somewhere: grep the path and report what you find. Never answer "we already do that".
+
+**#3 Rule: Never contradict the user's direct instructions.** When the user gives an explicit directive, implement it. Do not argue, defer, or propose alternatives unless asked. Do not claim work is done without actually testing it end-to-end.
 
 ## Working rules
 
-Standing feedback, all of it earned the hard way. Same weight as the two
-rules above.
+Standing feedback, all of it earned the hard way. Same weight as the
+three rules above.
 
 **Answering**
 

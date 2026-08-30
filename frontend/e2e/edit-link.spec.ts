@@ -42,10 +42,10 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   const event = await eventRes.json();
 
   // Public page is per occurrence; use the first occurrence's slug.
-  const occRes = await request.get(`/api/v1/event/${event.id}/occurrences`, {
+  const occRes = await request.get(`/api/v1/event/${event.id}/page`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  const occSlug = (await occRes.json()).occurrences[0].slug as string;
+  const occSlug = (await occRes.json()).occurrences.occurrences[0].slug as string;
 
   const visitor = await browser.newContext();
   const v = await visitor.newPage();

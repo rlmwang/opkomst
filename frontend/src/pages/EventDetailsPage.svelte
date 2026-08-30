@@ -10,16 +10,13 @@ import RecoverLinksPill, { type RecoverableRow } from "@/components/RecoverLinks
 import StatBar from "@/components/StatBar.svelte";
 import {
   deleteSignup,
-  events,
+  eventPageQuery,
   occurrenceSignupsQuery,
   occurrenceStatsQuery,
-  occurrencesQuery,
+  seedOccurrence,
   sendEmailsNow,
 } from "@/composables/useEvents.svelte";
-import {
-  type EmailChannel,
-  feedbackSummaryQuery,
-} from "@/composables/useFeedback.svelte";
+import { type EmailChannel } from "@/composables/useFeedback.svelte";
 import { guarded } from "@/composables/useGuardedMutation.svelte";
 import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
@@ -46,24 +43,24 @@ const share = shareClipboard({
   copyPrefix: "event.share",
 });
 
-const eventQuery = events.single(() => eventId);
-const event = $derived(eventQuery.data ?? null);
+// One read for the whole page (``useEvents``), with the session it
+// opens on already chosen and its sign-ups and stats already in it.
+const pageQuery = eventPageQuery(() => eventId);
+const page = $derived(pageQuery.data ?? null);
+const event = $derived(page?.event ?? null);
+$effect(() => {
+  if (page) seedOccurrence(eventId, page);
+});
 
-const occQuery = occurrencesQuery(() => eventId);
-const occurrenceList = $derived(occQuery.data ?? null);
+const occurrenceList = $derived(page?.occurrences ?? null);
 const occurrences = $derived(occurrenceList?.occurrences ?? []);
 const projected = $derived(occurrenceList?.projected ?? []);
 
 /** The session the header's public page and QR point at: the soonest
  *  one that has not ended, else the last one that ran. */
-const primary = $derived.by(() => {
-  if (occurrences.length === 0) return null;
-  const now = Date.now();
-  return (
-    occurrences.find((o) => new Date(o.ends_at).getTime() > now) ??
-    occurrences[occurrences.length - 1]
-  );
-});
+const primary = $derived(
+  occurrences.find((o) => o.id === page?.primary_occurrence_id) ?? null,
+);
 
 // --- Which day the sign-ups below belong to --------------------------
 const isoDate = (dt: string) => dt.slice(0, 10);
@@ -172,8 +169,7 @@ function onDayClick(iso: string): void {
 }
 
 // --- The questionnaire, and the mail ---------------------------------
-const summaryQuery = feedbackSummaryQuery(() => eventId);
-const summary = $derived(summaryQuery.data ?? null);
+const summary = $derived(page?.feedback ?? null);
 const sendNow = sendEmailsNow();
 let triggering = $state<EmailChannel | null>(null);
 

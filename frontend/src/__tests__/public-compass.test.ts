@@ -79,7 +79,7 @@ const COMPASS = {
     {
       id: "two",
       ordinal: 2,
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Waar moet het geld heen?",
       required: true,
       options: [{ id: "opt-zorg", label: "Zorg" }, { id: "opt-defensie", label: "Defensie" }],
@@ -106,8 +106,8 @@ const RESULT = {
   // which is the band the reader's own marker is drawn against.
   axes: AXES.map((axis) => ({ axis, average: 0, ci_low: -0.6, ci_high: 0.6 })),
   points: [
-    { name: "Sam", x: -0.5, y: 1, you: true },
-    { name: null, x: 0.5, y: -1, you: false },
+    { x: -0.5, y: 1, count: 1, names: ["Sam"], you: true },
+    { x: 0.5, y: -1, count: 1, names: [null], you: false },
   ],
   answers: [
     {
@@ -122,7 +122,7 @@ const RESULT = {
     },
     {
       question_id: "two",
-      kind: "single_choice",
+      kind: "multiple_choice",
       pole: null,
       option_poles: ["x_low", "y_high"],
       given_int: null,

@@ -26,7 +26,12 @@ interface BilingualName {
 }
 
 export interface ArchivedList<T> {
-  chapter: { value: string | null; readonly options: { id: string; name: string }[] };
+  chapter: {
+    value: string | null;
+    page: number;
+    search: string;
+    readonly options: { id: string; name: string }[];
+  };
   restoreItem: (item: T) => Promise<void>;
   askDelete: (item: T) => void;
 }

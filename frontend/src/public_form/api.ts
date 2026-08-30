@@ -9,7 +9,7 @@ import { inlinedSubmission } from "@/public_shared/submission";
 export interface PublicFormQuestion {
   id: string;
   ordinal: number;
-  kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
+  kind: "rating" | "text" | "short_text" | "multiple_choice" | "multiple_answer" | "number";
   prompt: string;
   required: boolean;
   /** Choices as rows: the label to show and the id an answer names it

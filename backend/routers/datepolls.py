@@ -12,7 +12,7 @@ Public-by-slug surfaces live in ``routers/datepolls_public.py``.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -20,18 +20,19 @@ from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
 from ..models import Datepoll, DatepollSubmission, User
-from ..schemas.common import EditLinkRecoverOut
+from ..schemas.common import EditLinkRecoverOut, Page
 from ..schemas.datepolls import (
     DatepollCreate,
     DatepollListOut,
     DatepollOut,
-    DatepollSubmissionOut,
+    DatepollPageOut,
     DatepollSummaryOut,
     DatepollUpdate,
 )
 from ..services import access, crud, csv_export, edit_token, entities, limits
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
+from ..services.paging import DEFAULT_PER_PAGE, MAX_PER_PAGE, Paging
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -58,22 +59,30 @@ def create_datepoll(
     return datepolls_svc.to_out(db, poll)
 
 
-@router.get("", response_model=list[DatepollListOut])
+@router.get("", response_model=Page[DatepollListOut])
 def list_datepolls(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[DatepollListOut]:
-    return datepolls_svc.list_for_user(db, user, chapter_id)
+) -> Page[DatepollListOut]:
+    return datepolls_svc.list_for_user(db, user, chapter_id, Paging(page, per_page, q))
 
 
-@router.get("/archived", response_model=list[DatepollListOut])
+@router.get("/archived", response_model=Page[DatepollListOut])
 def list_archived_datepolls(
     chapter_id: str | None = None,
+    q: str | None = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[DatepollListOut]:
-    return datepolls_svc.archived_enrich(db, access.archived_rows(db, "datepolls", user, chapter_id))
+) -> Page[DatepollListOut]:
+    window = Paging(page, per_page, q)
+    rows, total = access.archived_rows(db, "datepolls", user, chapter_id, page=window)
+    return window.of(total, datepolls_svc.archived_enrich(db, rows))
 
 
 @router.get("/{datepoll_id}", response_model=DatepollOut)
@@ -234,22 +243,31 @@ def delete_datepoll_image(
     return datepolls_svc.to_out(db, poll)
 
 
-@router.get("/{datepoll_id}/summary", response_model=DatepollSummaryOut)
-def datepoll_summary(
+@router.get("/{datepoll_id}/page", response_model=DatepollPageOut)
+def datepoll_page(
     datepoll_id: str,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> DatepollSummaryOut:
-    access.get_datepoll_for_user(db, datepoll_id, user)
-    # Counted once: the page prints it and the tallies measure their
-    # blanks against it.
+) -> DatepollPageOut:
+    """The whole organiser page in one read. The three routes it
+    replaces stay: a poll is edited and re-read, and the download reads
+    the answers again."""
+    poll = access.get_scoped_row(
+        db, Datepoll, datepoll_id, user, *datepolls_svc.FULL_COLUMNS, not_found="Datepoll not found"
+    )
+    return DatepollPageOut(
+        datepoll=datepolls_svc.to_out(db, poll),
+        summary=_summary(db, datepoll_id),
+        submissions=datepolls_svc.submissions(db, datepoll_id),
+    )
+
+
+def _summary(db: Session, datepoll_id: str) -> DatepollSummaryOut:
+    """The tally per date. Counted once: the page prints the total and
+    the tallies measure their blanks against it."""
     total = datepolls_svc.submission_count(db, datepoll_id)
     slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id, total)
-    return DatepollSummaryOut(
-        submission_count=total,
-        slots=slots,
-        best_slot_id=best_slot_id,
-    )
+    return DatepollSummaryOut(submission_count=total, slots=slots, best_slot_id=best_slot_id)
 
 
 @router.post("/{datepoll_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)
@@ -276,21 +294,6 @@ def recover_submission_edit_link(
     db.commit()
     logger.info("datepoll_edit_link_recovered", datepoll_id=poll.id, submission_id=submission_id, actor_id=user.id)
     return EditLinkRecoverOut(edit_token=raw)
-
-
-@router.get("/{datepoll_id}/submissions", response_model=list[DatepollSubmissionOut])
-def datepoll_submissions(
-    datepoll_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
-) -> list[DatepollSubmissionOut]:
-    """Per-submission rows, keyed by slot id. The download is its
-    own route below.
-
-    Privacy: the submission id is opaque and the only respondent
-    identifier is the self-chosen pseudonym."""
-    access.get_datepoll_for_user(db, datepoll_id, user)
-    return datepolls_svc.submissions(db, datepoll_id)
 
 
 @router.get("/{datepoll_id}/submissions.csv", response_class=StreamingResponse)

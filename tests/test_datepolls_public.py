@@ -57,7 +57,7 @@ def test_submit_happy_path_returns_edit_token(client, organiser_headers):
     )
     assert r.status_code == 201
     assert r.json()["edit_token"]  # the secret edit-link token, returned once
-    subs = client.get(f"/api/v1/datepoll/{poll['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["submissions"]
     assert len(subs) == 1
     assert subs[0]["display_name"] == "Alex"
     assert subs[0]["answers"][d0] == "yes"
@@ -92,7 +92,7 @@ def test_submit_anonymous_stored_as_null(client, organiser_headers):
             "answers": [{"datepoll_slot_id": d0, "availability": "maybe"}],
         },
     )
-    subs = client.get(f"/api/v1/datepoll/{poll['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["submissions"]
     assert subs[0]["display_name"] is None
 
 

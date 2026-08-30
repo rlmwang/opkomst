@@ -36,7 +36,6 @@ from ..schemas.feedback import (
     FeedbackFormOut,
     FeedbackQuestionOut,
     FeedbackSubmitIn,
-    FeedbackSummaryOut,
 )
 from ..services import access, archive, csv_export, feedback_stats
 from ..services.feedback_questions import BY_KEY, QUESTIONS
@@ -241,25 +240,6 @@ def submit_feedback(
 
 
 # --- Organiser: per-event feedback summary ----------------------------
-
-
-@router.get("/event/{event_id}/feedback-summary", response_model=FeedbackSummaryOut)
-def feedback_summary(
-    event_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
-) -> FeedbackSummaryOut:
-    access.get_event_for_user(db, event_id, user)
-    submissions = feedback_stats.submission_count(db, event_id)
-    signups = feedback_stats.signup_count(db, event_id)
-    rate = (submissions / signups) if signups else 0.0
-    return FeedbackSummaryOut(
-        submission_count=submissions,
-        signup_count=signups,
-        response_rate=rate,
-        email_health=feedback_stats.email_health(db, event_id, signups),
-        questions=feedback_stats.question_aggregates(db, event_id),
-    )
 
 
 @router.get("/event/{event_id}/feedback-submissions.csv", response_class=StreamingResponse)

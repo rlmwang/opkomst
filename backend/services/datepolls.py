@@ -18,6 +18,7 @@ from sqlalchemy import and_, distinct, func, select, text
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Datepoll, DatepollResponse, DatepollSlot, DatepollSubmission, User
+from ..schemas.common import Page
 from ..schemas.datepolls import (
     Availability,
     DatepollListOut,
@@ -30,6 +31,7 @@ from ..schemas.datepolls import (
 from . import access, tenancy
 from . import archive as archive_svc
 from . import image as image_svc
+from .paging import Paging, matching
 
 if TYPE_CHECKING:
     from ..schemas.datepolls import DatepollSlotIn
@@ -124,7 +126,7 @@ FULL_COLUMNS = (
 )
 
 
-def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[DatepollListOut]:
+def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging) -> Page[DatepollListOut]:
     """The organiser's poll list, in one statement.
 
     ``date_count`` counts distinct candidate days, not slots: a day with
@@ -134,6 +136,11 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Datep
     first = select(func.min(DatepollSlot.on_date)).where(DatepollSlot.datepoll_id == Datepoll.id)
     last = select(func.max(DatepollSlot.on_date)).where(DatepollSlot.datepoll_id == Datepoll.id)
     filled = select(func.count(DatepollSubmission.id)).where(DatepollSubmission.datepoll_id == Datepoll.id)
+    where = (
+        access.list_filter(db, user, Datepoll, chapter_id),
+        Datepoll.archived_at.is_(None),
+        *matching(page.q, Datepoll.name_nl, Datepoll.name_en, Datepoll.location),
+    )
     rows = db.execute(
         select(
             *LIST_COLUMNS,
@@ -145,27 +152,33 @@ def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[Datep
         )
         .select_from(Datepoll)
         .outerjoin(Chapter, and_(Chapter.id == Datepoll.chapter_id, Chapter.deleted_at.is_(None)))
-        .where(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_(None))
+        .where(*where)
         .order_by(Datepoll.created_at.desc())
+        .limit(page.per_page)
+        .offset(page.offset)
     ).all()
-    return [
-        DatepollListOut(
-            id=r.id,
-            slug=r.slug,
-            name_nl=r.name_nl,
-            name_en=r.name_en,
-            locale=r.locale,
-            chapter_id=r.chapter_id,
-            chapter_name=r.chapter_name,
-            archived=r.archived_at is not None,
-            created_at=r.created_at,
-            date_count=int(r.date_count or 0),
-            first_date=r.first_date,
-            last_date=r.last_date,
-            submission_count=int(r.submission_count or 0),
-        )
-        for r in rows
-    ]
+    total = db.execute(select(func.count()).select_from(Datepoll).where(*where)).scalar_one()
+    return page.of(
+        total,
+        [
+            DatepollListOut(
+                id=r.id,
+                slug=r.slug,
+                name_nl=r.name_nl,
+                name_en=r.name_en,
+                locale=r.locale,
+                chapter_id=r.chapter_id,
+                chapter_name=r.chapter_name,
+                archived=r.archived_at is not None,
+                created_at=r.created_at,
+                date_count=int(r.date_count or 0),
+                first_date=r.first_date,
+                last_date=r.last_date,
+                submission_count=int(r.submission_count or 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def enrich(db: Session, polls: Sequence[Any]) -> list[DatepollListOut]:

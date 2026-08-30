@@ -46,10 +46,20 @@ export type ChapterArchiveRequest = S["ChapterArchiveRequest"];
 export type ChapterUsage = S["ChapterUsageOut"];
 
 // --- Events ---
+/** One page of a list, and how many rows the filter and the search
+ *  leave in total. Every organiser list answers with this. */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
 export type EventListOut = S["EventListOut"];
 export type EventOut = S["EventOut"];
 export type EventCreate = S["EventCreate"];
 export type EventStats = S["EventStatsOut"];
+export type EventPage = S["EventPageOut"];
 export type SignupSummary = S["SignupSummaryOut"];
 export type SignupCreate = S["SignupCreate"];
 export type SignupAck = S["SignupAck"];
@@ -104,6 +114,7 @@ export type DatepollSlotOut = S["DatepollSlotOut"];
 export type PublicDatepollOut = S["PublicDatepollOut"];
 export type DatepollSubmit = S["DatepollSubmitIn"];
 export type DatepollSummary = S["DatepollSummaryOut"];
+export type DatepollPage = S["DatepollPageOut"];
 export type DatepollSlotSummary = S["DatepollSlotSummary"];
 export type DatepollSubmission = S["DatepollSubmissionOut"];
 

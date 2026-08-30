@@ -1164,18 +1164,25 @@
         "type": "object"
       },
       "CompassPoint": {
-        "description": "One dot on the map. The only identifier is the self-chosen\npseudonym, which is why the cover page says the name is going here\nbefore it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is\nsomebody who left the box empty, and their dot counts like anyone\nelse's.\n\nNo submission id: knowing which opaque id is which dot buys a\nreader nothing and costs the pseudonymity that the rest of the app\nkeeps.",
+        "description": "One dot on the map, and everybody standing on it.\n\nTwo people who answered the same way are one dot, grouped by the\ndatabase (``services/compass``): what crosses the wire is the\npicture, not the room. ``count`` is how many are in it and\n``names`` the first few of their pseudonyms, which is what the dot\nis labelled with. A ``None`` name is somebody who left the box\nempty, and their dot counts like anyone else's.\n\nNo submission ids: knowing which opaque id is which dot buys a\nreader nothing and costs the pseudonymity that the rest of the app\nkeeps.",
         "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "names": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Names",
+            "type": "array"
           },
           "x": {
             "title": "X",
@@ -1193,7 +1200,9 @@
         },
         "required": [
           "x",
-          "y"
+          "y",
+          "count",
+          "names"
         ],
         "title": "CompassPoint",
         "type": "object"
@@ -1929,6 +1938,31 @@
           "answers_editable"
         ],
         "title": "DatepollOut",
+        "type": "object"
+      },
+      "DatepollPageOut": {
+        "description": "Everything the organiser's datepoll page draws, in one read: the\npoll, the tally per date, and the per-person grid under it.\n\nThree requests before, all about the same poll. At eight organisers\nat once the waiting was the asking rather than any one answer.",
+        "properties": {
+          "datepoll": {
+            "$ref": "#/components/schemas/DatepollOut"
+          },
+          "submissions": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollSubmissionOut"
+            },
+            "title": "Submissions",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/DatepollSummaryOut"
+          }
+        },
+        "required": [
+          "datepoll",
+          "summary",
+          "submissions"
+        ],
+        "title": "DatepollPageOut",
         "type": "object"
       },
       "DatepollSlotIn": {
@@ -3276,6 +3310,51 @@
         "title": "EventOut",
         "type": "object"
       },
+      "EventPageOut": {
+        "description": "Everything the organiser's event page draws, in one read.\n\nThe page used to ask six times: the event, its sessions, the\nsign-ups and the stats of one session, and the feedback summary.\nFive of those are about the same event, and at eight organisers at\nonce the waiting was the asking rather than any one answer.\n\n``primary_occurrence_id`` is the session the page opens on, decided\nhere rather than in the browser: the soonest that has not ended,\nelse the last that ran. ``signups`` and ``stats`` are that session's;\nswitching days asks for another one.",
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/EventOut"
+          },
+          "feedback": {
+            "$ref": "#/components/schemas/FeedbackSummaryOut"
+          },
+          "occurrences": {
+            "$ref": "#/components/schemas/OccurrenceListOut"
+          },
+          "primary_occurrence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Occurrence Id"
+          },
+          "signups": {
+            "items": {
+              "$ref": "#/components/schemas/SignupSummaryOut"
+            },
+            "title": "Signups",
+            "type": "array"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/EventStatsOut"
+          }
+        },
+        "required": [
+          "event",
+          "occurrences",
+          "primary_occurrence_id",
+          "signups",
+          "stats",
+          "feedback"
+        ],
+        "title": "EventPageOut",
+        "type": "object"
+      },
       "EventStatsOut": {
         "description": "Organiser-only aggregate over the event's sign-up line items\n(attendance is per occurrence, so these are per-line-item counts).\nNever includes individual signups.",
         "properties": {
@@ -4321,8 +4400,8 @@
               "rating",
               "text",
               "short_text",
-              "single_choice",
-              "multi_choice",
+              "multiple_choice",
+              "multiple_answer",
               "number"
             ],
             "title": "Kind",
@@ -4674,7 +4753,7 @@
         "type": "object"
       },
       "FormQuestionSummary": {
-        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.\n* ``number`` \u2014 ``number_average`` with the range people used, and\n  ``number_buckets``, the histogram (``services/numbers``).",
+        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``multiple_choice`` / ``multiple_answer`` \u2014 ``choice_counts``\n  keyed by option string.\n* ``number`` \u2014 ``number_average`` with the range people used, and\n  ``number_buckets``, the histogram (``services/numbers``).",
         "properties": {
           "choice_counts": {
             "anyOf": [
@@ -5476,6 +5555,130 @@
           "assignee_name"
         ],
         "title": "OutlookShiftOut",
+        "type": "object"
+      },
+      "Page_DatepollListOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DatepollListOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "Page[DatepollListOut]",
+        "type": "object"
+      },
+      "Page_EventListOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EventListOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "Page[EventListOut]",
+        "type": "object"
+      },
+      "Page_FormListOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FormListOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "Page[FormListOut]",
+        "type": "object"
+      },
+      "Page_RosterListOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RosterListOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "per_page": {
+            "title": "Per Page",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "per_page"
+        ],
+        "title": "Page[RosterListOut]",
         "type": "object"
       },
       "PendingCountOut": {
@@ -9245,6 +9448,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -9266,11 +9508,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RosterListOut"
-                  },
-                  "title": "Response List Rosters Api V1 Chore Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_RosterListOut_"
                 }
               }
             },
@@ -9372,6 +9610,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -9393,11 +9670,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/RosterListOut"
-                  },
-                  "title": "Response List Archived Rosters Api V1 Chore Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_RosterListOut_"
                 }
               }
             },
@@ -11097,6 +11370,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -11118,11 +11430,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Forms Api V1 Compass Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },
@@ -11224,6 +11532,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -11245,11 +11592,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Archived Forms Api V1 Compass Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },
@@ -12217,6 +12560,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -12238,11 +12620,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DatepollListOut"
-                  },
-                  "title": "Response List Datepolls Api V1 Datepoll Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_DatepollListOut_"
                 }
               }
             },
@@ -12344,6 +12722,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -12365,11 +12782,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DatepollListOut"
-                  },
-                  "title": "Response List Archived Datepolls Api V1 Datepoll Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_DatepollListOut_"
                 }
               }
             },
@@ -13017,6 +13430,65 @@
         ]
       }
     },
+    "/api/v1/datepoll/{datepoll_id}/page": {
+      "get": {
+        "description": "The whole organiser page in one read. The three routes it\nreplaces stay: a poll is edited and re-read, and the download reads\nthe answers again.",
+        "operationId": "datepoll_page_api_v1_datepoll__datepoll_id__page_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "datepoll_id",
+            "required": true,
+            "schema": {
+              "title": "Datepoll Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatepollPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Datepoll Page",
+        "tags": [
+          "datepolls"
+        ]
+      }
+    },
     "/api/v1/datepoll/{datepoll_id}/restore": {
       "post": {
         "operationId": "restore_datepoll_api_v1_datepoll__datepoll_id__restore_post",
@@ -13070,69 +13542,6 @@
           }
         },
         "summary": "Restore Datepoll",
-        "tags": [
-          "datepolls"
-        ]
-      }
-    },
-    "/api/v1/datepoll/{datepoll_id}/submissions": {
-      "get": {
-        "description": "Per-submission rows, keyed by slot id. The download is its\nown route below.\n\nPrivacy: the submission id is opaque and the only respondent\nidentifier is the self-chosen pseudonym.",
-        "operationId": "datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "datepoll_id",
-            "required": true,
-            "schema": {
-              "title": "Datepoll Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DatepollSubmissionOut"
-                  },
-                  "title": "Response Datepoll Submissions Api V1 Datepoll  Datepoll Id  Submissions Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Datepoll Submissions",
         "tags": [
           "datepolls"
         ]
@@ -13258,66 +13667,9 @@
         ]
       }
     },
-    "/api/v1/datepoll/{datepoll_id}/summary": {
-      "get": {
-        "operationId": "datepoll_summary_api_v1_datepoll__datepoll_id__summary_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "datepoll_id",
-            "required": true,
-            "schema": {
-              "title": "Datepoll Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatepollSummaryOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Datepoll Summary",
-        "tags": [
-          "datepolls"
-        ]
-      }
-    },
     "/api/v1/event": {
       "get": {
+        "description": "One page of the organiser's events, what is coming first.\n\nThe search and the order are the statement's: the browser used to\ndo both over every row it had been sent.",
         "operationId": "list_events_api_v1_event_get",
         "parameters": [
           {
@@ -13337,6 +13689,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -13358,11 +13749,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EventListOut"
-                  },
-                  "title": "Response List Events Api V1 Event Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_EventListOut_"
                 }
               }
             },
@@ -13463,6 +13850,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -13484,11 +13910,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/EventListOut"
-                  },
-                  "title": "Response List Archived Events Api V1 Event Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_EventListOut_"
                 }
               }
             },
@@ -14293,64 +14715,6 @@
         ]
       }
     },
-    "/api/v1/event/{event_id}/feedback-summary": {
-      "get": {
-        "operationId": "feedback_summary_api_v1_event__event_id__feedback_summary_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FeedbackSummaryOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Feedback Summary",
-        "tags": [
-          "feedback"
-        ]
-      }
-    },
     "/api/v1/event/{event_id}/image": {
       "delete": {
         "description": "Clear the reference and delete the file. Nothing else points at\nit, so leaving it behind would be storage nobody can ever reach.",
@@ -14472,65 +14836,6 @@
           }
         },
         "summary": "Upload Event Image",
-        "tags": [
-          "events"
-        ]
-      }
-    },
-    "/api/v1/event/{event_id}/occurrences": {
-      "get": {
-        "description": "The occurrence panel on the organiser detail page: the materialised\noccurrences with per-session headcount + line-item counts, plus the\nprojected future dates that aren't rows yet. Strictly read-only per\noccurrence \u2014 the only actions are on the event itself.",
-        "operationId": "event_occurrences_api_v1_event__event_id__occurrences_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "event_id",
-            "required": true,
-            "schema": {
-              "title": "Event Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OccurrenceListOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Event Occurrences",
         "tags": [
           "events"
         ]
@@ -14671,6 +14976,65 @@
           }
         },
         "summary": "Occurrence Stats",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/v1/event/{event_id}/page": {
+      "get": {
+        "description": "The whole organiser page in one read.\n\nThe six routes below and above still exist, because switching to\nanother session asks for that session's sign-ups and stats. What\nthey stopped being is the way the page opens.",
+        "operationId": "event_page_api_v1_event__event_id__page_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Event Page",
         "tags": [
           "events"
         ]
@@ -15108,6 +15472,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -15129,11 +15532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Forms Api V1 Form Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },
@@ -15235,6 +15634,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -15256,11 +15694,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Archived Forms Api V1 Form Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },
@@ -16228,6 +16662,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -16249,11 +16722,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Forms Api V1 Quiz Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },
@@ -16355,6 +16824,45 @@
             }
           },
           {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "per_page",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Per Page",
+              "type": "integer"
+            }
+          },
+          {
             "in": "header",
             "name": "authorization",
             "required": false,
@@ -16376,11 +16884,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FormListOut"
-                  },
-                  "title": "Response List Archived Forms Api V1 Quiz Archived Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/Page_FormListOut_"
                 }
               }
             },

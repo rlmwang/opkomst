@@ -821,18 +821,24 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
     if survey is not None:
         qs = [
             _q(survey.id, 1, "rating", "Hoe tevreden ben je met de afdeling?", low="Ontevreden", high="Zeer tevreden"),
-            _q(survey.id, 2, "single_choice", "Hoe vaak kom je langs?", options=["Wekelijks", "Maandelijks", "Zelden"]),
+            _q(
+                survey.id,
+                2,
+                "multiple_choice",
+                "Hoe vaak kom je langs?",
+                options=["Wekelijks", "Maandelijks", "Zelden"],
+            ),
             _q(
                 survey.id,
                 3,
-                "multi_choice",
+                "multiple_answer",
                 "Welke thema's spreken je aan?",
                 options=["Wonen", "Klimaat", "Zorg", "Werk"],
             ),
             _q(survey.id, 4, "short_text", "Waar kunnen we mee helpen?", required=False),
             _q(survey.id, 5, "text", "Verdere opmerkingen", required=False),
         ]
-        # single_choice carries a one-element list, same shape as multi_choice.
+        # multiple_choice carries a one-element list, same shape as multiple_answer.
         _submit(survey.id, qs, "Nore", [5, ["Wekelijks"], ["Wonen", "Klimaat"], "Meer avondactiviteiten.", None])
         _submit(survey.id, qs, "Anoniem", [4, ["Maandelijks"], ["Zorg"], None, "Fijne mensen, ga zo door!"])
         _submit(survey.id, qs, "Teun", [3, ["Zelden"], ["Werk", "Wonen"], "Bijeenkomsten dichter bij het OV.", None])
@@ -841,7 +847,7 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
     # --- B. active, no submissions yet -------------------------------
     signup = _form("Aanmelding werkgroep", "Sluit je aan bij een werkgroep. We nemen daarna contact op.")
     if signup is not None:
-        _q(signup.id, 1, "single_choice", "Welke werkgroep?", options=["Wonen", "Klimaat", "Zorg"])
+        _q(signup.id, 1, "multiple_choice", "Welke werkgroep?", options=["Wonen", "Klimaat", "Zorg"])
         _q(signup.id, 2, "text", "Waarom wil je meedoen?")
 
     # --- C. archived, with a few responses ---------------------------
@@ -932,7 +938,7 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
         q = FormQuestion(
             form_id=form_id,
             ordinal=ordinal,
-            kind="single_choice",
+            kind="multiple_choice",
             prompt=prompt,
             required=required,
         )

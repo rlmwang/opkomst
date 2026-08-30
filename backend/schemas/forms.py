@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, RichText
 
-QuestionKind = Literal["rating", "text", "short_text", "single_choice", "multi_choice", "number"]
+QuestionKind = Literal["rating", "text", "short_text", "multiple_choice", "multiple_answer", "number"]
 
 # The three products the forms tables carry. A survey collects answers,
 # a quiz grades them (``docs/design-quizzes.md``), a kompas points them
@@ -84,7 +84,7 @@ class FormQuestionOptionIn(BaseModel):
 
     id: str | None = None
     label: str = Field(min_length=1, max_length=200)
-    # Kompas only, and only on a ``single_choice``: which way picking
+    # Kompas only, and only on a ``multiple_choice``: which way picking
     # this moves somebody. The service drops it elsewhere.
     pole: Pole | None = None
     # Quiz only: part of the answer key. The service drops it elsewhere.
@@ -388,20 +388,24 @@ class QuizResultOut(BaseModel):
 
 
 class CompassPoint(BaseModel):
-    """One dot on the map. The only identifier is the self-chosen
-    pseudonym, which is why the cover page says the name is going here
-    before it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is
-    somebody who left the box empty, and their dot counts like anyone
-    else's.
+    """One dot on the map, and everybody standing on it.
 
-    No submission id: knowing which opaque id is which dot buys a
+    Two people who answered the same way are one dot, grouped by the
+    database (``services/compass``): what crosses the wire is the
+    picture, not the room. ``count`` is how many are in it and
+    ``names`` the first few of their pseudonyms, which is what the dot
+    is labelled with. A ``None`` name is somebody who left the box
+    empty, and their dot counts like anyone else's.
+
+    No submission ids: knowing which opaque id is which dot buys a
     reader nothing and costs the pseudonymity that the rest of the app
     keeps."""
 
-    name: str | None = None
     x: float
     y: float
-    # True on the dot belonging to whoever is reading. Absent from the
+    count: int
+    names: list[str | None]
+    # True on the dot the reader is standing in. False throughout the
     # organiser's copy, where nobody is "you".
     you: bool = False
 
@@ -522,7 +526,7 @@ class FormQuestionSummary(BaseModel):
     * ``rating`` — ``rating_distribution`` (5-bucket counts) +
       ``rating_average``.
     * ``text`` / ``short_text`` — ``texts`` (newest first).
-    * ``single_choice`` / ``multi_choice`` — ``choice_counts``
+    * ``multiple_choice`` / ``multiple_answer`` — ``choice_counts``
       keyed by option string.
     * ``number`` — ``number_average`` with the range people used, and
       ``number_buckets``, the histogram (``services/numbers``).

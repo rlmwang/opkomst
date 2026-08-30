@@ -122,12 +122,20 @@ async def _run_case(
 BUSY = {
     "submissions_per_form": 500,
     "events": 120,
-    "dates_per_event": 2,
+    "datepoll_submissions": 60,
+    "shifts": 520,
+    "volunteers": 20,
+}
+
+# What one event looks like, whatever the scale. ``--scale`` multiplies
+# how much there is, never how big each one is: ten times the events is
+# a chapter that has been going ten times as long, and it is what a
+# read has to sift through. Ten times the people at one meeting is not
+# a bigger chapter, it is a different product.
+PER_EVENT = {
+    "dates": 2,
     "signups_per_date": 20,
     "feedback_per_date": 7,
-    "datepoll_submissions": 60,
-    "volunteers": 20,
-    "shifts": 520,
 }
 
 
@@ -343,9 +351,17 @@ def _fill_datepoll(db, tenant, target: int) -> None:
 
 
 def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
-    """A roster with two years of shifts behind it, which is what the
-    accountability page counts."""
-    from datetime import date, timedelta
+    """A roster that has been running for two years.
+
+    Running, not merely populated: the schedule page projects the rest
+    of its window on demand, and that projection is skipped entirely on
+    a roster nobody started. A roster left forming measures three
+    queries and none of the work.
+
+    Half the shifts are behind today, which is what the accountability
+    page counts, and half ahead, which is what the schedule shows.
+    """
+    from datetime import UTC, date, datetime, timedelta
 
     from backend.models import Chore, Enrollment, Roster, Shift, Volunteer
 
@@ -357,9 +373,9 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
     if not chores:
         print("  roster: no chores")
         return
+    chore_ids = [c.id for c in chores]
 
     have_volunteers = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).count()
-    people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
     rows: list[object] = []
     for n in range(have_volunteers, volunteers):
         vid = _uuid7()
@@ -369,17 +385,22 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
     if rows:
         db.bulk_save_objects(rows)
         db.commit()
-        people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
+    people = db.query(Volunteer).filter(Volunteer.roster_id == roster.id).all()
 
-    have_shifts = db.query(Shift).filter(Shift.chore_id.in_([c.id for c in chores])).count()
-    if have_shifts >= shifts:
-        print(f"  roster: {have_shifts} shifts, already at target")
-        return
-    first = date.today() - timedelta(days=730)
+    first = date.today() - timedelta(days=shifts // 2)
+    have = db.query(Shift).filter(Shift.chore_id.in_(chore_ids)).count()
+    # One shift per chore per date, so a bigger scale fills the dates
+    # around what is already there rather than colliding with it.
+    taken = {
+        (chore_id, on_date)
+        for chore_id, on_date in db.query(Shift.chore_id, Shift.on_date).filter(Shift.chore_id.in_(chore_ids)).all()
+    }
     rows = []
-    for n in range(have_shifts, shifts):
-        chore = chores[n % len(chores)]
+    for n in range(shifts):
         on = first + timedelta(days=n)
+        chore = chores[n % len(chores)]
+        if (chore.id, on) in taken:
+            continue
         who = people[n % len(people)] if people else None
         rows.append(
             Shift(
@@ -392,9 +413,42 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
                 tenant_id=tenant.id,
             )
         )
-    db.bulk_save_objects(rows)
+    if rows:
+        db.bulk_save_objects(rows)
+    if roster.activated_at is None:
+        # A forming roster projects nothing, so the page it is measured
+        # through does none of its work.
+        roster.activated_at = datetime.now(UTC)
+        roster.starts_on = first
     db.commit()
-    print(f"  roster: {have_shifts} -> {shifts} shifts, {len(people)} volunteers")
+    print(f"  roster: {have} -> {have + len(rows)} shifts, {len(people)} volunteers, running")
+
+
+def _reset() -> None:
+    """Delete what a fill wrote, so the next one starts from the demo.
+
+    Only its own rows: the events it made carry a ``bench`` slug, the
+    people it invented are named for it, and the cascades take the rest.
+    Running a smaller scale after a bigger one has to remove rows, and
+    topping up cannot."""
+    from sqlalchemy import text
+
+    from backend.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        for statement in (
+            "DELETE FROM events WHERE slug LIKE 'bench%'",
+            "DELETE FROM registrations WHERE display_name LIKE 'Bezoeker %'",
+            "DELETE FROM form_submissions WHERE display_name LIKE 'Bench %'",
+            "DELETE FROM datepoll_submissions WHERE display_name LIKE 'Bench %'",
+            "DELETE FROM volunteers WHERE display_name LIKE 'Vrijwilliger %'",
+            "DELETE FROM shifts WHERE volunteer_id IS NULL",
+        ):
+            print(f"  {statement}: {db.execute(text(statement)).rowcount}")
+        db.commit()
+    finally:
+        db.close()
 
 
 def _fill(profile: dict[str, int]) -> None:
@@ -431,9 +485,9 @@ def _fill(profile: dict[str, int]) -> None:
             chapter.id,
             organiser.id,
             events=profile["events"],
-            per_event=profile["dates_per_event"],
-            signups=profile["signups_per_date"],
-            feedback=profile["feedback_per_date"],
+            per_event=PER_EVENT["dates"],
+            signups=PER_EVENT["signups_per_date"],
+            feedback=PER_EVENT["feedback_per_date"],
         )
         _fill_datepoll(db, tenant, profile["datepoll_submissions"])
         _fill_roster(db, tenant, volunteers=profile["volunteers"], shifts=profile["shifts"])
@@ -506,22 +560,13 @@ async def _pages(client: httpx.AsyncClient, headers: dict[str, str]) -> list[Pag
     me = "/api/v1/auth/me"
     pages: list[Page] = [Page("dashboard", [me, "/api/v1/event", "/api/v1/chapters"])]
 
-    events = (await client.get("/api/v1/event", headers=headers)).json()
+    events = (await client.get("/api/v1/event", headers=headers)).json()["items"]
     if events:
         one = events[0]["id"]
-        occurrences = (await client.get(f"/api/v1/event/{one}/occurrences", headers=headers)).json()["occurrences"]
-        occ = occurrences[0]["id"] if occurrences else None
-        paths = [me, f"/api/v1/event/{one}", f"/api/v1/event/{one}/occurrences"]
-        if occ:
-            paths += [
-                f"/api/v1/event/{one}/occurrences/{occ}/signups",
-                f"/api/v1/event/{one}/occurrences/{occ}/stats",
-            ]
-        paths.append(f"/api/v1/event/{one}/feedback-summary")
-        pages.append(Page("event details", paths))
+        pages.append(Page("event details", [me, f"/api/v1/event/{one}/page"]))
 
     for noun in ("form", "quiz", "compass"):
-        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()
+        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()["items"]
         if not rows:
             continue
         one = rows[0]["id"]
@@ -530,22 +575,12 @@ async def _pages(client: httpx.AsyncClient, headers: dict[str, str]) -> list[Pag
             Page(f"{noun} details", [me, f"/api/v1/{noun}/{one}", f"/api/v1/{noun}/{one}/summary"]),
         ]
 
-    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()
+    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()["items"]
     if polls:
         one = polls[0]["id"]
-        pages.append(
-            Page(
-                "datepoll details",
-                [
-                    me,
-                    f"/api/v1/datepoll/{one}",
-                    f"/api/v1/datepoll/{one}/summary",
-                    f"/api/v1/datepoll/{one}/submissions",
-                ],
-            )
-        )
+        pages.append(Page("datepoll details", [me, f"/api/v1/datepoll/{one}/page"]))
 
-    rosters = (await client.get("/api/v1/chore", headers=headers)).json()
+    rosters = (await client.get("/api/v1/chore", headers=headers)).json()["items"]
     if rosters:
         one = rosters[0]["id"]
         pages.append(
@@ -579,7 +614,7 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
     ]
 
     for noun in ("form", "quiz", "compass"):
-        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()
+        rows = (await client.get(f"/api/v1/{noun}", headers=headers)).json()["items"]
         if not rows:
             continue
         one = rows[0]
@@ -591,17 +626,16 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case(f"{noun} public", f"/api/v1/{noun}/by-slug/{one['slug']}", auth=False),
         ]
 
-    events = (await client.get("/api/v1/event", headers=headers)).json()
+    events = (await client.get("/api/v1/event", headers=headers)).json()["items"]
     if events:
         one = events[0]
         cases += [
             Case("event details", f"/api/v1/event/{one['id']}"),
-            Case("event occurrences", f"/api/v1/event/{one['id']}/occurrences"),
-            Case("event feedback-summary", f"/api/v1/event/{one['id']}/feedback-summary"),
+            Case("event page", f"/api/v1/event/{one['id']}/page"),
             Case("event feedback csv", f"/api/v1/event/{one['id']}/feedback-submissions.csv"),
         ]
 
-    rosters = (await client.get("/api/v1/chore", headers=headers)).json()
+    rosters = (await client.get("/api/v1/chore", headers=headers)).json()["items"]
     if rosters:
         cases += [
             Case("roster details", f"/api/v1/chore/{rosters[0]['id']}"),
@@ -609,10 +643,10 @@ async def _discover(client: httpx.AsyncClient, headers: dict[str, str]) -> list[
             Case("roster accountability", f"/api/v1/chore/{rosters[0]['id']}/accountability"),
         ]
 
-    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()
+    polls = (await client.get("/api/v1/datepoll", headers=headers)).json()["items"]
     if polls:
         cases += [
-            Case("datepoll summary", f"/api/v1/datepoll/{polls[0]['id']}/summary"),
+            Case("datepoll page", f"/api/v1/datepoll/{polls[0]['id']}/page"),
             Case("datepoll csv", f"/api/v1/datepoll/{polls[0]['id']}/submissions.csv"),
         ]
 
@@ -633,14 +667,20 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=DEFAULT_BASE)
     parser.add_argument("--fill", action="store_true", help="fill every table to the BUSY profile first")
+    parser.add_argument("--scale", type=int, default=1, help="multiply the BUSY profile by this")
+    parser.add_argument("--reset", action="store_true", help="delete what a previous fill wrote, first")
     parser.add_argument("--requests", type=int, default=40, help="requests per endpoint per level")
     parser.add_argument("--levels", default="1,8", help="concurrency levels, comma separated")
     parser.add_argument("--only", choices=("pages", "endpoints"), help="measure just one of the two tables")
     args = parser.parse_args()
 
+    if args.reset:
+        _reset()
+
     if args.fill:
-        print(f"filling to the busy profile: {BUSY}")
-        _fill(BUSY)
+        profile = {k: v * args.scale for k, v in BUSY.items()}
+        print(f"filling to {args.scale}x busy: {profile}")
+        _fill(profile)
 
     levels = [int(n) for n in args.levels.split(",")]
     # One page load is up to six requests, so the pool has to hold

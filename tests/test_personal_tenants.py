@@ -147,7 +147,7 @@ def test_it_sees_its_own_rows_despite_having_no_chapters(client, personal, db) -
     created = client.post("/api/v1/event", json=_event_payload(), headers=headers)
     assert created.status_code == 201
     listed = client.get("/api/v1/event", headers=headers)
-    assert [e["id"] for e in listed.json()] == [created.json()["id"]]
+    assert [e["id"] for e in listed.json()["items"]] == [created.json()["id"]]
     assert access.is_personal(db, user) is True
 
 
@@ -157,7 +157,7 @@ def test_it_cannot_see_another_tenants_rows(client, personal, db, chapter_id, ad
     theirs = client.post("/api/v1/event", json=_event_payload(chapter_id=chapter_id), headers=admin_headers)
     assert theirs.status_code == 201, theirs.text
     _, _, headers = personal
-    assert client.get("/api/v1/event", headers=headers).json() == []
+    assert client.get("/api/v1/event", headers=headers).json()["items"] == []
     assert client.get(f"/api/v1/event/{theirs.json()['id']}", headers=headers).status_code == 404
 
 

@@ -51,7 +51,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
         },
     )
     eid = r.json()["id"]
-    occ = client.get(f"/api/v1/event/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{eid}/page", headers=organiser_headers).json()["occurrences"]["occurrences"][0]
     client.post(
         f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={

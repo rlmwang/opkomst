@@ -45,7 +45,7 @@ from ..models import CompassAxis
 # rather than degrees. Nothing else: a multi-choice answer pulls three
 # ways at once, a number has no direction, and no rule points a
 # paragraph anywhere.
-COMPASS_KINDS: Final[frozenset[str]] = frozenset({"rating", "single_choice"})
+COMPASS_KINDS: Final[frozenset[str]] = frozenset({"rating", "multiple_choice"})
 
 # The four tokens a pole can be: an axis, and a direction along it.
 AXES: Final[tuple[str, str]] = ("x", "y")
@@ -95,15 +95,47 @@ class Position:
         return self.x if axis == "x" else self.y
 
 
+# How many names a spot carries out of the database. A dot is labelled
+# with who is in it, and past a handful that label is a wall of text
+# nobody reads: the ones that fit, then an ellipsis. Reading every name
+# of a spot holding nine hundred people is not a thing anybody does, so
+# they are not sent.
+NAMES_PER_SPOT: Final[int] = 5
+
+
+@dataclass(frozen=True, slots=True)
+class Spot:
+    """One dot on the map: where it is, how many people are in it, and
+    the first few of their pseudonyms."""
+
+    x: float
+    y: float
+    count: int
+    names: list[str | None]
+    you: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Room:
+    """The whole map in one read: every dot, and where the room sits on
+    each axis with the interval around it."""
+
+    spots: list[Spot]
+    axes: dict[str, tuple[float, float, float]]
+
+
 # What one answer is worth: an axis, and a value in [-1, 1].
 #
-# The three rules the page describes, as SQL. A rating poles the
+# The two rules the page describes, as SQL. A rating poles the
 # statement, so a 5 is all the way toward that side and a 1 all the way
-# to the other. A choice poles each option and lands on its own end, and
-# only a single pick counts: a question answered with two ticks points
-# two ways at once, which is not a direction. An answer that says
-# nothing about either axis contributes no row at all, which is how a
-# skipped question stops counting rather than counting as a zero.
+# to the other. A choice poles each option and lands on its own end.
+#
+# One row per answer, because that is what a kompas can be asked: the
+# two kinds it allows are a rating and a pick-one, and a pick-one is
+# refused at the door unless it carries exactly one tick. An answer
+# that says nothing about either axis contributes no row at all, which
+# is how a skipped question stops counting rather than counting as a
+# zero.
 _CONTRIBUTION_CTE = """
 SELECT r.submission_id,
        r.question_id,
@@ -128,9 +160,8 @@ JOIN form_questions q ON q.id = r.question_id
 JOIN form_response_choices c ON c.response_id = r.id
 JOIN form_question_options o ON o.id = c.option_id
 WHERE r.form_id = :form_id
-  AND q.kind = 'single_choice'
+  AND q.kind = 'multiple_choice'
   AND o.pole = ANY(:poles)
-  AND (SELECT count(*) FROM form_response_choices c2 WHERE c2.response_id = r.id) = 1
 """
 
 # A position is the mean per axis, so an unbalanced kompas still reads
@@ -172,13 +203,14 @@ WHERE k.submission_id = :submission_id
 )
 
 
-def params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
+def params(form_id: str, submission_id: str | None = None, you: str | None = None) -> dict[str, Any]:
     """The rules the statements are parameterised on, so the numbers
     that define the scale live in one place and Python and SQL cannot
     disagree about them."""
     return {
         "form_id": form_id,
         "submission_id": submission_id,
+        "you": you,
         "midpoint": RATING_MIDPOINT,
         "half_range": RATING_HALF_RANGE,
         "poles": sorted(POLES),
@@ -233,11 +265,13 @@ def axes_of(db: Session, form_id: str) -> list[Any]:
 # ``stddev_samp`` is null at n = 1, and coalescing the half-width to
 # zero says the same thing. The ends are clamped to [-1, 1] because the
 # axis has no outside.
-_AXIS_STATS_SQL = text(
+_ROOM_SQL = text(
     f"""
 WITH contribution AS ({_CONTRIBUTION_CTE}),
 place AS (
     SELECT s.id,
+           s.display_name,
+           s.created_at,
            coalesce(avg(k.value) FILTER (WHERE k.axis = 'x'), 0) AS x,
            coalesce(avg(k.value) FILTER (WHERE k.axis = 'y'), 0) AS y
     FROM form_submissions s
@@ -261,26 +295,67 @@ t95 (df, crit) AS (
            (16, 2.120), (17, 2.110), (18, 2.101), (19, 2.093), (20, 2.086),
            (21, 2.080), (22, 2.074), (23, 2.069), (24, 2.064), (25, 2.060),
            (26, 2.056), (27, 2.052), (28, 2.048), (29, 2.045), (30, 2.042)
+),
+band AS (
+    SELECT room.axis,
+           round(room.mean, 3)::float AS average,
+           round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
+           round(least(1, room.mean + half.width), 3)::float AS ci_high
+    FROM room
+    LEFT JOIN t95 ON t95.df = room.n - 1
+    CROSS JOIN LATERAL (
+        SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
+    ) half
+),
+spot AS (
+    -- Two people who answered the same way are one dot, which is what
+    -- the map has always drawn: jitter would put a dot where nobody
+    -- is. Grouped here rather than in the browser, so what crosses the
+    -- wire is the picture and not the room.
+    SELECT round(x, 3)::float AS x,
+           round(y, 3)::float AS y,
+           count(*)::int AS people,
+           (array_agg(display_name ORDER BY created_at))[1:{NAMES_PER_SPOT}] AS names,
+           -- Null-safe: with no reader, every comparison is null and
+           -- so is the aggregate, which is not what "nobody is you"
+           -- means.
+           coalesce(bool_or(id = cast(:you AS text)), false) AS you
+    FROM place
+    GROUP BY round(x, 3), round(y, 3)
 )
-SELECT room.axis,
-       round(room.mean, 3)::float AS average,
-       round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
-       round(least(1, room.mean + half.width), 3)::float AS ci_high
-FROM room
-LEFT JOIN t95 ON t95.df = room.n - 1
-CROSS JOIN LATERAL (
-    SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
-) half
+SELECT
+    (
+        SELECT coalesce(
+            json_agg(
+                json_build_object('x', x, 'y', y, 'count', people, 'names', names, 'you', you)
+                ORDER BY people DESC, x, y
+            ),
+            '[]'::json
+        )
+        FROM spot
+    ) AS spots,
+    (
+        SELECT coalesce(json_object_agg(axis, json_build_array(average, ci_low, ci_high)), '{{}}'::json)
+        FROM band
+    ) AS axes
 """
 )
 
 
-def axis_stats(db: Session, form_id: str) -> dict[str, tuple[float, float, float]]:
-    """Axis name to the room's mean and the two ends of the interval
-    around it. Empty before anybody has filled the kompas in."""
-    return {
-        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, params(form_id)).all()
-    }
+def room(db: Session, form_id: str, you: str | None = None) -> Room:
+    """The map: one row per occupied spot, and where the room sits on
+    each axis.
+
+    One statement, at three grains that are all the same coordinates:
+    per person to place them, per spot to draw them, per axis for the
+    band underneath. ``you`` is the reader's own submission, marked on
+    the spot it landed in, and left out of the organiser's copy where
+    nobody is "you"."""
+    row = db.execute(_ROOM_SQL, params(form_id, you=you)).one()
+    return Room(
+        spots=[Spot(x=s["x"], y=s["y"], count=s["count"], names=s["names"], you=s["you"]) for s in row.spots],
+        axes={axis: (band[0], band[1], band[2]) for axis, band in (row.axes or {}).items()},
+    )
 
 
 # --- What the organiser is refused ------------------------------------

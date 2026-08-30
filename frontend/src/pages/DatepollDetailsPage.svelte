@@ -10,9 +10,7 @@ import TallyLegend, { type LegendItem } from "@/components/TallyLegend.svelte";
 import RouterLink from "@/router/RouterLink.svelte";
 import {
   type DatepollSubmission,
-  datepollSummaryQuery,
-  datepolls,
-  fetchDatepollSubmissions,
+  datepollPageQuery,
 } from "@/composables/useDatepolls.svelte";
 import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
@@ -42,31 +40,19 @@ const share = shareClipboard({
   copyPrefix: "datepoll.share",
 });
 
-const query = datepolls.single(() => datepollId);
-const poll = $derived(query.data ?? null);
+// One read for the whole page (``useDatepolls``): the poll, the tally
+// per date, and the per-person grid under it.
+const query = datepollPageQuery(() => datepollId);
+const poll = $derived(query.data?.datepoll ?? null);
 const notFound = $derived(query.error instanceof ApiError && query.error.status === 404);
+const summary = $derived(query.data?.summary ?? null);
+const subs = $derived(query.data?.submissions ?? []);
 
-const summaryQuery = datepollSummaryQuery(() => datepollId);
-const summary = $derived(summaryQuery.data ?? null);
-
-// The per-person rows, fetched alongside the tallies so the grid paints
-// with them. A failure leaves the grid out; the bars still say what
-// people picked.
-let subs = $state<DatepollSubmission[]>([]);
-$effect(() => {
-  void (async () => {
-    try {
-      subs = await fetchDatepollSubmissions(datepollId);
-    } catch {
-      /* the grid stays empty; the tallies still render */
-    }
-  })();
-});
-
-/** The rows behind the responses pill's recovery popover. */
+/** The rows behind the responses pill's recovery popover. Asked again
+ *  each time it opens, so a stamp from a moment ago is never stale. */
 async function recoverRows(): Promise<RecoverableRow[]> {
-  const rows = await fetchDatepollSubmissions(datepollId);
-  return rows.map((s) => ({
+  const rows = (await query.refetch())?.submissions ?? subs;
+  return rows.map((s: DatepollSubmission) => ({
     id: s.submission_id,
     name: s.display_name,
     recoveredAt: s.link_recovered_at ?? null,

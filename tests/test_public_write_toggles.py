@@ -44,7 +44,7 @@ def _event(client: Any, headers: Any, **over: Any) -> dict[str, Any]:
     r = client.post("/api/v1/event", headers=headers, json=body)
     assert r.status_code == 201, r.text
     made = r.json()
-    listed = client.get(f"/api/v1/event/{made['id']}/occurrences", headers=headers).json()
+    listed = client.get(f"/api/v1/event/{made['id']}/page", headers=headers).json()["occurrences"]
     made["_occurrence_slug"] = listed["occurrences"][0]["slug"]
     return made
 

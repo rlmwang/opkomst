@@ -24,9 +24,9 @@ const share = shareClipboard({
 
 /** Newest first: a roster is made once and then lived in, so the one
  *  just created is the one being set up. */
-const sorted = $derived(
-  [...(query.data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
-);
+// Newest first is the statement's order, and the list arrives one page
+// at a time.
+const page = $derived(query.data ?? null);
 
 function summary(r: RosterListOut): string {
   const cadence =
@@ -40,7 +40,9 @@ function summary(r: RosterListOut): string {
 <EntityListPage
   {copy}
   {list}
-  items={sorted}
+  items={page?.items ?? []}
+  total={page?.total ?? 0}
+  perPage={page?.per_page ?? 0}
   loaded={!auth.isApproved || !query.isPending}
   isError={query.isError}
   newPath="/chore/new"

@@ -176,7 +176,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 if not text:
                     continue
                 submitted[q.id] = {"answer_text": text}
-            elif q.kind == "single_choice":
+            elif q.kind == "multiple_choice":
                 choices = ans.answer_choices or []
                 if not choices:
                     continue
@@ -185,7 +185,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 if choices[0] not in {o.id for o in q.options}:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choice not in options.")
                 submitted[q.id] = {"answer_choices": list(choices)}
-            elif q.kind == "multi_choice":
+            elif q.kind == "multiple_answer":
                 choices = ans.answer_choices or []
                 if not choices:
                     # On a quiz, ticking nothing is an answer: "none of
@@ -352,7 +352,10 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 )
             )
         answers.sort(key=lambda a: by_id[a.question_id].ordinal)
-        places = forms_svc.compass_places(db, form, questions)
+        # The axes and the dots come out of one read, with this person's
+        # own dot marked in it.
+        room = forms_svc.compass_summary(db, form, you=submission.id)
+        assert room is not None
         return CompassResultOut(
             submission_id=submission.id,
             edit_token=token,
@@ -362,9 +365,9 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             y=place.y,
             counted_x=place.counted_x,
             counted_y=place.counted_y,
-            axes=forms_svc.compass_axis_summaries(db, form),
+            axes=room.axes,
             answers=answers,
-            points=forms_svc.compass_points(db, form, places, you=submission.id),
+            points=room.points,
         )
 
     @router.post(

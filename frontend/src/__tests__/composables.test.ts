@@ -231,13 +231,13 @@ describe("the event writes", () => {
     expect(mockPost).toHaveBeenCalledWith("/api/v1/event/ev1/restore");
   });
 
-  it("occurrencesQuery GETs the occurrence panel URL", async () => {
-    const { occurrencesQuery } = await import("@/composables/useEvents.svelte");
-    mockGet.mockResolvedValueOnce({ total_sessions: 6, occurrences: [], projected: [] });
+  it("eventPageQuery GETs the one read behind the details page", async () => {
+    const { eventPageQuery } = await import("@/composables/useEvents.svelte");
+    mockGet.mockResolvedValueOnce({ event: {}, occurrences: {}, signups: [], stats: {}, feedback: {} });
 
-    await inEffect(() => occurrencesQuery(() => "ev1").refetch());
+    await inEffect(() => eventPageQuery(() => "ev1").refetch());
 
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/event/ev1/occurrences");
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/event/ev1/page");
   });
 
   it("deleteSignup DELETEs the line-item URL", async () => {

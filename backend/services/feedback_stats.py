@@ -14,7 +14,7 @@ from sqlalchemy import distinct, func, text
 from sqlalchemy.orm import Session
 
 from ..models import EmailChannel, EmailDispatch, EmailSendCount, FeedbackResponse, Occurrence, Signup
-from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary
+from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary, FeedbackSummaryOut
 from .feedback_questions import QUESTIONS
 from .ratings import rating_distribution
 
@@ -190,6 +190,21 @@ FROM submitted
 ORDER BY submitted.at
 """
 )
+
+
+def summary(db: Session, event_id: str) -> FeedbackSummaryOut:
+    """What the organiser is told about the feedback: how many answered
+    against how many were asked, how the mail went, and the tally per
+    question."""
+    submissions = submission_count(db, event_id)
+    signups = signup_count(db, event_id)
+    return FeedbackSummaryOut(
+        submission_count=submissions,
+        signup_count=signups,
+        response_rate=(submissions / signups) if signups else 0.0,
+        email_health=email_health(db, event_id, signups),
+        questions=question_aggregates(db, event_id),
+    )
 
 
 def submissions_csv(db: Session, event_id: str) -> tuple[list[str], Iterator[Sequence[Any]]]:

@@ -203,6 +203,18 @@ class DatepollSummaryOut(BaseModel):
     best_slot_id: str | None = None
 
 
+class DatepollPageOut(BaseModel):
+    """Everything the organiser's datepoll page draws, in one read: the
+    poll, the tally per date, and the per-person grid under it.
+
+    Three requests before, all about the same poll. At eight organisers
+    at once the waiting was the asking rather than any one answer."""
+
+    datepoll: "DatepollOut"
+    summary: "DatepollSummaryOut"
+    submissions: list["DatepollSubmissionOut"]
+
+
 class DatepollSubmissionOut(BaseModel):
     """One submission as a flat row for the CSV export. ``answers`` is
     keyed by ``datepoll_slot_id``. ``display_name`` is the self-chosen

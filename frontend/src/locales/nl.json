@@ -23,7 +23,10 @@
     "advancedShow": "Geavanceerde opties tonen",
     "advancedHide": "Geavanceerde opties verbergen",
     "clear": "Wissen",
-    "noResults": "Geen resultaten"
+    "noResults": "Geen resultaten",
+    "pages": "Pagina's",
+    "previousPage": "Vorige",
+    "nextPage": "Volgende"
   },
   "recoverLink": {
     "open": "Aanmeldingen bekijken",
@@ -282,8 +285,8 @@
         "rating": "Beoordeling",
         "text": "Tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Meerkeuze",
-        "multi_choice": "Meerdere antwoorden",
+        "multiple_choice": "Meerkeuze",
+        "multiple_answer": "Meerdere antwoorden",
         "number": "Getal"
       },
       "responsesTitle": "Inzendingen",
@@ -340,8 +343,8 @@
         "rating": "Score (1-5)",
         "text": "Lange tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Meerkeuze",
-        "multi_choice": "Meerdere antwoorden",
+        "multiple_choice": "Meerkeuze",
+        "multiple_answer": "Meerdere antwoorden",
         "number": "Getal"
       },
       "required": "Verplicht",

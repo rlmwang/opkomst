@@ -1,5 +1,6 @@
 import { del, post, put } from "@/api/client";
 import { apiQuery } from "@/api/queries.svelte";
+import type { Page } from "@/api/types";
 import { queryClient } from "@/lib/query-client";
 
 import { mutation } from "./mutation.svelte";
@@ -16,8 +17,9 @@ import { mutation } from "./mutation.svelte";
  * plus only what genuinely differs: entity-specific reads like stats and
  * summaries, public-by-slug, and any optimistic write.
  *
- * Query keys: ``[resource, "active", {chapter}]``, ``[resource,
- * "archived", {chapter}]``, ``[resource, "single", id]``.
+ * Query keys: ``[resource, "active", {chapter, page, q}]``,
+ * ``[resource, "archived", {chapter, page, q}]``, ``[resource,
+ * "single", id]``.
  */
 export function createEntityCrud<TList, TSingle, TCreate, TUpdate = TCreate>(opts: {
   resource: string;
@@ -26,27 +28,47 @@ export function createEntityCrud<TList, TSingle, TCreate, TUpdate = TCreate>(opt
   const base = `/api/v1/${resource}`;
   const invalidateLists = () => void queryClient.invalidateQueries({ queryKey: [resource] });
 
+  /** What the server needs to answer with one page: the chapter, the
+   *  page number and the search box. Everything the list is looking at
+   *  is in the query key, so narrowing it is a fresh cache entry and
+   *  going back is not a request. */
+  type Window = {
+    enabled?: () => boolean;
+    chapterId?: () => string | null;
+    page?: () => number;
+    search?: () => string;
+  };
+
+  function where(o: Window) {
+    return { chapter: o.chapterId?.() ?? null, page: o.page?.() ?? 1, q: o.search?.() ?? "" };
+  }
+
+  function url(path: string, o: Window) {
+    const params = new URLSearchParams();
+    const chapter = o.chapterId?.();
+    if (chapter) params.set("chapter_id", chapter);
+    const page = o.page?.() ?? 1;
+    if (page > 1) params.set("page", String(page));
+    const q = o.search?.().trim();
+    if (q) params.set("q", q);
+    const query = params.toString();
+    return query ? `${path}?${query}` : path;
+  }
+
   /** Active list, chapter-scoped. A null chapter is every chapter the
-   *  user belongs to. The filter is in the query key, so changing the
-   *  dropdown produces a fresh cache entry. */
-  function list(o: { enabled?: () => boolean; chapterId?: () => string | null } = {}) {
-    return apiQuery<TList[]>(
-      () => [resource, "active", { chapter: o.chapterId?.() ?? null }],
-      () => {
-        const cid = o.chapterId?.();
-        return cid ? `${base}?chapter_id=${encodeURIComponent(cid)}` : base;
-      },
+   *  user belongs to. */
+  function list(o: Window = {}) {
+    return apiQuery<Page<TList>>(
+      () => [resource, "active", where(o)],
+      () => url(base, o),
       { enabled: o.enabled },
     );
   }
 
-  function archived(o: { chapterId?: () => string | null } = {}) {
-    return apiQuery<TList[]>(
-      () => [resource, "archived", { chapter: o.chapterId?.() ?? null }],
-      () => {
-        const cid = o.chapterId?.();
-        return cid ? `${base}/archived?chapter_id=${encodeURIComponent(cid)}` : `${base}/archived`;
-      },
+  function archived(o: Window = {}) {
+    return apiQuery<Page<TList>>(
+      () => [resource, "archived", where(o)],
+      () => url(`${base}/archived`, o),
     );
   }
 

@@ -1,6 +1,7 @@
 <script lang="ts" generics="T extends { id: string }">
 import type { Snippet } from "svelte";
 
+import AppButton from "@/components/AppButton.svelte";
 import SelectField from "@/components/SelectField.svelte";
 import AppCard from "@/components/AppCard.svelte";
 import AppHeader from "@/components/AppHeader.svelte";
@@ -16,15 +17,14 @@ import { t } from "@/i18n.svelte";
  * controls), the loading skeleton, and the empty-state / no-match
  * branches.
  *
- * Per-page concerns stay outside the shell: the data source (a
- * Vue Query composable), sort order (applied to ``items`` before
- * it arrives), pre-shell guard banners (e.g. the "no chapters
- * yet" onboarding card), mutation handlers, error toasts.
+ * Per-page concerns stay outside the shell: the data source, pre-shell
+ * guard banners (e.g. the "no chapters yet" onboarding card), mutation
+ * handlers, error toasts.
  *
- * Search is name+free-text — the parent supplies a
- * ``searchKeys`` function that returns the haystack strings for
- * a row. The filter is case-insensitive substring across the
- * returned strings.
+ * The search box and the page numbers are the request. An organisation
+ * runs thousands of events, so the list arrives one page at a time
+ * ordered and filtered by the database; this used to hold every row and
+ * hide the ones that did not match what you typed.
  */
 interface ChapterOption {
   id: string;
@@ -39,7 +39,10 @@ let {
   chapterFilter = $bindable(),
   chapterOptions,
   searchPlaceholder,
-  searchKeys,
+  search = $bindable(),
+  page = $bindable(),
+  total,
+  perPage,
   emptyCopy,
   noMatchesCopy,
   skeletonRows,
@@ -53,9 +56,12 @@ let {
   chapterFilter: string | null;
   chapterOptions: ChapterOption[];
   searchPlaceholder: string;
-  /** Strings to search through for a given row. Several haystacks mean
-   *  any-substring match. */
-  searchKeys: (item: T) => string[];
+  /** What is typed in the search box. The server does the matching. */
+  search: string;
+  /** Which page is on screen, one-based, and what it is one of. */
+  page: number;
+  total: number;
+  perPage: number;
   emptyCopy: string;
   noMatchesCopy: string;
   skeletonRows?: number;
@@ -63,12 +69,21 @@ let {
   row: Snippet<[{ item: T }]>;
 } = $props();
 
-let query = $state("");
+const pages = $derived(Math.max(1, Math.ceil(total / perPage)));
 
-const filtered = $derived.by(() => {
-  const q = query.trim().toLowerCase();
-  if (!q) return items;
-  return items.filter((item) => searchKeys(item).some((s) => s.toLowerCase().includes(q)));
+/** The numbers to draw. Every page when there are few, and a window
+ *  around the current one when there are many, so the row of buttons
+ *  stays the same width at page 3 and at page 300. */
+const numbers = $derived.by(() => {
+  if (pages <= 7) return Array.from({ length: pages }, (_, i) => i + 1);
+  const around = [page - 1, page, page + 1].filter((n) => n > 1 && n < pages);
+  const shown = [1, ...around, pages];
+  const out: (number | "gap")[] = [];
+  for (const [i, n] of shown.entries()) {
+    if (i > 0 && n - (shown[i - 1] as number) > 1) out.push("gap");
+    out.push(n);
+  }
+  return out;
 });
 </script>
 
@@ -93,25 +108,74 @@ const filtered = $derived.by(() => {
         class="chapter-filter"
       />
     {/if}
-    <SearchInput bind:value={query} placeholder={searchPlaceholder} class="search" />
+    <SearchInput bind:value={search} placeholder={searchPlaceholder} class="search" />
   </div>
 
   {#if !loaded}
     <AppSkeleton rows={skeletonRows ?? 3} cards />
-  {:else if items.length === 0}
+  {:else if total === 0 && !search}
     <AppCard stack={false}>
       <p class="muted">{emptyCopy}</p>
     </AppCard>
-  {:else if filtered.length === 0}
+  {:else if total === 0}
     <p class="muted">{noMatchesCopy}</p>
   {:else}
-    {#each filtered as item (item.id)}
+    {#each items as item (item.id)}
       {@render row({ item })}
     {/each}
+
+    {#if pages > 1}
+      <nav class="pages" aria-label={t("common.pages")}>
+        <AppButton
+          label={t("common.previousPage")}
+          size="small"
+          severity="secondary"
+          text
+          disabled={page <= 1}
+          onclick={() => (page = page - 1)}
+        />
+        {#each numbers as n, i (`${n}-${i}`)}
+          {#if n === "gap"}
+            <span class="gap" aria-hidden="true">…</span>
+          {:else}
+            <AppButton
+              label={String(n)}
+              size="small"
+              severity="secondary"
+              text={n !== page}
+              onclick={() => (page = n)}
+            />
+          {/if}
+        {/each}
+        <AppButton
+          label={t("common.nextPage")}
+          size="small"
+          severity="secondary"
+          text
+          disabled={page >= pages}
+          onclick={() => (page = page + 1)}
+        />
+      </nav>
+    {/if}
   {/if}
 </div>
 
 <style>
+/* The page numbers, centred under the rows: previous, the window of
+ * numbers, next. Wraps on a phone rather than scrolling sideways. */
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding-top: 0.5rem;
+}
+.gap {
+  padding: 0 0.25rem;
+  color: var(--brand-text-muted);
+}
+
 .actions-row {
   display: flex;
   flex-wrap: wrap;

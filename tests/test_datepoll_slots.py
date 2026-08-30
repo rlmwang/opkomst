@@ -49,7 +49,7 @@ def test_edit_preserves_kept_slot_id_and_responses(client, organiser_headers):
     assert kept_after["id"] == kept_id  # same row, matched on the natural key
     assert {s["on_date"] for s in out["slots"]} == {"2026-07-01", "2026-07-09"}
     # The response on the kept slot survived.
-    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["summary"]
     kept_summary = next(s for s in summary["slots"] if s["id"] == kept_id)
     assert kept_summary["yes"] == 1
 

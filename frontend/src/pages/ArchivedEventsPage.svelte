@@ -15,12 +15,18 @@ const list = archivedList<EventListOut>({
   remove: remove.run,
   prefix: "archived",
 });
-const query = events.archived({ chapterId: () => list.chapter.value });
+const query = events.archived({
+  chapterId: () => list.chapter.value,
+  page: () => list.chapter.page,
+  search: () => list.chapter.search,
+});
 </script>
 
 <ArchivedListPage
   copy={(key: string) => t(`archived.${key}`)}
-  items={query.data ?? []}
+  items={query.data?.items ?? []}
+  total={query.data?.total ?? 0}
+  perPage={query.data?.per_page ?? 0}
   loaded={!query.isPending}
   {list}
 >

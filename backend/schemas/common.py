@@ -142,3 +142,18 @@ class EditLinkRecoverOut(BaseModel):
     four submission types."""
 
     edit_token: str
+
+
+class Page[T](BaseModel):
+    """One page of a list, and how many there are in total.
+
+    Every organiser list is paged: an organisation runs thousands of
+    events and polls with twenty sign-ups each, and the dashboard drew
+    thirty cards out of every one of them. ``total`` is what the page
+    numbers are counted from, so it counts the rows the filter and the
+    search leave, not the table."""
+
+    items: list[T]
+    total: int
+    page: int
+    per_page: int

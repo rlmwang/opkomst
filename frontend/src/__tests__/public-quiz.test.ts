@@ -46,7 +46,7 @@ const QUIZ = {
     {
       id: "one",
       ordinal: 1,
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Hoofdstad?",
       required: true,
       options: [{ id: "opt-rotterdam", label: "Rotterdam" }, { id: "opt-amsterdam", label: "Amsterdam" }],

@@ -46,6 +46,7 @@ from ..models import (
     FormSubmission,
     User,
 )
+from ..schemas.common import Page
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -64,6 +65,7 @@ from ..schemas.forms import (
 from . import access, compass, numbers, public_access, quizzes, tenancy
 from . import archive as archive_svc
 from . import image as image_svc
+from .paging import Paging, matching
 from .ratings import rating_distribution
 
 if TYPE_CHECKING:
@@ -74,7 +76,7 @@ if TYPE_CHECKING:
 # ``QuestionKind`` literal. ``_CHOICE_KINDS`` is the subset that
 # carries an options list.
 ALLOWED_KINDS: Final[frozenset[str]] = frozenset(get_args(QuestionKind))
-_CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice"})
+_CHOICE_KINDS: Final[frozenset[str]] = frozenset({"multiple_choice", "multiple_answer"})
 _TEXT_KINDS: Final[frozenset[str]] = frozenset({"text", "short_text"})
 
 
@@ -238,7 +240,7 @@ def _apply_options(
     existing = {o.id: o for o in question.options}
     seen: set[str] = set()
     for ordinal, opt in enumerate(payload, start=1):
-        pole = opt.pole if pointed and question.kind == "single_choice" else None
+        pole = opt.pole if pointed and question.kind == "multiple_choice" else None
         correct = bool(opt.is_correct) if scored else False
         if opt.id and opt.id in existing:
             row = existing[opt.id]
@@ -487,7 +489,7 @@ FULL_COLUMNS = (
 )
 
 
-def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) -> list[FormListOut]:
+def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None, page: Paging) -> Page[FormListOut]:
     """The organiser's list of one product, in one statement.
 
     The row, its chapter's name and how many people filled it in, asked
@@ -495,31 +497,43 @@ def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) ->
     Python. The count is a scalar subquery rather than a join to
     ``form_submissions``, so one form stays one row."""
     submissions_count = select(func.count(FormSubmission.id)).where(FormSubmission.form_id == Form.id).scalar_subquery()
+    where = (
+        access.list_filter(db, user, Form, chapter_id),
+        Form.mode == mode,
+        Form.archived_at.is_(None),
+        *matching(page.q, Form.name_nl, Form.name_en),
+    )
     rows = db.execute(
         select(*LIST_COLUMNS, Chapter.name.label("chapter_name"), submissions_count.label("submission_count"))
         .select_from(Form)
         .outerjoin(Chapter, and_(Chapter.id == Form.chapter_id, Chapter.deleted_at.is_(None)))
         # The table holds three products, so the mode predicate is part
         # of every read of it (``query``).
-        .where(access.list_filter(db, user, Form, chapter_id), Form.mode == mode, Form.archived_at.is_(None))
+        .where(*where)
         .order_by(Form.created_at.desc())
+        .limit(page.per_page)
+        .offset(page.offset)
     ).all()
-    return [
-        FormListOut(
-            id=r.id,
-            slug=r.slug,
-            mode=as_mode(r.mode),
-            name_nl=r.name_nl,
-            name_en=r.name_en,
-            locale=r.locale,
-            chapter_id=r.chapter_id,
-            chapter_name=r.chapter_name,
-            archived=r.archived_at is not None,
-            created_at=r.created_at,
-            submission_count=int(r.submission_count or 0),
-        )
-        for r in rows
-    ]
+    total = db.execute(select(func.count()).select_from(Form).where(*where)).scalar_one()
+    return page.of(
+        total,
+        [
+            FormListOut(
+                id=r.id,
+                slug=r.slug,
+                mode=as_mode(r.mode),
+                name_nl=r.name_nl,
+                name_en=r.name_en,
+                locale=r.locale,
+                chapter_id=r.chapter_id,
+                chapter_name=r.chapter_name,
+                archived=r.archived_at is not None,
+                created_at=r.created_at,
+                submission_count=int(r.submission_count or 0),
+            )
+            for r in rows
+        ],
+    )
 
 
 def enrich(db: Session, forms: Sequence[Any]) -> list[FormListOut]:
@@ -860,7 +874,7 @@ def question_aggregates(
     * ``rating`` — 5-bucket distribution + average.
     * ``number`` — average, lowest, highest.
     * ``text`` / ``short_text`` — raw answers, newest first.
-    * ``single_choice`` / ``multi_choice`` — option → count map.
+    * ``multiple_choice`` / ``multiple_answer`` — option → count map.
 
     Every tally comes from one statement (``_AGGREGATES_SQL``) whatever
     the form asks and however many questions it has. ``shares`` is the
@@ -945,7 +959,7 @@ WITH cell AS (
            q.ordinal,
            CASE
                WHEN q.kind IN ('rating', 'number') THEN r.answer_int::text
-               WHEN q.kind IN ('single_choice', 'multi_choice') THEN (
+               WHEN q.kind IN ('multiple_choice', 'multiple_answer') THEN (
                    SELECT string_agg(o.label, '; ' ORDER BY o.ordinal)
                    FROM form_response_choices c
                    JOIN form_question_options o ON o.id = c.option_id
@@ -1003,77 +1017,33 @@ def submissions_csv(db: Session, form_id: str, *, mode: str) -> tuple[list[str],
     return header, rows
 
 
-def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str, compass.Position]:
-    """Where every submission sits, read once for a whole page.
+def compass_summary(db: Session, form: Any, *, you: str | None = None) -> CompassSummary | None:
+    """The kompas half of a page: the two axes with where the room sits
+    on each, and every dot. ``None`` on the two products that place
+    nobody.
 
-    Both halves of a kompas page (the axes and the dots) place the same
-    people from the same answers. Reading it here and handing it to both
-    is what keeps one page from loading every answer twice."""
-    return compass.positions(db, form.id)
-
-
-def compass_points(
-    db: Session,
-    form: Form,
-    places: dict[str, compass.Position],
-    *,
-    you: str | None = None,
-) -> list[CompassPoint]:
-    """Every submission as a dot, in submission order.
-
-    ``you`` marks one of them as the reader's own; the organiser's copy
-    passes nothing, because on their page nobody is "you". The name is
-    the self-chosen pseudonym and the only identifier there is
-    (``docs/design-kompas.md`` 2.4)."""
-    subs = db.execute(
-        select(FormSubmission.id, FormSubmission.display_name)
-        .where(FormSubmission.form_id == form.id)
-        .order_by(FormSubmission.created_at)
-    ).all()
-    out: list[CompassPoint] = []
-    for sub in subs:
-        place = places.get(sub.id)
-        if place is None:
-            # A submission with no answer rows at all: it exists, so it
-            # is on the map, at the origin like anybody who said
-            # nothing.
-            place = compass.Position(0.0, 0.0, 0, 0)
-        out.append(CompassPoint(name=sub.display_name, x=place.x, y=place.y, you=sub.id == you))
-    return out
-
-
-def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
-    """The two axes, each with where the room sits on it.
-
-    Read by the organiser's summary and by every respondent's result,
-    so the band under one person's marker and the band on the
-    organiser's page are the same number rather than two computations
-    that can drift apart."""
-    rooms = compass.axis_stats(db, form.id)
-    out: list[CompassAxisSummary] = []
-    for row in compass.axes_of(db, form.id):
-        stats = rooms.get(row.axis)
-        out.append(
-            CompassAxisSummary(
-                axis=CompassAxisOut.model_validate(row),
-                average=stats[0] if stats else None,
-                ci_low=stats[1] if stats else None,
-                ci_high=stats[2] if stats else None,
-            )
-        )
-    return out
-
-
-def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> CompassSummary | None:
-    """The kompas half of the organiser's summary: the two axes with
-    where the room sits on each, and every dot. ``None`` on the two
-    products that place nobody."""
+    One read (``compass.room``): the dots and the axes are the same
+    coordinates counted at two grains, and the dots arrive already
+    grouped, one row per occupied spot rather than one per person.
+    ``you`` marks the spot the reader is standing in, which the
+    organiser's copy leaves out because on their page nobody is
+    "you"."""
     if form.mode != "compass":
         return None
-    places = compass_places(db, form, questions)
+    room = compass.room(db, form.id, you=you)
     return CompassSummary(
-        axes=compass_axis_summaries(db, form),
-        points=compass_points(db, form, places),
+        axes=[
+            CompassAxisSummary(
+                axis=CompassAxisOut.model_validate(row),
+                average=room.axes.get(row.axis, (None, None, None))[0],
+                ci_low=room.axes.get(row.axis, (None, None, None))[1],
+                ci_high=room.axes.get(row.axis, (None, None, None))[2],
+            )
+            for row in compass.axes_of(db, form.id)
+        ],
+        points=[
+            CompassPoint(x=spot.x, y=spot.y, count=spot.count, names=spot.names, you=spot.you) for spot in room.spots
+        ],
     )
 
 

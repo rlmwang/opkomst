@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session
 # turns on spelling rather than on knowing the answer. A question a
 # quiz cannot mark is not a quiz question, so it is refused when the
 # organiser saves rather than allowed and quietly worth nothing.
-QUIZ_KINDS = frozenset({"rating", "number", "single_choice", "multi_choice"})
+QUIZ_KINDS = frozenset({"rating", "number", "multiple_choice", "multiple_answer"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,14 +90,14 @@ SELECT r.id AS response_id,
                     AND abs(r.answer_int - q.correct_int) <= coalesce(q.tolerance, 0)
                    THEN q.points ELSE 0
                END
-           WHEN q.kind = 'single_choice' THEN
+           WHEN q.kind = 'multiple_choice' THEN
                CASE
                    WHEN coalesce(k.size, 0) > 0
                     AND coalesce(t.hits, 0) = k.size
                     AND coalesce(t.wrong, 0) = 0
                    THEN q.points ELSE 0
                END
-           WHEN q.kind = 'multi_choice' THEN
+           WHEN q.kind = 'multiple_answer' THEN
                CASE
                    WHEN coalesce(k.size, 0) > 0 THEN
                        floor(
@@ -229,13 +229,13 @@ def validate_keys(questions: list[Any]) -> None:
                     raise bad("the correct answer is below the lowest allowed number.")
                 if q.max_value is not None and q.correct_int > q.max_value:
                     raise bad("the correct answer is above the highest allowed number.")
-        elif q.kind in ("single_choice", "multi_choice"):
+        elif q.kind in ("multiple_choice", "multiple_answer"):
             # The key is which options are marked correct, so it cannot
             # name something that is not an option.
             marked = [o for o in q.options if o.is_correct]
             if not marked:
                 raise bad("a scored question needs a correct answer.")
-            if q.kind == "single_choice" and len(marked) != 1:
+            if q.kind == "multiple_choice" and len(marked) != 1:
                 raise bad("a single-choice question has exactly one correct option.")
 
 

@@ -30,7 +30,7 @@ delete-when-archived, summary, submissions, the CSV download.
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -38,7 +38,7 @@ from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
 from ..models import Form, FormSubmission, User
-from ..schemas.common import EditLinkRecoverOut
+from ..schemas.common import EditLinkRecoverOut, Page
 from ..schemas.forms import (
     FormCreate,
     FormListOut,
@@ -50,6 +50,7 @@ from ..schemas.forms import (
 from ..services import access, crud, csv_export, edit_token, entities, limits, quizzes
 from ..services import forms as forms_svc
 from ..services import image as image_svc
+from ..services.paging import DEFAULT_PER_PAGE, MAX_PER_PAGE, Paging
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
@@ -104,21 +105,29 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db.refresh(form)
         return forms_svc.to_out(db, form)
 
-    @router.get("", response_model=list[FormListOut])
+    @router.get("", response_model=Page[FormListOut])
     def list_forms(
         chapter_id: str | None = None,
+        q: str | None = None,
+        page: int = Query(1, ge=1),
+        per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
-    ) -> list[FormListOut]:
-        return forms_svc.list_for_user(db, user, _MODE, chapter_id)
+    ) -> Page[FormListOut]:
+        return forms_svc.list_for_user(db, user, _MODE, chapter_id, Paging(page, per_page, q))
 
-    @router.get("/archived", response_model=list[FormListOut])
+    @router.get("/archived", response_model=Page[FormListOut])
     def list_archived_forms(
         chapter_id: str | None = None,
+        q: str | None = None,
+        page: int = Query(1, ge=1),
+        per_page: int = Query(DEFAULT_PER_PAGE, ge=1, le=MAX_PER_PAGE),
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
-    ) -> list[FormListOut]:
-        return forms_svc.archived_enrich(db, access.archived_rows(db, "forms", user, chapter_id, mode=_MODE))
+    ) -> Page[FormListOut]:
+        window = Paging(page, per_page, q)
+        rows, total = access.archived_rows(db, "forms", user, chapter_id, mode=_MODE, page=window)
+        return window.of(total, forms_svc.archived_enrich(db, rows))
 
     @router.get("/{form_id}", response_model=FormOut)
     def get_form(
@@ -294,7 +303,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         # own copy of them.
         questions = forms_svc.questions_of(db, form_id)
         marks = quizzes.summary_stats(db, form_id, questions) if _MODE == "quiz" else None
-        compass = forms_svc.compass_summary(db, form, questions)
+        compass = forms_svc.compass_summary(db, form)
         return FormSummaryOut(
             # A kompas already read every submission to place it, and
             # there is exactly one dot per fill-out, so counting them

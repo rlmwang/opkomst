@@ -1538,6 +1538,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datepoll/{datepoll_id}/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Datepoll Page
+         * @description The whole organiser page in one read. The three routes it
+         *     replaces stay: a poll is edited and re-read, and the download reads
+         *     the answers again.
+         */
+        get: operations["datepoll_page_api_v1_datepoll__datepoll_id__page_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/datepoll/{datepoll_id}/restore": {
         parameters: {
             query?: never;
@@ -1549,30 +1571,6 @@ export interface paths {
         put?: never;
         /** Restore Datepoll */
         post: operations["restore_datepoll_api_v1_datepoll__datepoll_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/datepoll/{datepoll_id}/submissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Datepoll Submissions
-         * @description Per-submission rows, keyed by slot id. The download is its
-         *     own route below.
-         *
-         *     Privacy: the submission id is opaque and the only respondent
-         *     identifier is the self-chosen pseudonym.
-         */
-        get: operations["datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1625,23 +1623,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/datepoll/{datepoll_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Datepoll Summary */
-        get: operations["datepoll_summary_api_v1_datepoll__datepoll_id__summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/event": {
         parameters: {
             query?: never;
@@ -1649,7 +1630,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Events */
+        /**
+         * List Events
+         * @description One page of the organiser's events, what is coming first.
+         *
+         *     The search and the order are the statement's: the browser used to
+         *     do both over every row it had been sent.
+         */
         get: operations["list_events_api_v1_event_get"];
         put?: never;
         /** Create Event */
@@ -1982,23 +1969,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/event/{event_id}/feedback-summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Feedback Summary */
-        get: operations["feedback_summary_api_v1_event__event_id__feedback_summary_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/event/{event_id}/image": {
         parameters: {
             query?: never;
@@ -2029,29 +1999,6 @@ export interface paths {
          *     it, so leaving it behind would be storage nobody can ever reach.
          */
         delete: operations["delete_event_image_api_v1_event__event_id__image_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/event/{event_id}/occurrences": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Event Occurrences
-         * @description The occurrence panel on the organiser detail page: the materialised
-         *     occurrences with per-session headcount + line-item counts, plus the
-         *     projected future dates that aren't rows yet. Strictly read-only per
-         *     occurrence — the only actions are on the event itself.
-         */
-        get: operations["event_occurrences_api_v1_event__event_id__occurrences_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2093,6 +2040,30 @@ export interface paths {
          *     only, never linked to a person.
          */
         get: operations["occurrence_stats_api_v1_event__event_id__occurrences__occurrence_id__stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/event/{event_id}/page": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Event Page
+         * @description The whole organiser page in one read.
+         *
+         *     The six routes below and above still exist, because switching to
+         *     another session asks for that session's sign-ups and stats. What
+         *     they stopped being is the way the page opens.
+         */
+        get: operations["event_page_api_v1_event__event_id__page_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3702,19 +3673,24 @@ export interface components {
         };
         /**
          * CompassPoint
-         * @description One dot on the map. The only identifier is the self-chosen
-         *     pseudonym, which is why the cover page says the name is going here
-         *     before it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is
-         *     somebody who left the box empty, and their dot counts like anyone
-         *     else's.
+         * @description One dot on the map, and everybody standing on it.
          *
-         *     No submission id: knowing which opaque id is which dot buys a
+         *     Two people who answered the same way are one dot, grouped by the
+         *     database (``services/compass``): what crosses the wire is the
+         *     picture, not the room. ``count`` is how many are in it and
+         *     ``names`` the first few of their pseudonyms, which is what the dot
+         *     is labelled with. A ``None`` name is somebody who left the box
+         *     empty, and their dot counts like anyone else's.
+         *
+         *     No submission ids: knowing which opaque id is which dot buys a
          *     reader nothing and costs the pseudonymity that the rest of the app
          *     keeps.
          */
         CompassPoint: {
-            /** Name */
-            name?: string | null;
+            /** Count */
+            count: number;
+            /** Names */
+            names: (string | null)[];
             /** X */
             x: number;
             /** Y */
@@ -3976,6 +3952,20 @@ export interface components {
             slug: string;
             /** Submission Count */
             submission_count: number;
+        };
+        /**
+         * DatepollPageOut
+         * @description Everything the organiser's datepoll page draws, in one read: the
+         *     poll, the tally per date, and the per-person grid under it.
+         *
+         *     Three requests before, all about the same poll. At eight organisers
+         *     at once the waiting was the asking rather than any one answer.
+         */
+        DatepollPageOut: {
+            datepoll: components["schemas"]["DatepollOut"];
+            /** Submissions */
+            submissions: components["schemas"]["DatepollSubmissionOut"][];
+            summary: components["schemas"]["DatepollSummaryOut"];
         };
         /**
          * DatepollSlotIn
@@ -4487,6 +4477,30 @@ export interface components {
             topic_nl: string | null;
         };
         /**
+         * EventPageOut
+         * @description Everything the organiser's event page draws, in one read.
+         *
+         *     The page used to ask six times: the event, its sessions, the
+         *     sign-ups and the stats of one session, and the feedback summary.
+         *     Five of those are about the same event, and at eight organisers at
+         *     once the waiting was the asking rather than any one answer.
+         *
+         *     ``primary_occurrence_id`` is the session the page opens on, decided
+         *     here rather than in the browser: the soonest that has not ended,
+         *     else the last that ran. ``signups`` and ``stats`` are that session's;
+         *     switching days asks for another one.
+         */
+        EventPageOut: {
+            event: components["schemas"]["EventOut"];
+            feedback: components["schemas"]["FeedbackSummaryOut"];
+            occurrences: components["schemas"]["OccurrenceListOut"];
+            /** Primary Occurrence Id */
+            primary_occurrence_id: string | null;
+            /** Signups */
+            signups: components["schemas"]["SignupSummaryOut"][];
+            stats: components["schemas"]["EventStatsOut"];
+        };
+        /**
          * EventStatsOut
          * @description Organiser-only aggregate over the event's sign-up line items
          *     (attendance is per occurrence, so these are per-line-item counts).
@@ -4907,7 +4921,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
+            kind: "rating" | "text" | "short_text" | "multiple_choice" | "multiple_answer" | "number";
             /** Low Label */
             low_label?: string | null;
             /** Max Value */
@@ -5026,7 +5040,7 @@ export interface components {
          *     * ``rating`` — ``rating_distribution`` (5-bucket counts) +
          *       ``rating_average``.
          *     * ``text`` / ``short_text`` — ``texts`` (newest first).
-         *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
+         *     * ``multiple_choice`` / ``multiple_answer`` — ``choice_counts``
          *       keyed by option string.
          *     * ``number`` — ``number_average`` with the range people used, and
          *       ``number_buckets``, the histogram (``services/numbers``).
@@ -5356,6 +5370,50 @@ export interface components {
              * Format: date
              */
             on_date: string;
+        };
+        /** Page[DatepollListOut] */
+        Page_DatepollListOut_: {
+            /** Items */
+            items: components["schemas"]["DatepollListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[EventListOut] */
+        Page_EventListOut_: {
+            /** Items */
+            items: components["schemas"]["EventListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[FormListOut] */
+        Page_FormListOut_: {
+            /** Items */
+            items: components["schemas"]["FormListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
+        };
+        /** Page[RosterListOut] */
+        Page_RosterListOut_: {
+            /** Items */
+            items: components["schemas"]["RosterListOut"][];
+            /** Page */
+            page: number;
+            /** Per Page */
+            per_page: number;
+            /** Total */
+            total: number;
         };
         /**
          * PendingCountOut
@@ -7028,6 +7086,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -7043,7 +7104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RosterListOut"][];
+                    "application/json": components["schemas"]["Page_RosterListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -7096,6 +7157,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -7111,7 +7175,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RosterListOut"][];
+                    "application/json": components["schemas"]["Page_RosterListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8094,6 +8158,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8109,7 +8176,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8162,6 +8229,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8177,7 +8247,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8755,6 +8825,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8770,7 +8843,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatepollListOut"][];
+                    "application/json": components["schemas"]["Page_DatepollListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -8823,6 +8896,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -8838,7 +8914,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DatepollListOut"][];
+                    "application/json": components["schemas"]["Page_DatepollListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -9248,6 +9324,39 @@ export interface operations {
             };
         };
     };
+    datepoll_page_api_v1_datepoll__datepoll_id__page_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                datepoll_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatepollPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     restore_datepoll_api_v1_datepoll__datepoll_id__restore_post: {
         parameters: {
             query?: never;
@@ -9268,39 +9377,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatepollOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    datepoll_submissions_api_v1_datepoll__datepoll_id__submissions_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                datepoll_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DatepollSubmissionOut"][];
                 };
             };
             /** @description Validation Error */
@@ -9379,43 +9455,13 @@ export interface operations {
             };
         };
     };
-    datepoll_summary_api_v1_datepoll__datepoll_id__summary_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                datepoll_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DatepollSummaryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_events_api_v1_event_get: {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -9431,7 +9477,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventListOut"][];
+                    "application/json": components["schemas"]["Page_EventListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -9484,6 +9530,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -9499,7 +9548,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EventListOut"][];
+                    "application/json": components["schemas"]["Page_EventListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -10029,39 +10078,6 @@ export interface operations {
             };
         };
     };
-    feedback_summary_api_v1_event__event_id__feedback_summary_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FeedbackSummaryOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     upload_event_image_api_v1_event__event_id__image_post: {
         parameters: {
             query?: never;
@@ -10132,39 +10148,6 @@ export interface operations {
             };
         };
     };
-    event_occurrences_api_v1_event__event_id__occurrences_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                event_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OccurrenceListOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     occurrence_signups_api_v1_event__event_id__occurrences__occurrence_id__signups_get: {
         parameters: {
             query?: never;
@@ -10220,6 +10203,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventStatsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    event_page_api_v1_event__event_id__page_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventPageOut"];
                 };
             };
             /** @description Validation Error */
@@ -10471,6 +10487,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -10486,7 +10505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -10539,6 +10558,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -10554,7 +10576,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -11132,6 +11154,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -11147,7 +11172,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */
@@ -11200,6 +11225,9 @@ export interface operations {
         parameters: {
             query?: {
                 chapter_id?: string | null;
+                q?: string | null;
+                page?: number;
+                per_page?: number;
             };
             header?: {
                 authorization?: string | null;
@@ -11215,7 +11243,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FormListOut"][];
+                    "application/json": components["schemas"]["Page_FormListOut_"];
                 };
             };
             /** @description Validation Error */

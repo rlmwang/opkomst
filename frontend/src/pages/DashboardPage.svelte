@@ -7,7 +7,6 @@ import { setUserChapters } from "@/composables/useAdmin.svelte";
 import { type Chapter, chaptersQuery, sortedChapters } from "@/composables/useChapters.svelte";
 import { entityList } from "@/composables/useEntityList.svelte";
 import { archiveEvent, type EventListOut, events } from "@/composables/useEvents.svelte";
-import { lt } from "@/composables/useLocalizedText.svelte";
 import { shareClipboard } from "@/composables/useShareClipboard.svelte";
 import { t } from "@/i18n.svelte";
 import { get } from "@/api/client";
@@ -21,7 +20,12 @@ const copy = (key: string, params?: Record<string, unknown>) => t(`dashboard.${k
 const toasts = useToasts();
 const archive = archiveEvent();
 const list = entityList<EventListOut>({ archive: archive.run, copy });
-const query = events.list({ enabled: () => auth.isApproved, chapterId: () => list.chapter.value });
+const query = events.list({
+  enabled: () => auth.isApproved,
+  chapterId: () => list.chapter.value,
+  page: () => list.chapter.page,
+  search: () => list.chapter.search,
+});
 const share = shareClipboard({
   publicUrlFor: publicEventUrl,
   qrUrlFor: eventQrUrl,
@@ -30,16 +34,10 @@ const share = shareClipboard({
 
 // Upcoming first, soonest next session at the top; an event whose every
 // occurrence is past sinks below, most recent first.
-const sorted = $derived(
-  [...(query.data ?? [])].sort((a, b) => {
-    const an = a.next_starts_at;
-    const bn = b.next_starts_at;
-    if (an && bn) return an.localeCompare(bn);
-    if (an) return -1;
-    if (bn) return 1;
-    return b.starts_on.localeCompare(a.starts_on);
-  }),
-);
+// The order is the statement's: what is coming, soonest first, then
+// what has happened, newest back. This used to sort every row it had
+// been sent, which was every event the organiser could see.
+const page = $derived(query.data ?? null);
 
 // The onboarding picker. Signing up never asks for a chapter, because
 // chapter names would leak before the account exists, so an approved
@@ -71,7 +69,9 @@ async function submitOnboardingChapters(): Promise<void> {
 <EntityListPage
   {copy}
   {list}
-  items={sorted}
+  items={page?.items ?? []}
+  total={page?.total ?? 0}
+  perPage={page?.per_page ?? 0}
   loaded={!auth.isApproved || !query.isPending}
   isError={query.isError}
   newPath="/event/new"
@@ -82,19 +82,12 @@ async function submitOnboardingChapters(): Promise<void> {
   sharePrefix="event.share"
   copyLink={(e) => e.next_slug && void share.copyLink(e.next_slug)}
   copyQr={(e) => e.next_slug && void share.copyQr(e.next_slug)}
-  searchKeys={(e) => [lt(e.name_nl, e.name_en) ?? "", e.location ?? ""]}
   prefetch={(id) => {
-    // What the details page reads on mount, so the click lands on a
-    // painted page. The per-day sign-ups and stats are not warmed:
-    // they hang off an occurrence id that only exists once this has
-    // landed.
+    // What the details page reads on mount, which is one request now,
+    // so the click lands on a painted page.
     void queryClient.prefetchQuery({
-      queryKey: ["event", id, "occurrences"],
-      queryFn: () => get(`/api/v1/event/${id}/occurrences`),
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ["feedback", "summary", id],
-      queryFn: () => get(`/api/v1/event/${id}/feedback-summary`),
+      queryKey: ["event", id, "page"],
+      queryFn: () => get(`/api/v1/event/${id}/page`),
     });
   }}
 >
