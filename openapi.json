@@ -1164,18 +1164,25 @@
         "type": "object"
       },
       "CompassPoint": {
-        "description": "One dot on the map. The only identifier is the self-chosen\npseudonym, which is why the cover page says the name is going here\nbefore it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is\nsomebody who left the box empty, and their dot counts like anyone\nelse's.\n\nNo submission id: knowing which opaque id is which dot buys a\nreader nothing and costs the pseudonymity that the rest of the app\nkeeps.",
+        "description": "One dot on the map, and everybody standing on it.\n\nTwo people who answered the same way are one dot, grouped by the\ndatabase (``services/compass``): what crosses the wire is the\npicture, not the room. ``count`` is how many are in it and\n``names`` the first few of their pseudonyms, which is what the dot\nis labelled with. A ``None`` name is somebody who left the box\nempty, and their dot counts like anyone else's.\n\nNo submission ids: knowing which opaque id is which dot buys a\nreader nothing and costs the pseudonymity that the rest of the app\nkeeps.",
         "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "names": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Names",
+            "type": "array"
           },
           "x": {
             "title": "X",
@@ -1193,7 +1200,9 @@
         },
         "required": [
           "x",
-          "y"
+          "y",
+          "count",
+          "names"
         ],
         "title": "CompassPoint",
         "type": "object"

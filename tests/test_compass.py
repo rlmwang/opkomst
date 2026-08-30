@@ -280,11 +280,31 @@ def test_the_map_carries_everybody_and_marks_the_reader(client, organiser_header
     _fill(client, kompas, answers, "Sam")
     mine = _fill(client, kompas, answers, None).json()
 
-    assert len(mine["points"]) == 2
-    assert [p["name"] for p in mine["points"]] == ["Sam", None]
-    # Exactly one dot is the reader's own, and it is the one that was
-    # just written.
-    assert [p["you"] for p in mine["points"]] == [False, True]
+    # Both answered the same way, so both stand on one dot, which is
+    # what the map draws and now what the database sends.
+    assert len(mine["points"]) == 1
+    spot = mine["points"][0]
+    assert (spot["count"], spot["names"]) == (2, ["Sam", None])
+    # The reader is in it.
+    assert spot["you"] is True
+
+
+def test_a_crowded_dot_carries_five_names_and_the_count(client, organiser_headers) -> None:
+    """A dot is labelled with who is in it, and past a handful that
+    label is a wall of text nobody reads. The count is the whole room;
+    the names are the first five who answered that way."""
+    kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
+    ids = [q["id"] for q in kompas["questions"]]
+    answers = [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 5}]
+    for n in range(8):
+        _fill(client, kompas, answers, f"Nummer {n}")
+
+    summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
+    spot = summary["compass"]["points"][0]
+    assert spot["count"] == 8
+    assert spot["names"] == [f"Nummer {n}" for n in range(5)]
+    # Nobody is "you" on the organiser's page.
+    assert spot["you"] is False
 
 
 def test_the_walk_never_learns_which_answer_points_where(client, organiser_headers) -> None:
@@ -327,7 +347,7 @@ def test_changing_your_mind_is_allowed_and_redraws_the_map(client, organiser_hea
     assert changed.status_code == 200, changed.text
     assert changed.json()["x"] == -1.0
     assert changed.json()["display_name"] == "Kim"
-    assert [p["name"] for p in changed.json()["points"]] == ["Kim"]
+    assert [p["names"] for p in changed.json()["points"]] == [["Kim"]]
 
 
 def test_withdrawing_takes_the_dot_off_the_map(client, organiser_headers) -> None:
@@ -339,7 +359,7 @@ def test_withdrawing_takes_the_dot_off_the_map(client, organiser_headers) -> Non
 
     assert client.post(f"/api/v1/compass/by-token/{mine['edit_token']}/withdraw").status_code == 204
     summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
-    assert [p["name"] for p in summary["compass"]["points"]] == ["Sam"]
+    assert [p["names"] for p in summary["compass"]["points"]] == [["Sam"]]
 
 
 # --- what the organiser sees -----------------------------------------

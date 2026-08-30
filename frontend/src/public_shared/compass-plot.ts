@@ -19,19 +19,15 @@ export interface PlotAxis {
   high_name: string;
 }
 
-export interface PlotPoint {
-  name?: string | null;
+/** One dot: where it is, how many people are standing in it, and the
+ *  first few of their pseudonyms. Grouped by the database, which knows
+ *  the coordinates because it worked them out. */
+export interface PlotSpot {
   x: number;
   y: number;
-  you?: boolean;
-}
-
-export interface Cluster {
-  x: number;
-  y: number;
-  names: string[];
   count: number;
-  you: boolean;
+  names: (string | null)[];
+  you?: boolean;
 }
 
 // The drawing box. The plot area is 100x100 user units with room around
@@ -51,33 +47,23 @@ export function py(value: number): number {
   return PAD + ((1 - value) / 2) * SIZE;
 }
 
-/** Submissions at the same coordinate are one dot. Keyed on the rounded
- *  pair the server already rounded, so two identical answer sets always
- *  land in the same cluster. The reader's own dot comes last, so it
- *  draws on top of the room. */
-export function clusterPoints(points: PlotPoint[], anonymousLabel: string): Cluster[] {
-  const bySpot = new Map<string, Cluster>();
-  for (const point of points) {
-    const key = `${point.x}:${point.y}`;
-    const found = bySpot.get(key);
-    const name = point.name ?? anonymousLabel;
-    if (found) {
-      found.names.push(name);
-      found.count += 1;
-      found.you = found.you || Boolean(point.you);
-    } else {
-      bySpot.set(key, { x: point.x, y: point.y, names: [name], count: 1, you: Boolean(point.you) });
-    }
-  }
-  return [...bySpot.values()].sort((a, b) => Number(a.you) - Number(b.you));
+/** The reader's own dot draws last, over the room rather than under
+ *  it. Everything else keeps the order it arrived in, which is the
+ *  crowded spots first. */
+export function drawOrder(spots: PlotSpot[]): PlotSpot[] {
+  return [...spots].sort((a, b) => Number(Boolean(a.you)) - Number(Boolean(b.you)));
 }
 
-/** Radius grows with the count and stops growing: a cluster of forty
- *  should read as bigger than one of four and still be a dot. */
-export function radius(cluster: Cluster): number {
-  return 2.2 + Math.min(2.8, Math.sqrt(cluster.count - 1) * 1.1);
+/** Radius grows with the count and stops growing: a dot holding forty
+ *  should read as bigger than one holding four and still be a dot. */
+export function radius(spot: PlotSpot): number {
+  return 2.2 + Math.min(2.8, Math.sqrt(spot.count - 1) * 1.1);
 }
 
-export function label(cluster: Cluster): string {
-  return cluster.names.join(", ");
+/** Who is in this dot. The server sends the first few names of a
+ *  crowded one, so the label ends in an ellipsis when there are more
+ *  people in the dot than names to show. */
+export function label(spot: PlotSpot, anonymousLabel: string): string {
+  const shown = spot.names.map((name) => name ?? anonymousLabel).join(", ");
+  return spot.count > spot.names.length ? `${shown}, …` : shown;
 }

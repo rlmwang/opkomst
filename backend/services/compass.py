@@ -95,14 +95,24 @@ class Position:
         return self.x if axis == "x" else self.y
 
 
-@dataclass(frozen=True, slots=True)
-class Dot:
-    """One person on the map: their pseudonym and where they landed."""
+# How many names a spot carries out of the database. A dot is labelled
+# with who is in it, and past a handful that label is a wall of text
+# nobody reads: the ones that fit, then an ellipsis. Reading every name
+# of a spot holding nine hundred people is not a thing anybody does, so
+# they are not sent.
+NAMES_PER_SPOT: Final[int] = 5
 
-    submission_id: str
-    name: str | None
+
+@dataclass(frozen=True, slots=True)
+class Spot:
+    """One dot on the map: where it is, how many people are in it, and
+    the first few of their pseudonyms."""
+
     x: float
     y: float
+    count: int
+    names: list[str | None]
+    you: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +120,7 @@ class Room:
     """The whole map in one read: every dot, and where the room sits on
     each axis with the interval around it."""
 
-    dots: list[Dot]
+    spots: list[Spot]
     axes: dict[str, tuple[float, float, float]]
 
 
@@ -193,13 +203,14 @@ WHERE k.submission_id = :submission_id
 )
 
 
-def params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
+def params(form_id: str, submission_id: str | None = None, you: str | None = None) -> dict[str, Any]:
     """The rules the statements are parameterised on, so the numbers
     that define the scale live in one place and Python and SQL cannot
     disagree about them."""
     return {
         "form_id": form_id,
         "submission_id": submission_id,
+        "you": you,
         "midpoint": RATING_MIDPOINT,
         "half_range": RATING_HALF_RANGE,
         "poles": sorted(POLES),
@@ -295,23 +306,34 @@ band AS (
     CROSS JOIN LATERAL (
         SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
     ) half
+),
+spot AS (
+    -- Two people who answered the same way are one dot, which is what
+    -- the map has always drawn: jitter would put a dot where nobody
+    -- is. Grouped here rather than in the browser, so what crosses the
+    -- wire is the picture and not the room.
+    SELECT round(x, 3)::float AS x,
+           round(y, 3)::float AS y,
+           count(*)::int AS people,
+           (array_agg(display_name ORDER BY created_at))[1:{NAMES_PER_SPOT}] AS names,
+           -- Null-safe: with no reader, every comparison is null and
+           -- so is the aggregate, which is not what "nobody is you"
+           -- means.
+           coalesce(bool_or(id = cast(:you AS text)), false) AS you
+    FROM place
+    GROUP BY round(x, 3), round(y, 3)
 )
 SELECT
     (
         SELECT coalesce(
             json_agg(
-                json_build_object(
-                    'id', id,
-                    'name', display_name,
-                    'x', round(x, 3)::float,
-                    'y', round(y, 3)::float
-                )
-                ORDER BY created_at
+                json_build_object('x', x, 'y', y, 'count', people, 'names', names, 'you', you)
+                ORDER BY people DESC, x, y
             ),
             '[]'::json
         )
-        FROM place
-    ) AS dots,
+        FROM spot
+    ) AS spots,
     (
         SELECT coalesce(json_object_agg(axis, json_build_array(average, ci_low, ci_high)), '{{}}'::json)
         FROM band
@@ -320,14 +342,18 @@ SELECT
 )
 
 
-def room(db: Session, form_id: str) -> Room:
-    """Everybody's place on the map, and where the room sits on each
-    axis. One statement, because they are the same coordinates counted
-    at two grains: one per person for the dots, one per axis for the
-    band under them. Read twice they were derived twice."""
-    row = db.execute(_ROOM_SQL, params(form_id)).one()
+def room(db: Session, form_id: str, you: str | None = None) -> Room:
+    """The map: one row per occupied spot, and where the room sits on
+    each axis.
+
+    One statement, at three grains that are all the same coordinates:
+    per person to place them, per spot to draw them, per axis for the
+    band underneath. ``you`` is the reader's own submission, marked on
+    the spot it landed in, and left out of the organiser's copy where
+    nobody is "you"."""
+    row = db.execute(_ROOM_SQL, params(form_id, you=you)).one()
     return Room(
-        dots=[Dot(submission_id=d["id"], name=d["name"], x=d["x"], y=d["y"]) for d in row.dots],
+        spots=[Spot(x=s["x"], y=s["y"], count=s["count"], names=s["names"], you=s["you"]) for s in row.spots],
         axes={axis: (band[0], band[1], band[2]) for axis, band in (row.axes or {}).items()},
     )
 

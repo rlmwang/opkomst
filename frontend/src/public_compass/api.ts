@@ -36,9 +36,10 @@ export interface CompassAxisRoom {
 }
 
 export interface CompassPoint {
-  name: string | null;
   x: number;
   y: number;
+  count: number;
+  names: (string | null)[];
   you: boolean;
 }
 

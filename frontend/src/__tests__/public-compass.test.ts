@@ -106,8 +106,8 @@ const RESULT = {
   // which is the band the reader's own marker is drawn against.
   axes: AXES.map((axis) => ({ axis, average: 0, ci_low: -0.6, ci_high: 0.6 })),
   points: [
-    { name: "Sam", x: -0.5, y: 1, you: true },
-    { name: null, x: 0.5, y: -1, you: false },
+    { x: -0.5, y: 1, count: 1, names: ["Sam"], you: true },
+    { x: 0.5, y: -1, count: 1, names: [null], you: false },
   ],
   answers: [
     {

@@ -388,20 +388,24 @@ class QuizResultOut(BaseModel):
 
 
 class CompassPoint(BaseModel):
-    """One dot on the map. The only identifier is the self-chosen
-    pseudonym, which is why the cover page says the name is going here
-    before it asks for one (``docs/design-kompas.md`` 5.1). ``None`` is
-    somebody who left the box empty, and their dot counts like anyone
-    else's.
+    """One dot on the map, and everybody standing on it.
 
-    No submission id: knowing which opaque id is which dot buys a
+    Two people who answered the same way are one dot, grouped by the
+    database (``services/compass``): what crosses the wire is the
+    picture, not the room. ``count`` is how many are in it and
+    ``names`` the first few of their pseudonyms, which is what the dot
+    is labelled with. A ``None`` name is somebody who left the box
+    empty, and their dot counts like anyone else's.
+
+    No submission ids: knowing which opaque id is which dot buys a
     reader nothing and costs the pseudonymity that the rest of the app
     keeps."""
 
-    name: str | None = None
     x: float
     y: float
-    # True on the dot belonging to whoever is reading. Absent from the
+    count: int
+    names: list[str | None]
+    # True on the dot the reader is standing in. False throughout the
     # organiser's copy, where nobody is "you".
     you: bool = False
 

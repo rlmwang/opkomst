@@ -1009,12 +1009,14 @@ def compass_summary(db: Session, form: Any, *, you: str | None = None) -> Compas
     nobody.
 
     One read (``compass.room``): the dots and the axes are the same
-    coordinates counted at two grains. ``you`` marks one dot as the
-    reader's own, which the organiser's copy leaves out because on
-    their page nobody is "you"."""
+    coordinates counted at two grains, and the dots arrive already
+    grouped, one row per occupied spot rather than one per person.
+    ``you`` marks the spot the reader is standing in, which the
+    organiser's copy leaves out because on their page nobody is
+    "you"."""
     if form.mode != "compass":
         return None
-    room = compass.room(db, form.id)
+    room = compass.room(db, form.id, you=you)
     return CompassSummary(
         axes=[
             CompassAxisSummary(
@@ -1025,7 +1027,9 @@ def compass_summary(db: Session, form: Any, *, you: str | None = None) -> Compas
             )
             for row in compass.axes_of(db, form.id)
         ],
-        points=[CompassPoint(name=dot.name, x=dot.x, y=dot.y, you=dot.submission_id == you) for dot in room.dots],
+        points=[
+            CompassPoint(x=spot.x, y=spot.y, count=spot.count, names=spot.names, you=spot.you) for spot in room.spots
+        ],
     )
 
 

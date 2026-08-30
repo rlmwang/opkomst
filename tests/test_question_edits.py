@@ -314,8 +314,10 @@ def _place(client: Any, kompas: dict[str, Any], choice: str) -> Any:
 
 
 def _dots(client: Any, headers: Any, kompas: dict[str, Any]) -> list[tuple[str, float, float]]:
+    """Who is on the map and where. One name per dot here, because
+    these cases put one person on each."""
     summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=headers).json()
-    return [(p["name"], p["x"], p["y"]) for p in summary["compass"]["points"]]
+    return [(p["names"][0], p["x"], p["y"]) for p in summary["compass"]["points"]]
 
 
 def test_renaming_a_kompas_option_leaves_the_dot_where_it_was(client, organiser_headers) -> None:
