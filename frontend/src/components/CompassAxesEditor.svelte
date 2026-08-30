@@ -154,7 +154,7 @@ function patch(axis: "x" | "y", key: TextKey, raw: string | null | undefined): v
   color: var(--brand-text-muted);
   cursor: default;
 }
-.side-row :deep(.app-input) {
+.side-row :global(.app-input) {
   min-width: 0;
 }
 </style>

@@ -563,7 +563,7 @@ function removeOption(option: OptionDraft) {
   display: flex;
   gap: 0.5rem;
 }
-.scale-row :deep(.app-input) { flex: 1; }
+.scale-row :global(.app-input) { flex: 1; }
 .options-block {
   display: flex;
   flex-direction: column;

@@ -380,7 +380,7 @@ async function withdraw(): Promise<void> {
 .poll-calendar { position: relative; }
 .cal-scroll { overflow-x: auto; }
 /* Breathing room between stacked months. */
-.cal-scroll :deep(.mg) + :deep(.mg) { margin-top: 1rem; }
+.cal-scroll :global(.mg + .mg) { margin-top: 1rem; }
 /* Right-edge scroll cue, pinned to the calendar — shown only while there's
  * more calendar to the right (see canScrollRight). Tapping nudges onward. */
 .scroll-hint {
