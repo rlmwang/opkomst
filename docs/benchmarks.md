@@ -30,9 +30,12 @@ second at that concurrency.
 ## The data it runs against
 
 `--fill` tops every table up to the `BUSY` profile in `scripts/bench.py`:
-two years of a chapter, 120 events on 240 dates, 20 signups on each,
-feedback from 7 of them, 500 answers per form, 60 people on a datepoll,
-520 shifts on the roster.
+two years of a chapter, 120 events on 240 dates, 500 answers per form,
+60 people on a datepoll, 520 shifts on the roster. `--scale N`
+multiplies how much there is, never how big each one is: a meeting
+always has 20 people at it, because 200 is not a bigger chapter, it is
+a different product. `--reset` deletes what a fill wrote, which is how
+a smaller scale runs after a bigger one.
 
 Filling matters more than it sounds. The seeded dev database is a demo:
 eight events, nine signups, three datepoll answers. Every read that
@@ -59,6 +62,58 @@ of `rps` between c=8 and c=32 is partly the client running out of core.
 Read the p50 column for what an endpoint costs, and the rps column only
 as a rough shape. Proving a real server-side ceiling needs a load
 generator on another machine.
+
+## 2026-08-30 - three volumes
+
+Same machine, one uvicorn worker, pages only. Each run is `--reset
+--fill --scale N`, so the three are independent rather than cumulative.
+10x is 1,200 events on 2,400 dates, 48k signups, 20k form submissions
+on 90k answers, 1,200 datepoll answers, 5,500 shifts.
+
+p50 at concurrency 1, milliseconds:
+
+| page | 1x | 3x | 10x |
+|---|---|---|---|
+| compass details | 134 | 172 | **437** |
+| roster details | 150 | 228 | **330** |
+| event details | 115 | 140 | 136 |
+| datepoll details | 89 | 63 | 132 |
+| form details | 55 | 63 | 125 |
+| dashboard | 46 | 57 | 102 |
+| users | 36 | 55 | 54 |
+| form list | 32 | 29 | 30 |
+| compass list | 26 | 30 | 34 |
+
+p50 at eight organisers at once:
+
+| page | 1x | 3x | 10x |
+|---|---|---|---|
+| roster details | 857 | 1511 | **2932** |
+| compass details | 514 | 509 | 1036 |
+| datepoll details | 629 | 671 | 963 |
+| event details | 774 | 904 | 944 |
+| dashboard | 352 | 391 | 580 |
+| form details | 307 | 302 | 442 |
+| users | 241 | 325 | 423 |
+| compass list | 192 | 145 | 201 |
+| form list | 133 | 167 | 181 |
+
+### What this run said
+
+* **Two pages grow with the data. The rest do not.** Every list is
+  flat from 120 events to 1,200: those reads are indexed for the shape
+  they ask, and a chapter ten times older costs the same to open.
+* **`compass details` is the steepest**, 134 ms to 437. It re-derives
+  every dot on the map on every load, so it is linear in answers and
+  nothing else. At 2,000 answers the page is half a second before
+  anybody else is asking.
+* **`roster details` is the worst under load**, 2.9 s at eight
+  organisers on 5,500 shifts. Its schedule replays the roster from its
+  first day (below), so it is linear in the roster's age.
+* **`form details` doubles**, 55 to 125: the summary tallies every
+  answer, which is one statement but a growing one.
+* **`event details` is flat at 136 ms** and still the third slowest,
+  because its cost is six requests rather than any one of them.
 
 ## 2026-08-30 - first run against a busy database
 

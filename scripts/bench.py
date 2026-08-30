@@ -122,12 +122,20 @@ async def _run_case(
 BUSY = {
     "submissions_per_form": 500,
     "events": 120,
-    "dates_per_event": 2,
+    "datepoll_submissions": 60,
+    "shifts": 520,
+    "volunteers": 20,
+}
+
+# What one event looks like, whatever the scale. ``--scale`` multiplies
+# how much there is, never how big each one is: ten times the events is
+# a chapter that has been going ten times as long, and it is what a
+# read has to sift through. Ten times the people at one meeting is not
+# a bigger chapter, it is a different product.
+PER_EVENT = {
+    "dates": 2,
     "signups_per_date": 20,
     "feedback_per_date": 7,
-    "datepoll_submissions": 60,
-    "volunteers": 20,
-    "shifts": 520,
 }
 
 
@@ -381,19 +389,23 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
 
     first = date.today() - timedelta(days=shifts // 2)
     have = db.query(Shift).filter(Shift.chore_id.in_(chore_ids)).count()
-    ahead = db.query(Shift).filter(Shift.chore_id.in_(chore_ids), Shift.on_date >= date.today()).count()
+    # One shift per chore per date, so a bigger scale fills the dates
+    # around what is already there rather than colliding with it.
+    taken = {
+        (chore_id, on_date)
+        for chore_id, on_date in db.query(Shift.chore_id, Shift.on_date).filter(Shift.chore_id.in_(chore_ids)).all()
+    }
     rows = []
     for n in range(shifts):
         on = first + timedelta(days=n)
-        if on < date.today() and have >= shifts // 2:
-            continue
-        if on >= date.today() and ahead >= shifts // 2:
+        chore = chores[n % len(chores)]
+        if (chore.id, on) in taken:
             continue
         who = people[n % len(people)] if people else None
         rows.append(
             Shift(
                 id=_uuid7(),
-                chore_id=chores[n % len(chores)].id,
+                chore_id=chore.id,
                 on_date=on,
                 slot_index=0,
                 volunteer_id=who.id if who else None,
@@ -410,6 +422,33 @@ def _fill_roster(db, tenant, *, volunteers: int, shifts: int) -> None:
         roster.starts_on = first
     db.commit()
     print(f"  roster: {have} -> {have + len(rows)} shifts, {len(people)} volunteers, running")
+
+
+def _reset() -> None:
+    """Delete what a fill wrote, so the next one starts from the demo.
+
+    Only its own rows: the events it made carry a ``bench`` slug, the
+    people it invented are named for it, and the cascades take the rest.
+    Running a smaller scale after a bigger one has to remove rows, and
+    topping up cannot."""
+    from sqlalchemy import text
+
+    from backend.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        for statement in (
+            "DELETE FROM events WHERE slug LIKE 'bench%'",
+            "DELETE FROM registrations WHERE display_name LIKE 'Bezoeker %'",
+            "DELETE FROM form_submissions WHERE display_name LIKE 'Bench %'",
+            "DELETE FROM datepoll_submissions WHERE display_name LIKE 'Bench %'",
+            "DELETE FROM volunteers WHERE display_name LIKE 'Vrijwilliger %'",
+            "DELETE FROM shifts WHERE volunteer_id IS NULL",
+        ):
+            print(f"  {statement}: {db.execute(text(statement)).rowcount}")
+        db.commit()
+    finally:
+        db.close()
 
 
 def _fill(profile: dict[str, int]) -> None:
@@ -446,9 +485,9 @@ def _fill(profile: dict[str, int]) -> None:
             chapter.id,
             organiser.id,
             events=profile["events"],
-            per_event=profile["dates_per_event"],
-            signups=profile["signups_per_date"],
-            feedback=profile["feedback_per_date"],
+            per_event=PER_EVENT["dates"],
+            signups=PER_EVENT["signups_per_date"],
+            feedback=PER_EVENT["feedback_per_date"],
         )
         _fill_datepoll(db, tenant, profile["datepoll_submissions"])
         _fill_roster(db, tenant, volunteers=profile["volunteers"], shifts=profile["shifts"])
@@ -648,14 +687,20 @@ async def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=DEFAULT_BASE)
     parser.add_argument("--fill", action="store_true", help="fill every table to the BUSY profile first")
+    parser.add_argument("--scale", type=int, default=1, help="multiply the BUSY profile by this")
+    parser.add_argument("--reset", action="store_true", help="delete what a previous fill wrote, first")
     parser.add_argument("--requests", type=int, default=40, help="requests per endpoint per level")
     parser.add_argument("--levels", default="1,8", help="concurrency levels, comma separated")
     parser.add_argument("--only", choices=("pages", "endpoints"), help="measure just one of the two tables")
     args = parser.parse_args()
 
+    if args.reset:
+        _reset()
+
     if args.fill:
-        print(f"filling to the busy profile: {BUSY}")
-        _fill(BUSY)
+        profile = {k: v * args.scale for k, v in BUSY.items()}
+        print(f"filling to {args.scale}x busy: {profile}")
+        _fill(profile)
 
     levels = [int(n) for n in args.levels.split(",")]
     # One page load is up to six requests, so the pool has to hold
