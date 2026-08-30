@@ -10,7 +10,7 @@
  * field sits on ``surface.50`` rather than the khaki ``surface.200``.
  *
  * ``app-input`` is the root class on purpose: a few pages reach in with
- * ``:deep()`` to size the field inside their own layout.
+ * ``:global()`` to size the field inside their own layout.
  */
 let {
   value = $bindable(),

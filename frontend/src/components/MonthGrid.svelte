@@ -71,6 +71,17 @@ function shift(delta: number) {
   month = shiftMonth(month, delta);
 }
 
+/** The caller's day classes, applied to the cell verbatim: the three
+ *  this file styles (``occ`` / ``tentative`` / ``changed``) and any name
+ *  of the caller's own, which its own ``:global`` rules then style. */
+function classesOf(extra: Record<string, boolean> | undefined): string {
+  return extra
+    ? Object.keys(extra)
+        .filter((k) => extra[k])
+        .join(" ")
+    : "";
+}
+
 function isClickable(c: Cell): boolean {
   return !!(c.iso && clickable?.(c.iso));
 }
@@ -96,16 +107,13 @@ function onCellClick(c: Cell) {
   </div>
   <div class="mg-grid" style="grid-template-columns: {columns ?? columnTemplate}">
     {#each cells as c, i (i)}
-      {@const extra = c.day && dayClass ? dayClass(c.iso!) : undefined}
+      {@const extra = c.day && dayClass ? classesOf(dayClass(c.iso!)) : ""}
       <!-- The role and the tabindex are set by the same test, so a cell
            is either a button or is not reachable at all. The check
            cannot see that the two are one decision. -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <div
-        class="mg-cell"
-        class:occ={extra?.occ}
-        class:tentative={extra?.tentative}
-        class:changed={extra?.changed}
+        class="mg-cell {extra}"
         class:today={c.today}
         class:clickable={!!c.day && isClickable(c)}
         class:is-active={!!c.iso && c.iso === activeIso}

@@ -883,30 +883,30 @@ $effect(() => {
 .switch:focus-visible { outline: 2px solid var(--brand-red); outline-offset: 2px; }
 /* Calendar date picker: highlight sign-up-able days, fill the selected
  * ones, mute beyond-horizon projected dates. Cells live inside MonthGrid,
- * so reach them with :deep. */
-:deep(.mg-cell.has-occurrence) {
+ * so reach them with :global. */
+:global(.mg-cell.has-occurrence) {
   background: var(--brand-bg);
   font-weight: 600;
 }
-:deep(.mg-cell.projected) {
+:global(.mg-cell.projected) {
   color: var(--brand-text-muted);
   border-style: dashed;
 }
-:deep(.mg-cell.selected) {
+:global(.mg-cell.selected) {
   background: var(--brand-red);
   border-color: var(--brand-red);
 }
-:deep(.mg-cell.selected .mg-num) { color: #fff; }
+:global(.mg-cell.selected .mg-num) { color: #fff; }
 /* Past sessions this booking attended (manage mode): locked history —
  * filled but muted, with a subtle strike so they read as done, not
  * selectable. */
-:deep(.mg-cell.attended) {
+:global(.mg-cell.attended) {
   background: var(--brand-bg);
   border-style: dashed;
   color: var(--brand-text-muted);
   cursor: default;
 }
-:deep(.mg-cell.attended .mg-num) {
+:global(.mg-cell.attended .mg-num) {
   text-decoration: line-through;
   opacity: 0.7;
 }
