@@ -10,17 +10,42 @@ shows up against the run before it.
 make db-up
 set -a && source .env && set +a
 LOCAL_MODE=1 uv run uvicorn backend.main:app --port 8000        # one shell
-uv run python scripts/bench.py --fill 500 --levels 1,8,32       # another
+uv run python scripts/bench.py --fill --levels 1,8              # another
 ```
 
-`--fill N` tops the seeded form, quiz and kompas up to N submissions
-and runs `ANALYZE` afterwards. Skipping the analyze is worth an
-afternoon of wrong answers: the planner picks a plan for the empty
-table it last saw, every read looks slow, and the ranking that comes
-out is an artefact of the load rather than of the code.
+Two tables come out.
 
-`p50` and `p95` are milliseconds. `rps` is requests per second at that
-concurrency.
+**Pages** is what somebody waits for. A screen is not one request: an
+organiser opening an event fires six at once and waits for the slowest,
+and under load those six compete with each other as much as with
+anybody else's. Every page counts `/auth/me`, because the route guard
+resolves the session before the page paints.
+
+**Endpoints** is what one read costs on its own. That is where a
+regression gets diagnosed once a page has shown one.
+
+`p50` and `p95` are milliseconds. `rps` is requests (or page loads) per
+second at that concurrency.
+
+## The data it runs against
+
+`--fill` tops every table up to the `BUSY` profile in `scripts/bench.py`:
+two years of a chapter, 120 events on 240 dates, 20 signups on each,
+feedback from 7 of them, 500 answers per form, 60 people on a datepoll,
+520 shifts on the roster.
+
+Filling matters more than it sounds. The seeded dev database is a demo:
+eight events, nine signups, three datepoll answers. Every read that
+joins to those tables looks free against it, and Postgres picks plans
+for tables that fit on one page. Until 2026-08-30 everything here
+except the forms was measured against that demo, so the event, roster,
+datepoll and feedback rows in the older runs below say nothing.
+
+`--fill` also runs `ANALYZE` afterwards, which is worth an afternoon of
+wrong answers on its own: without it the planner works from statistics
+gathered when the tables were empty, every read looks slow, and the
+ranking that comes out is an artefact of the load rather than of the
+code.
 
 ## What the numbers cannot tell you
 
@@ -34,6 +59,75 @@ of `rps` between c=8 and c=32 is partly the client running out of core.
 Read the p50 column for what an endpoint costs, and the rps column only
 as a rough shape. Proving a real server-side ceiling needs a load
 generator on another machine.
+
+## 2026-08-30 - first run against a busy database
+
+Machine: 12th Gen Intel i5-1235U, 12 cores, 15 GB, Postgres 16.13,
+Python 3.14.5. One uvicorn worker. The `BUSY` profile above. Same-run
+repeats move by 20-30% on a laptop, so read a change of less than that
+as noise.
+
+Pages, which is the number that matters:
+
+| page | requests | p50 c=1 | p50 c=8 | loads/s c=8 |
+|---|---|---|---|---|
+| compass list | 2 | 27 | 179 | 45 |
+| form list | 2 | 29 | 191 | 43 |
+| users | 3 | 39 | 221 | 33 |
+| dashboard | 3 | 51 | 436 | 18 |
+| form details | 3 | 57 | 377 | 21 |
+| datepoll details | 4 | 79 | 523 | 15 |
+| compass details | 3 | 97 | 532 | 15 |
+| roster details | 5 | 136 | 1169 | 7 |
+| event details | 6 | 153 | 862 | 9 |
+
+Endpoints, same database:
+
+| endpoint | p50 c=1 | p50 c=8 | p50 c=32 | rps c=32 |
+|---|---|---|---|---|
+| auth/me | 15 | 87 | 253 | 126 |
+| form public | 15 | 87 | 275 | 117 |
+| chapters | 16 | 81 | 306 | 108 |
+| compass public | 18 | 91 | 310 | 107 |
+| form list | 19 | 93 | 311 | 107 |
+| form details | 22 | 120 | 346 | 89 |
+| compass details | 24 | 134 | 404 | 86 |
+| event occurrences | 24 | 153 | 427 | 78 |
+| datepoll summary | 24 | 134 | 386 | 82 |
+| datepoll csv | 24 | 142 | 394 | 81 |
+| roster details | 24 | 123 | 481 | 74 |
+| event feedback csv | 24 | 123 | 376 | 89 |
+| form submissions | 25 | 147 | 397 | 75 |
+| compass submissions | 25 | 139 | 444 | 71 |
+| chapter agenda | 25 | 125 | 426 | 82 |
+| event details | 26 | 146 | 424 | 75 |
+| roster accountability | 28 | 156 | 450 | 75 |
+| event list | 29 | 158 | 483 | 72 |
+| form summary | 30 | 130 | 406 | 76 |
+| event feedback-summary | 31 | 158 | 458 | 66 |
+| roster schedule | 37 | 226 | 605 | 54 |
+| form csv | 47 | 199 | 554 | 63 |
+| compass csv | 62 | 225 | 704 | 47 |
+| compass summary | 68 | 231 | 768 | 42 |
+
+### What this run said
+
+* **No single endpoint is slow. Pages are, by adding up.** The worst
+  read on the busy database is 68 ms; the worst page is 153, because it
+  is six reads deep. Nothing on the endpoint table would have found
+  that.
+* **`event details` fires six requests**: the session, the event, its
+  occurrences, one occurrence's signups, that occurrence's stats, and
+  the feedback summary. Five of them are the same event. That is the
+  page to fix, and the fix is fewer requests rather than faster ones.
+* **`roster details` fires five** and is the slowest under load: 1.2 s
+  at eight organisers, on a roster with 520 shifts. `roster schedule`
+  alone is 11 queries.
+* **Filling the events changed almost nothing on the endpoint table.**
+  `event list` went from 39 ms to 29 with fifteen times the events,
+  which is noise: those reads were already indexed for the shape they
+  ask. The demo database was hiding nothing there. It was hiding the
+  page cost, which only shows when the requests are timed together.
 
 ## 2026-08-29 - after the `/submissions` reads stopped pivoting
 
