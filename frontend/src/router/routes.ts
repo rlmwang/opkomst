@@ -168,19 +168,5 @@ export const routes: RouteDef[] = [
   // low enough traffic not to be worth its own entry.
   { path: "/e/:slug/feedback", load: () => import("@/pages/FeedbackPage.svelte") },
 
-  // ``requiresWhatsApp`` sends a typed URL back to the events list when
-  // the server has no WhatsApp configured, rather than opening a page
-  // that cannot work.
-  {
-    path: "/admin/whatsapp",
-    load: () => import("@/pages/AdminWhatsAppPage.svelte"),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      requiresWhatsApp: true,
-      requiresOrganisation: true,
-    },
-  },
-
   { path: "/*", load: () => import("@/pages/NotFoundPage.svelte") },
 ];

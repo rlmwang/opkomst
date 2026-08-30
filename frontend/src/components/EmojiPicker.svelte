@@ -17,7 +17,7 @@ export const EMOJIS = [
   "📱", "💻", "📸", "💬", "📧", "🌐", "🔗", "📊",
   // Admin / organising.
   "📋", "📝", "📅", "📣", "🔔", "⏰", "📍", "🎉",
-  // Organising / reactions (for the message blast tool).
+  // Organising / reactions.
   "🌹", "🚩", "✊", "❤️", "👍", "🙌", "🙏", "✅",
 ] as const;
 
@@ -37,17 +37,14 @@ export function firstUnusedEmoji(used: Iterable<string>): string {
  * Tiny emoji picker. A trigger that toggles a small popover grid of
  * curated emojis; clicking one emits ``select`` with the character.
  *
- * Two modes, one component:
- * - **value mode** (chore editor): pass ``modelValue`` and the trigger
- *   shows the current emoji, highlighting it in the grid. A chore always
- *   carries one — ``DEFAULT_CHORE_EMOJI`` seeds a fresh chore, so there
- *   is no clear control.
- * - **insert mode** (WhatsApp blast): omit ``modelValue`` and the trigger
- *   shows a neutral face icon; ``select`` inserts at the cursor.
+ * Pass ``value`` and the trigger shows the current emoji, highlighting
+ * it in the grid. A chore always carries one (``DEFAULT_CHORE_EMOJI``
+ * seeds a fresh chore), so there is no clear control; without a value
+ * the trigger shows a neutral face icon.
  *
  * Deliberately not a full Unicode picker. The vocabulary leads with
  * chores (cleaning, kitchen, tools, logistics) and rounds out with the
- * organising/comms staples the blast tool needs — no library, no search.
+ * organising staples, no library and no search.
  */
 import { onMount } from "svelte";
 
@@ -59,7 +56,7 @@ const {
   value,
   onselect,
 }: {
-  /** The currently selected emoji (value mode); omit for insert mode. */
+  /** The currently selected emoji. */
   value?: string | null;
   onselect: (emoji: string) => void;
 } = $props();

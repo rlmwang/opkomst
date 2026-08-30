@@ -13,8 +13,8 @@ points back to `deploy.md` rather than repeating the prose.
 
 > **Why the Pi.** The production VPS is 2 vCPU / 1.9 GB and lives
 > permanently ~1 GB into swap (Coolify's own 7 containers eat ~250 MB,
-> the app ~170 MB, the Evolution/WhatsApp stack ~133 MB, plus
-> Postgres). Any memory bump tips it into swap-thrash → the
+> the app ~170 MB, plus Postgres). Any memory bump tips it into
+> swap-thrash → the
 > intermittent stalls. A Pi 5 with **8 GB (16 GB ideal)** runs the
 > whole stack in RAM with zero swap, and dropping Coolify for plain
 > compose removes another ~250 MB of overhead.
@@ -30,7 +30,6 @@ One `docker compose` project, four containers:
 | `api`         | built from this repo's `Dockerfile` | FastAPI + the built front end (served by the SPA fallback) + the one-shot cron CLI |
 | `postgres`    | `postgres:16-alpine`           | the application database                        |
 | `cloudflared` | `cloudflare/cloudflared`       | outbound-only tunnel; publishes `opkomst.nu` → `api:8000` |
-| `evolution-*` | optional                       | WhatsApp blast tool (see §11), only if you use it |
 
 The Pi never opens an inbound port. `cloudflared` makes an **outbound**
 connection to Cloudflare's edge; Cloudflare terminates TLS for
@@ -179,7 +178,7 @@ DISABLE_SCHEDULER=          # leave empty; cron is host-driven (§9)
 RATE_LIMIT_STORAGE_URI=memory://   # single replica → in-process is correct
 # The Pi 5 has 4 cores and real RAM. 2 workers is a sane start
 # (~150-200 MB each); bump to 3 if you like. Don't run 4+ on 8 GB
-# alongside Postgres + Evolution.
+# alongside Postgres.
 WEB_CONCURRENCY=2
 
 # --- Optional: Sentry (recommended) ---
@@ -197,11 +196,6 @@ GITHUB_IMAGES_REPO_OWNER=
 GITHUB_IMAGES_REPO_NAME=
 GITHUB_IMAGES_BRANCH=main
 GITHUB_IMAGES_TOKEN=
-
-# --- Optional: WhatsApp blast (Evolution API), see §11 ---
-EVOLUTION_URL=
-EVOLUTION_API_KEY=
-EVOLUTION_INSTANCE=opkomst-blast
 
 # --- Postgres container credentials (used by docker-compose.prod) ---
 POSTGRES_USER=opkomst
@@ -412,37 +406,7 @@ HEAD (the dump already carries the `alembic_version` row).
 
 ---
 
-## 11. Optional: WhatsApp blast (Evolution API)
-
-The Pi finally has RAM for it. Add to `docker-compose.prod.yml`:
-
-```yaml
-  evolution:
-    image: atendai/evolution-api:latest   # pin a tag in practice
-    restart: unless-stopped
-    environment:
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
-      DATABASE_ENABLED: "true"
-      DATABASE_PROVIDER: postgresql
-      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/evolution
-    depends_on:
-      postgres:
-        condition: service_healthy
-    expose:
-      - "8080"
-```
-
-Then set in `.env`: `EVOLUTION_URL=http://evolution:8080`,
-`EVOLUTION_API_KEY=<a strong key>`, `EVOLUTION_INSTANCE=opkomst-blast`,
-and create an `evolution` database in the same Postgres
-(`dc exec postgres createdb -U $POSTGRES_USER evolution`). Leave all
-three unset and the WhatsApp tab stays hidden, the route guard
-redirects, and the API returns 503, exactly as on the VPS. Full tool
-walkthrough: `docs/plan-whatsapp-blast.md`.
-
----
-
-## 12. Updates / redeploy
+## 11. Updates / redeploy
 
 No git-push automation; pull and rebuild on the Pi (8 GB builds the
 SPA comfortably):
@@ -460,7 +424,7 @@ manual is fine for this traffic and avoids building unattended.
 
 ---
 
-## 13. Survive reboots & power loss
+## 12. Survive reboots & power loss
 
 `restart: unless-stopped` brings the containers back when the Docker
 daemon starts, and Docker starts on boot by default
@@ -495,7 +459,7 @@ cleanly on outage is cheap insurance for the DB.
 
 ---
 
-## 14. Monitoring
+## 13. Monitoring
 
 - **Health**: `https://opkomst.nu/health` returns `{"status":"ok"}`.
   Point an external uptime check (UptimeRobot, Cloudflare Health
@@ -505,11 +469,11 @@ cleanly on outage is cheap insurance for the DB.
 - **Cloudflare** dashboard shows tunnel up/down and request analytics.
 - **Resources**: `docker stats` and `free -h`, on an 8 GB Pi you
   should see **zero swap in use**. If swap creeps up, that's the signal
-  to drop `WEB_CONCURRENCY` or move Evolution off.
+  to drop `WEB_CONCURRENCY`.
 
 ---
 
-## 15. Cutover checklist
+## 14. Cutover checklist
 
 1. Stand the Pi up fully and verify on a temporary hostname (e.g. add
    a `pi.opkomst.nu` public hostname on the tunnel and test there).

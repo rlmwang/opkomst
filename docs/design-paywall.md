@@ -46,9 +46,6 @@ attendees get a calendar link, volunteers get their personal page and
 the month calendar, and the feedback form is reached from the event
 page and its QR instead of from an inbox.
 
-The organiser's own outbound channel stays free: the WhatsApp blast
-tool is push that costs nothing per recipient.
-
 The chore welcome mail stays free too. It is one send per volunteer and
 it carries the only link back to their page.
 

@@ -55,12 +55,6 @@ export const auth = {
   get isAdmin() {
     return user?.role === "admin" && user?.is_approved === true;
   },
-  // Whether the WhatsApp blast tool is open to this account. It arrives
-  // on the user row, so there is no second request in front of the first
-  // page.
-  get whatsappAvailable() {
-    return user?.whatsapp_available === true;
-  },
 };
 
 export async function fetchMe(): Promise<void> {
@@ -101,25 +95,9 @@ export async function completeRegistration(token: string, name: string): Promise
   user = resp.user;
 }
 
-export async function logout(): Promise<void> {
-  // Best-effort server hook. Wipes any linked WhatsApp blast session
-  // before we drop the JWT. Failures here must not block sign-out: the
-  // user clicked Logout, the local state gets cleared regardless.
-  try {
-    await post("/api/v1/auth/logout", {});
-  } catch {
-    // ignore
-  }
+export function logout(): void {
   clearToken();
   user = null;
-  // Drop any draft or recipient list the WhatsApp blast tool had stashed
-  // in sessionStorage. Same privacy posture as the rest of the project:
-  // nothing of the previous session leaks into the next one.
-  try {
-    sessionStorage.removeItem("opkomst.whatsapp.draft");
-  } catch {
-    // ignore
-  }
   // Same rule for the half-typed create forms. At the root the next
   // visitor is not necessarily the same person.
   clearAllDrafts();

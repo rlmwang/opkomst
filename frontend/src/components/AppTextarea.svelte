@@ -3,10 +3,6 @@
  * The app's multi-line input. Same values as ``AppInput``, plus the one
  * thing a textarea does that an input does not: grow to fit what has
  * been typed into it, when the caller asks.
- *
- * ``element`` hands the real ``<textarea>`` back to a caller that needs
- * the caret. ``AdminWhatsAppPage`` reads ``selectionStart`` off it to
- * insert an emoji where the cursor is.
  */
 let {
   value = $bindable(),
@@ -16,7 +12,6 @@ let {
   disabled,
   fluid,
   autoResize,
-  element = $bindable(),
   class: className,
 }: {
   value?: string | null;
@@ -26,16 +21,10 @@ let {
   disabled?: boolean;
   fluid?: boolean;
   autoResize?: boolean;
-  /** The field itself, for a caller that needs the caret. */
-  element?: HTMLTextAreaElement;
   class?: string;
 } = $props();
 
 let field = $state<HTMLTextAreaElement>();
-
-$effect(() => {
-  element = field;
-});
 
 function fit(): void {
   if (!field || !autoResize) return;

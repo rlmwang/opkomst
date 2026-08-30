@@ -84,9 +84,9 @@ const workspaceItems = $derived.by<MenuItem[]>(() => {
 // Group two: the organisation-management destinations. Separated
 // from the workspaces by a rule in the menu — they act on the
 // tool itself rather than on a chapter's programme.
-// A personal account has no second group: nobody to approve, no
-// chapters to sort them into, and no WhatsApp blast. The menu then
-// holds the workspaces and the sign-out, which is all of it.
+// A personal account has no second group: nobody to approve and no
+// chapters to sort them into. The menu then holds the workspaces and
+// the sign-out, which is all of it.
 const adminItems = $derived.by<MenuItem[]>(() => {
   const items: MenuItem[] = [];
   if (auth.isPersonal) return items;
@@ -97,14 +97,6 @@ const adminItems = $derived.by<MenuItem[]>(() => {
       label: t("header.admin"),
       isActive: (p) => p === "/users" || p === "/chapters" || p === "/settings",
       badge: showPendingBadge ? pendingCount : undefined,
-    });
-  }
-  if (auth.isAdmin && auth.whatsappAvailable) {
-    items.push({
-      key: "whatsapp",
-      to: "/admin/whatsapp",
-      label: t("header.whatsapp"),
-      isActive: (p) => p === "/admin/whatsapp",
     });
   }
   return items;
@@ -126,15 +118,15 @@ function navigate(to: string) {
   navMenu?.hide();
   void go(to);
 }
-async function signOut() {
+function signOut() {
   navMenu?.hide();
-  await logout();
+  logout();
   void go("/");
 }
 
 // Subtabs derived from the current route. Empty array on routes
 // that don't sit under one of the parents with subtabs (Lid-
-// feedback, WhatsApp, /event/new, /event/:id/edit, /form/new,
+// feedback, /event/new, /event/:id/edit, /form/new,
 // etc.) — the subtab pair distinguishes only the two list views,
 // so hiding it on detail/edit routes keeps the navigation honest.
 interface Subtab {

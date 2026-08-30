@@ -126,9 +126,6 @@ BUDGETS: dict[str, int] = {
     "/api/v1/chore/by-slug/{slug}/qr.svg": 2,
     "/api/v1/chore/by-token/{token}": 6,
     "/api/v1/chore/by-token/{token}/calendar": 6,
-    # -- whatsapp (organisation-only tool) -----------------------------
-    "/api/v1/whatsapp/qr": 3,
-    "/api/v1/whatsapp/status": 3,
 }
 
 # Paths this audit cannot reach, and why. Declared rather than silently
@@ -145,8 +142,6 @@ UNMEASURED: dict[str, str] = {
     "/api/v1/feedback/{token}": "needs a feedback token, minted by the mail worker",
     "/api/v1/chapters/{chapter_id}/usage": "admin-only surface, 403 for the audit's organiser",
     "/api/v1/chore/{roster_id}/rebalance/preview": "409 until the roster is activated",
-    "/api/v1/whatsapp/qr": "403 without the WhatsApp tool configured",
-    "/api/v1/whatsapp/status": "403 without the WhatsApp tool configured",
 }
 
 

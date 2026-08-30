@@ -5213,27 +5213,6 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
-      "HeartbeatResponse": {
-        "description": "One round-trip for \"I'm still here\" + status poll.",
-        "properties": {
-          "state": {
-            "enum": [
-              "open",
-              "connecting",
-              "close",
-              "unknown",
-              "not_configured"
-            ],
-            "title": "State",
-            "type": "string"
-          }
-        },
-        "required": [
-          "state"
-        ],
-        "title": "HeartbeatResponse",
-        "type": "object"
-      },
       "LinkSent": {
         "description": "Boring 200 response so /login-link can't be probed for whether\nan email is registered.",
         "properties": {
@@ -6686,35 +6665,6 @@
         "title": "PublicRosterOut",
         "type": "object"
       },
-      "QrResponse": {
-        "description": "Pairing payload from Evolution. ``qr`` is a base64 PNG data\nURL or the raw QR string, depending on Evolution's mood; the\nfrontend renders both shapes.",
-        "properties": {
-          "pairingCode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pairingcode"
-          },
-          "qr": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Qr"
-          }
-        },
-        "title": "QrResponse",
-        "type": "object"
-      },
       "QuizAnswerResult": {
         "description": "One graded answer on the result screen. The key is here and\nnowhere earlier: this shape is the response to the submit, so it\narrives once the answering is over.",
         "properties": {
@@ -7698,43 +7648,6 @@
         "title": "ScheduleStatsOut",
         "type": "object"
       },
-      "SendRequest": {
-        "description": "One outbound message. Phone normalisation happens client-side.",
-        "properties": {
-          "number": {
-            "maxLength": 20,
-            "minLength": 8,
-            "title": "Number",
-            "type": "string"
-          },
-          "text": {
-            "maxLength": 4096,
-            "minLength": 1,
-            "title": "Text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "number",
-          "text"
-        ],
-        "title": "SendRequest",
-        "type": "object"
-      },
-      "SendResponse": {
-        "description": "Generic ack. the frontend only cares whether it succeeded.",
-        "properties": {
-          "ok": {
-            "title": "Ok",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "ok"
-        ],
-        "title": "SendResponse",
-        "type": "object"
-      },
       "SetUserChaptersRequest": {
         "description": "Replace the user's full chapter membership set. ``min_length=1``\nkeeps approved users in at least one chapter \u2014 emptying the set\nis the same as de-activating them, which is what the delete\nendpoint is for.",
         "properties": {
@@ -8054,27 +7967,6 @@
         "title": "StartedOut",
         "type": "object"
       },
-      "StatusResponse": {
-        "description": "Connection state of the linked WhatsApp session.",
-        "properties": {
-          "state": {
-            "enum": [
-              "open",
-              "connecting",
-              "close",
-              "unknown",
-              "not_configured"
-            ],
-            "title": "State",
-            "type": "string"
-          }
-        },
-        "required": [
-          "state"
-        ],
-        "title": "StatusResponse",
-        "type": "object"
-      },
       "SwapIn": {
         "description": "Trade two confirmed shifts: the caller's ``mine`` for someone else's\n``theirs``.",
         "properties": {
@@ -8188,10 +8080,6 @@
           "tenant_kind": {
             "title": "Tenant Kind",
             "type": "string"
-          },
-          "whatsapp_available": {
-            "title": "Whatsapp Available",
-            "type": "boolean"
           }
         },
         "required": [
@@ -8203,7 +8091,6 @@
           "tenant_kind",
           "participant_cap",
           "participant_mail",
-          "whatsapp_available",
           "chapters",
           "created_at"
         ],
@@ -8950,49 +8837,6 @@
           }
         },
         "summary": "Login Link",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/auth/logout": {
-      "post": {
-        "description": "Sign-out hook. JWT is stateless so there's nothing to revoke\nserver-side; the route exists so app-logout can also tear down\nthe WhatsApp blast tool's linked-device session (otherwise a\nuser closes the app and the linked phone stays paired with\nEvolution until the watchdog catches up).\n\nBest-effort: a failure here must not block sign-out \u2014 the\nfrontend clears its JWT regardless. Errors are swallowed and\nlogged, never raised.",
-        "operationId": "logout_api_v1_auth_logout_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Logout",
         "tags": [
           "auth"
         ]
@@ -18227,264 +18071,6 @@
         "summary": "Tenant Chapters",
         "tags": [
           "public"
-        ]
-      }
-    },
-    "/api/v1/whatsapp/heartbeat": {
-      "post": {
-        "description": "Page liveness ping. Bumps ``_last_seen`` and returns current\nstate in one round-trip so the page can poll a single endpoint.\n\nThe 120/min cap is well above the page's 15s interval; it's a\nsafety net against a runaway tab, not a usage cap.",
-        "operationId": "heartbeat_api_v1_whatsapp_heartbeat_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HeartbeatResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Heartbeat",
-        "tags": [
-          "whatsapp"
-        ]
-      }
-    },
-    "/api/v1/whatsapp/logout": {
-      "post": {
-        "description": "Full wipe: logs out and deletes the Evolution instance, so\nthe next visit starts from a fresh QR.",
-        "operationId": "logout_api_v1_whatsapp_logout_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Logout",
-        "tags": [
-          "whatsapp"
-        ]
-      }
-    },
-    "/api/v1/whatsapp/qr": {
-      "get": {
-        "operationId": "get_qr_api_v1_whatsapp_qr_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QrResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Qr",
-        "tags": [
-          "whatsapp"
-        ]
-      }
-    },
-    "/api/v1/whatsapp/send": {
-      "post": {
-        "description": "Send one text message. Client paces the loop; this cap is a\nbackstop against a runaway send.\n\nUpstream failures (Evolution 5xx, network drop, read timeout)\nare mapped to a 502/504 with a short stable code. The frontend\ntreats the row as failed and continues; raw httpx exceptions\nwould otherwise surface as TaskGroup ExceptionGroups in logs.",
-        "operationId": "send_api_v1_whatsapp_send_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SendRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SendResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Send",
-        "tags": [
-          "whatsapp"
-        ]
-      }
-    },
-    "/api/v1/whatsapp/status": {
-      "get": {
-        "operationId": "get_status_api_v1_whatsapp_status_get",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Status",
-        "tags": [
-          "whatsapp"
         ]
       }
     },

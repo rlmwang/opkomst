@@ -104,80 +104,10 @@
     "archive": "Archief",
     "users": "Gebruikers",
     "chapters": "Afdelingen",
-    "whatsapp": "WhatsApp",
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen",
     "settings": "Instellingen",
     "compasses": "Kompassen"
-  },
-  "whatsapp": {
-    "title": "WhatsApp-blast",
-    "lede": "Stuur in één keer een persoonlijk WhatsApp-bericht naar een lijst met contacten. Er wordt niets opgeslagen: zodra je het tabblad sluit, wordt de koppeling met WhatsApp gewist.",
-    "state": {
-      "open": "gekoppeld",
-      "connecting": "verbinden…",
-      "close": "niet gekoppeld",
-      "unknown": "onbekend",
-      "not_configured": "niet geconfigureerd"
-    },
-    "connect": {
-      "title": "Koppel je WhatsApp",
-      "step1": "Open WhatsApp op je telefoon.",
-      "step2": "Ga naar Instellingen > Gekoppelde apparaten > Apparaat koppelen.",
-      "step3": "Scan de QR-code hieronder.",
-      "qrAlt": "QR-code om WhatsApp te koppelen",
-      "pairingCode": "Of voer de koppelcode in:",
-      "statusLabel": "Status:"
-    },
-    "connected": {
-      "linked": "WhatsApp gekoppeld",
-      "reconnecting": "verbinden…",
-      "disconnect": "Loskoppelen"
-    },
-    "recipients": {
-      "title": "Ontvangers",
-      "hint": "Plak een CSV met een kopregel. Eén kolom bevat de telefoonnummers (geef hieronder de naam ervan op). Andere kolommen kun je als variabelen in je bericht gebruiken.",
-      "phoneColumnLabel": "Kolom met telefoonnummers",
-      "countryCodeLabel": "Landcode",
-      "validCount": "geldig",
-      "invalidCount": "ongeldig",
-      "alreadySent": "al verstuurd",
-      "clear": "Lijst wissen",
-      "availableTags": "Beschikbare variabelen:",
-      "status": "Status",
-      "errors": {
-        "emptyInput": "Geen CSV opgegeven.",
-        "missingPhoneColumn": "De kopregel moet de kolomnaam bevatten die je hierboven hebt opgegeven.",
-        "emptyNumber": "geen nummer",
-        "invalidNumber": "geen geldig telefoonnummer",
-        "duplicateNumber": "dubbel"
-      }
-    },
-    "compose": {
-      "title": "Je bericht",
-      "hint": "Zet een kolomnaam tussen accolades om die kolom in je bericht te plaatsen. Het voorbeeld hiernaast laat zien wat je eerste ontvanger ziet.",
-      "placeholder": "Schrijf hier je bericht…",
-      "bold": "vet",
-      "italic": "cursief",
-      "strike": "doorgehaald",
-      "mono": "monospace",
-      "previewEmpty": "(leeg bericht)",
-      "delayLabel": "Wachttijd tussen berichten",
-      "delayHint": "Lager gaat sneller maar is riskanter: bij te snel versturen kan WhatsApp de boel afknijpen of het apparaat ontkoppelen. 6s is een veilige standaard.",
-      "dontCloseWarning": "Bezig met versturen. Laat dit tabblad open tot het klaar is. Als je het sluit stopt het versturen en wordt de WhatsApp-koppeling verbroken.",
-      "sendButton": "Verstuur naar {count} ontvangers",
-      "confirmHeader": "WhatsApp-blast versturen?",
-      "confirmLead": "Je staat op het punt {count} berichten te versturen. Het eerste bericht luidt:",
-      "confirmAccept": "Verstuur naar {count}",
-      "pause": "Pauzeren",
-      "resume": "Hervatten",
-      "cancel": "Annuleren",
-      "sent": "verstuurd",
-      "failed": "mislukt",
-      "of": "van {total}",
-      "sendStatus": "Verzending",
-      "download": "Resultaten downloaden (.csv)"
-    }
   },
   "auth": {
     "email": "E-mailadres",

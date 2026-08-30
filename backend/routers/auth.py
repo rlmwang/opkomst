@@ -40,7 +40,7 @@ from ..schemas.auth import (
     LoginRequest,
     UserOut,
 )
-from ..services import limits, tenancy, whatsapp
+from ..services import limits, tenancy
 from ..services import tenants as tenants_svc
 from ..services.mail import build_url, send_email
 from ..services.rate_limit import Limits, limiter
@@ -71,12 +71,6 @@ def _user_out(db: Session, user: User) -> UserOut:
         tenant_kind=user.tenant.kind,
         participant_cap=limits.participant_cap(user.tenant),
         participant_mail=limits.can_send_participant_mail(user.tenant),
-        whatsapp_available=(
-            user.role == "admin"
-            and user.is_approved
-            and user.tenant.kind == "organisation"
-            and whatsapp.is_configured()
-        ),
         chapters=[ChapterRef(id=c.id, name=c.name) for c in live_chapters],
         created_at=user.created_at,
     )
@@ -372,22 +366,3 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)) -
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
     return _user_out(db, user)
-
-
-@router.post("/logout", status_code=204)
-@limiter.limit(Limits.ORG_RARE)
-async def logout(request: Request, _: User = Depends(get_current_user)) -> None:
-    """Sign-out hook. JWT is stateless so there's nothing to revoke
-    server-side; the route exists so app-logout can also tear down
-    the WhatsApp blast tool's linked-device session (otherwise a
-    user closes the app and the linked phone stays paired with
-    Evolution until the watchdog catches up).
-
-    Best-effort: a failure here must not block sign-out — the
-    frontend clears its JWT regardless. Errors are swallowed and
-    logged, never raised."""
-    if whatsapp.is_configured():
-        try:
-            await whatsapp.delete_instance()
-        except Exception:
-            logger.warning("auth_logout_whatsapp_teardown", outcome="error")

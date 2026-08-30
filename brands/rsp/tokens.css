@@ -68,11 +68,6 @@
    * because a podium reads as a podium. */
   --brand-rank-silver: #8a8f98;
   --brand-rank-bronze: #b8763a;
-  /* The WhatsApp preview bubble mimics WhatsApp's own outgoing-message
-   * green so the organiser sees what the recipient will see. */
-  --brand-chat-bubble: #d9fdd3;
-  --brand-chat-text: #111111;
-
   /* --- PrimeVue ramps -------------------------------------------
    * ``primevue-preset.ts`` maps each PrimeVue design token onto one of
    * these, so the widget set is tinted by the tenant rather than by a

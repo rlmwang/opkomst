@@ -88,15 +88,6 @@ class Settings(BaseSettings):
     rate_limit_storage_uri: str = "memory://"
     web_concurrency: int = 4
 
-    # ---- WhatsApp blast tool (Evolution API proxy) -------------
-    # Optional: when unset, the WhatsApp admin page surfaces a
-    # "not configured" message instead of crashing. All three must
-    # be set together to enable the tool.
-
-    evolution_url: _OptionalStr = None
-    evolution_api_key: _OptionalSecret = None
-    evolution_instance: _OptionalStr = None
-
     # ---- Hero-image storage (GitHub Contents API) --------------
     # Optional: when unset, the upload route returns 503 and the
     # frontend hides the picker. All four must be set together and the
