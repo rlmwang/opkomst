@@ -107,7 +107,7 @@ def _counts(client: Any, headers: Any, form: dict[str, Any], mode: str = "form")
 
 _CHOICE = [
     {
-        "kind": "single_choice",
+        "kind": "multiple_choice",
         "prompt": "Hoe vaak kom je?",
         "required": True,
         "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}],
@@ -173,7 +173,7 @@ def test_deleting_an_answered_option_takes_its_answers(client, organiser_headers
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Hoe vaak kom je?",
                 "required": True,
                 "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}, {"label": "Nooit"}],
@@ -282,7 +282,7 @@ def _kompas(client: Any, headers: Any) -> Any:
         headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Waar sta je?",
                 "required": True,
                 "options": [
@@ -372,7 +372,7 @@ def _quiz(client: Any, headers: Any) -> Any:
         headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Welke stad?",
                 "required": True,
                 "points": 5,
@@ -574,7 +574,7 @@ def test_deleting_an_answered_option_is_refused_until_confirmed(client, organise
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Hoe vaak kom je?",
                 "required": True,
                 "options": [{"label": "Wekelijks"}, {"label": "Maandelijks"}, {"label": "Nooit"}],

@@ -176,7 +176,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 if not text:
                     continue
                 submitted[q.id] = {"answer_text": text}
-            elif q.kind == "single_choice":
+            elif q.kind == "multiple_choice":
                 choices = ans.answer_choices or []
                 if not choices:
                     continue
@@ -185,7 +185,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 if choices[0] not in {o.id for o in q.options}:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choice not in options.")
                 submitted[q.id] = {"answer_choices": list(choices)}
-            elif q.kind == "multi_choice":
+            elif q.kind == "multiple_answer":
                 choices = ans.answer_choices or []
                 if not choices:
                     # On a quiz, ticking nothing is an answer: "none of

@@ -128,7 +128,7 @@ function isAnswered(item: PublicQuizQuestion): boolean {
   if (item.kind === "rating" || item.kind === "number") return a.answer_int != null;
   // Ticking nothing on a multiple-choice question is an answer: "none
   // of these" is a position, and it is marked like any other.
-  if (item.kind === "multi_choice") return true;
+  if (item.kind === "multiple_answer") return true;
   return (a.answer_choices ?? []).length > 0;
 }
 

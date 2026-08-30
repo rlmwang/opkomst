@@ -453,7 +453,7 @@ async function exportCsv(): Promise<void> {
                   {/each}
                 </ul>
               {/if}
-            {:else if (q.kind === "single_choice" || q.kind === "multi_choice") && q.choice_counts}
+            {:else if (q.kind === "multiple_choice" || q.kind === "multiple_answer") && q.choice_counts}
               {@const counts = q.choice_counts}
               <p class="muted q-meta">{t("form.details.qResponses", { n: q.response_count })}</p>
               <div class="bars">

@@ -210,15 +210,20 @@ def test_submit_short_text_whitespace_only_treated_as_skipped(client, organiser_
     assert r.status_code == 400
 
 
-# --- single_choice --------------------------------------------------
+# --- multiple_choice --------------------------------------------------
 
 
-def test_submit_single_choice_happy_path(client, organiser_headers):
+def test_submit_multiple_choice_happy_path(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_choice",
+                "prompt": "Pick",
+                "required": True,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     question = form["questions"][0]
@@ -237,12 +242,17 @@ def test_submit_single_choice_happy_path(client, organiser_headers):
         db.close()
 
 
-def test_submit_single_choice_rejects_value_not_in_options(client, organiser_headers):
+def test_submit_multiple_choice_rejects_value_not_in_options(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_choice",
+                "prompt": "Pick",
+                "required": True,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     qid = form["questions"][0]["id"]
@@ -253,12 +263,17 @@ def test_submit_single_choice_rejects_value_not_in_options(client, organiser_hea
     assert r.status_code == 400
 
 
-def test_submit_single_choice_rejects_more_than_one(client, organiser_headers):
+def test_submit_multiple_choice_rejects_more_than_one(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "single_choice", "prompt": "Pick", "required": True, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_choice",
+                "prompt": "Pick",
+                "required": True,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     qid = form["questions"][0]["id"]
@@ -269,15 +284,20 @@ def test_submit_single_choice_rejects_more_than_one(client, organiser_headers):
     assert r.status_code == 400
 
 
-# --- multi_choice ---------------------------------------------------
+# --- multiple_answer ---------------------------------------------------
 
 
-def test_submit_multi_choice_dedupes(client, organiser_headers):
+def test_submit_multiple_answer_dedupes(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_answer",
+                "prompt": "Pick",
+                "required": False,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     question = form["questions"][0]
@@ -296,12 +316,17 @@ def test_submit_multi_choice_dedupes(client, organiser_headers):
         db.close()
 
 
-def test_submit_multi_choice_rejects_unknown_option(client, organiser_headers):
+def test_submit_multiple_answer_rejects_unknown_option(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_answer",
+                "prompt": "Pick",
+                "required": False,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     qid = form["questions"][0]["id"]
@@ -312,12 +337,17 @@ def test_submit_multi_choice_rejects_unknown_option(client, organiser_headers):
     assert r.status_code == 400
 
 
-def test_submit_optional_multi_choice_empty_is_skipped(client, organiser_headers):
+def test_submit_optional_multiple_answer_empty_is_skipped(client, organiser_headers):
     form = _create(
         client,
         organiser_headers,
         questions=[
-            {"kind": "multi_choice", "prompt": "Pick", "required": False, "options": [{"label": "A"}, {"label": "B"}]},
+            {
+                "kind": "multiple_answer",
+                "prompt": "Pick",
+                "required": False,
+                "options": [{"label": "A"}, {"label": "B"}],
+            },
         ],
     )
     qid = form["questions"][0]["id"]

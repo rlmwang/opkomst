@@ -282,8 +282,8 @@
         "rating": "Rating",
         "text": "Text",
         "short_text": "Short text",
-        "single_choice": "Multiple choice",
-        "multi_choice": "Multiple answer",
+        "multiple_choice": "Multiple choice",
+        "multiple_answer": "Multiple answer",
         "number": "Number"
       },
       "responsesTitle": "Responses",
@@ -340,8 +340,8 @@
         "rating": "Rating (1-5)",
         "text": "Long text",
         "short_text": "Short text",
-        "single_choice": "Multiple choice",
-        "multi_choice": "Multiple answer",
+        "multiple_choice": "Multiple choice",
+        "multiple_answer": "Multiple answer",
         "number": "Number"
       },
       "required": "Required",

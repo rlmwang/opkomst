@@ -13,7 +13,7 @@ lost answer is lost for good.
 ## What happens today
 
 Measured against the real endpoints with data created for the purpose:
-one `single_choice` question with three answers (`Wekelijks` x2,
+one `multiple_choice` question with three answers (`Wekelijks` x2,
 `Maandelijks` x1). These are behaviours of the code, not observations of
 how organisers actually edit forms, which nobody can have yet.
 

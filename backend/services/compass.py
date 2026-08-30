@@ -45,7 +45,7 @@ from ..models import CompassAxis
 # rather than degrees. Nothing else: a multi-choice answer pulls three
 # ways at once, a number has no direction, and no rule points a
 # paragraph anywhere.
-COMPASS_KINDS: Final[frozenset[str]] = frozenset({"rating", "single_choice"})
+COMPASS_KINDS: Final[frozenset[str]] = frozenset({"rating", "multiple_choice"})
 
 # The four tokens a pole can be: an axis, and a direction along it.
 AXES: Final[tuple[str, str]] = ("x", "y")
@@ -119,18 +119,24 @@ WHERE r.form_id = :form_id
 
 UNION ALL
 
-SELECT r.submission_id,
-       r.question_id,
-       split_part(o.pole, '_', 1) AS axis,
-       (CASE WHEN split_part(o.pole, '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
-FROM form_responses r
-JOIN form_questions q ON q.id = r.question_id
-JOIN form_response_choices c ON c.response_id = r.id
+-- The ticks, counted once, in the same pass that reads them. A
+-- question answered two ways points two ways at once, which is not a
+-- direction, so ``count(*) = 1`` is the rule and ``min(o.pole)`` is
+-- that one tick's pole. Grouping by the answer row carries its
+-- submission and question out with it, so nothing is looked up twice.
+SELECT cr.submission_id,
+       cr.question_id,
+       split_part(min(o.pole), '_', 1) AS axis,
+       (CASE WHEN split_part(min(o.pole), '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
+FROM form_response_choices c
+JOIN form_responses cr ON cr.id = c.response_id
+JOIN form_questions q ON q.id = cr.question_id
 JOIN form_question_options o ON o.id = c.option_id
-WHERE r.form_id = :form_id
-  AND q.kind = 'single_choice'
-  AND o.pole = ANY(:poles)
-  AND (SELECT count(*) FROM form_response_choices c2 WHERE c2.response_id = r.id) = 1
+WHERE cr.form_id = :form_id
+  AND q.kind = 'multiple_choice'
+GROUP BY c.response_id, cr.submission_id, cr.question_id
+HAVING count(*) = 1
+   AND min(o.pole) = ANY(:poles)
 """
 
 # A position is the mean per axis, so an unbalanced kompas still reads

@@ -47,7 +47,7 @@ const rows = $derived.by<Row[]>(() => {
   const q = question;
   if (!q) return [];
 
-  if (q.kind === "single_choice" || q.kind === "multi_choice") {
+  if (q.kind === "multiple_choice" || q.kind === "multiple_answer") {
     // Every option, in the order it was asked, so the question reads
     // the way it read on the night.
     // ``given`` is option ids and ``key`` is the labels the reveal
@@ -108,7 +108,7 @@ function labelFor(row: Row): string | null {
   if (row.picked) return strings.yourAnswer;
   // A right option nobody ticked needs the word: an unmarked row would
   // otherwise read as "not part of the answer".
-  if (row.right) return question?.kind === "multi_choice" ? strings.missed : strings.rightAnswer;
+  if (row.right) return question?.kind === "multiple_answer" ? strings.missed : strings.rightAnswer;
   return null;
 }
 </script>

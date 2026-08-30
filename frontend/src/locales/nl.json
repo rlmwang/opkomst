@@ -282,8 +282,8 @@
         "rating": "Beoordeling",
         "text": "Tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Meerkeuze",
-        "multi_choice": "Meerdere antwoorden",
+        "multiple_choice": "Meerkeuze",
+        "multiple_answer": "Meerdere antwoorden",
         "number": "Getal"
       },
       "responsesTitle": "Inzendingen",
@@ -340,8 +340,8 @@
         "rating": "Score (1-5)",
         "text": "Lange tekst",
         "short_text": "Korte tekst",
-        "single_choice": "Meerkeuze",
-        "multi_choice": "Meerdere antwoorden",
+        "multiple_choice": "Meerkeuze",
+        "multiple_answer": "Meerdere antwoorden",
         "number": "Getal"
       },
       "required": "Verplicht",

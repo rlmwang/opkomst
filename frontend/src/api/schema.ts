@@ -4907,7 +4907,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
+            kind: "rating" | "text" | "short_text" | "multiple_choice" | "multiple_answer" | "number";
             /** Low Label */
             low_label?: string | null;
             /** Max Value */
@@ -5026,7 +5026,7 @@ export interface components {
          *     * ``rating`` — ``rating_distribution`` (5-bucket counts) +
          *       ``rating_average``.
          *     * ``text`` / ``short_text`` — ``texts`` (newest first).
-         *     * ``single_choice`` / ``multi_choice`` — ``choice_counts``
+         *     * ``multiple_choice`` / ``multiple_answer`` — ``choice_counts``
          *       keyed by option string.
          *     * ``number`` — ``number_average`` with the range people used, and
          *       ``number_buckets``, the histogram (``services/numbers``).

@@ -84,7 +84,7 @@ def test_a_tick_is_exported_as_the_label_it_was_read_as(client, organiser_header
     form = _form(
         client,
         organiser_headers,
-        [{"kind": "multi_choice", "prompt": "Wat nam je mee?", "options": [{"label": "Soep"}, {"label": "Brood"}]}],
+        [{"kind": "multiple_answer", "prompt": "Wat nam je mee?", "options": [{"label": "Soep"}, {"label": "Brood"}]}],
     )
     qid = form["questions"][0]["id"]
     _submit(

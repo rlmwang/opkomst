@@ -37,8 +37,8 @@ useTestMessages("en", {
         number: "Number",
         text: "Long text",
         short_text: "Short text",
-        single_choice: "Single choice",
-        multi_choice: "Multiple choice",
+        multiple_choice: "Single choice",
+        multiple_answer: "Multiple choice",
       },
       required: "Required",
       lowLabel: "Low",
@@ -69,7 +69,7 @@ function option(id: string | null, label: string, extra: Partial<OptionDraft> = 
 function draft(options: OptionDraft[], over: Partial<QuestionDraft> = {}): QuestionDraft {
   return {
     id: "q1",
-    kind: "single_choice",
+    kind: "multiple_choice",
     prompt: "Which one?",
     required: true,
     options,
@@ -179,7 +179,7 @@ describe("an option keeps its id", () => {
       { scored: true },
     );
     await q.setKind("Multiple choice");
-    expect(q.get().kind).toBe("multi_choice");
+    expect(q.get().kind).toBe("multiple_answer");
     expect(ids(q.get())).toEqual(["opt-a", "opt-b"]);
     // The key does not survive: it belonged to the shape the question
     // had before, so it is picked again rather than carried over.
@@ -202,7 +202,7 @@ describe("the answer key lives on the option", () => {
   it("multi choice toggles each one on its own", async () => {
     const q = editor(
       draft([option("opt-a", "A"), option("opt-b", "B"), option("opt-c", "C")], {
-        kind: "multi_choice",
+        kind: "multiple_answer",
         points: 6,
       }),
       { scored: true },

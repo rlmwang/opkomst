@@ -4321,8 +4321,8 @@
               "rating",
               "text",
               "short_text",
-              "single_choice",
-              "multi_choice",
+              "multiple_choice",
+              "multiple_answer",
               "number"
             ],
             "title": "Kind",
@@ -4674,7 +4674,7 @@
         "type": "object"
       },
       "FormQuestionSummary": {
-        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``single_choice`` / ``multi_choice`` \u2014 ``choice_counts``\n  keyed by option string.\n* ``number`` \u2014 ``number_average`` with the range people used, and\n  ``number_buckets``, the histogram (``services/numbers``).",
+        "description": "Per-question aggregate on the organiser details page.\nShape mirrors the post-event feedback summary:\n\n* ``rating`` \u2014 ``rating_distribution`` (5-bucket counts) +\n  ``rating_average``.\n* ``text`` / ``short_text`` \u2014 ``texts`` (newest first).\n* ``multiple_choice`` / ``multiple_answer`` \u2014 ``choice_counts``\n  keyed by option string.\n* ``number`` \u2014 ``number_average`` with the range people used, and\n  ``number_buckets``, the histogram (``services/numbers``).",
         "properties": {
           "choice_counts": {
             "anyOf": [

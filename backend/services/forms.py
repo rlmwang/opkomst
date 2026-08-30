@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 # ``QuestionKind`` literal. ``_CHOICE_KINDS`` is the subset that
 # carries an options list.
 ALLOWED_KINDS: Final[frozenset[str]] = frozenset(get_args(QuestionKind))
-_CHOICE_KINDS: Final[frozenset[str]] = frozenset({"single_choice", "multi_choice"})
+_CHOICE_KINDS: Final[frozenset[str]] = frozenset({"multiple_choice", "multiple_answer"})
 _TEXT_KINDS: Final[frozenset[str]] = frozenset({"text", "short_text"})
 
 
@@ -238,7 +238,7 @@ def _apply_options(
     existing = {o.id: o for o in question.options}
     seen: set[str] = set()
     for ordinal, opt in enumerate(payload, start=1):
-        pole = opt.pole if pointed and question.kind == "single_choice" else None
+        pole = opt.pole if pointed and question.kind == "multiple_choice" else None
         correct = bool(opt.is_correct) if scored else False
         if opt.id and opt.id in existing:
             row = existing[opt.id]
@@ -860,7 +860,7 @@ def question_aggregates(
     * ``rating`` — 5-bucket distribution + average.
     * ``number`` — average, lowest, highest.
     * ``text`` / ``short_text`` — raw answers, newest first.
-    * ``single_choice`` / ``multi_choice`` — option → count map.
+    * ``multiple_choice`` / ``multiple_answer`` — option → count map.
 
     Every tally comes from one statement (``_AGGREGATES_SQL``) whatever
     the form asks and however many questions it has. ``shares`` is the
@@ -945,7 +945,7 @@ WITH cell AS (
            q.ordinal,
            CASE
                WHEN q.kind IN ('rating', 'number') THEN r.answer_int::text
-               WHEN q.kind IN ('single_choice', 'multi_choice') THEN (
+               WHEN q.kind IN ('multiple_choice', 'multiple_answer') THEN (
                    SELECT string_agg(o.label, '; ' ORDER BY o.ordinal)
                    FROM form_response_choices c
                    JOIN form_question_options o ON o.id = c.option_id

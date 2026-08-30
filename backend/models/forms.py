@@ -19,8 +19,8 @@ Four tables:
   (mirrors Event); a fresh slug per form makes the public URL
   bookmark-stable across restores.
 * ``form_questions`` — per-form question list, ordered. Six
-  kinds: ``rating``, ``text``, ``short_text``, ``single_choice``,
-  ``multi_choice``, ``number``. The kind enum is enforced at the
+  kinds: ``rating``, ``text``, ``short_text``, ``multiple_choice``,
+  ``multiple_answer``, ``number``. The kind enum is enforced at the
   schema layer and the public submit handler — adding a seventh
   requires touching both.
 * ``form_questions`` also carries the quiz half of a question: what a
@@ -123,8 +123,8 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     form_id: Mapped[str] = mapped_column(Text, ForeignKey("forms.id", ondelete="CASCADE"), nullable=False, index=True)
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
-    # One of ``rating`` / ``text`` / ``short_text`` / ``single_choice``
-    # / ``multi_choice``. Validated at the schema layer.
+    # One of ``rating`` / ``text`` / ``short_text`` / ``multiple_choice``
+    # / ``multiple_answer``. Validated at the schema layer.
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -171,7 +171,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # put the choice in different places. A ``rating`` poles the
     # statement, and that is this column: ``pole`` is the side a 5
     # means, a 1 is the other end of the same axis and a 3 is the
-    # middle. A ``single_choice`` poles each option, so its pole is a
+    # middle. A ``multiple_choice`` poles each option, so its pole is a
     # column on ``form_question_options`` instead.
     #
     # Null on a survey and on a quiz, dropped on write rather than
@@ -189,7 +189,7 @@ class FormQuestion(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # kind — the schema-drift CI gate doesn't cover this CHECK.
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('rating', 'text', 'short_text', 'single_choice', 'multi_choice', 'number')",
+            "kind IN ('rating', 'text', 'short_text', 'multiple_choice', 'multiple_answer', 'number')",
             name="ck_form_questions_kind",
         ),
     )
@@ -218,11 +218,11 @@ class FormQuestionOption(UUIDMixin, TimestampMixin, TenantMixin, Base):
     )
     ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
     label: Mapped[str] = mapped_column(Text, nullable=False)
-    # Kompas only, and only on a ``single_choice``: which way picking
+    # Kompas only, and only on a ``multiple_choice``: which way picking
     # this moves somebody. Null everywhere else.
     pole: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Quiz only: part of the answer key. A question can have more than
-    # one correct option (``multi_choice``).
+    # one correct option (``multiple_answer``).
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
 
     question: Mapped["FormQuestion"] = relationship(back_populates="options")
@@ -233,7 +233,7 @@ class FormQuestionOption(UUIDMixin, TimestampMixin, TenantMixin, Base):
 class FormResponseChoice(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One tick: this answer picked that option.
 
-    ``single_choice`` produces one row, ``multi_choice`` one per tick.
+    ``multiple_choice`` produces one row, ``multiple_answer`` one per tick.
     The foreign key is the point: an answer cannot name an option that
     does not exist, so the tallies are a join and a ``GROUP BY`` rather
     than a JSON unnest that has to guard against its own nulls.
@@ -296,7 +296,7 @@ class FormResponse(UUIDMixin, TimestampMixin, TenantMixin, Base):
     answer_int: Mapped[int | None] = mapped_column(Integer, nullable=True)
     answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     # The ticks live in ``form_response_choices``, one row each, keyed
-    # by option id. ``single_choice`` has one; ``multi_choice`` has the
+    # by option id. ``multiple_choice`` has one; ``multiple_answer`` has the
     # full subset.
     choices: Mapped[list["FormResponseChoice"]] = relationship(
         cascade="all, delete-orphan",

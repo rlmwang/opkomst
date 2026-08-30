@@ -79,7 +79,7 @@ const COMPASS = {
     {
       id: "two",
       ordinal: 2,
-      kind: "single_choice",
+      kind: "multiple_choice",
       prompt: "Waar moet het geld heen?",
       required: true,
       options: [{ id: "opt-zorg", label: "Zorg" }, { id: "opt-defensie", label: "Defensie" }],
@@ -122,7 +122,7 @@ const RESULT = {
     },
     {
       question_id: "two",
-      kind: "single_choice",
+      kind: "multiple_choice",
       pole: null,
       option_poles: ["x_low", "y_high"],
       given_int: null,

@@ -158,7 +158,7 @@ function toggleMulti(opt: string, on: boolean) {
       aria-labelledby="{question.id}-prompt"
       oninput={(e) => onupdate({ answer_text: (e.currentTarget as HTMLInputElement).value })}
     />
-  {:else if question.kind === "single_choice"}
+  {:else if question.kind === "multiple_choice"}
     <div class="choice-list" role="group" aria-labelledby="{question.id}-prompt">
       {#each question.options as opt (opt.id)}
         <label class="choice-row">
@@ -173,7 +173,7 @@ function toggleMulti(opt: string, on: boolean) {
         </label>
       {/each}
     </div>
-  {:else if question.kind === "multi_choice"}
+  {:else if question.kind === "multiple_answer"}
     <div class="choice-list" role="group" aria-labelledby="{question.id}-prompt">
       {#each question.options as opt (opt.id)}
         <label class="choice-row">

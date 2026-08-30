@@ -52,7 +52,7 @@ def _statement(prompt: str, pole: str, **extra: Any) -> dict[str, Any]:
 
 def _choice(prompt: str, pairs: list[tuple[str, str]], **extra: Any) -> dict[str, Any]:
     return {
-        "kind": "single_choice",
+        "kind": "multiple_choice",
         "prompt": prompt,
         "options": [{"label": text, "pole": pole} for text, pole in pairs],
         **extra,
@@ -471,7 +471,7 @@ def test_an_option_without_a_side_is_refused(client, organiser_headers) -> None:
         organiser_headers,
         [
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Waarheen?",
                 "options": [{"label": "A", "pole": "x_low"}, {"label": "B"}],
             }

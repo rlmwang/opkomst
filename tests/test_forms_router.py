@@ -77,7 +77,7 @@ def test_create_form_with_initial_questions(client, organiser_headers):
         questions=[
             {"kind": "rating", "prompt": "How was it?", "required": True},
             {
-                "kind": "single_choice",
+                "kind": "multiple_choice",
                 "prompt": "Pick one",
                 "required": True,
                 "options": [{"label": "A"}, {"label": "B"}, {"label": "C"}],

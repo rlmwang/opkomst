@@ -336,13 +336,13 @@ function firstQuestionProblem(): string | null {
   for (const [index, q] of questionList.items.entries()) {
     const n = index + 1;
     if (!q.prompt.trim()) return L("edit.questionNeedsPrompt", { n });
-    const choice = q.kind === "single_choice" || q.kind === "multi_choice";
+    const choice = q.kind === "multiple_choice" || q.kind === "multiple_answer";
     if (choice && q.options.length < 2) return L("edit.questionNeedsOptions", { n });
     if (isCompass) {
       if (q.kind === "rating" && !q.pole) return t("compass.edit.questionNeedsPole", { n });
       // Each option carries its own side, so there is no second list to
       // fall out of step with this one.
-      if (q.kind === "single_choice" && q.options.some((o) => !o.pole)) {
+      if (q.kind === "multiple_choice" && q.options.some((o) => !o.pole)) {
         return t("compass.edit.questionNeedsOptionPoles", { n });
       }
       continue;
@@ -351,7 +351,7 @@ function firstQuestionProblem(): string | null {
     if (choice && !q.options.some((o) => o.is_correct)) {
       return t("quiz.edit.questionNeedsKey", { n });
     }
-    if (q.kind === "single_choice" && q.options.filter((o) => o.is_correct).length !== 1) {
+    if (q.kind === "multiple_choice" && q.options.filter((o) => o.is_correct).length !== 1) {
       return t("quiz.edit.questionNeedsOneKey", { n });
     }
     if ((q.kind === "number" || q.kind === "rating") && q.correct_int === null) {

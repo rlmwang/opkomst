@@ -245,7 +245,7 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
         if product == "quiz":
             body["questions"] = [
                 {
-                    "kind": "single_choice",
+                    "kind": "multiple_choice",
                     "prompt": "Welke?",
                     "required": True,
                     "options": [{"label": "A", "is_correct": True}, {"label": "B"}],
