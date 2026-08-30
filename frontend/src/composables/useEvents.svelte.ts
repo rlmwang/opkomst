@@ -7,8 +7,8 @@ import type {
   EventCreate,
   EventListOut,
   EventOut,
+  EventPage,
   EventStats,
-  OccurrenceList,
   SignupSummary,
 } from "@/api/types";
 
@@ -20,18 +20,33 @@ import type {
  * cache before the server answers: the organiser sees the row change on
  * the click, and a refusal puts it back.
  */
-export type { EventCreate, EventListOut, EventOut, EventStats, OccurrenceList, SignupSummary };
+export type { EventCreate, EventListOut, EventOut, EventPage, EventStats, SignupSummary };
 
 export const events = createEntityCrud<EventListOut, EventOut, EventCreate>({ resource: "event" });
 
-/** The organiser's occurrence panel: materialised occurrences with
- *  per-session headcount and line-item counts, plus the projected
- *  future dates. */
-export function occurrencesQuery(eventId: () => string) {
-  return apiQuery<OccurrenceList>(
-    () => ["event", eventId(), "occurrences"],
-    () => `/api/v1/event/${eventId()}/occurrences`,
+/**
+ * Everything the details page draws, in one request.
+ *
+ * It used to be five, all about the same event, and the page waited on
+ * the slowest of them while the server did the same access check five
+ * times over. The reply carries the session the page opens on, chosen
+ * by the server, with that session's sign-ups and stats; the page
+ * writes those into the per-occurrence caches below so switching days
+ * still works and the day it opened on is not asked for twice.
+ */
+export function eventPageQuery(eventId: () => string) {
+  return apiQuery<EventPage>(
+    () => ["event", eventId(), "page"],
+    () => `/api/v1/event/${eventId()}/page`,
   );
+}
+
+/** Seed the per-occurrence caches from the page read. */
+export function seedOccurrence(eventId: string, page: EventPage): void {
+  const occ = page.primary_occurrence_id;
+  if (!occ) return;
+  queryClient.setQueryData(["event", eventId, "occurrences", occ, "signups"], page.signups);
+  queryClient.setQueryData(["event", eventId, "occurrences", occ, "stats"], page.stats);
 }
 
 /** One occurrence's sign-up line items. Enabled only once an occurrence
@@ -178,11 +193,13 @@ export const deleteSignup = () =>
         return () => queryClient.setQueryData(key, snap);
       },
       onSuccess: (_result, vars) => {
+        // The day's list and its stats, and the page read that carries
+        // the per-session counts beside them. Keyed by prefix, so the
+        // occurrence's own two go with the first line.
         void queryClient.invalidateQueries({
-          queryKey: ["event", vars.eventId, "occurrences", vars.occurrenceId, "signups"],
+          queryKey: ["event", vars.eventId, "occurrences", vars.occurrenceId],
         });
-        void queryClient.invalidateQueries({ queryKey: ["event", vars.eventId, "occurrences"] });
-        void queryClient.invalidateQueries({ queryKey: ["event", vars.eventId, "stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["event", vars.eventId, "page"] });
       },
     },
   );

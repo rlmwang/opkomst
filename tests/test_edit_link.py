@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from tests._helpers.events import public_option_ids
+from tests._helpers.events import page_occurrences, public_option_ids
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -122,7 +122,7 @@ def test_datepoll_edit_roundtrip(client, organiser_headers):
     assert body["answers"][d1] == "maybe"
     assert body["note"] == "changed my mind"
 
-    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["summary"]
     assert summary["submission_count"] == 1
 
 
@@ -158,7 +158,7 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
 def _first_occurrence(client: Any, headers: Any, event: dict[str, Any]) -> dict[str, Any]:
     """The event's first materialised occurrence — its public slug is the
     per-occurrence sign-up target, its id the withdraw/target key."""
-    return client.get(f"/api/v1/event/{event['id']}/occurrences", headers=headers).json()["occurrences"][0]
+    return page_occurrences(client, headers, event['id'])[0]
 
 
 def _occurrence_signups(client: Any, headers: Any, event: dict[str, Any]) -> list[dict[str, Any]]:
@@ -251,7 +251,7 @@ def test_datepoll_withdraw(client, organiser_headers):
 
     assert client.post(f"/api/v1/datepoll/by-token/{token}/withdraw").status_code == 204
     assert client.get(f"/api/v1/datepoll/by-token/{token}").status_code == 404
-    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["summary"]
     assert summary["submission_count"] == 0
 
 
@@ -292,7 +292,7 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
     finally:
         db.close()
     now = now_wallclock()
-    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    occs = page_occurrences(client, organiser_headers, event['id'])
     past = [o for o in occs if datetime.fromisoformat(o["starts_at"]) <= now]
     future = [o for o in occs if datetime.fromisoformat(o["starts_at"]) > now]
     assert len(past) >= 2 and len(future) >= 3
@@ -475,7 +475,7 @@ def test_datepoll_recovery_rotates_and_stamps(client, organiser_headers):
         f"/api/v1/datepoll/by-slug/{poll['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
     ).json()["edit_token"]
-    subs = client.get(f"/api/v1/datepoll/{poll['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["submissions"]
     assert subs[0]["link_recovered_at"] is None
     fresh = _recover(
         client, organiser_headers, f"/api/v1/datepoll/{poll['id']}/submissions/{subs[0]['submission_id']}/edit-link"

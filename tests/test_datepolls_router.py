@@ -94,7 +94,7 @@ def test_summary_tallies_and_best_slot(client, organiser_headers):
             ],
         },
     )
-    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/page", headers=organiser_headers).json()["summary"]
     assert summary["submission_count"] == 2
     by_id = {s["id"]: s for s in summary["slots"]}
     assert by_id[d0]["yes"] == 2 and by_id[d0]["no"] == 0

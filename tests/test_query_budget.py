@@ -63,10 +63,9 @@ BUDGETS: dict[str, int] = {
     "/api/v1/event": 3,
     "/api/v1/event/archived": 3,
     "/api/v1/event/{event_id}": 8,
-    "/api/v1/event/{event_id}/occurrences": 6,
+    "/api/v1/event/{event_id}/page": 23,
     "/api/v1/event/{event_id}/occurrences/{occurrence_id}/signups": 6,
     "/api/v1/event/{event_id}/occurrences/{occurrence_id}/stats": 7,
-    "/api/v1/event/{event_id}/feedback-summary": 9,
     "/api/v1/event/{event_id}/feedback-submissions.csv": 4,
     "/api/v1/event/by-slug/{slug}": 4,
     "/api/v1/event/by-slug/{slug}/qr.svg": 2,
@@ -109,8 +108,7 @@ BUDGETS: dict[str, int] = {
     "/api/v1/datepoll": 3,
     "/api/v1/datepoll/archived": 3,
     "/api/v1/datepoll/{datepoll_id}": 6,
-    "/api/v1/datepoll/{datepoll_id}/summary": 6,
-    "/api/v1/datepoll/{datepoll_id}/submissions": 4,
+    "/api/v1/datepoll/{datepoll_id}/page": 10,
     "/api/v1/datepoll/{datepoll_id}/submissions.csv": 5,
     "/api/v1/datepoll/by-slug/{slug}": 3,
     "/api/v1/datepoll/by-slug/{slug}/qr.svg": 2,
@@ -218,8 +216,8 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
         },
     ).json()
     ids["event_id"] = event["id"]
-    panel = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=headers).json()
-    occurrences = panel["occurrences"]
+    page = client.get(f"/api/v1/event/{event['id']}/page", headers=headers).json()
+    occurrences = page["occurrences"]["occurrences"]
     assert occurrences, "event fixture materialised no occurrence to measure against"
     ids["occurrence_id"] = occurrences[0]["id"]
     ids["event_slug"] = occurrences[0]["slug"]

@@ -11,6 +11,7 @@ clock is frozen.
 """
 
 from datetime import date, time, timedelta
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -187,3 +188,12 @@ def public_option_ids(client, slug: str, source: str | None = None, help_labels:
     if help_labels:
         out["help_choices"] = [helps[label] for label in help_labels]
     return out
+
+
+def page_occurrences(client: Any, headers: Any, event_id: str) -> list[dict[str, Any]]:
+    """The event's sessions, read the way the organiser's page reads
+    them: one request for the whole page (``routers/events.event_page``),
+    of which this is one part."""
+    page = client.get(f"/api/v1/event/{event_id}/page", headers=headers)
+    assert page.status_code == 200, page.text
+    return page.json()["occurrences"]["occurrences"]

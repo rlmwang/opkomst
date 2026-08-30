@@ -84,17 +84,11 @@ async function submitOnboardingChapters(): Promise<void> {
   copyQr={(e) => e.next_slug && void share.copyQr(e.next_slug)}
   searchKeys={(e) => [lt(e.name_nl, e.name_en) ?? "", e.location ?? ""]}
   prefetch={(id) => {
-    // What the details page reads on mount, so the click lands on a
-    // painted page. The per-day sign-ups and stats are not warmed:
-    // they hang off an occurrence id that only exists once this has
-    // landed.
+    // What the details page reads on mount, which is one request now,
+    // so the click lands on a painted page.
     void queryClient.prefetchQuery({
-      queryKey: ["event", id, "occurrences"],
-      queryFn: () => get(`/api/v1/event/${id}/occurrences`),
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ["feedback", "summary", id],
-      queryFn: () => get(`/api/v1/event/${id}/feedback-summary`),
+      queryKey: ["event", id, "page"],
+      queryFn: () => get(`/api/v1/event/${id}/page`),
     });
   }}
 >

@@ -27,7 +27,7 @@ from backend.database import Base, engine
 from backend.models import Chapter, Event, Tenant, User
 from backend.services import tenancy
 from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
-from tests._helpers.events import public_option_ids
+from tests._helpers.events import page_occurrences, public_option_ids
 
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
@@ -94,7 +94,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     )
     assert r.status_code == 201, r.text
     event_id = r.json()["id"]
-    occ = client.get(f"/api/v1/event/{event_id}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = page_occurrences(client, organiser_headers, event_id)[0]
     ack = client.post(
         f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={
@@ -183,8 +183,8 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
         their_event_id = their_event.id
 
     # Ours is visible; theirs is not, and the list shows only ours.
-    assert client.get(f"/api/v1/event/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
-    assert client.get(f"/api/v1/event/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
+    assert client.get(f"/api/v1/event/{our_event_id}/page", headers=organiser_headers).status_code == 200
+    assert client.get(f"/api/v1/event/{their_event_id}/page", headers=organiser_headers).status_code == 404
     listed = client.get("/api/v1/event", headers=organiser_headers).json()
     assert {e["id"] for e in listed} == {our_event_id}
 

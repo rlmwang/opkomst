@@ -50,6 +50,7 @@ export type EventListOut = S["EventListOut"];
 export type EventOut = S["EventOut"];
 export type EventCreate = S["EventCreate"];
 export type EventStats = S["EventStatsOut"];
+export type EventPage = S["EventPageOut"];
 export type SignupSummary = S["SignupSummaryOut"];
 export type SignupCreate = S["SignupCreate"];
 export type SignupAck = S["SignupAck"];
@@ -104,6 +105,7 @@ export type DatepollSlotOut = S["DatepollSlotOut"];
 export type PublicDatepollOut = S["PublicDatepollOut"];
 export type DatepollSubmit = S["DatepollSubmitIn"];
 export type DatepollSummary = S["DatepollSummaryOut"];
+export type DatepollPage = S["DatepollPageOut"];
 export type DatepollSlotSummary = S["DatepollSlotSummary"];
 export type DatepollSubmission = S["DatepollSubmissionOut"];
 

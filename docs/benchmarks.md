@@ -60,6 +60,28 @@ Production sits behind Traefik with `compress=true`, so the bytes there
 are fewer and the CPU is the same. Repeats move 20-30% on a laptop:
 read a smaller change as noise.
 
+## 2026-08-30 - one read per page, events and datepolls
+
+The details pages asked five and three times for one thing. Measured
+back to back on the same database, 10x, one worker:
+
+| page | requests | p50 c=1 | p50 c=8 |
+|---|---|---|---|
+| event details, before | 6 | 57 | 347 |
+| event details, after | 2 | 38 | 201 |
+| datepoll details, before | 4 | 58 | 465 |
+| datepoll details, after | 2 | 50 | 322 |
+
+* **The saving is the repeated access work, not the queries.** Each
+  request re-bound the tenant and re-checked the chapter scope before
+  answering. The event page is 22 queries where the five reads were 36,
+  and the datepoll page 10 where three were 16.
+* **What is left on the datepoll page is its payload**: 1,203
+  submissions, 184 KB, because the grid draws one row per person.
+* `event list` is 511 KB for 1,200 live events and the browser filters
+  it. Real organisations archive, and the archive is its own endpoint,
+  so at a realistic 120 it is 51 KB. Unbounded either way.
+
 ## 2026-08-30 - three volumes
 
 `--reset --fill --scale N`, so the three runs are independent rather

@@ -15,10 +15,10 @@ where they can be unit-tested without a router fixture.
 """
 
 from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -29,14 +29,12 @@ from ..schemas.events import (
     EventCreate,
     EventListOut,
     EventOut,
+    EventPageOut,
     EventStatsOut,
     EventUpdate,
-    OccurrenceListOut,
-    OccurrenceOut,
-    ProjectedOccurrenceOut,
     SignupSummaryOut,
 )
-from ..services import access, crud, entities, event_recurrence, event_stats, limits, mail_lifecycle
+from ..services import access, crud, entities, event_recurrence, event_stats, feedback_stats, limits, mail_lifecycle
 from ..services import events as events_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
@@ -361,17 +359,10 @@ def get_event(
     )
 
 
-@router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)
-def event_occurrences(
-    event_id: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_approved),
-) -> OccurrenceListOut:
-    """The occurrence panel on the organiser detail page: the materialised
-    occurrences with per-session headcount + line-item counts, plus the
-    projected future dates that aren't rows yet. Strictly read-only per
-    occurrence — the only actions are on the event itself."""
-    event = access.get_scoped_row(
+def _page_event(db: Session, event_id: str, user: User) -> Any:
+    """The event row the occurrence panel needs: the recurrence rule,
+    which is what the projected dates come out of."""
+    return access.get_scoped_row(
         db,
         Event,
         event_id,
@@ -386,37 +377,31 @@ def event_occurrences(
         Event.horizon_days,
         not_found="Event not found",
     )
-    occs = db.execute(
-        select(*Occurrence.__table__.c).where(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc())
-    ).all()
-    occ_ids = [o.id for o in occs]
-    totals = event_stats.occurrence_totals(db, occ_ids)
-    counts = event_stats.occurrence_signup_counts(db, occ_ids)
-    projected = event_recurrence.projected_future_specs(event, now_wallclock())
-    # ``occs`` is already every session of this event, in date order,
-    # which is exactly what "sessie i van N" is counted from. Asking
-    # ``event_recurrence`` would reach back through ``event.occurrences``
-    # and fetch the same rows a second time to number them.
-    return OccurrenceListOut(
-        total_sessions=None if (event.cycle_slots and event.span_weeks is None) else len(occs),
-        occurrences=[
-            OccurrenceOut(
-                id=o.id,
-                slug=o.slug,
-                index=i,
-                starts_at=o.starts_at,
-                ends_at=o.ends_at,
-                attendee_count=int(totals.get(o.id, 0)),
-                signup_count=int(counts.get(o.id, 0)),
-            )
-            for i, o in enumerate(occs)
-        ],
-        # Numbered on from the last materialised session: a projected date
-        # is the next session, it just has no row yet.
-        projected=[
-            ProjectedOccurrenceOut(index=len(occs) + i, starts_at=s.starts_at, ends_at=s.ends_at)
-            for i, s in enumerate(projected)
-        ],
+
+
+@router.get("/{event_id}/page", response_model=EventPageOut)
+def event_page(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventPageOut:
+    """The whole organiser page in one read.
+
+    The six routes below and above still exist, because switching to
+    another session asks for that session's sign-ups and stats. What
+    they stopped being is the way the page opens."""
+    event = access.get_event_for_user(db, event_id, user)
+    occurrences, primary_id = event_stats.occurrence_list(db, event)
+    primary = db.query(Occurrence).filter(Occurrence.id == primary_id).first() if primary_id is not None else None
+    return EventPageOut(
+        event=event_stats.to_out(db, event),
+        occurrences=occurrences,
+        primary_occurrence_id=primary_id,
+        signups=event_stats.occurrence_signups_summary(db, primary) if primary else [],
+        stats=event_stats.per_occurrence_stats(db, primary, event.help_options)
+        if primary
+        else EventStatsOut(total_signups=0, total_attendees=0, by_source={}, by_help={}),
+        feedback=feedback_stats.summary(db, event_id),
     )
 
 

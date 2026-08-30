@@ -44,14 +44,6 @@ export function feedbackPreviewQuery(slug: () => string, enabled: () => boolean)
   );
 }
 
-export function feedbackSummaryQuery(eventId: () => string) {
-  return apiQuery<FeedbackSummary>(
-    () => ["feedback", "summary", eventId()],
-    () => `/api/v1/event/${eventId()}/feedback-summary`,
-    { retry: false },
-  );
-}
-
 
 /**
  * Submit, and invalidate nothing.

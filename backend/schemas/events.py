@@ -5,6 +5,7 @@ from typing import ClassVar
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .common import BilingualTitleMixin, DisplayName, InstagramHandle, Locale, LowercaseEmail, RichText
+from .feedback import FeedbackSummaryOut
 
 
 class EventOptionIn(BaseModel):
@@ -259,6 +260,27 @@ class OccurrenceListOut(BaseModel):
     total_sessions: int | None
     occurrences: list[OccurrenceOut]
     projected: list[ProjectedOccurrenceOut]
+
+
+class EventPageOut(BaseModel):
+    """Everything the organiser's event page draws, in one read.
+
+    The page used to ask six times: the event, its sessions, the
+    sign-ups and the stats of one session, and the feedback summary.
+    Five of those are about the same event, and at eight organisers at
+    once the waiting was the asking rather than any one answer.
+
+    ``primary_occurrence_id`` is the session the page opens on, decided
+    here rather than in the browser: the soonest that has not ended,
+    else the last that ran. ``signups`` and ``stats`` are that session's;
+    switching days asks for another one."""
+
+    event: "EventOut"
+    occurrences: "OccurrenceListOut"
+    primary_occurrence_id: str | None
+    signups: list["SignupSummaryOut"]
+    stats: "EventStatsOut"
+    feedback: FeedbackSummaryOut
 
 
 class EventStatsOut(BaseModel):

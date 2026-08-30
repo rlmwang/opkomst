@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from backend.database import SessionLocal
-from tests._helpers.events import public_option_ids
+from tests._helpers.events import page_occurrences, public_option_ids
 
 
 def _first_chapter_id(client: Any, headers: Any) -> str:
@@ -57,7 +57,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
 def _first_occurrence(client: Any, headers: Any, event_id: str) -> dict[str, Any]:
     """The event's first materialised occurrence — its public slug is the
     per-occurrence public surface (signups / qr / ics / previews)."""
-    return client.get(f"/api/v1/event/{event_id}/occurrences", headers=headers).json()["occurrences"][0]
+    return page_occurrences(client, headers, event_id)[0]
 
 
 def _occ_slug(client: Any, headers: Any, event: dict[str, Any]) -> str:
@@ -165,7 +165,7 @@ def test_recurring_signup_creates_one_registration_with_many_line_items(client, 
         feedback_enabled=True,
         reminder_enabled=False,
     )
-    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    occs = page_occurrences(client, organiser_headers, event['id'])
     assert len(occs) == 3  # weekly × 3, all inside the 90-day horizon
     occ_ids = [o["id"] for o in occs]
 
@@ -219,7 +219,7 @@ def test_finite_event_materialises_all_sessions_past_horizon(client, organiser_h
         cycle_slots=[0],
         span_weeks=20,
     )
-    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()
+    occs = client.get(f"/api/v1/event/{event['id']}/page", headers=organiser_headers).json()["occurrences"]
     assert len(occs["occurrences"]) == 20  # all sessions are real rows
     assert occs["projected"] == []  # a finite event has nothing beyond a horizon
     assert occs["total_sessions"] == 20

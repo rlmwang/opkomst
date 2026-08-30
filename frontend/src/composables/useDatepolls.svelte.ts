@@ -1,10 +1,10 @@
-import { get } from "@/api/client";
 import { apiQuery } from "@/api/queries.svelte";
 import { createEntityCrud } from "@/composables/createEntityCrud.svelte";
 import type {
   DatepollCreate,
   DatepollListOut,
   DatepollOut,
+  DatepollPage,
   DatepollSubmission,
   DatepollSummary,
   DatepollUpdate,
@@ -22,6 +22,7 @@ export type {
   DatepollCreate,
   DatepollListOut,
   DatepollOut,
+  DatepollPage,
   DatepollSubmission,
   DatepollSummary,
   DatepollUpdate,
@@ -35,17 +36,16 @@ export const datepolls = createEntityCrud<
   DatepollUpdate
 >({ resource: "datepoll" });
 
-export function datepollSummaryQuery(datepollId: () => string) {
-  return apiQuery<DatepollSummary>(
-    () => ["datepoll", datepollId(), "summary"],
-    () => `/api/v1/datepoll/${datepollId()}/summary`,
+/**
+ * Everything the details page draws, in one request: the poll, the
+ * tally per date, and the per-person grid under it. Three requests
+ * before, all about the same poll.
+ */
+export function datepollPageQuery(datepollId: () => string) {
+  return apiQuery<DatepollPage>(
+    () => ["datepoll", datepollId(), "page"],
+    () => `/api/v1/datepoll/${datepollId()}/page`,
   );
-}
-
-/** Per-submission rows, the CSV's source. A one-shot fetch, not a
- *  query. */
-export function fetchDatepollSubmissions(datepollId: string) {
-  return get<DatepollSubmission[]>(`/api/v1/datepoll/${datepollId}/submissions`);
 }
 
 export function publicDatepollQuery(slug: () => string, enabled?: () => boolean) {

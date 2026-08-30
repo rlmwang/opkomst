@@ -21,7 +21,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, func, select, true
+from sqlalchemy import and_, func, select, text, true
 from sqlalchemy.orm import Session
 
 from ..models import (
@@ -35,8 +35,16 @@ from ..models import (
     SignupHelpChoice,
     User,
 )
-from ..schemas.events import EventListOut, EventOut, EventStatsOut, SignupSummaryOut
-from . import access, archive
+from ..schemas.events import (
+    EventListOut,
+    EventOut,
+    EventStatsOut,
+    OccurrenceListOut,
+    OccurrenceOut,
+    ProjectedOccurrenceOut,
+    SignupSummaryOut,
+)
+from . import access, archive, event_recurrence
 from . import image as image_svc
 from .events import now_wallclock
 
@@ -515,3 +523,64 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
         )
         for sid, rid, name, size, recovered in rows
     ]
+
+
+# The sessions of one event, and which of them the details page opens
+# on: the soonest that has not ended, and the last one that ran when
+# they all have. The window function decides that in the statement that
+# reads them, so the page neither scans them again to pick one nor
+# spends a round trip asking.
+_OCCURRENCES_SQL = text(
+    """
+SELECT id,
+       slug,
+       starts_at,
+       ends_at,
+       first_value(id) OVER (
+           ORDER BY (ends_at > :now) DESC,
+                    CASE WHEN ends_at > :now THEN starts_at END ASC,
+                    starts_at DESC
+       ) AS primary_id
+FROM occurrences
+WHERE event_id = :event_id
+ORDER BY starts_at ASC
+"""
+)
+
+
+def occurrence_list(db: Session, event: Any) -> tuple[OccurrenceListOut, str | None]:
+    """The occurrence panel, and the session the page opens on.
+
+    Materialised sessions with their headcounts, plus the dates the
+    recurrence will reach but has no row for yet."""
+    occs = db.execute(_OCCURRENCES_SQL, {"event_id": event.id, "now": now_wallclock()}).all()
+    occ_ids = [o.id for o in occs]
+    totals = occurrence_totals(db, occ_ids)
+    counts = occurrence_signup_counts(db, occ_ids)
+    projected = event_recurrence.projected_future_specs(event, now_wallclock())
+    # ``occs`` is already every session of this event, in date order,
+    # which is exactly what "sessie i van N" is counted from. Asking
+    # ``event_recurrence`` would reach back through ``event.occurrences``
+    # and fetch the same rows a second time to number them.
+    out = OccurrenceListOut(
+        total_sessions=None if (event.cycle_slots and event.span_weeks is None) else len(occs),
+        occurrences=[
+            OccurrenceOut(
+                id=o.id,
+                slug=o.slug,
+                index=i,
+                starts_at=o.starts_at,
+                ends_at=o.ends_at,
+                attendee_count=int(totals.get(o.id, 0)),
+                signup_count=int(counts.get(o.id, 0)),
+            )
+            for i, o in enumerate(occs)
+        ],
+        # Numbered on from the last materialised session: a projected date
+        # is the next session, it just has no row yet.
+        projected=[
+            ProjectedOccurrenceOut(index=len(occs) + i, starts_at=s.starts_at, ends_at=s.ends_at)
+            for i, s in enumerate(projected)
+        ],
+    )
+    return out, (occs[0].primary_id if occs else None)
