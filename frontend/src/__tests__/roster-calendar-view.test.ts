@@ -1,14 +1,15 @@
 /**
  * ``RosterCalendarView`` popover behaviour: an actionable day opens the
  * popover on click; the default popover renders one button per action
- * (the public claim/cover shape); the ``popover`` slot replaces that
+ * (the public claim/cover shape); the ``popover`` snippet replaces that
  * content (the organiser hand-over pickers) and receives the day's
  * assignments plus a working ``close``.
  */
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { render } from "@testing-library/svelte";
+import { describe, expect, it, vi } from "vitest";
 
-import RosterCalendarView, { type RosterDay } from "@/components/RosterCalendarView.vue";
+import RosterCalendarHarness from "@/__tests__/RosterCalendarHarness.svelte";
+import RosterCalendarView, { type RosterDay } from "@/components/RosterCalendarView.svelte";
 
 const ISO = "2026-01-07";
 const DAYS: Record<string, RosterDay> = {
@@ -29,8 +30,9 @@ const DAYS: Record<string, RosterDay> = {
   },
 };
 
-function mountView(slots: Record<string, string> = {}) {
-  return mount(RosterCalendarView, {
+function view() {
+  const onact = vi.fn();
+  const { container } = render(RosterCalendarView, {
     props: {
       month: "2026-01",
       daysByIso: DAYS,
@@ -40,39 +42,42 @@ function mountView(slots: Record<string, string> = {}) {
       locale: "nl",
       openLabel: "open",
       anonLabel: "anon",
+      onact,
     },
-    slots,
   });
+  return { container, onact };
 }
 
-function cellFor(w: ReturnType<typeof mountView>, iso: string) {
-  return w.findAll(".mg-cell").find((c) => c.text().includes(iso.slice(8).replace(/^0/, "")) && c.find(".rcv-list").exists())!;
+/** The cell for a day that has assignments on it. */
+async function openDay(container: HTMLElement) {
+  const cell = [...container.querySelectorAll(".mg-cell")].find(
+    (c) =>
+      (c.textContent ?? "").includes(ISO.slice(8).replace(/^0/, "")) && c.querySelector(".rcv-list"),
+  ) as HTMLElement;
+  cell.click();
+  await Promise.resolve();
 }
 
 describe("RosterCalendarView popover", () => {
-  it("opens the default popover with one button per action and emits act", async () => {
-    const w = mountView();
-    await cellFor(w, ISO).trigger("click");
-    const buttons = w.findAll(".rcv-pop .btn");
+  it("opens the default popover with one button per action and reports the act", async () => {
+    const { container, onact } = view();
+    await openDay(container);
+    const buttons = [...container.querySelectorAll(".rcv-pop .btn")] as HTMLElement[];
     expect(buttons).toHaveLength(1); // only the actionable assignment
-    await buttons[0].trigger("click");
-    expect(w.emitted("act")).toEqual([["s1", "cover"]]);
-    expect(w.find(".rcv-pop").exists()).toBe(false); // acting closes it
+    buttons[0].click();
+    await Promise.resolve();
+    expect(onact.mock.calls).toEqual([["s1", "cover"]]);
+    expect(container.querySelector(".rcv-pop")).toBeNull(); // acting closes it
   });
 
-  it("renders the popover slot instead, with the day's assignments and a working close", async () => {
-    const w = mountView({
-      popover: `
-        <template #popover="{ assignments, close }">
-          <button class="handover" @click="close()">{{ assignments.length }}</button>
-        </template>
-      `,
-    });
-    await cellFor(w, ISO).trigger("click");
-    expect(w.find(".rcv-pop .btn").exists()).toBe(false); // default replaced
-    const custom = w.find(".rcv-pop .handover");
-    expect(custom.text()).toBe("2"); // slot sees every assignment of the day
-    await custom.trigger("click");
-    expect(w.find(".rcv-pop").exists()).toBe(false); // slot's close() works
+  it("renders the popover snippet instead, with the day's assignments and a working close", async () => {
+    const { container } = render(RosterCalendarHarness, { props: { daysByIso: DAYS } });
+    await openDay(container);
+    expect(container.querySelector(".rcv-pop .btn")).toBeNull(); // default replaced
+    const custom = container.querySelector(".rcv-pop .handover") as HTMLElement;
+    expect(custom.textContent).toBe("2"); // the snippet sees every assignment
+    custom.click();
+    await Promise.resolve();
+    expect(container.querySelector(".rcv-pop")).toBeNull(); // its close() works
   });
 });

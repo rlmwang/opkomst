@@ -20,14 +20,15 @@ already-archived entity", 200 for /restore, 404/410 for the
 public by-slug routes).
 """
 
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from fastapi import HTTPException
-from sqlalchemy import and_, false
+from sqlalchemy import and_, false, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import ColumnElement
 
-from ..models import Chapter, Datepoll, Event, Form, Roster, Tenant, User, UserChapter
+from ..models import ArchiveIndex, Chapter, Datepoll, Event, Form, Roster, Tenant, User, UserChapter
+from ..models.archive import archive_metadata
 
 # ``Event`` / ``Form`` / ``Datepoll`` / ``Roster`` each carry an ``id``
 # and a chapter-scoping ``chapter_id`` — the only two columns the scope
@@ -133,6 +134,109 @@ def get_scoped(
     if row is None:
         raise HTTPException(status_code=404, detail=not_found)
     return row
+
+
+def scoped_select(
+    db: Session,
+    model: type[_Scoped],
+    user: User,
+    *columns: Any,
+    chapter_id: str | None = None,
+) -> Any:
+    """A Core ``SELECT`` of ``columns``, scoped the way ``list_filter``
+    scopes an ORM list.
+
+    The read counterpart of ``get_scoped``. A GET endpoint builds a DTO
+    and never writes what it read, so it selects the columns its
+    response needs instead of hydrating entities the request will throw
+    away. The scope rule is the same object in both, so a Core read
+    cannot drift from the ORM one it replaced.
+
+    Writes keep using ``get_scoped``: you cannot flush a row that the
+    session is not tracking, and the tenant write guard
+    (``services/tenancy.install_write_guard``) reads the session's
+    identity map to decide whether a write is allowed."""
+    return select(*columns).where(list_filter(db, user, model, chapter_id))
+
+
+def get_scoped_row(
+    db: Session,
+    model: type[_Scoped],
+    entity_id: str,
+    user: User,
+    *columns: Any,
+    not_found: str,
+    where: ColumnElement[bool] | None = None,
+) -> Any:
+    """One row's ``columns``, under exactly the scope ``get_scoped``
+    applies, and the same 404 when there is nothing to show."""
+    predicates = [model.id == entity_id, scope_filter(db, user, model)]
+    if where is not None:
+        predicates.append(where)
+    row = db.execute(select(*columns).where(*predicates)).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail=not_found)
+    return row
+
+
+def archived_row(db: Session, root: str, entity_id: str, user: User) -> Any:
+    """One archived item's own row, scoped to what this user may see.
+
+    The same rule ``scope_filter`` applies to live rows — the tenant
+    always, plus the chapter set for an organisation — asked of the
+    archive twin, because an archived item is not in the table
+    ``get_scoped`` reads. 404 for missing, another tenant's, or a
+    chapter this user has no membership in, so an archived id tells a
+    stranger no more than a live one does.
+    """
+    twin = archive_metadata.tables[f"{root}_archive"]
+    predicates = [twin.c.id == entity_id, twin.c.tenant_id == user.tenant_id]
+    if not is_personal(db, user):
+        ids = chapter_ids_for_user(db, user)
+        if not ids:
+            raise HTTPException(status_code=404, detail="Not found")
+        predicates.append(twin.c.chapter_id.in_(ids))
+    row = db.execute(select(twin).where(*predicates)).mappings().first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return row
+
+
+def archived_rows(
+    db: Session,
+    root: str,
+    user: User,
+    chapter_id: str | None = None,
+    *,
+    mode: str | None = None,
+) -> list[Any]:
+    """Every archived item of one kind this user may see, newest first.
+
+    Ordered by ``archive_index.archived_at``: the twin holds the item,
+    the index holds when it left. Joined rather than denormalised so the
+    twin stays an exact mirror of its live table."""
+    twin = archive_metadata.tables[f"{root}_archive"]
+    predicates = [twin.c.tenant_id == user.tenant_id]
+    if mode is not None:
+        # The forms table holds surveys, quizzes and kompassen; each
+        # router lists only its own, archived or not.
+        predicates.append(twin.c.mode == mode)
+    if chapter_id is not None:
+        assert_user_can_assign_chapter(db, user, chapter_id)
+        predicates.append(twin.c.chapter_id == chapter_id)
+    elif not is_personal(db, user):
+        ids = chapter_ids_for_user(db, user)
+        if not ids:
+            return []
+        predicates.append(twin.c.chapter_id.in_(ids))
+    index = ArchiveIndex.__table__
+    stmt = (
+        select(twin)
+        .join(index, (index.c.entity_id == twin.c.id) & (index.c.root == root))
+        .where(*predicates)
+        .order_by(index.c.archived_at.desc())
+    )
+    return [row for row in db.execute(stmt).mappings()]
 
 
 def assert_user_can_assign_chapter(db: Session, user: User, chapter_id: str | None) -> None:

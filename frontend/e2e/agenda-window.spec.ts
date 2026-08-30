@@ -41,7 +41,7 @@ test("an admin widens the agenda window and a far-off event appears", async ({
   // 48 days out: past the 31-day window, well inside a 90-day one.
   const startsAt = new Date(Date.now() + 48 * 24 * 60 * 60 * 1000);
   const name = `E2E Window ${startsAt.getTime()}`;
-  const created = await request.post("/api/v1/events", {
+  const created = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${orgToken}` },
     data: {
       chapter_id: chapterId,
@@ -50,7 +50,7 @@ test("an admin widens the agenda window and a far-off event appears", async ({
       starts_on: startsAt.toISOString().slice(0, 10),
       start_time: "20:00:00",
       end_time: "22:00:00",
-      source_options: ["Mond-tot-mond"],
+      source_options: [{ label: "Mond-tot-mond" }],
       source_enabled: true,
       help_options: [],
       feedback_enabled: false,
@@ -86,7 +86,14 @@ test("an admin widens the agenda window and a far-off event appears", async ({
     await expect(ahead).toHaveValue("31");
     await ahead.fill("90");
     await ahead.blur();
+    // Wait for the write itself, not just the click. Reloading straight
+    // after raced it: the page came back showing 31 because the PUT had
+    // not landed yet, which read as the save being broken.
+    const saved = page.waitForResponse(
+      (r) => r.url().includes("/api/v1/settings") && r.request().method() === "PUT",
+    );
     await page.getByRole("button", { name: /opslaan|save/i }).click();
+    expect((await saved).ok()).toBeTruthy();
 
     // The saved value survives a reload, so it reached the server.
     await page.reload();

@@ -7,5 +7,5 @@ export function publicEventUrl(slug: string): string {
 
 /** SVG endpoint for the event's QR code. */
 export function eventQrUrl(slug: string): string {
-  return qrUrl("events", slug);
+  return qrUrl("event", slug);
 }

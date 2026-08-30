@@ -1,22 +1,20 @@
 /**
- * Smoke tests for the Vue Query composables.
+ * The query and mutation layer, by URL and verb.
  *
- * These don't render a component — they directly test that each
- * mutation hits the right URL with the right verb. The HTTP client
- * is mocked. Goal: catch a renamed route or flipped verb at unit-
- * test time, not when the integration suite breaks two refactors
- * later.
+ * Nothing is rendered: each call is checked to hit the right URL with
+ * the right verb, and the optimistic writes are checked to put the
+ * cache back when the server refuses. The HTTP client is mocked. The
+ * point is to catch a renamed route or a flipped verb here rather than
+ * two refactors later.
  *
- * Vue Query needs a ``QueryClient`` in scope; rather than mount a
- * real component, ``provide`` the client through a tiny
- * ``withSetup`` harness that runs the composable inside a Vue app
- * instance.
+ * A query subscribes in an effect, and an effect needs an owner, so
+ * each one runs inside an effect root (``effect-root``).
  */
-
-import { QueryClient, VUE_QUERY_CLIENT } from "@tanstack/vue-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type App, createApp, defineComponent, h } from "vue";
+
 import * as apiClient from "@/api/client";
+import { inEffect } from "@/__tests__/effect-root.svelte";
+import { queryClient } from "@/lib/query-client";
 
 vi.mock("@/api/client", () => ({
   get: vi.fn(),
@@ -36,67 +34,40 @@ const mockPut = vi.mocked(apiClient.put);
 const mockPatch = vi.mocked(apiClient.patch);
 const mockDel = vi.mocked(apiClient.del);
 
-let app: App | null = null;
-let queryClient: QueryClient;
-
-/** Run a composable inside a Vue setup. Returns the composable's
- * return value plus the harness app for cleanup. */
-function withSetup<T>(composable: () => T): T {
-  let result!: T;
-  const Harness = defineComponent({
-    setup() {
-      result = composable();
-      return () => h("div");
-    },
-  });
-  app = createApp(Harness);
-  app.provide(VUE_QUERY_CLIENT, queryClient);
-  app.mount(document.createElement("div"));
-  return result;
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
 });
 
 afterEach(() => {
-  app?.unmount();
-  app = null;
   queryClient.clear();
 });
 
-describe("useAdmin composables", () => {
-  it("useUsers issues GET /api/v1/admin/users", async () => {
-    const { useUsers } = await import("@/composables/useAdmin");
+describe("the admin writes", () => {
+  it("usersQuery issues GET /api/v1/admin/users", async () => {
+    const { usersQuery } = await import("@/composables/useAdmin.svelte");
     mockGet.mockResolvedValueOnce([]);
 
-    const q = withSetup(() => useUsers());
-    await q.refetch();
+    await inEffect(() => usersQuery().refetch());
 
     expect(mockGet).toHaveBeenCalledWith("/api/v1/admin/users");
   });
 
-  it("useApproveUser POSTs to /approve with the chapter_ids payload", async () => {
-    const { useApproveUser } = await import("@/composables/useAdmin");
+  it("approveUser POSTs to /approve with the chapter_ids payload", async () => {
+    const { approveUser } = await import("@/composables/useAdmin.svelte");
     mockPost.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useApproveUser());
-    await m.mutateAsync({ userId: "u1", chapterIds: ["ch1", "ch2"] });
+    await inEffect(() => approveUser().run({ userId: "u1", chapterIds: ["ch1", "ch2"] }));
 
     expect(mockPost).toHaveBeenCalledWith("/api/v1/admin/users/u1/approve", {
       chapter_ids: ["ch1", "ch2"],
     });
   });
 
-  it("useSetUserChapters POSTs the full chapter set", async () => {
-    const { useSetUserChapters } = await import("@/composables/useAdmin");
+  it("setUserChapters POSTs the full chapter set", async () => {
+    const { setUserChapters } = await import("@/composables/useAdmin.svelte");
     mockPost.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useSetUserChapters());
-    await m.mutateAsync({ userId: "u1", chapterIds: ["ch1", "ch2"] });
+    await inEffect(() => setUserChapters().run({ userId: "u1", chapterIds: ["ch1", "ch2"] }));
 
     expect(mockPost).toHaveBeenCalledWith(
       "/api/v1/admin/users/u1/set-chapters",
@@ -104,17 +75,16 @@ describe("useAdmin composables", () => {
     );
   });
 
-  it("useRemoveUser DELETEs /api/v1/admin/users/{id}", async () => {
-    const { useRemoveUser } = await import("@/composables/useAdmin");
+  it("removeUser DELETEs /api/v1/admin/users/{id}", async () => {
+    const { removeUser } = await import("@/composables/useAdmin.svelte");
     mockDel.mockResolvedValueOnce(undefined as never);
 
-    const m = withSetup(() => useRemoveUser());
-    await m.mutateAsync("u1");
+    await inEffect(() => removeUser().run("u1"));
 
     expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
   });
 
-  it("useRemoveUser skips the non-array pending-count cache entry", async () => {
+  it("removeUser skips the non-array pending-count cache entry", async () => {
     // Regression: the pending-count query lives at
     // ``["admin", "users", "pending-count"]`` so it matches the
     // ``["admin", "users"]`` prefix that the optimistic
@@ -123,7 +93,7 @@ describe("useAdmin composables", () => {
     // the mutation rejects in onMutate, and the DELETE never
     // leaves the browser — that's the prod bug "Verwijderen
     // mislukt with no DELETE in the access log".
-    const { useRemoveUser } = await import("@/composables/useAdmin");
+    const { removeUser } = await import("@/composables/useAdmin.svelte");
     queryClient.setQueryData(
       ["admin", "users", { pending: false }],
       [{ id: "u1", name: "A" }, { id: "u2", name: "B" }],
@@ -131,8 +101,7 @@ describe("useAdmin composables", () => {
     queryClient.setQueryData(["admin", "users", "pending-count"], { count: 2 });
     mockDel.mockResolvedValueOnce(undefined as never);
 
-    const m = withSetup(() => useRemoveUser());
-    await m.mutateAsync("u1");
+    await inEffect(() => removeUser().run("u1"));
 
     // The DELETE actually fires.
     expect(mockDel).toHaveBeenCalledWith("/api/v1/admin/users/u1");
@@ -148,8 +117,8 @@ describe("useAdmin composables", () => {
       .toEqual({ count: 2 });
   });
 
-  it("useRemoveUser rolls every cached users-list back on failure", async () => {
-    const { useRemoveUser } = await import("@/composables/useAdmin");
+  it("removeUser rolls every cached users-list back on failure", async () => {
+    const { removeUser } = await import("@/composables/useAdmin.svelte");
 
     // Two cached lists under the same prefix — verify both get
     // rolled back, not just one.
@@ -163,8 +132,7 @@ describe("useAdmin composables", () => {
     );
     mockDel.mockRejectedValueOnce(new Error("boom"));
 
-    const m = withSetup(() => useRemoveUser());
-    await expect(m.mutateAsync("u1")).rejects.toThrow();
+    await expect(inEffect(() => removeUser().run("u1"))).rejects.toThrow();
 
     const all = queryClient.getQueryData<{ id: string }[]>([
       "admin",
@@ -181,39 +149,37 @@ describe("useAdmin composables", () => {
   });
 });
 
-describe("useEvents composables", () => {
-  it("useArchiveEvent rolls the cache back to the snapshot on failure", async () => {
-    const { useArchiveEvent } = await import("@/composables/useEvents");
+describe("the event writes", () => {
+  it("archiveEvent rolls the cache back to the snapshot on failure", async () => {
+    const { archiveEvent } = await import("@/composables/useEvents.svelte");
 
     queryClient.setQueryData(
-      ["events", "active"],
+      ["event", "active"],
       [{ id: "e1", name: "A" }, { id: "e2", name: "B" }],
     );
     mockPost.mockRejectedValueOnce(new Error("boom"));
 
-    const m = withSetup(() => useArchiveEvent());
-    await expect(m.mutateAsync("e1")).rejects.toThrow();
+    await expect(inEffect(() => archiveEvent().run("e1"))).rejects.toThrow();
 
     // Snapshot restored — both events back in the cache, in order.
-    const after = queryClient.getQueryData<{ id: string }[]>(["events", "active"]);
+    const after = queryClient.getQueryData<{ id: string }[]>(["event", "active"]);
     expect(after?.map((e) => e.id)).toEqual(["e1", "e2"]);
   });
 
-  it("useSendEmailsNow POSTs the channel-keyed URL", async () => {
-    const { useSendEmailsNow } = await import("@/composables/useEvents");
+  it("sendEmailsNow POSTs the channel-keyed URL", async () => {
+    const { sendEmailsNow } = await import("@/composables/useEvents.svelte");
     mockPost.mockResolvedValueOnce({ processed: 3 });
 
-    const m = withSetup(() => useSendEmailsNow());
-    const r = await m.mutateAsync({ eventId: "ev1", channel: "reminder" });
+    const r = await inEffect(() => sendEmailsNow().run({ eventId: "ev1", channel: "reminder" }));
 
     expect(mockPost).toHaveBeenCalledWith(
-      "/api/v1/events/ev1/send-emails/reminder",
+      "/api/v1/event/ev1/send-emails/reminder",
     );
     expect(r.processed).toBe(3);
   });
 
-  it("useCreateEvent POSTs /api/v1/events with the payload", async () => {
-    const { useCreateEvent } = await import("@/composables/useEvents");
+  it("events.create POSTs /api/v1/event with the payload", async () => {
+    const { events } = await import("@/composables/useEvents.svelte");
     const payload = {
       name: "Demo",
       chapter_id: "ch1",
@@ -228,7 +194,7 @@ describe("useEvents composables", () => {
       cycle_slots: [4],
       span_weeks: 6,
       horizon_days: 90,
-      source_options: ["F"],
+      source_options: [{ id: null, label: "F" }],
       source_enabled: true,
       help_options: [],
       help_enabled: false,
@@ -241,63 +207,58 @@ describe("useEvents composables", () => {
     };
     mockPost.mockResolvedValueOnce({ id: "ev1" });
 
-    const m = withSetup(() => useCreateEvent());
-    await m.mutateAsync(payload);
+    await inEffect(() => events.create().run(payload));
 
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/events", payload);
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/event", payload);
   });
 
-  it("useUpdateEvent PUTs the event-id-keyed URL", async () => {
-    const { useUpdateEvent } = await import("@/composables/useEvents");
+  it("updateEvent PUTs the event-id-keyed URL", async () => {
+    const { updateEvent } = await import("@/composables/useEvents.svelte");
     mockPut.mockResolvedValueOnce({ id: "ev1" } as never);
 
-    const m = withSetup(() => useUpdateEvent());
     const payload = { name: "X" } as never;
-    await m.mutateAsync({ eventId: "ev1", payload });
+    await inEffect(() => updateEvent().run({ eventId: "ev1", payload }));
 
-    expect(mockPut).toHaveBeenCalledWith("/api/v1/events/ev1", payload);
+    expect(mockPut).toHaveBeenCalledWith("/api/v1/event/ev1", payload);
   });
 
-  it("useRestoreEvent POSTs /api/v1/events/{id}/restore", async () => {
-    const { useRestoreEvent } = await import("@/composables/useEvents");
+  it("events.restore POSTs /api/v1/event/{id}/restore", async () => {
+    const { events } = await import("@/composables/useEvents.svelte");
     mockPost.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useRestoreEvent());
-    await m.mutateAsync("ev1");
+    await inEffect(() => events.restore().run("ev1"));
 
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/events/ev1/restore");
+    expect(mockPost).toHaveBeenCalledWith("/api/v1/event/ev1/restore");
   });
 
-  it("useEventOccurrences GETs the occurrence panel URL", async () => {
-    const { useEventOccurrences } = await import("@/composables/useEvents");
+  it("occurrencesQuery GETs the occurrence panel URL", async () => {
+    const { occurrencesQuery } = await import("@/composables/useEvents.svelte");
     mockGet.mockResolvedValueOnce({ total_sessions: 6, occurrences: [], projected: [] });
 
-    const q = withSetup(() => useEventOccurrences("ev1"));
-    await q.refetch();
+    await inEffect(() => occurrencesQuery(() => "ev1").refetch());
 
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/events/ev1/occurrences");
+    expect(mockGet).toHaveBeenCalledWith("/api/v1/event/ev1/occurrences");
   });
 
-  it("useDeleteSignup DELETEs the line-item URL", async () => {
-    const { useDeleteSignup } = await import("@/composables/useEvents");
+  it("deleteSignup DELETEs the line-item URL", async () => {
+    const { deleteSignup } = await import("@/composables/useEvents.svelte");
     mockDel.mockResolvedValueOnce(undefined as never);
 
-    const m = withSetup(() => useDeleteSignup());
-    await m.mutateAsync({ eventId: "ev1", occurrenceId: "oc1", signupId: "su1" });
+    await inEffect(() => deleteSignup().run({ eventId: "ev1", occurrenceId: "oc1", signupId: "su1" }));
 
-    expect(mockDel).toHaveBeenCalledWith("/api/v1/events/ev1/signups/su1");
+    expect(mockDel).toHaveBeenCalledWith("/api/v1/event/ev1/signups/su1");
   });
 
   // ``usePublicSignup`` removed: the public sign-up form moved to
   // its own mini-app (``frontend/src/public/``) which uses raw
-  // ``fetch`` instead of Vue Query. Coverage for that POST shape
+  // ``fetch`` instead of a query. Coverage for that POST shape
   // lives in the backend's ``test_events_router_extras.py`` /
   // ``test_public_archived.py`` end-to-end tests.
 });
 
-describe("useChapters composables", () => {
-  it("useArchiveChapter rolls every cached chapters-list back on failure", async () => {
-    const { useArchiveChapter } = await import("@/composables/useChapters");
+describe("the chapter writes", () => {
+  it("archiveChapter rolls every cached chapters-list back on failure", async () => {
+    const { archiveChapter } = await import("@/composables/useChapters.svelte");
 
     queryClient.setQueryData(
       ["chapters"],
@@ -305,31 +266,28 @@ describe("useChapters composables", () => {
     );
     mockDel.mockRejectedValueOnce(new Error("boom"));
 
-    const m = withSetup(() => useArchiveChapter());
-    await expect(m.mutateAsync({ id: "c1" })).rejects.toThrow();
+    await expect(inEffect(() => archiveChapter().run({ id: "c1" }))).rejects.toThrow();
 
     const after = queryClient.getQueryData<{ id: string }[]>(["chapters"]);
     expect(after?.map((c) => c.id)).toEqual(["c1", "c2"]);
   });
 
-  it("useCreateChapter POSTs /api/v1/chapters with the name body", async () => {
-    const { useCreateChapter } = await import("@/composables/useChapters");
+  it("createChapter POSTs /api/v1/chapters with the name body", async () => {
+    const { createChapter } = await import("@/composables/useChapters.svelte");
     mockPost.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useCreateChapter());
-    await m.mutateAsync("New chapter");
+    await inEffect(() => createChapter().run("New chapter"));
 
     expect(mockPost).toHaveBeenCalledWith("/api/v1/chapters", {
       name: "New chapter",
     });
   });
 
-  it("useUpdateChapter PATCHes /api/v1/chapters/{id} with the payload", async () => {
-    const { useUpdateChapter } = await import("@/composables/useChapters");
+  it("updateChapter PATCHes /api/v1/chapters/{id} with the payload", async () => {
+    const { updateChapter } = await import("@/composables/useChapters.svelte");
     mockPatch.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useUpdateChapter());
-    await m.mutateAsync({ id: "c1", payload: { name: "Renamed" } });
+    await inEffect(() => updateChapter().run({ id: "c1", payload: { name: "Renamed" } }));
 
     expect(mockPatch).toHaveBeenCalledWith("/api/v1/chapters/c1", {
       name: "Renamed",
@@ -337,16 +295,15 @@ describe("useChapters composables", () => {
   });
 });
 
-describe("useFeedback composables", () => {
-  it("useSubmitFeedback POSTs the URL-encoded token path with answers", async () => {
-    const { useSubmitFeedback } = await import("@/composables/useFeedback");
+describe("the feedback write", () => {
+  it("submitFeedback POSTs the URL-encoded token path with answers", async () => {
+    const { submitFeedback } = await import("@/composables/useFeedback.svelte");
     mockPost.mockResolvedValueOnce({} as never);
 
-    const m = withSetup(() => useSubmitFeedback());
-    await m.mutateAsync({
+    await inEffect(() => submitFeedback().run({
       token: "abc 123/x",
       answers: [{ question_key: "q1", answer_int: 5 }],
-    });
+    }));
 
     expect(mockPost).toHaveBeenCalledWith("/api/v1/feedback/abc%20123%2Fx/submit", {
       answers: [{ question_key: "q1", answer_int: 5 }],

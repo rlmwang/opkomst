@@ -3,15 +3,15 @@
 Everything that makes the app *look* like a particular organisation
 lives in ``brands/{slug}/`` — a ``brand.json`` manifest, a ``tokens.css``
 holding the palette as custom properties, and the image files. Nothing
-here is compiled into the frontend bundle: the files are served at
-``/brand/{slug}/…`` and linked from the page ``<head>``, so a new
-organisation is a folder plus a row, never a rebuild.
+here is compiled into the frontend bundle: the images are served at
+``/brand/{slug}/…`` and the palette is inlined into the page ``<head>``,
+so a new organisation is a folder plus a row, never a rebuild.
 
 Two consumers:
 
-* ``routers/spa.py`` calls ``head_links`` + ``boot_style`` to put the
-  stylesheet, the icons and the first-paint colours into every HTML
-  shell, and ``payload`` to hand the mini-apps their wordmark and logo.
+* ``routers/spa.py`` calls ``head`` to put the palette, the icons and
+  the manifest into every HTML shell, and ``payload`` to hand the
+  mini-apps their wordmark and logo.
 * ``services/mail.py`` calls ``payload`` for the same values in email,
   where the logo has to be an absolute URL.
 
@@ -120,15 +120,24 @@ def payload(slug: str) -> dict[str, Any]:
     }
 
 
+@cache
+def palette_css(slug: str) -> str:
+    """The tenant's ``tokens.css``, read off disk once per process.
+
+    It is inlined into the head rather than linked. At around 3 kB it is
+    smaller than the request that would fetch it, and it blocks the
+    first paint either way: every page used to hold its paint on a round
+    trip for the colours it was about to paint in. Inlining is also what
+    lets the boot spinner in each HTML shell use the real token names.
+    The shells carried a duplicate ``--boot-*`` palette for exactly one
+    reason, that the stylesheet might not have arrived yet."""
+    return (BRANDS_DIR / slug / "tokens.css").read_text(encoding="utf-8")
+
+
 def head(slug: str, nonce: str) -> str:
     """Everything a shell's ``<head>`` needs to wear the brand, in the
-    order it is needed: the first-paint colours inline, the palette
-    stylesheet and icons as links, and the manifest on ``window`` for
-    the Vue apps.
-
-    The boot colours are the one place a brand's colours are repeated —
-    inside its own manifest rather than across four files — because the
-    spinner paints before a linked stylesheet has necessarily arrived.
+    order it is needed: the palette inline, the icons as links, and the
+    manifest on ``window`` for the apps.
 
     Substituted into ``<!-- OPKOMST_BRAND_INJECTION -->``; the Vite dev
     server does the same substitution (see ``vite.config.ts``) so dev and
@@ -139,19 +148,8 @@ def head(slug: str, nonce: str) -> str:
     so without it the browser refuses to run the one inline block the
     page cannot start without."""
     m = manifest(slug)
-    boot = m["palette"]
-    inline_boot = (
-        "<style>:root{"
-        f"--boot-bg:{boot['bg']};"
-        f"--boot-surface:{boot['surface']};"
-        f"--boot-fg:{boot['fg']};"
-        f"--boot-fg-muted:{boot['fg_muted']};"
-        f"--boot-accent:{boot['accent']};"
-        f"--boot-border:{boot['border']};"
-        "}</style>"
-    )
     brand_json = json.dumps(payload(slug), ensure_ascii=False)
-    lines = [inline_boot, f'<link rel="stylesheet" href="{asset_url(slug, "tokens.css")}">']
+    lines = [f"<style>{palette_css(slug)}</style>"]
     # A brand without icon files simply doesn't link any; the browser
     # falls back to its own default rather than to another org's mark.
     if m["favicon"]:

@@ -9,6 +9,7 @@
 
 import type { PublicForm, PublicFormQuestion, SubmitAnswer } from "@/public_form/api";
 import { ApiError } from "@/public_form/api";
+import { inlinedSubmission } from "@/public_shared/submission";
 
 export type { PublicForm as PublicQuiz, PublicFormQuestion as PublicQuizQuestion, SubmitAnswer };
 export { ApiError };
@@ -38,7 +39,7 @@ export interface QuizResult {
 }
 
 export async function fetchQuizBySlug(slug: string): Promise<PublicForm> {
-  const r = await fetch(`/api/v1/quizzes/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/quiz/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicForm;
 }
@@ -47,7 +48,7 @@ export async function postQuizAnswers(
   slug: string,
   payload: { display_name: string | null; answers: SubmitAnswer[] },
 ): Promise<QuizResult> {
-  const r = await fetch(`/api/v1/quizzes/by-slug/${encodeURIComponent(slug)}/submit`, {
+  const r = await fetch(`/api/v1/quiz/by-slug/${encodeURIComponent(slug)}/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -60,7 +61,15 @@ export async function postQuizAnswers(
  *  because changing an answer after seeing the score is a second
  *  attempt rather than a correction. */
 export async function fetchQuizResult(token: string): Promise<QuizResult> {
-  const r = await fetch(`/api/v1/quizzes/by-token/${encodeURIComponent(token)}`);
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<QuizResult>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
+  const r = await fetch(`/api/v1/quiz/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as QuizResult;
 }

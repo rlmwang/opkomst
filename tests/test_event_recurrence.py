@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from _helpers.events import first_occurrence, make_event, weekly_slots
 from _helpers.signups import make_signup
 
-from backend.models import EmailChannel, EmailDispatch, EmailStatus, Occurrence, Signup
+from backend.models import EmailChannel, EmailDispatch, Occurrence, Signup
 from backend.services import event_recurrence
 from backend.services.events import now_wallclock
 
@@ -263,11 +263,7 @@ def test_reconcile_migrates_pending_dispatch_with_signups(db):
         .one()
     )
     make_signup(db, event, occurrence=occ_wed, email=None)
-    db.add(
-        EmailDispatch(
-            occurrence_id=occ_wed.id, channel=EmailChannel.FEEDBACK, status=EmailStatus.PENDING, encrypted_email=b"x"
-        )
-    )
+    db.add(EmailDispatch(occurrence_id=occ_wed.id, channel=EmailChannel.FEEDBACK, encrypted_email=b"x"))
     db.flush()
     event.cycle_slots = [0, 3]  # Wed -> Thu
     db.flush()
@@ -361,7 +357,6 @@ def test_pruned_occurrence_cascades_its_dispatches(db):
         EmailDispatch(
             occurrence_id=occ2.id,
             channel=EmailChannel.FEEDBACK,
-            status=EmailStatus.PENDING,
             encrypted_email=b"x",
         )
     )

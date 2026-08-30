@@ -18,7 +18,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 def _create(client: Any, headers: Any, slots: list[dict[str, Any]]) -> dict[str, Any]:
     body = {"chapter_id": _chapter_id(client, headers), "name_nl": "P", "locale": "nl", "slots": slots}
-    r = client.post("/api/v1/datepolls", headers=headers, json=body)
+    r = client.post("/api/v1/datepoll", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -30,7 +30,7 @@ def _put(client: Any, headers: Any, poll: dict[str, Any], slots: list[dict[str, 
         "locale": poll["locale"],
         "slots": slots,
     }
-    r = client.put(f"/api/v1/datepolls/{poll['id']}", headers=headers, json=body)
+    r = client.put(f"/api/v1/datepoll/{poll['id']}", headers=headers, json=body)
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -40,7 +40,7 @@ def test_edit_preserves_kept_slot_id_and_responses(client, organiser_headers):
     kept_id = next(s["id"] for s in poll["slots"] if s["on_date"] == "2026-07-01")
     # Submit a response on the kept slot.
     client.post(
-        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        f"/api/v1/datepoll/by-slug/{poll['slug']}/submit",
         json={"answers": [{"datepoll_slot_id": kept_id, "availability": "yes"}]},
     )
     # Edit: drop 07-02, add 07-09; 07-01 stays.
@@ -49,7 +49,7 @@ def test_edit_preserves_kept_slot_id_and_responses(client, organiser_headers):
     assert kept_after["id"] == kept_id  # same row, matched on the natural key
     assert {s["on_date"] for s in out["slots"]} == {"2026-07-01", "2026-07-09"}
     # The response on the kept slot survived.
-    summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
     kept_summary = next(s for s in summary["slots"] if s["id"] == kept_id)
     assert kept_summary["yes"] == 1
 
@@ -85,7 +85,7 @@ def test_rejects_inverted_time_range(client, organiser_headers):
         "locale": "nl",
         "slots": [{"on_date": "2026-07-01", "start_time": "21:00", "end_time": "19:00"}],
     }
-    assert client.post("/api/v1/datepolls", headers=organiser_headers, json=body).status_code == 422
+    assert client.post("/api/v1/datepoll", headers=organiser_headers, json=body).status_code == 422
 
 
 def test_rejects_half_open_range(client, organiser_headers):
@@ -95,7 +95,7 @@ def test_rejects_half_open_range(client, organiser_headers):
         "locale": "nl",
         "slots": [{"on_date": "2026-07-01", "start_time": "19:00"}],  # end missing
     }
-    assert client.post("/api/v1/datepolls", headers=organiser_headers, json=body).status_code == 422
+    assert client.post("/api/v1/datepoll", headers=organiser_headers, json=body).status_code == 422
 
 
 def test_unique_slot_per_poll(db):

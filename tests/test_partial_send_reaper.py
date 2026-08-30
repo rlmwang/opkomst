@@ -16,7 +16,7 @@ from _helpers.events import make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Signup
+from backend.models import EmailChannel, Signup
 from backend.services import mail_lifecycle
 
 
@@ -42,9 +42,7 @@ def test_reaper_flips_partial_reminder_to_failed(db: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
-        assert d.sent_at is not None
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()
 
@@ -61,8 +59,7 @@ def test_reaper_flips_partial_feedback_to_failed(db: Any) -> None:
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()
 
@@ -80,8 +77,8 @@ def test_reaper_skips_clean_pending_rows(db: Any) -> None:
     try:
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d_r is not None and d_r.status == EmailStatus.PENDING
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_r is not None
+        assert d_f is not None
     finally:
         fresh.close()
 
@@ -118,7 +115,7 @@ def test_reaper_wipes_ciphertext_when_both_dispatches_settled(
         assert row is not None
         assert not has_any_ciphertext(fresh, row)
         d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d is not None and d.status == EmailStatus.FAILED
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()
 
@@ -141,9 +138,9 @@ def test_reaper_keeps_ciphertext_when_other_dispatch_still_pending(
         assert row is not None
         assert has_any_ciphertext(fresh, row)
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.FAILED
+        assert d_r is None  # reaped: counted and deleted
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_f is not None
     finally:
         fresh.close()
 
@@ -164,9 +161,7 @@ def test_reaper_stamps_sent_at_breaking_the_hot_loop(db: Any, fake_email: Any) -
     fresh = SessionLocal()
     try:
         d = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
-        assert d.sent_at is not None
+        assert d is None  # reaped: counted and deleted
     finally:
         fresh.close()
 

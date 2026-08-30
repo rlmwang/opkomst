@@ -1,6 +1,6 @@
 # Niet klinken als een taalmodel
 
-De geschreven pagina's (`backend/templates/content/`) zijn de enige
+De geschreven pagina's (`backend/content/`) zijn de enige
 plek waar dit project uitgebreid praat tegen iemand die de app nog nooit
 gebruikt heeft. Ze moeten klinken alsof een mens ze schreef. Een pagina
 die leest als een taalmodel is een pagina waar niemand z'n adressen aan

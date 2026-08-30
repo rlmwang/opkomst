@@ -7,10 +7,13 @@ combine — and the SQL lives here where it can be unit-tested
 without a router fixture.
 """
 
-from sqlalchemy import distinct, func
+from collections.abc import Iterator, Sequence
+from typing import Any
+
+from sqlalchemy import distinct, func, text
 from sqlalchemy.orm import Session
 
-from ..models import EmailChannel, EmailDispatch, FeedbackResponse, Occurrence, Signup
+from ..models import EmailChannel, EmailDispatch, EmailSendCount, FeedbackResponse, Occurrence, Signup
 from ..schemas.feedback import EmailHealthOut, FeedbackQuestionSummary
 from .feedback_questions import QUESTIONS
 from .ratings import rating_distribution
@@ -44,33 +47,44 @@ def signup_count(db: Session, event_id: str) -> int:
 
 def email_health(db: Session, event_id: str, signups: int) -> dict[str, EmailHealthOut]:
     """Per-channel delivery health across the event's occurrences.
-    ``not_applicable`` is line items without a dispatch row for the
-    channel — derived from the gap between ``signups`` and the channel's
-    row count (a missing row means no email was queued)."""
-    rows = (
-        db.query(
-            EmailDispatch.channel,
-            EmailDispatch.status,
-            func.count(EmailDispatch.id),
-        )
-        .filter(EmailDispatch.occurrence_id.in_(_event_occurrence_ids(db, event_id)))
-        .group_by(EmailDispatch.channel, EmailDispatch.status)
+
+    Two sources, because a send leaves no row behind. Outstanding work
+    is the ``EmailDispatch`` rows that still exist; what already
+    happened is the ``EmailSendCount`` tally the worker increments as it
+    deletes them. ``not_applicable`` is the rest of the line items: a
+    sign-up with no email, or a channel that was off when they signed
+    up, has neither a row nor a count.
+    """
+    occurrence_ids = _event_occurrence_ids(db, event_id)
+    pending_rows = (
+        db.query(EmailDispatch.channel, func.count(EmailDispatch.id))
+        .filter(EmailDispatch.occurrence_id.in_(occurrence_ids))
+        .group_by(EmailDispatch.channel)
         .all()
     )
-    counts_by_channel: dict[str, dict[str, int]] = {ch.value: {} for ch in EmailChannel}
-    for channel, status, count in rows:
-        ch_name = getattr(channel, "value", channel)
-        st_name = getattr(status, "value", status)
-        counts_by_channel[ch_name][st_name] = int(count)
+    tallies = (
+        db.query(
+            EmailSendCount.channel,
+            func.coalesce(func.sum(EmailSendCount.sent), 0),
+            func.coalesce(func.sum(EmailSendCount.failed), 0),
+        )
+        .filter(EmailSendCount.occurrence_id.in_(occurrence_ids))
+        .group_by(EmailSendCount.channel)
+        .all()
+    )
+
+    pending_by_channel = {getattr(ch, "value", ch): int(n) for ch, n in pending_rows}
+    sent_by_channel = {getattr(ch, "value", ch): (int(s), int(f)) for ch, s, f in tallies}
 
     out: dict[str, EmailHealthOut] = {}
-    for ch_name, ch_counts in counts_by_channel.items():
-        dispatched = sum(ch_counts.values())
-        out[ch_name] = EmailHealthOut(
-            not_applicable=max(0, signups - dispatched),
-            pending=ch_counts.get("pending", 0),
-            sent=ch_counts.get("sent", 0),
-            failed=ch_counts.get("failed", 0),
+    for ch in EmailChannel:
+        pending = pending_by_channel.get(ch.value, 0)
+        sent, failed = sent_by_channel.get(ch.value, (0, 0))
+        out[ch.value] = EmailHealthOut(
+            not_applicable=max(0, signups - pending - sent - failed),
+            pending=pending,
+            sent=sent,
+            failed=failed,
         )
     return out
 
@@ -79,21 +93,47 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
     """One ``FeedbackQuestionSummary`` per question in ``QUESTIONS``,
     in declaration order. Rating questions return a 5-bucket
     distribution + average; text questions return the raw answers
-    in newest-first order."""
+    in newest-first order.
+
+    Two queries for the page, not two per question: the ratings are
+    counted together and the open answers are read together, then split
+    by key here."""
+    occurrence_ids = _event_occurrence_ids(db, event_id)
+    rating_keys = [q.key for q in QUESTIONS if q.kind == "rating"]
+    text_keys = [q.key for q in QUESTIONS if q.kind != "rating"]
+
+    counts: dict[str, list[tuple[int, int]]] = {}
+    if rating_keys:
+        for key, value, n in (
+            db.query(FeedbackResponse.question_key, FeedbackResponse.answer_int, func.count(FeedbackResponse.id))
+            .filter(
+                FeedbackResponse.occurrence_id.in_(occurrence_ids),
+                FeedbackResponse.question_key.in_(rating_keys),
+                FeedbackResponse.answer_int.is_not(None),
+            )
+            .group_by(FeedbackResponse.question_key, FeedbackResponse.answer_int)
+            .all()
+        ):
+            counts.setdefault(key, []).append((value, n))
+
+    texts: dict[str, list[str]] = {}
+    if text_keys:
+        for key, text in (
+            db.query(FeedbackResponse.question_key, FeedbackResponse.answer_text)
+            .filter(
+                FeedbackResponse.occurrence_id.in_(occurrence_ids),
+                FeedbackResponse.question_key.in_(text_keys),
+                FeedbackResponse.answer_text.is_not(None),
+            )
+            .order_by(FeedbackResponse.created_at.desc())
+            .all()
+        ):
+            texts.setdefault(key, []).append(text)
+
     summaries: list[FeedbackQuestionSummary] = []
     for q in QUESTIONS:
         if q.kind == "rating":
-            rows = (
-                db.query(FeedbackResponse.answer_int, func.count(FeedbackResponse.id))
-                .filter(
-                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
-                    FeedbackResponse.question_key == q.key,
-                    FeedbackResponse.answer_int.is_not(None),
-                )
-                .group_by(FeedbackResponse.answer_int)
-                .all()
-            )
-            distribution, total, avg = rating_distribution([(v, c) for v, c in rows])
+            distribution, total, avg = rating_distribution(counts.get(q.key, []))
             summaries.append(
                 FeedbackQuestionSummary(
                     key=q.key,
@@ -104,22 +144,61 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
                 )
             )
         else:
-            texts = (
-                db.query(FeedbackResponse.answer_text)
-                .filter(
-                    FeedbackResponse.occurrence_id.in_(_event_occurrence_ids(db, event_id)),
-                    FeedbackResponse.question_key == q.key,
-                    FeedbackResponse.answer_text.is_not(None),
-                )
-                .order_by(FeedbackResponse.created_at.desc())
-                .all()
-            )
+            answers = texts.get(q.key, [])
             summaries.append(
                 FeedbackQuestionSummary(
                     key=q.key,
                     kind="text",
-                    response_count=len(texts),
-                    texts=[t[0] for t in texts],
+                    response_count=len(answers),
+                    texts=answers,
                 )
             )
     return summaries
+
+
+# One row per submission, its five answers already in column order.
+#
+# The question keys are unnested with their position, so a question
+# somebody skipped is an empty cell rather than a missing column, and a
+# stored row for a question the app no longer asks lands nowhere.
+_CSV_SQL = text(
+    """
+WITH column_of AS (
+    SELECT question_key, ordinal
+    FROM unnest(cast(:keys AS text[])) WITH ORDINALITY AS t(question_key, ordinal)
+),
+answered AS (
+    SELECT r.submission_id,
+           r.question_key,
+           coalesce(r.answer_text, r.answer_int::text, '') AS value,
+           r.created_at
+    FROM feedback_responses r
+    JOIN occurrences o ON o.id = r.occurrence_id
+    WHERE o.event_id = :event_id
+),
+submitted AS (
+    SELECT submission_id, min(created_at) AS at FROM answered GROUP BY submission_id
+)
+SELECT submitted.submission_id,
+       (
+           SELECT coalesce(array_agg(coalesce(a.value, '') ORDER BY column_of.ordinal), '{}')
+           FROM column_of
+           LEFT JOIN answered a
+                  ON a.submission_id = submitted.submission_id AND a.question_key = column_of.question_key
+       ) AS cells
+FROM submitted
+ORDER BY submitted.at
+"""
+)
+
+
+def submissions_csv(db: Session, event_id: str) -> tuple[list[str], Iterator[Sequence[Any]]]:
+    """The organiser's download: the header, and the rows behind it.
+
+    One row per submission, one column per question, in the order they
+    are asked. The submission id is the only identifier there is, and it
+    points at nothing (``routers/feedback``)."""
+    header = ["Submission", *(q.csv_header for q in QUESTIONS)]
+    result = db.execute(_CSV_SQL, {"event_id": event_id, "keys": [q.key for q in QUESTIONS]})
+    rows = ([row.submission_id, *row.cells] for row in result)
+    return header, rows

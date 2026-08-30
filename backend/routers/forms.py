@@ -14,7 +14,7 @@ The ``forms`` table holds three products: surveys, quizzes
 They differ by what an answer means, what is derived from it and how
 the questions are walked through: nothing an organiser's CRUD cares
 about. So this module is a factory and it is mounted three times, at
-``/api/v1/forms``, ``/api/v1/quizzes`` and ``/api/v1/compasses``.
+``/api/v1/form``, ``/api/v1/quiz`` and ``/api/v1/compass``.
 ``mode`` is what each mount passes in, every read names it, and the log
 events and the ceiling kind come from the same argument.
 
@@ -24,13 +24,14 @@ step by hand.
 
 Form CRUD mirrors the events router shape one-to-one: create,
 list active, list archived, get, update, archive, restore,
-delete-when-archived, summary, submissions CSV source.
+delete-when-archived, summary, submissions, the CSV download.
 """
 
 from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -45,9 +46,8 @@ from ..schemas.forms import (
     FormSubmissionOut,
     FormSummaryOut,
     FormUpdate,
-    QuizSubmissionOut,
 )
-from ..services import access, crud, edit_token, entities, limits, quizzes
+from ..services import access, crud, csv_export, edit_token, entities, limits, quizzes
 from ..services import forms as forms_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
@@ -110,13 +110,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormListOut]:
-        rows = (
-            forms_svc.query(db, _MODE)
-            .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_(None))
-            .order_by(Form.created_at.desc())
-            .all()
-        )
-        return forms_svc.enrich(db, rows)
+        return forms_svc.list_for_user(db, user, _MODE, chapter_id)
 
     @router.get("/archived", response_model=list[FormListOut])
     def list_archived_forms(
@@ -124,13 +118,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> list[FormListOut]:
-        rows = (
-            forms_svc.query(db, _MODE)
-            .filter(access.list_filter(db, user, Form, chapter_id), Form.archived_at.is_not(None))
-            .order_by(Form.archived_at.desc())
-            .all()
-        )
-        return forms_svc.enrich(db, rows)
+        return forms_svc.archived_enrich(db, access.archived_rows(db, "forms", user, chapter_id, mode=_MODE))
 
     @router.get("/{form_id}", response_model=FormOut)
     def get_form(
@@ -138,8 +126,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormOut:
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        return forms_svc.to_out(db, form)
+        return forms_svc.to_out(
+            db,
+            access.get_scoped_row(
+                db,
+                Form,
+                form_id,
+                user,
+                *forms_svc.FULL_COLUMNS,
+                not_found="Form not found",
+                where=Form.mode == _MODE,
+            ),
+        )
 
     @router.put("/{form_id}", response_model=FormOut)
     @limiter.limit(Limits.ORG_WRITE)
@@ -171,7 +169,7 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         form.name_required = data.name_required
         if _MODE == "compass":
             forms_svc.apply_axes(db, form.id, data.axes)
-        forms_svc.apply_questions(db, form.id, data.questions, _MODE, data.axes)
+        forms_svc.apply_questions(db, form.id, data.questions, _MODE, data.axes, confirmed=data.confirm_destructive)
         db.commit()
         db.refresh(form)
         logger.info(f"{noun}_updated", form_id=form.id, actor_id=user.id)
@@ -187,8 +185,10 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         user: User = Depends(require_approved),
     ) -> FormOut:
         form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.archive(db, form, log_event=f"{noun}_archived", actor_id=user.id)
-        return forms_svc.to_out(db, form)
+        # Projected before the move: afterwards there is no live row.
+        out = forms_svc.to_out(db, form)
+        crud.archive_entity(db, form, root="forms", log_event=f"{noun}_archived", actor_id=user.id)
+        return out.model_copy(update={"archived": True})
 
     @router.post("/{form_id}/restore", response_model=FormOut)
     @limiter.limit(Limits.ORG_RARE)
@@ -199,9 +199,9 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormOut:
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.restore(db, form, log_event=f"{noun}_restored", actor_id=user.id)
-        return forms_svc.to_out(db, form)
+        access.archived_row(db, "forms", form_id, user)
+        crud.restore_entity(db, root="forms", entity_id=form_id, log_event=f"{noun}_restored", actor_id=user.id)
+        return forms_svc.to_out(db, access.get_form_for_user(db, form_id, user, _MODE))
 
     @router.delete("/{form_id}", status_code=204)
     @limiter.limit(Limits.ORG_RARE)
@@ -212,18 +212,18 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> None:
-        """Hard-delete an archived form. Refuses if the form isn't
-        archived first — accidentally hard-deleting a live form with
-        responses would be a data-loss footgun. Cascades through
-        ``form_questions`` / ``form_responses`` via the FK ON DELETE
-        CASCADEs in the schema."""
-        form = access.get_form_for_user(db, form_id, user, _MODE)
-        crud.hard_delete(
+        """Delete an archived form for good, with its questions,
+        submissions and responses, and the image it owned. A live form is
+        not found here at all, so deleting one still means archiving it
+        first."""
+        row = access.archived_row(db, "forms", form_id, user)
+        crud.purge_entity(
             db,
-            form,
+            root="forms",
+            entity_id=form_id,
+            image_path=row["image_path"],
             log_event=f"{noun}_deleted",
             actor_id=user.id,
-            conflict_detail=f"Archive the {noun} before deleting it",
         )
 
     @router.post("/{form_id}/image", response_model=FormOut)
@@ -288,19 +288,23 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
     ) -> FormSummaryOut:
-        average, best, out_of = (
-            quizzes.score_stats(db, form_id, forms_svc.questions_of(db, form_id))
-            if _MODE == "quiz"
-            else (None, None, None)
-        )
         form = access.get_form_for_user(db, form_id, user, _MODE)
+        # Read once and handed to each half below. Every part of this
+        # page is about the same questions, and each used to fetch its
+        # own copy of them.
+        questions = forms_svc.questions_of(db, form_id)
+        marks = quizzes.summary_stats(db, form_id, questions) if _MODE == "quiz" else None
+        compass = forms_svc.compass_summary(db, form, questions)
         return FormSummaryOut(
-            submission_count=forms_svc.submission_count(db, form_id),
-            score_average=average,
-            score_best=best,
-            max_score=out_of,
-            compass=forms_svc.compass_summary(db, form),
-            questions=forms_svc.question_aggregates(db, form_id),
+            # A kompas already read every submission to place it, and
+            # there is exactly one dot per fill-out, so counting them
+            # again is a round trip for a number in hand.
+            submission_count=len(compass.points) if compass is not None else forms_svc.submission_count(db, form_id),
+            score_average=marks.average if marks else None,
+            score_best=marks.best if marks else None,
+            max_score=marks.out_of if marks else None,
+            compass=compass,
+            questions=forms_svc.question_aggregates(db, form_id, questions, marks.shares if marks else {}),
         )
 
     @router.post("/{form_id}/submissions/{submission_id}/edit-link", response_model=EditLinkRecoverOut)
@@ -329,34 +333,41 @@ def build_router(mode: str, *, prefix: str, tag: str, kind: str, noun: str) -> A
         logger.info(f"{noun}_edit_link_recovered", form_id=form.id, submission_id=submission_id, actor_id=user.id)
         return EditLinkRecoverOut(edit_token=raw)
 
-    @router.get(
-        "/{form_id}/submissions",
-        # A taken quiz carries a score; a filled-in questionnaire does
-        # not. One route, one shape per product.
-        response_model=list[QuizSubmissionOut] if mode == "quiz" else list[FormSubmissionOut],
-    )
+    @router.get("/{form_id}/submissions", response_model=list[FormSubmissionOut])
     def form_submissions(
         form_id: str,
         db: Session = Depends(get_db),
         user: User = Depends(require_approved),
-    ) -> list[FormSubmissionOut] | list[QuizSubmissionOut]:
-        """Per-submission rows, keyed by question id. CSV consumers
-        map columns by question id; a separate lookup against the
-        questions list gives them the prompt text.
+    ) -> list[FormSubmissionOut]:
+        """Who filled this in and when. What they said is the
+        download, written by the database, on the route below.
 
         Privacy: ``submission_id`` is a random per-submission token
-        with no link back to whoever submitted — same contract as
-        the post-event feedback CSV."""
+        with no link back to whoever submitted."""
         access.get_form_for_user(db, form_id, user, _MODE)
-        if _MODE == "quiz":
-            return forms_svc.quiz_submissions(db, form_id)
-        return forms_svc.submissions(db, form_id, mode=_MODE)
+        return forms_svc.submissions(db, form_id)
+
+    @router.get("/{form_id}/submissions.csv", response_class=StreamingResponse)
+    def form_submissions_csv(
+        form_id: str,
+        db: Session = Depends(get_db),
+        user: User = Depends(require_approved),
+    ) -> StreamingResponse:
+        """The download: one row per submission, one column per
+        question, written by the database and streamed straight out.
+
+        The headers are English (``services/csv_export``) apart from
+        the questions, which are the organiser's own words."""
+        form = access.get_form_for_user(db, form_id, user, _MODE)
+        header, rows = forms_svc.submissions_csv(db, form_id, mode=_MODE)
+        stem = csv_export.filename_slug(form.name_nl or form.name_en or "")
+        return csv_export.csv_response(f"{stem}-{form.id}.csv", header, rows)
 
     return router
 
 
 # The three mounts. Surveys keep the URL they had; the other two get
 # their own.
-router = build_router("survey", prefix="/api/v1/forms", tag="forms", kind="form", noun="form")
-quiz_router = build_router("quiz", prefix="/api/v1/quizzes", tag="quizzes", kind="quiz", noun="quiz")
-compass_router = build_router("compass", prefix="/api/v1/compasses", tag="compasses", kind="compass", noun="compass")
+router = build_router("survey", prefix="/api/v1/form", tag="forms", kind="form", noun="form")
+quiz_router = build_router("quiz", prefix="/api/v1/quiz", tag="quizzes", kind="quiz", noun="quiz")
+compass_router = build_router("compass", prefix="/api/v1/compass", tag="compasses", kind="compass", noun="compass")

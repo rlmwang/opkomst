@@ -1,11 +1,18 @@
 # gitleaks configuration.
 #
-# The default rules, plus one allowlist: the throwaway AES key the CI
-# jobs and the local dev stack boot with. It is a real 32-byte base64
-# value, so every scanner sees a key — but it is published in
-# ``.env.example``, guards nothing, and CI needs *some* valid key or
-# ``Settings`` refuses to construct. Anything else that looks like a
-# secret is a finding.
+# The default rules, plus one allowlist holding two false positives.
+#
+# The first is the throwaway AES key the CI jobs and the local dev
+# stack boot with. It is a real 32-byte base64 value, so every scanner
+# sees a key, but it is published in ``.env.example``, guards nothing,
+# and CI needs *some* valid key or ``Settings`` refuses to construct.
+#
+# The second is the feedback form's question keys ("q5_anything_else"
+# and its four siblings, in ``services/feedback_questions``), which the
+# generic-api-key rule reads as a credential because they sit behind
+# ``key="..."`` and carry enough letters.
+#
+# Anything else that looks like a secret is a finding.
 #
 # ``[allowlist]``, singular, on purpose: the plural ``[[allowlists]]``
 # array is ignored by gitleaks 8.24.3, which is the version
@@ -15,8 +22,12 @@
 useDefault = true
 
 [allowlist]
-description = "The published test-only EMAIL_ENCRYPTION_KEY, and the commit that briefly inlined it"
-regexes = ['''19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=''']
+description = "The published test-only EMAIL_ENCRYPTION_KEY, the commit that briefly inlined it, and the feedback question keys"
+regexes = [
+  '''19zJgFa6AyDoFI90PVOcY3/A8xH/3qXGyJt/hAVlCOA=''',
+  # The feedback form's question keys.
+  '''q\d+_[a-z_]+''',
+]
 # A pull request is scanned over its whole range, so the commit that
 # carried the key still reports even though a later commit removed it.
 # Naming it is the narrow way to retire a finding history cannot be rid

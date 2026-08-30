@@ -5,8 +5,8 @@
  * high-contrast — the two organisations should not look like each
  * other's pages with a different logo.
  *
- * Served at ``/brand/rood/tokens.css`` and linked from the page head
- * before any bundle loads, so the palette is present on first paint. */
+ * Inlined into every page's ``<head>`` before any bundle loads, so the
+ * palette is present on first paint and costs no request. */
 
 :root {
   --brand-red: #c2000b;

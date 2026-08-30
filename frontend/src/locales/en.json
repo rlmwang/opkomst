@@ -21,7 +21,9 @@
     "nameRequired": "Name required",
     "nameRequiredExplainer": "Nothing can be sent in without a (pseudo)name.",
     "advancedShow": "Show advanced options",
-    "advancedHide": "Hide advanced options"
+    "advancedHide": "Hide advanced options",
+    "clear": "Clear",
+    "noResults": "No results"
   },
   "recoverLink": {
     "open": "View signups",
@@ -175,12 +177,9 @@
     }
   },
   "auth": {
-    "login": "Log in",
     "email": "Email address",
     "name": "Name",
     "sendLink": "Send link",
-    "linkIntro": "Enter your email. We'll send you a link to sign in, or to create an account if you don't have one yet.",
-    "linkSentTitle": "Check your inbox",
     "linkSentBody": "We sent a link to {email}. Open it to sign in or to create your account. The link works once and expires in 30 minutes.",
     "linkExpiredTitle": "Link expired",
     "linkExpired": "This link is invalid or has already been used.",
@@ -236,7 +235,7 @@
     "deleteOk": "{name} deleted",
     "deleteFail": "Delete failed"
   },
-  "forms": {
+  "form": {
     "list": {
       "title": "Forms",
       "intro": "Standalone questionnaires you can share with anyone via a link.",
@@ -292,8 +291,6 @@
       "noResponsesYet": "No responses yet.",
       "exportCsv": "Export CSV",
       "csvFail": "Export failed",
-      "csvSubmissionId": "submission_id",
-      "csvSubmittedAt": "submitted_at",
       "qResponses": "{n} responses",
       "qAverage": "average {avg}",
       "qRange": "{low} to {high}",
@@ -302,7 +299,6 @@
       "notFoundBody": "This form doesn't exist, has been deleted, or belongs to a chapter you don't have access to.",
       "loadFailed": "Could not load this form.",
       "backToList": "← Back to forms",
-      "csvName": "Name",
       "anonymous": "Anonymous",
       "ruleStep": "step size {step}",
       "ruleBetween": "between {min} and {max}",
@@ -361,7 +357,7 @@
       "step": "Step size"
     }
   },
-  "datepolls": {
+  "datepoll": {
     "list": {
       "title": "Date polls",
       "intro": "Find a date that works. Propose dates, share the link, let people pick.",
@@ -447,9 +443,6 @@
       "noResponsesYet": "No responses yet.",
       "exportCsv": "Export CSV",
       "csvFail": "Could not export the CSV.",
-      "csvName": "Name",
-      "csvSubmittedAt": "Submitted at",
-      "csvNote": "Note",
       "note": "Note",
       "notesTitle": "Notes",
       "best": "Best",
@@ -465,7 +458,7 @@
       "backToList": "← Back to date polls"
     }
   },
-  "chores": {
+  "chore": {
     "recurrence": {
       "weekly": "Weekly",
       "everyKWeeks": "Every {k} weeks"
@@ -781,13 +774,13 @@
     "sendNow": {
       "reminder": {
         "title": "Reminder delivery",
-        "explainer": "@:appName normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
+        "explainer": "{appName} normally sends the reminder about three days before the event. The button below sends it now to every sign-up still waiting.",
         "button": "Send reminders now",
         "confirmTitle": "Send reminder now?"
       },
       "feedback": {
         "title": "Feedback delivery",
-        "explainer": "@:appName normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
+        "explainer": "{appName} normally sends the feedback email one day after the event ends. The button below sends it now to every sign-up still waiting.",
         "button": "Send feedback emails now",
         "confirmTitle": "Send feedback email now?"
       },
@@ -889,7 +882,6 @@
       "responses": "{n} responses",
       "noTextResponses": "No free-text responses.",
       "exportCsv": "Download CSV",
-      "submissionId": "Submission ID",
       "csvFail": "Could not download CSV"
     },
     "email": {
@@ -924,7 +916,7 @@
     "blogs": "Blogs:",
     "terms": "Terms"
   },
-  "quizzes": {
+  "quiz": {
     "list": {
       "title": "Quizzes",
       "intro": "A quiz with points. Share the link, everyone sees their own score.",
@@ -993,7 +985,7 @@
       "points": "points"
     }
   },
-  "compasses": {
+  "compass": {
     "list": {
       "title": "Compasses",
       "intro": "Everyone who fills it in gets a spot on a map with two axes.",

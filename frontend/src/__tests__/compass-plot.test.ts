@@ -1,5 +1,5 @@
 /**
- * The map (``CompassPlot.vue``), and the two decisions it carries.
+ * The map (``CompassPlot.svelte``), and the two decisions it carries.
  *
  * **The domain is fixed at [-1, 1].** Not derived from the data, which
  * is what ``../stemwijzer``'s plot does: a map that rescales as people
@@ -11,10 +11,11 @@
  * short kompas. Jitter would put a dot where nobody is, so identical
  * coordinates become one bigger dot that names everybody in it.
  */
-import { mount } from "@vue/test-utils";
+import { render } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
 
-import CompassPlot, { type PlotPoint } from "@/public_shared/CompassPlot.vue";
+import CompassPlot from "@/public_shared/CompassPlot.svelte";
+import type { PlotPoint } from "@/public_shared/compass-plot";
 
 const AXES = [
   { axis: "x", low_name: "Links", high_name: "Rechts" },
@@ -22,17 +23,20 @@ const AXES = [
 ];
 
 function plot(points: PlotPoint[]) {
-  return mount(CompassPlot, { props: { axes: AXES, points, anonymousLabel: "Anoniem" } });
+  return render(CompassPlot, { props: { axes: AXES, points, anonymousLabel: "Anoniem" } }).container;
 }
 
-function centres(wrapper: ReturnType<typeof plot>) {
-  return wrapper.findAll("circle.dot").map((c) => [c.attributes("cx"), c.attributes("cy")]);
+const all = (root: HTMLElement, selector: string) =>
+  [...root.querySelectorAll(selector)] as HTMLElement[];
+
+function centres(root: HTMLElement) {
+  return all(root, "circle.dot").map((c) => [c.getAttribute("cx"), c.getAttribute("cy")]);
 }
 
 describe("CompassPlot", () => {
   it("draws the four sides in the organiser's own words", () => {
-    const wrapper = plot([{ name: "Sam", x: 0, y: 0 }]);
-    const labels = wrapper.findAll("text.edge-label").map((t) => t.text());
+    const root = plot([{ name: "Sam", x: 0, y: 0 }]);
+    const labels = all(root, "text.edge-label").map((t) => t.textContent);
     expect(labels).toEqual(["Links", "Rechts", "Behoud", "Open"]);
   });
 
@@ -60,38 +64,39 @@ describe("CompassPlot", () => {
   });
 
   it("makes one dot of the people who answered the same way", () => {
-    const wrapper = plot([
+    const root = plot([
       { name: "Sam", x: 0.5, y: 0.5 },
       { name: "Kim", x: 0.5, y: 0.5 },
       { name: "Bo", x: -0.5, y: 0 },
     ]);
-    const dots = wrapper.findAll("circle.dot");
-    expect(dots).toHaveLength(2);
+    expect(all(root, "circle.dot")).toHaveLength(2);
     // The stacked one is bigger, and names both of them.
-    const groups = wrapper.findAll(".dot-group");
-    const stacked = groups.find((g) => g.attributes("aria-label") === "Sam, Kim");
+    const groups = all(root, ".dot-group");
+    const radius = (g: HTMLElement) =>
+      Number((g.querySelector("circle.dot") as SVGCircleElement).getAttribute("r"));
+    const stacked = groups.find((g) => g.getAttribute("aria-label") === "Sam, Kim");
     expect(stacked).toBeTruthy();
-    expect(Number(stacked!.find("circle.dot").attributes("r"))).toBeGreaterThan(
-      Number(groups.find((g) => g.attributes("aria-label") === "Bo")!.find("circle.dot").attributes("r")),
+    expect(radius(stacked!)).toBeGreaterThan(
+      radius(groups.find((g) => g.getAttribute("aria-label") === "Bo")!),
     );
   });
 
   it("calls a nameless dot what the caller calls it, and still counts it", () => {
-    const wrapper = plot([
+    const root = plot([
       { name: null, x: 0, y: 0 },
       { name: "Sam", x: 0, y: 0 },
     ]);
-    expect(wrapper.findAll("circle.dot")).toHaveLength(1);
-    expect(wrapper.find(".dot-group").attributes("aria-label")).toBe("Anoniem, Sam");
+    expect(all(root, "circle.dot")).toHaveLength(1);
+    expect(all(root, ".dot-group")[0].getAttribute("aria-label")).toBe("Anoniem, Sam");
   });
 
   it("draws the reader's own dot last, so it lands on top", () => {
-    const wrapper = plot([
+    const root = plot([
       { name: "Sam", x: 0, y: 0 },
       { name: "Kim", x: 0.5, y: 0.5, you: true },
       { name: "Bo", x: -0.5, y: 0 },
     ]);
-    const groups = wrapper.findAll(".dot-group");
-    expect(groups[groups.length - 1].classes()).toContain("is-you");
+    const groups = all(root, ".dot-group");
+    expect([...groups[groups.length - 1].classList]).toContain("is-you");
   });
 });

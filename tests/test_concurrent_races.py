@@ -18,10 +18,10 @@ from unittest.mock import patch
 
 from _helpers import commit
 from _helpers.events import first_occurrence, make_event
-from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
+from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup, send_counts
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailDispatch, EmailStatus, Signup
+from backend.models import EmailChannel, EmailDispatch, Signup
 from backend.services import mail_lifecycle
 
 
@@ -61,13 +61,12 @@ def test_reaper_during_send_does_not_double_finalise(truncating_db: Any, fake_em
 
     fresh = SessionLocal()
     try:
-        d = get_dispatch(fresh, s, EmailChannel.REMINDER)
         signup = fresh.query(Signup).filter(Signup.id == s.id).one()
-        assert d is not None
-        # Either the worker committed first (SENT) or the reaper
-        # did (FAILED). Both end states are consistent with the
-        # wipe invariant.
-        assert d.status in (EmailStatus.SENT, EmailStatus.FAILED)
+        # Either the worker finished first or the reaper did. Both end
+        # the same way: the row is gone, exactly one outcome is counted,
+        # and no ciphertext survives.
+        assert get_dispatch(fresh, s, EmailChannel.REMINDER) is None
+        assert sum(send_counts(fresh, s, EmailChannel.REMINDER)) == 1
         assert not has_any_ciphertext(fresh, signup)
     finally:
         fresh.close()
@@ -130,8 +129,8 @@ def test_parallel_reapers_do_not_double_finalise(truncating_db: Any, fake_email:
 
     fresh = SessionLocal()
     try:
-        rows = fresh.query(EmailDispatch).filter(EmailDispatch.channel == EmailChannel.REMINDER).all()
-        assert all(r.status == EmailStatus.FAILED for r in rows)
+        # Reaping deletes: nothing of that channel is left waiting.
+        assert fresh.query(EmailDispatch).filter(EmailDispatch.channel == EmailChannel.REMINDER).count() == 0
     finally:
         fresh.close()
 

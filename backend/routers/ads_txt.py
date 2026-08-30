@@ -41,12 +41,12 @@ _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 # expire, and they are ``noindex`` for that reason (see docs/seo.md).
 _SITEMAP_PATHS = (
     "/",
-    "/events/new",
-    "/datepolls/new",
-    "/chores/new",
-    "/forms/new",
-    "/quizzes/new",
-    "/compasses/new",
+    "/event/new",
+    "/datepoll/new",
+    "/chore/new",
+    "/form/new",
+    "/quiz/new",
+    "/compass/new",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
 )

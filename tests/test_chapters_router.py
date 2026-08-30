@@ -157,7 +157,7 @@ def test_chapter_usage_counts_users_and_events(client, admin_headers, chapter_id
     show up in users count. After creating an event there, that
     counts too."""
     client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Demo",
@@ -167,7 +167,7 @@ def test_chapter_usage_counts_users_and_events(client, admin_headers, chapter_id
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },

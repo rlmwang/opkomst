@@ -27,6 +27,39 @@ enough to hold them, and nowhere else. Below that width nothing renders
 and no script loads. Never inside the reading column, never between a
 question and its answer.
 
+## When they load
+
+Two deferrals, both because an ad should never be what a visitor waits
+for.
+
+**Google's script is fetched when the browser goes idle**, with a
+three-second timeout so it arrives even on a page that never settles.
+The tag has always carried `async`, which is the form Google publishes
+and what they mean by calling their code "fully asynchronous", so it
+never blocked parsing. What it did do was compete for bandwidth and the
+main thread during hydration, which is the part of a page load a person
+feels.
+
+**A unit asks for its ad when it comes within 300px of the viewport**,
+not when it mounts. The phone banner sits at the foot of the page and on
+most visits is never reached; asking on mount billed an advertiser for
+an impression nobody had. A desktop rail is beside the content, so it is
+already intersecting and asks immediately.
+
+Each unit pushes exactly once. A second push against the same `<ins>` is
+an ad request that can never render, and requests that do not render are
+what Google warns hand-rolled lazy loading tends to produce — their own
+guidance points publishers at Google Publisher Tag for this. The
+once-only guard is the reason this is safe without it, and
+`frontend/src/__tests__/ad-slot.test.ts` holds that line.
+
+Neither of these touches the ad code itself. What Google forbids
+modifying is how ads are placed, sized and targeted (hiding units with
+`display:none`, overlapping content, manipulating targeting); when their
+tag is added to the page is not on that list, and lazy loading is
+described in Ad Manager's own viewability guidance as a way to raise
+viewability rather than as something to avoid.
+
 ## What stays true regardless
 
 No analytics, no tracking pixels, and nothing third-party on an

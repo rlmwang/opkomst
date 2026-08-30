@@ -2,7 +2,7 @@
 import { request as httpRequest } from "node:http";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath, URL } from "node:url";
-import vue from "@vitejs/plugin-vue";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, type Plugin } from "vite";
 
 // Mirrors ``backend/services/brand.py``: where the brand folders live,
@@ -32,6 +32,9 @@ const CONTENT_PATHS = [
   "/pubquiz-maken-zonder-account",
   "/kieskompas-maken-zonder-onderzoeksbureau",
   "/vrijwilligers-inroosteren",
+  "/wat-mag-je-bewaren-van-deelnemers",
+  "/ledenvergadering-voorbereiden",
+  "/gratis-alternatief-voor-eventbrite",
 ];
 
 /**
@@ -238,8 +241,8 @@ function organiserAppDevRoute(): Plugin {
   // ``services/slug.RESERVED_SLUGS`` keeps a real chapter from ever
   // being called one of these.
   const appRoutes = new Set([
-    "", "admin", "auth", "chapters", "chores", "compasses", "datepolls",
-    "events", "forms", "login", "quizzes", "register", "settings", "users",
+    "", "admin", "auth", "chapters", "chore", "compass", "datepoll",
+    "event", "form", "login", "quiz", "register", "settings", "users",
   ]);
   const isOrganisation = (segment: string) =>
     segment !== "" && segment !== HOUSE_BRAND && existsSync(`${BRANDS_DIR}/${segment}/brand.json`);
@@ -375,11 +378,10 @@ function brandDevInjection(): Plugin {
         logo_url: url(m.logo),
         favicon_url: url(m.favicon),
       };
-      const tags = [
-        `<style>:root{--boot-bg:${p.bg};--boot-surface:${p.surface};--boot-fg:${p.fg};`
-        + `--boot-fg-muted:${p.fg_muted};--boot-accent:${p.accent};--boot-border:${p.border};}</style>`,
-        `<link rel="stylesheet" href="${url("tokens.css")}">`,
-      ];
+      // The palette goes in inline, exactly as the backend does it
+      // (``services/brand.py::head``), so the shells' boot spinner can
+      // read the real ``--brand-*`` tokens in dev too.
+      const tags = [`<style>${readFileSync(`${dir}/tokens.css`, "utf-8")}</style>`];
       if (m.favicon) tags.push(`<link rel="icon" type="image/png" sizes="192x192" href="${url(m.favicon)}">`);
       if (m.apple_touch_icon) {
         tags.push(`<link rel="apple-touch-icon" sizes="180x180" href="${url(m.apple_touch_icon)}">`);
@@ -397,9 +399,31 @@ function brandDevInjection(): Plugin {
   };
 }
 
+/**
+ * Which entries this pass builds. ``scripts/build.mjs`` sets it; a bare
+ * ``vite build`` still builds everything, which is what a one-off local
+ * check wants.
+ */
+const PUBLIC_ENTRIES = {
+  publicEvent: "./public-event.html",
+  publicForm: "./public-form.html",
+  publicQuiz: "./public-quiz.html",
+  publicCompass: "./public-compass.html",
+  publicDatepoll: "./public-datepoll.html",
+  publicChore: "./public-chore.html",
+  publicChapter: "./public-chapter.html",
+};
+
+const ENTRIES = Object.fromEntries(
+  Object.entries({
+    ...(process.env.BUILD_ENTRIES === "public" ? {} : { main: "./index.html" }),
+    ...(process.env.BUILD_ENTRIES === "app" ? {} : PUBLIC_ENTRIES),
+  }).map(([name, path]) => [name, fileURLToPath(new URL(path, import.meta.url))]),
+);
+
 export default defineConfig({
   plugins: [
-    vue(),
+    svelte(),
     brandDevInjection(),
     organiserAppDevRoute(),
     publicEventDevRoute(),
@@ -425,6 +449,11 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // Under vitest, modules are resolved the way a server would resolve
+    // them, and Svelte's server build has no ``mount``. Asking for the
+    // browser condition is what gives a test the component that
+    // renders. Only under test: the real build resolves normally.
+    conditions: process.env.VITEST ? ["browser"] : undefined,
   },
   server: {
     port: 5173,
@@ -440,91 +469,21 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      // One HTML entry point per app → independent bundle graphs.
-      // The public mini-apps at ``/e/{slug}``, ``/f/{slug}`` and the
-      // rest
-      // ship only what their form needs (Vue + the form component
-      // + a tiny inline i18n dict + raw fetch). No PrimeVue, no
-      // Pinia, no Vue Query, no router. Target wire weight:
-      // ~30 KB gzip each vs the admin SPA's ~200 KB. Backend
-      // routes serve the built ``public-event.html`` /
-      // ``public-form.html`` (with payload inlined); every other
-      // path falls through to the admin SPA's ``index.html``.
-      input: {
-        main: fileURLToPath(new URL("./index.html", import.meta.url)),
-        publicEvent: fileURLToPath(
-          new URL("./public-event.html", import.meta.url),
-        ),
-        // Same split as ``publicEvent``: dedicated bundle graph
-        // for ``/f/{slug}`` so public visitors land on ~30 KB
-        // gzip instead of the admin SPA's ~200 KB.
-        publicForm: fileURLToPath(
-          new URL("./public-form.html", import.meta.url),
-        ),
-        // And the same again for ``/q/{slug}``: a quiz is answered one
-        // question at a time, and shares every renderer with the form.
-        publicQuiz: fileURLToPath(
-          new URL("./public-quiz.html", import.meta.url),
-        ),
-        // And for ``/k/{slug}``: a kompas walks the same way and ends
-        // on a map instead of a score.
-        publicCompass: fileURLToPath(
-          new URL("./public-compass.html", import.meta.url),
-        ),
-        // Same split again: dedicated bundle graph for ``/d/{slug}``.
-        publicDatepoll: fileURLToPath(
-          new URL("./public-datepoll.html", import.meta.url),
-        ),
-        // Same split again: dedicated bundle graph for ``/c/{slug}``.
-        publicChore: fileURLToPath(
-          new URL("./public-chore.html", import.meta.url),
-        ),
-        publicChapter: fileURLToPath(
-          new URL("./public-chapter.html", import.meta.url),
-        ),
-      },
-      output: {
-        // Split heavy vendor libs into their own chunks. The main
-        // app chunk drops below the 500 kB warning threshold; the
-        // vendor chunks cache separately and survive across deploys
-        // that touch app code but not deps.
-        // A function (not an object) so PrimeVue can be split by role:
-        // the public chore page uses only ``DatePicker``, so it must pull
-        // the shared PrimeVue base + theme tokens + DatePicker, but never
-        // the admin-only widgets (Select, Dialog, AutoComplete, …). An
-        // object map couldn't express "base vs widgets" because the base
-        // modules aren't ones we import by name.
-        manualChunks(id) {
-          if (id.includes("/node_modules/vue-router/")) return "vue-router";
-          if (id.includes("/node_modules/pinia/")) return "pinia";
-          if (id.includes("/node_modules/vue-i18n/") || id.includes("/node_modules/@intlify/")) return "i18n";
-          // ``vue-core`` is shared with the public mini-apps; router +
-          // pinia stay admin-only so the public bundle doesn't pull them.
-          if (id.includes("/node_modules/vue/") || id.includes("/node_modules/@vue/")) return "vue-core";
-
-          // Theme tokens (Aura) — loaded by every app through the shared
-          // preset, so its own chunk.
-          if (id.includes("/node_modules/@primeuix/themes/")) return "primevue-themes";
-          // The heaviest single widget; its own chunk so pages that don't
-          // edit dates never pay for it.
-          if (id.includes("/node_modules/primevue/datepicker/")) return "primevue-datepicker";
-          // Shared PrimeVue runtime/base that DatePicker depends on
-          // (base component, icons, utils, plus Button + InputText which
-          // it composes). Kept apart from the admin widgets so the public
-          // chore page loads only base + datepicker, not Select/Dialog/….
-          if (
-            id.includes("/node_modules/@primevue/") ||
-            id.includes("/node_modules/@primeuix/") ||
-            /\/node_modules\/primevue\/(button|inputtext|overlayeventbus|portal|ripple|config|baseicon|base)\//.test(id)
-          ) {
-            return "primevue-base";
-          }
-          // The remaining PrimeVue widgets (Select / Dialog / AutoComplete
-          // / …) are admin-only. Left unforced so Rollup co-locates them
-          // with the admin entry — forcing them into their own chunk
-          // created a ``primevue ⇄ primevue-base`` circular chunk.
-        },
-      },
+      // One HTML entry point per app, and two passes over them
+      // (``scripts/build.mjs``): the seven public mini-apps in one
+      // graph, the organiser app in another. They share components now,
+      // and one graph over both made every public page carry the
+      // organiser app's share of what they have in common.
+      //
+      // The public pages at ``/e/{slug}``, ``/f/{slug}`` and the rest
+      // ship only what their own form needs. The backend serves their
+      // built HTML with the payload inlined; every other path falls
+      // through to the organiser app's ``index.html``.
+      input: ENTRIES,
+      // Vue's chunks used to be named here so the public mini-apps and
+      // the organiser app could share one copy of the runtime. Both
+      // halves are Svelte and each is its own graph now, so there is
+      // nothing left to name: every chunk belongs to one half.
     },
   },
 });

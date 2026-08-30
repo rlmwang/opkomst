@@ -32,7 +32,7 @@ def _event_body() -> dict[str, Any]:
         "cycle_slots": [],
         "span_weeks": None,
         "horizon_days": 90,
-        "source_options": ["Van een vriend"],
+        "source_options": [{"label": "Van een vriend"}],
         "help_options": [],
         "feedback_enabled": False,
         "reminder_enabled": False,
@@ -115,7 +115,7 @@ def _personal_user(db, email: str) -> User | None:
 def test_new_address_gets_a_tenant_a_user_and_the_entity(client, db) -> None:
     """The whole account is made on the way through: a personal tenant,
     its one approved organiser, and the event they asked for."""
-    resp = client.post("/api/v1/start/events", json={"email": "Nieuw@Example.org", "event": _event_body()})
+    resp = client.post("/api/v1/start/event", json={"email": "Nieuw@Example.org", "event": _event_body()})
     assert resp.status_code == 201, resp.text
     body = resp.json()
     assert body["public_url"].endswith(f"/e/{body['slug']}")
@@ -134,7 +134,7 @@ def test_new_address_gets_a_tenant_a_user_and_the_entity(client, db) -> None:
     # ``/e/{slug}`` is per occurrence, so the link names the first
     # session rather than the event, and resolves the moment it is
     # shared.
-    assert client.get(f"/api/v1/events/by-slug/{body['slug']}").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{body['slug']}").status_code == 200
     occurrence = db.query(Occurrence).filter(Occurrence.slug == body["slug"]).one()
     event = db.query(Event).filter(Event.id == occurrence.event_id).one()
     assert event.tenant_id == user.tenant_id
@@ -146,13 +146,13 @@ def test_new_address_gets_a_tenant_a_user_and_the_entity(client, db) -> None:
 def test_known_address_writes_into_the_existing_account(client, db) -> None:
     """Second time round nothing is created but the entity: the address
     already is an account."""
-    first = client.post("/api/v1/start/events", json={"email": "vaste@example.org", "event": _event_body()})
+    first = client.post("/api/v1/start/event", json={"email": "vaste@example.org", "event": _event_body()})
     assert first.status_code == 201
     user = _personal_user(db, "vaste@example.org")
     assert user is not None
     tenant_id, user_id = user.tenant_id, user.id
 
-    second = client.post("/api/v1/start/forms", json={"email": "vaste@example.org", "form": _form_body()})
+    second = client.post("/api/v1/start/form", json={"email": "vaste@example.org", "form": _form_body()})
     assert second.status_code == 201
 
     assert db.query(Tenant).filter(Tenant.kind == "personal").count() == 1
@@ -164,8 +164,8 @@ def test_known_address_writes_into_the_existing_account(client, db) -> None:
 def test_response_does_not_say_whether_the_account_existed(client) -> None:
     """Same shape, same status, same fields. Whether an address already
     has an account is not something a stranger gets to probe."""
-    new = client.post("/api/v1/start/events", json={"email": "a@example.org", "event": _event_body()})
-    again = client.post("/api/v1/start/events", json={"email": "a@example.org", "event": _event_body()})
+    new = client.post("/api/v1/start/event", json={"email": "a@example.org", "event": _event_body()})
+    again = client.post("/api/v1/start/event", json={"email": "a@example.org", "event": _event_body()})
     assert new.status_code == again.status_code == 201
     assert sorted(new.json()) == sorted(again.json())
 
@@ -173,7 +173,7 @@ def test_response_does_not_say_whether_the_account_existed(client) -> None:
 def test_a_sign_in_link_is_minted_for_the_account(client, db) -> None:
     """The mail is the disclosure: whoever owns the address learns that
     something landed in their account, and gets the way in."""
-    client.post("/api/v1/start/events", json={"email": "post@example.org", "event": _event_body()})
+    client.post("/api/v1/start/event", json={"email": "post@example.org", "event": _event_body()})
     user = _personal_user(db, "post@example.org")
     assert user is not None
     assert db.query(LoginToken).filter(LoginToken.user_id == user.id).count() == 1
@@ -211,9 +211,9 @@ def test_every_kind_has_a_door(client, db) -> None:
     """Forms, datepolls and rosters take the same route as events, each
     landing on its own public prefix."""
     cases = [
-        ("forms", "form", _form_body(), "f", Form),
-        ("datepolls", "datepoll", _datepoll_body(), "d", Datepoll),
-        ("chores", "roster", _roster_body(), "c", Roster),
+        ("form", "form", _form_body(), "f", Form),
+        ("datepoll", "datepoll", _datepoll_body(), "d", Datepoll),
+        ("chore", "roster", _roster_body(), "c", Roster),
     ]
     for path, key, body, prefix, model in cases:
         resp = client.post(f"/api/v1/start/{path}", json={"email": f"{path}@example.org", key: body})
@@ -231,13 +231,13 @@ def test_a_chapter_id_is_refused(client, db, chapter_id) -> None:
     rows by chapter id."""
     before = db.query(Event).count()
     body = {"email": "sluiper@example.org", "event": {**_event_body(), "chapter_id": chapter_id}}
-    resp = client.post("/api/v1/start/events", json=body)
+    resp = client.post("/api/v1/start/event", json=body)
     assert resp.status_code == 422
     assert db.query(Event).count() == before
 
 
 def test_a_bad_address_is_refused_before_anything_is_written(client, db) -> None:
     before = db.query(Tenant).count()
-    resp = client.post("/api/v1/start/events", json={"email": "not-an-address", "event": _event_body()})
+    resp = client.post("/api/v1/start/event", json={"email": "not-an-address", "event": _event_body()})
     assert resp.status_code == 422
     assert db.query(Tenant).count() == before

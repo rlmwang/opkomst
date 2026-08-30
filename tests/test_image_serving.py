@@ -13,10 +13,12 @@ from unittest.mock import patch
 import pytest
 from _helpers import commit
 from _helpers.events import make_event
+from sqlalchemy import select, update
 
-from backend.models import Event
+from backend.models import ArchiveIndex
+from backend.models.archive import archive_metadata
+from backend.services import crud, image_reaper
 from backend.services import image as image_svc
-from backend.services import image_reaper
 
 _PATH = "events/ev1/1700000000000.jpg"
 _JPEG = b"\xff\xd8\xffnot-really-a-jpeg"
@@ -90,32 +92,45 @@ def test_only_the_shape_an_upload_produces_is_served(client, path) -> None:
 # ---- The sweep ----------------------------------------------------
 
 
-def _archived(db, *, days_ago: int) -> Event:
+def _archived(db, *, days_ago: int) -> str:
+    """An event archived ``days_ago``, and its id. Archiving is a move,
+    so the row is in the twin and the date is on the index row; the
+    date is written after the fact because archiving stamps today."""
     event = make_event(db)
     event.image_path = f"events/{event.id}/1.jpg"
-    event.archived_at = datetime.now(UTC) - timedelta(days=days_ago)
     commit(db)
-    return event
+    event_id = event.id
+    crud.archive_entity(db, event, root="events", log_event="event_archived", actor_id="tester")
+    db.execute(
+        update(ArchiveIndex)
+        .where(ArchiveIndex.entity_id == event_id)
+        .values(archived_at=datetime.now(UTC) - timedelta(days=days_ago))
+    )
+    commit(db)
+    return event_id
+
+
+def _archived_image_path(db, event_id: str) -> str | None:
+    twin = archive_metadata.tables["events_archive"]
+    return db.execute(select(twin.c.image_path).where(twin.c.id == event_id)).scalar()
 
 
 def test_deletes_the_image_of_something_archived_past_the_grace(db) -> None:
-    event = _archived(db, days_ago=image_reaper.GRACE.days + 1)
+    event_id = _archived(db, days_ago=image_reaper.GRACE.days + 1)
     with patch.object(image_svc, "delete", return_value=True) as deleted:
         assert image_reaper.reap_images() == 1
-    deleted.assert_called_once_with(f"events/{event.id}/1.jpg")
-    db.refresh(event)
-    assert event.image_path is None
+    deleted.assert_called_once_with(f"events/{event_id}/1.jpg")
+    assert _archived_image_path(db, event_id) is None
 
 
 def test_leaves_one_archived_inside_the_grace_alone(db) -> None:
     """Restoring is a normal thing to do, so a recent archive keeps its
     picture."""
-    event = _archived(db, days_ago=image_reaper.GRACE.days - 1)
+    event_id = _archived(db, days_ago=image_reaper.GRACE.days - 1)
     with patch.object(image_svc, "delete", return_value=True) as deleted:
         assert image_reaper.reap_images() == 0
     deleted.assert_not_called()
-    db.refresh(event)
-    assert event.image_path is not None
+    assert _archived_image_path(db, event_id) is not None
 
 
 def test_never_touches_a_live_entity(db) -> None:
@@ -132,8 +147,7 @@ def test_never_touches_a_live_entity(db) -> None:
 def test_a_failed_delete_leaves_the_row_pointing_at_the_file(db) -> None:
     """Clearing the column first would strand the file for ever with
     nothing left that knows where it is. The next sweep retries."""
-    event = _archived(db, days_ago=image_reaper.GRACE.days + 1)
+    event_id = _archived(db, days_ago=image_reaper.GRACE.days + 1)
     with patch.object(image_svc, "delete", return_value=False):
         assert image_reaper.reap_images() == 0
-    db.refresh(event)
-    assert event.image_path == f"events/{event.id}/1.jpg"
+    assert _archived_image_path(db, event_id) == f"events/{event_id}/1.jpg"

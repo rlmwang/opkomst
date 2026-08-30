@@ -144,7 +144,7 @@ def test_unlisted_excluded_but_signup_still_resolves(db, client):
     _, j = _agenda(client, ch.slug)
     assert "Hidden" not in [x["name_nl"] for x in j["upcoming"]]
     # The direct sign-up API still resolves the event (per-occurrence slug).
-    assert client.get(f"/api/v1/events/by-slug/{first_occurrence(e).slug}").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}").status_code == 200
 
 
 def test_archived_excluded(db, client):
@@ -237,17 +237,17 @@ def test_chapter_slug_is_readable_kebab(name):
 
 
 def test_a_chapter_cannot_be_named_after_a_page_of_the_app(db):
-    """``/{tenant}/{chapter}`` and ``/{tenant}/events`` are one
-    namespace, and the app wins: a chapter called Events lands on
-    ``events-2``."""
-    ch = chapters_svc.create(db, name="Events")
+    """``/{tenant}/{chapter}`` and ``/{tenant}/event`` are one
+    namespace, and the app wins: a chapter called Event lands on
+    ``event-2``."""
+    ch = chapters_svc.create(db, name="Event")
     db.commit()
-    assert ch.slug == "events-2"
+    assert ch.slug == "event-2"
 
 
 def test_slug_validator_rejects_a_page_name():
     with pytest.raises(ValidationError):
-        ChapterPatch(slug="events")
+        ChapterPatch(slug="event")
 
 
 def test_reserved_slugs_cover_every_first_level_route(db):

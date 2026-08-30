@@ -13,9 +13,14 @@ rules above.
 
 **Answering**
 
-- **Be terse.** A sentence or two. A side note is one sentence: "I accidentally committed some other work, but restored it." Never recount what you did, how you verified it, or what you considered.
-- **Plain english.** State what is true, what it costs, what the options are. No imagined consequences, no rhetorical flourishes, no moralizing.
-- **Never an emdash or en-dash.** Anywhere: chat, code, comments, docs, commit messages, i18n strings, email templates. Use a comma, parens, a colon, or a period.
+- **Be terse.** A sentence or two. A side note is one sentence.
+- **Answer, don't essay.** Give the new information and stop. No restating the question, no re-arguing what is agreed, no closing summary.
+- **No meta-narration.** Never announce what you are about to do, that you have reached a checkpoint, or that you are being honest. Do the work; state facts.
+- **Don't ask permission mid-task.** Approved work gets finished, then reported once. Ask only if proceeding is unsafe.
+- **Plain english.** What is true, what it costs, what the options are. No flourishes, no moralizing.
+- **No jargon.** No term of art without saying what it means, and none invented. One claim per sentence.
+- **Never rename a bug.** "Fan-out" is a bad join. Say what went wrong in the words someone would fix it with, and drop the term when pulled up on it.
+- **Never an emdash or en-dash.** Anywhere: chat, code, comments, docs, commits, i18n, email. Use a comma, parens, a colon, or a period.
 - **Ask with `AskUserQuestion`**, as concrete options. Not a paragraph ending in a question mark.
 
 **Working**
@@ -24,7 +29,7 @@ rules above.
 - **Build exactly what was asked.** No invented gates, thresholds, smart empty states, or extra breakpoints. "A search bar" means always there.
 - **Write product code inline.** Never hand a whole implementation to one background agent. Read-only research fan-out is fine.
 - **A UI complaint is about one screen.** Fix the viewport the user was looking at; leave the other pixel-identical. Ask if it is ambiguous.
-- **"Still showing" / "never loads" is a logic bug**, not a slow request. Read the `v-if` chain and the state resets before reaching for telemetry.
+- **"Still showing" / "never loads" is a logic bug**, not a slow request. Read the branch chain and the state resets before reaching for telemetry.
 
 **Copy**
 
@@ -56,7 +61,7 @@ Opkomst (`opkomst.nu`) is a privacy-first event sign-up tool for socialist organ
 
 - **No PII in logs.** Routes log a route name + outcome only. Email-send is the only place `to=` ever appears.
 - **Email decryption only by the lifecycle worker.** Static check: `tests/test_privacy.py::test_decrypt_only_called_from_mail_lifecycle` greps the backend tree for `encryption.decrypt` callers.
-- **The wipe rule, asserted by the Hypothesis state machine** in `tests/test_privacy_invariant_property.py` and the table-test in `tests/test_email_state_machine.py`: ``Signup.encrypted_email IS NULL`` ⇔ no PENDING dispatch row pointing at this signup.
+- **The wipe rule, asserted by the Hypothesis state machine** in `tests/test_privacy_invariant_property.py` and the table-test in `tests/test_email_state_machine.py`: an ``EmailDispatch`` row is an email still owed, and the only place an address lives. Finishing a send **deletes the row**, so the address' lifetime is the work's lifetime and the wipe needs no separate step. What survives is ``EmailSendCount``: sent and failed totals per (occurrence, channel, day), with no address and no recipient. The table therefore holds the queue, not the history. Archiving an event ends the work the same way: the rows are deleted and counted failed at the move, and ``email_dispatches`` has no archive twin (``models/archive.py::NEVER_ARCHIVED``), because nothing sweeps the archive.
 - **Encrypt write sites are an allowlist.** `tests/test_privacy.py::test_encrypted_email_writes_only_from_allowlisted_modules` keeps it tight.
 - **Feedback responses carry no signup link.** No `signup_id` column on `FeedbackResponse`.
 - **Open-source disclosure on every public sign-up form.** Never remove that copy.
@@ -116,10 +121,13 @@ Daily `python -m backend.cli reap-auth-tokens` deletes expired rows from both to
 
 ## Frontend
 
-- **Vue 3 Composition API + TypeScript + Vite + PrimeVue 4.**
-- **State lives in TanStack Vue Query composables** (`frontend/src/composables/use*.ts`). The only Pinia store is `auth.ts`. Optimistic mutations carry an explicit `onMutate` snapshot + `onError` rollback so a failed write can't silently desync the cache from the server.
+- **Svelte 5 runes + TypeScript + Vite.** No component library: every control in `src/components/` is the app's own, built against Aura's geometry when it replaced a PrimeVue one. `AppIcon.svelte` holds all 23 icons as SVG paths.
+- **State lives in TanStack Svelte Query composables** (`frontend/src/composables/*.svelte.ts`). The session is `stores/auth.svelte.ts`, a module with getters. Optimistic mutations pass `mutation(run, { optimistic })` a function that patches the cache and returns its own undo, so a patch cannot be added without one.
+- **A component takes props, never a spread over its own attributes.** Svelte has no attribute fallthrough: a spread carrying `class` replaces the attribute rather than adding to it, which is how every card given a class of its own lost `card` and rendered with no panel. Take `class` by name and join it.
+- **Mount through `lib/mount.ts`, always.** Svelte's `mount` appends to the container where Vue's replaced its children, so an entry that mounts by hand leaves the shell's boot spinner on top of the page. Shipped twice.
 - **Types are auto-generated from the OpenAPI schema.** `make openapi` regenerates `openapi.json` + `frontend/src/api/schema.ts`. CI fails on drift.
-- **PrimeVue 4 layer ordering**: all global CSS goes inside `@layer app { }`. `theme.css` declares `@layer primevue, app;` so PrimeVue's runtime-injected styles aren't trampled. Set up in `main.ts`.
+- **All global CSS goes inside `@layer app { }`**, so page-level rules stay orderable against each other. `App.svelte` carries the `box-sizing: border-box` reset for the organiser app; the public mini-apps do not load it.
+- **The build is two passes** (`frontend/scripts/build.mjs`): the seven public mini-apps in one Rollup graph, the organiser app in another. Both halves draw the same components, and one graph over both made every public page carry the organiser app's share of what they share.
 
 ## What's where
 
@@ -144,10 +152,12 @@ backend/
 
 frontend/src/
   api/                        schema.ts (generated), types.ts, client.ts
-  composables/                Vue Query queries + mutations (one per domain)
-  stores/auth.ts              the only Pinia store
+  composables/                queries + mutations (one per domain)
+  stores/auth.svelte.ts       the session, and the gates that read it
+  router/                     the table, the guard, the link
   pages/                      one page per route
   locales/                    i18n strings (nl + en)
+  scripts/build.mjs           the two-pass build, one graph per half
 
 brands/rsp/                   one folder per organisation: brand.json,
                               tokens.css (the palette), logo + icons.
@@ -162,6 +172,11 @@ scripts/
   verify_env.py               pre-deploy env-var validator
   restore_drill.sh            quarterly restore-from-backup smoke
   backup.sh                   daily redacted pg_dump (encrypted_email NULL'd)
+
+backend/content/            one markdown file per written page: front
+                            matter (title, description, call to action)
+                            plus the prose. Rendered once at import by
+                            ``services/content.py``.
 
 docs/
   architecture.md             current-state design

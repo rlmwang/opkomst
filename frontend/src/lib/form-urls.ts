@@ -1,4 +1,4 @@
-import type { FormResource } from "@/composables/useForms";
+import type { FormResource } from "@/composables/useForms.svelte";
 import { publicUrl, qrUrl } from "@/lib/public-urls";
 
 /**
@@ -8,9 +8,9 @@ import { publicUrl, qrUrl } from "@/lib/public-urls";
  * (``docs/design-kompas.md`` part 1.2).
  */
 const PUBLIC_PREFIX: Record<FormResource, string> = {
-  forms: "f",
-  quizzes: "q",
-  compasses: "k",
+  form: "f",
+  quiz: "q",
+  compass: "k",
 };
 
 /** Public fill-out URL for a slug. Anyone with this URL can submit;

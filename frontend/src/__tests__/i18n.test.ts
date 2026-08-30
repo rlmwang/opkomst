@@ -1,15 +1,19 @@
 /**
- * The ``usersTitle`` regression: ``t("usersTitle")`` resolved
- * against no value and rendered the literal string. Default
- * vue-i18n behaviour is silent in production — these tests pin
- * the strict missing-key handler we wired in ``src/i18n.ts``,
- * so the same class of bug breaks the build instead.
+ * The ``usersTitle`` regression: ``t("usersTitle")`` resolved against no
+ * value and rendered the literal string. vue-i18n was silent about that
+ * in production, and these tests pin the strict handler in
+ * ``lib/i18n-core`` that replaced its silence. They outlived vue-i18n
+ * itself, and Vue, which is the point of them.
  */
 
-import { describe, expect, it, vi } from "vitest";
-import { i18n } from "@/i18n";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { initI18n, locale, setLocale, t } from "@/i18n.svelte";
 
-const t = i18n.global.t;
+// The catalogues are fetched rather than bundled, so the active one has
+// to be loaded before any lookup resolves.
+beforeAll(async () => {
+  await initI18n();
+});
 
 describe("i18n missing-key handler", () => {
   it("returns ``[key]`` for missing keys so the UI surfaces the gap visibly", () => {
@@ -39,7 +43,25 @@ describe("i18n missing-key handler", () => {
 
   it("known keys still resolve to the actual translation", () => {
     // Sanity: the strict handler doesn't break normal lookups.
-    expect(t("auth.login")).not.toMatch(/^\[/);
-    expect(t("auth.login")).not.toBe("");
+    expect(t("auth.sendLink")).not.toMatch(/^\[/);
+    expect(t("auth.sendLink")).not.toBe("");
+  });
+});
+
+describe("lazy catalogues", () => {
+  it("has the active language after init, and resolves real copy from it", () => {
+    expect(locale()).toBe("nl");
+    expect(t("auth.sendLink")).not.toMatch(/^\[/);
+  });
+
+  it("fetches the other language on switch, then renders it", async () => {
+    const dutch = t("auth.sendLink");
+    await setLocale("en");
+    expect(locale()).toBe("en");
+    const english = t("auth.sendLink");
+    expect(english).not.toMatch(/^\[/);
+    expect(english).not.toBe(dutch);
+    await setLocale("nl");
+    expect(t("auth.sendLink")).toBe(dutch);
   });
 });

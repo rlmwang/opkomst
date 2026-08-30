@@ -27,7 +27,7 @@ One `docker compose` project, four containers:
 
 | Container     | Image                          | Role                                            |
 |---------------|--------------------------------|-------------------------------------------------|
-| `api`         | built from this repo's `Dockerfile` | FastAPI + the built Vue SPA (served by the SPA fallback) + the one-shot cron CLI |
+| `api`         | built from this repo's `Dockerfile` | FastAPI + the built front end (served by the SPA fallback) + the one-shot cron CLI |
 | `postgres`    | `postgres:16-alpine`           | the application database                        |
 | `cloudflared` | `cloudflare/cloudflared`       | outbound-only tunnel; publishes `opkomst.nu` → `api:8000` |
 | `evolution-*` | optional                       | WhatsApp blast tool (see §11), only if you use it |
@@ -342,7 +342,7 @@ curl -fsS https://opkomst.nu/health                     # via the tunnel
 ```
 
 **Bootstrap the admin** exactly as `deploy.md` §7: open
-`https://opkomst.nu/login`, enter your `BOOTSTRAP_ADMIN_EMAIL`, click
+`https://opkomst.nu`, enter your `BOOTSTRAP_ADMIN_EMAIL`, click
 the magic link from your inbox, set your name. The first completion
 matching that address lands as `role=admin, is_approved=true`.
 

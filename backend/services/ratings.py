@@ -8,8 +8,10 @@ forms by ``question_id``), but the arithmetic is identical and
 lives here so it can't drift between the two features.
 """
 
+from collections.abc import Sequence
 
-def rating_distribution(rows: list[tuple[int | None, int]]) -> tuple[list[int], int, float | None]:
+
+def rating_distribution(rows: Sequence[tuple[int | None, int]]) -> tuple[list[int], int, float | None]:
     """Collapse ``(value, count)`` rows from a 1..5 rating column into
     a 5-bucket distribution, the total number of responses, and the
     weighted average (``None`` when there are no responses)."""

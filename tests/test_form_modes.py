@@ -54,7 +54,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 def _make_form(client: Any, headers: Any, name: str) -> dict[str, Any]:
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
@@ -85,7 +85,7 @@ def test_a_quiz_row_stays_out_of_the_forms_list(client, organiser_headers) -> No
         row = db.get(Form, form["id"])
         row.mode = "quiz"
         db.commit()
-    listed = client.get("/api/v1/forms", headers=organiser_headers).json()
+    listed = client.get("/api/v1/form", headers=organiser_headers).json()
     assert form["id"] not in [f["id"] for f in listed]
 
 
@@ -97,9 +97,9 @@ def test_a_quiz_is_not_reachable_through_a_form_url(client, organiser_headers) -
         row = db.get(Form, form["id"])
         row.mode = "quiz"
         db.commit()
-    assert client.get(f"/api/v1/forms/by-slug/{form['slug']}").status_code == 410
-    assert client.get(f"/api/v1/forms/{form['id']}", headers=organiser_headers).status_code == 404
-    archived = client.get("/api/v1/forms/archived", headers=organiser_headers).json()
+    assert client.get(f"/api/v1/form/by-slug/{form['slug']}").status_code == 410
+    assert client.get(f"/api/v1/form/{form['id']}", headers=organiser_headers).status_code == 404
+    archived = client.get("/api/v1/form/archived", headers=organiser_headers).json()
     assert form["id"] not in [f["id"] for f in archived]
 
 

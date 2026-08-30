@@ -1,4 +1,4 @@
-"""Serve the Vue SPA in production.
+"""Serve the built front end in production.
 
 The Vite build is copied to ``frontend/dist`` by the Dockerfile.
 The hashed ``assets/`` directory mounts with a 1-year ``immutable``
@@ -43,7 +43,7 @@ from starlette.types import Scope
 
 from ..config import settings
 from ..database import get_db
-from ..models import Chapter, Datepoll, Form, Occurrence, Roster
+from ..models import Chapter, Datepoll, Form, Occurrence, Roster, Tenant
 from ..schemas.common import pick_localized
 from ..services import agenda as agenda_svc
 from ..services import brand as brand_svc
@@ -285,6 +285,18 @@ def _nonce(request: Request) -> str:
     return request.state.csp_nonce
 
 
+def _inline_json(value: Any) -> str:
+    """``value`` as JSON that is safe to put between ``<script>`` tags.
+
+    ``json.dumps`` leaves ``<`` alone, so an organiser who types
+    ``</script>`` into an event name would close the element and have
+    the rest of the payload parsed as page HTML. Escaping the three
+    characters that can start a tag closes that: ``\\u003c`` and friends
+    are ordinary JSON escapes, and parse back to the same string.
+    """
+    return json.dumps(value, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
 def _allow_ads(request: Request, brand_slug: str) -> None:
     """Say whether this response may carry advertising, for
     ``SecurityHeadersMiddleware`` to pick the CSP from (see
@@ -348,7 +360,7 @@ def _serve_public_app(
 
     Each caller resolves its own entity and decides the archived
     policy (events inline the archived event's payload to render a
-    banner; forms/datepolls inline ``null`` so the mini-app shows
+    banner; forms/datepoll inline ``null`` so the mini-app shows
     "no longer available"), and passes the brand of the organisation
     that owns it — the URL carries no tenant, so the entity is what
     decides whose logo and palette the visitor sees. An unknown slug
@@ -360,7 +372,7 @@ def _serve_public_app(
         return _serve_admin_shell(brand_slug, request)
     _allow_ads(request, brand_slug)
     nonce = _nonce(request)
-    inlined = f'<script nonce="{nonce}">window.{window_var} = ' + json.dumps(payload, ensure_ascii=False) + ";</script>"
+    inlined = f'<script nonce="{nonce}">window.{window_var} = ' + _inline_json(payload) + ";</script>"
     rendered = (
         public_html_path.read_text(encoding="utf-8")
         .replace(_BRAND_INJECTION_MARKER, brand_svc.head(brand_slug, nonce), 1)
@@ -379,10 +391,10 @@ def _serve_public_app(
 # reach. Everything else the shell serves is one "app" bucket.
 _APP_SURFACES = {
     "/": "root",
-    "/events/new": "create_event",
-    "/forms/new": "create_form",
-    "/datepolls/new": "create_datepoll",
-    "/chores/new": "create_chore",
+    "/event/new": "create_event",
+    "/form/new": "create_form",
+    "/datepoll/new": "create_datepoll",
+    "/chore/new": "create_chore",
 }
 
 # What a search result for each of those should say. The same
@@ -395,31 +407,31 @@ _APP_PAGE_META = {
         "Maak een aanmeldpagina, een vragenlijst, een datumplanner of een rooster. "
         "Eén link, geen account voor je deelnemers, geen cookies en geen tracking.",
     ),
-    "/events/new": (
+    "/event/new": (
         "Aanmeldpagina voor je evenement maken",
         "Maak in een minuut een aanmeldpagina met één deelbare link. Deelnemers "
         "hoeven geen account, en hun e-mailadres wordt na afloop gewist.",
     ),
-    "/forms/new": (
+    "/form/new": (
         "Vragenlijst maken zonder Google Forms",
         "Stel je eigen vragen samen en deel één link. Geen account voor de "
         "invuller, geen cookies, en de antwoorden blijven bij jou.",
     ),
-    "/quizzes/new": (
+    "/quiz/new": (
         "Pubquiz maken zonder account",
         "Schrijf je eigen quiz en deel één link. Iedereen speelt op de eigen "
         "telefoon, ziet meteen de score, en hoeft nergens voor in te loggen.",
     ),
-    "/compasses/new": (
+    "/compass/new": (
         "Kompas maken: waar staat jouw groep?",
         "Stel vragen met twee assen en zie op één kaart waar iedereen staat. "
         "Geen account voor de invuller, geen cookies, geen tracking.",
     ),
-    "/datepolls/new": (
+    "/datepoll/new": (
         "Datumplanner maken zonder account",
         "Prik een datum met je groep via één link. Niemand hoeft een account te maken en er worden geen cookies gezet.",
     ),
-    "/chores/new": (
+    "/chore/new": (
         "Takenrooster maken voor vrijwilligers",
         "Verdeel terugkerende taken eerlijk over je vrijwilligers, met een rooster "
         "dat iedereen kan zien en waar de beurten vanzelf rondgaan.",
@@ -502,19 +514,26 @@ def brand_slug_for(db: Session, prefix: str, slug: str) -> str:
     to guess."""
     resolve = _PUBLIC_RESOLVERS.get(prefix)
     entity = _resolve_public(db, slug, resolve) if resolve is not None else None
-    return _brand_slug_for(db, entity)
+    return _brand_slug_for(entity)
 
 
-def _brand_slug_for(db: Session, entity: object | None) -> str:
+def _brand_slug_for(entity: object | None) -> str:
     """Which brand a public page wears: the one belonging to the tenant
     that owns the entity behind the slug. An unknown or archived slug
     resolved to nothing, so there is no owner to ask, and those pages
     wear the house brand. So does a personal account's page: its slug
-    names no brand folder, which is what ``brand_slug`` decides."""
+    names no brand folder, which is what ``brand_slug`` decides. A
+    tenant that has been dropped from ``TENANTS`` is soft-deleted and no
+    longer has a brand folder committed, so its pages fall back too.
+
+    Read off the row the resolver already loaded. Resolving a public
+    slug binds the owning tenant (``services/tenancy``), which loads
+    that same row, so asking the database again was a second round trip
+    on every public page for a brand it had already fetched."""
     if entity is None:
         return brand_svc.HOUSE_BRAND
-    tenant = tenants_svc.get_live(db, entity.tenant_id)  # type: ignore[attr-defined]
-    return tenant.brand_slug if tenant is not None else brand_svc.HOUSE_BRAND
+    tenant = entity.tenant  # type: ignore[attr-defined]
+    return tenant.brand_slug if tenant.deleted_at is None else brand_svc.HOUSE_BRAND
 
 
 def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLResponse:
@@ -525,7 +544,7 @@ def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLRespons
     payload = (
         json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
     )
-    brand_slug = _brand_slug_for(db, occurrence)
+    brand_slug = _brand_slug_for(occurrence)
     return _serve_public_app(
         html_name="public-event.html",
         window_var="__OPKOMST_EVENT__",
@@ -545,7 +564,7 @@ def _serve_public_form(slug: str, db: Session, request: Request) -> HTMLResponse
     # "no longer available" state it would on a 410.
     form = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="survey"))
     payload = json.loads(forms_svc.to_public_out(db, form).model_dump_json()) if form is not None else None
-    brand_slug = _brand_slug_for(db, form)
+    brand_slug = _brand_slug_for(form)
     return _serve_public_app(
         html_name="public-form.html",
         window_var="__OPKOMST_FORM__",
@@ -567,7 +586,7 @@ def _serve_public_quiz(slug: str, db: Session, request: Request) -> HTMLResponse
     traffic.record("public_quiz")
     quiz = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="quiz"))
     payload = json.loads(forms_svc.to_public_out(db, quiz).model_dump_json()) if quiz is not None else None
-    brand_slug = _brand_slug_for(db, quiz)
+    brand_slug = _brand_slug_for(quiz)
     return _serve_public_app(
         html_name="public-quiz.html",
         window_var="__OPKOMST_QUIZ__",
@@ -589,7 +608,7 @@ def _serve_public_compass(slug: str, db: Session, request: Request) -> HTMLRespo
     traffic.record("public_compass")
     kompas = _resolve_public(db, slug, partial(forms_svc.get_form_by_slug_any, mode="compass"))
     payload = json.loads(forms_svc.to_public_out(db, kompas).model_dump_json()) if kompas is not None else None
-    brand_slug = _brand_slug_for(db, kompas)
+    brand_slug = _brand_slug_for(kompas)
     return _serve_public_app(
         html_name="public-compass.html",
         window_var="__OPKOMST_COMPASS__",
@@ -608,7 +627,7 @@ def _serve_public_datepoll(slug: str, db: Session, request: Request) -> HTMLResp
     # Archived/unknown polls inline null, same as forms.
     poll = _resolve_public(db, slug, datepolls_svc.get_datepoll_by_slug_any)
     payload = json.loads(datepolls_svc.to_public_out(db, poll).model_dump_json()) if poll is not None else None
-    brand_slug = _brand_slug_for(db, poll)
+    brand_slug = _brand_slug_for(poll)
     return _serve_public_app(
         html_name="public-datepoll.html",
         window_var="__OPKOMST_DATEPOLL__",
@@ -627,7 +646,7 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
     # Archived/unknown rosters inline null, same as forms/datepolls.
     roster = _resolve_public(db, slug, chores_svc.get_roster_by_slug_any)
     payload = json.loads(chores_svc.to_public_out(db, roster).model_dump_json()) if roster is not None else None
-    brand_slug = _brand_slug_for(db, roster)
+    brand_slug = _brand_slug_for(roster)
     return _serve_public_app(
         html_name="public-chore.html",
         window_var="__OPKOMST_CHORE__",
@@ -641,13 +660,15 @@ def _serve_public_roster(slug: str, db: Session, request: Request) -> HTMLRespon
     )
 
 
-def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, brand_slug: str) -> HTMLResponse:
-    traffic.record("chapter_agenda")
+def _serve_public_chapter(chapter: Chapter, slug: str, db: Session, request: Request, tenant: Tenant) -> HTMLResponse:
     """The organisation's agenda for one of its chapters, at
     ``/{tenant}/{chapter}``. The caller has already resolved both — the
     tenant from the first path segment, the chapter within it — so the
-    brand is the tenant's, not a lookup through the entity."""
-    payload = json.loads(agenda_svc.build_agenda(db, chapter).model_dump_json())
+    brand is the tenant's, not a lookup through the entity, and the
+    agenda window is read off the row rather than fetched again."""
+    traffic.record("chapter_agenda")
+    brand_slug = tenant.slug
+    payload = json.loads(agenda_svc.build_agenda(db, chapter, tenant).model_dump_json())
     return _serve_public_app(
         html_name="public-chapter.html",
         window_var="__OPKOMST_CHAPTER__",
@@ -726,7 +747,7 @@ def mount(app: FastAPI) -> None:
         if tenant is None:
             # No organisation owns this path, so it belongs to the app
             # itself: the personal side, in the house brand, based at
-            # ``/``. Its router resolves ``/events``, ``/login`` and the
+            # ``/``. Its router resolves ``/event``, ``/settings`` and the
             # rest, and renders its own not-found page for anything it
             # doesn't know.
             #
@@ -747,5 +768,5 @@ def mount(app: FastAPI) -> None:
         second = rest.split("/", 1)[0]
         chapter = chapters_svc.find_live_by_slug(db, second) if second else None
         if chapter is not None:
-            return _serve_public_chapter(chapter, second, db, request, tenant.slug)
+            return _serve_public_chapter(chapter, second, db, request, tenant)
         return _serve_admin_shell(tenant.slug, request)

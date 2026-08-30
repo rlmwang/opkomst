@@ -1,20 +1,20 @@
 /**
- * Tests for the WhatsApp blast tool's frontend composable.
+ * The WhatsApp blast tool's connection.
  *
- * The composable owns the page's connection state, polling
- * timers, and send/disconnect calls. It's the only piece of
- * frontend logic that touches both timers and the network, so a
- * regression here (e.g. heartbeat timer surviving disconnect) is
- * exactly the kind of bug a unit test should catch.
+ * It owns the page's connection state, the polling timers, and the send
+ * and disconnect calls. It is the only piece of frontend logic that
+ * touches both timers and the network, so a regression here, a
+ * heartbeat surviving a disconnect say, is exactly what a unit test is
+ * for.
  *
- * The api client is mocked so no real fetch happens. Vue's
- * onBeforeUnmount needs an active component instance, so each
- * test runs the composable inside a tiny harness.
+ * The api client is mocked, so nothing is fetched. The composable tears
+ * its timers down in an effect and an effect needs an owner, so each
+ * test runs it inside an effect root.
  */
-
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type App, createApp, defineComponent, h } from "vue";
+
 import * as apiClient from "@/api/client";
+import { inEffect } from "@/__tests__/effect-root.svelte";
 
 vi.mock("@/api/client", () => ({
   get: vi.fn(),
@@ -31,20 +31,12 @@ vi.mock("@/api/client", () => ({
 const mockGet = vi.mocked(apiClient.get);
 const mockPost = vi.mocked(apiClient.post);
 
-let app: App | null = null;
-
-function withSetup<T>(fn: () => T): T {
-  let result!: T;
-  const Harness = defineComponent({
-    setup() {
-      result = fn();
-      return () => h("div");
-    },
-  });
-  app = createApp(Harness);
-  app.mount(document.createElement("div"));
-  return result;
+/** The composable, inside an owner, with the body run against it. */
+async function withWhatsApp<T>(body: (wa: WhatsApp) => T | Promise<T>): Promise<T> {
+  const { whatsApp } = await import("@/composables/useWhatsApp.svelte");
+  return inEffect(() => body(whatsApp()));
 }
+type WhatsApp = Awaited<ReturnType<typeof import("@/composables/useWhatsApp.svelte").whatsApp>>;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -53,24 +45,20 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  app?.unmount();
-  app = null;
 });
 
-describe("useWhatsApp", () => {
-  it("starts disconnected and exposes refs", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
-    const wa = withSetup(() => useWhatsApp());
-    expect(wa.state.value).toBe("unknown");
-    expect(wa.qr.value).toBeNull();
-    expect(wa.pairingCode.value).toBeNull();
+describe("whatsApp", () => {
+  it("starts disconnected and knows nothing yet", async () => {
+    await withWhatsApp((wa) => {
+      expect(wa.state).toBe("unknown");
+      expect(wa.qr).toBeNull();
+      expect(wa.pairingCode).toBeNull();
+    });
   });
 
-  it("send() POSTs to /whatsapp/send and reports ok on success", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
+  it("send posts to /whatsapp/send and reports ok on success", async () => {
     mockPost.mockResolvedValueOnce({});
-    const wa = withSetup(() => useWhatsApp());
-    const res = await wa.send("31612345678", "hi");
+    const res = await withWhatsApp((wa) => wa.send("31612345678", "hi"));
     expect(res).toEqual({ ok: true });
     expect(mockPost).toHaveBeenCalledWith("/api/v1/whatsapp/send", {
       number: "31612345678",
@@ -78,61 +66,62 @@ describe("useWhatsApp", () => {
     });
   });
 
-  it("send() reports {ok:false, error} when the call rejects", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
+  it("send reports the error when the call rejects", async () => {
     mockPost.mockRejectedValueOnce(new Error("offline"));
-    const wa = withSetup(() => useWhatsApp());
-    const res = await wa.send("31612345678", "hi");
+    const res = await withWhatsApp((wa) => wa.send("31612345678", "hi"));
     expect(res.ok).toBe(false);
     expect(res.error).toContain("offline");
   });
 
-  it("disconnect() calls /whatsapp/logout and clears the QR", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
+  it("disconnect calls /whatsapp/logout and clears the QR", async () => {
     mockPost.mockResolvedValue({});
-    const wa = withSetup(() => useWhatsApp());
-    wa.qr.value = "data:foo";
-    wa.pairingCode.value = "ABCD";
-    await wa.disconnect();
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/whatsapp/logout", {});
-    expect(wa.qr.value).toBeNull();
-    expect(wa.pairingCode.value).toBeNull();
-    expect(wa.state.value).toBe("close");
+    mockGet.mockResolvedValue({ qr: "data:foo", pairingCode: "ABCD" });
+    await withWhatsApp(async (wa) => {
+      // The QR arrives the only way it ever does, from the endpoint.
+      await wa.fetchQr();
+      expect(wa.qr).toBe("data:foo");
+
+      await wa.disconnect();
+      expect(mockPost).toHaveBeenCalledWith("/api/v1/whatsapp/logout", {});
+      expect(wa.qr).toBeNull();
+      expect(wa.pairingCode).toBeNull();
+      expect(wa.state).toBe("close");
+    });
   });
 
-  it("disconnect() swallows errors so the page never blocks on it", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
+  it("disconnect swallows errors, so the page never blocks on it", async () => {
     mockPost.mockRejectedValueOnce(new Error("network"));
-    const wa = withSetup(() => useWhatsApp());
-    await expect(wa.disconnect()).resolves.toBeUndefined();
+    await withWhatsApp(async (wa) => {
+      await expect(wa.disconnect()).resolves.toBeUndefined();
+    });
   });
 
   it("startPolling fires an immediate heartbeat and primes the QR", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
     mockPost.mockResolvedValue({ state: "close" });
     mockGet.mockResolvedValue({ qr: "data:bar", pairingCode: null });
-    const wa = withSetup(() => useWhatsApp());
-    wa.startPolling();
-    // The heartbeat is dispatched synchronously; flush the promise
-    // microtasks so the assertion sees the resolved state.
-    await vi.runOnlyPendingTimersAsync();
-    await Promise.resolve();
-    expect(mockPost).toHaveBeenCalledWith("/api/v1/whatsapp/heartbeat", {});
-    expect(mockGet).toHaveBeenCalledWith("/api/v1/whatsapp/qr");
-    wa.stopPolling();
+    await withWhatsApp(async (wa) => {
+      wa.startPolling();
+      // The heartbeat goes out synchronously; the microtasks it queued
+      // have to settle before the assertion sees the state.
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+      expect(mockPost).toHaveBeenCalledWith("/api/v1/whatsapp/heartbeat", {});
+      expect(mockGet).toHaveBeenCalledWith("/api/v1/whatsapp/qr");
+      wa.stopPolling();
+    });
   });
 
-  it("stopPolling clears the heartbeat interval", async () => {
-    const { useWhatsApp } = await import("@/composables/useWhatsApp");
+  it("stopPolling clears the heartbeat", async () => {
     mockPost.mockResolvedValue({ state: "close" });
     mockGet.mockResolvedValue({ qr: null, pairingCode: null });
-    const wa = withSetup(() => useWhatsApp());
-    wa.startPolling();
-    mockPost.mockClear();
-    wa.stopPolling();
-    // 30 seconds of fake-clock advance: a still-running 15s timer
-    // would have fired twice.
-    await vi.advanceTimersByTimeAsync(30_000);
-    expect(mockPost).not.toHaveBeenCalled();
+    await withWhatsApp(async (wa) => {
+      wa.startPolling();
+      mockPost.mockClear();
+      wa.stopPolling();
+      // Thirty seconds of fake clock: a heartbeat still running would
+      // have gone out several times.
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(mockPost).not.toHaveBeenCalled();
+    });
   });
 });

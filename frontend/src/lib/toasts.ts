@@ -1,5 +1,14 @@
-import { useToast } from "primevue/usetoast";
+import { showToast } from "@/lib/toast";
 
+/**
+ * The organiser app's toast API. Was a wrapper over PrimeVue's
+ * ``useToast``; the queue underneath is now the app's own
+ * (``lib/toast.ts``), which the public mini-apps already used.
+ *
+ * A composable rather than three loose functions because 27 call sites
+ * write ``const toasts = useToasts()`` and none of them should have to
+ * change for this.
+ */
 const LIFE = {
   success: 2000,
   warn: 2500,
@@ -12,16 +21,15 @@ interface ToastOpts {
 }
 
 export function useToasts() {
-  const toast = useToast();
   return {
     success(summary: string, opts: ToastOpts = {}) {
-      toast.add({ severity: "success", summary, detail: opts.detail, life: opts.life ?? LIFE.success });
+      showToast(summary, { kind: "success", detail: opts.detail, life: opts.life ?? LIFE.success });
     },
     warn(summary: string, opts: ToastOpts = {}) {
-      toast.add({ severity: "warn", summary, detail: opts.detail, life: opts.life ?? LIFE.warn });
+      showToast(summary, { kind: "warn", detail: opts.detail, life: opts.life ?? LIFE.warn });
     },
     error(summary: string, opts: ToastOpts = {}) {
-      toast.add({ severity: "error", summary, detail: opts.detail, life: opts.life ?? LIFE.error });
+      showToast(summary, { kind: "error", detail: opts.detail, life: opts.life ?? LIFE.error });
     },
   };
 }

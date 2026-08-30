@@ -1,6 +1,6 @@
 """Chapter-scoped datepoll CRUD + organiser-side reads.
 
-Mirrors the events/forms router shape: create, list active, list
+Mirrors the events/form router shape: create, list active, list
 archived, get, update, archive, restore, delete-when-archived,
 summary, submissions. All require an approved user; all are scoped to
 the user's chapter via ``access.get_datepoll_for_user`` (single) or
@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
@@ -28,14 +29,14 @@ from ..schemas.datepolls import (
     DatepollSummaryOut,
     DatepollUpdate,
 )
-from ..services import access, crud, edit_token, entities, limits
+from ..services import access, crud, csv_export, edit_token, entities, limits
 from ..services import datepolls as datepolls_svc
 from ..services import image as image_svc
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/datepolls", tags=["datepolls"])
+router = APIRouter(prefix="/api/v1/datepoll", tags=["datepolls"])
 
 
 @router.post("", response_model=DatepollOut, status_code=201)
@@ -63,13 +64,7 @@ def list_datepolls(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollListOut]:
-    rows = (
-        db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_(None))
-        .order_by(Datepoll.created_at.desc())
-        .all()
-    )
-    return datepolls_svc.enrich(db, rows)
+    return datepolls_svc.list_for_user(db, user, chapter_id)
 
 
 @router.get("/archived", response_model=list[DatepollListOut])
@@ -78,13 +73,7 @@ def list_archived_datepolls(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollListOut]:
-    rows = (
-        db.query(Datepoll)
-        .filter(access.list_filter(db, user, Datepoll, chapter_id), Datepoll.archived_at.is_not(None))
-        .order_by(Datepoll.archived_at.desc())
-        .all()
-    )
-    return datepolls_svc.enrich(db, rows)
+    return datepolls_svc.archived_enrich(db, access.archived_rows(db, "datepolls", user, chapter_id))
 
 
 @router.get("/{datepoll_id}", response_model=DatepollOut)
@@ -93,8 +82,12 @@ def get_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    return datepolls_svc.to_out(db, poll)
+    return datepolls_svc.to_out(
+        db,
+        access.get_scoped_row(
+            db, Datepoll, datepoll_id, user, *datepolls_svc.FULL_COLUMNS, not_found="Datepoll not found"
+        ),
+    )
 
 
 @router.put("/{datepoll_id}", response_model=DatepollOut)
@@ -142,8 +135,10 @@ def archive_datepoll(
     user: User = Depends(require_approved),
 ) -> DatepollOut:
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.archive(db, poll, log_event="datepoll_archived", actor_id=user.id)
-    return datepolls_svc.to_out(db, poll)
+    # Projected before the move: afterwards there is no live row to read.
+    out = datepolls_svc.to_out(db, poll)
+    crud.archive_entity(db, poll, root="datepolls", log_event="datepoll_archived", actor_id=user.id)
+    return out.model_copy(update={"archived": True})
 
 
 @router.post("/{datepoll_id}/restore", response_model=DatepollOut)
@@ -154,9 +149,9 @@ def restore_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> DatepollOut:
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.restore(db, poll, log_event="datepoll_restored", actor_id=user.id)
-    return datepolls_svc.to_out(db, poll)
+    access.archived_row(db, "datepolls", datepoll_id, user)
+    crud.restore_entity(db, root="datepolls", entity_id=datepoll_id, log_event="datepoll_restored", actor_id=user.id)
+    return datepolls_svc.to_out(db, access.get_datepoll_for_user(db, datepoll_id, user))
 
 
 @router.delete("/{datepoll_id}", status_code=204)
@@ -167,23 +162,23 @@ def delete_datepoll(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> None:
-    """Hard-delete an archived poll. Refuses unless archived first —
-    deleting a live poll with responses would be a data-loss footgun.
-    Cascades through dates / submissions / responses via the FK
-    ON DELETE CASCADEs."""
-    poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    crud.hard_delete(
+    """Delete an archived poll for good, with its dates, submissions and
+    responses, and the image it owned. A live poll is not found here at
+    all, so deleting one still means archiving it first."""
+    row = access.archived_row(db, "datepolls", datepoll_id, user)
+    crud.purge_entity(
         db,
-        poll,
+        root="datepolls",
+        entity_id=datepoll_id,
+        image_path=row["image_path"],
         log_event="datepoll_deleted",
         actor_id=user.id,
-        conflict_detail="Archive the datepoll before deleting it",
     )
 
 
 @router.post("/{datepoll_id}/image", response_model=DatepollOut)
 @limiter.limit(Limits.ORG_RARE)
-async def upload_datepoll_image(
+def upload_datepoll_image(
     request: Request,
     datepoll_id: str,
     file: UploadFile = File(...),
@@ -195,7 +190,9 @@ async def upload_datepoll_image(
     if not settings.event_images_enabled:
         raise HTTPException(status_code=503, detail="Image storage is not configured")
     poll = access.get_datepoll_for_user(db, datepoll_id, user)
-    raw = await file.read()
+    # Sync ``def``, so this runs in the threadpool: the processing and
+    # the upload that follow both block (``services/image.py``).
+    raw = file.file.read()
     timestamp_ms = int(datetime.now(UTC).timestamp() * 1000)
     try:
         poll.image_path = image_svc.replace_entity_image(
@@ -244,9 +241,12 @@ def datepoll_summary(
     user: User = Depends(require_approved),
 ) -> DatepollSummaryOut:
     access.get_datepoll_for_user(db, datepoll_id, user)
-    slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id)
+    # Counted once: the page prints it and the tallies measure their
+    # blanks against it.
+    total = datepolls_svc.submission_count(db, datepoll_id)
+    slots, best_slot_id = datepolls_svc.slot_aggregates(db, datepoll_id, total)
     return DatepollSummaryOut(
-        submission_count=datepolls_svc.submission_count(db, datepoll_id),
+        submission_count=total,
         slots=slots,
         best_slot_id=best_slot_id,
     )
@@ -284,9 +284,27 @@ def datepoll_submissions(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> list[DatepollSubmissionOut]:
-    """Per-submission rows, keyed by slot id. CSV source.
+    """Per-submission rows, keyed by slot id. The download is its
+    own route below.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
     access.get_datepoll_for_user(db, datepoll_id, user)
     return datepolls_svc.submissions(db, datepoll_id)
+
+
+@router.get("/{datepoll_id}/submissions.csv", response_class=StreamingResponse)
+def datepoll_submissions_csv(
+    datepoll_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> StreamingResponse:
+    """The download: one row per submission, one column per candidate
+    date, written by the database and streamed straight out.
+
+    The headers are English (``services/csv_export``); a date names its
+    own column."""
+    poll = access.get_datepoll_for_user(db, datepoll_id, user)
+    header, rows = datepolls_svc.submissions_csv(db, datepoll_id)
+    stem = csv_export.filename_slug(poll.name_nl or poll.name_en or "")
+    return csv_export.csv_response(f"{stem}-{poll.id}.csv", header, rows)

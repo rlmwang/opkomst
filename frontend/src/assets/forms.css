@@ -4,8 +4,7 @@
  * ``<style scoped>`` and drifted apart; this is the single source so
  * every edit form groups + spaces its sections identically.
  *
- * Inside ``@layer app`` so PrimeVue's runtime styles aren't trampled
- * (see main.ts + theme.css layer ordering).
+ * Inside ``@layer app``, like every other global rule.
  */
 @layer app {
   /* Each labelled block (basics / recurrence / reminders / language …)

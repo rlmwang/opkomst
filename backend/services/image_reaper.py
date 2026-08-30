@@ -22,12 +22,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Final
 
 import structlog
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..database import SessionLocal
-from ..models import Datepoll, Event, Form, Roster
+from ..models import ArchiveIndex
+from ..models.archive import ARCHIVABLE_ROOTS, archive_metadata
 from . import image as image_svc
-from . import tenancy
 
 logger = structlog.get_logger()
 
@@ -36,31 +37,33 @@ logger = structlog.get_logger()
 # clears itself out.
 GRACE: Final[timedelta] = timedelta(days=21)
 
-_MODELS: Final[tuple[type, ...]] = (Event, Form, Datepoll, Roster)
 
+def _sweep(db: Session, root: str, cutoff: datetime) -> int:
+    """One root's twin: the pictures of items archived before ``cutoff``.
 
-def _sweep(db: Session, model: type, cutoff: datetime) -> int:
-    rows = (
-        db.query(model)
-        .filter(
-            model.archived_at.is_not(None),
-            model.archived_at < cutoff,
-            model.image_path.is_not(None),
-        )
-        .all()
+    Archiving is a move, so an archived item's row is in the twin and
+    the date it was archived is in ``ArchiveIndex``. Nothing live is
+    archived, so there is nothing to sweep on the live side.
+    """
+    twin = archive_metadata.tables[f"{root}_archive"]
+    long_archived = select(ArchiveIndex.entity_id).where(
+        ArchiveIndex.root == root,
+        ArchiveIndex.archived_at < cutoff,
     )
+    rows = db.execute(
+        select(twin.c.id, twin.c.image_path).where(
+            twin.c.image_path.is_not(None),
+            twin.c.id.in_(long_archived),
+        )
+    ).all()
     removed = 0
-    for row in rows:
-        path = row.image_path
+    for row_id, path in rows:
         if not image_svc.delete(path):
             # Logged inside ``delete``. Leave the row pointing at the
             # file so the next sweep finds it again.
             continue
-        # The tenant this row belongs to, because clearing the column is
-        # a write and the flush guard checks who it is for.
-        with tenancy.use(row.tenant_id, row.tenant.brand_slug):
-            row.image_path = None
-            db.commit()
+        db.execute(update(twin).where(twin.c.id == row_id).values(image_path=None))
+        db.commit()
         removed += 1
     return removed
 
@@ -71,7 +74,7 @@ def reap_images() -> int:
     db = SessionLocal()
     try:
         cutoff = datetime.now(UTC) - GRACE
-        removed = sum(_sweep(db, model, cutoff) for model in _MODELS)
+        removed = sum(_sweep(db, root, cutoff) for root in ARCHIVABLE_ROOTS)
         logger.info("images_reaped", removed=removed, grace_days=GRACE.days)
         return removed
     finally:

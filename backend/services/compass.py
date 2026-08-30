@@ -6,7 +6,7 @@ everything else about a kompas *is* a questionnaire
 (``docs/design-kompas.md``). This module holds the three things that
 are only true when an answer has a direction:
 
-* ``contribution`` / ``position_of`` / ``positions`` — what one answer
+* ``contributions`` / ``positions`` — what one answer
   is worth, where one submission lands, and where everybody lands.
 * ``validate_axes`` / ``validate_questions`` — can this kompas place
   anybody at all, checked when the organiser saves rather than when
@@ -34,9 +34,10 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from fastapi import HTTPException
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from ..models import CompassAxis, FormQuestion, FormResponse
+from ..models import CompassAxis
 
 # The kinds a kompas can ask. A rating is the classic compass question:
 # a statement, a five-point scale, one direction. A choice is the
@@ -94,167 +95,192 @@ class Position:
         return self.x if axis == "x" else self.y
 
 
-def contribution(question: FormQuestion, fields: dict[str, Any] | None) -> tuple[str, float] | None:
-    """What one answer is worth: an axis, and a value in [-1, 1].
+# What one answer is worth: an axis, and a value in [-1, 1].
+#
+# The three rules the page describes, as SQL. A rating poles the
+# statement, so a 5 is all the way toward that side and a 1 all the way
+# to the other. A choice poles each option and lands on its own end, and
+# only a single pick counts: a question answered with two ticks points
+# two ways at once, which is not a direction. An answer that says
+# nothing about either axis contributes no row at all, which is how a
+# skipped question stops counting rather than counting as a zero.
+_CONTRIBUTION_CTE = """
+SELECT r.submission_id,
+       r.question_id,
+       split_part(q.pole, '_', 1) AS axis,
+       ((r.answer_int - :midpoint)::numeric / (:half_range)::numeric)
+           * CASE WHEN split_part(q.pole, '_', 2) = 'high' THEN 1 ELSE -1 END AS value
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+WHERE r.form_id = :form_id
+  AND q.kind = 'rating'
+  AND q.pole = ANY(:poles)
+  AND r.answer_int IS NOT NULL
 
-    ``None`` when the answer says nothing about either axis, which
-    covers an unanswered question, a question with no pole on it, and a
-    kind a kompas does not ask.
+UNION ALL
 
-    ``fields`` is the stored-answer shape ``_build_submitted`` produces,
-    the same dict ``services/quizzes.grade`` compares against."""
-    if fields is None:
-        return None
+SELECT r.submission_id,
+       r.question_id,
+       split_part(o.pole, '_', 1) AS axis,
+       (CASE WHEN split_part(o.pole, '_', 2) = 'high' THEN 1 ELSE -1 END)::numeric AS value
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+JOIN form_response_choices c ON c.response_id = r.id
+JOIN form_question_options o ON o.id = c.option_id
+WHERE r.form_id = :form_id
+  AND q.kind = 'single_choice'
+  AND o.pole = ANY(:poles)
+  AND (SELECT count(*) FROM form_response_choices c2 WHERE c2.response_id = r.id) = 1
+"""
 
-    if question.kind == "rating":
-        if not question.pole or question.pole not in POLES:
-            return None
-        answer = fields.get("answer_int")
-        if answer is None:
-            return None
-        axis, direction = split_pole(question.pole)
-        return axis, _round(((answer - RATING_MIDPOINT) / RATING_HALF_RANGE) * direction)
+# A position is the mean per axis, so an unbalanced kompas still reads
+# on one scale: eight questions on one axis and three on the other
+# answer "how far toward this side were you", not "how many were there".
+#
+# Numeric rather than float, so a coordinate cannot come back as
+# ``-0.0``: a 3 on a scale poled the low way multiplied out to negative
+# zero, which is the same number and a different word, and reached a
+# screen reading as a direction nobody took.
+PLACES_SQL = f"""
+WITH contribution AS ({_CONTRIBUTION_CTE})
+SELECT s.id AS submission_id,
+       coalesce(round(avg(k.value) FILTER (WHERE k.axis = 'x'), 3), 0)::float AS x,
+       coalesce(round(avg(k.value) FILTER (WHERE k.axis = 'y'), 3), 0)::float AS y,
+       count(*) FILTER (WHERE k.axis = 'x')::int AS counted_x,
+       count(*) FILTER (WHERE k.axis = 'y')::int AS counted_y
+FROM form_submissions s
+LEFT JOIN contribution k ON k.submission_id = s.id
+WHERE s.form_id = :form_id
+  AND (cast(:submission_id AS text) IS NULL OR s.id = :submission_id)
+GROUP BY s.id
+"""
 
-    if question.kind == "single_choice":
-        chosen = fields.get("answer_choices") or []
-        if len(chosen) != 1:
-            return None
-        poles = question.option_poles or []
-        options = question.options or []
-        try:
-            index = options.index(str(chosen[0]))
-        except ValueError:
-            return None
-        if index >= len(poles) or poles[index] not in POLES:
-            return None
-        axis, direction = split_pole(poles[index])
-        return axis, float(direction)
+# The same statement as a string, so the CSV export can nest it as a
+# CTE and put a kompas' two derived columns beside the answers that
+# made them. One place decides where somebody sits.
+_POSITIONS_SQL = text(PLACES_SQL)
 
-    return None
+# The same rows, unaggregated: what each answer of one submission was
+# worth, for the result page that says "this moved you 0.5 toward
+# Rechts".
+_CONTRIBUTIONS_SQL = text(
+    f"""
+SELECT question_id, axis, round(value, 3)::float AS value
+FROM ({_CONTRIBUTION_CTE}) k
+WHERE k.submission_id = :submission_id
+"""
+)
 
 
-def as_fields(row: FormResponse) -> dict[str, Any]:
-    """A stored answer row in the shape ``contribution`` reads."""
+def params(form_id: str, submission_id: str | None = None) -> dict[str, Any]:
+    """The rules the statements are parameterised on, so the numbers
+    that define the scale live in one place and Python and SQL cannot
+    disagree about them."""
     return {
-        "answer_int": row.answer_int,
-        "answer_choices": list(row.answer_choices) if row.answer_choices else None,
+        "form_id": form_id,
+        "submission_id": submission_id,
+        "midpoint": RATING_MIDPOINT,
+        "half_range": RATING_HALF_RANGE,
+        "poles": sorted(POLES),
     }
 
 
-def position_of(questions: list[FormQuestion], rows: list[FormResponse]) -> Position:
-    """One submission's place on the map: the mean of its answers'
-    contributions, per axis.
-
-    A mean rather than a sum, because a kompas need not be balanced.
-    Eight questions on one axis and three on the other still read on
-    the same scale, and each coordinate answers "how far toward this
-    side were your answers on this subject" rather than "how many of
-    them were there"."""
-    by_id = {q.id: q for q in questions}
-    buckets: dict[str, list[float]] = {"x": [], "y": []}
-    for row in rows:
-        question = by_id.get(row.question_id)
-        if question is None:
-            continue
-        found = contribution(question, as_fields(row))
-        if found is None:
-            continue
-        axis, value = found
-        buckets[axis].append(value)
-    return Position(
-        x=_round(sum(buckets["x"]) / len(buckets["x"])) if buckets["x"] else 0.0,
-        y=_round(sum(buckets["y"]) / len(buckets["y"])) if buckets["y"] else 0.0,
-        counted_x=len(buckets["x"]),
-        counted_y=len(buckets["y"]),
-    )
+def positions(db: Session, form_id: str, submission_id: str | None = None) -> dict[str, Position]:
+    """Submission id to place on the map. One statement: nothing is read
+    into Python to be averaged there. Narrowed to one submission for the
+    result page that shows a person their own dot."""
+    return {
+        row.submission_id: Position(x=row.x, y=row.y, counted_x=row.counted_x, counted_y=row.counted_y)
+        for row in db.execute(_POSITIONS_SQL, params(form_id, submission_id)).all()
+    }
 
 
-def rows_by_submission(db: Session, form_id: str) -> dict[str, list[FormResponse]]:
-    """Every stored answer for this kompas, grouped by who gave it. One
-    query, because both the organiser's page and every respondent's map
-    place all of them at once."""
-    grouped: dict[str, list[FormResponse]] = {}
-    for row in db.query(FormResponse).filter(FormResponse.form_id == form_id).all():
-        grouped.setdefault(row.submission_id, []).append(row)
-    return grouped
+def contributions(db: Session, form_id: str, submission_id: str) -> dict[str, tuple[str, float]]:
+    """Question id to the axis one submission's answer moved, and how
+    far. Absent for a question that said nothing about either axis."""
+    return {
+        row.question_id: (row.axis, row.value)
+        for row in db.execute(_CONTRIBUTIONS_SQL, params(form_id, submission_id)).all()
+    }
 
 
-def positions(db: Session, questions: list[FormQuestion], form_id: str) -> dict[str, Position]:
-    """Submission id to place on the map, for every submission."""
-    return {sid: position_of(questions, rows) for sid, rows in rows_by_submission(db, form_id).items()}
-
-
-def axes_of(db: Session, form_id: str) -> list[CompassAxis]:
+def axes_of(db: Session, form_id: str) -> list[Any]:
     """The two axis rows, ``x`` first. Empty on a form that is not a
     kompas, which is how every caller tells."""
-    rows = db.query(CompassAxis).filter(CompassAxis.form_id == form_id).all()
+    rows = db.execute(select(*CompassAxis.__table__.c).where(CompassAxis.form_id == form_id)).all()
     return sorted(rows, key=lambda a: a.axis)
 
 
-# Two-sided 95% critical values of Student's t, by degrees of freedom.
-# The interval is about a mean of a handful of numbers, so the normal
-# approximation is wrong exactly where a kompas lives: at n = 3 it is
-# out by a factor of two. Beyond 30 the two agree to the second decimal
-# and the table stops.
-_T95: Final[dict[int, float]] = {
-    1: 12.706,
-    2: 4.303,
-    3: 3.182,
-    4: 2.776,
-    5: 2.571,
-    6: 2.447,
-    7: 2.365,
-    8: 2.306,
-    9: 2.262,
-    10: 2.228,
-    11: 2.201,
-    12: 2.179,
-    13: 2.160,
-    14: 2.145,
-    15: 2.131,
-    16: 2.120,
-    17: 2.110,
-    18: 2.101,
-    19: 2.093,
-    20: 2.086,
-    21: 2.080,
-    22: 2.074,
-    23: 2.069,
-    24: 2.064,
-    25: 2.060,
-    26: 2.056,
-    27: 2.052,
-    28: 2.048,
-    29: 2.045,
-    30: 2.042,
-}
-_T95_LARGE: Final[float] = 1.96
+# Where the room sits on each axis: the mean, and the 95% confidence
+# interval around it.
+#
+# The interval, not the range. The range is a picture of the two most
+# extreme people in the room and it widens as more of them arrive,
+# which reads as the answer getting less certain the more of it you
+# have. What an organiser is actually asking is "where does this room
+# sit, and how sure is that", and the interval narrows with the count
+# the way an answer should.
+#
+# The critical values are two-sided 95% Student's t by degrees of
+# freedom, written out as a table the statement joins. The interval is
+# about a mean of a handful of numbers, so the normal approximation is
+# wrong exactly where a kompas lives: at n = 3 it is out by a factor of
+# two. Beyond 30 the two agree to the second decimal and 1.96 takes
+# over.
+#
+# One respondent has a mean and no interval to speak of, so both ends
+# are the mean itself: a point, which is the honest drawing of it.
+# ``stddev_samp`` is null at n = 1, and coalescing the half-width to
+# zero says the same thing. The ends are clamped to [-1, 1] because the
+# axis has no outside.
+_AXIS_STATS_SQL = text(
+    f"""
+WITH contribution AS ({_CONTRIBUTION_CTE}),
+place AS (
+    SELECT s.id,
+           coalesce(avg(k.value) FILTER (WHERE k.axis = 'x'), 0) AS x,
+           coalesce(avg(k.value) FILTER (WHERE k.axis = 'y'), 0) AS y
+    FROM form_submissions s
+    LEFT JOIN contribution k ON k.submission_id = s.id
+    WHERE s.form_id = :form_id
+    GROUP BY s.id
+),
+value AS (
+    SELECT 'x' AS axis, x AS v FROM place
+    UNION ALL
+    SELECT 'y' AS axis, y AS v FROM place
+),
+room AS (
+    SELECT axis, count(*) AS n, avg(v) AS mean, stddev_samp(v) AS sd
+    FROM value GROUP BY axis
+),
+t95 (df, crit) AS (
+    VALUES (1, 12.706), (2, 4.303), (3, 3.182), (4, 2.776), (5, 2.571),
+           (6, 2.447), (7, 2.365), (8, 2.306), (9, 2.262), (10, 2.228),
+           (11, 2.201), (12, 2.179), (13, 2.160), (14, 2.145), (15, 2.131),
+           (16, 2.120), (17, 2.110), (18, 2.101), (19, 2.093), (20, 2.086),
+           (21, 2.080), (22, 2.074), (23, 2.069), (24, 2.064), (25, 2.060),
+           (26, 2.056), (27, 2.052), (28, 2.048), (29, 2.045), (30, 2.042)
+)
+SELECT room.axis,
+       round(room.mean, 3)::float AS average,
+       round(greatest(-1, room.mean - half.width), 3)::float AS ci_low,
+       round(least(1, room.mean + half.width), 3)::float AS ci_high
+FROM room
+LEFT JOIN t95 ON t95.df = room.n - 1
+CROSS JOIN LATERAL (
+    SELECT coalesce(coalesce(t95.crit, 1.96)::numeric * room.sd / sqrt(room.n)::numeric, 0) AS width
+) half
+"""
+)
 
 
-def axis_stats(places: list[Position], axis: str) -> tuple[float, float, float] | None:
-    """The room on one axis: the mean, and the 95% confidence interval
-    around it. ``None`` before anybody has filled it in.
-
-    The interval, not the range. The range is a picture of the two most
-    extreme people in the room and it widens as more of them arrive,
-    which reads as the answer getting less certain the more of it you
-    have. What an organiser is actually asking is "where does this room
-    sit, and how sure is that", and the interval narrows with the count
-    the way an answer should.
-
-    One respondent has a mean and no interval to speak of, so both ends
-    are the mean itself: a point, which is the honest drawing of it.
-    The ends are clamped to [-1, 1] because the axis has no outside."""
-    if not places:
-        return None
-    values = [p.value(axis) for p in places]
-    n = len(values)
-    mean = sum(values) / n
-    if n == 1:
-        return _round(mean), _round(mean), _round(mean)
-    variance = sum((v - mean) ** 2 for v in values) / (n - 1)
-    half = _T95.get(n - 1, _T95_LARGE) * (variance / n) ** 0.5
-    return _round(mean), _round(max(-1.0, mean - half)), _round(min(1.0, mean + half))
+def axis_stats(db: Session, form_id: str) -> dict[str, tuple[float, float, float]]:
+    """Axis name to the room's mean and the two ends of the interval
+    around it. Empty before anybody has filled the kompas in."""
+    return {
+        row.axis: (row.average, row.ci_low, row.ci_high) for row in db.execute(_AXIS_STATS_SQL, params(form_id)).all()
+    }
 
 
 # --- What the organiser is refused ------------------------------------
@@ -300,17 +326,13 @@ def validate_questions(questions: list[Any], axes: list[Any]) -> None:
             used.add(split_pole(pole)[0])
             continue
 
-        # Against the payload's own options, not the cleaned list: the
-        # two arrive parallel and are filtered together on write, so a
-        # length that disagrees here is a client that built them apart.
-        options = list(q.options)
-        poles = list(q.option_poles or [])
-        if len(poles) != len(options):
-            raise _bad(f"Question {idx}: pick a side of an axis for every answer.")
-        for option, pole in zip(options, poles, strict=True):
-            if not option.strip():
+        # Each option carries its own side, so there is no second list
+        # to fall out of step with this one.
+        for option in q.options:
+            if not option.label.strip():
                 continue
-            if not (pole or "").strip():
+            pole = (option.pole or "").strip()
+            if not pole:
                 raise _bad(f"Question {idx}: pick a side of an axis for every answer.")
             if pole not in POLES:
                 raise _bad(f"Question {idx}: that answer belongs to an axis that does not exist.")

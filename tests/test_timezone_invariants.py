@@ -25,7 +25,6 @@ from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
     Event,
     Occurrence,
     Registration,
@@ -85,8 +84,6 @@ def _seed_event_and_signup(
             start_time=starts_at.time(),
             end_time=ends.time(),
             cycle_slots=[],
-            source_options=["x"],
-            help_options=[],
             feedback_enabled=True,
             reminder_enabled=True,
             locale="nl",
@@ -110,8 +107,6 @@ def _seed_event_and_signup(
         s = Signup(
             registration_id=registration.id,
             occurrence_id="occ-1",
-            source_choice="x",
-            help_choices=[],
         )
         db.add(s)
         for ch in channels:
@@ -120,7 +115,6 @@ def _seed_event_and_signup(
                     id=str(uuid7()),
                     occurrence_id="occ-1",
                     channel=ch,
-                    status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt("alice@example.test"),
                 )
             )

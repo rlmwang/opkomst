@@ -18,14 +18,16 @@ from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..config import settings
 from ..database import get_db
-from ..models import EmailChannel, Event, Occurrence, User
+from ..models import EmailChannel, Event, EventHelpOption, EventSourceOption, Occurrence, User
 from ..schemas.events import (
     EventCreate,
+    EventListOut,
     EventOut,
     EventStatsOut,
     EventUpdate,
@@ -35,13 +37,14 @@ from ..schemas.events import (
     SignupSummaryOut,
 )
 from ..services import access, crud, entities, event_recurrence, event_stats, limits, mail_lifecycle
+from ..services import events as events_svc
 from ..services import image as image_svc
 from ..services.events import now_wallclock
 from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/events", tags=["events"])
+router = APIRouter(prefix="/api/v1/event", tags=["events"])
 
 
 @router.post("", response_model=EventOut, status_code=201)
@@ -64,34 +67,26 @@ def create_event(
     return event_stats.to_out(db, event)
 
 
-@router.get("", response_model=list[EventOut])
+@router.get("", response_model=list[EventListOut])
 def list_events(
     chapter_id: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventOut]:
-    rows = (
-        db.query(Event)
-        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
-        .order_by(Event.starts_on.desc())
-        .all()
-    )
-    return event_stats.enrich(db, rows)
+) -> list[EventListOut]:
+    return event_stats.list_for_user(db, user, chapter_id)
 
 
-@router.get("/archived", response_model=list[EventOut])
+@router.get("/archived", response_model=list[EventListOut])
 def list_archived_events(
     chapter_id: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
-) -> list[EventOut]:
-    rows = (
-        db.query(Event)
-        .filter(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_not(None))
-        .order_by(Event.created_at.desc())
-        .all()
-    )
-    return event_stats.enrich(db, rows)
+) -> list[EventListOut]:
+    # Archived events are not in ``events`` any more; they are in its
+    # twin, with ``archive_index`` holding when each left. The rows come
+    # back as mappings rather than ORM objects, because there is no live
+    # row for the ORM to be about.
+    return event_stats.archived_enrich(db, access.archived_rows(db, "events", user, chapter_id))
 
 
 @router.post("/{event_id}/archive", response_model=EventOut)
@@ -103,8 +98,12 @@ def archive_event(
     user: User = Depends(require_approved),
 ) -> EventOut:
     event = access.get_event_for_user(db, event_id, user)
-    crud.archive(db, event, log_event="event_archived", actor_id=user.id)
-    return event_stats.to_out(db, event)
+    # Projected before the move: afterwards there is no live row to read.
+    out = event_stats.to_out(db, event)
+    crud.archive_entity(db, event, root="events", log_event="event_archived", actor_id=user.id)
+    # The projection was taken while the event was still live; the call
+    # it is answering is what made it archived.
+    return out.model_copy(update={"archived": True})
 
 
 @router.post("/{event_id}/restore", response_model=EventOut)
@@ -115,9 +114,12 @@ def restore_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> EventOut:
-    event = access.get_event_for_user(db, event_id, user)
-    crud.restore(db, event, log_event="event_restored", actor_id=user.id)
-    return event_stats.to_out(db, event)
+    access.archived_row(db, "events", event_id, user)
+    crud.restore_entity(db, root="events", entity_id=event_id, log_event="event_restored", actor_id=user.id)
+    return event_stats.to_out(
+        db,
+        access.get_scoped_row(db, Event, event_id, user, *event_stats.FULL_COLUMNS, not_found="Event not found"),
+    )
 
 
 @router.delete("/{event_id}", status_code=204)
@@ -128,19 +130,18 @@ def delete_event(
     db: Session = Depends(get_db),
     user: User = Depends(require_approved),
 ) -> None:
-    """Hard-delete an archived event. Refuses if the event isn't
-    archived first — accidentally hard-deleting a live event
-    with sign-ups would be a data-loss footgun. Cascades through
-    ``signups`` / ``email_dispatches`` / ``feedback_responses`` /
-    ``feedback_tokens`` via the FK ``ON DELETE CASCADE``s in the
-    schema; the row + its dependents go with one DELETE."""
-    event = access.get_event_for_user(db, event_id, user)
-    crud.hard_delete(
+    """Delete an archived event for good. A live event is not found
+    here at all — it is in ``events``, and this reads the archive — so
+    deleting one still means archiving it first. The item's whole graph
+    goes, plus the image it owned."""
+    row = access.archived_row(db, "events", event_id, user)
+    crud.purge_entity(
         db,
-        event,
+        root="events",
+        entity_id=event_id,
+        image_path=row["image_path"],
         log_event="event_deleted",
         actor_id=user.id,
-        conflict_detail="Archive the event before deleting it",
     )
 
 
@@ -211,9 +212,18 @@ def update_event(
     event.cycle_slots = data.cycle_slots
     event.span_weeks = data.span_weeks
     event.horizon_days = data.horizon_days
-    event.source_options = data.source_options
+    if not data.confirm_destructive:
+        doomed = events_svc.count_destroyed_answers(db, event, data.source_options, data.help_options)
+        if doomed:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This removes {doomed} given {'answer' if doomed == 1 else 'answers'}. Save again to confirm."
+                ),
+            )
+    events_svc.apply_options(db, event, EventSourceOption, event.source_options, data.source_options)
     event.source_enabled = data.source_enabled
-    event.help_options = data.help_options
+    events_svc.apply_options(db, event, EventHelpOption, event.help_options, data.help_options)
     event.help_enabled = data.help_enabled
     event.feedback_enabled = data.feedback_enabled
     event.reminder_enabled = data.reminder_enabled
@@ -246,7 +256,7 @@ def update_event(
 
 @router.post("/{event_id}/image", response_model=EventOut)
 @limiter.limit(Limits.ORG_RARE)
-async def upload_event_image(
+def upload_event_image(
     request: Request,
     event_id: str,
     file: UploadFile = File(...),
@@ -262,13 +272,15 @@ async def upload_event_image(
     Replacing an image deletes the file it replaces, once the row
     points at the new one.
 
-    Returns the updated ``EventOut`` so the caller's Vue Query
+    Returns the updated ``EventOut`` so the caller's query
     cache patches in-place without an extra refetch."""
     if not settings.event_images_enabled:
         logger.warning("event_image_upload_disabled", event_id=event_id, actor_id=user.id)
         raise HTTPException(status_code=503, detail="Event-image storage is not configured")
     event = access.get_event_for_user(db, event_id, user)
-    raw = await file.read()
+    # Sync ``def``, so this runs in the threadpool: the processing and
+    # the upload that follow both block (``services/image.py``).
+    raw = file.file.read()
     try:
         jpeg = image_svc.process_upload(raw)
     except image_svc.ImageProcessingError as exc:
@@ -334,6 +346,21 @@ def delete_event_image(
     return event_stats.to_out(db, event)
 
 
+@router.get("/{event_id}", response_model=EventOut)
+def get_event(
+    event_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_approved),
+) -> EventOut:
+    """One event. The detail and edit pages read the event they are
+    about from here; they used to filter it out of the full list, which
+    made opening either one cost every event in the chapter."""
+    return event_stats.to_out(
+        db,
+        access.get_scoped_row(db, Event, event_id, user, *event_stats.FULL_COLUMNS, not_found="Event not found"),
+    )
+
+
 @router.get("/{event_id}/occurrences", response_model=OccurrenceListOut)
 def event_occurrences(
     event_id: str,
@@ -344,32 +371,50 @@ def event_occurrences(
     occurrences with per-session headcount + line-item counts, plus the
     projected future dates that aren't rows yet. Strictly read-only per
     occurrence — the only actions are on the event itself."""
-    event = access.get_event_for_user(db, event_id, user)
-    occs = db.query(Occurrence).filter(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc()).all()
+    event = access.get_scoped_row(
+        db,
+        Event,
+        event_id,
+        user,
+        Event.id,
+        Event.cycle_slots,
+        Event.span_weeks,
+        Event.period_weeks,
+        Event.starts_on,
+        Event.start_time,
+        Event.end_time,
+        Event.horizon_days,
+        not_found="Event not found",
+    )
+    occs = db.execute(
+        select(*Occurrence.__table__.c).where(Occurrence.event_id == event.id).order_by(Occurrence.starts_at.asc())
+    ).all()
     occ_ids = [o.id for o in occs]
     totals = event_stats.occurrence_totals(db, occ_ids)
     counts = event_stats.occurrence_signup_counts(db, occ_ids)
     projected = event_recurrence.projected_future_specs(event, now_wallclock())
+    # ``occs`` is already every session of this event, in date order,
+    # which is exactly what "sessie i van N" is counted from. Asking
+    # ``event_recurrence`` would reach back through ``event.occurrences``
+    # and fetch the same rows a second time to number them.
     return OccurrenceListOut(
-        total_sessions=event_recurrence.total_sessions(event),
+        total_sessions=None if (event.cycle_slots and event.span_weeks is None) else len(occs),
         occurrences=[
             OccurrenceOut(
                 id=o.id,
                 slug=o.slug,
-                index=event_recurrence.session_index(event, o),
+                index=i,
                 starts_at=o.starts_at,
                 ends_at=o.ends_at,
                 attendee_count=int(totals.get(o.id, 0)),
                 signup_count=int(counts.get(o.id, 0)),
             )
-            for o in occs
+            for i, o in enumerate(occs)
         ],
         # Numbered on from the last materialised session: a projected date
         # is the next session, it just has no row yet.
         projected=[
-            ProjectedOccurrenceOut(
-                index=event_recurrence.session_count(event) + i, starts_at=s.starts_at, ends_at=s.ends_at
-            )
+            ProjectedOccurrenceOut(index=len(occs) + i, starts_at=s.starts_at, ends_at=s.ends_at)
             for i, s in enumerate(projected)
         ],
     )

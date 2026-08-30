@@ -47,13 +47,13 @@ def test_event_create_via_http_rejects_tz_aware_time(client, organiser_headers) 
         "starts_on": "2026-06-08",
         "start_time": "18:00:00Z",  # bug-shaped: tz suffix
         "end_time": "20:00:00Z",
-        "source_options": ["F"],
+        "source_options": [{"label": "F"}],
         "help_options": [],
         "feedback_enabled": True,
         "reminder_enabled": True,
         "locale": "nl",
     }
-    r = client.post("/api/v1/events", headers=organiser_headers, json=payload)
+    r = client.post("/api/v1/event", headers=organiser_headers, json=payload)
     assert r.status_code == 422
     assert "naive" in r.text
 

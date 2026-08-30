@@ -3,8 +3,8 @@
  * styles and ``primevue-preset.ts`` reads these variables and never a
  * literal. ``scripts/check_brand_tokens.py`` enforces that.
  *
- * Served at ``/brand/rsp/tokens.css`` and linked from the page ``<head>``
- * before any bundle loads, so the palette is present on first paint. */
+ * Inlined into every page's ``<head>`` before any bundle loads, so the
+ * palette is present on first paint and costs no request. */
 
 :root {
   /* Warm cream palette — evokes pamphlet / newsprint stock and sits

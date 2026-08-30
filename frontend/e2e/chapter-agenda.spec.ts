@@ -37,7 +37,7 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
     starts_on: startsAt.toISOString().slice(0, 10),
     start_time: "19:00:00",
     end_time: "21:00:00",
-    source_options: ["Mond-tot-mond"],
+    source_options: [{ label: "Mond-tot-mond" }],
     source_enabled: true,
     help_options: [],
     feedback_enabled: false,
@@ -49,25 +49,25 @@ test("visitor browses the chapter agenda and signs up from a card", async ({
   const otherName = `E2E Agenda Verstopt ${uniq}`;
   const hiddenName = `E2E Agenda Hidden ${uniq}`;
 
-  const listedRes = await request.post("/api/v1/events", {
+  const listedRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },
     data: { ...base, name_nl: listedName, listed: true },
   });
   expect(listedRes.ok()).toBeTruthy();
   const listed = await listedRes.json();
   // The agenda card + public page key on the OCCURRENCE slug now.
-  const listedOccRes = await request.get(`/api/v1/events/${listed.id}/occurrences`, {
+  const listedOccRes = await request.get(`/api/v1/event/${listed.id}/occurrences`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const listedOccSlug = (await listedOccRes.json()).occurrences[0].slug as string;
 
-  const otherRes = await request.post("/api/v1/events", {
+  const otherRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },
     data: { ...base, name_nl: otherName, listed: true },
   });
   expect(otherRes.ok()).toBeTruthy();
 
-  const hiddenRes = await request.post("/api/v1/events", {
+  const hiddenRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },
     data: { ...base, name_nl: hiddenName, listed: false },
   });

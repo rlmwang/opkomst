@@ -1,11 +1,12 @@
 /**
  * Bare-fetch API for the public chore ("takenrooster") mini-app. No Vue
- * Query, no PrimeVue — same wire-weight target as the other public
+ * Query: the same wire-weight target as the other public
  * mini-apps (``src/public_datepoll/api.ts``). One enrol POST, the
  * by-token personal-page GET/PUT, the three shift actions, and leave.
  */
 
 import type { Locale } from "@/public_shared/strings";
+import { inlinedSubmission } from "@/public_shared/submission";
 
 export interface PublicChore {
   id: string;
@@ -138,11 +139,11 @@ async function readJson<T>(r: Response, what: string): Promise<T> {
 }
 
 export async function fetchRosterBySlug(slug: string): Promise<PublicRoster> {
-  return readJson(await fetch(`/api/v1/chores/by-slug/${encodeURIComponent(slug)}`), "fetch");
+  return readJson(await fetch(`/api/v1/chore/by-slug/${encodeURIComponent(slug)}`), "fetch");
 }
 
 export async function postEnrolment(slug: string, payload: EnrollPayload): Promise<EnrollAck> {
-  const r = await fetch(`/api/v1/chores/by-slug/${encodeURIComponent(slug)}/enroll`, {
+  const r = await fetch(`/api/v1/chore/by-slug/${encodeURIComponent(slug)}/enroll`, {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify(payload),
@@ -151,16 +152,24 @@ export async function postEnrolment(slug: string, payload: EnrollPayload): Promi
 }
 
 export async function fetchPersonalPage(token: string): Promise<PersonalPage> {
-  return readJson(await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}`), "fetch");
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<PersonalPage>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
+  return readJson(await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}`), "fetch");
 }
 
 export async function fetchTokenCalendar(token: string, month: string): Promise<ChoreCalendar[]> {
-  const url = `/api/v1/chores/by-token/${encodeURIComponent(token)}/calendar?month=${encodeURIComponent(month)}`;
+  const url = `/api/v1/chore/by-token/${encodeURIComponent(token)}/calendar?month=${encodeURIComponent(month)}`;
   return readJson(await fetch(url), "fetch");
 }
 
 export async function putEnrolment(token: string, payload: EnrollEditPayload): Promise<PersonalPage> {
-  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: JSON_HEADERS,
     body: JSON.stringify(payload),
@@ -170,14 +179,14 @@ export async function putEnrolment(token: string, payload: EnrollEditPayload): P
 
 export async function postShiftAction(token: string, shiftId: string, action: ShiftAction): Promise<PersonalPage> {
   const r = await fetch(
-    `/api/v1/chores/by-token/${encodeURIComponent(token)}/shifts/${encodeURIComponent(shiftId)}/${action}`,
+    `/api/v1/chore/by-token/${encodeURIComponent(token)}/shifts/${encodeURIComponent(shiftId)}/${action}`,
     { method: "POST" },
   );
   return readJson(r, action);
 }
 
 export async function postSwap(token: string, mineShiftId: string, theirsShiftId: string): Promise<PersonalPage> {
-  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}/swap`, {
+  const r = await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}/swap`, {
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify({ mine_shift_id: mineShiftId, theirs_shift_id: theirsShiftId }),
@@ -186,7 +195,7 @@ export async function postSwap(token: string, mineShiftId: string, theirsShiftId
 }
 
 export async function putAvailability(token: string, ranges: AvailabilityRange[]): Promise<PersonalPage> {
-  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}/availability`, {
+  const r = await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}/availability`, {
     method: "PUT",
     headers: JSON_HEADERS,
     body: JSON.stringify({ ranges }),
@@ -195,7 +204,7 @@ export async function putAvailability(token: string, ranges: AvailabilityRange[]
 }
 
 export async function postLeave(token: string): Promise<void> {
-  const r = await fetch(`/api/v1/chores/by-token/${encodeURIComponent(token)}/leave`, { method: "POST" });
+  const r = await fetch(`/api/v1/chore/by-token/${encodeURIComponent(token)}/leave`, { method: "POST" });
   if (!r.ok) throw new ApiError(`leave failed (${r.status})`, r.status);
 }
 

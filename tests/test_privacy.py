@@ -8,6 +8,8 @@
 4. Feedback responses carry no link to the originating signup.
 """
 
+from tests._helpers.events import public_option_ids
+
 
 def test_decrypt_only_called_from_mail_lifecycle():
     """Static check: the only call site of ``encryption.decrypt``
@@ -32,7 +34,7 @@ def test_decrypt_only_called_from_mail_lifecycle():
 def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "T",
@@ -42,25 +44,25 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "starts_on": "2026-09-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "locale": "nl",
         },
     )
     eid = r.json()["id"]
-    occ = client.get(f"/api/v1/events/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{eid}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={
             "display_name": "Alice",
             "party_size": 2,
-            "source_choice": "F",
+            **public_option_ids(client, occ["slug"], source="F"),
             "email": "alice@local.dev",
             "occurrence_ids": [occ["id"]],
         },
     )
-    r = client.get(f"/api/v1/events/{eid}/occurrences/{occ['id']}/signups", headers=organiser_headers)
+    r = client.get(f"/api/v1/event/{eid}/occurrences/{occ['id']}/signups", headers=organiser_headers)
     assert r.status_code == 200
     rows = r.json()
     # The privacy invariant is field-level: the email-side fields

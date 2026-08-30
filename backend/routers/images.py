@@ -1,7 +1,8 @@
 """Hero images, served from this app's own domain.
 
-``GET /i/{path}`` is the only URL any page, link preview or email ever
-carries for an uploaded image. It reads the file from wherever the
+``GET /i/{path}`` is the URL any page, link preview or email carries for
+an uploaded image, and ``GET /i/card/{path}`` is the same picture at
+600x750 for the places that show it small. It reads the file from wherever the
 storage happens to be (``services/image.py``) and answers with the
 JPEG, so nothing rendered anywhere names the host that keeps the bytes.
 
@@ -35,6 +36,31 @@ _PATH_RE: Final[re.Pattern[str]] = re.compile(r"^(events|forms|datepolls|chores)
 
 # A year, immutable: the URL names one file that never changes.
 _CACHE: Final[str] = "public, max-age=31536000, immutable"
+
+
+@router.get("/i/card/{path:path}")
+def serve_card_image(path: str) -> Response:
+    """The same picture at 600x750, for the places that show it small.
+
+    An agenda card gives the poster about 200 px. Sending the full
+    1200x1500 for that is twenty times the bytes the page needs, and
+    without a CDN every one of them comes off this host. The variant is
+    made once from the full file and cached beside it.
+
+    Its own path rather than a query parameter: the URL still names one
+    immutable thing, so it stays cacheable for a year by anything that
+    caches at all. Declared before ``/i/{path}`` so it wins the match —
+    that route would take ``card/event/…`` and refuse it.
+    """
+    if not _PATH_RE.match(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        data = image_svc.card_bytes(path)
+    except image_svc.GithubUploadError:
+        raise HTTPException(status_code=502, detail="Image is temporarily unavailable") from None
+    if data is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": _CACHE})
 
 
 @router.get("/i/{path:path}")

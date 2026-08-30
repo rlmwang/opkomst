@@ -28,20 +28,24 @@ engine = create_engine(
     # time — keepalives above keep the socket healthy through
     # NAT idle, and pre_ping handles the rare PG-side close.
     #
-    # ``pool_size=2, max_overflow=3`` gives each worker up to 5
-    # concurrent PG connections, which covers the worst real
-    # burst (four-parallel-GET dashboard load + a stray health
-    # probe) without paying for capacity nobody uses. The earlier
-    # ``pool_size=10, max_overflow=20`` was sized for an imagined
-    # peak: every idle slot still costs an open socket + a
-    # backend process on the postgres side (~10 MB resident
-    # each), which adds up fast on a 512 MB VPS. With
-    # ``WEB_CONCURRENCY=1`` the whole app needs ≤5 PG backends,
-    # well under postgres' default ``max_connections=100``.
+    # ``pool_size=5, max_overflow=5`` gives each worker up to 10
+    # concurrent PG connections. The pool is the app's real concurrency
+    # ceiling: a request that needs a connection and cannot have one
+    # waits here, not on Postgres, and it waits invisibly — the box
+    # looks idle while people look at a spinner.
+    #
+    # It was 2 + 3, sized for one worker on a 512 MB VPS where every
+    # idle slot cost a ~10 MB backend process. The host has 3.9 GB and
+    # runs three workers, so the ceiling was 5 concurrent
+    # database-touching requests per worker for no good reason.
+    #
+    # 3 workers × 10 = 30 connections, plus one per cron sweep, against
+    # ``max_connections=60`` (``docs/deploy.md`` sizes the two together).
+    # Raising either one alone is how a deploy runs out of connections.
     pool_pre_ping=True,
     pool_recycle=1800,
-    pool_size=2,
-    max_overflow=3,
+    pool_size=5,
+    max_overflow=5,
     connect_args={
         "keepalives": 1,
         "keepalives_idle": 30,

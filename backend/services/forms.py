@@ -12,8 +12,9 @@ Responsibilities:
   projections (batched list rows, single organiser form, public
   by-slug form).
 * ``question_aggregates`` / ``submission_count`` / ``submissions``
-  — organiser-side reads for the details page + CSV export. Pure
-  SQL aggregation, no router fixture needed.
+  — organiser-side reads for the details page. ``submissions_csv``
+  is the download, pivoted into columns by the database. Pure SQL
+  aggregation, no router fixture needed.
 
 * ``query`` — the only place the ``forms`` table is read from. Every
   read names the mode it means, because the table holds both products
@@ -26,13 +27,25 @@ Chapter-scoped lookups live in ``services.access`` (``get_form_for_user``,
 mode for the same reason.
 """
 
-from typing import TYPE_CHECKING, Final, cast, get_args
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Final, cast, get_args
 
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Query, Session
 
-from ..models import Chapter, CompassAxis, Form, FormQuestion, FormResponse, FormSubmission
+from ..models import (
+    Chapter,
+    CompassAxis,
+    Form,
+    FormQuestion,
+    FormQuestionOption,
+    FormResponse,
+    FormResponseChoice,
+    FormSubmission,
+    User,
+)
 from ..schemas.forms import (
     CompassAxisOut,
     CompassAxisSummary,
@@ -47,9 +60,9 @@ from ..schemas.forms import (
     PublicFormOut,
     PublicQuestionOut,
     QuestionKind,
-    QuizSubmissionOut,
 )
-from . import compass, numbers, public_access, quizzes, tenancy
+from . import access, compass, numbers, public_access, quizzes, tenancy
+from . import archive as archive_svc
 from . import image as image_svc
 from .ratings import rating_distribution
 
@@ -127,7 +140,7 @@ def _validate_questions(questions: list["FormQuestionIn"], mode: str, axes: list
                 detail=f"Question {idx}: unknown kind '{q.kind}'.",
             )
         if q.kind in _CHOICE_KINDS:
-            cleaned = [opt.strip() for opt in q.options if opt.strip()]
+            cleaned = [o.label.strip() for o in q.options if o.label.strip()]
             if len(cleaned) < 2:
                 raise HTTPException(
                     status_code=400,
@@ -201,12 +214,108 @@ def apply_axes(db: Session, form_id: str, axes: list["CompassAxisIn"]) -> None:
     db.flush()
 
 
+def _apply_options(
+    db: Session,
+    question: FormQuestion,
+    payload: Sequence[Any],
+    *,
+    scored: bool,
+    pointed: bool,
+) -> None:
+    """Diff-apply one question's choices, matched by id.
+
+    The same shape as the question diff a level up, for the same reason:
+    an option carrying an id is the option the answers already point at,
+    so a rename is an update to ``label`` and nothing detaches. An option
+    with no id is new. One on disk that the payload no longer mentions is
+    deleted, and the cascade takes the ticks with it, which is the
+    destructive edit ``docs/design-question-edits.md`` gates.
+
+    ``pole`` and ``is_correct`` are dropped unless the product asks for
+    them, on the same terms as the question's own key and direction:
+    decided here rather than trusted from the payload.
+    """
+    existing = {o.id: o for o in question.options}
+    seen: set[str] = set()
+    for ordinal, opt in enumerate(payload, start=1):
+        pole = opt.pole if pointed and question.kind == "single_choice" else None
+        correct = bool(opt.is_correct) if scored else False
+        if opt.id and opt.id in existing:
+            row = existing[opt.id]
+            row.ordinal = ordinal
+            row.label = opt.label.strip()
+            row.pole = pole
+            row.is_correct = correct
+            seen.add(opt.id)
+        else:
+            # A fresh uuid always, so a client naming another question's
+            # option cannot capture it. Same rule as the questions.
+            db.add(
+                FormQuestionOption(
+                    question_id=question.id,
+                    ordinal=ordinal,
+                    label=opt.label.strip(),
+                    pole=pole,
+                    is_correct=correct,
+                )
+            )
+    for oid, row in existing.items():
+        if oid not in seen:
+            db.delete(row)
+
+
+def count_destroyed_answers(db: Session, form_id: str, questions: Sequence[Any]) -> int:
+    """How many stored answers this save would delete.
+
+    Three edits destroy answers, and they are the same three however the
+    organiser arrives at them (``docs/design-question-edits.md``):
+
+    * a question the payload no longer mentions,
+    * a question whose kind changed, which is a different question and
+      so replaces the row,
+    * an option the payload no longer mentions.
+
+    Counted before anything is written, so the caller can refuse the
+    save and say what it would have cost. No double counting: the
+    options of a question that is going are skipped, because its answers
+    are already in the first total.
+    """
+    existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
+    if not existing:
+        return 0
+    submitted = {q.id: q for q in questions if q.id}
+
+    doomed_questions = [qid for qid, row in existing.items() if qid not in submitted or submitted[qid].kind != row.kind]
+    doomed_options: list[str] = []
+    for qid, row in existing.items():
+        if qid in doomed_questions:
+            continue
+        kept = {o.id for o in submitted[qid].options if o.id}
+        doomed_options.extend(o.id for o in row.options if o.id not in kept)
+
+    total = 0
+    if doomed_questions:
+        total += (
+            db.query(func.count(FormResponse.id)).filter(FormResponse.question_id.in_(doomed_questions)).scalar() or 0
+        )
+    if doomed_options:
+        total += (
+            db.query(func.count(FormResponseChoice.id))
+            .filter(FormResponseChoice.option_id.in_(doomed_options))
+            .scalar()
+            or 0
+        )
+    return int(total)
+
+
 def apply_questions(
     db: Session,
     form_id: str,
     questions: list["FormQuestionIn"],
     mode: str,
     axes: list["CompassAxisIn"] | None = None,
+    *,
+    confirmed: bool = False,
 ) -> None:
     """Diff-apply a question payload against the form's current
     rows. Matches by id. Rows with no id (or an id not in the
@@ -219,8 +328,22 @@ def apply_questions(
     validation needs: a question's direction points at one of them, so
     the two are only checkable together (``services/compass``).
 
+    An edit that would delete stored answers is refused unless
+    ``confirmed``. The organiser is told how many and asked again, rather
+    than finding out from a report that no longer adds up
+    (``docs/design-question-edits.md``).
+
     Caller commits the session."""
     _validate_questions(questions, mode, list(axes or []))
+    if not confirmed:
+        doomed = count_destroyed_answers(db, form_id, questions)
+        if doomed:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"This removes {doomed} given {'answer' if doomed == 1 else 'answers'}. Save again to confirm."
+                ),
+            )
 
     existing = {q.id: q for q in db.query(FormQuestion).filter(FormQuestion.form_id == form_id).all()}
     seen_ids: set[str] = set()
@@ -230,7 +353,10 @@ def apply_questions(
         # non-rating kinds drop the scale labels. Keeps the stored
         # row tidy and makes the public form's render kind-driven
         # without per-kind defensive checks.
-        clean_options = [opt.strip() for opt in payload.options if opt.strip()] if payload.kind in _CHOICE_KINDS else []
+        # Choices are rows, diffed by id like the questions themselves.
+        # A payload option carrying an id updates that row, so a rename
+        # is a label edit and every answer stays pointed at it.
+        wanted_options = [o for o in payload.options if o.label.strip()] if payload.kind in _CHOICE_KINDS else []
         low_label = payload.low_label if payload.kind == "rating" else None
         high_label = payload.high_label if payload.kind == "rating" else None
         is_number = payload.kind == "number"
@@ -249,29 +375,24 @@ def apply_questions(
         required = True if mode == "quiz" else payload.required
         correct_int = payload.correct_int if scored and payload.kind in ("rating", "number") else None
         correct_text = None
-        correct_choices = (
-            [c.strip() for c in (payload.correct_choices or []) if c.strip()]
-            if scored and payload.kind in _CHOICE_KINDS
-            else None
-        )
         tolerance = payload.tolerance if scored and payload.kind == "number" else None
         # The direction, on the same terms: only a kompas has one, and
         # only on the half of the question its kind puts it on.
         pointed = mode == "compass"
         pole = payload.pole if pointed and payload.kind == "rating" else None
-        option_poles = (
-            [p for p, opt in zip(payload.option_poles or [], payload.options, strict=False) if opt.strip()]
-            if pointed and payload.kind == "single_choice"
-            else None
-        )
 
-        if payload.id and payload.id in existing:
+        # A kind change is a different question, not an edit to this one:
+        # every stored answer sits in a column the new kind does not read.
+        # So it falls through to the insert below, the old row is left out
+        # of ``seen_ids``, and the delete pass takes it and its answers.
+        # That is what retyping a question already does, and the two mean
+        # the same thing to an organiser (``docs/design-question-edits``).
+        if payload.id and payload.id in existing and existing[payload.id].kind == payload.kind:
             row = existing[payload.id]
             row.ordinal = ordinal
             row.kind = payload.kind
             row.prompt = payload.prompt.strip()
             row.required = required
-            row.options = clean_options
             row.low_label = low_label
             row.high_label = high_label
             row.min_value = min_value
@@ -280,10 +401,9 @@ def apply_questions(
             row.points = points
             row.correct_int = correct_int
             row.correct_text = correct_text
-            row.correct_choices = correct_choices
             row.tolerance = tolerance
             row.pole = pole
-            row.option_poles = option_poles
+            _apply_options(db, row, wanted_options, scored=scored, pointed=pointed)
             seen_ids.add(payload.id)
         else:
             # Insert. An id submitted that doesn't exist on disk is
@@ -291,13 +411,12 @@ def apply_questions(
             # a client guessing at ids can't collide with another
             # form's question.
             db.add(
-                FormQuestion(
+                fresh := FormQuestion(
                     form_id=form_id,
                     ordinal=ordinal,
                     kind=payload.kind,
                     prompt=payload.prompt.strip(),
                     required=required,
-                    options=clean_options,
                     low_label=low_label,
                     high_label=high_label,
                     min_value=min_value,
@@ -306,12 +425,12 @@ def apply_questions(
                     points=points,
                     correct_int=correct_int,
                     correct_text=correct_text,
-                    correct_choices=correct_choices,
                     tolerance=tolerance,
                     pole=pole,
-                    option_poles=option_poles,
                 )
             )
+            db.flush()
+            _apply_options(db, fresh, wanted_options, scored=scored, pointed=pointed)
 
     for qid, row in existing.items():
         if qid not in seen_ids:
@@ -342,7 +461,68 @@ def _submission_counts(db: Session, form_ids: list[str]) -> dict[str, int]:
     }
 
 
-def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
+# The columns the projections below read. A GET selects exactly these;
+# a write route hands over the ORM entity it just saved, which answers
+# the same attribute names, so one projection serves both.
+LIST_COLUMNS = (
+    Form.id,
+    Form.slug,
+    Form.mode,
+    Form.name_nl,
+    Form.name_en,
+    Form.locale,
+    Form.chapter_id,
+    Form.archived_at,
+    Form.created_at,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Form.description_nl,
+    Form.description_en,
+    Form.image_path,
+    Form.image_artist_instagram,
+    Form.reveal_answers,
+    Form.answers_editable,
+    Form.name_required,
+)
+
+
+def list_for_user(db: Session, user: User, mode: str, chapter_id: str | None) -> list[FormListOut]:
+    """The organiser's list of one product, in one statement.
+
+    The row, its chapter's name and how many people filled it in, asked
+    together instead of as three round trips stitched back together in
+    Python. The count is a scalar subquery rather than a join to
+    ``form_submissions``, so one form stays one row."""
+    submissions_count = select(func.count(FormSubmission.id)).where(FormSubmission.form_id == Form.id).scalar_subquery()
+    rows = db.execute(
+        select(*LIST_COLUMNS, Chapter.name.label("chapter_name"), submissions_count.label("submission_count"))
+        .select_from(Form)
+        .outerjoin(Chapter, and_(Chapter.id == Form.chapter_id, Chapter.deleted_at.is_(None)))
+        # The table holds three products, so the mode predicate is part
+        # of every read of it (``query``).
+        .where(access.list_filter(db, user, Form, chapter_id), Form.mode == mode, Form.archived_at.is_(None))
+        .order_by(Form.created_at.desc())
+    ).all()
+    return [
+        FormListOut(
+            id=r.id,
+            slug=r.slug,
+            mode=as_mode(r.mode),
+            name_nl=r.name_nl,
+            name_en=r.name_en,
+            locale=r.locale,
+            chapter_id=r.chapter_id,
+            chapter_name=r.chapter_name,
+            archived=r.archived_at is not None,
+            created_at=r.created_at,
+            submission_count=int(r.submission_count or 0),
+        )
+        for r in rows
+    ]
+
+
+def enrich(db: Session, forms: Sequence[Any]) -> list[FormListOut]:
     """Build ``FormListOut`` rows with batched lookups: one chapter-name
     lookup + one grouped submission-count query, regardless of how many
     forms. The list views never render questions, so this projection
@@ -369,6 +549,31 @@ def enrich(db: Session, forms: list[Form]) -> list[FormListOut]:
     ]
 
 
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[FormListOut]:
+    """The same DTO for forms that have left the live tables: columns
+    from the twin, submission counts from the archived submissions."""
+    if not rows:
+        return []
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    counts = archive_svc.child_counts(db, "form_submissions", "form_id", [r["id"] for r in rows])
+    return [
+        FormListOut(
+            id=r["id"],
+            slug=r["slug"],
+            mode=as_mode(r["mode"]),
+            name_nl=r["name_nl"],
+            name_en=r["name_en"],
+            locale=r["locale"],
+            chapter_id=r["chapter_id"],
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            archived=True,
+            created_at=r["created_at"],
+            submission_count=counts.get(r["id"], 0),
+        )
+        for r in rows
+    ]
+
+
 def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
     """The two axis rows, ``x`` first. Empty on the two products that
     place nobody, which is one query they pay for and the shape every
@@ -378,21 +583,121 @@ def _axes_out(db: Session, form: Form) -> list[CompassAxisOut]:
     return [CompassAxisOut.model_validate(a) for a in compass.axes_of(db, form.id)]
 
 
-def _questions(db: Session, form_id: str) -> list[FormQuestion]:
-    return db.query(FormQuestion).filter(FormQuestion.form_id == form_id).order_by(FormQuestion.ordinal).all()
+@dataclass(frozen=True, slots=True)
+class LoadedOption:
+    """One choice of a question, as the read hands it over.
+
+    A column-for-column stand-in for the ``form_question_options`` row,
+    built from the JSON the questions query gathers, so every caller
+    reads ``o.label`` and ``o.is_correct`` the same way whichever path
+    loaded it.
+    """
+
+    id: str
+    ordinal: int
+    label: str
+    pole: str | None
+    is_correct: bool
 
 
-def questions_of(db: Session, form_id: str) -> list[FormQuestion]:
+class LoadedQuestion:
+    """A question row with its choices attached.
+
+    The graders, the kompas and the DTOs all ask a question for its
+    ``options``, so the read hands back something that answers that,
+    rather than a bare row plus a dictionary every caller has to carry.
+    The fields mirror the columns; ``options`` is the rows from
+    ``form_question_options``, in their own order.
+
+    The columns are copied onto the instance rather than reached through
+    a ``__getattr__`` that forwards to the row. The kompas reads a
+    question's fields once per answer per submission, and forwarding
+    made that a Python-level call every time: 77,000 of them to write
+    one CSV of five hundred, which profiled at a fifth of the whole
+    request.
+    """
+
+    __slots__ = ("row", "options", "__dict__")
+
+    def __init__(self, row: Any, options: list[Any]) -> None:
+        self.row = row
+        self.options = options
+        self.__dict__.update(row._mapping)
+
+
+# The questions and their choices, in one statement.
+#
+# A question's options are gathered by the database rather than read as
+# a second result set and grouped here: the join happens inside the
+# aggregate, so one question stays one row and nothing multiplies. Every
+# read path in this file goes through it, so the saving is a round trip
+# on the details page, the public page, the summary and the CSV alike.
+_QUESTIONS_SQL = text("""
+SELECT q.*,
+       coalesce(
+           (SELECT json_agg(json_build_object(
+                       'id', o.id,
+                       'ordinal', o.ordinal,
+                       'label', o.label,
+                       'pole', o.pole,
+                       'is_correct', o.is_correct
+                   ) ORDER BY o.ordinal)
+            FROM form_question_options o WHERE o.question_id = q.id),
+           '[]'::json
+       ) AS options
+FROM form_questions q
+WHERE q.form_id = :form_id
+ORDER BY q.ordinal
+""")
+
+
+def _questions(db: Session, form_id: str) -> Sequence[Any]:
+    """The form's questions in display order, each carrying its choices.
+
+    One query whatever the form asks. Core rather than the ORM, because
+    a question is never written back through this path
+    (``apply_questions`` owns that)."""
+    return [
+        LoadedQuestion(row, [LoadedOption(**o) for o in row.options])
+        for row in db.execute(_QUESTIONS_SQL, {"form_id": form_id}).all()
+    ]
+
+
+def questions_of(db: Session, form_id: str) -> Sequence[Any]:
     """The question rows, for a caller that has to mark answers against
-    them (``routers/forms`` asking ``services/quizzes`` for the score
+    them (``routers/form`` asking ``services/quiz`` for the score
     stats)."""
     return _questions(db, form_id)
 
 
-def to_out(db: Session, form: Form) -> FormOut:
+def _row_extras(db: Session, form: Any) -> tuple[str | None, int]:
+    """The chapter's name and how many people filled the form in.
+
+    Two scalars off two different tables, asked together: neither has a
+    row to hang off, so they were two round trips for two numbers. The
+    list endpoint already reads them this way, as subqueries beside the
+    form.
+    """
+    row = db.execute(
+        select(
+            select(Chapter.name)
+            .where(Chapter.id == form.chapter_id, Chapter.deleted_at.is_(None))
+            .scalar_subquery()
+            .label("chapter_name"),
+            select(func.count(FormSubmission.id))
+            .where(FormSubmission.form_id == form.id)
+            .scalar_subquery()
+            .label("submissions"),
+        )
+    ).one()
+    return (row.chapter_name if form.chapter_id else None), int(row.submissions or 0)
+
+
+def to_out(db: Session, form: Any) -> FormOut:
     """Single-form organiser DTO: the list-row fields plus the full
-    question list. One chapter-name lookup + one question query."""
-    chapter_name = _chapter_names(db, {form.chapter_id}).get(form.chapter_id) if form.chapter_id else None
+    question list. One statement for the two derived numbers, one for
+    the questions."""
+    chapter_name, submissions_total = _row_extras(db, form)
     return FormOut(
         id=form.id,
         slug=form.slug,
@@ -404,7 +709,7 @@ def to_out(db: Session, form: Form) -> FormOut:
         chapter_name=chapter_name,
         archived=form.archived_at is not None,
         created_at=form.created_at,
-        submission_count=submission_count(db, form.id),
+        submission_count=submissions_total,
         description_nl=form.description_nl,
         description_en=form.description_en,
         image_url=image_svc.public_url(form.image_path),
@@ -452,25 +757,103 @@ def submission_count(db: Session, form_id: str) -> int:
     return db.query(func.count(FormSubmission.id)).filter(FormSubmission.form_id == form_id).scalar() or 0
 
 
-def _summary(q: FormQuestion, db: Session, form_id: str, **fields: object) -> FormQuestionSummary:
+def _summary(q: FormQuestion, correct_share: float | None, **fields: object) -> FormQuestionSummary:
     """One aggregate row, plus the one number only a quiz has."""
     return FormQuestionSummary(
         id=q.id,
         ordinal=q.ordinal,
         kind=q.kind,
         prompt=q.prompt,
-        correct_share=quizzes.correct_share(db, form_id, q),
+        correct_share=correct_share,
         # Which way this question pushed. The organiser's page reads a
         # count next to the direction that earned it, which is the
         # difference between "34 picked Rotterdam" and "34 moved
         # toward Rechts" (``docs/design-kompas.md`` 4.5).
         pole=q.pole,
-        option_poles=list(q.option_poles) if q.option_poles else None,
+        # Derived per request from each option's own pole, in the
+        # options' order, so the page can print a count beside the
+        # direction that earned it.
+        option_poles=[o.pole or "" for o in q.options] if any(o.pole for o in q.options) else None,
         **fields,  # type: ignore[arg-type]
     )
 
 
-def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
+# One statement for every tally an answers page shows.
+#
+# The three shapes are three grains: a rating wants a row per distinct
+# value, a choice question a row per option, an open question every
+# answer it was given. Each is aggregated in its own CTE and joined back
+# to one row per question, which is why joining the ticks cannot
+# multiply anything: the join happens inside its own subquery, and only
+# the finished tally comes out.
+#
+# The choice tally is a plain join now that a tick is a row keyed by
+# option id, so it counts by id and the labels are applied afterwards.
+# A renamed option keeps its answers because the count never touched
+# the text.
+_AGGREGATES_SQL = text("""
+WITH resp AS (
+    SELECT id, question_id, answer_int, answer_text, created_at
+    FROM form_responses WHERE form_id = :form_id
+),
+numbers AS (
+    SELECT question_id, json_agg(json_build_array(value, n) ORDER BY value) AS pairs
+    FROM (
+        SELECT question_id, answer_int AS value, count(*) AS n
+        FROM resp WHERE answer_int IS NOT NULL GROUP BY 1, 2
+    ) counted
+    GROUP BY question_id
+),
+options AS (
+    SELECT question_id, json_agg(json_build_array(option_id, n)) AS pairs
+    FROM (
+        SELECT r.question_id, c.option_id, count(*) AS n
+        FROM resp r JOIN form_response_choices c ON c.response_id = r.id
+        GROUP BY 1, 2
+    ) counted
+    GROUP BY question_id
+),
+option_totals AS (
+    SELECT r.question_id, count(DISTINCT r.id)::int AS n
+    FROM resp r JOIN form_response_choices c ON c.response_id = r.id
+    GROUP BY 1
+),
+texts AS (
+    SELECT question_id,
+           json_agg(answer_text ORDER BY created_at DESC) AS answers,
+           count(*)::int AS n
+    FROM resp WHERE answer_text IS NOT NULL GROUP BY 1
+)
+SELECT q.id AS question_id,
+       numbers.pairs AS number_pairs,
+       options.pairs AS option_pairs,
+       coalesce(option_totals.n, 0) AS option_total,
+       texts.answers AS texts,
+       coalesce(texts.n, 0) AS text_total
+FROM form_questions q
+LEFT JOIN numbers ON numbers.question_id = q.id
+LEFT JOIN options ON options.question_id = q.id
+LEFT JOIN option_totals ON option_totals.question_id = q.id
+LEFT JOIN texts ON texts.question_id = q.id
+WHERE q.form_id = :form_id
+""")
+
+
+def _pairs(row: Any, field: str) -> list[tuple[Any, int]]:
+    """A tally column as ``[(value, count)]``. ``json_agg`` gives back
+    ``null`` for a question nobody answered, which is an empty tally."""
+    if row is None:
+        return []
+    raw = getattr(row, field)
+    return [(value, int(n)) for value, n in raw] if raw else []
+
+
+def question_aggregates(
+    db: Session,
+    form_id: str,
+    questions: Sequence[Any],
+    shares: Mapping[str, float],
+) -> list[FormQuestionSummary]:
     """One ``FormQuestionSummary`` per question, ordinal-ordered.
     Per-kind shape:
 
@@ -478,47 +861,41 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
     * ``number`` — average, lowest, highest.
     * ``text`` / ``short_text`` — raw answers, newest first.
     * ``single_choice`` / ``multi_choice`` — option → count map.
+
+    Every tally comes from one statement (``_AGGREGATES_SQL``) whatever
+    the form asks and however many questions it has. ``shares`` is the
+    marking half, which a quiz reads alongside its scores
+    (``quizzes.summary_stats``) and every other mode leaves empty.
+
     """
+    if not questions:
+        return []
+
+    tallies = {r.question_id: r for r in db.execute(_AGGREGATES_SQL, {"form_id": form_id}).all()}
+
     summaries: list[FormQuestionSummary] = []
-    for q in _questions(db, form_id):
+    for q in questions:
+        share = shares.get(q.id)
+        row = tallies.get(q.id)
         if q.kind == "rating":
-            rows = (
-                db.query(FormResponse.answer_int, func.count(FormResponse.id))
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_int.is_not(None),
-                )
-                .group_by(FormResponse.answer_int)
-                .all()
-            )
-            distribution, total, average = rating_distribution([(v, c) for v, c in rows])
+            distribution, total, average = rating_distribution(_pairs(row, "number_pairs"))
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
+                    share,
                     response_count=total,
                     rating_distribution=distribution,
                     rating_average=average,
                 )
             )
         elif q.kind == "number":
-            values = [
-                v
-                for (v,) in db.query(FormResponse.answer_int)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_int.is_not(None),
-                )
-                .all()
-            ]
+            # Back to one entry per answer: the average, the extremes and
+            # the histogram are all about the values as given.
+            values = [value for value, n in _pairs(row, "number_pairs") for _ in range(n)]
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
+                    share,
                     response_count=len(values),
                     number_average=round(sum(values) / len(values), 1) if values else None,
                     number_min=min(values) if values else None,
@@ -527,50 +904,22 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
                 )
             )
         elif q.kind in _TEXT_KINDS:
-            texts = (
-                db.query(FormResponse.answer_text)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_text.is_not(None),
-                )
-                .order_by(FormResponse.created_at.desc())
-                .all()
-            )
-            summaries.append(
-                _summary(
-                    q,
-                    db,
-                    form_id,
-                    response_count=len(texts),
-                    texts=[t[0] for t in texts],
-                )
-            )
+            answers = list(row.texts) if row is not None and row.texts else []
+            summaries.append(_summary(q, share, response_count=len(answers), texts=answers))
         elif q.kind in _CHOICE_KINDS:
-            counts: dict[str, int] = {opt: 0 for opt in q.options}
-            rows = (
-                db.query(FormResponse.answer_choices)
-                .filter(
-                    FormResponse.form_id == form_id,
-                    FormResponse.question_id == q.id,
-                    FormResponse.answer_choices.is_not(None),
-                )
-                .all()
-            )
-            response_count = 0
-            for (choices,) in rows:
-                if not choices:
-                    continue
-                response_count += 1
-                for c in choices:
-                    if c in counts:
-                        counts[c] += 1
+            # Seeded from the question's own options so one nobody picked
+            # still shows as zero, and a stored answer whose option has
+            # since been renamed away simply does not land anywhere.
+            # Keyed by option id in SQL, labelled here. An option the
+            # organiser has since renamed still carries its answers,
+            # because the tally joined on the id.
+            tally = dict(_pairs(row, "option_pairs"))
+            counts: dict[str, int] = {o.label: int(tally.get(o.id, 0)) for o in q.options}
             summaries.append(
                 _summary(
                     q,
-                    db,
-                    form_id,
-                    response_count=response_count,
+                    share,
+                    response_count=(row.option_total if row is not None else 0),
                     choice_counts=counts,
                 )
             )
@@ -578,20 +927,95 @@ def question_aggregates(db: Session, form_id: str) -> list[FormQuestionSummary]:
             # Unknown kind — unreachable in practice (validated on
             # write + DB CHECK), but the summary endpoint shouldn't
             # crash on a malformed row.
-            summaries.append(
-                _summary(
-                    q,
-                    db,
-                    form_id,
-                    response_count=0,
-                )
-            )
+            summaries.append(_summary(q, share, response_count=0))
     return summaries
+
+
+# One row per submission, answers already in column order.
+#
+# ``cells`` is the pivot: the question list is unnested with its
+# ordinal, left-joined to what this submission said, so a question
+# nobody answered is an empty cell rather than a missing column and
+# every row is the same width as the header. A tick is written as the
+# option's label because that is what the respondent saw, and a
+# multiple pick joins its labels with a semicolon.
+_CSV_SQL: Final[str] = """
+WITH cell AS (
+    SELECT r.submission_id,
+           q.ordinal,
+           CASE
+               WHEN q.kind IN ('rating', 'number') THEN r.answer_int::text
+               WHEN q.kind IN ('single_choice', 'multi_choice') THEN (
+                   SELECT string_agg(o.label, '; ' ORDER BY o.ordinal)
+                   FROM form_response_choices c
+                   JOIN form_question_options o ON o.id = c.option_id
+                   WHERE c.response_id = r.id
+               )
+               ELSE r.answer_text
+           END AS value
+    FROM form_responses r
+    JOIN form_questions q ON q.id = r.question_id
+    WHERE r.form_id = :form_id
+),
+column_of AS (
+    SELECT ordinal FROM form_questions WHERE form_id = :form_id
+)
+SELECT coalesce(s.display_name, 'Anonymous') AS name,
+       to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS submitted_at,
+       {places}
+       (
+           SELECT coalesce(array_agg(coalesce(cell.value, '') ORDER BY column_of.ordinal), '{{}}')
+           FROM column_of
+           LEFT JOIN cell ON cell.submission_id = s.id AND cell.ordinal = column_of.ordinal
+       ) AS cells
+FROM form_submissions s
+{join}
+WHERE s.form_id = :form_id
+ORDER BY s.created_at
+"""
+
+# A kompas carries its two coordinates beside the answers that made
+# them, read from the same statement the map is drawn from.
+_CSV_PLACES: Final[str] = f"LEFT JOIN (\n{compass.PLACES_SQL}\n) place ON place.submission_id = s.id"
+
+
+def submissions_csv(db: Session, form_id: str, *, mode: str) -> tuple[list[str], Iterator[Sequence[Any]]]:
+    """The organiser's download: the header, and the rows behind it.
+
+    The header is English but for the questions, which are the
+    organiser's own words. The rows stream: the database pivots the
+    answers into columns and this hands them straight to the writer
+    (``services/csv_export``)."""
+    questions = _questions(db, form_id)
+    compassed = mode == "compass"
+    header = ["Name", "Submitted at", *(["X", "Y"] if compassed else []), *(q.prompt for q in questions)]
+    statement = text(
+        _CSV_SQL.format(
+            places="place.x, place.y," if compassed else "",
+            join=_CSV_PLACES if compassed else "",
+        )
+    )
+    result = db.execute(
+        statement,
+        compass.params(form_id) if compassed else {"form_id": form_id},
+    )
+    rows = ([row.name, row.submitted_at, *([row.x, row.y] if compassed else []), *row.cells] for row in result)
+    return header, rows
+
+
+def compass_places(db: Session, form: Any, questions: Sequence[Any]) -> dict[str, compass.Position]:
+    """Where every submission sits, read once for a whole page.
+
+    Both halves of a kompas page (the axes and the dots) place the same
+    people from the same answers. Reading it here and handing it to both
+    is what keeps one page from loading every answer twice."""
+    return compass.positions(db, form.id)
 
 
 def compass_points(
     db: Session,
     form: Form,
+    places: dict[str, compass.Position],
     *,
     you: str | None = None,
 ) -> list[CompassPoint]:
@@ -601,9 +1025,11 @@ def compass_points(
     passes nothing, because on their page nobody is "you". The name is
     the self-chosen pseudonym and the only identifier there is
     (``docs/design-kompas.md`` 2.4)."""
-    questions = _questions(db, form.id)
-    places = compass.positions(db, questions, form.id)
-    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form.id).order_by(FormSubmission.created_at).all()
+    subs = db.execute(
+        select(FormSubmission.id, FormSubmission.display_name)
+        .where(FormSubmission.form_id == form.id)
+        .order_by(FormSubmission.created_at)
+    ).all()
     out: list[CompassPoint] = []
     for sub in subs:
         place = places.get(sub.id)
@@ -623,11 +1049,10 @@ def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
     so the band under one person's marker and the band on the
     organiser's page are the same number rather than two computations
     that can drift apart."""
-    questions = _questions(db, form.id)
-    places = list(compass.positions(db, questions, form.id).values())
+    rooms = compass.axis_stats(db, form.id)
     out: list[CompassAxisSummary] = []
     for row in compass.axes_of(db, form.id):
-        stats = compass.axis_stats(places, row.axis)
+        stats = rooms.get(row.axis)
         out.append(
             CompassAxisSummary(
                 axis=CompassAxisOut.model_validate(row),
@@ -639,74 +1064,45 @@ def compass_axis_summaries(db: Session, form: Form) -> list[CompassAxisSummary]:
     return out
 
 
-def compass_summary(db: Session, form: Form) -> CompassSummary | None:
+def compass_summary(db: Session, form: Any, questions: Sequence[Any]) -> CompassSummary | None:
     """The kompas half of the organiser's summary: the two axes with
     where the room sits on each, and every dot. ``None`` on the two
     products that place nobody."""
     if form.mode != "compass":
         return None
-    return CompassSummary(axes=compass_axis_summaries(db, form), points=compass_points(db, form))
+    places = compass_places(db, form, questions)
+    return CompassSummary(
+        axes=compass_axis_summaries(db, form),
+        points=compass_points(db, form, places),
+    )
 
 
-def quiz_submissions(db: Session, form_id: str) -> list[QuizSubmissionOut]:
-    """The organiser's list of played quizzes: the survey projection
-    plus what each one scored, marked against the quiz as it stands
-    now (``services/quizzes``)."""
-    questions = _questions(db, form_id)
-    grouped = quizzes.rows_by_submission(db, form_id)
-    out_of = quizzes.max_score(questions)
-    return [
-        QuizSubmissionOut(
-            submission_id=row.submission_id,
-            display_name=row.display_name,
-            created_at=row.created_at,
-            score=quizzes.score_of(questions, grouped.get(row.submission_id, [])),
-            max_score=out_of,
-            answers=row.answers,
-            link_recovered_at=row.link_recovered_at,
-        )
-        for row in submissions(db, form_id, mode="quiz")
-    ]
+def submissions(db: Session, form_id: str) -> list[FormSubmissionOut]:
+    """Who filled the form in and when, oldest first.
 
-
-def submissions(db: Session, form_id: str, *, mode: str = "survey") -> list[FormSubmissionOut]:
-    """Per-submission rows for the CSV export, keyed by question id.
-    One ``FormSubmissionOut`` per fill-out, carrying the pseudonym
-    (``display_name``, NULL = anonymous); the answer value matches the
-    question kind (int / str / list[str]).
+    Not what they said: that is the download's business, written by the
+    database (``submissions_csv``). This list is read by the page that
+    hands somebody their edit link back, so it carries the pseudonym
+    and whether the link has already been recovered.
 
     Privacy: the submission id is opaque and the only respondent
     identifier is the self-chosen pseudonym."""
-    questions = _questions(db, form_id)
-    kinds = {q.id: q.kind for q in questions}
-    # Two more CSV columns on a kompas, derived like everything else
-    # about a position (``services/compass``).
-    places = compass.positions(db, questions, form_id) if mode == "compass" else {}
-    subs = db.query(FormSubmission).filter(FormSubmission.form_id == form_id).order_by(FormSubmission.created_at).all()
-    if not subs:
-        return []
-    sub_ids = [s.id for s in subs]
-    answers: dict[str, dict[str, int | str | list[str]]] = {sid: {} for sid in sub_ids}
-    for r in db.query(FormResponse).filter(FormResponse.submission_id.in_(sub_ids)).all():
-        kind = kinds.get(r.question_id)
-        if kind is None:
-            continue
-        if kind in ("rating", "number") and r.answer_int is not None:
-            answers[r.submission_id][r.question_id] = r.answer_int
-        elif kind in _TEXT_KINDS and r.answer_text is not None:
-            answers[r.submission_id][r.question_id] = r.answer_text
-        elif kind in _CHOICE_KINDS and r.answer_choices is not None:
-            answers[r.submission_id][r.question_id] = list(r.answer_choices)
-
+    rows = db.execute(
+        select(
+            FormSubmission.id,
+            FormSubmission.display_name,
+            FormSubmission.created_at,
+            FormSubmission.link_recovered_at,
+        )
+        .where(FormSubmission.form_id == form_id)
+        .order_by(FormSubmission.created_at)
+    ).all()
     return [
         FormSubmissionOut(
-            submission_id=s.id,
-            display_name=s.display_name,
-            created_at=s.created_at,
-            answers=answers[s.id],
-            x=places[s.id].x if s.id in places else None,
-            y=places[s.id].y if s.id in places else None,
-            link_recovered_at=s.link_recovered_at,
+            submission_id=r.id,
+            display_name=r.display_name,
+            created_at=r.created_at,
+            link_recovered_at=r.link_recovered_at,
         )
-        for s in subs
+        for r in rows
     ]

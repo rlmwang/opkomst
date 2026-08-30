@@ -39,7 +39,7 @@ SEARCH_DIRS = [
 ]
 SEARCH_FILES = sorted((ROOT / "frontend").glob("*.html"))
 
-SUFFIXES = {".css", ".vue", ".ts", ".html"}
+SUFFIXES = {".css", ".svelte", ".ts", ".html"}
 
 # ``#abc`` / ``#abcd`` / ``#aabbcc`` / ``#aabbccdd``, and the functional
 # colour notations. Word-boundaried so ``#app`` and ``#add`` (a slot

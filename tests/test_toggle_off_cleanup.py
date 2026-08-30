@@ -18,7 +18,7 @@ from _helpers.events import make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, Signup
+from backend.models import EmailChannel, Signup
 from backend.services import mail_lifecycle
 
 
@@ -45,7 +45,7 @@ def test_disabling_reminder_retires_pending_reminder(db: Any) -> None:
     try:
         assert get_dispatch(fresh, s, EmailChannel.REMINDER) is None
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
+        assert d_f is not None
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
         assert has_any_ciphertext(fresh, row)
@@ -107,7 +107,7 @@ def test_disabling_one_when_other_already_sent_wipes(db: Any) -> None:
     try:
         assert get_dispatch(fresh, s, EmailChannel.FEEDBACK) is None
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d_r is not None and d_r.status == EmailStatus.SENT
+        assert d_r is None  # already sent: the row is gone
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
         assert not has_any_ciphertext(fresh, row)
@@ -147,8 +147,8 @@ def test_disabling_skips_rows_currently_mid_send(db: Any) -> None:
         # Both dispatch rows still present, still pending.
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
-        assert d_r is not None and d_r.status == EmailStatus.PENDING
+        assert d_f is not None
+        assert d_r is not None
         # Ciphertext also kept — the wipe predicate sees a pending
         # dispatch and bails.
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
@@ -178,8 +178,8 @@ def test_empty_channel_set_is_noop(db: Any) -> None:
     try:
         d_f = get_dispatch(fresh, s, EmailChannel.FEEDBACK)
         d_r = get_dispatch(fresh, s, EmailChannel.REMINDER)
-        assert d_f is not None and d_f.status == EmailStatus.PENDING
-        assert d_r is not None and d_r.status == EmailStatus.PENDING
+        assert d_f is not None
+        assert d_r is not None
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
         assert has_any_ciphertext(fresh, row)

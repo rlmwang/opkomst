@@ -46,6 +46,7 @@ export type ChapterArchiveRequest = S["ChapterArchiveRequest"];
 export type ChapterUsage = S["ChapterUsageOut"];
 
 // --- Events ---
+export type EventListOut = S["EventListOut"];
 export type EventOut = S["EventOut"];
 export type EventCreate = S["EventCreate"];
 export type EventStats = S["EventStatsOut"];
@@ -128,7 +129,6 @@ export type FeedbackAnswer = S["FeedbackAnswerIn"];
 export type FeedbackSubmit = S["FeedbackSubmitIn"];
 export type FeedbackQuestionSummary = S["FeedbackQuestionSummary"];
 export type FeedbackSummary = S["FeedbackSummaryOut"];
-export type FeedbackSubmission = S["FeedbackSubmissionOut"];
 export type EmailHealth = S["EmailHealthOut"];
 
 // --- Channel-keyed maps. The generated schema types EmailHealth as

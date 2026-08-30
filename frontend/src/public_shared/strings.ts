@@ -86,6 +86,16 @@ export interface ChromeStrings {
   linkRecovered: string;
   copy: string;
   copied: string;
+  /** The colophon at the foot of every house-brand page: the label a
+   *  screen reader reads for the row, and the four named links. Short
+   *  words, because it is a colophon and not a menu. */
+  footerLabel: string;
+  footerPrivacy: string;
+  footerTerms: string;
+  footerSource: string;
+  footerFeedback: string;
+  /** Introduces the numbered links to the written pages. */
+  footerBlogs: string;
 }
 
 const chrome: Record<Locale, ChromeStrings> = {
@@ -125,6 +135,12 @@ const chrome: Record<Locale, ChromeStrings> = {
       "Een organisator heeft op {date} de geheime link van deze inzending gekopieerd (de vorige link verviel daarmee). Niet op jouw verzoek? Meld je dan af en meld je opnieuw aan voor een verse link.",
     copy: "Kopiëren",
     copied: "Gekopieerd",
+    footerLabel: "Meer lezen",
+    footerPrivacy: "Privacy",
+    footerTerms: "Voorwaarden",
+    footerSource: "Broncode",
+    footerFeedback: "Feedback",
+    footerBlogs: "Blogs:",
   },
   en: {
     loading: "Loading…",
@@ -161,6 +177,12 @@ const chrome: Record<Locale, ChromeStrings> = {
       "An organiser copied this entry's secret link on {date} (the previous link stopped working). Not at your request? Withdraw and sign up again for a fresh link.",
     copy: "Copy",
     copied: "Copied",
+    footerLabel: "Read more",
+    footerPrivacy: "Privacy",
+    footerTerms: "Terms",
+    footerSource: "Source",
+    footerFeedback: "Feedback",
+    footerBlogs: "Blogs:",
   },
 };
 

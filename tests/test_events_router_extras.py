@@ -11,6 +11,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from backend.database import SessionLocal
+from tests._helpers.events import public_option_ids
 
 
 def _first_chapter_id(client: Any, headers: Any) -> str:
@@ -40,7 +41,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "starts_on": "2026-09-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
+        "source_options": [{"label": "Flyer"}],
         "source_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
@@ -48,7 +49,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "locale": "nl",
         **overrides,
     }
-    r = client.post("/api/v1/events", headers=headers, json=payload)
+    r = client.post("/api/v1/event", headers=headers, json=payload)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -56,7 +57,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
 def _first_occurrence(client: Any, headers: Any, event_id: str) -> dict[str, Any]:
     """The event's first materialised occurrence — its public slug is the
     per-occurrence public surface (signups / qr / ics / previews)."""
-    return client.get(f"/api/v1/events/{event_id}/occurrences", headers=headers).json()["occurrences"][0]
+    return client.get(f"/api/v1/event/{event_id}/occurrences", headers=headers).json()["occurrences"][0]
 
 
 def _occ_slug(client: Any, headers: Any, event: dict[str, Any]) -> str:
@@ -70,7 +71,7 @@ def test_create_event_missing_chapter_id_returns_422(client, organiser_headers):
     """``chapter_id`` is required on EventCreate — Pydantic
     rejects the body before the handler runs."""
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "X",
@@ -79,7 +80,7 @@ def test_create_event_missing_chapter_id_returns_422(client, organiser_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -96,7 +97,7 @@ def test_create_event_with_chapter_outside_users_set_returns_403(client, admin_h
     other = r.json()["id"]
 
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "X",
@@ -106,7 +107,7 @@ def test_create_event_with_chapter_outside_users_set_returns_403(client, admin_h
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -123,7 +124,7 @@ def test_create_event_with_admin_globally_works(client, admin_headers):
     r = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Groningen"})
     chapter_id = r.json()["id"]
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=admin_headers,
         json={
             "name_nl": "Adminmade",
@@ -133,7 +134,7 @@ def test_create_event_with_admin_globally_works(client, admin_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -164,12 +165,12 @@ def test_recurring_signup_creates_one_registration_with_many_line_items(client, 
         feedback_enabled=True,
         reminder_enabled=False,
     )
-    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
     assert len(occs) == 3  # weekly × 3, all inside the 90-day horizon
     occ_ids = [o["id"] for o in occs]
 
     ack = client.post(
-        f"/api/v1/events/by-slug/{occs[0]['slug']}/signups",
+        f"/api/v1/event/by-slug/{occs[0]['slug']}/signups",
         json={
             "display_name": "Sam",
             "party_size": 2,
@@ -218,7 +219,7 @@ def test_finite_event_materialises_all_sessions_past_horizon(client, organiser_h
         cycle_slots=[0],
         span_weeks=20,
     )
-    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()
+    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()
     assert len(occs["occurrences"]) == 20  # all sessions are real rows
     assert occs["projected"] == []  # a finite event has nothing beyond a horizon
     assert occs["total_sessions"] == 20
@@ -253,12 +254,12 @@ def test_list_events_filter_by_chapter(client, admin_headers, organiser_headers)
     b = _new_event(client, organiser_headers, name="B", chapter_id=other)
 
     # No filter: both events.
-    rows = client.get("/api/v1/events", headers=organiser_headers).json()
+    rows = client.get("/api/v1/event", headers=organiser_headers).json()
     ids = {e["id"] for e in rows}
     assert {a["id"], b["id"]} <= ids
 
     # Filtered by primary: only A.
-    rows = client.get(f"/api/v1/events?chapter_id={primary}", headers=organiser_headers).json()
+    rows = client.get(f"/api/v1/event?chapter_id={primary}", headers=organiser_headers).json()
     ids = {e["id"] for e in rows}
     assert a["id"] in ids
     assert b["id"] not in ids
@@ -270,7 +271,7 @@ def test_list_events_filter_by_chapter_outside_set_returns_403(client, admin_hea
     a misconfigured frontend gets a loud failure."""
     r = client.post("/api/v1/chapters", headers=admin_headers, json={"name": "Almere"})
     other = r.json()["id"]
-    r = client.get(f"/api/v1/events?chapter_id={other}", headers=organiser_headers)
+    r = client.get(f"/api/v1/event?chapter_id={other}", headers=organiser_headers)
     assert r.status_code == 403
 
 
@@ -294,14 +295,14 @@ def test_update_event_to_chapter_outside_users_set_returns_403(client, admin_hea
         "reminder_enabled": event["reminder_enabled"],
         "locale": event["locale"],
     }
-    r = client.put(f"/api/v1/events/{event['id']}", headers=organiser_headers, json=payload)
+    r = client.put(f"/api/v1/event/{event['id']}", headers=organiser_headers, json=payload)
     assert r.status_code == 403
 
 
 def test_create_event_with_invalid_time_window_returns_400(client, organiser_headers):
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "X",
@@ -311,7 +312,7 @@ def test_create_event_with_invalid_time_window_returns_400(client, organiser_hea
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
             "end_time": "18:00:00",  # backwards
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -325,7 +326,7 @@ def test_create_event_with_invalid_time_window_returns_400(client, organiser_hea
 def test_update_event_happy_path(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.put(
-        f"/api/v1/events/{event['id']}",
+        f"/api/v1/event/{event['id']}",
         headers=organiser_headers,
         json={
             "name_nl": "Renamed",
@@ -336,7 +337,7 @@ def test_update_event_happy_path(client, organiser_headers):
             "starts_on": "2026-05-02",
             "start_time": "18:00:00",
             "end_time": "21:00:00",
-            "source_options": ["Flyer", "Word"],
+            "source_options": [{"label": "Flyer"}, {"label": "Word"}],
             "feedback_enabled": False,
             "reminder_enabled": True,
             "locale": "en",
@@ -356,7 +357,7 @@ def test_update_event_happy_path(client, organiser_headers):
 def test_update_event_invalid_time_window_returns_400(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.put(
-        f"/api/v1/events/{event['id']}",
+        f"/api/v1/event/{event['id']}",
         headers=organiser_headers,
         json={
             "name_nl": "Demo",
@@ -366,7 +367,7 @@ def test_update_event_invalid_time_window_returns_400(client, organiser_headers)
             "starts_on": "2026-05-01",
             "start_time": "20:00:00",
             "end_time": "18:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -377,7 +378,7 @@ def test_update_event_invalid_time_window_returns_400(client, organiser_headers)
 def test_update_unknown_event_returns_404(client, organiser_headers):
     me = client.get("/api/v1/auth/me", headers=organiser_headers).json()
     r = client.put(
-        "/api/v1/events/no-such",
+        "/api/v1/event/no-such",
         headers=organiser_headers,
         json={
             "name_nl": "X",
@@ -387,7 +388,7 @@ def test_update_unknown_event_returns_404(client, organiser_headers):
             "starts_on": "2026-05-01",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["F"],
+            "source_options": [{"label": "F"}],
             "feedback_enabled": True,
             "locale": "nl",
         },
@@ -400,30 +401,34 @@ def test_update_unknown_event_returns_404(client, organiser_headers):
 
 def test_archive_event_happy_path(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    r = client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
+    r = client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
     assert r.status_code == 200
 
 
-def test_archive_already_archived_returns_409(client, organiser_headers):
+def test_archiving_twice_is_a_404(client, organiser_headers):
+    """Archiving moves the event out of ``events``, so the second call
+    has nothing live to find. It used to be a 409 on a row that was
+    still there with a date on it."""
     event = _new_event(client, organiser_headers)
-    client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
-    r = client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
-    assert r.status_code == 409
+    client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
+    r = client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
+    assert r.status_code == 404
 
 
-def test_restore_not_archived_returns_409(client, organiser_headers):
+def test_restoring_something_live_is_a_404(client, organiser_headers):
+    """Nothing in the archive answers to that id."""
     event = _new_event(client, organiser_headers)
-    r = client.post(f"/api/v1/events/{event['id']}/restore", headers=organiser_headers)
-    assert r.status_code == 409
+    r = client.post(f"/api/v1/event/{event['id']}/restore", headers=organiser_headers)
+    assert r.status_code == 404
 
 
 def test_restore_archived_event_happy_path(client, organiser_headers):
     event = _new_event(client, organiser_headers)
-    client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
-    r = client.post(f"/api/v1/events/{event['id']}/restore", headers=organiser_headers)
+    client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
+    r = client.post(f"/api/v1/event/{event['id']}/restore", headers=organiser_headers)
     assert r.status_code == 200
     # Lands back on the active list.
-    listed = client.get("/api/v1/events", headers=organiser_headers).json()
+    listed = client.get("/api/v1/event", headers=organiser_headers).json()
     assert any(e["id"] == event["id"] for e in listed)
 
 
@@ -435,14 +440,14 @@ def test_email_preview_reminder_for_disabled_channel_returns_404(client, organis
     — previewing email a visitor will never receive misleads."""
     event = _new_event(client, organiser_headers, reminder_enabled=False)
     slug = _occ_slug(client, organiser_headers, event)
-    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/reminder")
+    r = client.get(f"/api/v1/event/by-slug/{slug}/email-preview/reminder")
     assert r.status_code == 404
 
 
 def test_email_preview_feedback_when_enabled_returns_html(client, organiser_headers):
     event = _new_event(client, organiser_headers, feedback_enabled=True)
     slug = _occ_slug(client, organiser_headers, event)
-    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/feedback")
+    r = client.get(f"/api/v1/event/by-slug/{slug}/email-preview/feedback")
     assert r.status_code == 200
     # HTML response — Content-Type is text/html.
     assert r.headers["content-type"].startswith("text/html")
@@ -453,7 +458,7 @@ def test_email_preview_feedback_when_enabled_returns_html(client, organiser_head
 def test_email_preview_unknown_channel_returns_404(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     slug = _occ_slug(client, organiser_headers, event)
-    r = client.get(f"/api/v1/events/by-slug/{slug}/email-preview/no-such")
+    r = client.get(f"/api/v1/event/by-slug/{slug}/email-preview/no-such")
     assert r.status_code == 404
 
 
@@ -463,7 +468,7 @@ def test_email_preview_unknown_channel_returns_404(client, organiser_headers):
 def test_qr_returns_svg(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     slug = _occ_slug(client, organiser_headers, event)
-    r = client.get(f"/api/v1/events/by-slug/{slug}/qr.svg")
+    r = client.get(f"/api/v1/event/by-slug/{slug}/qr.svg")
     assert r.status_code == 200
     assert r.headers["content-type"] == "image/svg+xml"
     assert r.content.lstrip().startswith(b"<?xml") or r.content.lstrip().startswith(b"<svg")
@@ -475,11 +480,11 @@ def test_qr_returns_svg(client, organiser_headers):
 
 def _public_signup(client, occ_slug: str, *, name: str | None = "Anon") -> dict:
     r = client.post(
-        f"/api/v1/events/by-slug/{occ_slug}/signups",
+        f"/api/v1/event/by-slug/{occ_slug}/signups",
         json={
             "display_name": name,
             "party_size": 1,
-            "source_choice": "Flyer",
+            **public_option_ids(client, occ_slug, source="Flyer"),
             "help_choices": [],
             "email": None,
             "all_upcoming": True,
@@ -491,7 +496,7 @@ def _public_signup(client, occ_slug: str, *, name: str | None = "Anon") -> dict:
 
 def _list_signups(client, headers, event_id: str) -> list[dict]:
     occ = _first_occurrence(client, headers, event_id)
-    r = client.get(f"/api/v1/events/{event_id}/occurrences/{occ['id']}/signups", headers=headers)
+    r = client.get(f"/api/v1/event/{event_id}/occurrences/{occ['id']}/signups", headers=headers)
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -507,7 +512,7 @@ def test_delete_signup_removes_only_targeted_row(client, organiser_headers):
     target = next(r for r in rows if r["display_name"] == "Remove")
 
     r = client.delete(
-        f"/api/v1/events/{event['id']}/signups/{target['id']}",
+        f"/api/v1/event/{event['id']}/signups/{target['id']}",
         headers=organiser_headers,
     )
     assert r.status_code == 204
@@ -519,7 +524,7 @@ def test_delete_signup_removes_only_targeted_row(client, organiser_headers):
 def test_delete_signup_unknown_id_returns_404(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.delete(
-        f"/api/v1/events/{event['id']}/signups/00000000-0000-0000-0000-000000000000",
+        f"/api/v1/event/{event['id']}/signups/00000000-0000-0000-0000-000000000000",
         headers=organiser_headers,
     )
     assert r.status_code == 404
@@ -529,7 +534,7 @@ def test_delete_signup_requires_auth(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     _public_signup(client, _occ_slug(client, organiser_headers, event))
     rows = _list_signups(client, organiser_headers, event["id"])
-    r = client.delete(f"/api/v1/events/{event['id']}/signups/{rows[0]['id']}")
+    r = client.delete(f"/api/v1/event/{event['id']}/signups/{rows[0]['id']}")
     assert r.status_code in (401, 403)
 
 
@@ -543,20 +548,19 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
     event = _new_event(
         client,
         organiser_headers,
-        source_options=["Flyer"],
-        help_options=["Opbouwen", "Afbreken"],
+        source_options=[{"label": "Flyer"}],
+        help_options=[{"label": "Opbouwen"}, {"label": "Afbreken"}],
         help_enabled=True,
     )
     occ = _first_occurrence(client, organiser_headers, event["id"])
 
     for name, size, help_choices in (("Trio", 3, ["Opbouwen"]), ("Solo", 1, ["Opbouwen", "Afbreken"])):
         r = client.post(
-            f"/api/v1/events/by-slug/{occ['slug']}/signups",
+            f"/api/v1/event/by-slug/{occ['slug']}/signups",
             json={
                 "display_name": name,
                 "party_size": size,
-                "source_choice": "Flyer",
-                "help_choices": help_choices,
+                **public_option_ids(client, occ["slug"], source="Flyer", help_labels=tuple(help_choices)),
                 "email": None,
                 "all_upcoming": True,
             },
@@ -564,7 +568,7 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
         assert r.status_code == 201, r.text
 
     stats = client.get(
-        f"/api/v1/events/{event['id']}/occurrences/{occ['id']}/stats",
+        f"/api/v1/event/{event['id']}/occurrences/{occ['id']}/stats",
         headers=organiser_headers,
     ).json()
     assert stats["total_signups"] == 2
@@ -576,7 +580,7 @@ def test_stats_breakdowns_count_people_not_bookings(client, organiser_headers):
 def test_event_ics_carries_uid_and_dates(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event["id"])
-    r = client.get(f"/api/v1/events/by-slug/{occ['slug']}/event.ics")
+    r = client.get(f"/api/v1/event/by-slug/{occ['slug']}/event.ics")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/calendar")
     body = r.text

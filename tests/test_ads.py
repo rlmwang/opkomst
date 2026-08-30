@@ -18,11 +18,39 @@ Design and reasoning: ``docs/ads.md``.
 from __future__ import annotations
 
 import pathlib
+import re
+from urllib.parse import urlparse
 
 import pytest
 
 from backend.services import brand as brand_svc
 from backend.services.security_headers import CSP_ADS_TEMPLATE, CSP_TEMPLATE
+
+
+def _script_hosts(html: str) -> set[str]:
+    """The host of every absolute URL written into the page.
+
+    The ad loader's URL is assembled in the inline script rather than
+    sitting in a ``src`` attribute, so this reads the quoted URLs out of
+    the HTML and parses each one. Matched on the parsed host rather than
+    by searching for a domain: a page naming
+    ``pagead2.googlesyndication.com.evil.test`` contains the string and
+    loads nothing from Google."""
+    return {
+        host
+        for url in re.findall(r'["\'](https?://[^"\'\s]+)["\']', html)
+        if (host := urlparse(url).hostname)
+    }
+
+
+def _csp_sources(csp: str) -> set[str]:
+    """Every source named in a CSP header, as its own token.
+
+    Asserted against the token set rather than by substring: a header
+    that happens to contain ``pagead2.googlesyndication.com`` inside a
+    longer host would satisfy ``in`` and prove nothing, which is also
+    what CodeQL flags the substring form for."""
+    return {token for directive in csp.split(";") for token in directive.split()}
 
 
 def test_only_the_house_brand_carries_an_ad_configuration() -> None:
@@ -78,15 +106,16 @@ def test_configured_ids_reach_the_house_brand_only(configured) -> None:
 def test_a_house_brand_page_gets_the_ad_policy_once_configured(client, configured) -> None:
     """The other half of the gate: with a network configured, the page
     that may carry ads is served the policy that lets them load."""
-    csp = client.get("/events").headers["content-security-policy"]
-    assert "https://pagead2.googlesyndication.com" in csp
-    assert "https://fundingchoicesmessages.google.com" in csp
+    csp = client.get("/event").headers["content-security-policy"]
+    assert _csp_sources(csp).issuperset(
+        {"https://pagead2.googlesyndication.com", "https://fundingchoicesmessages.google.com"}
+    )
 
 
 def test_an_organisation_page_never_gets_the_ad_policy(client, configured) -> None:
     """The rule that matters most: configuring a network does not open
     an organisation's pages, now or by accident later."""
-    csp = client.get("/rsp/events").headers["content-security-policy"]
+    csp = client.get("/rsp/event").headers["content-security-policy"]
     assert "googlesyndication" not in csp
 
 
@@ -193,7 +222,7 @@ def test_the_ad_policy_keeps_everything_else_shut() -> None:
 def test_an_organisation_page_gets_the_strict_policy(client) -> None:
     """End to end: the header on an organisation's own page names no ad
     host, whatever the deployment's advertising settings are."""
-    response = client.get("/rsp/events")
+    response = client.get("/rsp/event")
     csp = response.headers["content-security-policy"]
     assert "googlesyndication" not in csp
 
@@ -203,7 +232,7 @@ def test_a_house_brand_page_gets_the_strict_policy_without_a_network(client) -> 
     and no cookie, so there is nothing to open the policy for. The
     loosened policy is not served just because a page could carry ads;
     it is served when a page actually does."""
-    response = client.get("/events")
+    response = client.get("/event")
     csp = response.headers["content-security-policy"]
     assert "googlesyndication" not in csp
 
@@ -214,12 +243,12 @@ def test_a_written_page_carries_the_slot_once_configured(client, configured) -> 
     have to arrive in the HTML, because there is no bundle here to
     fetch them later."""
     body = client.get("/datumplanner-zonder-account").text
-    assert "pagead2.googlesyndication.com" in body
+    assert _script_hosts(body).issuperset({"pagead2.googlesyndication.com"})
     assert "ca-pub-0000000000000000" in body
     assert '"1111111111"' in body or "1111111111" in body
     assert "2222222222" in body
     csp = client.get("/datumplanner-zonder-account").headers["content-security-policy"]
-    assert "https://pagead2.googlesyndication.com" in csp
+    assert _csp_sources(csp).issuperset({"https://pagead2.googlesyndication.com"})
 
 
 def test_the_written_pages_advertise_under_a_nonce(client, configured) -> None:
@@ -241,13 +270,13 @@ def test_an_unconfigured_deployment_keeps_the_written_pages_clean(client) -> Non
 
 def test_the_written_pages_and_the_component_agree_on_the_slot() -> None:
     """The rails, the banner and the breakpoint exist twice: once in
-    ``AdSlot.vue`` for the app, once inline in ``templates/_page.html``
+    ``AdSlot.svelte`` for the app, once inline in ``templates/content.html``
     because these pages carry no bundle to reach the component. Nothing
     but this test stops the two shapes from drifting."""
     root = pathlib.Path(__file__).resolve().parent.parent
-    component = (root / "frontend" / "src" / "public_shared" / "AdSlot.vue").read_text(encoding="utf-8")
-    unit = (root / "frontend" / "src" / "public_shared" / "AdUnit.vue").read_text(encoding="utf-8")
-    page = (root / "backend" / "templates" / "_page.html").read_text(encoding="utf-8")
+    component = (root / "frontend" / "src" / "public_shared" / "AdSlot.svelte").read_text(encoding="utf-8")
+    unit = (root / "frontend" / "src" / "public_shared" / "AdUnit.svelte").read_text(encoding="utf-8")
+    page = (root / "backend" / "templates" / "content.html").read_text(encoding="utf-8")
     assert "(min-width: 1236px)" in component and "(min-width: 1236px)" in page
     for size in ("width: 160px;", "height: 600px;", "width: 320px;", "height: 50px;"):
         assert size in component, size

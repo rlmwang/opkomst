@@ -2,9 +2,11 @@
 
 Helpers the events routers compose:
 
-* ``enrich`` — batched chapter-name + booking headcount + next-occurrence
-  lookup that turns ORM ``Event`` rows into ``EventOut`` DTOs. Used by
-  every list endpoint and the single-event paths via ``to_out``.
+* ``list_enrich`` / ``enrich`` — batched chapter-name + booking headcount
+  + next-occurrence lookup, turning ORM ``Event`` rows into the list DTO
+  and the full one. ``archived_enrich`` does the same from the archive
+  twin. All three are batched: one query per fact for the whole page,
+  never one per row.
 * ``occurrence_totals`` / ``occurrence_signup_counts`` — per-occurrence
   headcount + line-item counts, for the organiser occurrence panel and
   the public agenda.
@@ -15,13 +17,26 @@ Helpers the events routers compose:
 Routers stay thin; the SQL lives here where it can be unit-tested.
 """
 
+from collections.abc import Mapping, Sequence
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, select, true
 from sqlalchemy.orm import Session
 
-from ..models import Chapter, Event, Occurrence, Registration, Signup
-from ..schemas.events import EventOut, EventStatsOut, SignupSummaryOut
+from ..models import (
+    Chapter,
+    Event,
+    EventHelpOption,
+    EventSourceOption,
+    Occurrence,
+    Registration,
+    Signup,
+    SignupHelpChoice,
+    User,
+)
+from ..schemas.events import EventListOut, EventOut, EventStatsOut, SignupSummaryOut
+from . import access, archive
 from . import image as image_svc
 from .events import now_wallclock
 
@@ -113,21 +128,207 @@ def link_slug(db: Session, event_id: str) -> str:
     return _next_occurrence(db, [event_id], now_wallclock())[event_id][1]
 
 
-def enrich(db: Session, events: list[Event]) -> list[EventOut]:
-    """Build ``EventOut`` DTOs with batched lookups for chapter names,
-    booking headcount, and next-occurrence start. Single-event endpoints
-    wrap a 1-list and unwrap the result."""
+def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
+    """Live chapter id → name, batched. Soft-deleted chapters drop out,
+    so the name is then ``None`` at the call site — the same rule every
+    other list obeys."""
+    if not chapter_ids:
+        return {}
+    rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids), Chapter.deleted_at.is_(None)).all()
+    return {cid: name for cid, name in rows}
+
+
+def _option_lists(db: Session, event_ids: list[str]) -> tuple[dict[str, list[Any]], dict[str, list[Any]]]:
+    """``(source options, help options)`` per event, batched.
+
+    Both lists are rows now, so a Core read of the events table cannot
+    carry them and a write path's entity should not be trusted to have
+    loaded them. Two queries for the page either way."""
+    if not event_ids:
+        return {}, {}
+    out: list[dict[str, list[Any]]] = []
+    for model in (EventSourceOption, EventHelpOption):
+        grouped: dict[str, list[Any]] = {}
+        for row in db.execute(
+            select(*model.__table__.c).where(model.event_id.in_(event_ids)).order_by(model.ordinal)
+        ).all():
+            grouped.setdefault(row.event_id, []).append(row)
+        out.append(grouped)
+    return out[0], out[1]
+
+
+def _derived(db: Session, events: Sequence[Any]) -> tuple[dict[str, str], dict[str, int], dict]:
+    """The three batched lookups both enrichers need: chapter names,
+    booking headcount, and the next occurrence."""
+    event_ids = [e.id for e in events]
+    return (
+        _chapter_names(db, {e.chapter_id for e in events if e.chapter_id}),
+        registration_totals(db, event_ids),
+        _next_occurrence(db, event_ids, now_wallclock()),
+    )
+
+
+# The columns the two projections below read. A GET selects exactly
+# these; a write route hands over the ORM entity it just saved, which
+# answers the same attribute names. So one projection serves both and
+# the response after a PUT cannot drift from the response to a GET.
+LIST_COLUMNS = (
+    Event.id,
+    Event.name_nl,
+    Event.name_en,
+    Event.locale,
+    Event.chapter_id,
+    Event.archived_at,
+    Event.location,
+    Event.latitude,
+    Event.longitude,
+    Event.starts_on,
+    Event.start_time,
+    Event.period_weeks,
+    Event.cycle_slots,
+    Event.span_weeks,
+)
+FULL_COLUMNS = (
+    *LIST_COLUMNS,
+    Event.slug,
+    Event.topic_nl,
+    Event.topic_en,
+    Event.end_time,
+    Event.horizon_days,
+    Event.source_enabled,
+    Event.help_enabled,
+    Event.feedback_enabled,
+    Event.reminder_enabled,
+    Event.listed,
+    Event.name_required,
+    Event.answers_editable,
+    Event.image_path,
+    Event.image_artist_instagram,
+)
+
+
+def list_for_user(db: Session, user: User, chapter_id: str | None) -> list[EventListOut]:
+    """The dashboard list, in one statement.
+
+    Every card needs four things about its event: the row itself, its
+    chapter's name, how many people booked, and which session the share
+    link points at. Asked separately that is four round trips and three
+    dictionaries to stitch them back together in Python; asked together
+    it is one, and the gap widens with the size of the list (measured
+    2.2x at 800 events).
+
+    **Nothing here joins a one-to-many directly.** The headcount is a
+    scalar subquery and each occurrence lookup is a ``LATERAL`` with
+    ``LIMIT 1``, so one event is one row. Joining ``registrations`` and
+    ``occurrences` as plain joins would return a row per combination of
+    the two, which reads as duplicate cards and, worse, an inflated
+    ``SUM``. ``tests/test_query_budget`` asserts the row count matches
+    the event count so a future join cannot reintroduce that quietly.
+    """
+    headcount = (
+        select(func.coalesce(func.sum(Registration.party_size), 0))
+        .where(Registration.event_id == Event.id)
+        .scalar_subquery()
+    )
+    now = now_wallclock()
+    # The soonest session that has not ended: what the card counts down
+    # to, and the slug its share link and QR point at.
+    upcoming = (
+        select(Occurrence.starts_at, Occurrence.slug)
+        .where(Occurrence.event_id == Event.id, Occurrence.ends_at > now)
+        .order_by(Occurrence.starts_at.asc())
+        .limit(1)
+        .lateral("upcoming")
+    )
+    # Every session is past: there is no date to show, but the link still
+    # has to go somewhere, so it goes to the most recent one.
+    latest = (
+        select(Occurrence.slug.label("slug"))
+        .where(Occurrence.event_id == Event.id)
+        .order_by(Occurrence.starts_at.desc())
+        .limit(1)
+        .lateral("latest")
+    )
+    rows = db.execute(
+        select(
+            *LIST_COLUMNS,
+            Chapter.name.label("chapter_name"),
+            headcount.label("attendee_count"),
+            upcoming.c.starts_at.label("next_starts_at"),
+            upcoming.c.slug.label("next_slug"),
+            latest.c.slug.label("latest_slug"),
+        )
+        .select_from(Event)
+        .outerjoin(Chapter, and_(Chapter.id == Event.chapter_id, Chapter.deleted_at.is_(None)))
+        .outerjoin(upcoming, true())
+        .outerjoin(latest, true())
+        .where(access.list_filter(db, user, Event, chapter_id), Event.archived_at.is_(None))
+        .order_by(Event.starts_on.desc())
+    ).all()
+    return [
+        EventListOut(
+            id=r.id,
+            name_nl=r.name_nl,
+            name_en=r.name_en,
+            locale=r.locale,
+            chapter_id=r.chapter_id,
+            chapter_name=r.chapter_name,
+            archived=r.archived_at is not None,
+            location=r.location,
+            latitude=r.latitude,
+            longitude=r.longitude,
+            starts_on=r.starts_on,
+            start_time=r.start_time,
+            period_weeks=r.period_weeks,
+            cycle_slots=r.cycle_slots,
+            span_weeks=r.span_weeks,
+            next_starts_at=r.next_starts_at,
+            next_slug=r.next_slug if r.next_slug is not None else r.latest_slug,
+            attendee_count=int(r.attendee_count or 0),
+        )
+        for r in rows
+    ]
+
+
+def list_enrich(db: Session, events: Sequence[Any]) -> list[EventListOut]:
+    """The list DTO: what a dashboard card draws. Same batched lookups as
+    ``enrich``, minus every field only the event's own page reads."""
     if not events:
         return []
-    event_ids = [e.id for e in events]
-    chapter_ids = sorted({e.chapter_id for e in events if e.chapter_id})
+    names, totals, next_occ = _derived(db, events)
+    return [
+        EventListOut(
+            id=e.id,
+            name_nl=e.name_nl,
+            name_en=e.name_en,
+            locale=e.locale,
+            chapter_id=e.chapter_id,
+            chapter_name=names.get(e.chapter_id) if e.chapter_id else None,
+            archived=e.archived_at is not None,
+            location=e.location,
+            latitude=e.latitude,
+            longitude=e.longitude,
+            starts_on=e.starts_on,
+            start_time=e.start_time,
+            period_weeks=e.period_weeks,
+            cycle_slots=e.cycle_slots,
+            span_weeks=e.span_weeks,
+            next_starts_at=next_occ.get(e.id, (None, None))[0],
+            next_slug=next_occ.get(e.id, (None, None))[1],
+            attendee_count=int(totals.get(e.id, 0)),
+        )
+        for e in events
+    ]
 
-    totals = registration_totals(db, event_ids)
-    next_occ = _next_occurrence(db, event_ids, now_wallclock())
-    chapter_names: dict[str, str] = {}
-    if chapter_ids:
-        rows = db.query(Chapter.id, Chapter.name).filter(Chapter.id.in_(chapter_ids)).all()
-        chapter_names = {cid: name for cid, name in rows}
+
+def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
+    """The full DTO: the list fields plus the sign-up form's own
+    definition. Single-event endpoints wrap a 1-list and unwrap the
+    result."""
+    if not events:
+        return []
+    chapter_names, totals, next_occ = _derived(db, events)
+    sources, helps = _option_lists(db, [e.id for e in events])
 
     return [
         EventOut(
@@ -147,9 +348,9 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
             cycle_slots=e.cycle_slots,
             span_weeks=e.span_weeks,
             horizon_days=e.horizon_days,
-            source_options=e.source_options,
+            source_options=sources.get(e.id, []),
             source_enabled=e.source_enabled,
-            help_options=e.help_options,
+            help_options=helps.get(e.id, []),
             help_enabled=e.help_enabled,
             feedback_enabled=e.feedback_enabled,
             reminder_enabled=e.reminder_enabled,
@@ -170,41 +371,97 @@ def enrich(db: Session, events: list[Event]) -> list[EventOut]:
     ]
 
 
-def to_out(db: Session, event: Event) -> EventOut:
+def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[EventListOut]:
+    """The same list DTO for events that have left the live tables.
+
+    Columns come from the archive twin, the headcount from the archived
+    registrations, and the chapter name from ``chapters``, which is still
+    live. There is no next occurrence for an archived event, and saying
+    ``None`` is more honest than computing one from dates nobody will act
+    on.
+
+    Batched like every other archived list: two queries for the page,
+    not two per row.
+    """
+    if not rows:
+        return []
+    ids = [r["id"] for r in rows]
+    names = _chapter_names(db, {r["chapter_id"] for r in rows if r["chapter_id"]})
+    totals = archive.child_sums(db, "registrations", "event_id", "party_size", ids)
+    return [
+        EventListOut(
+            **{
+                key: r[key]
+                for key in (
+                    "id",
+                    "name_nl",
+                    "name_en",
+                    "locale",
+                    "chapter_id",
+                    "location",
+                    "latitude",
+                    "longitude",
+                    "starts_on",
+                    "start_time",
+                    "period_weeks",
+                    "cycle_slots",
+                    "span_weeks",
+                )
+            },
+            chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
+            next_starts_at=None,
+            next_slug=None,
+            attendee_count=totals.get(r["id"], 0),
+            archived=True,
+        )
+        for r in rows
+    ]
+
+
+def to_out(db: Session, event: Any) -> EventOut:
     """Single-event convenience — wraps ``enrich`` for a 1-list."""
     return enrich(db, [event])[0]
 
 
-def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventStatsOut:
+def _stats_for(db: Session, *, help_options: Sequence[Any], signup_filter) -> EventStatsOut:
     """Source/help breakdowns over the line items matching ``signup_filter``
     (an event's occurrences, or a single occurrence). Both breakdowns count
     people, not line items: a booking of three that ticked "Opbouwen" is
     three helpers, so the columns add up to ``total_attendees``. Aggregated
     only: the ``by_source`` counts never link a source answer to a person."""
     rows = (
-        db.query(Signup.source_choice, func.count(Signup.id), func.coalesce(func.sum(Registration.party_size), 0))
+        db.query(
+            EventSourceOption.label,
+            func.count(Signup.id),
+            func.coalesce(func.sum(Registration.party_size), 0),
+        )
+        .outerjoin(EventSourceOption, EventSourceOption.id == Signup.source_option_id)
         .join(Occurrence, Occurrence.id == Signup.occurrence_id)
         .join(Registration, Registration.id == Signup.registration_id)
         .filter(signup_filter)
-        .group_by(Signup.source_choice)
+        .group_by(EventSourceOption.label)
         .all()
     )
     total_signups = sum(int(c) for _, c, _ in rows)
     total_attendees = sum(int(s or 0) for _, _, s in rows)
     by_source = {src: int(s or 0) for src, _, s in rows if src is not None}
 
-    by_help: dict[str, int] = {opt: 0 for opt in help_options}
+    # Counted by option id and labelled from the event's own rows, so a
+    # renamed option keeps the offers made against it.
+    by_help: dict[str, int] = {o.label: 0 for o in help_options}
     if help_options:
-        choice_lists = (
-            db.query(Signup.help_choices, Registration.party_size)
+        labels = {o.id: o.label for o in help_options}
+        rows_help = (
+            db.query(SignupHelpChoice.help_option_id, func.coalesce(func.sum(Registration.party_size), 0))
+            .join(Signup, Signup.id == SignupHelpChoice.signup_id)
             .join(Occurrence, Occurrence.id == Signup.occurrence_id)
             .join(Registration, Registration.id == Signup.registration_id)
             .filter(signup_filter)
+            .group_by(SignupHelpChoice.help_option_id)
         ).all()
-        for choices, party_size in choice_lists:
-            for choice in choices or []:
-                if choice in by_help:
-                    by_help[choice] += int(party_size or 0)
+        for option_id, people in rows_help:
+            if option_id in labels:
+                by_help[labels[option_id]] = int(people or 0)
 
     return EventStatsOut(
         total_signups=total_signups,
@@ -214,7 +471,7 @@ def _stats_for(db: Session, *, help_options: list[str], signup_filter) -> EventS
     )
 
 
-def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: list[str]) -> EventStatsOut:
+def per_occurrence_stats(db: Session, occurrence: Occurrence, help_options: Sequence[Any]) -> EventStatsOut:
     """The same source/help breakdown scoped to one occurrence — the "stats
     of that day" behind the detail page's calendar day switcher."""
     return _stats_for(db, help_options=help_options, signup_filter=Signup.occurrence_id == occurrence.id)
@@ -231,13 +488,22 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
             Registration.display_name,
             Registration.party_size,
             Registration.link_recovered_at,
-            Signup.help_choices,
         )
         .join(Registration, Registration.id == Signup.registration_id)
         .filter(Signup.occurrence_id == occurrence.id)
         .order_by(Signup.created_at.asc())
         .all()
     )
+    # What each of them offered, as the labels the page prints.
+    offered: dict[str, list[str]] = {}
+    for signup_id, label in db.execute(
+        select(SignupHelpChoice.signup_id, EventHelpOption.label)
+        .join(EventHelpOption, EventHelpOption.id == SignupHelpChoice.help_option_id)
+        .join(Signup, Signup.id == SignupHelpChoice.signup_id)
+        .where(Signup.occurrence_id == occurrence.id)
+        .order_by(EventHelpOption.ordinal)
+    ).all():
+        offered.setdefault(signup_id, []).append(label)
     return [
         SignupSummaryOut(
             id=sid,
@@ -245,7 +511,7 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
             display_name=name,
             party_size=size,
             link_recovered_at=recovered,
-            help_choices=help_choices or [],
+            help_choices=offered.get(sid, []),
         )
-        for sid, rid, name, size, recovered, help_choices in rows
+        for sid, rid, name, size, recovered in rows
     ]

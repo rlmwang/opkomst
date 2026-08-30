@@ -37,14 +37,19 @@ share the rest:
   it takes their dot off the map, so it is no loophole either way.
 """
 
+from collections.abc import Callable
+from typing import cast
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Form, FormQuestion, FormResponse, FormSubmission
+from ..models import Form, FormQuestion, FormResponse, FormResponseChoice, FormSubmission
 from ..schemas.forms import (
     CompassAnswerResult,
     CompassResultOut,
@@ -85,6 +90,13 @@ def _named(name: str):
         return func
 
     return wrap
+
+
+# How to build the submission behind an edit-link token, per product.
+# Populated by ``build_router``; read by ``routers/spa.py``, which
+# inlines the result into the HTML for a ``?s=`` link so the page paints
+# without a round-trip for something the server already had.
+SUBMISSION_FOR_TOKEN: dict[str, Callable[[Session, str], BaseModel]] = {}
 
 
 def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, public_prefix: str) -> APIRouter:
@@ -170,7 +182,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     continue
                 if len(choices) != 1:
                     raise HTTPException(status_code=400, detail=f"Question {q.id} expects one choice.")
-                if choices[0] not in q.options:
+                if choices[0] not in {o.id for o in q.options}:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choice not in options.")
                 submitted[q.id] = {"answer_choices": list(choices)}
             elif q.kind == "multi_choice":
@@ -185,7 +197,8 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     if is_quiz:
                         submitted[q.id] = {"answer_choices": []}
                     continue
-                invalid = [c for c in choices if c not in q.options]
+                option_ids = {o.id for o in q.options}
+                invalid = [c for c in choices if c not in option_ids]
                 if invalid:
                     raise HTTPException(status_code=400, detail=f"Question {q.id}: choices not in options: {invalid}")
                 # Drop duplicates while preserving order — multi-choice is a set.
@@ -207,26 +220,36 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         submitted: dict[str, dict[str, object]],
     ) -> None:
         for qid, fields in submitted.items():
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=qid,
-                    submission_id=submission_id,
-                    answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
-                    answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
-                    answer_choices=fields.get("answer_choices"),  # type: ignore[arg-type]
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=qid,
+                submission_id=submission_id,
+                answer_int=fields.get("answer_int"),  # type: ignore[arg-type]
+                answer_text=fields.get("answer_text"),  # type: ignore[arg-type]
             )
+            db.add(response)
+            db.flush()
+            # One row per tick, pointing at the option itself. The
+            # answer survives the organiser renaming that option.
+            for option_id in cast(list[str], fields.get("answer_choices") or []):
+                db.add(FormResponseChoice(response_id=response.id, option_id=option_id))
 
     def _answers_for(db: Session, submission_id: str) -> dict[str, object]:
         out: dict[str, object] = {}
+        picked: dict[str, list[str]] = {}
+        for question_id, option_id in db.execute(
+            select(FormResponse.question_id, FormResponseChoice.option_id)
+            .join(FormResponseChoice, FormResponseChoice.response_id == FormResponse.id)
+            .where(FormResponse.submission_id == submission_id)
+        ).all():
+            picked.setdefault(question_id, []).append(option_id)
         for r in db.query(FormResponse).filter(FormResponse.submission_id == submission_id).all():
             if r.answer_int is not None:
                 out[r.question_id] = r.answer_int
             elif r.answer_text is not None:
                 out[r.question_id] = r.answer_text
-            elif r.answer_choices is not None:
-                out[r.question_id] = list(r.answer_choices)
+            elif r.question_id in picked:
+                out[r.question_id] = picked[r.question_id]
         return out
 
     def _submission_by_token(db: Session, token: str) -> FormSubmission:
@@ -246,19 +269,21 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
 
         Marked hererather than read from a stored number: the answers
         are what is kept, and an organiser who fixes a key or changes a
-        weight means every score to follow (``services/quizzes``). The
+        weight means every score to follow (``services/quiz``). The
         rows are the answers this person actually gave, so the list and
         the score cannot disagree about what was in the quiz."""
         questions = {q.id: q for q in _form_questions(db, form.id)}
         rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
+        # Marked by the database, against the same rules the organiser's
+        # page reads, so a score here and a score there cannot differ.
+        awarded = quizzes.earned_points(db, form.id, submission.id)
         answers = []
         score = 0
         for row in rows:
             q = questions.get(row.question_id)
             if q is None or q.points <= 0:
                 continue
-            fields = quizzes.as_fields(row)
-            earned = quizzes.grade(q, fields)
+            earned = awarded.get(row.question_id, 0)
             score += earned
             answers.append(
                 QuizAnswerResult(
@@ -274,7 +299,11 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                     # has it off.
                     correct_int=q.correct_int if form.reveal_answers else None,
                     correct_text=q.correct_text if form.reveal_answers else None,
-                    correct_choices=q.correct_choices if form.reveal_answers else None,
+                    # The key as labels: this is what the page prints,
+                    # and it is only sent once the answer is in.
+                    correct_choices=(
+                        [o.label for o in q.options if o.is_correct] if form.reveal_answers and q.options else None
+                    ),
                 )
             )
         answers.sort(key=lambda a: questions[a.question_id].ordinal)
@@ -299,19 +328,23 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         questions = _form_questions(db, form.id)
         by_id = {q.id: q for q in questions}
         rows = db.query(FormResponse).filter(FormResponse.submission_id == submission.id).all()
-        place = compass.position_of(questions, rows)
+        # Both the dot and the per-answer directions under it are worked
+        # out by the database, from the same rules the map is drawn
+        # from: nothing here re-derives a coordinate.
+        place = compass.positions(db, form.id, submission.id).get(submission.id, compass.Position(0.0, 0.0, 0, 0))
+        moved = compass.contributions(db, form.id, submission.id)
         answers: list[CompassAnswerResult] = []
         for row in rows:
             q = by_id.get(row.question_id)
             if q is None:
                 continue
-            found = compass.contribution(q, compass.as_fields(row))
+            found = moved.get(row.question_id)
             answers.append(
                 CompassAnswerResult(
                     question_id=q.id,
                     kind=q.kind,
                     pole=q.pole,
-                    option_poles=list(q.option_poles) if q.option_poles else None,
+                    option_poles=[o.pole or "" for o in q.options] if any(o.pole for o in q.options) else None,
                     given_int=row.answer_int,
                     given_choices=list(row.answer_choices) if row.answer_choices else None,
                     axis=found[0] if found else None,
@@ -319,6 +352,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
                 )
             )
         answers.sort(key=lambda a: by_id[a.question_id].ordinal)
+        places = forms_svc.compass_places(db, form, questions)
         return CompassResultOut(
             submission_id=submission.id,
             edit_token=token,
@@ -330,7 +364,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             counted_y=place.counted_y,
             axes=forms_svc.compass_axis_summaries(db, form),
             answers=answers,
-            points=forms_svc.compass_points(db, form, you=submission.id),
+            points=forms_svc.compass_points(db, form, places, you=submission.id),
         )
 
     @router.post(
@@ -374,6 +408,24 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             return _compass_result(db, form, submission, raw_token)
         return FormSubmitAck(submission_id=submission.id, edit_token=raw_token)
 
+    def _submission_out(db: Session, token: str) -> BaseModel:
+        """What the page behind an edit-link token shows: a quiz's
+        result, a kompas's map, or a questionnaire's current answers.
+        One function so the ``by-token`` route and the inlined copy in
+        the HTML shell can never render different things."""
+        sub = _submission_by_token(db, token)
+        if is_quiz or is_compass:
+            form = db.get(Form, sub.form_id)
+            assert form is not None  # the token resolver already validated it
+            return _result(db, form, sub, token) if is_quiz else _compass_result(db, form, sub, token)
+        return FormEditOut(
+            display_name=sub.display_name,
+            answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
+            link_recovered_at=sub.link_recovered_at,
+        )
+
+    SUBMISSION_FOR_TOKEN[mode] = _submission_out
+
     if is_quiz:
 
         @router.get("/by-token/{token}", response_model=QuizResultOut)
@@ -382,10 +434,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             an answer after seeing the score is a second attempt, not a
             correction (``docs/design-quizzes.md`` part 3.4). There is
             no PUT on this path for a quiz."""
-            sub = _submission_by_token(db, token)
-            form = db.get(Form, sub.form_id)
-            assert form is not None  # the token resolver already validated it
-            return _result(db, form, sub, token)
+            return cast(QuizResultOut, _submission_out(db, token))
 
     elif is_compass:
 
@@ -395,10 +444,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
             stands. The per-answer rows carry what was given, so this
             one shape both renders the result and refills the walk
             behind the "change your answers" button."""
-            sub = _submission_by_token(db, token)
-            form = db.get(Form, sub.form_id)
-            assert form is not None  # the token resolver already validated it
-            return _compass_result(db, form, sub, token)
+            return cast(CompassResultOut, _submission_out(db, token))
 
         @router.put("/by-token/{token}", response_model=CompassResultOut)
         @limiter.limit(Limits.PUBLIC_SUBMIT)
@@ -433,12 +479,7 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
         def get_form_submission(token: str, db: Session = Depends(get_db)) -> FormEditOut:
             """Current values of a submission, for pre-filling the edit
             form. Gated by the secret token (the link)."""
-            sub = _submission_by_token(db, token)
-            return FormEditOut(
-                display_name=sub.display_name,
-                answers=_answers_for(db, sub.id),  # type: ignore[arg-type]
-                link_recovered_at=sub.link_recovered_at,
-            )
+            return cast(FormEditOut, _submission_out(db, token))
 
         @router.put("/by-token/{token}", response_model=FormEditOut)
         @limiter.limit(Limits.PUBLIC_SUBMIT)
@@ -486,14 +527,14 @@ def build_router(mode: str, *, prefix: str, tag: str, surface: str, noun: str, p
 
 
 router = build_router(
-    "survey", prefix="/api/v1/forms", tag="forms", surface="public_form", noun="form", public_prefix="f"
+    "survey", prefix="/api/v1/form", tag="forms", surface="public_form", noun="form", public_prefix="f"
 )
 quiz_router = build_router(
-    "quiz", prefix="/api/v1/quizzes", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
+    "quiz", prefix="/api/v1/quiz", tag="quizzes", surface="public_quiz", noun="quiz", public_prefix="q"
 )
 compass_router = build_router(
     "compass",
-    prefix="/api/v1/compasses",
+    prefix="/api/v1/compass",
     tag="compasses",
     surface="public_compass",
     noun="compass",

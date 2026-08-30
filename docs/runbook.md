@@ -59,7 +59,7 @@ guarantee.
 - Sentry UI → project → Alerts → Create Alert → "An issue is
   first seen this week" → action: send email to you.
 - Test by hitting an endpoint that throws (fastest:
-  `curl https://opkomst.nu/api/v1/events/by-slug/<garbage>`
+  `curl https://opkomst.nu/api/v1/event/by-slug/<garbage>`
   returns 404, not 500, instead force one with `gh issue` or
   a temporary throw in a sandbox deploy).
 
@@ -174,10 +174,10 @@ push to ``main``, so the question is whether it saw the push:
 * **Is the image the problem?** CI's ``image`` job builds the same
   Dockerfile and boots it. If that job is green and Coolify's build
   is red, the difference is the environment, env vars, the build
-  cache, or the VPS running out of memory. If ``vue-tsc`` appears in
-  the log, something has reintroduced type-checking into the image
-  build: that is the OOM killer on a 1.9 GB box, and the Dockerfile
-  uses ``build-only`` precisely to avoid it.
+  cache, or the VPS running out of memory. If ``svelte-check``
+  appears in the log, something has reintroduced type-checking into
+  the image build: that is the OOM killer on a 1.9 GB box, and the
+  Dockerfile uses ``build-only`` precisely to avoid it.
 
 ## "The email queue is stuck"
 

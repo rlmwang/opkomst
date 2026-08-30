@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests._helpers.events import public_option_ids
+
 
 def _chapter_id(client: Any, headers: Any) -> str:
     return client.get("/api/v1/auth/me", headers=headers).json()["chapters"][0]["id"]
@@ -25,7 +27,7 @@ def _create_form(client: Any, headers: Any) -> dict[str, Any]:
         "locale": "nl",
         "questions": [{"kind": "rating", "prompt": "Score", "required": True}],
     }
-    r = client.post("/api/v1/forms", headers=headers, json=body)
+    r = client.post("/api/v1/form", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -34,42 +36,42 @@ def test_form_edit_roundtrip(client, organiser_headers):
     form = _create_form(client, organiser_headers)
     qid = form["questions"][0]["id"]
     ack = client.post(
-        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 3}]},
     ).json()
     token = ack["edit_token"]
 
-    pre = client.get(f"/api/v1/forms/by-token/{token}").json()
+    pre = client.get(f"/api/v1/form/by-token/{token}").json()
     assert pre["display_name"] == "Sam"
     assert pre["answers"][qid] == 3
 
     r = client.put(
-        f"/api/v1/forms/by-token/{token}",
+        f"/api/v1/form/by-token/{token}",
         json={"display_name": "Sue", "answers": [{"question_id": qid, "answer_int": 5}]},
     )
     assert r.status_code == 200
     assert r.json()["answers"][qid] == 5
 
     # Edit, not a new submission.
-    summary = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/form/{form['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 1
-    after = client.get(f"/api/v1/forms/by-token/{token}").json()
+    after = client.get(f"/api/v1/form/by-token/{token}").json()
     assert after["display_name"] == "Sue"
     assert after["answers"][qid] == 5
 
 
 def test_form_bad_token_404(client):
-    assert client.get("/api/v1/forms/by-token/nope").status_code == 404
+    assert client.get("/api/v1/form/by-token/nope").status_code == 404
 
 
 def test_form_submissions_dto_has_no_token(client, organiser_headers):
     form = _create_form(client, organiser_headers)
     qid = form["questions"][0]["id"]
     client.post(
-        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"answers": [{"question_id": qid, "answer_int": 4}]},
     )
-    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
     assert subs and "edit_token" not in subs[0] and "edit_token_hash" not in subs[0]
 
 
@@ -86,7 +88,7 @@ def _create_poll(client: Any, headers: Any) -> dict[str, Any]:
             {"on_date": "2027-09-02", "start_time": "19:00", "end_time": "21:00"},
         ],
     }
-    r = client.post("/api/v1/datepolls", headers=headers, json=body)
+    r = client.post("/api/v1/datepoll", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -95,16 +97,16 @@ def test_datepoll_edit_roundtrip(client, organiser_headers):
     poll = _create_poll(client, organiser_headers)
     d0, d1 = poll["slots"][0]["id"], poll["slots"][1]["id"]
     token = client.post(
-        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        f"/api/v1/datepoll/by-slug/{poll['slug']}/submit",
         json={"display_name": "Sam", "note": "first", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
     ).json()["edit_token"]
 
-    pre = client.get(f"/api/v1/datepolls/by-token/{token}").json()
+    pre = client.get(f"/api/v1/datepoll/by-token/{token}").json()
     assert pre["answers"][d0] == "yes"
     assert pre["note"] == "first"
 
     r = client.put(
-        f"/api/v1/datepolls/by-token/{token}",
+        f"/api/v1/datepoll/by-token/{token}",
         json={
             "display_name": "Sam",
             "note": "changed my mind",
@@ -120,12 +122,12 @@ def test_datepoll_edit_roundtrip(client, organiser_headers):
     assert body["answers"][d1] == "maybe"
     assert body["note"] == "changed my mind"
 
-    summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 1
 
 
 def test_datepoll_bad_token_404(client):
-    assert client.get("/api/v1/datepolls/by-token/nope").status_code == 404
+    assert client.get("/api/v1/datepoll/by-token/nope").status_code == 404
 
 
 # --- events ----------------------------------------------------------
@@ -140,15 +142,15 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
         "starts_on": "2027-05-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
-        "help_options": ["opbouwen"],
+        "source_options": [{"label": "Flyer"}],
+        "help_options": [{"label": "opbouwen"}],
         "help_enabled": True,
         "feedback_enabled": True,
         "reminder_enabled": False,
         "locale": "nl",
         **overrides,
     }
-    r = client.post("/api/v1/events", headers=headers, json=payload)
+    r = client.post("/api/v1/event", headers=headers, json=payload)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -156,12 +158,12 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
 def _first_occurrence(client: Any, headers: Any, event: dict[str, Any]) -> dict[str, Any]:
     """The event's first materialised occurrence — its public slug is the
     per-occurrence sign-up target, its id the withdraw/target key."""
-    return client.get(f"/api/v1/events/{event['id']}/occurrences", headers=headers).json()["occurrences"][0]
+    return client.get(f"/api/v1/event/{event['id']}/occurrences", headers=headers).json()["occurrences"][0]
 
 
 def _occurrence_signups(client: Any, headers: Any, event: dict[str, Any]) -> list[dict[str, Any]]:
     occ = _first_occurrence(client, headers, event)
-    return client.get(f"/api/v1/events/{event['id']}/occurrences/{occ['id']}/signups", headers=headers).json()
+    return client.get(f"/api/v1/event/{event['id']}/occurrences/{occ['id']}/signups", headers=headers).json()
 
 
 def _dispatch_count(event_id: str) -> int:
@@ -179,17 +181,19 @@ def _dispatch_count(event_id: str) -> int:
 def test_event_edit_roundtrip(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
+    picked = public_option_ids(client, occ["slug"], help_labels=("opbouwen",))
     token = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
-        json={"display_name": "Sam", "party_size": 2, "help_choices": ["opbouwen"], "all_upcoming": True},
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 2, **picked, "all_upcoming": True},
     ).json()["edit_token"]
 
-    pre = client.get(f"/api/v1/events/by-token/{token}").json()
-    assert pre["party_size"] == 2 and pre["occurrences"][0]["help_choices"] == ["opbouwen"]
+    pre = client.get(f"/api/v1/event/by-token/{token}").json()
+    assert pre["party_size"] == 2
+    assert pre["occurrences"][0]["help_choices"] == picked["help_choices"]
     assert "email" not in pre  # email never reachable from a signup
 
     r = client.put(
-        f"/api/v1/events/by-token/{token}",
+        f"/api/v1/event/by-token/{token}",
         json={"display_name": "Sam", "party_size": 5},
     )
     assert r.status_code == 200
@@ -200,7 +204,7 @@ def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers)
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -208,7 +212,7 @@ def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers)
     assert before >= 1  # feedback dispatch created
 
     client.put(
-        f"/api/v1/events/by-token/{token}",
+        f"/api/v1/event/by-token/{token}",
         json={"display_name": "Sam edited", "party_size": 3},
     )
     after = _dispatch_count(event["id"])
@@ -216,7 +220,7 @@ def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers)
 
 
 def test_event_bad_token_404(client):
-    assert client.get("/api/v1/events/by-token/nope").status_code == 404
+    assert client.get("/api/v1/event/by-token/nope").status_code == 404
 
 
 # --- withdraw (participant deletes their own submission) --------------
@@ -226,14 +230,14 @@ def test_form_withdraw(client, organiser_headers):
     form = _create_form(client, organiser_headers)
     qid = form["questions"][0]["id"]
     token = client.post(
-        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 3}]},
     ).json()["edit_token"]
 
-    assert client.post(f"/api/v1/forms/by-token/{token}/withdraw").status_code == 204
+    assert client.post(f"/api/v1/form/by-token/{token}/withdraw").status_code == 204
     # Submission + its responses are gone; the token no longer resolves.
-    assert client.get(f"/api/v1/forms/by-token/{token}").status_code == 404
-    summary = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()
+    assert client.get(f"/api/v1/form/by-token/{token}").status_code == 404
+    summary = client.get(f"/api/v1/form/{form['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 0
 
 
@@ -241,13 +245,13 @@ def test_datepoll_withdraw(client, organiser_headers):
     poll = _create_poll(client, organiser_headers)
     d0 = poll["slots"][0]["id"]
     token = client.post(
-        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        f"/api/v1/datepoll/by-slug/{poll['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
     ).json()["edit_token"]
 
-    assert client.post(f"/api/v1/datepolls/by-token/{token}/withdraw").status_code == 204
-    assert client.get(f"/api/v1/datepolls/by-token/{token}").status_code == 404
-    summary = client.get(f"/api/v1/datepolls/{poll['id']}/summary", headers=organiser_headers).json()
+    assert client.post(f"/api/v1/datepoll/by-token/{token}/withdraw").status_code == 204
+    assert client.get(f"/api/v1/datepoll/by-token/{token}").status_code == 404
+    summary = client.get(f"/api/v1/datepoll/{poll['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 0
 
 
@@ -288,14 +292,14 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
     finally:
         db.close()
     now = now_wallclock()
-    occs = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
+    occs = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"]
     past = [o for o in occs if datetime.fromisoformat(o["starts_at"]) <= now]
     future = [o for o in occs if datetime.fromisoformat(o["starts_at"]) > now]
     assert len(past) >= 2 and len(future) >= 3
 
     # Public sign-up for the first future session; grab the raw edit token.
     token = client.post(
-        f"/api/v1/events/by-slug/{future[0]['slug']}/signups",
+        f"/api/v1/event/by-slug/{future[0]['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "occurrence_ids": [future[0]["id"]]},
     ).json()["edit_token"]
 
@@ -304,20 +308,20 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
     db = SessionLocal()
     try:
         reg = db.query(Registration).filter(Registration.event_id == event["id"]).one()
-        db.add(Signup(registration_id=reg.id, occurrence_id=past[-1]["id"], source_choice=None, help_choices=[]))
+        db.add(Signup(registration_id=reg.id, occurrence_id=past[-1]["id"]))
         db.commit()
     finally:
         db.close()
 
     # GET flags past vs future correctly.
-    booking = client.get(f"/api/v1/events/by-token/{token}").json()
+    booking = client.get(f"/api/v1/event/by-token/{token}").json()
     by_id = {o["occurrence_id"]: o for o in booking["occurrences"]}
     assert by_id[past[-1]["id"]]["is_past"] is True
     assert by_id[future[0]["id"]]["is_past"] is False
 
     # Manage: add a second future session (future[1]) to the selection.
     r = client.put(
-        f"/api/v1/events/by-token/{token}/occurrences",
+        f"/api/v1/event/by-token/{token}/occurrences",
         json={"occurrence_ids": [future[0]["id"], future[1]["id"]], "all_upcoming": False},
     )
     assert r.status_code == 200, r.text
@@ -327,39 +331,39 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
 
     # Deselect every future session: only the frozen past one remains.
     r = client.put(
-        f"/api/v1/events/by-token/{token}/occurrences",
+        f"/api/v1/event/by-token/{token}/occurrences",
         json={"occurrence_ids": [], "all_upcoming": False},
     )
     assert {o["occurrence_id"] for o in r.json()["occurrences"]} == {past[-1]["id"]}
 
     # A past session can't be withdrawn after it happened.
-    assert client.post(f"/api/v1/events/by-token/{token}/occurrences/{past[-1]['id']}/withdraw").status_code == 409
+    assert client.post(f"/api/v1/event/by-token/{token}/occurrences/{past[-1]['id']}/withdraw").status_code == 409
 
 
 def test_event_withdraw_deletes_signup(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
 
-    assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
-    assert client.get(f"/api/v1/events/by-token/{token}").status_code == 404
+    assert client.post(f"/api/v1/event/by-token/{token}/withdraw").status_code == 204
+    assert client.get(f"/api/v1/event/by-token/{token}").status_code == 404
 
 
 def test_event_withdraw_leaves_email_dispatches_intact(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
     before = _dispatch_count(event["id"])
     assert before >= 1  # feedback dispatch created at signup
 
-    assert client.post(f"/api/v1/events/by-token/{token}/withdraw").status_code == 204
+    assert client.post(f"/api/v1/event/by-token/{token}/withdraw").status_code == 204
 
     # Withdrawing the signup leaves the decoupled dispatch rows alone, by
     # design (no signup_id link) — the person may still get the email.
@@ -368,9 +372,9 @@ def test_event_withdraw_leaves_email_dispatches_intact(client, organiser_headers
 
 
 def test_withdraw_bad_token_404(client):
-    assert client.post("/api/v1/forms/by-token/nope/withdraw").status_code == 404
-    assert client.post("/api/v1/datepolls/by-token/nope/withdraw").status_code == 404
-    assert client.post("/api/v1/events/by-token/nope/withdraw").status_code == 404
+    assert client.post("/api/v1/form/by-token/nope/withdraw").status_code == 404
+    assert client.post("/api/v1/datepoll/by-token/nope/withdraw").status_code == 404
+    assert client.post("/api/v1/event/by-token/nope/withdraw").status_code == 404
 
 
 # --- organiser recovery (shared across all four entities) -------------
@@ -391,16 +395,16 @@ def test_event_recovery_rotates_and_stamps(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     old = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
     rows = _occurrence_signups(client, organiser_headers, event)
     assert rows[0]["link_recovered_at"] is None
     rid = rows[0]["registration_id"]
-    fresh = _recover(client, organiser_headers, f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link")
+    fresh = _recover(client, organiser_headers, f"/api/v1/event/{event['id']}/registrations/{rid}/edit-link")
 
-    assert client.get(f"/api/v1/events/by-token/{old}").status_code == 404  # old link dead
-    page = client.get(f"/api/v1/events/by-token/{fresh}")
+    assert client.get(f"/api/v1/event/by-token/{old}").status_code == 404  # old link dead
+    page = client.get(f"/api/v1/event/by-token/{fresh}")
     assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
     rows = _occurrence_signups(client, organiser_headers, event)
     assert rows[0]["link_recovered_at"] is not None
@@ -410,24 +414,24 @@ def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organ
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
     rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]
-    path = f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link"
+    path = f"/api/v1/event/{event['id']}/registrations/{rid}/edit-link"
     token = _recover(client, organiser_headers, path)
-    first = client.get(f"/api/v1/events/by-token/{token}").json()["link_recovered_at"]
+    first = client.get(f"/api/v1/event/by-token/{token}").json()["link_recovered_at"]
 
     # The participant editing their signup never clears the stamp.
     r = client.put(
-        f"/api/v1/events/by-token/{token}",
+        f"/api/v1/event/by-token/{token}",
         json={"display_name": "Sam", "party_size": 3},
     )
     assert r.status_code == 200 and r.json()["link_recovered_at"] == first
 
     # A second recovery moves the stamp forward (banner shows the latest).
     token2 = _recover(client, organiser_headers, path)
-    second = client.get(f"/api/v1/events/by-token/{token2}").json()["link_recovered_at"]
+    second = client.get(f"/api/v1/event/by-token/{token2}").json()["link_recovered_at"]
     assert second >= first
 
 
@@ -435,12 +439,12 @@ def test_event_recovery_requires_auth_and_scope(client, organiser_headers):
     event = _create_event(client, organiser_headers)
     occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
     rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]
-    assert client.post(f"/api/v1/events/{event['id']}/registrations/{rid}/edit-link").status_code == 401
-    r = client.post(f"/api/v1/events/{event['id']}/registrations/does-not-exist/edit-link", headers=organiser_headers)
+    assert client.post(f"/api/v1/event/{event['id']}/registrations/{rid}/edit-link").status_code == 401
+    r = client.post(f"/api/v1/event/{event['id']}/registrations/does-not-exist/edit-link", headers=organiser_headers)
     assert r.status_code == 404
 
 
@@ -448,19 +452,19 @@ def test_form_recovery_rotates_and_stamps(client, organiser_headers):
     form = _create_form(client, organiser_headers)
     qid = form["questions"][0]["id"]
     old = client.post(
-        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 3}]},
     ).json()["edit_token"]
-    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
     assert subs[0]["link_recovered_at"] is None
     fresh = _recover(
-        client, organiser_headers, f"/api/v1/forms/{form['id']}/submissions/{subs[0]['submission_id']}/edit-link"
+        client, organiser_headers, f"/api/v1/form/{form['id']}/submissions/{subs[0]['submission_id']}/edit-link"
     )
 
-    assert client.get(f"/api/v1/forms/by-token/{old}").status_code == 404
-    page = client.get(f"/api/v1/forms/by-token/{fresh}")
+    assert client.get(f"/api/v1/form/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/form/by-token/{fresh}")
     assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
-    subs = client.get(f"/api/v1/forms/{form['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/form/{form['id']}/submissions", headers=organiser_headers).json()
     assert subs[0]["link_recovered_at"] is not None
 
 
@@ -468,17 +472,17 @@ def test_datepoll_recovery_rotates_and_stamps(client, organiser_headers):
     poll = _create_poll(client, organiser_headers)
     d0 = poll["slots"][0]["id"]
     old = client.post(
-        f"/api/v1/datepolls/by-slug/{poll['slug']}/submit",
+        f"/api/v1/datepoll/by-slug/{poll['slug']}/submit",
         json={"display_name": "Sam", "answers": [{"datepoll_slot_id": d0, "availability": "yes"}]},
     ).json()["edit_token"]
-    subs = client.get(f"/api/v1/datepolls/{poll['id']}/submissions", headers=organiser_headers).json()
+    subs = client.get(f"/api/v1/datepoll/{poll['id']}/submissions", headers=organiser_headers).json()
     assert subs[0]["link_recovered_at"] is None
     fresh = _recover(
-        client, organiser_headers, f"/api/v1/datepolls/{poll['id']}/submissions/{subs[0]['submission_id']}/edit-link"
+        client, organiser_headers, f"/api/v1/datepoll/{poll['id']}/submissions/{subs[0]['submission_id']}/edit-link"
     )
 
-    assert client.get(f"/api/v1/datepolls/by-token/{old}").status_code == 404
-    page = client.get(f"/api/v1/datepolls/by-token/{fresh}")
+    assert client.get(f"/api/v1/datepoll/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/datepoll/by-token/{fresh}")
     assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
 
 
@@ -489,17 +493,17 @@ def test_chore_recovery_rotates_and_stamps(client, organiser_headers):
         "starts_on": "2027-01-04",
         "chores": [{"name": "Bins", "cycle_slots": [2]}],
     }
-    roster = client.post("/api/v1/chores", headers=organiser_headers, json=body).json()
+    roster = client.post("/api/v1/chore", headers=organiser_headers, json=body).json()
     old = client.post(
-        f"/api/v1/chores/by-slug/{roster['slug']}/enroll",
+        f"/api/v1/chore/by-slug/{roster['slug']}/enroll",
         json={"display_name": "Sam", "chore_ids": [roster["chores"][0]["id"]]},
     ).json()["edit_token"]
-    vols = client.get(f"/api/v1/chores/{roster['id']}/volunteers", headers=organiser_headers).json()
+    vols = client.get(f"/api/v1/chore/{roster['id']}/volunteers", headers=organiser_headers).json()
     assert vols[0]["link_recovered_at"] is None
-    fresh = _recover(client, organiser_headers, f"/api/v1/chores/{roster['id']}/volunteers/{vols[0]['id']}/edit-link")
+    fresh = _recover(client, organiser_headers, f"/api/v1/chore/{roster['id']}/volunteers/{vols[0]['id']}/edit-link")
 
-    assert client.get(f"/api/v1/chores/by-token/{old}").status_code == 404
-    page = client.get(f"/api/v1/chores/by-token/{fresh}")
+    assert client.get(f"/api/v1/chore/by-token/{old}").status_code == 404
+    page = client.get(f"/api/v1/chore/by-token/{fresh}")
     assert page.status_code == 200 and page.json()["link_recovered_at"] is not None
-    vols = client.get(f"/api/v1/chores/{roster['id']}/volunteers", headers=organiser_headers).json()
+    vols = client.get(f"/api/v1/chore/{roster['id']}/volunteers", headers=organiser_headers).json()
     assert vols[0]["link_recovered_at"] is not None

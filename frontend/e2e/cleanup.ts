@@ -39,7 +39,7 @@ test("clean up throwaway e2e entities", async ({ request }) => {
   });
   const { token } = await login.json();
   const headers = { Authorization: `Bearer ${token}` };
-  for (const path of ["/api/v1/events", "/api/v1/forms", "/api/v1/datepolls", "/api/v1/chores"]) {
+  for (const path of ["/api/v1/event", "/api/v1/form", "/api/v1/datepoll", "/api/v1/chore"]) {
     await purge(request, path, headers);
   }
 });

@@ -11,9 +11,14 @@ EmailDispatch wipe rule — a separate table/contract).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from backend.models import Enrollment, Volunteer
+from sqlalchemy import select, update
+
+from backend.models import ArchiveIndex, Enrollment, Volunteer
+from backend.models.archive import archive_metadata
+from backend.services import mail_lifecycle
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -22,7 +27,7 @@ def _chapter_id(client: Any, headers: Any) -> str:
 
 def _roster(client: Any, headers: Any) -> dict[str, Any]:
     r = client.post(
-        "/api/v1/chores",
+        "/api/v1/chore",
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
@@ -45,7 +50,7 @@ def _volunteer(db: Any, roster_id: str) -> Volunteer | None:
 
 
 def _enroll(client: Any, slug: str, **body: Any) -> str:
-    r = client.post(f"/api/v1/chores/by-slug/{slug}/enroll", json=body)
+    r = client.post(f"/api/v1/chore/by-slug/{slug}/enroll", json=body)
     assert r.status_code == 200, r.text
     return r.json()["edit_token"]
 
@@ -79,7 +84,7 @@ def test_mute_wipes_ciphertext_but_keeps_enrolment(client, organiser_headers, db
     )
     # Mute: reminders off, keep the chore pick.
     r = client.put(
-        f"/api/v1/chores/by-token/{token}",
+        f"/api/v1/chore/by-token/{token}",
         json={"display_name": "Ada", "chore_ids": [cid], "email_reminders": False},
     )
     assert r.status_code == 200, r.text
@@ -98,5 +103,31 @@ def test_leave_removes_the_row(client, organiser_headers, db):
     token = _enroll(
         client, roster["slug"], display_name="Ada", email="ada@local.dev", email_reminders=True, chore_ids=[cid]
     )
-    assert client.post(f"/api/v1/chores/by-token/{token}/leave").status_code == 204
+    assert client.post(f"/api/v1/chore/by-token/{token}/leave").status_code == 204
     assert _volunteer(db, roster["id"]) is None
+
+
+def test_archived_roster_loses_its_volunteer_addresses_after_the_grace(client, organiser_headers, db):
+    """The last backstop. Archiving is a move, so the volunteers are in
+    the twin and when the roster was archived is on the index row; the
+    daily reaper wipes the retained addresses once the grace window has
+    passed and a restore is no longer a normal thing to do."""
+    roster = _roster(client, organiser_headers)
+    cid = roster["chores"][0]["id"]
+    _enroll(client, roster["slug"], display_name="Ada", email="ada@local.dev", email_reminders=True, chore_ids=[cid])
+    assert _volunteer(db, roster["id"]).encrypted_email is not None
+
+    assert client.post(f"/api/v1/chore/{roster['id']}/archive", headers=organiser_headers).status_code == 200
+    db.execute(
+        update(ArchiveIndex)
+        .where(ArchiveIndex.entity_id == roster["id"])
+        .values(archived_at=datetime.now(UTC) - mail_lifecycle.CHORE_ARCHIVE_PURGE_DELAY - timedelta(days=1))
+    )
+    db.commit()
+
+    mail_lifecycle.reap_expired()
+
+    twin = archive_metadata.tables["volunteers_archive"]
+    row = db.execute(select(twin.c.encrypted_email, twin.c.email_reminders)).one()
+    assert row.encrypted_email is None
+    assert row.email_reminders is False

@@ -19,10 +19,11 @@ The router catches the two and maps to 404 / 409 respectively;
 no service helper returns ``None`` to signal "not found".
 """
 
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Chapter, Event
@@ -65,18 +66,25 @@ def _live(db: Session):  # noqa: ANN201
     return _tenant_scoped(db).filter(Chapter.deleted_at.is_(None))
 
 
-def all_active(db: Session) -> list[Chapter]:
-    return _live(db).order_by(Chapter.name).all()
+def _live_select(db: Session):  # noqa: ANN202
+    """Core counterpart of ``_live``, for the two read-only listers.
+    Same tenant + soft-delete rule, selecting the row instead of
+    hydrating it: nothing that lists chapters writes one."""
+    return select(*Chapter.__table__.c).where(Chapter.tenant_id == tenancy.current(), Chapter.deleted_at.is_(None))
 
 
-def latest_versions(db: Session, *, include_archived: bool) -> list[Chapter]:
+def all_active(db: Session) -> Sequence[Any]:
+    return db.execute(_live_select(db).order_by(Chapter.name)).all()
+
+
+def latest_versions(db: Session, *, include_archived: bool) -> list[Any]:
     """List chapters. With ``include_archived=False`` returns live
     only; with ``True`` returns every row (live + soft-deleted)
     so the admin autocomplete can offer restore."""
-    q = _tenant_scoped(db)
+    stmt = select(*Chapter.__table__.c).where(Chapter.tenant_id == tenancy.current())
     if not include_archived:
-        q = q.filter(Chapter.deleted_at.is_(None))
-    return sorted(q.all(), key=lambda a: a.name.lower())
+        stmt = stmt.where(Chapter.deleted_at.is_(None))
+    return sorted(db.execute(stmt).all(), key=lambda a: a.name.lower())
 
 
 def find_by_id(db: Session, chapter_id: str) -> Chapter | None:
@@ -140,7 +148,7 @@ def slug_exists_active(db: Session, slug: str, *, exclude_id: str | None = None)
 def _taken(db: Session, slug: str, *, exclude_id: str | None) -> bool:
     """A slug is unavailable when another live chapter of this
     organisation holds it, or when it names a page of the organiser app
-    — ``/{tenant}/{chapter}`` and ``/{tenant}/events`` are the same
+    — ``/{tenant}/{chapter}`` and ``/{tenant}/event`` are the same
     namespace, and the app wins."""
     return slug in slug_svc.RESERVED_SLUGS or slug_exists_active(db, slug, exclude_id=exclude_id)
 

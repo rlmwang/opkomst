@@ -8,6 +8,7 @@
  * the occurrences the person is on, each individually withdrawable.
  */
 
+import { inlinedSubmission } from "@/public_shared/submission";
 /** A materialised, sign-up-able occurrence on the checklist.
  *  ``is_current`` marks the one whose page the visitor landed on. */
 export interface PublicOccurrence {
@@ -36,8 +37,10 @@ export interface PublicEvent {
   location: string | null;
   latitude: number | null;
   longitude: number | null;
-  source_options: string[];
-  help_options: string[];
+  /** Both lists are rows: the label to show and the id the sign-up
+   *  names it by (``docs/design-question-edits.md``). */
+  source_options: { id: string; label: string }[];
+  help_options: { id: string; label: string }[];
   image_url: string | null;
   image_artist_instagram: string | null;
   locale: string;
@@ -117,7 +120,7 @@ export class ApiError extends Error {
 }
 
 export async function fetchEventBySlug(slug: string): Promise<PublicEvent> {
-  const r = await fetch(`/api/v1/events/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/event/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicEvent;
 }
@@ -127,7 +130,7 @@ export async function postSignup(
   payload: SignupPayload,
 ): Promise<SignupAck> {
   const r = await fetch(
-    `/api/v1/events/by-slug/${encodeURIComponent(slug)}/signups`,
+    `/api/v1/event/by-slug/${encodeURIComponent(slug)}/signups`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,7 +142,15 @@ export async function postSignup(
 }
 
 export async function fetchBooking(token: string): Promise<Booking> {
-  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`);
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<Booking>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
+  const r = await fetch(`/api/v1/event/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as Booking;
 }
@@ -148,7 +159,7 @@ export async function putBooking(
   token: string,
   payload: BookingEditPayload,
 ): Promise<Booking> {
-  const r = await fetch(`/api/v1/events/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/event/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -165,7 +176,7 @@ export async function putBookingOccurrences(
   payload: { occurrence_ids: string[]; all_upcoming: boolean },
 ): Promise<Booking> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/occurrences`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/occurrences`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -182,7 +193,7 @@ export async function withdrawOccurrence(
   occurrenceId: string,
 ): Promise<void> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/occurrences/${encodeURIComponent(occurrenceId)}/withdraw`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/occurrences/${encodeURIComponent(occurrenceId)}/withdraw`,
     { method: "POST" },
   );
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
@@ -191,7 +202,7 @@ export async function withdrawOccurrence(
 /** Withdraw the whole booking (every occurrence at once). */
 export async function withdrawBooking(token: string): Promise<void> {
   const r = await fetch(
-    `/api/v1/events/by-token/${encodeURIComponent(token)}/withdraw`,
+    `/api/v1/event/by-token/${encodeURIComponent(token)}/withdraw`,
     { method: "POST" },
   );
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);

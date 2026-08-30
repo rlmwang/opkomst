@@ -1,16 +1,15 @@
 /**
- * Router-guard behaviour. Specifically the ``requiresWhatsApp``
- * meta added for ``/admin/whatsapp``: a direct URL poke must
- * redirect to ``/events`` when the auth store reports the
- * WhatsApp tool isn't configured, even though the user is an
- * admin and would otherwise pass ``requiresAdmin``.
+ * The guard, and specifically ``requiresWhatsApp``: a typed URL for
+ * ``/admin/whatsapp`` has to land back on ``/event`` when the account
+ * is not allowed the tool, even for an admin who would otherwise pass
+ * ``requiresAdmin``.
  *
- * The api client is mocked so ``auth.fetchMe`` doesn't try to
- * hit the network during the guard's eager-load branch.
+ * The api client is mocked, so the guard's ``/auth/me`` never reaches
+ * the network. The router and the session are module state, so each
+ * test imports them fresh.
  */
-
-import { createPinia, setActivePinia } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as apiClient from "@/api/client";
 
 vi.mock("@/api/client", () => ({
@@ -39,65 +38,51 @@ const adminUser = {
 };
 
 beforeEach(() => {
-  setActivePinia(createPinia());
+  vi.resetModules();
   vi.clearAllMocks();
   vi.mocked(apiClient.getToken).mockReturnValue("tok");
 });
 
 afterEach(() => {
-  // Reset the URL between tests so the router doesn't replay
-  // previous navigations.
+  // The URL is where the router starts, so it is put back between
+  // tests or the next one replays the last one's navigation.
   window.history.replaceState({}, "", "/");
 });
 
-async function loadRouter() {
-  // Bypass the module cache so the router picks up the per-test
-  // pinia instance and mock state.
-  vi.resetModules();
-  const mod = await import("@/router/index");
-  return mod.default;
+/** Start the router as this account, and go to ``path``. Answers with
+ *  where it actually landed. */
+async function goAs(user: Record<string, unknown>, path: string): Promise<string> {
+  vi.mocked(apiClient.get).mockImplementation(async (asked: string) => {
+    if (asked === "/api/v1/auth/me") return user;
+    throw new Error(`unexpected GET ${asked}`);
+  });
+  const { routes } = await import("@/router/routes");
+  const { go, route, startRouter } = await import("@/router/navigation.svelte");
+  await startRouter(routes);
+  await go(path);
+  return route.path;
 }
 
-// Each test does ``vi.resetModules()`` + a dynamic ``import("@/router/index")``,
-// which under parallel suite load can occasionally push past Vitest's 5s
-// default. Tests pass in well under a second in isolation, so the timeout
-// is just headroom — and 15s of it was not enough on a pre-push, where
-// this runs beside the backend suite, the production build and Playwright
-// all at once. It took 18.6s there and blocked the push.
-describe("router guards: requiresWhatsApp", { timeout: 30_000 }, () => {
-  it("redirects to /events when whatsappAvailable is false", async () => {
-    const { useAuthStore } = await import("@/stores/auth");
-    const router = await loadRouter();
-    const store = useAuthStore();
-    store.user = { ...adminUser };
-    store.loaded = true;
-    store.whatsappAvailable = false;
-
-    await router.push("/admin/whatsapp");
-    expect(router.currentRoute.value.path).toBe("/events");
+// Each test resets the module registry and imports the router again,
+// which transforms every page it reaches. Under a parallel suite load
+// that pushes past the 5s default; in isolation these run in well under
+// a second, so the allowance is headroom rather than a real wait.
+describe("the guard on /admin/whatsapp", { timeout: 30_000 }, () => {
+  it("sends an admin to /event when the tool is not open to the account", async () => {
+    const landed = await goAs({ ...adminUser, whatsapp_available: false }, "/admin/whatsapp");
+    expect(landed).toBe("/event");
   });
 
-  it("admits admins to /admin/whatsapp when whatsappAvailable is true", async () => {
-    const { useAuthStore } = await import("@/stores/auth");
-    const router = await loadRouter();
-    const store = useAuthStore();
-    store.user = { ...adminUser };
-    store.loaded = true;
-    store.whatsappAvailable = true;
-
-    await router.push("/admin/whatsapp");
-    expect(router.currentRoute.value.path).toBe("/admin/whatsapp");
+  it("admits an admin when it is", async () => {
+    const landed = await goAs({ ...adminUser, whatsapp_available: true }, "/admin/whatsapp");
+    expect(landed).toBe("/admin/whatsapp");
   });
 
-  it("non-admin trying to reach /admin/whatsapp lands on /events via requiresAdmin (not requiresWhatsApp)", async () => {
-    const { useAuthStore } = await import("@/stores/auth");
-    const router = await loadRouter();
-    const store = useAuthStore();
-    store.user = { ...adminUser, role: "organiser" };
-    store.loaded = true;
-    store.whatsappAvailable = true; // would pass on its own
-
-    await router.push("/admin/whatsapp");
-    expect(router.currentRoute.value.path).toBe("/events");
+  it("sends an organiser to /event on requiresAdmin, before the tool is even asked about", async () => {
+    const landed = await goAs(
+      { ...adminUser, role: "organiser", whatsapp_available: true },
+      "/admin/whatsapp",
+    );
+    expect(landed).toBe("/event");
   });
 });

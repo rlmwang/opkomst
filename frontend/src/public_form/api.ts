@@ -5,13 +5,16 @@
  * missing (dev workflow without the backend in front of Vite).
  */
 
+import { inlinedSubmission } from "@/public_shared/submission";
 export interface PublicFormQuestion {
   id: string;
   ordinal: number;
   kind: "rating" | "text" | "short_text" | "single_choice" | "multi_choice" | "number";
   prompt: string;
   required: boolean;
-  options: string[];
+  /** Choices as rows: the label to show and the id an answer names it
+   *  by (``docs/design-question-edits.md``). */
+  options: { id: string; label: string }[];
   low_label: string | null;
   high_label: string | null;
   min_value: number | null;
@@ -91,7 +94,7 @@ export class ApiError extends Error {
 }
 
 export async function fetchFormBySlug(slug: string): Promise<PublicForm> {
-  const r = await fetch(`/api/v1/forms/by-slug/${encodeURIComponent(slug)}`);
+  const r = await fetch(`/api/v1/form/by-slug/${encodeURIComponent(slug)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as PublicForm;
 }
@@ -101,7 +104,7 @@ export async function postSubmission(
   payload: SubmitPayload,
 ): Promise<SubmitAck> {
   const r = await fetch(
-    `/api/v1/forms/by-slug/${encodeURIComponent(slug)}/submit`,
+    `/api/v1/form/by-slug/${encodeURIComponent(slug)}/submit`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,7 +116,15 @@ export async function postSubmission(
 }
 
 export async function fetchSubmission(token: string): Promise<FormSubmissionValues> {
-  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}`);
+  // The server already resolved this token when it built the page, so
+  // in production there is nothing to ask for. The fetch below is the
+  // dev server's path, where the shell's markers are left unfilled.
+  const inlined = inlinedSubmission<FormSubmissionValues>();
+  if (inlined !== undefined) {
+    if (inlined === null) throw new ApiError("this link no longer opens anything", 410);
+    return inlined;
+  }
+  const r = await fetch(`/api/v1/form/by-token/${encodeURIComponent(token)}`);
   if (!r.ok) throw new ApiError(`fetch failed (${r.status})`, r.status);
   return (await r.json()) as FormSubmissionValues;
 }
@@ -122,7 +133,7 @@ export async function putSubmission(
   token: string,
   payload: SubmitPayload,
 ): Promise<FormSubmissionValues> {
-  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}`, {
+  const r = await fetch(`/api/v1/form/by-token/${encodeURIComponent(token)}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -132,7 +143,7 @@ export async function putSubmission(
 }
 
 export async function withdrawSubmission(token: string): Promise<void> {
-  const r = await fetch(`/api/v1/forms/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
+  const r = await fetch(`/api/v1/form/by-token/${encodeURIComponent(token)}/withdraw`, { method: "POST" });
   if (!r.ok) throw new ApiError(`withdraw failed (${r.status})`, r.status);
 }
 

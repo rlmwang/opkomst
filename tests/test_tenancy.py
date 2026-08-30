@@ -27,6 +27,7 @@ from backend.database import Base, engine
 from backend.models import Chapter, Event, Tenant, User
 from backend.services import tenancy
 from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
+from tests._helpers.events import public_option_ids
 
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
@@ -74,7 +75,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     both ends."""
     chapter = db.query(Chapter).first()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Tenancy demo",
@@ -84,7 +85,7 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
             "starts_on": "2099-01-05",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
+            "source_options": [{"label": "Flyer"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
@@ -93,13 +94,13 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
     )
     assert r.status_code == 201, r.text
     event_id = r.json()["id"]
-    occ = client.get(f"/api/v1/events/{event_id}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{event_id}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     ack = client.post(
-        f"/api/v1/events/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
         json={
             "display_name": "Sam",
             "party_size": 2,
-            "source_choice": "Flyer",
+            **public_option_ids(client, occ["slug"], source="Flyer"),
             "help_choices": [],
             "email": None,
             "all_upcoming": True,
@@ -134,7 +135,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
     not a 403 — its existence is never disclosed."""
     chapter = db.query(Chapter).first()
     r = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         headers=organiser_headers,
         json={
             "name_nl": "Ours",
@@ -144,7 +145,7 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
             "starts_on": "2099-02-05",
             "start_time": "18:00:00",
             "end_time": "20:00:00",
-            "source_options": ["Flyer"],
+            "source_options": [{"label": "Flyer"}],
             "source_enabled": True,
             "feedback_enabled": True,
             "reminder_enabled": False,
@@ -170,7 +171,6 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
             starts_on="2099-03-05",
             start_time="18:00:00",
             end_time="20:00:00",
-            source_options=["Flyer"],
             feedback_enabled=False,
             reminder_enabled=False,
             locale="nl",
@@ -183,9 +183,9 @@ def test_an_organiser_cannot_reach_another_tenants_event(client, organiser_heade
         their_event_id = their_event.id
 
     # Ours is visible; theirs is not, and the list shows only ours.
-    assert client.get(f"/api/v1/events/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
-    assert client.get(f"/api/v1/events/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
-    listed = client.get("/api/v1/events", headers=organiser_headers).json()
+    assert client.get(f"/api/v1/event/{our_event_id}/occurrences", headers=organiser_headers).status_code == 200
+    assert client.get(f"/api/v1/event/{their_event_id}/occurrences", headers=organiser_headers).status_code == 404
+    listed = client.get("/api/v1/event", headers=organiser_headers).json()
     assert {e["id"] for e in listed} == {our_event_id}
 
 

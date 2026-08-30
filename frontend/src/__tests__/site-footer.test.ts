@@ -4,16 +4,25 @@
  * Two wrong answers this pins down. One is an organisation's page
  * carrying a list of our essays, which is the same mistake as putting
  * an ad there. The other is quieter: the footer is mounted once in
- * ``App.vue``, so without a route test it silently returns to every
+ * ``App.svelte``, so without a route test it silently returns to every
  * page in the organiser app, which is where the noise complaint came
  * from in the first place.
  */
-import { mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
-import { createMemoryHistory, createRouter } from "vue-router";
+import { render } from "@testing-library/svelte";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import SiteFooter from "@/components/SiteFooter.vue";
+import { useTestMessages } from "@/__tests__/i18n-harness";
+import SiteFooter from "@/components/SiteFooter.svelte";
+
+// The footer asks the router two things: where we are, and whether this
+// route is one of the create pages. Both come from one module, so the
+// test sets them directly rather than driving a real navigation.
+const here = { path: "/", meta: {} as Record<string, unknown> };
+vi.mock("@/router/navigation.svelte", () => ({
+  get route() {
+    return here;
+  },
+}));
 
 const BRAND = {
   slug: "opkomst",
@@ -26,54 +35,64 @@ const BRAND = {
   favicon_url: "",
 };
 
-// The five pages a stranger can land on: the root and the four things
-// it offers to make. The same five the server writes a title and a
-// description for.
-const INDEXED = ["/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"];
+// The pages a stranger can land on: the root and every create page.
+// The create pages carry ``startable`` in the real router, which is
+// what the footer reads, so the routes here carry it too.
+const CREATE = ["/event/new", "/form/new", "/datepoll/new", "/chore/new", "/quiz/new", "/compass/new"];
+const INDEXED = ["/", ...CREATE];
 
-const blank = { template: "<div />" };
+useTestMessages("nl", { footer: { label: "Meer lezen", privacy: "Privacy", source: "Broncode" } });
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "nl",
-    messages: { nl: { footer: { label: "Meer lezen", privacy: "Privacy", source: "Broncode" } } },
-  });
+function renderAt(path: string) {
+  here.path = path;
+  here.meta = CREATE.includes(path) ? { startable: true } : {};
+  return render(SiteFooter).container;
 }
 
-async function mountAt(path: string) {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [...INDEXED, "/events", "/chores/abc/edit"].map((p) => ({ path: p, component: blank })),
-  });
-  router.push(path);
-  await router.isReady();
-  return mount(SiteFooter, { global: { plugins: [makeI18n(), router] } });
-}
+const hrefsIn = (root: HTMLElement) =>
+  [...root.querySelectorAll("a")].map((a) => a.getAttribute("href"));
 
 beforeEach(() => {
   window.__OPKOMST_BRAND__ = { ...BRAND } as typeof window.__OPKOMST_BRAND__;
 });
 
+/** Whether a footer href points at github.com, by host rather than by
+ *  substring: "github.com.example.org" contains the string and is not
+ *  the site. The list mixes absolute links with in-app paths, so the
+ *  base is what stops a relative one throwing. */
+function isGithubLink(href: string | null): boolean {
+  if (!href) return false;
+  try {
+    return new URL(href, "https://opkomst.nu").hostname === "github.com";
+  } catch {
+    return false;
+  }
+}
+
 describe("SiteFooter", () => {
-  it.each(INDEXED)("renders on %s, the pages a stranger lands on", async (path) => {
-    const wrapper = await mountAt(path);
-    const hrefs = wrapper.findAll("a").map((a) => a.attributes("href"));
+  it.each(INDEXED)("renders on %s, the pages a stranger lands on", (path) => {
+    const hrefs = hrefsIn(renderAt(path));
     expect(hrefs).toContain("/datumplanner-zonder-account");
     expect(hrefs).toContain("/aanmeldformulier-zonder-google");
     expect(hrefs).toContain("/wat-gebeurt-er-met-je-mailadres");
     expect(hrefs).toContain("/vrijwilligers-inroosteren");
     expect(hrefs).toContain("/privacy");
-    expect(hrefs.some((h) => h?.includes("github.com"))).toBe(true);
+    expect(hrefs.some(isGithubLink)).toBe(true);
   });
 
-  it("stays off the organiser's working pages", async () => {
-    expect((await mountAt("/events")).find("footer").exists()).toBe(false);
-    expect((await mountAt("/chores/abc/edit")).find("footer").exists()).toBe(false);
+  it("stays off the organiser's working pages", () => {
+    expect(renderAt("/event").querySelector("footer")).toBeNull();
+    expect(renderAt("/chore/abc/edit").querySelector("footer")).toBeNull();
   });
 
-  it("stays off a brand an organisation owns", async () => {
+  it("drops the blogs on a brand an organisation owns", () => {
     window.__OPKOMST_BRAND__ = { ...BRAND, slug: "rsp", app_base: "/rsp/" } as typeof window.__OPKOMST_BRAND__;
-    expect((await mountAt("/")).find("footer").exists()).toBe(false);
+    const hrefs = hrefsIn(renderAt("/"));
+    // The policy, the source and the way to report something belong on
+    // every page; our essays are not part of their identity.
+    expect(hrefs).toContain("/privacy");
+    expect(hrefs).toContain("/voorwaarden");
+    expect(hrefs.some(isGithubLink)).toBe(true);
+    expect(hrefs).not.toContain("/datumplanner-zonder-account");
   });
 });

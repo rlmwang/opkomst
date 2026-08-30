@@ -30,19 +30,22 @@ def _create(client: Any, headers: Any, questions: list[dict[str, Any]] | None = 
     }
     if questions is not None:
         body["questions"] = questions
-    r = client.post("/api/v1/forms", headers=headers, json=body)
+    r = client.post("/api/v1/form", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
 
-def _put(client: Any, headers: Any, form: dict[str, Any], questions: list[dict[str, Any]]) -> dict[str, Any]:
+def _put(
+    client: Any, headers: Any, form: dict[str, Any], questions: list[dict[str, Any]], **extra: Any
+) -> dict[str, Any]:
     body = {
         "chapter_id": form["chapter_id"],
         "name_nl": form["name_nl"],
         "locale": form["locale"],
         "questions": questions,
+        **extra,
     }
-    r = client.put(f"/api/v1/forms/{form['id']}", headers=headers, json=body)
+    r = client.put(f"/api/v1/form/{form['id']}", headers=headers, json=body)
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -159,8 +162,9 @@ def test_removed_question_cascades_to_responses(client, organiser_headers):
     finally:
         db.close()
 
-    # Drop q1.
-    _put(client, organiser_headers, form, [form["questions"][1]])
+    # Drop q1. It has an answer, so the save has to say it means it
+    # (``docs/design-question-edits.md``, decision 2).
+    _put(client, organiser_headers, form, [form["questions"][1]], confirm_destructive=True)
 
     db = SessionLocal()
     try:
@@ -175,7 +179,7 @@ def test_removed_question_cascades_to_responses(client, organiser_headers):
 
 def test_choice_with_one_option_400s(client, organiser_headers):
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -186,7 +190,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
                     "kind": "single_choice",
                     "prompt": "Pick",
                     "required": True,
-                    "options": ["only-one"],
+                    "options": [{"label": "only-one"}],
                 }
             ],
         },
@@ -197,7 +201,7 @@ def test_choice_with_one_option_400s(client, organiser_headers):
 
 def test_choice_with_duplicate_options_400s(client, organiser_headers):
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -208,7 +212,7 @@ def test_choice_with_duplicate_options_400s(client, organiser_headers):
                     "kind": "multi_choice",
                     "prompt": "Pick many",
                     "required": False,
-                    "options": ["a", "a", "b"],
+                    "options": [{"label": "a"}, {"label": "a"}, {"label": "b"}],
                 }
             ],
         },
@@ -229,7 +233,7 @@ def test_kind_normalisation_strips_options_for_non_choice(client, organiser_head
                 "kind": "text",
                 "prompt": "Free form",
                 "required": False,
-                "options": ["leftover-a", "leftover-b"],
+                "options": [{"label": "leftover-a"}, {"label": "leftover-b"}],
                 "low_label": "ignored",
                 "high_label": "also ignored",
             },

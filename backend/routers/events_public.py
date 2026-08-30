@@ -32,7 +32,7 @@ from ..services.ics import build_occurrence_ics
 from ..services.mail import build_url, render
 from ..services.qr import render_qr
 
-router = APIRouter(prefix="/api/v1/events", tags=["events"])
+router = APIRouter(prefix="/api/v1/event", tags=["events"])
 
 # Public-facing base URL for QR codes and ICS links. Validated at
 # import time (HttpUrl) — never empty.

@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     bootstrap_admin_email: _OptionalEmail = None
     local_mode: bool = False
 
+    # Where fetched images are kept so the storage host is asked once
+    # per picture rather than once per visitor. Empty disables the cache,
+    # which is what a dev machine with no volume wants. In production
+    # this is on the same persistent volume as the backups.
+    image_cache_dir: str = "/app/data/image-cache"
+
     rate_limit_storage_uri: str = "memory://"
     web_concurrency: int = 4
 

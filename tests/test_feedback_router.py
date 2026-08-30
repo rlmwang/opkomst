@@ -19,7 +19,7 @@ from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     FeedbackResponse,
     FeedbackToken,
     Occurrence,
@@ -42,12 +42,12 @@ def _new_event(client: Any, organiser_headers: Any, **overrides: Any) -> dict[st
         "starts_on": "2026-05-01",
         "start_time": "18:00:00",
         "end_time": "20:00:00",
-        "source_options": ["Flyer"],
+        "source_options": [{"label": "Flyer"}],
         "feedback_enabled": True,
         "locale": "nl",
         **overrides,
     }
-    r = client.post("/api/v1/events", headers=organiser_headers, json=payload)
+    r = client.post("/api/v1/event", headers=organiser_headers, json=payload)
     assert r.status_code == 201, r.text
     return r.json()
 
@@ -74,8 +74,6 @@ def _seed_signup_with_token(event_id: str, *, email: str = "alice@x.test") -> tu
         signup = Signup(
             registration_id=registration.id,
             occurrence_id=occ_id,
-            source_choice="Flyer",
-            help_choices=[],
         )
         db.add(signup)
         db.flush()
@@ -124,7 +122,7 @@ def test_feedback_form_happy_path(client, organiser_headers):
     assert body["event_name"] == event["name_nl"]
     # The feedback form is per occurrence, so ``event_slug`` is the
     # occurrence's public slug, not the event's internal slug.
-    occ = client.get(f"/api/v1/events/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
+    occ = client.get(f"/api/v1/event/{event['id']}/occurrences", headers=organiser_headers).json()["occurrences"][0]
     assert body["event_slug"] == occ["slug"]
     assert body["event_locale"] == "nl"
     assert len(body["questions"]) == 5
@@ -145,7 +143,7 @@ def test_feedback_form_still_works_after_event_archive(client, organiser_headers
     that those have no token gate."""
     event = _new_event(client, organiser_headers)
     raw, _ = _seed_signup_with_token(event["id"])
-    client.post(f"/api/v1/events/{event['id']}/archive", headers=organiser_headers)
+    client.post(f"/api/v1/event/{event['id']}/archive", headers=organiser_headers)
 
     r = client.get(f"/api/v1/feedback/{raw}")
     assert r.status_code == 200
@@ -216,13 +214,13 @@ def test_submit_already_redeemed_token_410s(client, organiser_headers):
     assert r.status_code == 410
 
 
-# --- /events/{id}/feedback-summary ---------------------------------
+# --- /event/{id}/feedback-summary ---------------------------------
 
 
 def test_feedback_summary_empty_event(client, organiser_headers):
     event = _new_event(client, organiser_headers)
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -247,7 +245,7 @@ def test_feedback_summary_with_responses(client, organiser_headers):
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -278,22 +276,22 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
             Signup(
                 registration_id=registration.id,
                 occurrence_id=occ_id,
-                source_choice="Flyer",
-                help_choices=[],
             )
         )
+        # The feedback mail already went out: a tally, no row.
         db.add(
-            EmailDispatch(
+            EmailSendCount(
                 occurrence_id=occ_id,
                 channel=EmailChannel.FEEDBACK,
-                status=EmailStatus.SENT,
+                day=datetime.now(UTC).date(),
+                sent=1,
             )
         )
+        # The reminder has not: a row, carrying its address.
         db.add(
             EmailDispatch(
                 occurrence_id=occ_id,
                 channel=EmailChannel.REMINDER,
-                status=EmailStatus.PENDING,
                 encrypted_email=b"some-ciphertext",
             )
         )
@@ -302,7 +300,7 @@ def test_feedback_summary_email_health_counts_dispatches(client, organiser_heade
         db.close()
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers=organiser_headers,
     )
     assert r.status_code == 200
@@ -329,16 +327,19 @@ def test_feedback_summary_other_chapter_404s(client, admin_headers, organiser_he
     outsider_token = token_for(uid)
 
     r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-summary",
+        f"/api/v1/event/{event['id']}/feedback-summary",
         headers={"Authorization": f"Bearer {outsider_token}"},
     )
     assert r.status_code == 404
 
 
-# --- /events/{id}/feedback-submissions -----------------------------
+# --- /event/{id}/feedback-submissions.csv -------------------------
 
 
-def test_feedback_submissions_csv_source(client, organiser_headers):
+def test_feedback_download_carries_every_answer(client, organiser_headers):
+    """The organiser's download is the only per-submission read there
+    is: what somebody said comes back as a row, and the file itself is
+    proved in ``tests/test_csv_exports.py``."""
     event = _new_event(client, organiser_headers)
     raw, _ = _seed_signup_with_token(event["id"])
     questions = client.get("/api/v1/feedback/questions", headers=organiser_headers).json()
@@ -350,15 +351,8 @@ def test_feedback_submissions_csv_source(client, organiser_headers):
             answers.append({"question_key": q["key"], "answer_text": "Top"})
     client.post(f"/api/v1/feedback/{raw}/submit", json={"answers": answers})
 
-    r = client.get(
-        f"/api/v1/events/{event['id']}/feedback-submissions",
-        headers=organiser_headers,
-    )
+    r = client.get(f"/api/v1/event/{event['id']}/feedback-submissions.csv", headers=organiser_headers)
     assert r.status_code == 200
-    rows = r.json()
-    assert len(rows) == 1
-    sub = rows[0]
-    assert "submission_id" in sub
-    # ``answers`` is a key→value map.
-    assert sub["answers"]["q1_overall"] == 5
-    assert sub["answers"]["q4_better"] == "Top"
+    rows = r.text.lstrip("\ufeff").splitlines()
+    assert len(rows) == 2
+    assert rows[1].split(",")[1:] == ["5", "5", "5", "Top", "Top"]

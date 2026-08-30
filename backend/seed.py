@@ -30,13 +30,17 @@ from .models import (
     DatepollSubmission,
     EmailChannel,
     EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     Enrollment,
     Event,
+    EventHelpOption,
+    EventSourceOption,
     FeedbackResponse,
     Form,
     FormQuestion,
+    FormQuestionOption,
     FormResponse,
+    FormResponseChoice,
     FormSubmission,
     Occurrence,
     Registration,
@@ -44,6 +48,7 @@ from .models import (
     Shift,
     ShiftEvent,
     Signup,
+    SignupHelpChoice,
     User,
     Volunteer,
     VolunteerAvailability,
@@ -115,9 +120,7 @@ def _ensure_event(
         # The demo data shows the app with its questions asked, its mail
         # on and its events on the agenda. A real event starts with every
         # switch off and its organiser turns on what they want.
-        source_options=source_options,
         source_enabled=bool(source_options),
-        help_options=help_options,
         help_enabled=bool(help_options),
         feedback_enabled=True,
         reminder_enabled=True,
@@ -127,6 +130,11 @@ def _ensure_event(
         locale="nl",
     )
     db.add(event)
+    db.flush()
+    for ordinal, label in enumerate(source_options, start=1):
+        db.add(EventSourceOption(event_id=event.id, ordinal=ordinal, label=label))
+    for ordinal, label in enumerate(help_options, start=1):
+        db.add(EventHelpOption(event_id=event.id, ordinal=ordinal, label=label))
     db.flush()
     # Back-fill past sessions too, so a demo course that straddles "now" (and
     # the past demo events) have believable history on first boot. Production
@@ -340,9 +348,7 @@ def run_local_demo() -> None:
             source: str,
             help_choices: list[str],
             email: str | None = None,
-            feedback_status: EmailStatus | None = None,
-            feedback_sent_at: datetime | None = None,
-            feedback_message_id: str | None = None,
+            feedback_pending: bool = False,
         ) -> None:
             _, token_hash = edit_token.new_edit_token()
             registration = Registration(
@@ -353,28 +359,36 @@ def run_local_demo() -> None:
             )
             db.add(registration)
             db.flush()
-            db.add(
-                Signup(
-                    registration_id=registration.id,
-                    occurrence_id=occurrence_id,
-                    source_choice=source,
-                    help_choices=help_choices,
-                )
+            # The seed names options by label; a stored answer is the
+            # option's id, so resolve them through the occurrence's event.
+            event_id = db.query(Occurrence.event_id).filter(Occurrence.id == occurrence_id).scalar()
+            sources = {
+                o.label: o.id for o in db.query(EventSourceOption).filter(EventSourceOption.event_id == event_id).all()
+            }
+            helps = {
+                o.label: o.id for o in db.query(EventHelpOption).filter(EventHelpOption.event_id == event_id).all()
+            }
+            signup = Signup(
+                registration_id=registration.id,
+                occurrence_id=occurrence_id,
+                source_option_id=sources.get(source) if source else None,
             )
-            if feedback_status is not None:
-                # Pending dispatches carry the encrypted address; terminal-state
-                # rows have it nulled (matches the production lifecycle). The
-                # dispatch row points at the occurrence directly — no link to
-                # the booking or line item.
-                ciphertext = encryption.encrypt(email) if email and feedback_status == EmailStatus.PENDING else None
+            db.add(signup)
+            db.flush()
+            for label in help_choices:
+                if label in helps:
+                    db.add(SignupHelpChoice(signup_id=signup.id, help_option_id=helps[label]))
+            if feedback_pending and email:
+                # A dispatch row is outstanding work and carries the
+                # address it needs. Sends that already happened leave no
+                # row: they are counted in ``EmailSendCount`` below. The
+                # row points at the occurrence directly, never at the
+                # booking or the line item.
                 db.add(
                     EmailDispatch(
                         occurrence_id=occurrence_id,
                         channel=EmailChannel.FEEDBACK,
-                        status=feedback_status,
-                        sent_at=feedback_sent_at,
-                        message_id=feedback_message_id,
-                        encrypted_email=ciphertext,
+                        encrypted_email=encryption.encrypt(email),
                     )
                 )
 
@@ -403,7 +417,7 @@ def run_local_demo() -> None:
                 source="Flyer",
                 help_choices=["Afbreken"],
                 email="pim@local.dev",
-                feedback_status=EmailStatus.PENDING,
+                feedback_pending=True,
             )
             _seed_signup(
                 occurrence_id=past_occ.id,
@@ -411,9 +425,6 @@ def run_local_demo() -> None:
                 party_size=2,
                 source="Mond-tot-mond",
                 help_choices=["Opbouwen"],
-                feedback_status=EmailStatus.SENT,
-                feedback_sent_at=now - timedelta(days=1, hours=23),
-                feedback_message_id="<demo-sent@local.dev>",
             )
             _seed_signup(
                 occurrence_id=past_occ.id,
@@ -421,8 +432,18 @@ def run_local_demo() -> None:
                 party_size=3,
                 source="Mond-tot-mond",
                 help_choices=["Afbreken"],
-                feedback_status=EmailStatus.FAILED,
-                feedback_sent_at=now - timedelta(days=1, hours=20),
+            )
+
+            # The two sends that already happened, as the tally that
+            # outlives them: one delivered, one that failed.
+            db.add(
+                EmailSendCount(
+                    occurrence_id=past_occ.id,
+                    channel=EmailChannel.FEEDBACK,
+                    day=(now - timedelta(days=1)).date(),
+                    sent=1,
+                    failed=1,
+                )
             )
 
         existing_resp = db.query(FeedbackResponse).filter(FeedbackResponse.occurrence_id == past_occ.id).first()
@@ -441,15 +462,15 @@ def run_local_demo() -> None:
             )
             db.add(course_reg)
             db.flush()
+            # The stored answer is the option's id, so resolve the label
+            # against the course's own list.
+            social = (
+                db.query(EventSourceOption.id)
+                .filter(EventSourceOption.event_id == course.id, EventSourceOption.label == "Social media")
+                .scalar()
+            )
             for occ in course_occs:
-                db.add(
-                    Signup(
-                        registration_id=course_reg.id,
-                        occurrence_id=occ.id,
-                        source_choice="Social media",
-                        help_choices=[],
-                    )
-                )
+                db.add(Signup(registration_id=course_reg.id, occurrence_id=occ.id, source_option_id=social))
 
         _seed_rosters(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
         _seed_forms(db, created_by=organiser.id, chapter_id=amsterdam_id, now=now)
@@ -761,11 +782,13 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
             kind=kind,
             prompt=prompt,
             required=required,
-            options=options or [],
             low_label=low,
             high_label=high,
         )
         db.add(q)
+        db.flush()
+        for ordinal_option, label in enumerate(options or [], start=1):
+            db.add(FormQuestionOption(question_id=q.id, ordinal=ordinal_option, label=label))
         db.flush()
         return q
 
@@ -777,16 +800,21 @@ def _seed_forms(db: Session, *, created_by: str, chapter_id: str | None, now: da
         for q, ans in zip(questions, answers, strict=True):
             if ans is None:
                 continue
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=q.id,
-                    submission_id=sub.id,
-                    answer_int=ans if isinstance(ans, int) else None,
-                    answer_text=ans if isinstance(ans, str) else None,
-                    answer_choices=ans if isinstance(ans, list) else None,
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=q.id,
+                submission_id=sub.id,
+                answer_int=ans if isinstance(ans, int) else None,
+                answer_text=ans if isinstance(ans, str) else None,
             )
+            db.add(response)
+            db.flush()
+            # The seed writes answers by the label a person saw; the
+            # stored tick is the option's id.
+            if isinstance(ans, list):
+                by_label = {o.label: o.id for o in q.options}
+                for label in ans:
+                    db.add(FormResponseChoice(response_id=response.id, option_id=by_label[label]))
 
     # --- A. active, with a spread of responses -----------------------
     survey = _form("Lidmaatschapsenquête", "Help ons de afdeling beter te maken — duurt twee minuten.")
@@ -885,7 +913,6 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
             kind="rating",
             prompt=prompt,
             required=required,
-            options=[],
             low_label="Oneens",
             high_label="Eens",
             pole=pole,
@@ -908,10 +935,11 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
             kind="single_choice",
             prompt=prompt,
             required=required,
-            options=[text for text, _ in pairs],
-            option_poles=[pole for _, pole in pairs],
         )
         db.add(q)
+        db.flush()
+        for ordinal_option, (label, pole) in enumerate(pairs, start=1):
+            db.add(FormQuestionOption(question_id=q.id, ordinal=ordinal_option, label=label, pole=pole))
         db.flush()
         return q
 
@@ -927,15 +955,19 @@ def _seed_compasses(db: Session, *, created_by: str, chapter_id: str | None, now
         for q, ans in zip(questions, answers, strict=True):
             if ans is None:
                 continue
-            db.add(
-                FormResponse(
-                    form_id=form_id,
-                    question_id=q.id,
-                    submission_id=sub.id,
-                    answer_int=ans if isinstance(ans, int) else None,
-                    answer_choices=[ans] if isinstance(ans, str) else None,
-                )
+            response = FormResponse(
+                form_id=form_id,
+                question_id=q.id,
+                submission_id=sub.id,
+                answer_int=ans if isinstance(ans, int) else None,
             )
+            db.add(response)
+            db.flush()
+            # A choice is named here by its label and stored as the
+            # option's id.
+            if isinstance(ans, str):
+                by_label = {o.label: o.id for o in q.options}
+                db.add(FormResponseChoice(response_id=response.id, option_id=by_label[ans]))
 
     # --- A. active, with a crowd on the map --------------------------
     compass = _compass(

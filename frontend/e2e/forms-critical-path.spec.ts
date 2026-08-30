@@ -27,7 +27,7 @@ test("public visitor fills a form and sees the thanks state", async ({
   expect(user.chapters.length).toBeGreaterThan(0);
   const chapterId = user.chapters[0].id;
 
-  const formRes = await request.post("/api/v1/forms", {
+  const formRes = await request.post("/api/v1/form", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       chapter_id: chapterId,
@@ -55,13 +55,13 @@ test("public visitor fills a form and sees the thanks state", async ({
           kind: "single_choice",
           prompt: "Heb je vrienden meegenomen?",
           required: true,
-          options: ["Ja", "Nee"],
+          options: [{ label: "Ja" }, { label: "Nee" }],
         },
         {
           kind: "multi_choice",
           prompt: "Welke onderdelen vond je sterk?",
           required: false,
-          options: ["Programma", "Eten", "Ontmoetingen"],
+          options: [{ label: "Programma" }, { label: "Eten" }, { label: "Ontmoetingen" }],
         },
       ],
     },

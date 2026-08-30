@@ -1,6 +1,6 @@
 /**
  * Public datepoll mini-app entry. Mounts a single component to
- * ``#app`` — no router, no Pinia, no Vue Query, no PrimeVue, no
+ * ``#app``: no router, no Pinia, no Vue Query, no
  * vue-i18n. Mirrors ``src/public_form/main.ts`` one-to-one; same
  * wire-weight target.
  *
@@ -8,9 +8,9 @@
  * from ``window.location.pathname`` inside the component.
  */
 
-import { createApp } from "vue";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicDatepoll from "./PublicDatepoll.vue";
+import { mountApp } from "@/lib/mount";
+import PublicDatepoll from "./PublicDatepoll.svelte";
 
-createApp(PublicDatepoll).mount("#app");
+mountApp(PublicDatepoll);

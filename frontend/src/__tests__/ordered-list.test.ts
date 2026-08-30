@@ -1,46 +1,39 @@
-/** Unit tests for the ordered-list editor composable. */
+/** The ordered-list editor behind the chore and question editors. */
 
 import { describe, expect, it } from "vitest";
-import { useOrderedList } from "@/composables/useOrderedList";
 
-describe("useOrderedList", () => {
+import { orderedList } from "@/composables/useOrderedList.svelte";
+
+describe("orderedList", () => {
   it("adds and removes by index", () => {
-    const l = useOrderedList<string>(["a", "b"]);
+    const l = orderedList<string>(["a", "b"]);
     l.add("c");
-    expect(l.items.value).toEqual(["a", "b", "c"]);
+    expect(l.items).toEqual(["a", "b", "c"]);
     l.removeAt(1);
-    expect(l.items.value).toEqual(["a", "c"]);
+    expect(l.items).toEqual(["a", "c"]);
   });
 
   it("replaces in place", () => {
-    const l = useOrderedList<string>(["a", "b"]);
+    const l = orderedList<string>(["a", "b"]);
     l.replaceAt(1, "B");
-    expect(l.items.value).toEqual(["a", "B"]);
+    expect(l.items).toEqual(["a", "B"]);
   });
 
   it("moves up and down, clamped at the ends", () => {
-    const l = useOrderedList<string>(["a", "b", "c"]);
-    l.moveDown(0);
-    expect(l.items.value).toEqual(["b", "a", "c"]);
-    l.moveUp(2);
-    expect(l.items.value).toEqual(["b", "c", "a"]);
-    l.moveUp(0); // no-op at the top
-    expect(l.items.value).toEqual(["b", "c", "a"]);
-    l.moveDown(2); // no-op at the bottom
-    expect(l.items.value).toEqual(["b", "c", "a"]);
+    const l = orderedList<string>(["a", "b", "c"]);
+    l.move(0, 1);
+    expect(l.items).toEqual(["b", "a", "c"]);
+    l.move(2, -1);
+    expect(l.items).toEqual(["b", "c", "a"]);
+    l.move(0, -1); // nothing above the first
+    expect(l.items).toEqual(["b", "c", "a"]);
+    l.move(2, 1); // nothing below the last
+    expect(l.items).toEqual(["b", "c", "a"]);
   });
 
-  it("reports movability at the boundaries", () => {
-    const l = useOrderedList<string>(["a", "b", "c"]);
-    expect(l.canMoveUp(0)).toBe(false);
-    expect(l.canMoveDown(0)).toBe(true);
-    expect(l.canMoveUp(2)).toBe(true);
-    expect(l.canMoveDown(2)).toBe(false);
-  });
-
-  it("replaces the whole list via set", () => {
-    const l = useOrderedList<number>([1, 2]);
-    l.set([9, 8, 7]);
-    expect(l.items.value).toEqual([9, 8, 7]);
+  it("takes a whole new list", () => {
+    const l = orderedList<number>([1, 2]);
+    l.items = [9, 8, 7];
+    expect(l.items).toEqual([9, 8, 7]);
   });
 });

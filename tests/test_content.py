@@ -17,7 +17,7 @@ from backend.services.content import BY_SLUG, PAGES
 from backend.services.slug import RESERVED_SLUGS
 
 _FRONTEND = pathlib.Path(__file__).resolve().parent.parent / "frontend"
-_FOOTER = _FRONTEND / "src" / "components" / "SiteFooter.vue"
+_FOOTER = _FRONTEND / "src" / "public_shared" / "Colophon.svelte"
 _VITE_CONFIG = _FRONTEND / "vite.config.ts"
 
 
@@ -68,7 +68,7 @@ def test_the_footer_list_matches_the_server(client) -> None:
 
 def test_the_sitemap_lists_what_should_be_indexed(client) -> None:
     body = client.get("/sitemap.xml").text
-    for path in ("/events/new", "/forms/new", "/datepolls/new", "/chores/new", "/privacy"):
+    for path in ("/event/new", "/form/new", "/datepoll/new", "/chore/new", "/privacy"):
         assert "<loc>" in body and path in body, path
     for page in PAGES:
         assert page.slug in body, page.slug
@@ -82,7 +82,7 @@ def test_robots_points_at_the_sitemap(client) -> None:
 
 @pytest.mark.parametrize(
     ("path", "expected"),
-    [("/", 200), ("/events/new", 200), ("/login", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
+    [("/", 200), ("/event/new", 200), ("/privacy", 200), ("/nope-not-a-page", 404)],
 )
 def test_a_path_nothing_serves_is_a_404(client, path: str, expected: int) -> None:
     """A soft 404 is a 200 on a page that does not exist. Google flags
@@ -101,7 +101,7 @@ def test_the_five_app_pages_describe_themselves(client) -> None:
     """One title on five URLs is a search engine with five pages it
     cannot tell apart."""
     titles = {}
-    for path in ("/", "/events/new", "/forms/new", "/datepolls/new", "/chores/new"):
+    for path in ("/", "/event/new", "/form/new", "/datepoll/new", "/chore/new"):
         head = client.get(path).text.split("</head>")[0]
         match = re.search(r"<title>(.*?)</title>", head)
         assert match, path
@@ -116,7 +116,7 @@ def test_the_five_app_pages_describe_themselves(client) -> None:
 
 def test_the_organiser_app_is_not_described_to_a_crawler(client) -> None:
     """A dashboard behind a sign-in has no business in an index."""
-    head = client.get("/rsp/events").text.split("</head>")[0]
+    head = client.get("/rsp/event").text.split("</head>")[0]
     assert 'content="noindex, follow"' in head
 
 
@@ -151,3 +151,22 @@ def test_the_dev_server_proxies_every_written_page() -> None:
     # The two pages that are read rather than used come first, then the
     # written pages in the order ``services/content.py`` lists them.
     assert proxied == ["/privacy", "/voorwaarden", *(f"/{p.slug}" for p in PAGES)]
+
+
+def test_every_page_is_one_markdown_file_with_complete_front_matter() -> None:
+    """A page is a file in ``backend/content``. The loader refuses a
+    file that is missing a front-matter key, so this asserts the shape
+    the loader produced rather than re-parsing it: every page has the
+    five fields, a body, and a unique place in the order."""
+    from backend.services.content import CONTENT_DIR
+
+    files = sorted(p.stem for p in CONTENT_DIR.glob("*.md"))
+    assert files == sorted(p.slug for p in PAGES)
+    for page in PAGES:
+        assert page.title and page.description and page.cta_label
+        assert page.cta_path.startswith("/")
+        assert page.body.strip()
+        # Rendered markdown, not the source: a page that renders to
+        # nothing would still have passed every check above.
+        assert "<p>" in page.html
+    assert len({p.order for p in PAGES}) == len(PAGES)

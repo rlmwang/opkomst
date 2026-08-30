@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from tests._helpers.forms import csv_rows, option_ids
+
 AXES = [
     {
         "axis": "x",
@@ -52,15 +54,14 @@ def _choice(prompt: str, pairs: list[tuple[str, str]], **extra: Any) -> dict[str
     return {
         "kind": "single_choice",
         "prompt": prompt,
-        "options": [text for text, _ in pairs],
-        "option_poles": [pole for _, pole in pairs],
+        "options": [{"label": text, "pole": pole} for text, pole in pairs],
         **extra,
     }
 
 
 def _create(client: Any, headers: Any, questions: list[dict[str, Any]], axes: Any = None, **extra: Any) -> Any:
     return client.post(
-        "/api/v1/compasses",
+        "/api/v1/compass",
         headers=headers,
         json={
             "chapter_id": _chapter_id(client, headers),
@@ -79,9 +80,23 @@ def _compass(client: Any, headers: Any, questions: list[dict[str, Any]], **extra
     return r.json()
 
 
+def _public_questions(client: Any, kompas: dict[str, Any]) -> list[dict[str, Any]]:
+    return client.get(f"/api/v1/compass/by-slug/{kompas['slug']}").json()["questions"]
+
+
 def _fill(client: Any, kompas: dict[str, Any], answers: list[dict[str, Any]], name: str | None = "Sam") -> Any:
+    """Answers name options by label; the wire wants ids, so translate
+    against the public shape (``docs/design-question-edits.md``)."""
+    by_question = {q["id"]: q for q in _public_questions(client, kompas)}
+    resolved = []
+    for a in answers:
+        if "answer_choices" in a and a["answer_choices"]:
+            question = by_question[a["question_id"]]
+            a = {**a, "answer_choices": option_ids(question, *a["answer_choices"])}
+        resolved.append(a)
+    answers = resolved
     return client.post(
-        f"/api/v1/compasses/by-slug/{kompas['slug']}/submit",
+        f"/api/v1/compass/by-slug/{kompas['slug']}/submit",
         json={"display_name": name, "answers": answers},
     )
 
@@ -238,14 +253,20 @@ def test_moving_an_option_to_the_other_side_moves_the_dot(client, organiser_head
 
     body = dict(kompas)
     body["questions"] = [
-        {**kompas["questions"][0], "option_poles": ["x_high", "x_low"]},
+        {
+            **kompas["questions"][0],
+            "options": [
+                {**o, "pole": pole}
+                for o, pole in zip(kompas["questions"][0]["options"], ["x_high", "x_low"], strict=True)
+            ],
+        },
         kompas["questions"][1],
     ]
     body["axes"] = AXES
-    r = client.put(f"/api/v1/compasses/{kompas['id']}", headers=organiser_headers, json=body)
+    r = client.put(f"/api/v1/compass/{kompas['id']}", headers=organiser_headers, json=body)
     assert r.status_code == 200, r.text
 
-    again = client.get(f"/api/v1/compasses/by-token/{token}")
+    again = client.get(f"/api/v1/compass/by-token/{token}")
     assert again.json()["x"] == 1.0
 
 
@@ -275,10 +296,10 @@ def test_the_walk_never_learns_which_answer_points_where(client, organiser_heade
         organiser_headers,
         [_statement("Een", "x_high"), _choice("Waarheen?", [("A", "y_low"), ("B", "y_high")])],
     )
-    public = client.get(f"/api/v1/compasses/by-slug/{kompas['slug']}").json()
+    public = client.get(f"/api/v1/compass/by-slug/{kompas['slug']}").json()
     for question in public["questions"]:
         assert "pole" not in question
-        assert "option_poles" not in question
+        assert all("pole" not in option for option in question["options"])
     # What the two axes are called is not a secret: the cover names it.
     assert [a["name"] for a in public["axes"]] == ["Economie", "Cultuur"]
 
@@ -294,7 +315,7 @@ def test_changing_your_mind_is_allowed_and_redraws_the_map(client, organiser_hea
     token = first["edit_token"]
 
     changed = client.put(
-        f"/api/v1/compasses/by-token/{token}",
+        f"/api/v1/compass/by-token/{token}",
         json={
             "display_name": "Kim",
             "answers": [
@@ -316,8 +337,8 @@ def test_withdrawing_takes_the_dot_off_the_map(client, organiser_headers) -> Non
     _fill(client, kompas, answers, "Sam")
     mine = _fill(client, kompas, answers, "Kim").json()
 
-    assert client.post(f"/api/v1/compasses/by-token/{mine['edit_token']}/withdraw").status_code == 204
-    summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+    assert client.post(f"/api/v1/compass/by-token/{mine['edit_token']}/withdraw").status_code == 204
+    summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
     assert [p["name"] for p in summary["compass"]["points"]] == ["Sam"]
 
 
@@ -334,7 +355,7 @@ def test_the_summary_says_where_the_room_sits_on_each_axis(client, organiser_hea
             [{"question_id": ids[0], "answer_int": given}, {"question_id": ids[1], "answer_int": 5}],
             name,
         )
-    summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
     x_axis = summary["compass"]["axes"][0]
     assert x_axis["axis"]["name"] == "Economie"
     # Two people, one at 1.0 and one at 0.0: the mean is 0.5 and two
@@ -353,7 +374,7 @@ def test_the_interval_narrows_as_the_room_agrees(client, organiser_headers) -> N
     ids = [q["id"] for q in kompas["questions"]]
 
     def x_axis() -> dict:
-        summary = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()
+        summary = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()
         return summary["compass"]["axes"][0]
 
     for i in range(4):
@@ -384,9 +405,9 @@ def test_one_answer_has_a_mean_and_no_interval(client, organiser_headers) -> Non
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 5}], "Sam")
-    x_axis = client.get(f"/api/v1/compasses/{kompas['id']}/summary", headers=organiser_headers).json()["compass"][
-        "axes"
-    ][0]
+    x_axis = client.get(f"/api/v1/compass/{kompas['id']}/summary", headers=organiser_headers).json()["compass"]["axes"][
+        0
+    ]
     assert (x_axis["average"], x_axis["ci_low"], x_axis["ci_high"]) == (1.0, 1.0, 1.0)
 
 
@@ -420,12 +441,12 @@ def test_the_result_carries_the_room_as_well_as_you(client, organiser_headers) -
     assert x_axis["average"] > -1.0
 
 
-def test_the_csv_rows_carry_the_coordinates(client, organiser_headers) -> None:
+def test_the_download_carries_the_coordinates(client, organiser_headers) -> None:
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
     ids = [q["id"] for q in kompas["questions"]]
     _fill(client, kompas, [{"question_id": ids[0], "answer_int": 5}, {"question_id": ids[1], "answer_int": 1}])
-    rows = client.get(f"/api/v1/compasses/{kompas['id']}/submissions", headers=organiser_headers).json()
-    assert (rows[0]["x"], rows[0]["y"]) == (1.0, -1.0)
+    rows = csv_rows(client.get(f"/api/v1/compass/{kompas['id']}/submissions.csv", headers=organiser_headers))
+    assert rows[1][2:4] == ["1.0", "-1.0"]
 
 
 # --- the refusals ----------------------------------------------------
@@ -448,7 +469,13 @@ def test_an_option_without_a_side_is_refused(client, organiser_headers) -> None:
     r = _create(
         client,
         organiser_headers,
-        [{"kind": "single_choice", "prompt": "Waarheen?", "options": ["A", "B"], "option_poles": ["x_low"]}],
+        [
+            {
+                "kind": "single_choice",
+                "prompt": "Waarheen?",
+                "options": [{"label": "A", "pole": "x_low"}, {"label": "B"}],
+            }
+        ],
     )
     assert r.status_code == 400
     assert "every answer" in r.json()["detail"]
@@ -481,6 +508,6 @@ def test_a_kompas_with_nothing_to_answer_is_refused(client, organiser_headers) -
 
 def test_a_kompas_is_not_reachable_through_the_forms_urls(client, organiser_headers) -> None:
     kompas = _compass(client, organiser_headers, [_statement("Een", "x_high"), _statement("Twee", "y_high")])
-    assert client.get(f"/api/v1/forms/{kompas['id']}", headers=organiser_headers).status_code == 404
-    assert client.get(f"/api/v1/quizzes/by-slug/{kompas['slug']}").status_code == 410
-    assert [f["id"] for f in client.get("/api/v1/forms", headers=organiser_headers).json()] == []
+    assert client.get(f"/api/v1/form/{kompas['id']}", headers=organiser_headers).status_code == 404
+    assert client.get(f"/api/v1/quiz/by-slug/{kompas['slug']}").status_code == 410
+    assert [f["id"] for f in client.get("/api/v1/form", headers=organiser_headers).json()] == []

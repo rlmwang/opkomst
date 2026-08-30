@@ -9,7 +9,7 @@ when there is a right answer:
 * ``validate_kinds`` / ``validate_keys`` — can this question be marked
   at all, checked when the organiser saves rather than when somebody
   submits.
-* ``score_of`` / ``score_stats`` / ``correct_share`` — the reads that
+* ``score_of`` / ``score_stats`` / ``correct_shares`` — the reads that
   only a marked submission can produce.
 
 Grading happens here and only here, from the stored key. The key is
@@ -26,12 +26,13 @@ number and it is computed the same way everywhere.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import HTTPException
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from ..models import FormQuestion, FormResponse
 
 # The kinds a quiz can ask. Both free-text kinds are out: no rule
 # grades a paragraph, and an exact-match short answer is a quiz that
@@ -41,25 +42,14 @@ from ..models import FormQuestion, FormResponse
 QUIZ_KINDS = frozenset({"rating", "number", "single_choice", "multi_choice"})
 
 
-def is_correct(question: FormQuestion, fields: dict[str, Any]) -> bool:
-    """Compare one stored-answer shape against the question's key.
+@dataclass(frozen=True, slots=True)
+class QuizSummaryStats:
+    """The marks on the organiser's summary page, read in one go."""
 
-    ``fields`` is what ``_build_submitted`` produced for this question:
-    the same dict that is about to become a ``FormResponse`` row."""
-    if question.kind in ("rating", "number"):
-        answer = fields.get("answer_int")
-        if answer is None or question.correct_int is None:
-            return False
-        return abs(answer - question.correct_int) <= (question.tolerance or 0)
-
-    if question.kind in ("single_choice", "multi_choice"):
-        chosen = fields.get("answer_choices") or []
-        key = question.correct_choices or []
-        if not key:
-            return False
-        return set(map(str, chosen)) == set(map(str, key))
-
-    return False
+    average: float | None
+    best: int | None
+    out_of: int
+    shares: dict[str, float]
 
 
 def effective_points(question: Any) -> int:
@@ -70,74 +60,135 @@ def effective_points(question: Any) -> int:
     return 1 if points is None else int(points)
 
 
-def multi_choice_share(question: FormQuestion, fields: dict[str, Any]) -> float:
-    """What share of a multiple-choice question's points an answer
-    earns, between 0 and 1.
-
-    ``(right ticks - wrong ticks) / right options``: one wrong tick
-    cancels one right tick, so a pick is worth the same whichever way it
-    goes. Two of two right is full marks; two right and one wrong is
-    half; ticking everything nets out at nothing.
-
-    Counting each pick equally is the point. Scaling the penalty by how
-    many wrong options there were instead would make a wrong tick cheap
-    on a question with many of them and expensive on a question with
-    one, for the same mistake.
-
-    Negative is clamped to zero: a quiz question cannot take points off
-    a score somebody earned elsewhere."""
-    key = {str(c) for c in (question.correct_choices or [])}
-    if not key:
-        return 0.0
-    chosen = {str(c) for c in (fields.get("answer_choices") or [])}
-    hits = len(chosen & key)
-    wrong = len(chosen - key)
-    return max(0.0, (hits - wrong) / len(key))
-
-
-def grade(question: FormQuestion, fields: dict[str, Any] | None) -> int:
-    """Points earned by one answer. An unanswered question and a wrong
-    one are both worth nothing, which is the same thing from the
-    score's point of view.
-
-    Multiple choice is the one kind that pays part marks
-    (``multi_choice_share``), rounded down. Every other kind is right or
-    it is not."""
-    if question.points <= 0 or fields is None:
-        return 0
-    if question.kind == "multi_choice":
-        return int(question.points * multi_choice_share(question, fields))
-    return question.points if is_correct(question, fields) else 0
-
-
-def max_score(questions: list[FormQuestion]) -> int:
+def max_score(questions: Sequence[Any]) -> int:
     """What a perfect run is worth."""
     return sum(q.points for q in questions if q.points > 0)
 
 
-def as_fields(row: FormResponse) -> dict[str, Any]:
-    """A stored answer row in the shape ``grade`` compares against."""
+# What one answer earned, decided by the database.
+#
+# The marking rules, as SQL, and the same ones the module described in
+# Python: a rating or a number is right within its tolerance window; a
+# single choice is right when the ticks are exactly the key; a multiple
+# choice pays part marks, ``(right - wrong) / right``, so one wrong tick
+# cancels one right tick and ticking everything nets out at nothing.
+# Negative is clamped, because a question cannot take away points earned
+# elsewhere, and the share is floored, because a mark is a whole number.
+#
+# A question worth nothing earns nothing whatever the answer, which is
+# every question on a questionnaire.
+_EARNED_CTE = """
+SELECT r.id AS response_id,
+       r.submission_id,
+       r.question_id,
+       CASE
+           WHEN q.points <= 0 THEN 0
+           WHEN q.kind IN ('rating', 'number') THEN
+               CASE
+                   WHEN r.answer_int IS NOT NULL
+                    AND q.correct_int IS NOT NULL
+                    AND abs(r.answer_int - q.correct_int) <= coalesce(q.tolerance, 0)
+                   THEN q.points ELSE 0
+               END
+           WHEN q.kind = 'single_choice' THEN
+               CASE
+                   WHEN coalesce(k.size, 0) > 0
+                    AND coalesce(t.hits, 0) = k.size
+                    AND coalesce(t.wrong, 0) = 0
+                   THEN q.points ELSE 0
+               END
+           WHEN q.kind = 'multi_choice' THEN
+               CASE
+                   WHEN coalesce(k.size, 0) > 0 THEN
+                       floor(
+                           q.points
+                           * greatest(0, (coalesce(t.hits, 0) - coalesce(t.wrong, 0))::numeric / k.size)
+                       )::int
+                   ELSE 0
+               END
+           ELSE 0
+       END AS earned,
+       q.points AS points
+FROM form_responses r
+JOIN form_questions q ON q.id = r.question_id
+LEFT JOIN (
+    SELECT question_id, count(*) AS size
+    FROM form_question_options WHERE is_correct GROUP BY question_id
+) k ON k.question_id = q.id
+LEFT JOIN (
+    SELECT c.response_id,
+           count(*) FILTER (WHERE o.is_correct) AS hits,
+           count(*) FILTER (WHERE NOT o.is_correct) AS wrong
+    FROM form_response_choices c
+    JOIN form_question_options o ON o.id = c.option_id
+    GROUP BY c.response_id
+) t ON t.response_id = r.id
+WHERE r.form_id = :form_id
+"""
+
+# Every submission's score, including the ones that answered nothing:
+# they played, and they scored zero.
+_SCORES_SQL = text(
+    f"""
+WITH earned AS ({_EARNED_CTE})
+SELECT s.id AS submission_id, coalesce(sum(e.earned), 0)::int AS score
+FROM form_submissions s
+LEFT JOIN earned e ON e.submission_id = s.id
+WHERE s.form_id = :form_id
+GROUP BY s.id
+"""
+)
+
+# The organiser's summary in one round trip. The two halves are the
+# same marks read at two grains, per player and per question, so they
+# are one statement rather than two passes over the same rows.
+_SUMMARY_SQL = text(
+    f"""
+WITH earned AS ({_EARNED_CTE}),
+played AS (
+    SELECT s.id, coalesce(sum(e.earned), 0)::int AS score
+    FROM form_submissions s
+    LEFT JOIN earned e ON e.submission_id = s.id
+    WHERE s.form_id = :form_id
+    GROUP BY s.id
+),
+shares AS (
+    SELECT question_id,
+           round(count(*) FILTER (WHERE earned >= points)::numeric / count(*), 2)::float AS share
+    FROM earned
+    WHERE points > 0
+    GROUP BY question_id
+)
+SELECT (SELECT round(avg(score)::numeric, 1)::float FROM played) AS average,
+       (SELECT max(score) FROM played) AS best,
+       (SELECT coalesce(json_object_agg(question_id, share), '{{}}'::json) FROM shares) AS shares
+"""
+)
+
+
+# What one person's answers earned, for the page that shows them their
+# own marked quiz.
+_EARNED_SQL = text(
+    f"""
+WITH earned AS ({_EARNED_CTE})
+SELECT question_id, earned
+FROM earned
+WHERE submission_id = :submission_id
+"""
+)
+
+
+def scores(db: Session, form_id: str) -> dict[str, int]:
+    """Submission id to what it scored, for every submission."""
+    return {row.submission_id: row.score for row in db.execute(_SCORES_SQL, {"form_id": form_id}).all()}
+
+
+def earned_points(db: Session, form_id: str, submission_id: str) -> dict[str, int]:
+    """Question id to what one submission's answer earned on it."""
     return {
-        "answer_int": row.answer_int,
-        "answer_text": row.answer_text,
-        "answer_choices": list(row.answer_choices) if row.answer_choices else None,
+        row.question_id: row.earned
+        for row in db.execute(_EARNED_SQL, {"form_id": form_id, "submission_id": submission_id}).all()
     }
-
-
-def score_of(questions: list[FormQuestion], rows: list[FormResponse]) -> int:
-    """One submission's score: every stored answer marked against the
-    quiz as it stands now."""
-    by_id = {q.id: q for q in questions}
-    return sum(grade(by_id[r.question_id], as_fields(r)) for r in rows if r.question_id in by_id)
-
-
-def rows_by_submission(db: Session, form_id: str) -> dict[str, list[FormResponse]]:
-    """Every stored answer for this quiz, grouped by who gave it. One
-    query, because the organiser's page marks every submission."""
-    grouped: dict[str, list[FormResponse]] = {}
-    for row in db.query(FormResponse).filter(FormResponse.form_id == form_id).all():
-        grouped.setdefault(row.submission_id, []).append(row)
-    return grouped
 
 
 def validate_kinds(questions: list[Any]) -> None:
@@ -179,44 +230,28 @@ def validate_keys(questions: list[Any]) -> None:
                 if q.max_value is not None and q.correct_int > q.max_value:
                     raise bad("the correct answer is above the highest allowed number.")
         elif q.kind in ("single_choice", "multi_choice"):
-            key = [c.strip() for c in (q.correct_choices or []) if c.strip()]
-            options = [o.strip() for o in q.options if o.strip()]
-            if not key:
+            # The key is which options are marked correct, so it cannot
+            # name something that is not an option.
+            marked = [o for o in q.options if o.is_correct]
+            if not marked:
                 raise bad("a scored question needs a correct answer.")
-            if any(c not in options for c in key):
-                raise bad("the correct answer has to be one of the options.")
-            if q.kind == "single_choice" and len(key) != 1:
+            if q.kind == "single_choice" and len(marked) != 1:
                 raise bad("a single-choice question has exactly one correct option.")
 
 
-def score_stats(
-    db: Session,
-    form_id: str,
-    questions: list[FormQuestion],
-) -> tuple[float | None, int | None, int | None]:
-    """Average score, best score, and what a perfect run is worth. All
-    three are None before anybody has played.
+def summary_stats(db: Session, form_id: str, questions: Sequence[Any]) -> QuizSummaryStats:
+    """What the organiser's summary page says about the marks: the
+    average and best scores, what a perfect run is worth, and the share
+    of each scored question's answers that got full marks.
 
     Derived, like every other score here: re-weight a question and this
     moves with it, which is what an organiser means when they change
-    the weight."""
-    grouped = rows_by_submission(db, form_id)
-    if not grouped:
-        return None, None, None
-    scores = [score_of(questions, rows) for rows in grouped.values()]
-    return round(sum(scores) / len(scores), 1), max(scores), max_score(questions)
-
-
-def correct_share(db: Session, form_id: str, question: FormQuestion) -> float | None:
-    """The share of answers to this question that earned full marks.
-    None for a question nobody scored, which includes every question on
-    a survey."""
-    if question.points <= 0:
-        return None
-    rows = db.query(FormResponse).filter(FormResponse.form_id == form_id, FormResponse.question_id == question.id).all()
-    if not rows:
-        return None
-    # Full marks, not part marks: the question this answers is "how
-    # many of them got it", and half a multiple-choice answer is not
-    # getting it.
-    return round(sum(1 for r in rows if grade(question, as_fields(r)) >= question.points) / len(rows), 2)
+    the weight. Before anybody has played there is no average and no
+    best, and no question has a share."""
+    row = db.execute(_SUMMARY_SQL, {"form_id": form_id}).one()
+    return QuizSummaryStats(
+        average=row.average,
+        best=row.best,
+        out_of=max_score(questions),
+        shares=row.shares or {},
+    )

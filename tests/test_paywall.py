@@ -19,7 +19,7 @@ from _helpers.events import first_occurrence, make_event
 from backend.auth import create_token
 from backend.cli import _tenant_plan
 from backend.database import SessionLocal
-from backend.models import Chore, EmailChannel, EmailDispatch, EmailStatus, Event, Roster, Tenant, User, Volunteer
+from backend.models import Chore, EmailChannel, EmailDispatch, Event, Roster, Tenant, User, Volunteer
 from backend.services import mail_lifecycle
 from backend.services import tenants as tenants_svc
 
@@ -114,14 +114,14 @@ def test_a_personal_account_is_born_free(free) -> None:
 
 def test_a_free_account_cannot_create_an_event_that_mails(free, client) -> None:
     _, _, headers = free
-    r = client.post("/api/v1/events", json=_event_payload(reminder_enabled=True), headers=headers)
+    r = client.post("/api/v1/event", json=_event_payload(reminder_enabled=True), headers=headers)
     assert r.status_code == 422, r.text
     assert "paid plan" in r.json()["detail"]
 
 
 def test_feedback_mail_is_gated_the_same_way(free, client) -> None:
     _, _, headers = free
-    r = client.post("/api/v1/events", json=_event_payload(feedback_enabled=True), headers=headers)
+    r = client.post("/api/v1/event", json=_event_payload(feedback_enabled=True), headers=headers)
     assert r.status_code == 422, r.text
 
 
@@ -129,14 +129,14 @@ def test_a_free_account_may_have_the_event_itself(free, client) -> None:
     """The gate is on the mail, not on the product: same event, no
     toggles, 201."""
     _, _, headers = free
-    assert client.post("/api/v1/events", json=_event_payload(), headers=headers).status_code == 201
+    assert client.post("/api/v1/event", json=_event_payload(), headers=headers).status_code == 201
 
 
 def test_switching_it_on_later_is_refused_too(free, client) -> None:
     _, _, headers = free
-    created = client.post("/api/v1/events", json=_event_payload(), headers=headers).json()
+    created = client.post("/api/v1/event", json=_event_payload(), headers=headers).json()
     r = client.put(
-        f"/api/v1/events/{created['id']}",
+        f"/api/v1/event/{created['id']}",
         json=_event_payload(reminder_enabled=True),
         headers=headers,
     )
@@ -146,7 +146,7 @@ def test_switching_it_on_later_is_refused_too(free, client) -> None:
 def test_a_paid_account_may_switch_it_on(free, client, db) -> None:
     tenant, _, headers = free
     _pay(db, tenant)
-    r = client.post("/api/v1/events", json=_event_payload(reminder_enabled=True), headers=headers)
+    r = client.post("/api/v1/event", json=_event_payload(reminder_enabled=True), headers=headers)
     assert r.status_code == 201, r.text
 
 
@@ -154,7 +154,7 @@ def test_the_start_door_is_gated_too(client) -> None:
     """The anonymous door creates a personal account, which is free, so
     a payload asking for mail is refused there as well."""
     r = client.post(
-        "/api/v1/start/events",
+        "/api/v1/start/event",
         json={"email": "anon@example.org", "event": _event_payload(reminder_enabled=True)},
     )
     assert r.status_code == 422, r.text
@@ -162,7 +162,7 @@ def test_the_start_door_is_gated_too(client) -> None:
 
 def test_a_free_account_cannot_create_a_roster_that_mails(free, client) -> None:
     _, _, headers = free
-    r = client.post("/api/v1/chores", json=_roster_payload(reminder_enabled=True), headers=headers)
+    r = client.post("/api/v1/chore", json=_roster_payload(reminder_enabled=True), headers=headers)
     assert r.status_code == 422, r.text
 
 
@@ -173,9 +173,9 @@ def test_the_public_roster_says_whether_it_sends(free, client, db) -> None:
     """The enrol page asks for an address only when something will use
     it, the same rule the public event page follows."""
     _, _, headers = free
-    created = client.post("/api/v1/chores", json=_roster_payload(), headers=headers).json()
+    created = client.post("/api/v1/chore", json=_roster_payload(), headers=headers).json()
     slug = db.query(Roster).filter(Roster.id == created["id"]).one().slug
-    body = client.get(f"/api/v1/chores/by-slug/{slug}").json()
+    body = client.get(f"/api/v1/chore/by-slug/{slug}").json()
     assert body["reminder_enabled"] is False
 
 
@@ -183,11 +183,11 @@ def test_a_roster_that_sends_nothing_keeps_no_address(free, client, db) -> None:
     """A stale page that ticks the box anyway still leaves no ciphertext
     behind: the roster is not going to mail anyone."""
     _, _, headers = free
-    created = client.post("/api/v1/chores", json=_roster_payload(), headers=headers).json()
+    created = client.post("/api/v1/chore", json=_roster_payload(), headers=headers).json()
     roster = db.query(Roster).filter(Roster.id == created["id"]).one()
     chore = db.query(Chore).filter(Chore.roster_id == roster.id).first()
     r = client.post(
-        f"/api/v1/chores/by-slug/{roster.slug}/enroll",
+        f"/api/v1/chore/by-slug/{roster.slug}/enroll",
         json={
             "display_name": "V",
             "email": "v@example.org",
@@ -212,7 +212,6 @@ def test_the_worker_sends_nothing_for_a_free_account(db, tenant_id, fake_email) 
         EmailDispatch(
             occurrence_id=first_occurrence(event).id,
             channel=EmailChannel.REMINDER,
-            status=EmailStatus.PENDING,
             encrypted_email=_ciphertext(),
         )
     )
@@ -242,17 +241,17 @@ def test_dropping_to_free_clears_the_toggles_and_the_queue(free, client, db) -> 
     tenant, _, headers = free
     _pay(db, tenant)
     created = client.post(
-        "/api/v1/events",
+        "/api/v1/event",
         json=_event_payload(reminder_enabled=True, feedback_enabled=True),
         headers=headers,
     ).json()
     slug = first_occurrence(db.query(Event).filter(Event.id == created["id"]).one()).slug
     r = client.post(
-        f"/api/v1/events/by-slug/{slug}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={"display_name": "Alice", "party_size": 1, "email": "alice@example.org", "all_upcoming": True},
     )
     assert r.status_code == 201, r.text
-    assert db.query(EmailDispatch).filter(EmailDispatch.status == EmailStatus.PENDING).count() > 0
+    assert db.query(EmailDispatch).count() > 0
 
     assert _tenant_plan("solo@example.org", "free") == 0
 
@@ -261,7 +260,7 @@ def test_dropping_to_free_clears_the_toggles_and_the_queue(free, client, db) -> 
         event = fresh.query(Event).filter(Event.id == created["id"]).one()
         assert event.reminder_enabled is False
         assert event.feedback_enabled is False
-        assert fresh.query(EmailDispatch).filter(EmailDispatch.status == EmailStatus.PENDING).count() == 0
+        assert fresh.query(EmailDispatch).count() == 0
         assert fresh.query(Tenant).filter(Tenant.id == tenant.id).one().is_paid is False
     finally:
         fresh.close()
@@ -285,6 +284,6 @@ def test_a_free_account_still_gets_its_sign_in_link(client, fake_email) -> None:
 
 
 def test_the_start_door_still_mails_what_it_made(client, fake_email) -> None:
-    r = client.post("/api/v1/start/events", json={"email": "anon@example.org", "event": _event_payload()})
+    r = client.post("/api/v1/start/event", json={"email": "anon@example.org", "event": _event_payload()})
     assert r.status_code == 201, r.text
     assert len(fake_email.sent) == 1

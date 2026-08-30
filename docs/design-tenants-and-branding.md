@@ -11,7 +11,7 @@ There is no UI for this and no platform-admin role. Nobody signs in to
 
 ## One slug, three jobs
 
-A slug is the organisation's URL prefix (`/rsp/events`), the name of its
+A slug is the organisation's URL prefix (`/rsp/event`), the name of its
 brand folder (`brands/rsp/`) and the key its session is stored under.
 One name for one thing, so a tenant whose brand folder is missing stops
 the boot rather than serving pages with no palette.

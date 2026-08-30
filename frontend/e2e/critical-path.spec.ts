@@ -38,7 +38,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   const startsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // +30d
   const endsAt = new Date(startsAt.getTime() + 2 * 60 * 60 * 1000); // +2h
 
-  const eventRes = await request.post("/api/v1/events", {
+  const eventRes = await request.post("/api/v1/event", {
     headers: { Authorization: `Bearer ${token}` },
     data: {
       name_nl: "E2E Smoke Event",
@@ -47,7 +47,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
       starts_on: startsAt.toISOString().slice(0, 10),
       start_time: "19:00:00",
       end_time: "21:00:00",
-      source_options: ["Mond-tot-mond"],
+      source_options: [{ label: "Mond-tot-mond" }],
       source_enabled: true,
       help_options: [],
       feedback_enabled: false,
@@ -61,13 +61,13 @@ test("public visitor signs up for an event and sees the thanks state", async ({
 
   // The public page is per OCCURRENCE now; fetch the event's first
   // materialised occurrence and use its slug for /e/{slug}.
-  const occRes = await request.get(`/api/v1/events/${event.id}/occurrences`, {
+  const occRes = await request.get(`/api/v1/event/${event.id}/occurrences`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const occSlug = (await occRes.json()).occurrences[0].slug as string;
 
   // --- act: visitor opens the public link, fills + submits the form ---
-  // The page now lives in its own Vue mini-app
+  // The page now lives in its own mini-app
   // (``frontend/public-event.html`` + ``src/public/``) using
   // native ``<input>`` / ``<button>`` plus a custom
   // ``BrandedSelect`` component (button trigger + role=listbox

@@ -57,6 +57,7 @@ def _render(request: Request, template: str, **context: object) -> HTMLResponse:
         template,
         {
             "brand": brand_svc.payload(brand_svc.HOUSE_BRAND),
+            "palette_css": brand_svc.palette_css(brand_svc.HOUSE_BRAND),
             "pages": PAGES,
             **context,
         },
@@ -84,7 +85,7 @@ def _written_page(slug: str, request: Request) -> HTMLResponse:
     request.state.ads_allowed = ads is not None
     return _render(
         request,
-        f"content/{page.slug}.html",
+        "content.html",
         page=page,
         ads=ads,
         csp_nonce=request.state.csp_nonce,
@@ -96,7 +97,7 @@ def _written_page(slug: str, request: Request) -> HTMLResponse:
 
 # One route per page, not ``/{slug}``. A single-segment path parameter
 # here would sit in front of the SPA fallback and swallow every
-# one-segment URL in the app: ``/rsp``, ``/login``, ``/events``. Naming
+# one-segment URL in the app: ``/rsp``, ``/event``, ``/settings``. Naming
 # each path means only these four are taken.
 for _page in PAGES:
 

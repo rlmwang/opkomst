@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # Multi-stage build:
-#   1. ``frontend-builder``  builds the Vue/Vite SPA into ``frontend/dist``.
+#   1. ``frontend-builder``  builds the front end into ``frontend/dist``.
 #   2. ``backend-runtime``   installs Python deps with ``uv``, copies the
 #                            backend source and the built SPA, and runs
 #                            uvicorn with multiple workers.
@@ -29,10 +29,11 @@ COPY frontend/package.json frontend/package-lock.json* ./
 # but tarballs come from the cache instead of the network.
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
-# ``build-only`` = ``vite build`` without ``vue-tsc``. Type-checking runs in
-# pre-push (lefthook) and CI, so re-running it here is redundant — and
-# ``vue-tsc`` is the memory hog that OOM-kills the build on the 1.9 GB VPS,
-# taking the site down. The image build just needs the bundle.
+# ``build-only`` = the two-pass build without ``svelte-check``.
+# Type-checking runs in pre-push (lefthook) and CI, so re-running it here
+# is redundant, and the checker is the memory hog that OOM-kills the
+# build on the 1.9 GB VPS, taking the site down. The image build just
+# needs the bundle.
 RUN npm run build-only
 
 # ---------------------------------------------------------------------------
@@ -145,15 +146,22 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -fsS --max-time 8 http://localhost:8000/health || exit 1
 
-# One worker. Earlier we ran two for GIL relief (Server-Timing
-# telemetry showed handler-side Pydantic serialisation taking
-# ~300 ms on PUTs), but on the small-VPS deploy memory dominates
-# wall-clock cost: each uvicorn worker carries ~150–200 MB of
-# Python + SQLAlchemy + Pydantic + Sentry state, and swap thrash
-# at 90 % memory pressure was the real cause of slow responses,
-# not GIL contention. Override via the ``WEB_CONCURRENCY`` env
-# if the deployment ever moves to a box with headroom to spare.
-ENV WEB_CONCURRENCY=1
+# One worker per core, less one for everything else on the box.
+#
+# This was 1, sized for a 512 MB VPS where a second worker's
+# ~150-200 MB of Python, SQLAlchemy, Pydantic and Sentry state pushed
+# the host into swap, and swap thrash was what made responses slow.
+# The host it actually runs on has 3 cores and 3.9 GB, and the
+# container is capped at 1 GB while using 240 MB with two workers, so
+# the memory argument no longer holds. A worker is a whole process
+# with its own event loop: with one, a single slow request blocks
+# every other request behind it.
+#
+# Raising this raises the database connection count with it —
+# SQLAlchemy opens up to 5 per worker (pool 2 plus 3 overflow), and
+# Postgres' ``max_connections`` has to cover the total plus the cron
+# sweeps. ``docs/deploy.md`` sizes both together.
+ENV WEB_CONCURRENCY=3
 
 # The image's default CMD is the API. Scheduled email sweeps run
 # as cron-style one-shots via ``python -m backend.cli ...`` — see

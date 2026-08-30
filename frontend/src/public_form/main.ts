@@ -1,6 +1,6 @@
 /**
  * Public form mini-app entry. Mounts a single component to
- * ``#app`` — no router, no Pinia, no Vue Query, no PrimeVue, no
+ * ``#app``: no router, no Pinia, no Vue Query, no
  * vue-i18n. Mirrors ``src/public/main.ts`` (the event sign-up
  * mini-app) one-to-one; same wire-weight target.
  *
@@ -8,9 +8,9 @@
  * parsed from ``window.location.pathname`` directly.
  */
 
-import { createApp } from "vue";
 import "@/assets/theme.css";
 import "@/public_shared/forms.css";
-import PublicForm from "./PublicForm.vue";
+import { mountApp } from "@/lib/mount";
+import PublicForm from "./PublicForm.svelte";
 
-createApp(PublicForm).mount("#app");
+mountApp(PublicForm);

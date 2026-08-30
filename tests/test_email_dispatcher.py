@@ -17,10 +17,10 @@ from typing import Any
 import pytest
 from _helpers import commit
 from _helpers.events import first_occurrence, make_event
-from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup
+from _helpers.signups import get_dispatch, has_any_ciphertext, make_signup, send_counts
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus, FeedbackToken, Signup
+from backend.models import EmailChannel, FeedbackToken, Signup
 from backend.services import mail_lifecycle
 
 # Event timing per channel: when does the window open?
@@ -131,11 +131,10 @@ def test_marks_sent_and_mints_message_id(channel: EmailChannel, db: Any, fake_em
 
     fresh = SessionLocal()
     try:
-        d = get_dispatch(fresh, s, channel)
-        assert d is not None
-        assert d.status == EmailStatus.SENT
-        assert d.message_id is not None
-        assert d.sent_at is not None
+        # The row is the work; the work is done, so the row is gone and
+        # the address with it. What is left is the tally.
+        assert get_dispatch(fresh, s, channel) is None
+        assert send_counts(fresh, s, channel) == (1, 0)
     finally:
         fresh.close()
 
@@ -151,10 +150,8 @@ def test_failed_send_marks_failed_and_clears_message_id(channel: EmailChannel, d
 
     fresh = SessionLocal()
     try:
-        d = get_dispatch(fresh, s, channel)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
-        assert d.message_id is None
+        assert get_dispatch(fresh, s, channel) is None
+        assert send_counts(fresh, s, channel) == (0, 1)
     finally:
         fresh.close()
 
@@ -258,14 +255,13 @@ def test_keeps_ciphertext_when_other_channel_pending(
         row = fresh.query(Signup).filter(Signup.id == s.id).first()
         assert row is not None
         assert has_any_ciphertext(fresh, row)
-        # The just-processed channel is now sent.
-        d_processed = get_dispatch(fresh, s, channel)
-        assert d_processed is not None
-        assert d_processed.status == EmailStatus.SENT
-        # The other channel is still pending.
+        # The just-processed channel is done: no row, one send counted.
+        assert get_dispatch(fresh, s, channel) is None
+        assert send_counts(fresh, s, channel) == (1, 0)
+        # The other channel is still outstanding, so its row is still here.
         d_other = get_dispatch(fresh, s, other_channel)
         assert d_other is not None
-        assert d_other.status == EmailStatus.PENDING
+        assert d_other.encrypted_email is not None
     finally:
         fresh.close()
 
@@ -275,9 +271,9 @@ def test_keeps_ciphertext_when_other_channel_pending(
 
 @pytest.mark.parametrize("channel", _BOTH_CHANNELS)
 def test_decrypt_failure_flips_to_failed_once(channel: EmailChannel, db: Any, fake_email: Any) -> None:
-    """Phase 2.2: corrupt ciphertext is unrecoverable, so the
-    first decrypt failure flips the dispatch to ``failed`` and
-    clears the message_id. The next sweep won't re-process."""
+    """Phase 2.2: corrupt ciphertext is unrecoverable, so the first
+    decrypt failure counts a failure and deletes the row. The next sweep
+    has nothing to re-process."""
     e = _make_event_in_window(db, channel)
     s = make_signup(db, e, email="alice@example.test")
     # Corrupt the dispatch's ciphertext so decrypt is unrecoverable.
@@ -291,10 +287,8 @@ def test_decrypt_failure_flips_to_failed_once(channel: EmailChannel, db: Any, fa
 
     fresh = SessionLocal()
     try:
-        d = get_dispatch(fresh, s, channel)
-        assert d is not None
-        assert d.status == EmailStatus.FAILED
-        assert d.message_id is None
+        assert get_dispatch(fresh, s, channel) is None
+        assert send_counts(fresh, s, channel) == (0, 1)
     finally:
         fresh.close()
     assert fake_email.sent == []

@@ -16,7 +16,16 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_approved
 from ..database import get_db
-from ..models import EmailChannel, EmailDispatch, EmailStatus, Event, Occurrence, Registration, Signup, User
+from ..models import (
+    EmailChannel,
+    EmailDispatch,
+    Event,
+    Occurrence,
+    Registration,
+    Signup,
+    SignupHelpChoice,
+    User,
+)
 from ..schemas.common import EditLinkRecoverOut, pick_localized
 from ..schemas.events import (
     BookingEditIn,
@@ -33,7 +42,7 @@ from ..services.rate_limit import Limits, limiter
 
 logger = structlog.get_logger()
 
-router = APIRouter(prefix="/api/v1/events", tags=["signups"])
+router = APIRouter(prefix="/api/v1/event", tags=["signups"])
 
 
 def _resolve_targets(db: Session, event: Event, data: SignupCreate, now) -> list[Occurrence]:
@@ -67,8 +76,10 @@ def create_signup(
     event = occurrence.event
     # A switched-off question isn't asked, so an answer to it is a stale
     # page or a hand-made request, not something to record.
-    allowed_sources = event.source_options if event.source_enabled else []
-    allowed_help = event.help_options if event.help_enabled else []
+    # Both sides are option ids: what the payload names has to be one of
+    # the event's own rows.
+    allowed_sources = {o.id for o in event.source_options} if event.source_enabled else set()
+    allowed_help = {o.id for o in event.help_options} if event.help_enabled else set()
     if data.source_choice is not None and data.source_choice not in allowed_sources:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
     invalid_help = [c for c in data.help_choices if c not in allowed_help]
@@ -102,14 +113,16 @@ def create_signup(
     has_email = bool(data.email)
     total_dispatches = 0
     for occ in targets:
-        db.add(
-            Signup(
-                registration_id=registration.id,
-                occurrence_id=occ.id,
-                source_choice=data.source_choice,
-                help_choices=data.help_choices,
-            )
+        signup = Signup(
+            registration_id=registration.id,
+            occurrence_id=occ.id,
+            source_option_id=data.source_choice,
         )
+        db.add(signup)
+        db.flush()
+        # One row per offer of help, pointing at the option itself.
+        for help_option_id in data.help_choices:
+            db.add(SignupHelpChoice(signup_id=signup.id, help_option_id=help_option_id))
         # Per-occurrence dispatch rows. Reminders apply only when the
         # occurrence hasn't started yet (the worker's window would skip a
         # past-start row); feedback applies whenever its toggle is on. Each
@@ -126,7 +139,6 @@ def create_signup(
                 EmailDispatch(
                     occurrence_id=occ.id,
                     channel=ch,
-                    status=EmailStatus.PENDING,
                     encrypted_email=encryption.encrypt(data.email),
                     # Mail this attendee in the language they signed up in;
                     # fall back to the event's primary locale.
@@ -186,19 +198,27 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
                 starts_at=occ.starts_at,
                 ends_at=occ.ends_at,
                 is_past=occ.starts_at <= now,
-                source_choice=signup.source_choice,
-                help_choices=signup.help_choices or [],
+                source_choice=signup.source_option_id,
+                help_choices=list(signup.help_choices),
             )
             for signup, occ in rows
         ],
     )
 
 
+def submission_for_token(db: Session, token: str) -> BookingOut:
+    """The whole booking behind an edit-link token. Shared by the
+    ``by-token`` route and ``routers/spa.py``, which inlines this into
+    the HTML for a ``?s=`` link so the edit page paints without a
+    round-trip. Email is never returned (it isn't reachable from a
+    booking)."""
+    return _booking_out(db, _registration_by_token(db, token))
+
+
 @router.get("/by-token/{token}", response_model=BookingOut)
 def get_booking(token: str, db: Session = Depends(get_db)) -> BookingOut:
-    """The whole booking behind an edit-link token, for the edit page.
-    Email is never returned (it isn't reachable from a booking)."""
-    return _booking_out(db, _registration_by_token(db, token))
+    """The whole booking behind an edit-link token, for the edit page."""
+    return submission_for_token(db, token)
 
 
 @router.put("/by-token/{token}", response_model=BookingOut)
@@ -312,18 +332,19 @@ def set_booking_occurrences(
     # New line items inherit the booking's original "how did you hear" + help
     # choices (identical across its line items at sign-up time).
     template = rows[0][0] if rows else None
-    source_choice = template.source_choice if template else None
-    help_choices = list(template.help_choices or []) if template else []
+    source_choice = template.source_option_id if template else None
+    help_choices = list(template.help_choices) if template else []
 
     for occ_id in desired_ids - set(current_future):
-        db.add(
-            Signup(
-                registration_id=registration.id,
-                occurrence_id=occ_id,
-                source_choice=source_choice,
-                help_choices=help_choices,
-            )
+        added = Signup(
+            registration_id=registration.id,
+            occurrence_id=occ_id,
+            source_option_id=source_choice,
         )
+        db.add(added)
+        db.flush()
+        for help_option_id in help_choices:
+            db.add(SignupHelpChoice(signup_id=added.id, help_option_id=help_option_id))
     for occ_id in set(current_future) - desired_ids:
         db.delete(current_future[occ_id])
 

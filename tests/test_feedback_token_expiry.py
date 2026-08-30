@@ -21,8 +21,7 @@ from uuid_utils import uuid7
 from backend.database import SessionLocal
 from backend.models import (
     EmailChannel,
-    EmailDispatch,
-    EmailStatus,
+    EmailSendCount,
     Event,
     FeedbackToken,
     Occurrence,
@@ -48,8 +47,6 @@ def _seed_minimal_event_and_signup() -> str:
             start_time=time(18, 0),
             end_time=time(20, 0),
             cycle_slots=[],
-            source_options=["x"],
-            help_options=[],
             feedback_enabled=True,
             reminder_enabled=False,
             locale="nl",
@@ -73,19 +70,18 @@ def _seed_minimal_event_and_signup() -> str:
         s = Signup(
             registration_id=registration.id,
             occurrence_id="occ-tok",
-            source_choice="x",
-            help_choices=[],
         )
         db.add(s)
-        # A finalised dispatch row to mirror the real path; not
-        # actually consulted by these tests but kept so the seed
-        # matches production. Decoupled from the signup — pointed
+        # The send already happened, so production would have deleted
+        # the row and counted it. Not consulted by these tests; kept so
+        # the seed matches. Decoupled from the signup — the tally points
         # at the occurrence directly.
         db.add(
-            EmailDispatch(
+            EmailSendCount(
                 occurrence_id="occ-tok",
                 channel=EmailChannel.FEEDBACK,
-                status=EmailStatus.SENT,
+                day=datetime.now(UTC).date(),
+                sent=1,
             )
         )
         db.commit()

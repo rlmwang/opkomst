@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -100,11 +99,6 @@ app.add_middleware(TenantBindingMiddleware)
 # CSP / HSTS / nosniff apply uniformly to preflights too.
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Gzip everything ≥1 KiB. The static SPA bundle (~470 KB raw PrimeVue
-# chunk, ~190 KB main) compresses ~4× and is the dominant payload on
-# first paint.
-app.add_middleware(GZipMiddleware, minimum_size=1024)
-
 # CORS — dev frontend on 5173. In prod the frontend is served from the
 # same origin so this becomes a no-op.
 app.add_middleware(
@@ -157,7 +151,7 @@ app.include_router(forms_router.compass_router)
 app.include_router(datepolls_public_router.router)
 app.include_router(datepolls_router.router)
 # Public-by-slug routes mount BEFORE the organiser router (same reason
-# as forms/datepolls) so /by-slug/{slug} wins over /{roster_id}.
+# as forms/datepoll) so /by-slug/{slug} wins over /{roster_id}.
 app.include_router(chores_public_router.router)
 app.include_router(chores_router.router)
 app.include_router(start_router.router)

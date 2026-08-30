@@ -1,69 +1,76 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
-import { createI18n } from "vue-i18n";
-import EmojiPicker from "@/components/EmojiPicker.vue";
+import { render } from "@testing-library/svelte";
+import { describe, expect, it, vi } from "vitest";
 
-function makeI18n() {
-  return createI18n({
-    legacy: false,
-    locale: "en",
-    messages: { en: { chores: { edit: { pickEmoji: "Pick an emoji" } } } },
-  });
-}
+import { useTestMessages } from "@/__tests__/i18n-harness";
+import EmojiPicker from "@/components/EmojiPicker.svelte";
 
-function mountPicker(options: Parameters<typeof mount>[1] = {}) {
-  return mount(EmojiPicker, { ...options, global: { plugins: [makeI18n()] } });
+useTestMessages("en", { chore: { edit: { pickEmoji: "Pick an emoji" } } });
+
+function picker(props: Record<string, unknown> = {}) {
+  const onselect = vi.fn();
+  const { container, unmount } = render(EmojiPicker, { props: { onselect, ...props } });
+  const find = (selector: string) => container.querySelector(selector) as HTMLElement | null;
+  return {
+    onselect,
+    unmount,
+    find,
+    all: (selector: string) => [...container.querySelectorAll(selector)] as HTMLElement[],
+    async openClose() {
+      find(".emoji-trigger")!.click();
+      await Promise.resolve();
+    },
+  };
 }
 
 describe("EmojiPicker", () => {
   it("renders a trigger button with no panel by default", () => {
-    const w = mountPicker();
-    expect(w.find(".emoji-trigger").exists()).toBe(true);
-    expect(w.find(".emoji-panel").exists()).toBe(false);
+    const p = picker();
+    expect(p.find(".emoji-trigger")).not.toBeNull();
+    expect(p.find(".emoji-panel")).toBeNull();
   });
 
   it("opens the panel on click and closes on a second click", async () => {
-    const w = mountPicker();
-    await w.find(".emoji-trigger").trigger("click");
-    expect(w.find(".emoji-panel").exists()).toBe(true);
-    await w.find(".emoji-trigger").trigger("click");
-    expect(w.find(".emoji-panel").exists()).toBe(false);
+    const p = picker();
+    await p.openClose();
+    expect(p.find(".emoji-panel")).not.toBeNull();
+    await p.openClose();
+    expect(p.find(".emoji-panel")).toBeNull();
   });
 
-  it("emits 'select' with the picked emoji and closes the panel", async () => {
-    const w = mountPicker();
-    await w.find(".emoji-trigger").trigger("click");
-    const cells = w.findAll(".emoji-cell");
+  it("hands back the picked emoji and closes the panel", async () => {
+    const p = picker();
+    await p.openClose();
+    const cells = p.all(".emoji-cell");
     expect(cells.length).toBeGreaterThan(20);
-    await cells[0].trigger("click");
-    expect(w.emitted("select")).toHaveLength(1);
-    expect(w.emitted("select")![0][0]).toBeTypeOf("string");
-    expect(w.find(".emoji-panel").exists()).toBe(false);
+    cells[0].click();
+    await Promise.resolve();
+    expect(p.onselect).toHaveBeenCalledTimes(1);
+    expect(p.onselect.mock.calls[0][0]).toBeTypeOf("string");
+    expect(p.find(".emoji-panel")).toBeNull();
   });
 
-  it("shows the current emoji in the trigger when modelValue is set", () => {
-    const w = mountPicker({ props: { modelValue: "🧹" } });
-    expect(w.find(".emoji-current").text()).toBe("🧹");
+  it("shows the current emoji in the trigger when one is set", () => {
+    const p = picker({ value: "🧹" });
+    expect(p.find(".emoji-current")?.textContent).toBe("🧹");
   });
 
   it("closes the panel when the click lands outside the component", async () => {
-    const w = mountPicker({ attachTo: document.body });
-    await w.find(".emoji-trigger").trigger("click");
-    expect(w.find(".emoji-panel").exists()).toBe(true);
-    // Click on a node that isn't inside the picker.
+    const p = picker();
+    await p.openClose();
+    expect(p.find(".emoji-panel")).not.toBeNull();
     document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await w.vm.$nextTick();
-    expect(w.find(".emoji-panel").exists()).toBe(false);
-    w.unmount();
+    await Promise.resolve();
+    expect(p.find(".emoji-panel")).toBeNull();
+    p.unmount();
   });
 
   it("closes the panel on Escape", async () => {
-    const w = mountPicker({ attachTo: document.body });
-    await w.find(".emoji-trigger").trigger("click");
-    expect(w.find(".emoji-panel").exists()).toBe(true);
+    const p = picker();
+    await p.openClose();
+    expect(p.find(".emoji-panel")).not.toBeNull();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    await w.vm.$nextTick();
-    expect(w.find(".emoji-panel").exists()).toBe(false);
-    w.unmount();
+    await Promise.resolve();
+    expect(p.find(".emoji-panel")).toBeNull();
+    p.unmount();
   });
 });

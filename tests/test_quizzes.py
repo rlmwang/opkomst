@@ -22,6 +22,7 @@ from typing import Any
 
 from backend.database import SessionLocal
 from backend.models import Form
+from tests._helpers.forms import option_ids
 
 
 def _chapter_id(client: Any, headers: Any) -> str:
@@ -36,14 +37,14 @@ def _quiz(client: Any, headers: Any, questions: list[dict[str, Any]], **extra: A
         "questions": questions,
         **extra,
     }
-    r = client.post("/api/v1/quizzes", headers=headers, json=body)
+    r = client.post("/api/v1/quiz", headers=headers, json=body)
     assert r.status_code == 201, r.text
     return r.json()
 
 
 def _take(client: Any, quiz: dict[str, Any], answers: list[dict[str, Any]], name: str | None = "Sam") -> Any:
     return client.post(
-        f"/api/v1/quizzes/by-slug/{quiz['slug']}/submit",
+        f"/api/v1/quiz/by-slug/{quiz['slug']}/submit",
         json={"display_name": name, "answers": answers},
     )
 
@@ -60,18 +61,17 @@ def test_a_right_answer_scores_and_a_wrong_one_does_not(client, organiser_header
                 "kind": "single_choice",
                 "prompt": "Hoofdstad?",
                 "points": 3,
-                "options": ["Rotterdam", "Amsterdam"],
-                "correct_choices": ["Amsterdam"],
+                "options": [{"label": "Rotterdam"}, {"label": "Amsterdam", "is_correct": True}],
             },
             {"kind": "number", "prompt": "Hoeveel provincies?", "points": 2, "correct_int": 12},
         ],
     )
-    qs = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"]
+    qs = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"]
     r = _take(
         client,
         quiz,
         [
-            {"question_id": qs[0]["id"], "answer_choices": ["Amsterdam"]},
+            {"question_id": qs[0]["id"], "answer_choices": option_ids(qs[0], "Amsterdam")},
             {"question_id": qs[1]["id"], "answer_int": 11},
         ],
     )
@@ -96,15 +96,21 @@ def test_multi_choice_pays_part_marks_and_charges_for_wrong_ones(client, organis
                 "kind": "multi_choice",
                 "prompt": "Welke twee?",
                 "points": 6,
-                "options": ["A", "B", "C", "D"],
-                "correct_choices": ["A", "B"],
+                "options": [
+                    {"label": "A", "is_correct": True},
+                    {"label": "B", "is_correct": True},
+                    {"label": "C"},
+                    {"label": "D"},
+                ],
             }
         ],
     )
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    question = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]
+    qid = question["id"]
 
     def score(choices: list[str]) -> int:
-        return _take(client, quiz, [{"question_id": qid, "answer_choices": choices}]).json()["score"]
+        picked = option_ids(question, *choices)
+        return _take(client, quiz, [{"question_id": qid, "answer_choices": picked}]).json()["score"]
 
     assert score(["A", "B"]) == 6  # (2 - 0) / 2
     assert score(["A"]) == 3  # (1 - 0) / 2
@@ -126,15 +132,22 @@ def test_a_wrong_tick_costs_what_a_right_one_pays(client, organiser_headers) -> 
                 "kind": "multi_choice",
                 "prompt": "Welke?",
                 "points": 8,
-                "options": ["A", "B", "C", "D", "E"],
-                "correct_choices": ["A"],
+                "options": [
+                    {"label": "A", "is_correct": True},
+                    {"label": "B"},
+                    {"label": "C"},
+                    {"label": "D"},
+                    {"label": "E"},
+                ],
             }
         ],
     )
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    question = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]
+    qid = question["id"]
 
     def score(choices: list[str]) -> int:
-        return _take(client, quiz, [{"question_id": qid, "answer_choices": choices}]).json()["score"]
+        picked = option_ids(question, *choices)
+        return _take(client, quiz, [{"question_id": qid, "answer_choices": picked}]).json()["score"]
 
     assert score(["A"]) == 8
     assert score(["A", "B"]) == 0
@@ -147,7 +160,7 @@ def test_a_number_may_be_close_enough(client, organiser_headers) -> None:
         organiser_headers,
         [{"kind": "number", "prompt": "Hoe hoog?", "points": 2, "correct_int": 100, "tolerance": 5}],
     )
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
     assert _take(client, quiz, [{"question_id": qid, "answer_int": 96}]).json()["score"] == 2
     assert _take(client, quiz, [{"question_id": qid, "answer_int": 94}]).json()["score"] == 0
 
@@ -159,7 +172,7 @@ def test_a_quiz_refuses_a_question_it_cannot_mark(client, organiser_headers) -> 
     finding out that a question quietly counted for nothing."""
     for kind in ("text", "short_text"):
         r = client.post(
-            "/api/v1/quizzes",
+            "/api/v1/quiz",
             headers=organiser_headers,
             json={
                 "chapter_id": _chapter_id(client, organiser_headers),
@@ -174,7 +187,7 @@ def test_a_quiz_refuses_a_question_it_cannot_mark(client, organiser_headers) -> 
 def test_a_questionnaire_still_takes_both_text_kinds(client, organiser_headers) -> None:
     """The restriction is the quiz's, not the table's."""
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -223,13 +236,12 @@ def test_the_public_shape_carries_no_answer_key(client, organiser_headers) -> No
                 "kind": "single_choice",
                 "prompt": "Welke?",
                 "points": 1,
-                "options": ["Rotterdam", "Zwolle"],
-                "correct_choices": ["Zwolle"],
+                "options": [{"label": "Rotterdam"}, {"label": "Zwolle", "is_correct": True}],
             },
             {"kind": "number", "prompt": "Hoeveel?", "points": 1, "correct_int": 42, "tolerance": 2},
         ],
     )
-    response = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}")
+    response = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}")
     allowed = {
         "id",
         "ordinal",
@@ -255,7 +267,7 @@ def test_the_public_shape_carries_no_answer_key(client, organiser_headers) -> No
     # The one key value distinctive enough to grep for safely.
     assert "Zwolle" not in response.text.split('"options"')[0]
     # And what it may carry.
-    assert response.json()["questions"][0]["options"] == ["Rotterdam", "Zwolle"]
+    assert [o["label"] for o in response.json()["questions"][0]["options"]] == ["Rotterdam", "Zwolle"]
 
 
 def test_the_result_reveals_the_key_only_when_the_quiz_says_so(client, organiser_headers) -> None:
@@ -265,12 +277,12 @@ def test_the_result_reveals_the_key_only_when_the_quiz_says_so(client, organiser
     open_quiz = _quiz(client, organiser_headers, questions)
     closed_quiz = _quiz(client, organiser_headers, questions, reveal_answers=False)
 
-    qid = client.get(f"/api/v1/quizzes/by-slug/{open_quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{open_quiz['slug']}").json()["questions"][0]["id"]
     revealed = _take(client, open_quiz, [{"question_id": qid, "answer_int": 1900}]).json()
     assert revealed["reveal_answers"] is True
     assert revealed["answers"][0]["correct_int"] == 1894
 
-    qid = client.get(f"/api/v1/quizzes/by-slug/{closed_quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{closed_quiz['slug']}").json()["questions"][0]["id"]
     hidden = _take(client, closed_quiz, [{"question_id": qid, "answer_int": 1900}]).json()
     assert hidden["reveal_answers"] is False
     assert hidden["answers"][0]["correct_int"] is None
@@ -290,13 +302,13 @@ def test_a_score_follows_the_quiz_when_it_changes(client, organiser_headers) -> 
         organiser_headers,
         [{"kind": "number", "prompt": "Hoeveel?", "points": 1, "correct_int": 7}],
     )
-    qs = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"]
+    qs = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"]
     result = _take(client, quiz, [{"question_id": qs[0]["id"], "answer_int": 7}]).json()
     assert (result["score"], result["max_score"]) == (1, 1)
 
-    saved = client.get(f"/api/v1/quizzes/{quiz['id']}", headers=organiser_headers).json()
+    saved = client.get(f"/api/v1/quiz/{quiz['id']}", headers=organiser_headers).json()
     client.put(
-        f"/api/v1/quizzes/{quiz['id']}",
+        f"/api/v1/quiz/{quiz['id']}",
         headers=organiser_headers,
         json={
             "chapter_id": saved["chapter_id"],
@@ -309,7 +321,7 @@ def test_a_score_follows_the_quiz_when_it_changes(client, organiser_headers) -> 
             ],
         },
     )
-    again = client.get(f"/api/v1/quizzes/by-token/{result['edit_token']}").json()
+    again = client.get(f"/api/v1/quiz/by-token/{result['edit_token']}").json()
     # Five for the answer that is still right, out of the nine the quiz
     # is now worth. The question added afterwards is not in the list:
     # this person never saw it.
@@ -317,10 +329,8 @@ def test_a_score_follows_the_quiz_when_it_changes(client, organiser_headers) -> 
     assert len(again["answers"]) == 1
 
     # The organiser's page agrees, because it marks the same way.
-    summary = client.get(f"/api/v1/quizzes/{quiz['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/quiz/{quiz['id']}/summary", headers=organiser_headers).json()
     assert (summary["score_average"], summary["score_best"], summary["max_score"]) == (5.0, 5, 9)
-    rows = client.get(f"/api/v1/quizzes/{quiz['id']}/submissions", headers=organiser_headers).json()
-    assert (rows[0]["score"], rows[0]["max_score"]) == (5, 9)
 
 
 def test_fixing_a_wrong_key_corrects_everybody(client, organiser_headers) -> None:
@@ -331,13 +341,13 @@ def test_fixing_a_wrong_key_corrects_everybody(client, organiser_headers) -> Non
         organiser_headers,
         [{"kind": "number", "prompt": "Hoeveel provincies?", "points": 2, "correct_int": 11}],
     )
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
     token = _take(client, quiz, [{"question_id": qid, "answer_int": 12}]).json()["edit_token"]
-    assert client.get(f"/api/v1/quizzes/by-token/{token}").json()["score"] == 0
+    assert client.get(f"/api/v1/quiz/by-token/{token}").json()["score"] == 0
 
-    saved = client.get(f"/api/v1/quizzes/{quiz['id']}", headers=organiser_headers).json()
+    saved = client.get(f"/api/v1/quiz/{quiz['id']}", headers=organiser_headers).json()
     client.put(
-        f"/api/v1/quizzes/{quiz['id']}",
+        f"/api/v1/quiz/{quiz['id']}",
         headers=organiser_headers,
         json={
             "chapter_id": saved["chapter_id"],
@@ -348,7 +358,7 @@ def test_fixing_a_wrong_key_corrects_everybody(client, organiser_headers) -> Non
             ],
         },
     )
-    assert client.get(f"/api/v1/quizzes/by-token/{token}").json()["score"] == 2
+    assert client.get(f"/api/v1/quiz/by-token/{token}").json()["score"] == 2
 
 
 def test_a_question_is_worth_one_point_unless_told_otherwise(client, organiser_headers) -> None:
@@ -374,10 +384,10 @@ def test_a_taken_quiz_cannot_be_answered_again(client, organiser_headers) -> Non
     """Editing an answer after seeing the score is a second attempt.
     The token opens the result and nothing else."""
     quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 1, "correct_int": 7}])
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
     token = _take(client, quiz, [{"question_id": qid, "answer_int": 1}]).json()["edit_token"]
     r = client.put(
-        f"/api/v1/quizzes/by-token/{token}",
+        f"/api/v1/quiz/by-token/{token}",
         json={"display_name": "Sam", "answers": [{"question_id": qid, "answer_int": 7}]},
     )
     assert r.status_code == 405
@@ -387,27 +397,30 @@ def test_a_taker_can_still_withdraw(client, organiser_headers) -> None:
     """Deleting what you sent is a privacy right, and it costs the
     withdrawer their score, so it is no loophole."""
     quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 1, "correct_int": 7}])
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
     token = _take(client, quiz, [{"question_id": qid, "answer_int": 7}]).json()["edit_token"]
-    assert client.post(f"/api/v1/quizzes/by-token/{token}/withdraw").status_code == 204
+    assert client.post(f"/api/v1/quiz/by-token/{token}/withdraw").status_code == 204
     # The answers are gone, so there is nothing left to mark: the token
     # resolves to nothing at all.
-    assert client.get(f"/api/v1/quizzes/by-token/{token}").status_code == 404
+    assert client.get(f"/api/v1/quiz/by-token/{token}").status_code == 404
 
 
 # --- the organiser's side ---------------------------------------------
 
 
-def test_the_organiser_sees_who_scored_what(client, organiser_headers) -> None:
+def test_the_organiser_sees_how_the_room_did(client, organiser_headers) -> None:
     quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 2, "correct_int": 7}])
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
-    _take(client, quiz, [{"question_id": qid, "answer_int": 7}], name="Sam")
-    _take(client, quiz, [{"question_id": qid, "answer_int": 1}], name="Kim")
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    sam = _take(client, quiz, [{"question_id": qid, "answer_int": 7}], name="Sam").json()
+    kim = _take(client, quiz, [{"question_id": qid, "answer_int": 1}], name="Kim").json()
+    # Each player is told their own mark; the organiser is told what the
+    # room did with it.
+    assert (sam["score"], kim["score"]) == (2, 0)
 
-    rows = client.get(f"/api/v1/quizzes/{quiz['id']}/submissions", headers=organiser_headers).json()
-    assert {(r["display_name"], r["score"], r["max_score"]) for r in rows} == {("Sam", 2, 2), ("Kim", 0, 2)}
+    rows = client.get(f"/api/v1/quiz/{quiz['id']}/submissions", headers=organiser_headers).json()
+    assert {r["display_name"] for r in rows} == {"Sam", "Kim"}
 
-    summary = client.get(f"/api/v1/quizzes/{quiz['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/quiz/{quiz['id']}/summary", headers=organiser_headers).json()
     assert summary["submission_count"] == 2
     assert summary["score_average"] == 1.0
     assert summary["score_best"] == 2
@@ -420,7 +433,7 @@ def test_a_survey_has_no_score_anywhere(client, organiser_headers) -> None:
     """The other half of the shared table: none of this leaks into a
     questionnaire."""
     r = client.post(
-        "/api/v1/forms",
+        "/api/v1/form",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -435,10 +448,10 @@ def test_a_survey_has_no_score_anywhere(client, organiser_headers) -> None:
     assert form["questions"][0]["correct_int"] is None
     qid = form["questions"][0]["id"]
     client.post(
-        f"/api/v1/forms/by-slug/{form['slug']}/submit",
+        f"/api/v1/form/by-slug/{form['slug']}/submit",
         json={"display_name": None, "answers": [{"question_id": qid, "answer_int": 30}]},
     )
-    summary = client.get(f"/api/v1/forms/{form['id']}/summary", headers=organiser_headers).json()
+    summary = client.get(f"/api/v1/form/{form['id']}/summary", headers=organiser_headers).json()
     assert summary["score_average"] is None
     assert summary["questions"][0]["correct_share"] is None
 
@@ -451,7 +464,7 @@ def test_a_scored_question_needs_an_answer(client, organiser_headers) -> None:
     submit time the person who can fix it is not the person looking at
     the screen."""
     r = client.post(
-        "/api/v1/quizzes",
+        "/api/v1/quiz",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -465,7 +478,7 @@ def test_a_scored_question_needs_an_answer(client, organiser_headers) -> None:
 
 def test_a_correct_option_has_to_be_one_of_the_options(client, organiser_headers) -> None:
     r = client.post(
-        "/api/v1/quizzes",
+        "/api/v1/quiz",
         headers=organiser_headers,
         json={
             "chapter_id": _chapter_id(client, organiser_headers),
@@ -476,8 +489,7 @@ def test_a_correct_option_has_to_be_one_of_the_options(client, organiser_headers
                     "kind": "single_choice",
                     "prompt": "Welke?",
                     "points": 1,
-                    "options": ["A", "B"],
-                    "correct_choices": ["C"],
+                    "options": [{"label": "A"}, {"label": "B"}],
                 }
             ],
         },
@@ -500,14 +512,14 @@ def test_the_qr_points_at_the_quiz_and_not_at_a_form(client, organiser_headers) 
     mount rather than from a constant: it pointed at /f/{slug} for
     everything, which for a quiz is a page that does not exist."""
     quiz = _quiz(client, organiser_headers, [{"kind": "number", "prompt": "?", "points": 1, "correct_int": 7}])
-    response = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}/qr.svg")
+    response = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}/qr.svg")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("image/svg")
     # The image encodes the URL as modules rather than as text, so what
     # is checked is the input to it: the same slug under the other
     # product's prefix is a different code, and the form endpoint does
     # not serve this slug at all.
-    assert client.get(f"/api/v1/forms/by-slug/{quiz['slug']}/qr.svg").status_code == 410
+    assert client.get(f"/api/v1/form/by-slug/{quiz['slug']}/qr.svg").status_code == 410
     from backend.routers.forms_public import PUBLIC_BASE_URL
     from backend.services.qr import render_qr
 
@@ -528,12 +540,11 @@ def test_ticking_nothing_is_an_answer_on_a_quiz(client, organiser_headers) -> No
                 "kind": "multi_choice",
                 "prompt": "Welke?",
                 "points": 4,
-                "options": ["A", "B"],
-                "correct_choices": ["A"],
+                "options": [{"label": "A", "is_correct": True}, {"label": "B"}],
             }
         ],
     )
-    qid = client.get(f"/api/v1/quizzes/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
+    qid = client.get(f"/api/v1/quiz/by-slug/{quiz['slug']}").json()["questions"][0]["id"]
     r = _take(client, quiz, [{"question_id": qid, "answer_choices": []}])
     assert r.status_code == 201, r.text
     assert r.json()["score"] == 0

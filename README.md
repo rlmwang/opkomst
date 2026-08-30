@@ -7,7 +7,7 @@ The whole code base is open source — anyone can verify what the server does wi
 ## Stack
 
 - Backend: FastAPI + SQLAlchemy + Alembic on Postgres (`make db-up` boots a local instance via docker compose), `uv` for deps.
-- Frontend: Vue 3 + TypeScript + Vite + Pinia, PrimeVue.
+- Frontend: Svelte 5 + TypeScript + Vite. Every control is the app's own; no component library.
 - Auth: passwordless magic-link sign-in. Single-use links by email, JWT after redemption.
 - QR: server-rendered PNG via `qrcode[pil]`.
 - Encryption: AES-GCM via `cryptography`, key from `EMAIL_ENCRYPTION_KEY` env var.

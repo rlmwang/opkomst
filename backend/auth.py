@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import Depends, Header, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import settings
@@ -92,7 +92,16 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Missing bearer token")
     token = authorization.split(" ", 1)[1]
     user_id, tenant_id, _brand = _claims(token)
-    user = db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id, User.deleted_at.is_(None)).first()
+    user = (
+        db.query(User)
+        # The tenant comes back with the user rather than as a lazy load
+        # a line later: every authenticated request reads ``brand_slug``
+        # below, so this is one round trip on every request in the app,
+        # not an optimisation for one endpoint.
+        .options(joinedload(User.tenant))
+        .filter(User.id == user_id, User.tenant_id == tenant_id, User.deleted_at.is_(None))
+        .first()
+    )
     if user is None:
         raise HTTPException(status_code=401, detail="User no longer exists")
     # Everything this request creates lands in the signed-in user's

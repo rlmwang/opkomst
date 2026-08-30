@@ -11,10 +11,10 @@ from typing import Any
 
 from _helpers import commit
 from _helpers.events import make_event
-from _helpers.signups import get_dispatch, make_signup
+from _helpers.signups import get_dispatch, make_signup, send_counts
 
 from backend.database import SessionLocal
-from backend.models import EmailChannel, EmailStatus
+from backend.models import EmailChannel
 from backend.services import mail_lifecycle
 
 
@@ -33,8 +33,10 @@ def test_run_once_caps_at_email_batch_size(db: Any, fake_email: Any, monkeypatch
     fresh = SessionLocal()
     try:
         for s in signups:
-            d = get_dispatch(fresh, s, EmailChannel.REMINDER)
-            assert d is not None and d.status == EmailStatus.SENT
+            assert get_dispatch(fresh, s, EmailChannel.REMINDER) is None
+        # One tally per (occurrence, channel), and all five bookings sit
+        # on the same occurrence: five sends, counted once.
+        assert send_counts(fresh, signups[0], EmailChannel.REMINDER) == (5, 0)
     finally:
         fresh.close()
 

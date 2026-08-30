@@ -6,24 +6,30 @@
  * complete (submit-spinner-ready). Import after ``theme.css`` in each
  * mini-app's ``main.ts``.
  *
- * @layer app so it merges with theme.css's layer (mini-apps ship no
- * PrimeVue, so there's no other layer to order against).
+ * @layer app so it merges with theme.css's layer.
  */
 @layer app {
+  /* The app's one input, shared with the organiser's ``AppInput``:
+   * same padding, same ground, same border, same focus. The two used to
+   * disagree, because this one was written beside a PrimeVue field it
+   * could not change. */
   .input {
     font: inherit;
     font-size: 16px;
-    padding: 0.625rem 0.75rem;
-    background: var(--brand-bg);
+    padding: 0.5rem 0.75rem;
+    background: var(--brand-surface);
     color: var(--brand-text);
     border: 1px solid var(--brand-border);
     border-radius: 6px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     width: 100%;
+  }
+  .input:hover {
+    border-color: color-mix(in srgb, var(--brand-text-muted) 45%, transparent);
   }
   .input:focus {
     outline: none;
     border-color: var(--brand-red);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
   }
   .input:disabled {
     background: var(--brand-bg);
