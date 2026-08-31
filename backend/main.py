@@ -11,7 +11,6 @@ from .bootstrap import init_sentry
 from .config import cors_origins_list, settings
 from .database import engine
 from .routers import admin as admin_router
-from .routers import ads_txt as ads_txt_router
 from .routers import auth as auth_router
 from .routers import chapters as chapters_router
 from .routers import chapters_public as chapters_public_router
@@ -27,6 +26,7 @@ from .routers import forms_public as forms_public_router
 from .routers import health as health_router
 from .routers import images as images_router
 from .routers import privacy as privacy_router
+from .routers import root_files as root_files_router
 from .routers import signups as signups_router
 from .routers import spa
 from .routers import start as start_router
@@ -163,13 +163,15 @@ if settings.local_mode:
 
     app.include_router(dev_router.router)
 
-# ``/ads.txt`` — the authorised-sellers file. Before the SPA fallback,
-# which would otherwise answer it with the app's HTML shell.
-app.include_router(ads_txt_router.router)
+# ``/favicon.ico``, ``/robots.txt``, ``/sitemap.xml``, ``/ads.txt`` —
+# the files asked for by fixed name at the root. Before the SPA
+# fallback, which would otherwise answer them with the app's HTML
+# shell.
+app.include_router(root_files_router.router)
 
 # ``/privacy`` — the policy, served outside the SPA so it carries no ad
 # tag and therefore no consent dialog. Before the fallback for the same
-# reason as ads.txt.
+# reason as the root files above.
 app.include_router(privacy_router.router)
 
 # SPA fallback last so router matches win first.

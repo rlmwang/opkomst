@@ -1,10 +1,20 @@
-"""``/ads.txt``, ``/robots.txt`` and ``/sitemap.xml``: the files a
-crawler asks for.
+"""``/favicon.ico``, ``/ads.txt``, ``/robots.txt`` and ``/sitemap.xml``:
+the files asked for by fixed name at the root.
 
-All three are served from the root, all three would otherwise be
-answered by the SPA fallback with the app's HTML shell, and all three
-are read by machines that quietly draw the wrong conclusion from that
-rather than erroring. They share a module for that reason.
+All four would otherwise be answered by the SPA fallback with the app's
+HTML shell, and all four are read by machines that quietly draw the
+wrong conclusion from that rather than erroring. They share a module for
+that reason.
+
+``/favicon.ico``: the icon a browser and a search result fall back to.
+
+The shells all link ``/brand/{slug}/favicon.png`` in their head, which
+is what a browser on a page uses. The fixed root path is what everything
+looking at the site rather than at a page asks for: Google's result list
+fetches it, and a 404 there leaves whatever icon it stored last time in
+place. The bytes are the house brand's, because this path belongs to
+the hostname and the hostname is ours; a page under an organisation's
+slug names their icon in its own head.
 
 ``/ads.txt``: who is allowed to sell this site's inventory.
 
@@ -26,12 +36,13 @@ malformed file (see ``routers/spa.py``).
 """
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from ..config import settings
+from ..services import brand as brand_svc
 from ..services.content import PAGES
 
-router = APIRouter(tags=["crawlers"], include_in_schema=False)
+router = APIRouter(tags=["root-files"], include_in_schema=False)
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
@@ -126,5 +137,21 @@ def sitemap() -> Response:
     return Response(
         content=body,
         media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.head("/favicon.ico", include_in_schema=False)
+@router.get("/favicon.ico", response_class=FileResponse)
+def favicon() -> FileResponse:
+    """The house brand's icon, served under the name every browser and
+    search engine guesses. PNG bytes under an ``.ico`` name: the format
+    is read from the content type and every reader has accepted PNG for
+    a decade, while the path is the one nothing lets you configure."""
+    slug = brand_svc.HOUSE_BRAND
+    path = brand_svc.BRANDS_DIR / slug / brand_svc.manifest(slug)["favicon"]
+    return FileResponse(
+        path,
+        media_type="image/png",
         headers={"Cache-Control": "public, max-age=3600"},
     )

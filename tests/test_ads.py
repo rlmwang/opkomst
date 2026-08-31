@@ -87,7 +87,7 @@ def configured(monkeypatch: pytest.MonkeyPatch):
     )
     monkeypatch.setattr("backend.services.brand.settings", fake)
     monkeypatch.setattr("backend.routers.spa.settings", fake)
-    monkeypatch.setattr("backend.routers.ads_txt.settings", fake)
+    monkeypatch.setattr("backend.routers.root_files.settings", fake)
     monkeypatch.setattr("backend.routers.privacy.settings", fake)
     return fake
 

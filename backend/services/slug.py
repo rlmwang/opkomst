@@ -57,6 +57,7 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "robots.txt",
         "ads.txt",
         "sitemap.xml",
+        "favicon.ico",
     }
     # The written pages are top-level paths too, so an organisation or
     # a chapter named after one would shadow it. One list, in
