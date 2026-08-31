@@ -468,6 +468,7 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
         app_name = brand_svc.payload(brand_slug)["app_name"]
         return f"<title>{app_name}</title>\n    {_NOINDEX}"
     title, description = meta
+    brand = brand_svc.payload(brand_slug)
     tags = [
         f"<title>{html.escape(title, quote=True)}</title>",
         f'<meta name="description" content="{html.escape(description, quote=True)}">',
@@ -476,9 +477,17 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
         f'<meta property="og:description" content="{html.escape(description, quote=True)}">',
         f'<meta property="og:url" content="{_PUBLIC_BASE}{normalised}">',
         '<meta property="og:type" content="website">',
-        f'<meta property="og:site_name" content="{brand_svc.payload(brand_slug)["app_name"]}">',
+        f'<meta property="og:site_name" content="{brand["app_name"]}">',
         '<meta name="twitter:card" content="summary">',
     ]
+    # The mark, under the small square card. These pages have no image
+    # of their own and never will: what they show is the app itself, so
+    # the picture a shared link carries is the app's icon rather than
+    # nothing at all.
+    if brand["favicon_absolute_url"]:
+        ei = html.escape(brand["favicon_absolute_url"], quote=True)
+        tags.append(f'<meta property="og:image" content="{ei}">')
+        tags.append(f'<meta name="twitter:image" content="{ei}">')
     if normalised == "/":
         tags.append(f'<script type="application/ld+json">{_JSON_LD}</script>')
     return "\n    ".join(tags)
@@ -691,31 +700,37 @@ def mount(app: FastAPI) -> None:
 
     app.mount("/assets", _ImmutableStatic(directory=_DIST / "assets"), name="assets")
 
-    @app.get("/e/{slug}", include_in_schema=False)
+    # Every page answers HEAD as well as GET. Starlette's router adds
+    # HEAD to a GET route; FastAPI's does not, so a link checker, a chat
+    # client unfurling a link, or a crawler testing freshness got a 405
+    # from every page in the app, which reads as "this page is not
+    # there" rather than as "ask differently".
+
+    @app.api_route("/e/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_event(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_event(slug, db, request)
 
-    @app.get("/f/{slug}", include_in_schema=False)
+    @app.api_route("/f/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_form(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_form(slug, db, request)
 
-    @app.get("/q/{slug}", include_in_schema=False)
+    @app.api_route("/q/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_quiz(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_quiz(slug, db, request)
 
-    @app.get("/k/{slug}", include_in_schema=False)
+    @app.api_route("/k/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_compass(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_compass(slug, db, request)
 
-    @app.get("/d/{slug}", include_in_schema=False)
+    @app.api_route("/d/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_datepoll(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_datepoll(slug, db, request)
 
-    @app.get("/c/{slug}", include_in_schema=False)
+    @app.api_route("/c/{slug}", methods=["GET", "HEAD"], include_in_schema=False)
     def _public_roster(slug: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         return _serve_public_roster(slug, db, request)
 
-    @app.get("/{full_path:path}", include_in_schema=False)
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def _spa_fallback(full_path: str, request: Request, db: Session = Depends(get_db)) -> Response:
         # ``StaticFiles`` already won the route for ``/assets/*`` and
         # ``/brand/*``, and the explicit public handlers above won for

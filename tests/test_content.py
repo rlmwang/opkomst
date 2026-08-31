@@ -120,6 +120,35 @@ def test_the_organiser_app_is_not_described_to_a_crawler(client) -> None:
     assert 'content="noindex, follow"' in head
 
 
+def test_the_site_has_an_icon_at_the_path_everything_guesses(client) -> None:
+    """A search result fetches ``/favicon.ico`` rather than reading the
+    page head, and a 404 there leaves whatever icon it stored last time
+    in place. PNG bytes under the ``.ico`` name is fine; a missing file
+    is not."""
+    response = client.get("/favicon.ico")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_every_page_answers_head_as_well_as_get(client) -> None:
+    """FastAPI's router, unlike Starlette's, does not add HEAD to a GET
+    route, so every page in the app used to answer 405. A crawler
+    checking freshness, a chat client unfurling a link and a link
+    checker all ask that way first."""
+    for path in ("/", "/event/new", "/favicon.ico", "/sitemap.xml"):
+        assert client.head(path).status_code == 200, path
+
+
+def test_the_app_pages_carry_an_image_for_a_shared_link(client) -> None:
+    """These pages have no picture of their own, so the card falls back
+    to the app's own mark rather than to nothing."""
+    for path in ("/", "/event/new"):
+        head = client.get(path).text.split("</head>")[0]
+        assert '<meta property="og:image" content="' in head, path
+        assert "favicon.png" in head, path
+
+
 def test_the_root_carries_structured_data(client) -> None:
     body = client.get("/").text
     assert "application/ld+json" in body
