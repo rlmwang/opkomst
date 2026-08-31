@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@sentry/browser": "^10.72.0",
-    "@tanstack/svelte-query": "^5.90.2"
+    "@tanstack/svelte-query": "^6.1.48"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
