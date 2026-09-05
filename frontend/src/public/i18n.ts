@@ -38,9 +38,6 @@ interface Strings {
   pickSession: string;
   prevMonth: string;
   nextMonth: string;
-  pickerExplainer: string;
-  reminderOptIn: string;
-  reminderOptOut: string;
   // Booking edit.
   bookingSessions: string;
   withdrawConfirm: string;
@@ -92,9 +89,6 @@ const dict: Record<Locale, Strings> = {
     pickSession: "Kies minstens één sessie",
     prevMonth: "Vorige maand",
     nextMonth: "Volgende maand",
-    pickerExplainer: "Tik op de gemarkeerde dagen om je sessies te kiezen.",
-    reminderOptIn: "Latere sessies moet je zelf toevoegen wanneer ze verschijnen.",
-    reminderOptOut: "Latere sessies moet je zelf laten vallen wanneer ze verschijnen.",
     bookingSessions: "Je sessies",
     withdrawConfirm: "Je voor alle sessies afmelden? Je hele aanmelding wordt verwijderd.",
     pendingMailWarning: "Een al ingeplande herinnering of vragenlijst kan alsnog aankomen.",
@@ -141,9 +135,6 @@ const dict: Record<Locale, Strings> = {
     pickSession: "Pick at least one session",
     prevMonth: "Previous month",
     nextMonth: "Next month",
-    pickerExplainer: "Tap the highlighted days to choose your sessions.",
-    reminderOptIn: "You'll need to add later sessions yourself as they appear.",
-    reminderOptOut: "You'll need to drop later sessions yourself as they appear.",
     bookingSessions: "Your sessions",
     withdrawConfirm: "Withdraw from every session? Your whole sign-up will be removed.",
     pendingMailWarning: "A reminder or feedback email that's already scheduled may still arrive.",

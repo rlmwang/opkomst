@@ -152,7 +152,7 @@
         "type": "object"
       },
       "BookingEditIn": {
-        "description": "Edit the booking-level fields (name + headcount). Per-occurrence\nmembership is changed by withdrawing individual occurrences, not\nhere. Email + dispatch rows are unreachable from a booking\n(principle #2).",
+        "description": "Edit the booking-level fields: name, headcount, and what they\noffered to help with. Session membership is changed by the calendar\n(``BookingOccurrencesIn``), not here. Email + dispatch rows are\nunreachable from a booking (principle #2).",
         "properties": {
           "display_name": {
             "anyOf": [
@@ -165,6 +165,13 @@
               }
             ],
             "title": "Display Name"
+          },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
           },
           "party_size": {
             "maximum": 50.0,
@@ -187,13 +194,6 @@
             "title": "Ends At",
             "type": "string"
           },
-          "help_choices": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Help Choices",
-            "type": "array"
-          },
           "index": {
             "title": "Index",
             "type": "integer"
@@ -210,17 +210,6 @@
             "title": "Slug",
             "type": "string"
           },
-          "source_choice": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Choice"
-          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -233,9 +222,7 @@
           "index",
           "starts_at",
           "ends_at",
-          "is_past",
-          "source_choice",
-          "help_choices"
+          "is_past"
         ],
         "title": "BookingOccurrenceOut",
         "type": "object"
@@ -281,6 +268,13 @@
             "title": "Event Slug",
             "type": "string"
           },
+          "help_choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Help Choices",
+            "type": "array"
+          },
           "link_recovered_at": {
             "anyOf": [
               {
@@ -319,6 +313,7 @@
           "event_name",
           "event_slug",
           "locale",
+          "help_choices",
           "occurrences"
         ],
         "title": "BookingOut",
@@ -14087,7 +14082,7 @@
         ]
       },
       "put": {
-        "description": "Update a booking's name + party size via its edit-link token.\nEmail + dispatch rows are untouched \u2014 there is no path from a booking\nto its encrypted address (principle #2).",
+        "description": "Update a booking's name, party size and help ticks via its\nedit-link token. Email + dispatch rows are untouched, there is no\npath from a booking to its encrypted address (principle #2).",
         "operationId": "update_booking_api_v1_event_by_token__token__put",
         "parameters": [
           {

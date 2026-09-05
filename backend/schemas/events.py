@@ -439,8 +439,6 @@ class BookingOccurrenceOut(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_past: bool
-    source_choice: str | None
-    help_choices: list[str]
 
 
 class BookingOccurrencesIn(BaseModel):
@@ -467,14 +465,28 @@ class BookingOut(BaseModel):
     event_name: str
     event_slug: str
     locale: Locale
+    # What they offered to help with, as option ids. One set per booking:
+    # the line items carry a copy each, and they say the same thing.
+    help_choices: list[str]
     occurrences: list[BookingOccurrenceOut]
 
 
 class BookingEditIn(BaseModel):
-    """Edit the booking-level fields (name + headcount). Per-occurrence
-    membership is changed by withdrawing individual occurrences, not
-    here. Email + dispatch rows are unreachable from a booking
-    (principle #2)."""
+    """Edit the booking-level fields: name, headcount, and what they
+    offered to help with. Session membership is changed by the calendar
+    (``BookingOccurrencesIn``), not here. Email + dispatch rows are
+    unreachable from a booking (principle #2)."""
 
     display_name: DisplayName
     party_size: int = Field(ge=1, le=50)
+    # Option ids, not the labels a person read, so an organiser fixing a
+    # typo afterwards leaves both pointing at the same rows.
+    help_choices: list[str] = Field(default_factory=list)
+
+    @field_validator("help_choices")
+    @classmethod
+    def _validate_help_choices(cls, v: list[str]) -> list[str]:
+        cleaned = [c.strip() for c in v if c.strip()]
+        if len(set(cleaned)) != len(cleaned):
+            raise ValueError("Help choices must be unique")
+        return cleaned

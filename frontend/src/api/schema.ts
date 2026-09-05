@@ -1781,9 +1781,9 @@ export interface paths {
         get: operations["get_booking_api_v1_event_by_token__token__get"];
         /**
          * Update Booking
-         * @description Update a booking's name + party size via its edit-link token.
-         *     Email + dispatch rows are untouched — there is no path from a booking
-         *     to its encrypted address (principle #2).
+         * @description Update a booking's name, party size and help ticks via its
+         *     edit-link token. Email + dispatch rows are untouched, there is no
+         *     path from a booking to its encrypted address (principle #2).
          */
         put: operations["update_booking_api_v1_event_by_token__token__put"];
         post?: never;
@@ -3124,14 +3124,16 @@ export interface components {
         };
         /**
          * BookingEditIn
-         * @description Edit the booking-level fields (name + headcount). Per-occurrence
-         *     membership is changed by withdrawing individual occurrences, not
-         *     here. Email + dispatch rows are unreachable from a booking
-         *     (principle #2).
+         * @description Edit the booking-level fields: name, headcount, and what they
+         *     offered to help with. Session membership is changed by the calendar
+         *     (``BookingOccurrencesIn``), not here. Email + dispatch rows are
+         *     unreachable from a booking (principle #2).
          */
         BookingEditIn: {
             /** Display Name */
             display_name?: string | null;
+            /** Help Choices */
+            help_choices?: string[];
             /** Party Size */
             party_size: number;
         };
@@ -3147,8 +3149,6 @@ export interface components {
              * Format: date-time
              */
             ends_at: string;
-            /** Help Choices */
-            help_choices: string[];
             /** Index */
             index: number;
             /** Is Past */
@@ -3157,8 +3157,6 @@ export interface components {
             occurrence_id: string;
             /** Slug */
             slug: string;
-            /** Source Choice */
-            source_choice: string | null;
             /**
              * Starts At
              * Format: date-time
@@ -3192,6 +3190,8 @@ export interface components {
             event_name: string;
             /** Event Slug */
             event_slug: string;
+            /** Help Choices */
+            help_choices: string[];
             /** Link Recovered At */
             link_recovered_at?: string | null;
             /**
