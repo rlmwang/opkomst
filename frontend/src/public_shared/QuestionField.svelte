@@ -265,7 +265,7 @@ function toggleMulti(opt: string, on: boolean) {
   gap: 0.5rem;
   cursor: pointer;
 }
-.choice-row input {
+.choice-row input[type="radio"] {
   width: 1.125rem;
   height: 1.125rem;
 }

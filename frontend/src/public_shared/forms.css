@@ -90,15 +90,17 @@
     margin-right: auto;
   }
 
-  /* Branded checkbox — ``appearance: none`` strips the OS default so the
-   * look is identical across browsers: a brand-red box with a white tick
-   * when checked. Was previously re-declared per page (event help-row);
-   * canonical here so every public mini-app shares one control. */
-  input[type="checkbox"].check {
+  /* Branded checkbox: ``appearance: none`` strips the OS default so the
+   * look is identical across browsers, a brand-red box with a white tick
+   * when checked. It applies to every checkbox in the public apps rather
+   * than to a class, because a box that has to be opted in is a box that
+   * ships unstyled (the event help row and the form's multiple-answer
+   * rows both did). Toggles carry ``.switch`` and draw themselves. */
+  input[type="checkbox"]:not(.switch) {
     appearance: none;
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     flex-shrink: 0;
     margin: 0;
     padding: 0;
@@ -109,25 +111,25 @@
     position: relative;
     transition: background 120ms, border-color 120ms;
   }
-  input[type="checkbox"].check:hover {
+  input[type="checkbox"]:not(.switch):hover {
     border-color: var(--brand-red);
   }
-  input[type="checkbox"].check:focus-visible {
+  input[type="checkbox"]:not(.switch):focus-visible {
     outline: none;
     border-color: var(--brand-red);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-red) 18%, transparent);
   }
-  input[type="checkbox"].check:checked {
+  input[type="checkbox"]:not(.switch):checked {
     background: var(--brand-red);
     border-color: var(--brand-red);
   }
-  input[type="checkbox"].check:checked::after {
+  input[type="checkbox"]:not(.switch):checked::after {
     content: "";
     position: absolute;
-    left: 6px;
-    top: 2px;
-    width: 5px;
-    height: 10px;
+    left: 7px;
+    top: 3px;
+    width: 6px;
+    height: 11px;
     border: solid #fff;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
