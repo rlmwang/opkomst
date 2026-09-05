@@ -510,7 +510,7 @@ async function leave(): Promise<void> {
       {#if chores.length === 0}<p class="empty muted">{ch.noChores}</p>{/if}
       {#each chores as chore (chore.id)}
         <label class="chore-check">
-          <input type="checkbox" class="check" bind:checked={picked[chore.id]} />
+          <input type="checkbox" bind:checked={picked[chore.id]} />
           <span class="chore-label">
             <span class="chore-title">
               {#if chore.emoji}<span class="emoji">{chore.emoji}</span>{/if}

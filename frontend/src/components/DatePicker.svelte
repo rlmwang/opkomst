@@ -197,11 +197,13 @@ function onInputTyped(event: Event): void {
 }
 
 // The input shows the model, except while it is being typed into: a
-// reformat mid-keystroke moves the caret.
+// reformat mid-keystroke moves the caret. Typing "3" into the minutes
+// of 20:00 parses to 20:03, and writing that back mid-word pushed the
+// caret to the end, so the next digit landed as 20:030.
 let typedText = $state("");
 const inputValue = $derived(focused ? typedText : displayValue);
 $effect(() => {
-  typedText = displayValue;
+  if (!focused) typedText = displayValue;
 });
 
 // --- selection -------------------------------------------------------
