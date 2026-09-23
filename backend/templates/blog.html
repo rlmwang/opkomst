@@ -1,0 +1,16 @@
+{#- ``/blog``: every written page, with the title and description a
+    search result would show. The one place the footer links to, so a
+    reader and a crawler both find the pages from any page. -#}
+{% extends "content.html" %}
+{% block content %}
+  <h1>Blog</h1>
+  <p>Wat we geleerd hebben over aanmelden, plannen en organiseren, en wat opkomst.nu daarbij doet.</p>
+  <ul class="posts">
+    {% for post in pages %}
+    <li>
+      <h2><a href="/{{ post.slug }}">{{ post.title }}</a></h2>
+      <p>{{ post.description }}</p>
+    </li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -72,10 +72,7 @@ function isGithubLink(href: string | null): boolean {
 describe("SiteFooter", () => {
   it.each(INDEXED)("renders on %s, the pages a stranger lands on", (path) => {
     const hrefs = hrefsIn(renderAt(path));
-    expect(hrefs).toContain("/datumplanner-zonder-account");
-    expect(hrefs).toContain("/aanmeldformulier-zonder-google");
-    expect(hrefs).toContain("/wat-gebeurt-er-met-je-mailadres");
-    expect(hrefs).toContain("/vrijwilligers-inroosteren");
+    expect(hrefs).toContain("/blog");
     expect(hrefs).toContain("/privacy");
     expect(hrefs.some(isGithubLink)).toBe(true);
   });
@@ -85,7 +82,7 @@ describe("SiteFooter", () => {
     expect(renderAt("/chore/abc/edit").querySelector("footer")).toBeNull();
   });
 
-  it("drops the blogs on a brand an organisation owns", () => {
+  it("drops the blog on a brand an organisation owns", () => {
     window.__OPKOMST_BRAND__ = { ...BRAND, slug: "rsp", app_base: "/rsp/" } as typeof window.__OPKOMST_BRAND__;
     const hrefs = hrefsIn(renderAt("/"));
     // The policy, the source and the way to report something belong on
@@ -93,6 +90,6 @@ describe("SiteFooter", () => {
     expect(hrefs).toContain("/privacy");
     expect(hrefs).toContain("/voorwaarden");
     expect(hrefs.some(isGithubLink)).toBe(true);
-    expect(hrefs).not.toContain("/datumplanner-zonder-account");
+    expect(hrefs).not.toContain("/blog");
   });
 });

@@ -32,12 +32,13 @@ import json
 import pathlib
 import re
 from collections.abc import Callable
-from functools import partial
+from functools import cache, partial
 from typing import Any, TypeVar
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy.orm import Session
 from starlette.types import Scope
 
@@ -88,6 +89,16 @@ _CHAPTER_INJECTION_MARKER = "<!-- OPKOMST_CHAPTER_INJECTION -->"
 # The brand marker every shell carries, admin SPA included: palette
 # stylesheet, icons, first-paint colours, ``window.__OPKOMST_BRAND__``.
 _BRAND_INJECTION_MARKER = "<!-- OPKOMST_BRAND_INJECTION -->"
+
+# The boot spinner inside ``#app``, between two markers so the root can
+# swap it for its landing text (``_landing``).
+_BOOT_START_MARKER = "<!-- OPKOMST_BOOT_START -->"
+_BOOT_END_MARKER = "<!-- OPKOMST_BOOT_END -->"
+
+_TEMPLATES = Environment(
+    loader=FileSystemLoader(pathlib.Path(__file__).resolve().parent.parent / "templates"),
+    autoescape=select_autoescape(),
+)
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
@@ -312,6 +323,20 @@ def _allow_ads(request: Request, brand_slug: str) -> None:
     request.state.ads_allowed = brand_slug == brand_svc.HOUSE_BRAND and settings.adsense_client_id is not None
 
 
+@cache
+def _landing() -> str:
+    """The root's text, rendered once: it depends on nothing but the
+    house brand, which cannot change between deploys."""
+    return _TEMPLATES.get_template("landing.html").render(brand=brand_svc.payload(brand_svc.HOUSE_BRAND))
+
+
+def _swap_boot(shell: str, body: str) -> str:
+    """Replace the boot spinner in ``shell`` with ``body``."""
+    head, _, rest = shell.partition(_BOOT_START_MARKER)
+    _, _, tail = rest.partition(_BOOT_END_MARKER)
+    return head + body + tail
+
+
 def _serve_admin_shell(tenant_slug: str, request: Request, *, status_code: int = 200) -> HTMLResponse:
     """The organiser SPA shell, wearing the brand of the organisation
     whose slug opened the URL. Served for every path under a live
@@ -332,6 +357,13 @@ def _serve_admin_shell(tenant_slug: str, request: Request, *, status_code: int =
         .replace(_BRAND_INJECTION_MARKER, brand_svc.head(tenant_slug, _nonce(request)), 1)
         .replace(_HEAD_INJECTION_MARKER, _app_head_meta(request.url.path, tenant_slug), 1)
     )
+    # The root is the one page a stranger arrives on with nothing in
+    # hand, and until the bundle has run it was a spinner and a title.
+    # The landing text sits where the spinner was, so there is
+    # something to read at once, for a person and for a crawler alike.
+    # A signed-in visitor sees it for the moment before the app mounts.
+    if tenant_slug == brand_svc.HOUSE_BRAND and (request.url.path.rstrip("/") or "/") == "/":
+        rendered = _swap_boot(rendered, _landing())
     return HTMLResponse(rendered, status_code=status_code, headers={"Cache-Control": "no-store"})
 
 

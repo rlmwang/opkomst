@@ -1,0 +1,44 @@
+{#- The root's text, in the shell before the bundle has run: what the
+    six tools are, and where the blog is. Swapped in for the boot
+    spinner by ``routers/spa.py::_landing`` and cleared by the mount
+    like the spinner was, so its styles leave with it. -#}
+<style>
+  .landing { max-width: 720px; margin: 0 auto; padding: 2rem 1rem 3rem; line-height: 1.55; }
+  .landing header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+  .landing header img { width: 48px; height: 48px; display: block; border-radius: 10px; }
+  .landing .wordmark { font-weight: 600; font-size: 1.125rem; }
+  .landing h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 1rem; }
+  .landing h2 { font-size: 1.125rem; margin: 1.75rem 0 0.25rem; }
+  .landing p { margin: 0; }
+  .landing a { color: var(--brand-red); }
+  .landing .lede { color: var(--brand-text-muted); }
+  .landing .more { margin-top: 2.5rem; }
+</style>
+<main class="landing">
+  <header>
+    {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="">{% endif %}
+    <span class="wordmark">{{ brand.wordmark }}</span>
+  </header>
+  <h1>{{ brand.tagline_nl }}</h1>
+  <p class="lede">Organiseer je iets, dan maak je hier wat je nodig hebt en deel je één link. Wie die link opent, hoeft geen account te maken, krijgt geen cookies en wordt niet gevolgd.</p>
+
+  <h2><a href="/event/new">Evenement</a></h2>
+  <p>Een aanmeldpagina voor je bijeenkomst, actie of borrel. Mensen laten een naam achter en zeggen met hoeveel ze komen. Een e-mailadres is niet verplicht en wordt na afloop gewist.</p>
+
+  <h2><a href="/datepoll/new">Datumplanner</a></h2>
+  <p>Zet een paar datums klaar en laat je groep aangeven wanneer ze kunnen. Je ziet meteen welke dag de meeste mensen uitkomt.</p>
+
+  <h2><a href="/chore/new">Takenrooster</a></h2>
+  <p>Verdeel vaste klussen zoals de bar, de kassa of het opruimen over je vrijwilligers. De beurten gaan vanzelf rond, en iedereen ziet het rooster via dezelfde link.</p>
+
+  <h2><a href="/form/new">Vragenlijst</a></h2>
+  <p>Stel je eigen vragen voor een peiling, een evaluatie of een inschrijving. De antwoorden komen bij jou terecht en nergens anders.</p>
+
+  <h2><a href="/quiz/new">Quiz</a></h2>
+  <p>Schrijf een pubquiz en laat iedereen meespelen op de eigen telefoon. De score staat na afloop meteen klaar.</p>
+
+  <h2><a href="/compass/new">Kompas</a></h2>
+  <p>Stel vragen op twee assen en zie op één kaart waar iedereen in je groep staat. Een goed begin van een discussie.</p>
+
+  <p class="more">Meer over aanmelden, plannen en wat je bewaart van je deelnemers staat op de <a href="/blog">blog</a>.</p>
+</main>
