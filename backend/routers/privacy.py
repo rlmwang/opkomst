@@ -1,5 +1,6 @@
-"""The pages that are read rather than used: the policy and the
-written pages behind ``services/content.py``.
+"""The pages that are read rather than used: the policy, the terms,
+the written pages behind ``services/content.py`` and the blog that
+lists them.
 
 A plain server-rendered page rather than a route in the SPA, for one
 reason that is not aesthetic. The consent dialog appears on every
@@ -110,6 +111,24 @@ for _page in PAGES:
         methods=["GET", "HEAD"],
         response_class=HTMLResponse,
         include_in_schema=False,
+    )
+
+
+@router.head("/blog", include_in_schema=False)
+@router.get("/blog", response_class=HTMLResponse)
+def blog(request: Request) -> HTMLResponse:
+    """The written pages, listed. No advertising: a list of links is
+    not a page anybody reads for its own sake."""
+    traffic.record("content")
+    return _render(
+        request,
+        "blog.html",
+        page_title="Blog",
+        page_description=(
+            "Over aanmelden, plannen en organiseren: aanmeldpagina's, datumplanners, "
+            "roosters, vragenlijsten en wat je bewaart van je deelnemers."
+        ),
+        canonical_url=f"{_PUBLIC_BASE}/blog",
     )
 
 

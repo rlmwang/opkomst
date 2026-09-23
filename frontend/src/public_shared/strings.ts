@@ -94,8 +94,8 @@ export interface ChromeStrings {
   footerTerms: string;
   footerSource: string;
   footerFeedback: string;
-  /** Introduces the numbered links to the written pages. */
-  footerBlogs: string;
+  /** The link to ``/blog``, which lists the written pages. */
+  footerBlog: string;
 }
 
 const chrome: Record<Locale, ChromeStrings> = {
@@ -140,7 +140,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     footerTerms: "Voorwaarden",
     footerSource: "Broncode",
     footerFeedback: "Feedback",
-    footerBlogs: "Blogs:",
+    footerBlog: "Blog",
   },
   en: {
     loading: "Loading…",
@@ -182,7 +182,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     footerTerms: "Terms",
     footerSource: "Source",
     footerFeedback: "Feedback",
-    footerBlogs: "Blogs:",
+    footerBlog: "Blog",
   },
 };
 

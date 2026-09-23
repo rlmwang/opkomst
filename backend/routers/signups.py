@@ -20,6 +20,7 @@ from ..models import (
     EmailChannel,
     EmailDispatch,
     Event,
+    EventHelpOption,
     Occurrence,
     Registration,
     Signup,
@@ -43,6 +44,19 @@ from ..services.rate_limit import Limits, limiter
 logger = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/event", tags=["signups"])
+
+
+def _assert_help_choices_allowed(event: Event, choices: list[str]) -> None:
+    """The ticks have to be the event's own rows. A switched-off question
+    isn't asked, so an answer to it is a stale page or a hand-made
+    request, not something to record."""
+    allowed = {o.id for o in event.help_options} if event.help_enabled else set()
+    invalid = [c for c in choices if c not in allowed]
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail=f"help_choices must be a subset of the event's help_options: {invalid}",
+        )
 
 
 def _resolve_targets(db: Session, event: Event, data: SignupCreate, now) -> list[Occurrence]:
@@ -79,15 +93,9 @@ def create_signup(
     # Both sides are option ids: what the payload names has to be one of
     # the event's own rows.
     allowed_sources = {o.id for o in event.source_options} if event.source_enabled else set()
-    allowed_help = {o.id for o in event.help_options} if event.help_enabled else set()
     if data.source_choice is not None and data.source_choice not in allowed_sources:
         raise HTTPException(status_code=400, detail="source_choice must match one of the event's options")
-    invalid_help = [c for c in data.help_choices if c not in allowed_help]
-    if invalid_help:
-        raise HTTPException(
-            status_code=400,
-            detail=f"help_choices must be a subset of the event's help_options: {invalid_help}",
-        )
+    _assert_help_choices_allowed(event, data.help_choices)
 
     now = now_wallclock()
     targets = _resolve_targets(db, event, data, now)
@@ -183,6 +191,19 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
         .order_by(Occurrence.starts_at.asc())
         .all()
     )
+    # One set of ticks per booking, in the organiser's own order: the
+    # line items each carry a copy and they say the same thing, so the
+    # database folds them back to one list rather than the API layer.
+    help_choices = [
+        row[0]
+        for row in db.query(SignupHelpChoice.help_option_id)
+        .join(Signup, Signup.id == SignupHelpChoice.signup_id)
+        .join(EventHelpOption, EventHelpOption.id == SignupHelpChoice.help_option_id)
+        .filter(Signup.registration_id == registration.id)
+        .group_by(SignupHelpChoice.help_option_id, EventHelpOption.ordinal)
+        .order_by(EventHelpOption.ordinal.asc())
+        .all()
+    ]
     return BookingOut(
         display_name=registration.display_name,
         party_size=registration.party_size,
@@ -190,6 +211,7 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
         event_name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
         event_slug=event.slug,
         locale=event.locale,
+        help_choices=help_choices,
         occurrences=[
             BookingOccurrenceOut(
                 occurrence_id=occ.id,
@@ -198,10 +220,8 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
                 starts_at=occ.starts_at,
                 ends_at=occ.ends_at,
                 is_past=occ.starts_at <= now,
-                source_choice=signup.source_option_id,
-                help_choices=list(signup.help_choices),
             )
-            for signup, occ in rows
+            for _signup, occ in rows
         ],
     )
 
@@ -229,9 +249,9 @@ def update_booking(
     data: BookingEditIn,
     db: Session = Depends(get_db),
 ) -> BookingOut:
-    """Update a booking's name + party size via its edit-link token.
-    Email + dispatch rows are untouched — there is no path from a booking
-    to its encrypted address (principle #2)."""
+    """Update a booking's name, party size and help ticks via its
+    edit-link token. Email + dispatch rows are untouched, there is no
+    path from a booking to its encrypted address (principle #2)."""
     registration = _registration_by_token(db, token)
     # Growing a party takes places just like a new booking does, so the
     # ceiling is checked on the difference. Shrinking passes trivially:
@@ -246,8 +266,21 @@ def update_booking(
         data.party_size - registration.party_size,
     )
     public_access.assert_name_given(booked_event, data.display_name)
+    _assert_help_choices_allowed(booked_event, data.help_choices)
     registration.display_name = data.display_name
     registration.party_size = data.party_size
+    # The ticks belong to the booking, so a change rewrites the copy on
+    # every line item, past sessions included: what someone will help
+    # with is one answer, not one per session.
+    line_items = [row[0] for row in db.query(Signup.id).filter(Signup.registration_id == registration.id).all()]
+    db.query(SignupHelpChoice).filter(SignupHelpChoice.signup_id.in_(line_items)).delete(synchronize_session=False)
+    db.add_all(
+        [
+            SignupHelpChoice(signup_id=signup_id, help_option_id=help_option_id)
+            for signup_id in line_items
+            for help_option_id in data.help_choices
+        ]
+    )
     db.commit()
     logger.info("booking_edited", registration_id=registration.id)
     return _booking_out(db, registration)

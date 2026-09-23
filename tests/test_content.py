@@ -17,7 +17,6 @@ from backend.services.content import BY_SLUG, PAGES
 from backend.services.slug import RESERVED_SLUGS
 
 _FRONTEND = pathlib.Path(__file__).resolve().parent.parent / "frontend"
-_FOOTER = _FRONTEND / "src" / "public_shared" / "Colophon.svelte"
 _VITE_CONFIG = _FRONTEND / "vite.config.ts"
 
 
@@ -54,24 +53,14 @@ def test_the_written_slugs_cannot_be_taken_by_a_chapter() -> None:
         assert page.slug in RESERVED_SLUGS, page.slug
 
 
-def test_the_footer_list_matches_the_server(client) -> None:
-    """The frontend keeps its own copy of the page list, because the
-    alternative was shipping it through the brand payload and making
-    brand data out of something that is not. This is what stops the
-    copy from rotting."""
-    source = _FOOTER.read_text(encoding="utf-8")
-    slugs = re.findall(r'slug: "([^"]+)"', source)
-    titles = re.findall(r'title: "([^"]+)"', source)
-    assert slugs == [p.slug for p in PAGES]
-    assert titles == [p.title for p in PAGES]
-
-
 def test_the_sitemap_lists_what_should_be_indexed(client) -> None:
     body = client.get("/sitemap.xml").text
-    for path in ("/event/new", "/form/new", "/datepoll/new", "/chore/new", "/privacy"):
-        assert "<loc>" in body and path in body, path
+    for path in ("/blog", "/privacy"):
+        assert f"{path}</loc>" in body, path
     for page in PAGES:
         assert page.slug in body, page.slug
+    # Not a create page: a form with no text until the bundle has run.
+    assert "/new</loc>" not in body
     # Not an event, a form or a roster: those expire and are noindex.
     assert "/e/" not in body
 
@@ -155,14 +144,34 @@ def test_the_root_carries_structured_data(client) -> None:
     assert "WebApplication" in body
 
 
-def test_a_page_is_reachable_from_its_own_footer(client) -> None:
-    """Every written page links to every other one, so a crawler that
-    lands on any of them finds the rest without going through the
-    root."""
-    body = client.get(f"/{PAGES[0].slug}").text
-    for page in PAGES[1:]:
+def test_every_written_page_is_reachable_through_the_blog(client) -> None:
+    """Every page links to ``/blog`` in its footer, and ``/blog`` links
+    to every page with its title, so a crawler that lands on any of them
+    finds the rest."""
+    assert '/blog"' in client.get(f"/{PAGES[0].slug}").text
+    body = client.get("/blog").text
+    for page in PAGES:
         assert f'/{page.slug}"' in body, page.slug
+        assert page.title in body, page.slug
     assert '/privacy"' in body
+
+
+def test_the_root_has_text_before_the_bundle_runs(client) -> None:
+    """The landing text sits where the boot spinner was, with a link to
+    each create page and to the blog."""
+    body = client.get("/").text
+    assert 'class="app-boot"' not in body
+    for path in ("/event/new", "/datepoll/new", "/chore/new", "/form/new", "/quiz/new", "/compass/new", "/blog"):
+        assert f'href="{path}"' in body, path
+
+
+def test_only_the_root_carries_the_landing_text(client) -> None:
+    """Every other shell keeps its spinner: an organisation's root is
+    theirs, and an app page has its own content to wait for."""
+    for path in ("/event/new", "/rsp", "/rsp/event"):
+        body = client.get(path).text
+        assert 'class="app-boot"' in body, path
+        assert 'class="landing"' not in body, path
 
 
 def test_by_slug_covers_every_page() -> None:
@@ -177,9 +186,9 @@ def test_the_dev_server_proxies_every_written_page() -> None:
     source = _VITE_CONFIG.read_text(encoding="utf-8")
     block = source.split("const CONTENT_PATHS = [", 1)[1].split("]", 1)[0]
     proxied = re.findall(r'"([^"]+)"', block)
-    # The two pages that are read rather than used come first, then the
-    # written pages in the order ``services/content.py`` lists them.
-    assert proxied == ["/privacy", "/voorwaarden", *(f"/{p.slug}" for p in PAGES)]
+    # The policy, the terms and the blog come first, then the written
+    # pages in the order ``services/content.py`` lists them.
+    assert proxied == ["/privacy", "/voorwaarden", "/blog", *(f"/{p.slug}" for p in PAGES)]
 
 
 def test_every_page_is_one_markdown_file_with_complete_front_matter() -> None:

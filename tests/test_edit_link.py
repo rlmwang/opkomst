@@ -188,15 +188,64 @@ def test_event_edit_roundtrip(client, organiser_headers):
 
     pre = client.get(f"/api/v1/event/by-token/{token}").json()
     assert pre["party_size"] == 2
-    assert pre["occurrences"][0]["help_choices"] == picked["help_choices"]
+    assert pre["help_choices"] == picked["help_choices"]
     assert "email" not in pre  # email never reachable from a signup
 
     r = client.put(
         f"/api/v1/event/by-token/{token}",
-        json={"display_name": "Sam", "party_size": 5},
+        json={"display_name": "Sam", "party_size": 5, **picked},
     )
     assert r.status_code == 200
     assert r.json()["party_size"] == 5
+    assert r.json()["help_choices"] == picked["help_choices"]
+
+
+def test_event_edit_changes_help_choices(client, organiser_headers):
+    """The help question is answerable from the edit link, not only at
+    sign-up: the ticks are one set per booking, so a change rewrites the
+    copy every line item carries and the organiser reads the new answer."""
+    event = _create_event(client, organiser_headers, help_options=[{"label": "opbouwen"}, {"label": "afbreken"}])
+    occ = _first_occurrence(client, organiser_headers, event)
+    picked = public_option_ids(client, occ["slug"], help_labels=("opbouwen",))
+    token = client.post(
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, **picked, "all_upcoming": True},
+    ).json()["edit_token"]
+
+    both = public_option_ids(client, occ["slug"], help_labels=("opbouwen", "afbreken"))
+    r = client.put(
+        f"/api/v1/event/by-token/{token}",
+        json={"display_name": "Sam", "party_size": 1, **both},
+    )
+    assert r.status_code == 200
+    assert sorted(r.json()["help_choices"]) == sorted(both["help_choices"])
+    assert sorted(_occurrence_signups(client, organiser_headers, event)[0]["help_choices"]) == sorted(
+        ["afbreken", "opbouwen"]
+    )
+
+    # Untick everything, and nothing is left on the line items.
+    r = client.put(
+        f"/api/v1/event/by-token/{token}",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": []},
+    )
+    assert r.status_code == 200
+    assert r.json()["help_choices"] == []
+    assert _occurrence_signups(client, organiser_headers, event)[0]["help_choices"] == []
+
+
+def test_event_edit_rejects_help_choice_the_event_does_not_have(client, organiser_headers):
+    event = _create_event(client, organiser_headers)
+    occ = _first_occurrence(client, organiser_headers, event)
+    token = client.post(
+        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        json={"display_name": "Sam", "party_size": 1, "all_upcoming": True},
+    ).json()["edit_token"]
+
+    r = client.put(
+        f"/api/v1/event/by-token/{token}",
+        json={"display_name": "Sam", "party_size": 1, "help_choices": ["made-up"]},
+    )
+    assert r.status_code == 400
 
 
 def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers):

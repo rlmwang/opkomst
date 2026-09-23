@@ -8,6 +8,8 @@
 4. Feedback responses carry no link to the originating signup.
 """
 
+from datetime import date, timedelta
+
 from tests._helpers.events import public_option_ids
 
 
@@ -41,7 +43,7 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
             "chapter_id": me["chapters"][0]["id"],
             "topic": None,
             "location": "Adam",
-            "starts_on": "2026-09-01",
+            "starts_on": (date.today() + timedelta(days=7)).isoformat(),
             "start_time": "18:00:00",
             "end_time": "20:00:00",
             "source_options": [{"label": "F"}],

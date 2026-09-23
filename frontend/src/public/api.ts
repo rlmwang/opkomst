@@ -88,8 +88,6 @@ export interface BookingOccurrence {
   starts_at: string;
   ends_at: string;
   is_past: boolean;
-  source_choice: string | null;
-  help_choices: string[];
 }
 
 /** The whole booking behind an edit-link token. */
@@ -100,14 +98,17 @@ export interface Booking {
   event_name: string;
   event_slug: string;
   locale: string;
+  /** What they offered to help with, as option ids. One set per booking. */
+  help_choices: string[];
   occurrences: BookingOccurrence[];
 }
 
-/** The edit payload: name + party size only. Occurrence membership is
- *  changed by withdrawing sessions, not by editing this. */
+/** The edit payload: name, party size and help ticks. Session
+ *  membership is changed by the calendar, not by editing this. */
 export interface BookingEditPayload {
   display_name: string | null;
   party_size: number;
+  help_choices: string[];
 }
 
 export class ApiError extends Error {

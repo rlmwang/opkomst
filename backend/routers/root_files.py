@@ -46,18 +46,14 @@ router = APIRouter(tags=["root-files"], include_in_schema=False)
 
 _PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
 
-# What belongs in an index: the root, the four pages that make
-# something, the written pages, and the policy. Not an event, a form or
-# a roster: those are somebody's invitation to their own thing, they
-# expire, and they are ``noindex`` for that reason (see docs/seo.md).
+# What belongs in an index: the root, the blog and the written pages,
+# and the policy. Not the create pages: they are a form with no text
+# until the bundle has run. Not an event, a form or a roster either:
+# those are somebody's invitation to their own thing, they expire, and
+# they are ``noindex`` for that reason (see docs/seo.md).
 _SITEMAP_PATHS = (
     "/",
-    "/event/new",
-    "/datepoll/new",
-    "/chore/new",
-    "/form/new",
-    "/quiz/new",
-    "/compass/new",
+    "/blog",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
 )

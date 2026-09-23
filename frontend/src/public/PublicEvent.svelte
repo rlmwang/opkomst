@@ -163,17 +163,19 @@ let recoveredAt = $state<string | null>(null);
 
 // Dirty/revert/saved state for the shared edit bar (edit mode only).
 const edit = useEditForm({
-  // Dirty tracks name, party size, AND the future session selection, so the
-  // edit bar's Save/Revert cover calendar changes too.
+  // Dirty tracks name, party size, the help ticks AND the future session
+  // selection, so the edit bar's Save/Revert cover everything on the page.
   snapshot: () => ({
     name: displayName,
     party: partySize,
     sessions: [...selectedIds].sort().join(","),
+    help: [...helpChoices].sort().join(","),
   }),
   apply: (s) => {
     displayName = s.name;
     partySize = s.party;
     selectedIds = s.sessions ? s.sessions.split(",") : [];
+    helpChoices = s.help ? s.help.split(",") : [];
   },
 });
 
@@ -194,6 +196,7 @@ if (editing) {
       displayName = b.display_name ?? "";
       partySize = b.party_size;
       locale = pickLocale(b.locale);
+      helpChoices = [...b.help_choices];
       selectedIds = bookedFutureIds(b);
       allUpcoming = false;
       edit.captureBaseline();
@@ -292,9 +295,6 @@ function onDayClick(iso: string) {
   const occ = upcomingByIso.get(iso);
   if (occ) toggleOccurrence(occ.id, !selectedIds.includes(occ.id));
 }
-
-// The reminder shown behind the select-all toggle depends on the mode.
-const reminder = $derived(allUpcoming ? t.reminderOptOut : t.reminderOptIn);
 
 // --- email transparency --------------------------------------------
 interface EmailUseBullet {
@@ -445,6 +445,7 @@ async function saveBooking() {
     let b = await putBooking(editToken!, {
       display_name: trimmedName || null,
       party_size: partySize,
+      help_choices: event && event.help_options.length > 0 ? helpChoices : [],
     });
     // Recurring event: also persist the future session selection from the
     // calendar (one-off has no editable session set).
@@ -459,6 +460,7 @@ async function saveBooking() {
       allUpcoming = false;
     }
     booking = b;
+    helpChoices = [...b.help_choices];
     edit.captureBaseline();
     edit.flashSaved();
   } catch {
@@ -489,6 +491,26 @@ $effect(() => {
   document.title = eventTitle ? `${eventTitle} · opkomst.nu` : "opkomst.nu";
 });
 </script>
+
+<!-- The help question, drawn the same on the sign-up form and on the
+     page someone reaches with their own link: the same ticks, on the
+     same booking. -->
+{#snippet helpSection()}
+  {#if (event?.help_options ?? []).length > 0}
+    <section class="form-section help-section">
+      <h2 id="help-heading">{t.helpHeading}</h2>
+      <div class="help-choices" role="group" aria-labelledby="help-heading">
+        {#each event?.help_options ?? [] as opt (opt.id)}
+          <label class="help-row">
+            <!-- The tick stores the option's id, not its wording. -->
+            <input type="checkbox" bind:group={helpChoices} value={opt.id} />
+            <span>{opt.label}</span>
+          </label>
+        {/each}
+      </div>
+    </section>
+  {/if}
+{/snippet}
 
 <PublicShell bind:locale hideAds={submitted || withdrawn}>
   {#if loadFailed}
@@ -625,7 +647,6 @@ $effect(() => {
         {#if !isOneOff}
           <section class="form-section session-section">
             <h2>{t.sessionsTitle}</h2>
-            <p class="muted picker-explainer">{t.pickerExplainer}</p>
           <label class="all-upcoming-row">
             <input
               type="checkbox"
@@ -636,7 +657,6 @@ $effect(() => {
             />
             <span class="all-upcoming-label">{t.allUpcoming}</span>
           </label>
-          <p class="muted picker-reminder">{reminder}</p>
           <MonthGrid
             bind:month={() => shownMonth, (v) => (pickerMonth = v)}
             {locale}
@@ -650,20 +670,7 @@ $effect(() => {
           </section>
         {/if}
 
-        {#if event.help_options.length > 0}
-          <section class="form-section help-section">
-            <h2 id="help-heading">{t.helpHeading}</h2>
-            <div class="help-choices" role="group" aria-labelledby="help-heading">
-              {#each event.help_options as opt (opt.id)}
-                <label class="help-row">
-                  <!-- The tick stores the option's id, not its wording. -->
-                  <input type="checkbox" bind:group={helpChoices} value={opt.id} />
-                  <span>{opt.label}</span>
-                </label>
-              {/each}
-            </div>
-          </section>
-        {/if}
+        {@render helpSection()}
 
         <!-- Both fields here are optional and independently switchable:
              no source options means the organiser switched that question
@@ -754,7 +761,6 @@ $effect(() => {
           {#if event && !isOneOff}
             <section class="form-section session-section">
               <h2>{t.bookingSessions}</h2>
-              <p class="muted picker-explainer">{t.pickerExplainer}</p>
           <label class="all-upcoming-row">
             <input
               type="checkbox"
@@ -765,7 +771,6 @@ $effect(() => {
             />
             <span class="all-upcoming-label">{t.allUpcoming}</span>
           </label>
-          <p class="muted picker-reminder">{reminder}</p>
           <MonthGrid
             bind:month={() => shownMonth, (v) => (pickerMonth = v)}
             {locale}
@@ -778,6 +783,8 @@ $effect(() => {
           />
             </section>
           {/if}
+
+          {@render helpSection()}
 
           {#if errorMsg}<p class="error" role="alert">{errorMsg}</p>{/if}
         </form>
@@ -833,11 +840,6 @@ $effect(() => {
 }
 
 /* --- Occurrence picker --- */
-/* Explainer under the header (above the toggle). */
-.picker-explainer {
-  font-size: 0.85rem;
-  margin: 0 0 0.5rem;
-}
 /* Select-all toggle: a real switch (not a checkbox), label unbolded. */
 .all-upcoming-row {
   display: flex;
@@ -848,12 +850,6 @@ $effect(() => {
   margin-bottom: 0.25rem;
 }
 .all-upcoming-label { font-weight: 400; }
-/* Reminder tucked directly under the toggle it belongs to. */
-.picker-reminder {
-  font-size: 0.8rem;
-  margin: 0 0 0.5rem;
-  padding-left: calc(40px + 0.625rem); /* line up under the switch label */
-}
 .switch {
   appearance: none;
   -webkit-appearance: none;

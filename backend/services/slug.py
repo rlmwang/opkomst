@@ -54,6 +54,7 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "me",
         "privacy",
         "voorwaarden",
+        "blog",
         "robots.txt",
         "ads.txt",
         "sitemap.xml",

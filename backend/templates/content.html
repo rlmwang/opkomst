@@ -9,7 +9,8 @@
     written pages and never the policy. The reading text is already on
     screen before it runs.
 
-    A child template fills ``content``. Everything else, including the
+    ``content`` is a written page by default; ``blog.html`` fills it
+    with the list of them instead. Everything else, including the
     footer, is here so the pages cannot drift apart. -#}
 <!DOCTYPE html>
 <html lang="nl">
@@ -90,12 +91,6 @@
     }
     .footer-links a { color: var(--brand-text-muted); text-decoration: none; }
     .footer-links a:hover { text-decoration: underline; }
-    .blogs {
-      margin-left: auto;
-      display: inline-flex;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
     /* The advertising slot, in the shape ``docs/ads.md`` describes and
      * ``public_shared/AdSlot.svelte`` renders in the app: rails pinned to
      * the window edges well clear of the text, or one banner at the
@@ -125,6 +120,10 @@
     }
     .rail-box { width: 160px; height: 600px; }
     .banner-box { width: 320px; height: 50px; }
+    .posts { list-style: none; padding: 0; margin: 0; }
+    .posts li + li { margin-top: 1.5rem; }
+    .posts h2 { margin: 0 0 0.25rem; }
+    .posts p { margin: 0; color: var(--brand-text-muted); }
     table { border-collapse: collapse; margin: 1rem 0; }
     th, td { text-align: left; padding: 0.375rem 1rem 0.375rem 0; vertical-align: top; }
     th { font-weight: 600; }
@@ -140,6 +139,7 @@
     </a>
   </header>
 
+  {% block content %}
   {#- The page itself: a heading, the prose from ``backend/content``
       already rendered to HTML, and the call to action every written
       page ends on. The first paragraph is the lede, styled by
@@ -147,6 +147,7 @@
   <h1>{{ page.title }}</h1>
   {{ page.html | safe }}
   <a class="cta" href="{{ page.cta_path }}">{{ page.cta_label }}</a>
+  {% endblock %}
 
   {%- if ads %}
   {#- Advertising. Only where ``ads`` is passed, which is the written
@@ -222,24 +223,15 @@
   {%- endif %}
 
   {#- The colophon, not a nav bar: these are places you go instead of
-      the task, so they sit below it. Built from ``services/content.py``
-      so the list has one home. -#}
+      the task, so they sit below it. The written pages are reached
+      through ``/blog``, which lists them. -#}
   <footer class="site-footer">
     <nav class="footer-links" aria-label="Meer lezen">
       <a href="/privacy">Privacy</a>
       <a href="/voorwaarden">Voorwaarden</a>
       <a href="https://github.com/rlmwang/opkomst">Broncode</a>
       <a href="https://github.com/rlmwang/opkomst/issues/new">Feedback</a>
-      {#- Numbered rather than named: the reader wants the policy, the
-          source and the way to report something, while the numbers are
-          how a crawler finds the written pages. The title still
-          travels, as the link's own label. -#}
-      <span class="blogs">
-        Blogs:
-        {% for other in pages %}
-        <a href="/{{ other.slug }}" title="{{ other.title }}" aria-label="{{ other.title }}">{{ loop.index }}</a>
-        {% endfor %}
-      </span>
+      <a href="/blog">Blog</a>
     </nav>
     <p class="muted">{{ brand.app_name }}{% if brand.tagline_nl %} · {{ brand.tagline_nl }}{% endif %}</p>
   </footer>

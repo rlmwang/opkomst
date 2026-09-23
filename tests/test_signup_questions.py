@@ -5,6 +5,7 @@ switched-off question is not asked: its options never reach the public
 page, and an answer to it is refused rather than recorded.
 """
 
+from datetime import date, timedelta
 from typing import Any
 
 from backend.models import Event
@@ -13,7 +14,7 @@ _BASE: dict[str, Any] = {
     "name_nl": "Demo",
     "topic_nl": None,
     "location": "Adam",
-    "starts_on": "2026-09-01",
+    "starts_on": (date.today() + timedelta(days=7)).isoformat(),
     "start_time": "18:00:00",
     "end_time": "20:00:00",
     "feedback_enabled": True,
