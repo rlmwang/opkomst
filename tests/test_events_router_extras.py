@@ -38,7 +38,7 @@ def _new_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]:
         "chapter_id": _first_chapter_id(client, headers),
         "topic_nl": None,
         "location": "Adam",
-        "starts_on": "2026-09-01",
+        "starts_on": (date.today() + timedelta(days=7)).isoformat(),
         "start_time": "18:00:00",
         "end_time": "20:00:00",
         "source_options": [{"label": "Flyer"}],
@@ -165,7 +165,7 @@ def test_recurring_signup_creates_one_registration_with_many_line_items(client, 
         feedback_enabled=True,
         reminder_enabled=False,
     )
-    occs = page_occurrences(client, organiser_headers, event['id'])
+    occs = page_occurrences(client, organiser_headers, event["id"])
     assert len(occs) == 3  # weekly × 3, all inside the 90-day horizon
     occ_ids = [o["id"] for o in occs]
 
