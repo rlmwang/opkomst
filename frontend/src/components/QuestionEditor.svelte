@@ -534,6 +534,19 @@ function removeOption(option: OptionDraft) {
   align-items: center;
   gap: 0.125rem;
 }
+/* On a phone the kind, the toggle and three buttons do not fit on one
+ * line. The controls get their own row on top and the kind takes the
+ * full width below them, as the first field of the question. */
+@media (max-width: 480px) {
+  .header-row {
+    flex-wrap: wrap;
+  }
+  .header-row :global(.kind-select) {
+    order: 1;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
 .required-row {
   display: inline-flex;
   align-items: center;
