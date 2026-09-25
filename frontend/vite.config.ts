@@ -232,7 +232,7 @@ function publicChoreDevRoute(): Plugin {
  * both languages, plus its pictures: rendered by the backend like the
  * written pages (``backend/routers/manual.py``).
  */
-const MANUAL_PATH = /^(?:\/[a-z0-9-]+)?\/(?:handleiding|manual)(?:\/|$)|^\/manual-pictures\//;
+const MANUAL_PATH = /^(?:\/[a-z0-9-]+)?\/(?:handleiding|manual)(?:\.pdf)?(?:\/|$)|^\/manual-pictures\//;
 
 function organiserAppDevRoute(): Plugin {
   // Paths the dev server owns: Vite internals and the source tree. The

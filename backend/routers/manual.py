@@ -183,6 +183,33 @@ for _word in _WORDS:
         router.add_api_route(_path, _handler, methods=["GET", "HEAD"], response_class=HTMLResponse)
 
 
+# The PDFs the image build wrote (``backend/manual_pdf.py``), next to
+# the bundle. Literal paths again. Nothing in local mode without a
+# build, and that is a 404 rather than a render: Pango belongs in the
+# build stage and not in the request path.
+_PDF_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend" / "dist" / "manual"
+
+
+def _pdf(brand_slug: str, word: str) -> FileResponse:
+    path = _PDF_DIR / brand_slug / f"{word}.pdf"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, media_type="application/pdf", headers={"Cache-Control": "public, max-age=86400"})
+
+
+for _word in _WORDS:
+
+    def _root_pdf(_w: str = _word) -> FileResponse:
+        return _pdf(brand_svc.HOUSE_BRAND, _w)
+
+    def _tenant_pdf(tenant: str, db: Session = Depends(get_db), _w: str = _word) -> FileResponse:
+        _, brand_slug, _ = _base_and_brand(db, tenant)
+        return _pdf(brand_slug, _w)
+
+    router.add_api_route(f"/{_word}.pdf", _root_pdf, methods=["GET", "HEAD"], response_class=FileResponse)
+    router.add_api_route(f"/{{tenant}}/{_word}.pdf", _tenant_pdf, methods=["GET", "HEAD"], response_class=FileResponse)
+
+
 @router.api_route("/manual-pictures/{language}/{name}.png", methods=["GET", "HEAD"])
 def picture(language: str, name: str) -> FileResponse:
     """A committed picture, cached the way the built assets are: it

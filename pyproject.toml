@@ -66,6 +66,9 @@ dev = [
     "freezegun>=1.5",
     "hypothesis>=6",
 ]
+manual = [
+    "weasyprint>=63",
+]
 
 [tool.ruff]
 line-length = 120

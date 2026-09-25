@@ -81,7 +81,9 @@ def configured(monkeypatch: pytest.MonkeyPatch):
             "adsense_slot_banner": "2222222222",
         }
     )
-    monkeypatch.setattr("backend.services.brand.settings", fake)
+    # ``services.brand`` reads ``config.settings`` when asked, not at
+    # import, so its half of the switch is the module attribute itself.
+    monkeypatch.setattr("backend.config.settings", fake)
     monkeypatch.setattr("backend.routers.spa.settings", fake)
     monkeypatch.setattr("backend.routers.root_files.settings", fake)
     monkeypatch.setattr("backend.routers.privacy.settings", fake)

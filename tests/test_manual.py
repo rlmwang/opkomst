@@ -242,3 +242,20 @@ def test_the_locale_files_name_every_chapter_by_number() -> None:
     for language in manual.LANGUAGES:
         held = json.loads((root / f"{language}.json").read_text(encoding="utf-8"))["manual"]["chapters"]
         assert held == {str(c.number): c.slug for c in manual.CHAPTERS[language]}
+
+
+def test_the_pdf_paths_answer_with_a_file_or_nothing(client, tmp_path: pathlib.Path, monkeypatch) -> None:
+    from backend.routers import manual as manual_router
+
+    monkeypatch.setattr(manual_router, "_PDF_DIR", tmp_path)
+    assert client.get("/handleiding.pdf").status_code == 404
+    (tmp_path / "opkomst").mkdir()
+    (tmp_path / "opkomst" / "handleiding.pdf").write_bytes(b"%PDF-1.7 test")
+    (tmp_path / "rsp").mkdir()
+    (tmp_path / "rsp" / "manual.pdf").write_bytes(b"%PDF-1.7 test")
+    response = client.get("/handleiding.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert client.get("/rsp/manual.pdf").status_code == 200
+    assert client.get("/rsp/handleiding.pdf").status_code == 404
+    assert client.get("/nope/manual.pdf").status_code == 404

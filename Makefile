@@ -51,6 +51,9 @@ typecheck:
 e2e:
 	cd frontend && CI=1 npx playwright test
 
+manual-pdf:
+	uv run --group manual python -m backend.manual_pdf frontend/dist/manual
+
 openapi:
 	uv run python scripts/generate_openapi.py
 	cd frontend && npx openapi-typescript ../openapi.json -o src/api/schema.ts
