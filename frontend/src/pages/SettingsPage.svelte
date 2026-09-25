@@ -74,7 +74,7 @@ async function submit(event: Event): Promise<void> {
   {#if query.isPending}
     <AppSkeleton rows={1} cards />
   {:else}
-    <AppCard tag="form" onsubmit={submit}>
+    <AppCard tag="form" anchor="admin.agenda" onsubmit={submit}>
       <h2>{t("settings.agendaTitle")}</h2>
       <p class="muted">{t("settings.agendaBody")}</p>
 

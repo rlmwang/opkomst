@@ -9,6 +9,7 @@ import { APP_NAME } from "@/lib/branding";
 import { pendingCountQuery } from "@/composables/useAdmin.svelte";
 import { auth, logout } from "@/stores/auth.svelte";
 import { go, route } from "@/router/navigation.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 
 // Pending-approval indicator — fired only when the actor is an
 // admin (organisers don't get the badge and shouldn't pay the
@@ -188,9 +189,9 @@ const hasSubtabs = $derived(subtabs.length > 0);
          so on phones it drops to a full-width row of its own instead of
          competing with the brand and the menu. -->
     {#if hasSubtabs}
-      <nav class="subtabs" aria-label={t("header.subnavLabel")}>
+      <nav class="subtabs" aria-label={t("header.subnavLabel")} use:anchor={"header.subtabs"}>
         {#each subtabs as s (s.to)}
-          <RouterLink to={s.to} class="subtab">
+          <RouterLink to={s.to} class="subtab" anchor={s.to.endsWith("/archived") ? "list.archived" : undefined}>
             {s.label}
             {#if s.badge}
               <span class="pending-badge" aria-label={t("header.pendingBadgeLabel", { n: s.badge })}>
@@ -213,6 +214,7 @@ const hasSubtabs = $derived(subtabs.length > 0);
         <button
           type="button"
           class="menu-trigger"
+          use:anchor={"header.menu"}
           class:open={navMenuOpen}
           aria-haspopup="true"
           aria-expanded={navMenuOpen}

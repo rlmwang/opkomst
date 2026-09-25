@@ -7,14 +7,17 @@
  */
 import type { Snippet } from "svelte";
 
+import { type AnchorName, anchor } from "@/tours/anchors.svelte";
+
 import { go, route } from "./navigation.svelte";
 import { withBase } from "./router.svelte";
 
 const {
   to,
   class: className,
+  anchor: anchorName,
   children,
-}: { to: string; class?: string; children: Snippet } = $props();
+}: { to: string; class?: string; anchor?: AnchorName; children: Snippet } = $props();
 
 // vue-router added this class for free and the styles rely on it: a
 // subtab is styled by whether it is the page you are on.
@@ -29,6 +32,6 @@ function onclick(event: MouseEvent) {
 }
 </script>
 
-<a href={withBase(to)} class={className} class:router-link-active={active} {onclick}>
+<a href={withBase(to)} class={className} class:router-link-active={active} use:anchor={anchorName} {onclick}>
   {@render children()}
 </a>

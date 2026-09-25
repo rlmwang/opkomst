@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { Snippet } from "svelte";
 
+import { type AnchorName, anchor } from "@/tours/anchors.svelte";
+
 /** A card: the app's one panel. ``stack`` is the standard vertical-gap
  *  layout, on unless a caller says otherwise; ``tag`` swaps the element
  *  for a ``form`` or a ``section`` where the markup should say so.
@@ -16,17 +18,20 @@ const {
   stack = true,
   tag = "div",
   class: className,
+  anchor: anchorName,
   children,
   ...rest
 }: {
   stack?: boolean;
   tag?: string;
   class?: string;
+  /** The name a tour lights this card by (``tours/anchors``). */
+  anchor?: AnchorName;
   children: Snippet;
   [key: string]: unknown;
 } = $props();
 </script>
 
-<svelte:element this={tag} class="card {className ?? ''}" class:stack {...rest}>
+<svelte:element this={tag} class="card {className ?? ''}" class:stack use:anchor={anchorName} {...rest}>
   {@render children()}
 </svelte:element>

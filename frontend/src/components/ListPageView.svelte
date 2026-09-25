@@ -8,6 +8,7 @@ import AppHeader from "@/components/AppHeader.svelte";
 import AppSkeleton from "@/components/AppSkeleton.svelte";
 import SearchInput from "@/components/SearchInput.svelte";
 import { t } from "@/i18n.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 
 /**
  * Shared shell for "managed resource" list pages — the active and
@@ -99,14 +100,16 @@ const numbers = $derived.by(() => {
     <!-- No chapters to filter by, no filter. A personal account has
          none at all; an organisation's member always has one. -->
     {#if chapterOptions.length > 0}
-      <SelectField
-        bind:value={chapterFilter}
-        options={[{ id: null, name: t("dashboard.chapterFilterAll") }, ...chapterOptions]}
-        optionLabel="name"
-        optionValue="id"
-        placeholder={t("dashboard.chapterFilterAll")}
-        class="chapter-filter"
-      />
+      <span class="chapter-filter-anchor" use:anchor={"list.filter"}>
+        <SelectField
+          bind:value={chapterFilter}
+          options={[{ id: null, name: t("dashboard.chapterFilterAll") }, ...chapterOptions]}
+          optionLabel="name"
+          optionValue="id"
+          placeholder={t("dashboard.chapterFilterAll")}
+          class="chapter-filter"
+        />
+      </span>
     {/if}
     <SearchInput bind:value={search} placeholder={searchPlaceholder} class="search" />
   </div>
@@ -190,6 +193,14 @@ const numbers = $derived.by(() => {
 }
 :global(.chapter-filter) {
   min-width: 12rem;
+}
+/* The tour's anchor around the filter. A box of its own, because a
+ * hole is cut from a box, and the filter inside it fills it. */
+.chapter-filter-anchor {
+  display: flex;
+}
+.chapter-filter-anchor :global(.chapter-filter) {
+  flex: 1;
 }
 
 /* Below the container width there isn't room to sit the 12rem

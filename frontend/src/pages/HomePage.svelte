@@ -51,12 +51,12 @@ const chapters = $derived(sortedChapters(query.data));
 // date, put the event up, share out the work, ask people something,
 // and last the one that is for the evening itself.
 const tiles = $derived<Tile[]>([
-  { key: "events", to: "/event", label: t("home.eventsTile"), hint: t("home.eventsHint") },
-  { key: "datepolls", to: "/datepoll", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
-  { key: "chores", to: "/chore", label: t("home.choresTile"), hint: t("home.choresHint") },
-  { key: "forms", to: "/form", label: t("home.formsTile"), hint: t("home.formsHint") },
-  { key: "quizzes", to: "/quiz", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
-  { key: "compasses", to: "/compass", label: t("home.compassesTile"), hint: t("home.compassesHint") },
+  { key: "events", anchor: "home.events", to: "/event", label: t("home.eventsTile"), hint: t("home.eventsHint") },
+  { key: "datepolls", anchor: "home.datepolls", to: "/datepoll", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
+  { key: "chores", anchor: "home.chores", to: "/chore", label: t("home.choresTile"), hint: t("home.choresHint") },
+  { key: "forms", anchor: "home.forms", to: "/form", label: t("home.formsTile"), hint: t("home.formsHint") },
+  { key: "quizzes", anchor: "home.quizzes", to: "/quiz", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
+  { key: "compasses", anchor: "home.compasses", to: "/compass", label: t("home.compassesTile"), hint: t("home.compassesHint") },
   // Nobody to manage and no chapters to sort them into: a personal
   // account is one person.
   ...(auth.isPersonal

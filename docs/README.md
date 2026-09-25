@@ -20,6 +20,15 @@ makes an account, and the app forgets what it does not need.
 - `design-edit-link.md`, how somebody gets back to what they sent.
 - `design-public-pages-ux.md`, the one grammar all six share.
 
+**Helping people use it** (proposals, the tour first)
+
+- `design-tour.md`, the in-app rondleiding: a stencil overlay on one
+  control at a time, six short tours asked for from the page they
+  are about, one of them how to sign in.
+- `design-manual.md`, the handleiding: fourteen chapters as indexable
+  web pages and as one PDF per brand and language, illustrated by
+  the tour's own screenshots, so it ships after the tour.
+
 **Accounts and organisations**
 
 - `design-personal-tenants.md`, the account anyone can make.
