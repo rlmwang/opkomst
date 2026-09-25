@@ -9,21 +9,33 @@ parallel; only its pictures wait.
 
 | # | Task | Layer | Depends on |
 |---|---|---|---|
-| 01 | Anchor registry, the action, anchors in the shared components | frontend | |
-| 02 | Form section and fold components | frontend (refactor) | 01 |
-| 03 | Tour store, engine, overlay | frontend | 01 |
-| 04 | The six tours, their copy, the menu group, the door link | frontend | 02, 03 |
-| 05 | The offer card, its column and endpoint, the two e2e tests | backend + frontend | 04 |
-| 06 | Front-matter module, manual service, chapter skeleton | backend | |
-| 07 | Manual routes, template, sitemap, ads flag, links | backend + frontend | 06 |
-| 08 | The shooting script and picture references | frontend e2e + backend | 04, 06 |
-| 09 | The PDF: brand service split, dependency group, image stage | backend + Docker + CI | 07 |
-| 10 | Writing the chapters | content | 06 (text), 08 (pictures) |
+| 01 | Anchor registry, the action, anchors in the shared components *(landed; spec deleted)* | frontend | |
+| 02 | Form section and fold components *(landed; spec deleted)* | frontend (refactor) | 01 |
+| 03 | Tour store, engine, overlay *(landed; spec deleted)* | frontend | 01 |
+| 04 | The six tours, their copy, the menu group, the door link *(landed; spec deleted)* | frontend | 02, 03 |
+| 05 | The offer card, its column and endpoint, the two e2e tests *(landed; spec deleted)* | backend + frontend | 04 |
+| 06 | Front-matter module, manual service, chapter skeleton *(landed; spec deleted)* | backend | |
+| 07 | Manual routes, template, sitemap, ads flag, links *(landed; spec deleted)* | backend + frontend | 06 |
+| 08 | The shooting script and picture references *(landed; spec deleted)* | frontend e2e + backend | 04, 06 |
+| 09 | The PDF: brand service split, dependency group, image stage *(landed; spec deleted)* | backend + Docker + CI | 07 |
+| 10 | Writing the chapters *(landed; spec deleted)* | content | 06 (text), 08 (pictures) |
 | 11 | Reading it back with two organisers | not code | 05, 10 |
 
-After 05 the tour is usable. After 07 the manual's pages answer with
-their opening paragraphs and no pictures. After 10 the manual is
-complete; 11 changes copy in both.
+Everything but 11 has landed, one commit per task. What the series
+taught along the way, recorded so it is not relearned:
+
+- **A step is dropped only after its page has painted.** The route
+  changes before the new page's controls can register, so "nothing in
+  flight and no control" is true for a moment on every navigation.
+- **An until step remembers every element its name had when it began.**
+  The list page has a share link on every row, and as the page leaves
+  its rows unregister one by one.
+- **The manual's routes are literal words.** A path parameter in front
+  of the SPA fallback answers `/rsp` and `/event` with a 404 of its own.
+- **Python-markdown wants four spaces** for a picture to stay inside a
+  numbered step, and the picture becomes a figure after rendering.
+- **Mail is an organisation chapter.** A personal account is free and
+  has no mail field, and the written pages say there is no paid version.
 
 **Already there, reuse rather than rebuild:** `useOverlayPanel` (the
 popover's geometry, flip and repositioning), `AppPopover` (the callout's
