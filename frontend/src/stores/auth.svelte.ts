@@ -2,6 +2,7 @@ import type { AuthResponse, User } from "@/api/types";
 import { clearToken, get, getToken, post, setToken } from "@/api/client";
 import { brand, isPersonalApp } from "@/lib/branding";
 import { clearAllDrafts } from "@/composables/useFormDraft.svelte";
+import { stop as stopTour } from "@/stores/tour.svelte";
 
 export type { User };
 
@@ -98,7 +99,9 @@ export async function completeRegistration(token: string, name: string): Promise
 export function logout(): void {
   clearToken();
   user = null;
-  // Same rule for the half-typed create forms. At the root the next
-  // visitor is not necessarily the same person.
+  // Same rule for the half-typed create forms, and for a half-taken
+  // tour. At the root the next visitor is not necessarily the same
+  // person.
   clearAllDrafts();
+  stopTour();
 }

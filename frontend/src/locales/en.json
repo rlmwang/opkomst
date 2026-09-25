@@ -840,6 +840,13 @@
       "open": "View questionnaire"
     }
   },
+  "tour": {
+    "stop": "Stop",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "counter": "{n} of {total}"
+  },
   "footer": {
     "label": "Read more",
     "privacy": "Privacy",

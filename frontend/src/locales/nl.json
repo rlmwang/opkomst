@@ -840,6 +840,13 @@
       "open": "Bekijk vragenlijst"
     }
   },
+  "tour": {
+    "stop": "Stoppen",
+    "back": "Vorige",
+    "next": "Volgende",
+    "done": "Klaar",
+    "counter": "{n} van {total}"
+  },
   "footer": {
     "label": "Meer lezen",
     "privacy": "Privacy",
