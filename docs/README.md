@@ -25,9 +25,10 @@ makes an account, and the app forgets what it does not need.
 - `design-tour.md`, the in-app rondleiding: a stencil overlay on one
   control at a time, six short tours asked for from the page they
   are about, one of them how to sign in.
-- `design-manual.md`, the handleiding: fourteen chapters as indexable
-  web pages and as one PDF per brand and language, illustrated by
-  the tour's own screenshots, so it ships after the tour.
+- `design-manual.md`, the handleiding: fourteen chapters on one
+  indexable page per language and as one PDF per brand and language,
+  illustrated by the tour's own screenshots, so it ships after the
+  tour.
 
 **Accounts and organisations**
 

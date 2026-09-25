@@ -98,7 +98,7 @@ describe("the header's help group", () => {
     await signedInAs(BASE);
     await openMenu();
     const link = document.body.querySelector<HTMLAnchorElement>(".nav-menu a.menu-item");
-    expect(link?.getAttribute("href")).toBe("/rsp/handleiding/aanmeldingen");
+    expect(link?.getAttribute("href")).toBe("/rsp/handleiding#aanmeldingen");
   });
 
   it("starts the page's tour when pressed", async () => {

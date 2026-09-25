@@ -285,22 +285,16 @@ def test_the_written_pages_and_the_component_agree_on_the_slot() -> None:
         assert token.replace('class="adsbygoogle"', '"adsbygoogle"') in page, token
 
 
-def test_a_root_manual_chapter_carries_the_slot_and_its_index_does_not(client, configured) -> None:
-    """The manual follows the written pages: a chapter is prose with
-    pictures, the index is a list of links (``docs/design-manual.md``
-    chapter 7)."""
-    chapter = client.get("/handleiding/inloggen")
-    assert _script_hosts(chapter.text).issuperset({"pagead2.googlesyndication.com"})
-    assert _csp_sources(chapter.headers["content-security-policy"]).issuperset(
-        {"https://pagead2.googlesyndication.com"}
-    )
-    index = client.get("/handleiding")
-    assert "googlesyndication" not in index.text
-    assert "googlesyndication" not in index.headers["content-security-policy"]
+def test_the_root_manual_carries_the_slot(client, configured) -> None:
+    """The manual follows the written pages: one page of prose with
+    pictures (``docs/design-manual.md`` chapter 7)."""
+    page = client.get("/handleiding")
+    assert _script_hosts(page.text).issuperset({"pagead2.googlesyndication.com"})
+    assert _csp_sources(page.headers["content-security-policy"]).issuperset({"https://pagead2.googlesyndication.com"})
 
 
 def test_an_organisations_manual_carries_no_advertising(client, configured) -> None:
-    for path in ("/rsp/handleiding", "/rsp/handleiding/inloggen", "/rsp/manual/mail"):
+    for path in ("/rsp/handleiding", "/rsp/manual"):
         response = client.get(path)
         assert response.status_code == 200, path
         assert "googlesyndication" not in response.text

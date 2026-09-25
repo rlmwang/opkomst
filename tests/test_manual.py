@@ -126,39 +126,42 @@ def test_a_malformed_chapter_fails_at_import(tmp_path: pathlib.Path) -> None:
 
 
 @pytest.mark.parametrize(("word", "language"), [("handleiding", "nl"), ("manual", "en")])
-def test_the_root_index_and_every_root_chapter_answer(client, word: str, language: str) -> None:
-    index = client.get(f"/{word}")
-    assert index.status_code == 200
+def test_the_root_page_is_the_whole_book_for_everybody(client, word: str, language: str) -> None:
+    page = client.get(f"/{word}")
+    assert page.status_code == 200
+    body = page.text
     for chapter in manual.chapters_for(language, "all"):
-        assert f"/{word}/{chapter.slug}" in index.text
-        page = client.get(f"/{word}/{chapter.slug}")
-        assert page.status_code == 200, chapter.slug
-        assert chapter.title in page.text
-        assert f'<meta name="description" content="{chapter.description}">' in page.text
-        assert "noindex" not in page.text
-    assert "<script" not in index.text.lower()
+        # An anchor in the contents, and the chapter under it.
+        assert f'href="#{chapter.slug}"' in body, chapter.slug
+        assert f'id="{chapter.slug}"' in body, chapter.slug
+        assert chapter.title in body
+    for chapter in manual.chapters_for(language, "organisation")[-3:]:
+        assert f'id="{chapter.slug}"' not in body
+    assert f'href="/{word}.pdf"' in body
+    assert "noindex" not in body
+    assert "<script" not in body.lower()
 
 
 @pytest.mark.parametrize(("word", "language"), [("handleiding", "nl"), ("manual", "en")])
-def test_an_organisation_reads_its_own_manual_in_its_brand(client, word: str, language: str) -> None:
-    index = client.get(f"/rsp/{word}")
-    assert index.status_code == 200
-    assert "noindex" in index.text
-    org = manual.chapters_for(language, "organisation")
-    for chapter in org:
-        assert f"/rsp/{word}/{chapter.slug}" in index.text
-    last = org[-1]
-    page = client.get(f"/rsp/{word}/{last.slug}")
+def test_an_organisation_reads_its_own_book_in_its_brand(client, word: str, language: str) -> None:
+    page = client.get(f"/rsp/{word}")
     assert page.status_code == 200
-    assert "noindex" in page.text
-    # The root has no such chapter.
-    assert client.get(f"/{word}/{last.slug}").status_code == 404
+    body = page.text
+    assert "noindex" in body
+    for chapter in manual.chapters_for(language, "organisation"):
+        assert f'id="{chapter.slug}"' in body, chapter.slug
+    assert f'href="/rsp/{word}.pdf"' in body
+
+
+def test_a_chapter_has_no_page_of_its_own(client) -> None:
+    """The book is one page; a chapter is an anchor on it. The old
+    chapter addresses fall through to the app's shell."""
+    for path in ("/handleiding/inloggen", "/rsp/manual/mail"):
+        assert 'class="contents"' not in client.get(path).text, path
 
 
 def test_a_slug_that_is_no_organisation_has_no_manual(client) -> None:
     assert client.get("/nope/handleiding").status_code == 404
-    assert client.get("/handleiding/nope").status_code == 404
-    assert client.get("/rsp/manual/nope").status_code == 404
 
 
 def test_the_manual_does_not_shadow_the_app(client) -> None:
@@ -169,39 +172,30 @@ def test_the_manual_does_not_shadow_the_app(client) -> None:
 
 
 def test_each_page_links_its_twin_in_the_other_language(client) -> None:
-    page = client.get("/handleiding/evenement").text
-    assert 'href="/manual/event"' in page
-    page = client.get("/rsp/manual/event").text
-    assert 'href="/rsp/handleiding/evenement"' in page
     assert 'href="/manual"' in client.get("/handleiding").text
+    assert 'href="/rsp/handleiding"' in client.get("/rsp/manual").text
 
 
-def test_a_chapter_carries_previous_and_next(client) -> None:
-    page = client.get("/handleiding/evenement").text
-    assert "/handleiding/inloggen" in page
-    assert "/handleiding/aanmeldingen" in page
-    first = client.get("/handleiding/inloggen").text
-    assert "Vorige" not in first.split('class="pager"')[1]
+def test_a_chapters_own_headings_step_down_under_its_title(client) -> None:
+    body = client.get("/handleiding").text
+    # The chapter is an h2; its sections, h2 in the markdown, are h3 here.
+    assert "<h2>1. Hoe log ik in zonder wachtwoord?</h2>" in body
+    assert "<h3>Stappen</h3>" in body
+    assert "<h2>Stappen</h2>" not in body
 
 
 def test_a_paragraph_for_the_organisation_shows_only_under_its_prefix(client) -> None:
-    """Chapter 1 says what the organisation's door does and the root's
-    does not."""
-    root = client.get("/handleiding/inloggen").text
-    org = client.get("/rsp/handleiding/inloggen").text
+    root = client.get("/handleiding").text
+    org = client.get("/rsp/handleiding").text
     assert f'class="{manual.ORGANISATION_CLASS}"' not in root
-    if any("organisation" in c.body for c in manual.CHAPTERS["nl"] if c.slug == "inloggen"):
-        assert f'class="{manual.ORGANISATION_CLASS}"' in org
+    assert f'class="{manual.ORGANISATION_CLASS}"' in org
 
 
 def test_the_sitemap_lists_the_root_manual_and_nothing_of_an_organisation(client) -> None:
     body = client.get("/sitemap.xml").text
-    for word, language in (("handleiding", "nl"), ("manual", "en")):
-        assert f"/{word}</loc>" in body
-        for chapter in manual.chapters_for(language, "all"):
-            assert f"/{word}/{chapter.slug}</loc>" in body
-        for chapter in manual.chapters_for(language, "organisation")[-3:]:
-            assert chapter.slug not in body.replace("/handleiding/", "").replace("/manual/", "") or True
+    assert "/handleiding</loc>" in body
+    assert "/manual</loc>" in body
+    assert "/handleiding/" not in body
     assert "/rsp/" not in body
 
 
@@ -241,6 +235,7 @@ def test_the_pdf_paths_answer_with_a_file_or_nothing(client, tmp_path: pathlib.P
     from backend.routers import manual as manual_router
 
     monkeypatch.setattr(manual_router, "_PDF_DIR", tmp_path)
+    # No build, not local mode: nothing to serve.
     assert client.get("/handleiding.pdf").status_code == 404
     (tmp_path / "opkomst").mkdir()
     (tmp_path / "opkomst" / "handleiding.pdf").write_bytes(b"%PDF-1.7 test")
@@ -252,3 +247,16 @@ def test_the_pdf_paths_answer_with_a_file_or_nothing(client, tmp_path: pathlib.P
     assert client.get("/rsp/manual.pdf").status_code == 200
     assert client.get("/rsp/handleiding.pdf").status_code == 404
     assert client.get("/nope/manual.pdf").status_code == 404
+
+
+def test_local_mode_renders_the_pdf_on_request(client, tmp_path: pathlib.Path, monkeypatch) -> None:
+    """A dev checkout has no build; the link works anyway."""
+    pytest.importorskip("weasyprint")
+    from backend.routers import manual as manual_router
+
+    monkeypatch.setattr(manual_router, "_PDF_DIR", tmp_path)
+    monkeypatch.setattr(manual_router, "settings", manual_router.settings.model_copy(update={"local_mode": True}))
+    response = client.get("/manual.pdf")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content[:4] == b"%PDF"

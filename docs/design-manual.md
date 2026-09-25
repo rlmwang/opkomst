@@ -359,25 +359,30 @@ nothing the developer does not already have.
 ## 7. The web pages
 
 Server-rendered with no bundle, like every page that is read rather
-than used. One route family:
+than used. One page per base, the whole book on it:
 
 | address | language | audience |
 | --- | --- | --- |
-| `/handleiding`, `/handleiding/{slug}` | Dutch | personal, the root being the personal app |
-| `/manual`, `/manual/{slug}` | English | personal |
-| `/{tenant}/handleiding`, `/{tenant}/handleiding/{slug}` | Dutch | organisation, in that brand |
-| `/{tenant}/manual`, `/{tenant}/manual/{slug}` | English | organisation |
+| `/handleiding` | Dutch | personal, the root being the personal app |
+| `/manual` | English | personal |
+| `/{tenant}/handleiding` | Dutch | organisation, in that brand |
+| `/{tenant}/manual` | English | organisation |
+
+A chapter is an anchor on that page, `#evenement`, not a page of its
+own. A link to a chapter is the page's address with the anchor, which
+is what the app's menu offers and what somebody pastes into a group
+chat, and the browser lands on the chapter's heading.
 
 The language is the address, because a server page cannot read the
 language the app keeps in the browser, and each page links to its
 twin in the other language at the top, where the language switch sits
 on every other surface.
 
-The index page is the table of contents: title and description per
-chapter, the download link for the PDF, and nothing else. A chapter
-page is the prose with a previous and a next link at the foot, and
-the chapter list in a column on the left on a wide screen and above
-the text on a phone.
+At the top, the book's title with the PDF download beside it. The
+contents sit in a column on the left on a wide screen, kept in view
+while the chapters scroll past, and jump to a chapter's anchor; on a
+phone they sit above the text. The chapters follow in order, each
+under its own heading, with its sections one level down.
 
 The template is its own rather than a block in the written pages'
 template: it wears the brand it is served under, which the written
@@ -394,14 +399,13 @@ copy never mentions the organisation version: the root rendering has
 no chapter and no paragraph that could.
 
 **Indexing and advertising.** The root manual is indexable, in the
-sitemap, and its chapter pages carry advertising as the written pages
-do: house brand only, rails beside the column on a wide viewport and
-one banner at the foot below it, behind the consent dialog Google's
-tag brings, nothing until a client id is configured. The index page
-carries none, as the blog index carries none today, because a list of
-links is not content to put an ad beside. An organisation's manual is
-marked not to be indexed, like the rest of its pages, and carries no
-advertising, like every page in its brand.
+sitemap, and carries advertising as the written pages do: house brand
+only, rails beside the column on a wide viewport and one banner at the
+foot below it, behind the consent dialog Google's tag brings, nothing
+until a client id is configured. It is a page of prose with pictures,
+which is what the policy asks an ad to sit beside. An organisation's
+manual is marked not to be indexed, like the rest of its pages, and
+carries no advertising, like every page in its brand.
 
 *Against the literature.* Google's publisher policy asks for
 "publisher-content" that is not "low-value", with a clear association
@@ -467,8 +471,10 @@ two reads move into the functions that use them (`asset_url`,
 folder reader should not need a JWT secret to open a folder.
 
 The file is served under each base at `handleiding.pdf` and
-`manual.pdf`, cached the way the built assets are. The index page and
-the chapter column link to it as "Download als PDF".
+`manual.pdf`, cached the way the built assets are, and linked at the
+top of the page as "Download als PDF". A dev checkout has no build,
+so in local mode the route renders the file on request instead; that
+is the one place Pango is allowed in the request path.
 
 **What is on the page.**
 
@@ -525,9 +531,10 @@ organisation's PDF can be built without the environment's `TENANTS`.
 
 ## 9. Where it is reached from
 
-* The app's menu, help group: Handleiding opens the chapter for the
-  page the person is on, in the brand and language they are in
-  (`design-tour.md`, chapter 9), by this table:
+* The app's menu, help group: Handleiding opens the page at the
+  chapter for the page the person is on, by its anchor, in the brand
+  and language they are in (`design-tour.md`, chapter 9), by this
+  table:
 
   | page | chapter |
   | --- | --- |

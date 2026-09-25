@@ -130,7 +130,7 @@ const manualHref = $derived.by(() => {
   const base = `${brand().app_base.replace(/\/$/, "")}/${word}`;
   const number = manualChapterFor(route.path);
   const slug = number === null ? null : t(`manual.chapters.${number}`);
-  return slug ? `${base}/${slug}` : base;
+  return slug ? `${base}#${slug}` : base;
 });
 function openTour() {
   if (!tourOffer) return;
