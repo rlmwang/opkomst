@@ -19,7 +19,9 @@ nothing marked survives it.
 they were shot from, with no path and no extension
 (``![caption](lijst.event.2)``), and resolved to that language's folder
 at render time. A reference to a picture that is not on disk fails the
-suite, never a reader.
+suite, never a reader. The shooting script writes every step of every
+tour, and a chapter names the ones it needs; the rest are on disk for
+the chapter that will.
 """
 
 from __future__ import annotations

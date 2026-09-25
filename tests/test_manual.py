@@ -96,13 +96,6 @@ def test_every_picture_a_chapter_names_is_on_disk(language: str) -> None:
             assert picture_path(language, name).is_file(), f"{language}/{chapter.slug} names {name}"
 
 
-@pytest.mark.parametrize("language", manual.LANGUAGES)
-def test_every_picture_on_disk_is_named_by_a_chapter(language: str) -> None:
-    named = {name for chapter in manual.CHAPTERS[language] for name in chapter.pictures}
-    on_disk = {p.stem for p in (manual.MANUAL_DIR / language / "pictures").glob("*.png")}
-    assert on_disk <= named, f"{language}: orphaned pictures {sorted(on_disk - named)}"
-
-
 def test_by_slug_finds_a_chapter_and_nothing_else() -> None:
     assert manual.by_slug("nl", "inloggen") is not None
     assert manual.by_slug("en", "signing-in") is not None

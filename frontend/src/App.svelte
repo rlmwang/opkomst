@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter.svelte";
 import AdSlot from "@/public_shared/AdSlot.svelte";
 import { locale } from "@/i18n.svelte";
 import { route } from "@/router/navigation.svelte";
+import * as tourStore from "@/stores/tour.svelte";
 import { tour } from "@/stores/tour.svelte";
 
 /**
@@ -33,6 +34,13 @@ $effect(() => {
 });
 
 const Page = $derived(route.component);
+
+// The manual's shooting script (``frontend/e2e/shoot-manual.ts``) drives
+// the tour one step at a time through the store. Dev only: the build
+// strips it, and nothing else reads it.
+if (import.meta.env.DEV) {
+  (window as Window & { __opkomstTour?: typeof tourStore }).__opkomstTour = tourStore;
+}
 </script>
 
 <AppToast />

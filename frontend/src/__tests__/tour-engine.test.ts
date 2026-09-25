@@ -25,6 +25,13 @@ function boot(): void {
   const booted = bootEngine();
   engine = booted.engine;
   dispose = booted.dispose;
+  settle();
+}
+
+/** Let the effect run, the page paint, and the effect run again. */
+function settle(): void {
+  flushSync();
+  fake.paint();
   flushSync();
 }
 
@@ -65,10 +72,26 @@ describe("the engine", () => {
     next();
     fake.path = "/event";
     fake.fetching = 1;
-    flushSync();
+    settle();
     expect(engine.shown).toBeNull();
     expect(tour.active).toBe(true);
     expect(tour.index).toBe(1);
+  });
+
+  it("waits for the page to paint before dropping a step, then drops it", async () => {
+    const { next } = await import("@/stores/tour.svelte");
+    register("home.events", el());
+    start("welkom", "/");
+    boot();
+    next();
+    fake.path = "/event";
+    flushSync();
+    // Landed, nothing fetching, no control yet: still arriving.
+    expect(tour.active).toBe(true);
+    expect(tour.index).toBe(1);
+    register("list.new", el());
+    settle();
+    expect(engine.shown?.step.anchor).toBe("list.new");
   });
 
   it("drops the current step when nothing is loading and its control is absent", async () => {
@@ -82,7 +105,7 @@ describe("the engine", () => {
     boot();
     unregister("row.details", second);
     next();
-    flushSync();
+    settle();
     // row.details is gone with nothing in flight, so it was dropped and
     // the tour ended, there being nothing after it.
     expect(tour.active).toBe(false);
@@ -95,20 +118,20 @@ describe("the engine", () => {
     boot();
     // The click happened; the path is still the landing page.
     next();
-    flushSync();
+    settle();
     expect(engine.shown).toBeNull();
     expect(tour.active).toBe(true);
     // The list page lands, its query is in flight.
     fake.path = "/event";
     fake.fetching = 1;
-    flushSync();
+    settle();
     expect(engine.shown).toBeNull();
     expect(tour.active).toBe(true);
     // The query lands and the button registers.
     fake.fetching = 0;
     const newButton = el();
     register("list.new", newButton);
-    flushSync();
+    settle();
     expect(engine.shown?.el).toBe(newButton);
   });
 
@@ -119,7 +142,7 @@ describe("the engine", () => {
     boot();
     next();
     fake.path = "/datepoll";
-    flushSync();
+    settle();
     expect(tour.active).toBe(false);
   });
 
@@ -131,23 +154,23 @@ describe("the engine", () => {
     next();
     fake.path = "/event";
     register("list.new", el());
-    flushSync();
+    settle();
     next();
     fake.path = "/event/new";
     const card = el();
     register("form.card", card);
-    flushSync();
+    settle();
     expect(engine.shown?.el).toBe(card);
     expect(engine.shown?.step.advance.kind).toBe("until");
     // The save lands on the details page: first the navigation, then
     // the share link.
     fake.path = "/event/abc/details";
-    flushSync();
+    settle();
     expect(tour.active).toBe(true);
     expect(engine.shown).toBeNull();
     const link = el();
     register("share.link", link);
-    flushSync();
+    settle();
     expect(tour.index).toBe(3);
     expect(engine.shown?.el).toBe(link);
   });
@@ -160,14 +183,14 @@ describe("the engine", () => {
     next();
     fake.path = "/event";
     register("list.new", el());
-    flushSync();
+    settle();
     next();
     fake.path = "/event/new";
     register("form.card", el());
-    flushSync();
+    settle();
     // Cancel: back to the list, which is neither the form nor details.
     fake.path = "/event";
-    flushSync();
+    settle();
     expect(tour.active).toBe(false);
   });
 
@@ -182,9 +205,9 @@ describe("the engine", () => {
     // The list page has a share link on every row.
     const rowLink = el();
     register("share.link", rowLink);
-    flushSync();
+    settle();
     next();
-    flushSync();
+    settle();
     expect(tour.index).toBe(2);
     expect(tour.active).toBe(true);
     // The list page leaves with its rows; the form page arrives.
@@ -192,12 +215,41 @@ describe("the engine", () => {
     unregister("share.link", rowLink);
     rowLink.remove();
     register("form.card", el());
-    flushSync();
+    settle();
     expect(engine.shown?.step.anchor).toBe("form.card");
     // The details page's share link is a different element.
     fake.path = "/event/abc/details";
     register("share.link", el());
-    flushSync();
+    settle();
     expect(tour.index).toBe(3);
+  });
+
+  it("does not end an until step while a page with several such controls is leaving", async () => {
+    const { next } = await import("@/stores/tour.svelte");
+    register("home.events", el());
+    start("welkom", "/");
+    boot();
+    next();
+    fake.path = "/event";
+    register("list.new", el());
+    const first = el();
+    const second = el();
+    register("share.link", first);
+    register("share.link", second);
+    settle();
+    next();
+    settle();
+    // The first row leaves before the second: for a moment the second
+    // row's link is the first in the document.
+    unregister("share.link", first);
+    first.remove();
+    settle();
+    expect(tour.index).toBe(2);
+    unregister("share.link", second);
+    second.remove();
+    fake.path = "/event/new";
+    register("form.card", el());
+    settle();
+    expect(engine.shown?.step.anchor).toBe("form.card");
   });
 });

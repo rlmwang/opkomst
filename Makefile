@@ -14,6 +14,8 @@ help:
 	@echo "make typecheck    pyright + svelte-check."
 	@echo "make e2e          Playwright critical-path on a fresh stack."
 	@echo "make openapi      Regenerate openapi.json + frontend/src/api/schema.ts."
+	@echo "make shoot-manual Reshoot the manual's pictures against the dev stack."
+	@echo "make manual-pdf   Render the manual's PDFs into frontend/dist/manual."
 	@echo "make pre-push-checks  What git push runs: build, vitest, schema drift (use -j3)."
 
 db-up:
@@ -50,6 +52,9 @@ typecheck:
 
 e2e:
 	cd frontend && CI=1 npx playwright test
+
+shoot-manual:
+	cd frontend && npx playwright test --config=playwright.shoot.config.ts
 
 manual-pdf:
 	uv run --group manual python -m backend.manual_pdf frontend/dist/manual

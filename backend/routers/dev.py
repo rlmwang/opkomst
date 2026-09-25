@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import create_token
 from ..database import get_db
+from ..models import User
 from ..routers.auth import _live_user_by_email, _user_out
 from ..routers.spa import brand_slug_for
 from ..schemas.auth import AuthResponse, LoginLinkRequest
@@ -35,6 +36,28 @@ def dev_public_brand(prefix: str, slug: str, db: Session = Depends(get_db)) -> d
     dev server serves the shells itself and has no database, so it asks
     here rather than guessing an organisation."""
     return {"slug": brand_slug_for(db, prefix, slug)}
+
+
+@router.post("/auth/dev-pending-user", response_model=AuthResponse)
+def dev_pending_user(data: LoginLinkRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    """An organiser who signed up and is waiting for an admin, in one
+    organisation, so the users page has something to approve. The
+    manual's pictures need one (``docs/design-manual.md`` chapter 6).
+    Returns the row as a session payload, id included, so the caller
+    can delete it afterwards. Idempotent on the address."""
+    if data.tenant is None:
+        raise HTTPException(status_code=422, detail="An organisation's door only")
+    tenant = tenants_svc.find_live_organisation_by_slug(db, data.tenant)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="No such tenant")
+    user = _live_user_by_email(db, data.email, tenant.id)
+    with tenancy.use(tenant.id, tenant.brand_slug):
+        if user is None:
+            user = User(email=data.email, name="Nieuwe organisator", role="organiser", is_approved=False)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+    return AuthResponse(token=create_token(user), user=_user_out(db, user))
 
 
 @router.post("/auth/dev-forget-tour-offer", status_code=204)

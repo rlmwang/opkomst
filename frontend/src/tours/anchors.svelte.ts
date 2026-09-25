@@ -90,6 +90,13 @@ export function resolve(name: AnchorName): HTMLElement | undefined {
   return live.reduce((first, el) => (compareDocumentPosition(el, first) < 0 ? el : first));
 }
 
+/** Every element carrying ``name`` right now, connected or not. The
+ *  engine remembers these when an until step begins, so a control that
+ *  was already on the page cannot end the step. */
+export function registered(name: AnchorName): HTMLElement[] {
+  return [...(registry.get(name) ?? [])];
+}
+
 /** Svelte action: ``use:anchor={"list.new"}``. Takes an absent name
  *  too, so a component can pass an optional prop straight through. */
 export function anchor(node: HTMLElement, name: AnchorName | undefined) {
