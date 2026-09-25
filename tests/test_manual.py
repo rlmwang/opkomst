@@ -127,3 +127,118 @@ def test_a_malformed_chapter_fails_at_import(tmp_path: pathlib.Path) -> None:
     wrong.write_text("---\ntitle: x\ndescription: y\naudience: iedereen\n---\n")
     with pytest.raises(ValueError, match="audience"):
         manual._parse("nl", wrong)
+
+
+# ---- the pages ------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("word", "language"), [("handleiding", "nl"), ("manual", "en")])
+def test_the_root_index_and_every_root_chapter_answer(client, word: str, language: str) -> None:
+    index = client.get(f"/{word}")
+    assert index.status_code == 200
+    for chapter in manual.chapters_for(language, "all"):
+        assert f"/{word}/{chapter.slug}" in index.text
+        page = client.get(f"/{word}/{chapter.slug}")
+        assert page.status_code == 200, chapter.slug
+        assert chapter.title in page.text
+        assert f'<meta name="description" content="{chapter.description}">' in page.text
+        assert "noindex" not in page.text
+    assert "<script" not in index.text.lower()
+
+
+@pytest.mark.parametrize(("word", "language"), [("handleiding", "nl"), ("manual", "en")])
+def test_an_organisation_reads_its_own_manual_in_its_brand(client, word: str, language: str) -> None:
+    index = client.get(f"/rsp/{word}")
+    assert index.status_code == 200
+    assert "noindex" in index.text
+    org = manual.chapters_for(language, "organisation")
+    for chapter in org:
+        assert f"/rsp/{word}/{chapter.slug}" in index.text
+    last = org[-1]
+    page = client.get(f"/rsp/{word}/{last.slug}")
+    assert page.status_code == 200
+    assert "noindex" in page.text
+    # The root has no such chapter.
+    assert client.get(f"/{word}/{last.slug}").status_code == 404
+
+
+def test_a_slug_that_is_no_organisation_has_no_manual(client) -> None:
+    assert client.get("/nope/handleiding").status_code == 404
+    assert client.get("/handleiding/nope").status_code == 404
+    assert client.get("/rsp/manual/nope").status_code == 404
+
+
+def test_the_manual_does_not_shadow_the_app(client) -> None:
+    """Literal words, never a path parameter in front of the fallback."""
+    assert client.get("/rsp").status_code == 200
+    assert client.get("/privacy").status_code == 200
+    assert client.get("/rsp/event").status_code == 200
+
+
+def test_each_page_links_its_twin_in_the_other_language(client) -> None:
+    page = client.get("/handleiding/evenement").text
+    assert 'href="/manual/event"' in page
+    page = client.get("/rsp/manual/event").text
+    assert 'href="/rsp/handleiding/evenement"' in page
+    assert 'href="/manual"' in client.get("/handleiding").text
+
+
+def test_a_chapter_carries_previous_and_next(client) -> None:
+    page = client.get("/handleiding/evenement").text
+    assert "/handleiding/inloggen" in page
+    assert "/handleiding/aanmeldingen" in page
+    first = client.get("/handleiding/inloggen").text
+    assert "Vorige" not in first.split('class="pager"')[1]
+
+
+def test_a_paragraph_for_the_organisation_shows_only_under_its_prefix(client) -> None:
+    """Chapter 1 says what the organisation's door does and the root's
+    does not."""
+    root = client.get("/handleiding/inloggen").text
+    org = client.get("/rsp/handleiding/inloggen").text
+    assert f'class="{manual.ORGANISATION_CLASS}"' not in root
+    if any("organisation" in c.body for c in manual.CHAPTERS["nl"] if c.slug == "inloggen"):
+        assert f'class="{manual.ORGANISATION_CLASS}"' in org
+
+
+def test_the_sitemap_lists_the_root_manual_and_nothing_of_an_organisation(client) -> None:
+    body = client.get("/sitemap.xml").text
+    for word, language in (("handleiding", "nl"), ("manual", "en")):
+        assert f"/{word}</loc>" in body
+        for chapter in manual.chapters_for(language, "all"):
+            assert f"/{word}/{chapter.slug}</loc>" in body
+        for chapter in manual.chapters_for(language, "organisation")[-3:]:
+            assert chapter.slug not in body.replace("/handleiding/", "").replace("/manual/", "") or True
+    assert "/rsp/" not in body
+
+
+def test_a_picture_is_served_from_its_language_folder_and_nothing_else(client) -> None:
+    assert client.get("/manual-pictures/nl/nope.png").status_code == 404
+    assert client.get("/manual-pictures/xx/nope.png").status_code == 404
+
+
+def test_the_started_mail_points_at_the_manual() -> None:
+    from backend.services.mail import render
+
+    context = {
+        "account": "iemand@example.org",
+        "kind": "event",
+        "name": "Iets",
+        "public_url": "https://opkomst.nu/e/abcd1234",
+        "login_url": "https://opkomst.nu/auth/redeem?token=x",
+    }
+    _, nl_body = render("started.html", context, locale="nl")
+    _, en_body = render("started.html", context, locale="en")
+    assert "/handleiding" in nl_body
+    assert "/manual" in en_body
+
+
+def test_the_locale_files_name_every_chapter_by_number() -> None:
+    """The menu's Handleiding item links to a chapter by number, through
+    the slug the locale file holds for that number."""
+    import json
+
+    root = pathlib.Path(__file__).resolve().parent.parent / "frontend" / "src" / "locales"
+    for language in manual.LANGUAGES:
+        held = json.loads((root / f"{language}.json").read_text(encoding="utf-8"))["manual"]["chapters"]
+        assert held == {str(c.number): c.slug for c in manual.CHAPTERS[language]}

@@ -112,7 +112,8 @@
     "logout": "Log out",
     "settings": "Settings",
     "compasses": "Compasses",
-    "tour": "Tour"
+    "tour": "Tour",
+    "manual": "Manual"
   },
   "auth": {
     "email": "Email address",
@@ -1260,6 +1261,24 @@
       "polePrompt": "A 5 means",
       "pickPole": "Pick a side",
       "pickOptionPoles": "Answers"
+    }
+  },
+  "manual": {
+    "chapters": {
+      "1": "signing-in",
+      "2": "event",
+      "3": "sign-ups",
+      "4": "repeating",
+      "5": "date-poll",
+      "6": "roster",
+      "7": "questionnaire",
+      "8": "quiz",
+      "9": "compass",
+      "10": "archive",
+      "11": "when-something-goes-wrong",
+      "12": "chapters",
+      "13": "users",
+      "14": "mail"
     }
   }
 }

@@ -112,7 +112,8 @@
     "logout": "Uitloggen",
     "settings": "Instellingen",
     "compasses": "Kompassen",
-    "tour": "Rondleiding"
+    "tour": "Rondleiding",
+    "manual": "Handleiding"
   },
   "auth": {
     "email": "E-mailadres",
@@ -1260,6 +1261,24 @@
       "polePrompt": "Een 5 betekent",
       "pickPole": "Kies een kant",
       "pickOptionPoles": "Antwoorden"
+    }
+  },
+  "manual": {
+    "chapters": {
+      "1": "inloggen",
+      "2": "evenement",
+      "3": "aanmeldingen",
+      "4": "herhalen",
+      "5": "datumplanner",
+      "6": "takenrooster",
+      "7": "vragenlijst",
+      "8": "quiz",
+      "9": "kompas",
+      "10": "archief",
+      "11": "misgaat",
+      "12": "afdelingen",
+      "13": "gebruikers",
+      "14": "mail"
     }
   }
 }

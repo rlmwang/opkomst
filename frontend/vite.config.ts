@@ -63,7 +63,7 @@ function contentPagesDevRoute(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const path = (req.url ?? "").split("?")[0].replace(/\/$/, "") || "/";
-        if (!CONTENT_PATHS.includes(path)) return next();
+        if (!CONTENT_PATHS.includes(path) && !MANUAL_PATH.test(path)) return next();
         const upstream = httpRequest(
           { host: "localhost", port, path: req.url, method: req.method, headers: req.headers },
           (backend) => {
@@ -227,6 +227,13 @@ function publicChoreDevRoute(): Plugin {
  * whichever brand it last used, and the router bounces the visitor into
  * an organisation they didn't ask for.
  */
+/**
+ * The manual's addresses, at the root and under an organisation, in
+ * both languages, plus its pictures: rendered by the backend like the
+ * written pages (``backend/routers/manual.py``).
+ */
+const MANUAL_PATH = /^(?:\/[a-z0-9-]+)?\/(?:handleiding|manual)(?:\/|$)|^\/manual-pictures\//;
+
 function organiserAppDevRoute(): Plugin {
   // Paths the dev server owns: Vite internals and the source tree. The
   // public mini-app URLs are handled by the plugins below and skipped
@@ -256,6 +263,7 @@ function organiserAppDevRoute(): Plugin {
         const wantsHtml = (req.headers.accept ?? "").includes("text/html");
         if (!wantsHtml || notAPage.test(path) || PUBLIC_MINI_APP.test(path)) return next();
         if (CONTENT_PATHS.includes(path.replace(/\/$/, "") || "/")) return next();
+        if (MANUAL_PATH.test(path)) return next();
 
         // Prod resolves the first segment as an organisation and only
         // then asks whether the second names a chapter. Dev has to make

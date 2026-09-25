@@ -74,7 +74,8 @@ describe("the header's help group", () => {
     await signedInAs(BASE);
     const items = await openMenu();
     expect(items).toContain("Rondleiding");
-    expect(items.indexOf("Rondleiding")).toBe(items.indexOf("Uitloggen") - 1);
+    expect(items.indexOf("Rondleiding")).toBe(items.indexOf("Uitloggen") - 2);
+    expect(items.indexOf("Handleiding")).toBe(items.indexOf("Uitloggen") - 1);
   });
 
   it("does not offer it to a member still picking chapters", async () => {
@@ -82,10 +83,22 @@ describe("the header's help group", () => {
     expect(await openMenu()).not.toContain("Rondleiding");
   });
 
-  it("does not offer it on a page that has no tour", async () => {
+  it("does not offer it on a page that has no tour, and still offers the manual", async () => {
     here.path = "/";
     await signedInAs(BASE);
-    expect(await openMenu()).not.toContain("Rondleiding");
+    const items = await openMenu();
+    expect(items).not.toContain("Rondleiding");
+    expect(items).toContain("Handleiding");
+    const link = document.body.querySelector<HTMLAnchorElement>(".nav-menu a.menu-item");
+    expect(link?.getAttribute("href")).toBe("/rsp/handleiding");
+  });
+
+  it("links the manual's chapter for the page, in the app's base", async () => {
+    here.path = "/event/abc/details";
+    await signedInAs(BASE);
+    await openMenu();
+    const link = document.body.querySelector<HTMLAnchorElement>(".nav-menu a.menu-item");
+    expect(link?.getAttribute("href")).toBe("/rsp/handleiding/aanmeldingen");
   });
 
   it("starts the page's tour when pressed", async () => {

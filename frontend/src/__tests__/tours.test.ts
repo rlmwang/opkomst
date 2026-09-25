@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import en from "@/locales/en.json";
 import nl from "@/locales/nl.json";
-import { PRODUCTS, tourFor } from "@/tours";
+import { PRODUCTS, manualChapterFor, tourFor } from "@/tours";
 import { TOURS } from "@/tours/tours";
 import type { TourId } from "@/tours/types";
 
@@ -97,5 +97,24 @@ describe("which page offers which tour", () => {
     expect(tourFor("/")).toBeNull();
     expect(tourFor("/auth/redeem")).toBeNull();
     expect(tourFor("/e/abc/feedback")).toBeNull();
+  });
+});
+
+describe("which chapter the menu opens", () => {
+  it("is the product's chapter, the sign-ups chapter on an event's details, and the archive on any archive", () => {
+    expect(manualChapterFor("/")).toBeNull();
+    expect(manualChapterFor("/event")).toBe(2);
+    expect(manualChapterFor("/event/new")).toBe(2);
+    expect(manualChapterFor("/event/abc/details")).toBe(3);
+    expect(manualChapterFor("/event/archived")).toBe(10);
+    expect(manualChapterFor("/datepoll/abc/details")).toBe(5);
+    expect(manualChapterFor("/chore")).toBe(6);
+    expect(manualChapterFor("/form/new")).toBe(7);
+    expect(manualChapterFor("/quiz/archived")).toBe(10);
+    expect(manualChapterFor("/compass")).toBe(9);
+    expect(manualChapterFor("/users")).toBe(13);
+    expect(manualChapterFor("/chapters")).toBe(12);
+    expect(manualChapterFor("/settings")).toBe(12);
+    expect(manualChapterFor("/auth/redeem")).toBeNull();
   });
 });

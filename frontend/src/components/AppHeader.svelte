@@ -10,7 +10,9 @@ import { pendingCountQuery } from "@/composables/useAdmin.svelte";
 import { auth, logout } from "@/stores/auth.svelte";
 import { go, route } from "@/router/navigation.svelte";
 import { anchor } from "@/tours/anchors.svelte";
-import { tourFor } from "@/tours";
+import { manualChapterFor, tourFor } from "@/tours";
+import { brand } from "@/lib/branding";
+import { locale } from "@/i18n.svelte";
 import { start as startTour } from "@/stores/tour.svelte";
 
 // Pending-approval indicator — fired only when the actor is an
@@ -121,6 +123,15 @@ let menuTrigger = $state<HTMLButtonElement>();
 // list shell they see renders none of the list's controls, so every
 // step would be dropped and the tour would end at once.
 const tourOffer = $derived(auth.isApproved && !auth.needsChapters ? tourFor(route.path) : null);
+// The manual's chapter for this page, in the brand and language on
+// screen. A server page, so a real link and not a route.
+const manualHref = $derived.by(() => {
+  const word = locale() === "nl" ? "handleiding" : "manual";
+  const base = `${brand().app_base.replace(/\/$/, "")}/${word}`;
+  const number = manualChapterFor(route.path);
+  const slug = number === null ? null : t(`manual.chapters.${number}`);
+  return slug ? `${base}/${slug}` : base;
+});
 function openTour() {
   if (!tourOffer) return;
   navMenu?.hide();
@@ -279,9 +290,12 @@ const hasSubtabs = $derived(subtabs.length > 0);
                 {/if}
               </button>
             {/each}
-            {#if tourOffer}
+            {#if auth.isApproved}
               <span class="menu-rule" aria-hidden="true"></span>
-              <button type="button" class="menu-item" onclick={openTour}>{t("header.tour")}</button>
+              {#if tourOffer}
+                <button type="button" class="menu-item" onclick={openTour}>{t("header.tour")}</button>
+              {/if}
+              <a class="menu-item" href={manualHref}>{t("header.manual")}</a>
             {/if}
             <span class="menu-rule" aria-hidden="true"></span>
             <button type="button" class="menu-item menu-item-logout" onclick={signOut}>

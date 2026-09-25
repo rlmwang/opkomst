@@ -25,6 +25,20 @@ const FAMILIES: ReadonlyArray<{ pattern: string; id: TourId }> = [
 
 const ADMIN = ["/users", "/chapters", "/settings"];
 
+/** The manual's chapter for the page at ``path``, by number
+ *  (``docs/design-manual.md`` chapter 9), or nothing for the index. */
+export function manualChapterFor(path: string): number | null {
+  if (path === "/users") return 13;
+  if (path === "/chapters" || path === "/settings") return 12;
+  const found = compile("/:product/*").re.exec(path) ?? compile("/:product").re.exec(path);
+  if (!found) return null;
+  const product = found[1] as Product;
+  if (!PRODUCTS.includes(product)) return null;
+  if (path.endsWith("/archived")) return 10;
+  if (product === "event") return path.endsWith("/details") ? 3 : 2;
+  return { datepoll: 5, chore: 6, form: 7, quiz: 8, compass: 9 }[product];
+}
+
 /** The tour for the page at ``path``, or nothing when the page has none. */
 export function tourFor(path: string): Offer | null {
   if (ADMIN.includes(path)) return { id: "beheer", product: null };

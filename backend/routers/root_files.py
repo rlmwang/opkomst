@@ -40,6 +40,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 from ..config import settings
 from ..services import brand as brand_svc
+from ..services import manual
 from ..services.content import PAGES
 
 router = APIRouter(tags=["root-files"], include_in_schema=False)
@@ -56,6 +57,13 @@ _SITEMAP_PATHS = (
     "/blog",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
+    # The root manual, both languages: chapters titled as the question
+    # somebody types. An organisation's manual is noindex like the rest
+    # of its pages.
+    "/handleiding",
+    *(f"/handleiding/{c.slug}" for c in manual.chapters_for("nl", "all")),
+    "/manual",
+    *(f"/manual/{c.slug}" for c in manual.chapters_for("en", "all")),
 )
 
 # Nothing here is secret, and the pages worth indexing are the public
