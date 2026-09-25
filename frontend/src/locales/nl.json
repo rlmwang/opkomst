@@ -849,7 +849,7 @@
   },
   "tour": {
     "stop": "Stoppen",
-    "back": "Vorige",
+    "again": "Opnieuw",
     "next": "Volgende",
     "done": "Klaar",
     "counter": "{n} van {total}",

@@ -6,7 +6,7 @@ import { t, te } from "@/i18n.svelte";
 import { isPersonalApp } from "@/lib/branding";
 import { queryClient } from "@/lib/query-client";
 import { route } from "@/router/navigation.svelte";
-import { back, next, stop, tour } from "@/stores/tour.svelte";
+import { next, restart, stop, tour } from "@/stores/tour.svelte";
 import { createEngine } from "@/tours/engine.svelte";
 import { calloutSheet, holeGeometry, maskPath } from "@/tours/geometry";
 
@@ -148,15 +148,10 @@ function onKeydown(event: KeyboardEvent): void {
     stop();
     return;
   }
-  if (isNextStep && (event.key === "Enter" || event.key === "ArrowRight")) {
+  if (event.key === "Enter" || event.key === "ArrowRight") {
     if ((event.target as HTMLElement).tagName === "BUTTON" && event.key === "Enter") return;
     event.preventDefault();
     next();
-    return;
-  }
-  if (event.key === "ArrowLeft") {
-    event.preventDefault();
-    back();
     return;
   }
   if (event.key !== "Tab") return;
@@ -232,16 +227,19 @@ function styleOf(style: Record<string, string>): string {
       <h2 id="tour-title" class="tour-title">{words("title")}</h2>
       <p class="tour-body">{words("body")}</p>
     </div>
+    <!-- Stoppen on the left; Volgende on the right on every step, so
+         the way on is always the same button in the same place. A
+         click step advances by itself when the control is pressed, and
+         Volgende goes on regardless. Only the last step offers a way
+         back, to the start, beside Klaar. -->
     <div class="tour-buttons">
       <button type="button" class="tour-btn tour-btn-text" onclick={() => stop()}>{t("tour.stop")}</button>
       <span class="tour-spacer"></span>
-      {#if index > 0}
-        <button type="button" class="tour-btn tour-btn-secondary" onclick={() => back()}>{t("tour.back")}</button>
-      {/if}
-      {#if isNextStep}
-        <button type="button" class="tour-btn tour-btn-primary" onclick={() => next()}>
-          {index + 1 >= total ? t("tour.done") : t("tour.next")}
-        </button>
+      {#if index + 1 >= total}
+        <button type="button" class="tour-btn tour-btn-secondary" onclick={() => restart()}>{t("tour.again")}</button>
+        <button type="button" class="tour-btn tour-btn-primary" onclick={() => next()}>{t("tour.done")}</button>
+      {:else}
+        <button type="button" class="tour-btn tour-btn-primary" onclick={() => next()}>{t("tour.next")}</button>
       {/if}
     </div>
   </div>

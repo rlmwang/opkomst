@@ -89,15 +89,18 @@ describe("the tour store", () => {
     expect(tour.steps[2].page).toBe("/event/new");
   });
 
-  it("ends on next past the last step, and back stops at the first", async () => {
-    const { start, next, back, tour } = await import("@/stores/tour.svelte");
+  it("ends on next past the last step, and restart goes to the first", async () => {
+    const { start, next, restart, tour } = await import("@/stores/tour.svelte");
     start("inloggen", "/");
-    back();
-    expect(tour.index).toBe(0);
     next();
     next();
     next();
     expect(tour.index).toBe(3);
+    restart();
+    expect(tour.index).toBe(0);
+    next();
+    next();
+    next();
     next();
     expect(tour.active).toBe(false);
   });

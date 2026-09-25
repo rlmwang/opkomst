@@ -849,7 +849,7 @@
   },
   "tour": {
     "stop": "Stop",
-    "back": "Back",
+    "again": "Start over",
     "next": "Next",
     "done": "Done",
     "counter": "{n} of {total}",

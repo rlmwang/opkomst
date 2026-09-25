@@ -111,17 +111,41 @@ describe("the callout", () => {
     expect(container.querySelector("svg.tour-mask")).not.toBeNull();
   });
 
-  it("has no Volgende on a click step, and Tab from the last button reaches the control", async () => {
+  it("offers Volgende on a click step too, and Tab from it reaches the control", async () => {
     const tile = box(100, 100, 80, 30);
     register("home.events", tile);
     start("welkom", "/");
     await mount();
     const dialog = document.body.querySelector(".tour-callout") as HTMLElement;
     const buttons = Array.from(dialog.querySelectorAll("button"));
-    expect(buttons.map((b) => b.textContent?.trim())).toEqual(["Stoppen"]);
-    buttons[0].focus();
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(["Stoppen", "Volgende"]);
+    buttons[1].focus();
     dialog.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     expect(document.activeElement).toBe(tile);
+  });
+
+  it("offers a way back only on the last step, beside Klaar", async () => {
+    register("home.events", box(100, 100, 80, 30));
+    start("welkom", "/");
+    await mount();
+    const { next } = await import("@/stores/tour.svelte");
+    // Skip to the last step; its control is registered under its name.
+    register("header.menu", box(300, 20, 60, 30));
+    register("list.new", box(100, 200, 80, 30));
+    register("form.card", box(100, 300, 500, 300));
+    register("share.link", box(600, 100, 30, 30));
+    here.path = "/event/abc/details";
+    next();
+    next();
+    next();
+    next();
+    flushSync();
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    const dialog = document.body.querySelector(".tour-callout") as HTMLElement;
+    const labels = Array.from(dialog.querySelectorAll("button")).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(["Stoppen", "Opnieuw", "Klaar"]);
+    (dialog.querySelectorAll("button")[1] as HTMLButtonElement).click();
+    expect(tour.index).toBe(0);
   });
 
   it("stops on Escape with focus in the callout, and ignores Escape elsewhere", async () => {

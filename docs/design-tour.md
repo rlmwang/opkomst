@@ -394,10 +394,14 @@ centred on the hole. Inside, top to bottom:
 * the title, at `1rem` and weight 600, at most six words, written as
   the question the step answers (chapter 11);
 * the body, at `0.875rem`, one or two sentences;
-* one row of buttons: Stoppen as a text button on the left, then on
-  the right Vorige (absent on the first step) and Volgende, or Klaar
-  on the last step. A click or until step has no Volgende: the body
-  ends with what to do and the hole is where to do it.
+* one row of buttons: Stoppen as a text button on the left, and on
+  the right Volgende, on every step, in the same place. A click or
+  until step advances by itself when the person does what the body
+  says, and Volgende goes on regardless, so the way on is never in
+  doubt. The last step has Klaar, and beside it Opnieuw, the one way
+  back a tour offers. There is no Vorige: the first build had one,
+  and on a click step it sat where Volgende had been, so the press
+  that meant "go on" went back.
 
 No icon, no image. The three sizes are ones the app already uses.
 
@@ -476,7 +480,7 @@ Each failure the audit guide names has an answer.
   to what started it: the menu item, the door link, or the offer
   card's button.
 * **A keyboard way out.** Escape stops the tour. Enter and the right
-  arrow advance a next step; the left arrow goes back.
+  arrow advance any step.
 * **Tab is contained.** On a next step it cycles through the callout's
   buttons. On a click or until step, Tab from the last button moves
   focus to the highlighted control and Shift+Tab brings it back, so
@@ -515,7 +519,7 @@ closes, with nothing for the tour to do.
 
 The tour's state is a module with getters, the way the session is:
 which tour is running, for which product, at which step, on which
-page it was started, and the verbs start, next, back and stop. That
+page it was started, and the verbs start, next, restart and stop. That
 record is written to session storage on every change and read at
 boot, so a tour survives the navigation it asks for: step 2 of the
 welcome tour says click Nieuw evenement, the router loads a chunk and
@@ -767,7 +771,8 @@ an afternoon.
   registers; first in document order wins; session storage
   round-trips; Tab on a click step reaches the highlighted control and
   nothing else; Escape with focus outside the callout does nothing;
-  a per-page tour's counter counts the steps that resolved at start.
+  a per-page tour's counter counts the steps that resolved at start;
+  Volgende is on every step and Opnieuw only on the last.
 * Overlay: the mask path's hole is the control's box plus padding at
   the element's radius, for a control at each corner and one taller
   than the viewport; a click on the fill is swallowed and a click in

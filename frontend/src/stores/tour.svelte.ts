@@ -115,9 +115,11 @@ export function next(): void {
   set({ ...running, index: running.index + 1 });
 }
 
-export function back(): void {
-  if (!running || running.index === 0) return;
-  set({ ...running, index: running.index - 1 });
+/** Back to the first step, from the last. The only way back a tour
+ *  offers: every other step only goes on. */
+export function restart(): void {
+  if (!running) return;
+  set({ ...running, index: 0 });
 }
 
 /** Drop the current step without showing it: its control is not on
