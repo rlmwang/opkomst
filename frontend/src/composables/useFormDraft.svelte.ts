@@ -20,7 +20,7 @@ import { brand, isPersonalApp } from "@/lib/branding";
  */
 const APP = isPersonalApp() ? "personal" : brand().slug;
 
-function scoped(key: string): string {
+export function scoped(key: string): string {
   return `${APP}:${key}`;
 }
 

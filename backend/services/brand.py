@@ -24,8 +24,6 @@ import pathlib
 from functools import cache
 from typing import Any
 
-from ..config import settings
-
 BRANDS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "brands"
 
 # The brand a page wears when no organisation owns what it is showing:
@@ -34,7 +32,16 @@ BRANDS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "brands"
 # carries no images, which is why every image field below is optional.
 HOUSE_BRAND = "opkomst"
 
-_PUBLIC_BASE = str(settings.public_base_url).rstrip("/")
+
+def _public_base() -> str:
+    """Read when asked rather than at import: the half of this module
+    that reads a folder (``manifest``, ``palette_css``, ``asset_url``)
+    is what the manual's PDF build imports, in a stage with no
+    environment, and a folder reader should not need a JWT secret to
+    open a folder."""
+    from ..config import settings
+
+    return str(settings.public_base_url).rstrip("/")
 
 
 @cache
@@ -57,6 +64,8 @@ def _ads(slug: str) -> dict[str, Any]:
     slot when it does not. An unset ``ADSENSE_CLIENT_ID`` is the normal
     state, not a misconfiguration; the slot then says so in words rather
     than sitting empty."""
+    from ..config import settings
+
     m = manifest(slug)
     return {
         "client_id": settings.adsense_client_id,
@@ -83,6 +92,7 @@ def payload(slug: str) -> dict[str, Any]:
     else's mark. Every brand in the repository has them today; the
     fallback is what keeps adding one from being a prerequisite."""
     m = manifest(slug)
+    public_base = _public_base()
     logo = asset_url(slug, m["logo"]) if m["logo"] else None
     favicon = asset_url(slug, m["favicon"]) if m["favicon"] else None
     return {
@@ -114,9 +124,9 @@ def payload(slug: str) -> dict[str, Any]:
         "org_url": m["org_url"],
         "mail_from_name": m["mail_from_name"],
         "logo_url": logo,
-        "logo_absolute_url": f"{_PUBLIC_BASE}{logo}" if logo else None,
+        "logo_absolute_url": f"{public_base}{logo}" if logo else None,
         "favicon_url": favicon,
-        "favicon_absolute_url": f"{_PUBLIC_BASE}{favicon}" if favicon else None,
+        "favicon_absolute_url": f"{public_base}{favicon}" if favicon else None,
     }
 
 

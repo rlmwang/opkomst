@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import create_token
 from ..database import get_db
+from ..models import User
 from ..routers.auth import _live_user_by_email, _user_out
 from ..routers.spa import brand_slug_for
 from ..schemas.auth import AuthResponse, LoginLinkRequest
@@ -35,6 +36,48 @@ def dev_public_brand(prefix: str, slug: str, db: Session = Depends(get_db)) -> d
     dev server serves the shells itself and has no database, so it asks
     here rather than guessing an organisation."""
     return {"slug": brand_slug_for(db, prefix, slug)}
+
+
+@router.post("/auth/dev-pending-user", response_model=AuthResponse)
+def dev_pending_user(data: LoginLinkRequest, db: Session = Depends(get_db)) -> AuthResponse:
+    """An organiser who signed up and is waiting for an admin, in one
+    organisation, so the users page has something to approve. The
+    manual's pictures need one (``docs/design-manual.md`` chapter 6).
+    Returns the row as a session payload, id included, so the caller
+    can delete it afterwards. Idempotent on the address."""
+    if data.tenant is None:
+        raise HTTPException(status_code=422, detail="An organisation's door only")
+    tenant = tenants_svc.find_live_organisation_by_slug(db, data.tenant)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="No such tenant")
+    user = _live_user_by_email(db, data.email, tenant.id)
+    with tenancy.use(tenant.id, tenant.brand_slug):
+        if user is None:
+            user = User(email=data.email, name="Nieuwe organisator", role="organiser", is_approved=False)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+    return AuthResponse(token=create_token(user), user=_user_out(db, user))
+
+
+@router.post("/auth/dev-forget-tour-offer", status_code=204)
+def dev_forget_tour_offer(data: LoginLinkRequest, db: Session = Depends(get_db)) -> None:
+    """Clears ``tour_offered_at`` for one account, so the e2e test that
+    takes the welcome tour from the landing page's card can run again.
+    The same two doors as ``dev_issue_token``."""
+    if data.tenant is None:
+        user = tenants_svc.find_personal_user_by_email(db, data.email)
+    else:
+        tenant = tenants_svc.find_live_organisation_by_slug(db, data.tenant)
+        if tenant is None:
+            raise HTTPException(status_code=404, detail="No such tenant")
+        user = _live_user_by_email(db, data.email, tenant.id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="No such user")
+    # The write guard wants the row's tenant bound, as a request would.
+    with tenancy.use(user.tenant_id, user.tenant.brand_slug):
+        user.tour_offered_at = None
+        db.commit()
 
 
 @router.post("/auth/dev-issue-token", response_model=AuthResponse)

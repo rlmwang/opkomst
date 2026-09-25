@@ -5,6 +5,7 @@ import { t } from "@/i18n.svelte";
 import { useToasts } from "@/lib/toasts";
 import { isValidEmail } from "@/lib/validate";
 import { requestLoginLink } from "@/stores/auth.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 
 /**
  * The magic-link door: an address, a button, and the "check your inbox"
@@ -51,7 +52,7 @@ async function submit() {
 </script>
 
 {#if sent}
-  <p class="muted">{t("auth.linkSentBody", { email })}</p>
+  <p class="muted" use:anchor={"door.sent"}>{t("auth.linkSentBody", { email })}</p>
 {:else}
   <!-- Magic-link forms don't get a "save login" doorhanger from any
        browser: there is no password to store and no webauthn ceremony
@@ -67,6 +68,7 @@ async function submit() {
     method="post"
     action=""
     novalidate
+    use:anchor={"door.form"}
     onsubmit={(e) => {
       e.preventDefault();
       void submit();

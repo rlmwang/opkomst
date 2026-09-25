@@ -283,7 +283,7 @@ async function exportCsv(): Promise<void> {
       {/snippet}
     </DetailHeaderCard>
 
-    <AppCard>
+    <AppCard anchor="details.signups">
       <div class="summary-header">
         <h2>{t("event.signupsHeading")}</h2>
         <div class="header-actions">
@@ -445,7 +445,7 @@ async function exportCsv(): Promise<void> {
          nothing to read; switching it back on brings any answers already
          given back with it. -->
     {#if event.feedback_enabled}
-      <AppCard>
+      <AppCard anchor="details.feedback">
         <div class="summary-header">
           <h2>{t("feedback.summary.title")}</h2>
           <div class="header-actions">

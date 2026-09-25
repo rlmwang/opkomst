@@ -73,6 +73,9 @@ class UserOut(BaseModel):
     # (``docs/design-paywall.md``). Hiding is not the enforcement, the
     # write paths are.
     participant_mail: bool
+    # Whether the landing page's one offer of a guided tour has been
+    # answered. The page shows the card until it has.
+    tour_offered: bool
     # Live chapters the user belongs to, sorted by name. Soft-deleted
     # chapters are filtered out at the DTO layer so a user re-acquires
     # them automatically when an admin restores the chapter.

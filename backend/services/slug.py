@@ -55,6 +55,13 @@ RESERVED_SLUGS: frozenset[str] = frozenset(
         "privacy",
         "voorwaarden",
         "blog",
+        "handleiding",
+        "manual",
+        "manual-pictures",
+        # The public quiz and the image proxy, live top-level routes that
+        # were missing here until the manual's words joined.
+        "q",
+        "i",
         "robots.txt",
         "ads.txt",
         "sitemap.xml",

@@ -26,6 +26,7 @@ import { can } from "@/lib/permissions";
 import { queryClient } from "@/lib/query-client";
 import { useToasts } from "@/lib/toasts";
 import { auth } from "@/stores/auth.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 
 /** The organisation's chapters: add, rename, give a city, archive. */
 const toasts = useToasts();
@@ -185,14 +186,16 @@ async function onCreate(name: string): Promise<void> {
     {#if query.isPending}
       <AppSkeleton rows={3} />
     {:else}
-      <ChapterPicker
-        placeholder={t("chapters.addPlaceholder")}
-        archivedOnly
-        disabled={!canManage}
-        leadingIcon="plus"
-        onpick={onPicked}
-        oncreate={onCreate}
-      />
+      <div use:anchor={"admin.chapter.new"}>
+        <ChapterPicker
+          placeholder={t("chapters.addPlaceholder")}
+          archivedOnly
+          disabled={!canManage}
+          leadingIcon="plus"
+          onpick={onPicked}
+          oncreate={onCreate}
+        />
+      </div>
       <EditableList
         items={chapters}
         itemLabel={(c) => c.name}
@@ -202,7 +205,7 @@ async function onCreate(name: string): Promise<void> {
         onremove={openDelete}
       >
         {#snippet row({ item })}
-          <div class="chapter-row">
+          <div class="chapter-row" use:anchor={"admin.chapter.row"}>
             <span class="chapter-name">
               {item.name}
               {#if item.city}<span class="muted chapter-city"> · {item.city}</span>{/if}

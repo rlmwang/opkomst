@@ -22,6 +22,7 @@ function user(over: Partial<User> = {}): User {
     tenant_kind: "organisation",
     participant_cap: null,
     participant_mail: true,
+  tour_offered: true,
     ...over,
   };
 }

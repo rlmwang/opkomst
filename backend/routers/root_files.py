@@ -56,6 +56,10 @@ _SITEMAP_PATHS = (
     "/blog",
     *(f"/{page.slug}" for page in PAGES),
     "/privacy",
+    # The root manual, one page per language. An organisation's manual
+    # is noindex like the rest of its pages.
+    "/handleiding",
+    "/manual",
 )
 
 # Nothing here is secret, and the pages worth indexing are the public

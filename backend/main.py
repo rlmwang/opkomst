@@ -25,6 +25,7 @@ from .routers import forms as forms_router
 from .routers import forms_public as forms_public_router
 from .routers import health as health_router
 from .routers import images as images_router
+from .routers import manual as manual_router
 from .routers import privacy as privacy_router
 from .routers import root_files as root_files_router
 from .routers import signups as signups_router
@@ -173,6 +174,11 @@ app.include_router(root_files_router.router)
 # tag and therefore no consent dialog. Before the fallback for the same
 # reason as the root files above.
 app.include_router(privacy_router.router)
+
+# The manual, the same way: read rather than used, and before the
+# fallback so ``/handleiding`` and ``/{tenant}/handleiding`` are pages
+# and not the app's shell.
+app.include_router(manual_router.router)
 
 # SPA fallback last so router matches win first.
 spa.mount(app)

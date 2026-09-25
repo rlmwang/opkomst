@@ -8073,6 +8073,10 @@
           "tenant_kind": {
             "title": "Tenant Kind",
             "type": "string"
+          },
+          "tour_offered": {
+            "title": "Tour Offered",
+            "type": "boolean"
           }
         },
         "required": [
@@ -8084,6 +8088,7 @@
           "tenant_kind",
           "participant_cap",
           "participant_mail",
+          "tour_offered",
           "chapters",
           "created_at"
         ],
@@ -8879,6 +8884,56 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tour-offer": {
+      "post": {
+        "description": "The landing page's one offer of a guided tour was answered, either\nway. Sets the timestamp once; a second call leaves it. Nothing else\nabout the tour is ever recorded.",
+        "operationId": "answer_tour_offer_api_v1_auth_tour_offer_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Tour Offer",
         "tags": [
           "auth"
         ]
