@@ -50,6 +50,9 @@ _NAME = re.compile(r"^(\d{2})-([a-z0-9-]+)\.md$")
 # extension a browser would recognise. Anything with a slash or a scheme is
 # an ordinary link and is left alone.
 _PICTURE = re.compile(r"!\[([^\]]*)\]\(([a-z][a-z0-9.-]*)\)")
+# The same reference once the markdown renderer has placed it, alone in
+# its paragraph, inside a list item or not.
+_PICTURE_HTML = re.compile(r'<p><img alt="([^"]*)" src="([a-z][a-z0-9.-]*)" /></p>')
 # A paragraph the markdown renderer tagged for the organisation.
 _ORGANISATION_P = re.compile(
     r'<p class="(?:[^"]*\s)?' + ORGANISATION_CLASS + r'(?:\s[^"]*)?">.*?</p>\s*',
@@ -79,16 +82,18 @@ class Chapter:
     @cached_property
     def html(self) -> str:
         """The prose as HTML, for every audience. Rendered on first read
-        and kept, so the cost is paid once per process."""
-        body = _PICTURE.sub(
+        and kept, so the cost is paid once per process. A picture is
+        turned into a figure after the renderer has placed it, so one
+        that sits inside a step stays inside that step."""
+        _MARKDOWN.reset()
+        html = _MARKDOWN.convert(self.body)
+        return _PICTURE_HTML.sub(
             lambda m: (
                 f'<figure><img src="{picture_url(self.language, m.group(2))}" alt="{m.group(1)}">'
                 f"<figcaption>{m.group(1)}</figcaption></figure>"
             ),
-            self.body,
+            html,
         )
-        _MARKDOWN.reset()
-        return _MARKDOWN.convert(body)
 
     def html_for(self, audience: Audience) -> str:
         """The prose for one audience: the root drops every paragraph
