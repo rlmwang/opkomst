@@ -51,6 +51,12 @@ export const auth = {
   get participantMail() {
     return user?.participant_mail === true;
   },
+  // Whether the landing page's one offer of a guided tour was answered.
+  // The card shows until it was, on every device, because the answer is
+  // on the person's row and not in a browser.
+  get tourOffered() {
+    return user?.tour_offered === true;
+  },
   // Admin must also be approved: keep this in lock-step with the
   // backend's require_admin so a nav link can't 403 when clicked.
   get isAdmin() {
@@ -94,6 +100,21 @@ export async function completeRegistration(token: string, name: string): Promise
   const resp = await post<AuthResponse>("/api/v1/auth/complete-registration", { token, name });
   setToken(resp.token);
   user = resp.user;
+}
+
+/** The offer card was answered, either way. The session is patched
+ *  first, so the card leaves at once, and put back if the server says
+ *  no. */
+export async function answerTourOffer(): Promise<void> {
+  const before = user;
+  if (!before) return;
+  user = { ...before, tour_offered: true };
+  try {
+    user = await post<User>("/api/v1/auth/tour-offer");
+  } catch (err) {
+    user = before;
+    throw err;
+  }
 }
 
 export function logout(): void {

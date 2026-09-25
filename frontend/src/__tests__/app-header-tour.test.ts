@@ -37,6 +37,7 @@ const BASE = {
   tenant_kind: "organisation",
   chapters: [{ id: "c1", name: "Amsterdam" }],
   participant_mail: true,
+  tour_offered: true,
 };
 
 async function signedInAs(user: Record<string, unknown>) {

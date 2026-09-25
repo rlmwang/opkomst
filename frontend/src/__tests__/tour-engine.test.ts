@@ -170,4 +170,34 @@ describe("the engine", () => {
     flushSync();
     expect(tour.active).toBe(false);
   });
+
+  it("does not end an until step on a control that was already there when the step began", async () => {
+    const { next } = await import("@/stores/tour.svelte");
+    register("home.events", el());
+    start("welkom", "/");
+    boot();
+    next();
+    fake.path = "/event";
+    register("list.new", el());
+    // The list page has a share link on every row.
+    const rowLink = el();
+    register("share.link", rowLink);
+    flushSync();
+    next();
+    flushSync();
+    expect(tour.index).toBe(2);
+    expect(tour.active).toBe(true);
+    // The list page leaves with its rows; the form page arrives.
+    fake.path = "/event/new";
+    unregister("share.link", rowLink);
+    rowLink.remove();
+    register("form.card", el());
+    flushSync();
+    expect(engine.shown?.step.anchor).toBe("form.card");
+    // The details page's share link is a different element.
+    fake.path = "/event/abc/details";
+    register("share.link", el());
+    flushSync();
+    expect(tour.index).toBe(3);
+  });
 });

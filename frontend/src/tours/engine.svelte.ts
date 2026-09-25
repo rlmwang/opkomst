@@ -42,11 +42,23 @@ function matches(pattern: string | undefined, path: string): boolean {
 
 export function createEngine(deps: EngineDeps) {
   let shown = $state<Shown | null>(null);
+  // What an until step's control resolved to when the step became
+  // current. The step ends on a control that appeared since, not on
+  // one that was already there: the list page has a share link on
+  // every row, and the welcome tour's form step waits for the details
+  // page's, not for those.
+  let baseline: { index: number; el: HTMLElement | undefined } | null = null;
+  // The step that has been on screen. Once a step has shown, the
+  // navigation the click before it asked for has landed, so leaving
+  // its page afterwards is the person leaving, not the page arriving.
+  let landed: number | null = null;
 
   $effect(() => {
     const step = tour.step;
     if (!step) {
       shown = null;
+      baseline = null;
+      landed = null;
       return;
     }
     // Read once, so the effect re-runs on any of them.
@@ -54,18 +66,23 @@ export function createEngine(deps: EngineDeps) {
     const path = deps.path();
     const fetching = deps.fetching();
 
-    // An until step ends the moment its control exists, wherever the
+    // An until step ends the moment its control appears, wherever the
     // person is: that is how the form step learns the save landed.
-    if (step.advance.kind === "until" && resolve(step.advance.name)) {
-      shown = null;
-      next();
-      return;
+    if (step.advance.kind === "until") {
+      if (baseline?.index !== tour.index) baseline = { index: tour.index, el: resolve(step.advance.name) };
+      const target = resolve(step.advance.name);
+      if (target && target !== baseline.el) {
+        shown = null;
+        next();
+        return;
+      }
     }
 
     if (matches(step.page, path)) {
       const el = resolve(step.anchor);
       if (el) {
         shown = shown?.el === el && shown.step === step ? shown : { step, el };
+        landed = tour.index;
         return;
       }
       shown = null;
@@ -80,11 +97,13 @@ export function createEngine(deps: EngineDeps) {
     // person leaving.
     shown = null;
     const previous = tour.previous;
-    const between =
-      step.advance.kind === "until"
-        ? matches(nextPage(), path)
-        : previous !== null && previous.advance.kind === "click" && matches(previous.page, path);
-    if (!between) stop();
+    const afterClick =
+      landed !== tour.index &&
+      previous !== null &&
+      previous.advance.kind === "click" &&
+      matches(previous.page, path);
+    const beforeNext = step.advance.kind === "until" && matches(nextPage(), path);
+    if (!afterClick && !beforeNext) stop();
   });
 
   /** The page after an until step, for the navigation it waits on. */

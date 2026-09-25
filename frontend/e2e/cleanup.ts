@@ -48,4 +48,9 @@ test("clean up throwaway e2e entities", async ({ request }) => {
   for (const path of ["/api/v1/event", "/api/v1/form", "/api/v1/datepoll", "/api/v1/chore"]) {
     await purge(request, path, headers);
   }
+  // The welcome tour's spec answers the landing page's one offer; forget
+  // it, so the card is there for the next run.
+  await request.post("/api/v1/auth/dev-forget-tour-offer", {
+    data: { email: "organiser@local.dev", tenant: "rsp" },
+  });
 });

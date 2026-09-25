@@ -685,3 +685,36 @@ def test_login_link_rate_limit(client, monkeypatch):
         assert r.status_code == 200, r.text
     r = client.post("/api/v1/auth/login-link", json={"email": "rl-over@local.dev", "tenant": "rsp"})
     assert r.status_code == 429
+
+
+def test_tour_offer_is_answered_once_and_carried_on_the_session(client, admin_headers):
+    before = client.get("/api/v1/auth/me", headers=admin_headers).json()
+    assert before["tour_offered"] is False
+
+    first = client.post("/api/v1/auth/tour-offer", headers=admin_headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["tour_offered"] is True
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "admin@local.dev", User.deleted_at.is_(None)).first()
+        assert user is not None
+        stamped = user.tour_offered_at
+    finally:
+        db.close()
+    assert stamped is not None
+
+    # A second answer leaves the first one where it was.
+    second = client.post("/api/v1/auth/tour-offer", headers=admin_headers)
+    assert second.status_code == 200
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "admin@local.dev", User.deleted_at.is_(None)).first()
+        assert user is not None and user.tour_offered_at == stamped
+    finally:
+        db.close()
+    assert client.get("/api/v1/auth/me", headers=admin_headers).json()["tour_offered"] is True
+
+
+def test_tour_offer_needs_a_session(client):
+    assert client.post("/api/v1/auth/tour-offer").status_code == 401

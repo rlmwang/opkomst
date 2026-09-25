@@ -37,6 +37,26 @@ def dev_public_brand(prefix: str, slug: str, db: Session = Depends(get_db)) -> d
     return {"slug": brand_slug_for(db, prefix, slug)}
 
 
+@router.post("/auth/dev-forget-tour-offer", status_code=204)
+def dev_forget_tour_offer(data: LoginLinkRequest, db: Session = Depends(get_db)) -> None:
+    """Clears ``tour_offered_at`` for one account, so the e2e test that
+    takes the welcome tour from the landing page's card can run again.
+    The same two doors as ``dev_issue_token``."""
+    if data.tenant is None:
+        user = tenants_svc.find_personal_user_by_email(db, data.email)
+    else:
+        tenant = tenants_svc.find_live_organisation_by_slug(db, data.tenant)
+        if tenant is None:
+            raise HTTPException(status_code=404, detail="No such tenant")
+        user = _live_user_by_email(db, data.email, tenant.id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="No such user")
+    # The write guard wants the row's tenant bound, as a request would.
+    with tenancy.use(user.tenant_id, user.tenant.brand_slug):
+        user.tour_offered_at = None
+        db.commit()
+
+
 @router.post("/auth/dev-issue-token", response_model=AuthResponse)
 def dev_issue_token(data: LoginLinkRequest, db: Session = Depends(get_db)) -> AuthResponse:
     """Mints a JWT for any registered email without going through the

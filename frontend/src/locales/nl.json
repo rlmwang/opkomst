@@ -88,7 +88,11 @@
     "choresTile": "Takenrooster",
     "formsTile": "Vragenlijst",
     "quizzesTile": "Quiz",
-    "compassesTile": "Kompas"
+    "compassesTile": "Kompas",
+    "tourOfferTitle": "Nieuw hier?",
+    "tourOfferBody": "In vijf stappen maak je je eerste evenement.",
+    "tourOfferStart": "Start de rondleiding",
+    "tourOfferDecline": "Nee, bedankt"
   },
   "header": {
     "events": "Evenementen",
@@ -880,7 +884,10 @@
       },
       "3": {
         "title": "Wat vul je in?",
-        "body": "Een naam en een datum zijn genoeg. Klik daarna onderaan op Opslaan."
+        "body": "Een naam en een datum zijn genoeg. Klik daarna onderaan op Evenement aanmaken.",
+        "organisation": {
+          "body": "Een naam, een afdeling en een datum zijn genoeg. Klik daarna onderaan op Evenement aanmaken."
+        }
       },
       "4": {
         "title": "Hoe deel je de link?",
@@ -1038,7 +1045,7 @@
       },
       "5": {
         "title": "Hoe sla je op?",
-        "body": "Onderaan klik je op Opslaan."
+        "body": "Met de knop rechtsonder sla je alles op."
       },
       "datepoll": {
         "2": {

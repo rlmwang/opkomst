@@ -294,6 +294,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/tour-offer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Tour Offer
+         * @description The landing page's one offer of a guided tour was answered, either
+         *     way. Sets the timestamp once; a second call leaves it. Nothing else
+         *     about the tour is ever recorded.
+         */
+        post: operations["answer_tour_offer_api_v1_auth_tour_offer_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/chapters": {
         parameters: {
             query?: never;
@@ -6201,6 +6223,8 @@ export interface components {
             role: string;
             /** Tenant Kind */
             tenant_kind: string;
+            /** Tour Offered */
+            tour_offered: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -6632,6 +6656,37 @@ export interface operations {
         };
     };
     me_api_v1_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_tour_offer_api_v1_auth_tour_offer_post: {
         parameters: {
             query?: never;
             header?: {

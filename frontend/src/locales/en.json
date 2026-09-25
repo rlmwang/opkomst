@@ -88,7 +88,11 @@
     "choresTile": "Chore roster",
     "formsTile": "Form",
     "quizzesTile": "Quiz",
-    "compassesTile": "Compass"
+    "compassesTile": "Compass",
+    "tourOfferTitle": "New here?",
+    "tourOfferBody": "Five steps and your first event exists.",
+    "tourOfferStart": "Start the tour",
+    "tourOfferDecline": "No, thanks"
   },
   "header": {
     "events": "Events",
@@ -880,7 +884,10 @@
       },
       "3": {
         "title": "What do you fill in?",
-        "body": "A name and a date are enough. Then click Save at the bottom."
+        "body": "A name and a date are enough. Then click Create event at the bottom.",
+        "organisation": {
+          "body": "A name, a chapter and a date are enough. Then click Create event at the bottom."
+        }
       },
       "4": {
         "title": "How do you share the link?",
@@ -1038,7 +1045,7 @@
       },
       "5": {
         "title": "How do you save?",
-        "body": "Click Save at the bottom."
+        "body": "The button at the bottom right saves everything."
       },
       "datepoll": {
         "2": {
