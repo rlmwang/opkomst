@@ -10,6 +10,8 @@ import { pendingCountQuery } from "@/composables/useAdmin.svelte";
 import { auth, logout } from "@/stores/auth.svelte";
 import { go, route } from "@/router/navigation.svelte";
 import { anchor } from "@/tours/anchors.svelte";
+import { tourFor } from "@/tours";
+import { start as startTour } from "@/stores/tour.svelte";
 
 // Pending-approval indicator — fired only when the actor is an
 // admin (organisers don't get the badge and shouldn't pay the
@@ -112,6 +114,18 @@ const triggerLabel = $derived(activeItem?.label ?? t("header.menu"));
 
 let navMenu = $state<AppPopover>();
 let navMenuOpen = $state(false);
+let menuTrigger = $state<HTMLButtonElement>();
+
+// Group three: help. The tour for the kind of page the person is on,
+// which the route says. Not offered to a member with no chapters: the
+// list shell they see renders none of the list's controls, so every
+// step would be dropped and the tour would end at once.
+const tourOffer = $derived(auth.isApproved && !auth.needsChapters ? tourFor(route.path) : null);
+function openTour() {
+  if (!tourOffer) return;
+  navMenu?.hide();
+  startTour(tourOffer.id, route.path, tourOffer.product, menuTrigger);
+}
 function toggleNavMenu(event: Event) {
   navMenu?.toggle(event);
 }
@@ -214,6 +228,7 @@ const hasSubtabs = $derived(subtabs.length > 0);
         <button
           type="button"
           class="menu-trigger"
+          bind:this={menuTrigger}
           use:anchor={"header.menu"}
           class:open={navMenuOpen}
           aria-haspopup="true"
@@ -264,6 +279,10 @@ const hasSubtabs = $derived(subtabs.length > 0);
                 {/if}
               </button>
             {/each}
+            {#if tourOffer}
+              <span class="menu-rule" aria-hidden="true"></span>
+              <button type="button" class="menu-item" onclick={openTour}>{t("header.tour")}</button>
+            {/if}
             <span class="menu-rule" aria-hidden="true"></span>
             <button type="button" class="menu-item menu-item-logout" onclick={signOut}>
               <AppIcon name="sign-out" />
@@ -435,9 +454,9 @@ const hasSubtabs = $derived(subtabs.length > 0);
 .menu-item-logout {
   color: var(--brand-text-muted);
 }
-/* Horizontal rule between the menu's three groups — workspaces,
- * organisation admin, session. Grouping is what keeps a
- * six-entry dropdown scannable. */
+/* Horizontal rule between the menu's groups: workspaces, organisation
+ * admin, help, session. Grouping is what keeps a long dropdown
+ * scannable. */
 .menu-rule {
   height: 1px;
   margin: 0.375rem 0.25rem;

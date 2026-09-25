@@ -141,7 +141,7 @@ describe("the engine", () => {
     expect(engine.shown?.step.advance.kind).toBe("until");
     // The save lands on the details page: first the navigation, then
     // the share link.
-    fake.path = "/event/abc";
+    fake.path = "/event/abc/details";
     flushSync();
     expect(tour.active).toBe(true);
     expect(engine.shown).toBeNull();

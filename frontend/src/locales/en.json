@@ -107,7 +107,8 @@
     "pendingBadgeLabel": "{n} sign-ups awaiting approval",
     "logout": "Log out",
     "settings": "Settings",
-    "compasses": "Compasses"
+    "compasses": "Compasses",
+    "tour": "Tour"
   },
   "auth": {
     "email": "Email address",
@@ -124,7 +125,8 @@
     "completeTitle": "Almost there",
     "completeBody": "Enter your name to create your account. An admin still needs to approve you before you can create events.",
     "completeSubmit": "Create account",
-    "completeFailed": "Couldn't create your account. Please try again."
+    "completeFailed": "Couldn't create your account. Please try again.",
+    "howToSignIn": "How does signing in work?"
   },
   "dashboard": {
     "title": "Events",
@@ -845,7 +847,252 @@
     "back": "Back",
     "next": "Next",
     "done": "Done",
-    "counter": "{n} of {total}"
+    "counter": "{n} of {total}",
+    "inloggen": {
+      "1": {
+        "title": "How do you sign in?",
+        "body": "There is no password. You get a link in your mail."
+      },
+      "2": {
+        "title": "Where do you type your address?",
+        "body": "Type your address and press Send link."
+      },
+      "3": {
+        "title": "Where is the link?",
+        "body": "The link is in your mail now. It works for half an hour, once."
+      },
+      "4": {
+        "title": "What does the link do?",
+        "body": "Click it and you are signed in.",
+        "organisation": {
+          "body": "Click it and you are signed in. The first time, the app asks your name, and then an admin lets you in."
+        }
+      }
+    },
+    "welkom": {
+      "1": {
+        "title": "Where do you start?",
+        "body": "We will make your first event together. Click here."
+      },
+      "2": {
+        "title": "How do you make an event?",
+        "body": "Click New event."
+      },
+      "3": {
+        "title": "What do you fill in?",
+        "body": "A name and a date are enough. Then click Save at the bottom."
+      },
+      "4": {
+        "title": "How do you share the link?",
+        "body": "This is the link you share. Anyone who opens it can sign up, without an account."
+      },
+      "5": {
+        "title": "Where is the help?",
+        "body": "Done. This menu holds the manual and a tour for every page."
+      }
+    },
+    "lijst": {
+      "1": {
+        "title": "Where do you start?",
+        "body": "Everything new starts here."
+      },
+      "2": {
+        "title": "Where are the details?",
+        "body": "This opens the page with everything about it."
+      },
+      "3": {
+        "title": "How do you share the link?",
+        "body": "Copy the link and pass it on. Nobody needs an account to open it."
+      },
+      "4": {
+        "title": "How do you tidy up?",
+        "body": "This moves something to the archive. You can bring it back later."
+      },
+      "5": {
+        "title": "Where is the archive?",
+        "body": "Everything you archived is under this tab."
+      },
+      "chore": {
+        "1": {
+          "title": "Where does a roster start?",
+          "body": "Every new roster starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this roster."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the roster to the archive. You can bring it back later."
+        }
+      },
+      "compass": {
+        "1": {
+          "title": "Where does a compass start?",
+          "body": "Every new compass starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this compass."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the compass to the archive. You can bring it back later."
+        }
+      },
+      "datepoll": {
+        "1": {
+          "title": "Where does a date poll start?",
+          "body": "Every new date poll starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this date poll."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the date poll to the archive. You can bring it back later."
+        }
+      },
+      "event": {
+        "1": {
+          "title": "Where does an event start?",
+          "body": "Every new event starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this event."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the event to the archive. You can bring it back later."
+        }
+      },
+      "form": {
+        "1": {
+          "title": "Where does a questionnaire start?",
+          "body": "Every new questionnaire starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this questionnaire."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the questionnaire to the archive. You can bring it back later."
+        }
+      },
+      "quiz": {
+        "1": {
+          "title": "Where does a quiz start?",
+          "body": "Every new quiz starts here."
+        },
+        "2": {
+          "title": "Where are the details?",
+          "body": "This opens the page with everything about this quiz."
+        },
+        "4": {
+          "title": "How do you tidy up?",
+          "body": "This moves the quiz to the archive. You can bring it back later."
+        }
+      }
+    },
+    "details": {
+      "1": {
+        "title": "Who is coming?",
+        "body": "The sign-ups are here, with a name and a party size."
+      },
+      "2": {
+        "title": "How do you share the link?",
+        "body": "Copy the link and pass it on."
+      },
+      "3": {
+        "title": "What is this picture?",
+        "body": "This picture is a QR code. Scanning it opens the sign-up page."
+      },
+      "4": {
+        "title": "How do you change something?",
+        "body": "Click here to change the text, the date or the settings."
+      },
+      "5": {
+        "title": "What did people say afterwards?",
+        "body": "The answers to the questionnaire sent after the event are here."
+      }
+    },
+    "formulier": {
+      "1": {
+        "title": "What do you fill in?",
+        "body": "The name and the basics go here. Nothing else is needed."
+      },
+      "2": {
+        "title": "What is it about?",
+        "body": "This is where you put what it is about."
+      },
+      "3": {
+        "title": "Where are the extra settings?",
+        "body": "Click here to unfold the extra settings."
+      },
+      "4": {
+        "title": "What can you switch on?",
+        "body": "Each switch turns something on or off. The line under it says what."
+      },
+      "5": {
+        "title": "How do you save?",
+        "body": "Click Save at the bottom."
+      },
+      "datepoll": {
+        "2": {
+          "title": "Which dates do you propose?",
+          "body": "Pick the dates people may choose from."
+        }
+      },
+      "chore": {
+        "2": {
+          "title": "What are the chores?",
+          "body": "Put the chores to be shared out here."
+        }
+      },
+      "form": {
+        "2": {
+          "title": "What do you ask?",
+          "body": "The questions go here, in the order they are asked."
+        }
+      },
+      "quiz": {
+        "2": {
+          "title": "What do you ask?",
+          "body": "The questions go here, in the order they are asked."
+        }
+      },
+      "compass": {
+        "2": {
+          "title": "What do you ask?",
+          "body": "The questions go here, in the order they are asked."
+        }
+      }
+    },
+    "beheer": {
+      "1": {
+        "title": "How do you let someone in?",
+        "body": "People who signed up wait here. Click Approve to let them in."
+      },
+      "2": {
+        "title": "Where are the other pages?",
+        "body": "Switch between users, chapters and settings here."
+      },
+      "3": {
+        "title": "How do you make a chapter?",
+        "body": "Type a name and press Enter."
+      },
+      "4": {
+        "title": "How do you change a chapter?",
+        "body": "Click the pencil to change its name or address."
+      },
+      "5": {
+        "title": "How far does the agenda reach?",
+        "body": "These two numbers set how many days the public agenda shows."
+      }
+    }
   },
   "footer": {
     "label": "Read more",

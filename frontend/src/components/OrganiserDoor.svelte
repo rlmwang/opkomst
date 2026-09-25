@@ -1,6 +1,7 @@
 <script lang="ts">
 import LoginForm from "@/components/LoginForm.svelte";
 import { t } from "@/i18n.svelte";
+import { start as startTour } from "@/stores/tour.svelte";
 
 /**
  * The way in for people who have already made something.
@@ -16,6 +17,13 @@ import { t } from "@/i18n.svelte";
   <p class="divider muted">{t("tenantIndex.signIn")}</p>
   <div class="door-form">
     <LoginForm />
+    <!-- The one way to start a tour signed out. Its steps all live on
+         this page, so no session is needed. -->
+    <button
+      type="button"
+      class="door-help"
+      onclick={(e) => startTour("inloggen", "/", null, e.currentTarget)}
+    >{t("auth.howToSignIn")}</button>
   </div>
 </section>
 
@@ -44,5 +52,18 @@ import { t } from "@/i18n.svelte";
 .door-form {
   max-width: 26rem;
   margin: 0 auto;
+}
+/* A text link under the form, in the muted colour the divider uses. */
+.door-help {
+  display: block;
+  margin: 0.75rem auto 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--brand-text-muted);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

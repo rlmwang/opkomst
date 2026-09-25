@@ -107,7 +107,8 @@
     "pendingBadgeLabel": "{n} aanmeldingen wachten op goedkeuring",
     "logout": "Uitloggen",
     "settings": "Instellingen",
-    "compasses": "Kompassen"
+    "compasses": "Kompassen",
+    "tour": "Rondleiding"
   },
   "auth": {
     "email": "E-mailadres",
@@ -124,7 +125,8 @@
     "completeTitle": "Nog één stap",
     "completeBody": "Vul je naam in om je account aan te maken. Een admin moet je daarna nog goedkeuren voordat je evenementen kunt aanmaken.",
     "completeSubmit": "Account aanmaken",
-    "completeFailed": "Account aanmaken mislukt. Probeer het opnieuw."
+    "completeFailed": "Account aanmaken mislukt. Probeer het opnieuw.",
+    "howToSignIn": "Hoe werkt inloggen?"
   },
   "dashboard": {
     "title": "Evenementen",
@@ -845,7 +847,252 @@
     "back": "Vorige",
     "next": "Volgende",
     "done": "Klaar",
-    "counter": "{n} van {total}"
+    "counter": "{n} van {total}",
+    "inloggen": {
+      "1": {
+        "title": "Hoe log je in?",
+        "body": "Er is geen wachtwoord. Je krijgt een link in je mail."
+      },
+      "2": {
+        "title": "Waar vul je je adres in?",
+        "body": "Typ je adres en klik op Stuur link."
+      },
+      "3": {
+        "title": "Waar is de link?",
+        "body": "De link staat nu in je mail. Hij werkt een halfuur en één keer."
+      },
+      "4": {
+        "title": "Wat doet de link?",
+        "body": "Klik erop en je bent ingelogd.",
+        "organisation": {
+          "body": "Klik erop en je bent ingelogd. De eerste keer vraagt de app je naam, en daarna laat een beheerder je toe."
+        }
+      }
+    },
+    "welkom": {
+      "1": {
+        "title": "Waar begin je?",
+        "body": "We maken samen je eerste evenement. Klik hier."
+      },
+      "2": {
+        "title": "Hoe maak je een evenement?",
+        "body": "Klik op Nieuw evenement."
+      },
+      "3": {
+        "title": "Wat vul je in?",
+        "body": "Een naam en een datum zijn genoeg. Klik daarna onderaan op Opslaan."
+      },
+      "4": {
+        "title": "Hoe deel je de link?",
+        "body": "Dit is de link die je deelt. Wie hem opent kan zich aanmelden, zonder account."
+      },
+      "5": {
+        "title": "Waar vind je hulp?",
+        "body": "Klaar. In dit menu staan de handleiding en een rondleiding per pagina."
+      }
+    },
+    "lijst": {
+      "1": {
+        "title": "Waar begin je?",
+        "body": "Alles nieuws begint hier."
+      },
+      "2": {
+        "title": "Waar zijn de details?",
+        "body": "Hier open je de pagina met alles erover."
+      },
+      "3": {
+        "title": "Hoe deel je de link?",
+        "body": "Kopieer de link en stuur hem rond. Wie hem opent heeft geen account nodig."
+      },
+      "4": {
+        "title": "Hoe ruim je op?",
+        "body": "Hiermee zet je iets in het archief. Je kunt het later terughalen."
+      },
+      "5": {
+        "title": "Waar is het archief?",
+        "body": "Onder dit tabblad staat alles wat je hebt gearchiveerd."
+      },
+      "chore": {
+        "1": {
+          "title": "Hoe maak je een takenrooster?",
+          "body": "Elke nieuwe takenrooster begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over dit takenrooster."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je dit takenrooster in het archief. Je kunt het later terughalen."
+        }
+      },
+      "compass": {
+        "1": {
+          "title": "Hoe maak je een kompas?",
+          "body": "Elke nieuwe kompas begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over dit kompas."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je dit kompas in het archief. Je kunt het later terughalen."
+        }
+      },
+      "datepoll": {
+        "1": {
+          "title": "Hoe maak je een datumplanner?",
+          "body": "Elke nieuwe datumplanner begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over deze datumplanner."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je deze datumplanner in het archief. Je kunt hem later terughalen."
+        }
+      },
+      "event": {
+        "1": {
+          "title": "Hoe maak je een evenement?",
+          "body": "Elk nieuw evenement begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over dit evenement."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je dit evenement in het archief. Je kunt het later terughalen."
+        }
+      },
+      "form": {
+        "1": {
+          "title": "Hoe maak je een vragenlijst?",
+          "body": "Elke nieuwe vragenlijst begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over deze vragenlijst."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je deze vragenlijst in het archief. Je kunt hem later terughalen."
+        }
+      },
+      "quiz": {
+        "1": {
+          "title": "Hoe maak je een quiz?",
+          "body": "Elke nieuwe quiz begint hier."
+        },
+        "2": {
+          "title": "Waar zijn de details?",
+          "body": "Hier open je de pagina met alles over deze quiz."
+        },
+        "4": {
+          "title": "Hoe ruim je op?",
+          "body": "Hiermee zet je deze quiz in het archief. Je kunt hem later terughalen."
+        }
+      }
+    },
+    "details": {
+      "1": {
+        "title": "Wie komt er?",
+        "body": "Hier staan de aanmeldingen, met naam en aantal."
+      },
+      "2": {
+        "title": "Hoe deel je de link?",
+        "body": "Kopieer de link en stuur hem rond."
+      },
+      "3": {
+        "title": "Wat is dit plaatje?",
+        "body": "Dit plaatje is een QR-code. Wie hem scant komt op de aanmeldpagina."
+      },
+      "4": {
+        "title": "Hoe pas je iets aan?",
+        "body": "Klik hier om de tekst, de datum of de instellingen te wijzigen."
+      },
+      "5": {
+        "title": "Wat zeggen mensen achteraf?",
+        "body": "Hier zie je de antwoorden op de vragenlijst van na afloop."
+      }
+    },
+    "formulier": {
+      "1": {
+        "title": "Wat vul je in?",
+        "body": "Hier staan de naam en de basis. Meer hoeft niet."
+      },
+      "2": {
+        "title": "Waar draait het om?",
+        "body": "Hier zet je neer waar dit om draait."
+      },
+      "3": {
+        "title": "Waar zijn de extra instellingen?",
+        "body": "Klik hier om de extra instellingen open te klappen."
+      },
+      "4": {
+        "title": "Wat kun je aanzetten?",
+        "body": "Elke schakelaar zet iets aan of uit. De regel eronder zegt wat."
+      },
+      "5": {
+        "title": "Hoe sla je op?",
+        "body": "Onderaan klik je op Opslaan."
+      },
+      "datepoll": {
+        "2": {
+          "title": "Welke data stel je voor?",
+          "body": "Kies de data waar mensen uit mogen kiezen."
+        }
+      },
+      "chore": {
+        "2": {
+          "title": "Welke klussen zijn er?",
+          "body": "Zet hier de klussen neer die verdeeld moeten worden."
+        }
+      },
+      "form": {
+        "2": {
+          "title": "Welke vragen stel je?",
+          "body": "Hier zet je de vragen neer, in de volgorde waarin ze gesteld worden."
+        }
+      },
+      "quiz": {
+        "2": {
+          "title": "Welke vragen stel je?",
+          "body": "Hier zet je de vragen neer, in de volgorde waarin ze gesteld worden."
+        }
+      },
+      "compass": {
+        "2": {
+          "title": "Welke vragen stel je?",
+          "body": "Hier zet je de vragen neer, in de volgorde waarin ze gesteld worden."
+        }
+      }
+    },
+    "beheer": {
+      "1": {
+        "title": "Hoe laat je iemand toe?",
+        "body": "Wie zich heeft aangemeld wacht hier. Klik op Goedkeuren om ze toe te laten."
+      },
+      "2": {
+        "title": "Waar zijn de andere pagina's?",
+        "body": "Hier wissel je tussen gebruikers, afdelingen en instellingen."
+      },
+      "3": {
+        "title": "Hoe maak je een afdeling?",
+        "body": "Typ een naam en druk op Enter."
+      },
+      "4": {
+        "title": "Hoe wijzig je een afdeling?",
+        "body": "Klik op het potlood om de naam of het adres te wijzigen."
+      },
+      "5": {
+        "title": "Hoe ver kijkt de agenda?",
+        "body": "Deze twee getallen bepalen hoeveel dagen de openbare agenda laat zien."
+      }
+    }
   },
   "footer": {
     "label": "Meer lezen",

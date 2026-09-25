@@ -183,7 +183,7 @@ function words(kind: "title" | "body"): string {
   const base = `tour.${tour.id}`;
   const keys = [
     ...(tour.product ? [`${base}.${tour.product}.${step.n}.${kind}`] : []),
-    ...(isPersonalApp() ? [] : [`${base}.${step.n}.${kind}.organisation`]),
+    ...(isPersonalApp() ? [] : [`${base}.${step.n}.organisation.${kind}`]),
     `${base}.${step.n}.${kind}`,
   ];
   return t(keys.find((k) => te(k)) ?? keys[keys.length - 1]);

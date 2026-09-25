@@ -34,8 +34,8 @@ export const TOURS: Record<TourId, Tour> = {
       { page: "/", anchor: "home.events", advance: click },
       { page: "/event", anchor: "list.new", advance: click },
       { page: "/event/new", anchor: "form.card", advance: { kind: "until", name: "share.link" } },
-      { page: "/event/:id", anchor: "share.link", advance: next },
-      { page: "/event/:id", anchor: "header.menu", advance: next },
+      { page: "/event/:id/details", anchor: "share.link", advance: next },
+      { page: "/event/:id/details", anchor: "header.menu", advance: next },
     ],
   },
   // A pointing tour: the archive step must not be a click, or the
