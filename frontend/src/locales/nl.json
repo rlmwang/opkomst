@@ -853,6 +853,7 @@
     "next": "Volgende",
     "done": "Klaar",
     "counter": "{n} van {total}",
+    "actionNeeded": "Deze stap wacht op jou: doe wat hierboven staat, dan gaat de rondleiding vanzelf verder.",
     "inloggen": {
       "1": {
         "title": "Hoe log je in?",

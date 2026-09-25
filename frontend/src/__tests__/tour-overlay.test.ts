@@ -119,6 +119,8 @@ describe("the callout", () => {
     const dialog = document.body.querySelector(".tour-callout") as HTMLElement;
     const buttons = Array.from(dialog.querySelectorAll("button"));
     expect(buttons.map((b) => b.textContent?.trim())).toEqual(["Stoppen", "Volgende"]);
+    // And it says, in so many words, that it is waiting for the person.
+    expect(dialog.querySelector(".tour-action")?.textContent).toContain("wacht op jou");
     buttons[1].focus();
     dialog.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
     expect(document.activeElement).toBe(tile);
@@ -144,6 +146,8 @@ describe("the callout", () => {
     const dialog = document.body.querySelector(".tour-callout") as HTMLElement;
     const labels = Array.from(dialog.querySelectorAll("button")).map((b) => b.textContent?.trim());
     expect(labels).toEqual(["Stoppen", "Opnieuw", "Klaar"]);
+    // A next step waits for nothing, and says nothing about waiting.
+    expect(dialog.querySelector(".tour-action")).toBeNull();
     (dialog.querySelectorAll("button")[1] as HTMLButtonElement).click();
     expect(tour.index).toBe(0);
   });

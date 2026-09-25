@@ -109,6 +109,25 @@ $effect(() => {
   };
 });
 
+// The sheet is fixed to the bottom of the viewport, so the page gets
+// that much room under it while the sheet shows: otherwise a control
+// at the foot of the page, the save button of a form, sits under the
+// sheet and no amount of scrolling brings it out.
+$effect(() => {
+  if (!sheet || !callout) return;
+  const el = callout;
+  const apply = () => {
+    document.body.style.paddingBottom = `${el.getBoundingClientRect().height}px`;
+  };
+  apply();
+  const observer = new ResizeObserver(apply);
+  observer.observe(el);
+  return () => {
+    observer.disconnect();
+    document.body.style.paddingBottom = "";
+  };
+});
+
 // A click step advances from the control itself: a one-shot listener
 // in the capture phase that does not stop the event, so the real
 // handler runs and the navigation it causes is what the engine waits
@@ -226,6 +245,10 @@ function styleOf(style: Record<string, string>): string {
       <p class="tour-counter muted">{t("tour.counter", { n: index + 1, total })}</p>
       <h2 id="tour-title" class="tour-title">{words("title")}</h2>
       <p class="tour-body">{words("body")}</p>
+      <!-- A step that waits for something to happen on the page says
+           so, in the same words on every such step, so nobody wonders
+           why nothing moves. -->
+      {#if !isNextStep}<p class="tour-action">{t("tour.actionNeeded")}</p>{/if}
     </div>
     <!-- Stoppen on the left; Volgende on the right on every step, so
          the way on is always the same button in the same place. A
@@ -341,6 +364,16 @@ function styleOf(style: Record<string, string>): string {
 .tour-body {
   margin: 0 0 1rem;
   font-size: 0.875rem;
+}
+/* The line under the body on a step that waits for an action: the
+ * same words every time, set off by a rule and the brand red. */
+.tour-action {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.625rem;
+  border-left: 3px solid var(--brand-red);
+  background: var(--brand-bg);
+  font-size: 0.8125rem;
+  color: var(--brand-text);
 }
 .tour-buttons {
   display: flex;

@@ -394,6 +394,11 @@ centred on the hole. Inside, top to bottom:
 * the title, at `1rem` and weight 600, at most six words, written as
   the question the step answers (chapter 11);
 * the body, at `0.875rem`, one or two sentences;
+* on a click or until step, one more line in the same words every
+  time, set off by a rule in the brand red: this step waits for you,
+  do what it says above and the tour moves on by itself. A step that
+  waits for an action has to say so, or nothing moving reads as
+  nothing working;
 * one row of buttons: Stoppen as a text button on the left, and on
   the right Volgende, on every step, in the same place. A click or
   until step advances by itself when the person does what the body
@@ -420,7 +425,9 @@ width, same padding, no arrow, and the hole is scrolled into the upper
 half of the screen so the sheet never covers it. The same sheet is
 used at every width when the hole is taller than 60% of the viewport,
 which is the form step: a callout beside a card taller than the
-screen has nowhere good to be.
+screen has nowhere good to be. While the sheet shows, the page gets
+the sheet's height of room under it, so the control at the foot of a
+form can be scrolled out from under it.
 
 **Layering.** The app has a ladder: toasts at 1000, the popover at
 1100, the tooltip at 1200, and the browser's top layer above all of

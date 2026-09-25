@@ -853,6 +853,7 @@
     "next": "Next",
     "done": "Done",
     "counter": "{n} of {total}",
+    "actionNeeded": "This step waits for you: do what it says above and the tour moves on by itself.",
     "inloggen": {
       "1": {
         "title": "How do you sign in?",
