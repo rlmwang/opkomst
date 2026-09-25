@@ -41,7 +41,7 @@ export type AnchorName =
   | "form.section.first"
   | "form.section.own"
   | "form.fold"
-  | "form.fold.switch"
+  | "form.fold.first"
   | "header.menu"
   | "header.subtabs"
   | "admin.approve"

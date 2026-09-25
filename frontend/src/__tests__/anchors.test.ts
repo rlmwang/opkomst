@@ -102,7 +102,7 @@ describe("every declared anchor is rendered by some component", () => {
     "form.section.first",
     "form.section.own",
     "form.fold",
-    "form.fold.switch",
+    "form.fold.first",
     "header.menu",
     "header.subtabs",
     "admin.approve",
@@ -111,13 +111,9 @@ describe("every declared anchor is rendered by some component", () => {
     "admin.agenda",
   ];
 
-  // Registered by the form section and fold components of task 02 in
-  // ``docs/tasks/help``. Owed, not missing; the list goes when they land.
-  const owed: AnchorName[] = ["form.section.first", "form.section.own", "form.fold", "form.fold.switch"];
-
   const sources = svelteSources(join(__dirname, ".."));
 
-  it.each(declared.filter((n) => !owed.includes(n)))("%s", (name) => {
+  it.each(declared)("%s", (name) => {
     // ``use:anchor={"x"}``, ``anchor="x"``, ``anchor: "x"`` (a tile), or
     // a ternary that names it (the archived subtab).
     const hit = sources.some((src) => src.includes(`"${name}"`));

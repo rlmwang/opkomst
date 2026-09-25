@@ -24,7 +24,9 @@ import { untrack } from "svelte";
 
 import AppButton from "@/components/AppButton.svelte";
 import AppInput from "@/components/AppInput.svelte";
+import AdvancedFold from "@/components/AdvancedFold.svelte";
 import AppToggle from "@/components/AppToggle.svelte";
+import FormSection from "@/components/FormSection.svelte";
 import CycleGridPicker from "@/components/CycleGridPicker.svelte";
 import DatePicker from "@/components/DatePicker.svelte";
 import EditableList from "@/components/EditableList.svelte";
@@ -228,7 +230,6 @@ let answersEditable = $state(true);
  * Closed on arrival, always: an organiser opens it when they are
  * looking for a setting, and a form that decides for itself when to
  * unfold is a form whose length changes for reasons nobody asked for. */
-let advancedOpen = $state(false);
 let eventLocale = $state<"nl" | "en">(startLocale);
 let submitting = $state(false);
 // Armed by a 409 and spent on the next Save. Removing an option people
@@ -601,7 +602,7 @@ async function submit(): Promise<void> {
     onsubmit={submit}
     oncancel={cancel}
   >
-    <section class="form-section">
+    <FormSection anchor="form.section.first">
       {#if start.active}<StartAccountField bind:value={start.email} />{/if}
       <AppInput bind:value={title.value} placeholder={title.fallback || t("event.name")} fluid />
       <RichTextField
@@ -655,7 +656,7 @@ async function submit(): Promise<void> {
           fluid
         />
       </div>
-    </section>
+    </FormSection>
 
     <!-- Uploading a picture writes to the row it belongs to, which
          takes a session; a visitor starting from the root does not have
@@ -675,35 +676,24 @@ async function submit(): Promise<void> {
          chapters has no agenda to be on, so there is no choice to
          offer. -->
     {#if start.hasChapters}
-      <section class="form-section">
-        <label class="toggle-row" for="listedToggle">
-          <AppToggle bind:checked={listed} inputId="listedToggle" />
-          <h2 class="section-heading">{t("event.listedToggle")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.listedHelp")}</p>
-      </section>
+      <FormSection
+        heading={t("event.listedToggle")}
+        bind:enabled={listed}
+        explainer={t("event.listedHelp")}
+      />
     {/if}
 
     <!-- Everything else with a switch on it lives in here. A
          ``details`` and not a button plus a branch: it is a disclosure,
          the browser already knows how to open and close one, and it
          tells a screen reader so without any aria of ours. -->
-    <details
-      class="advanced"
-      open={advancedOpen}
-      ontoggle={(e) => (advancedOpen = (e.target as HTMLDetailsElement).open)}
-    >
-      <summary>{advancedOpen ? t("common.advancedHide") : t("common.advancedShow")}</summary>
-
-      <section class="form-section">
-        <!-- The switch turns the whole block on, so it sits in front of
-             the heading rather than on a line of its own under it. -->
-        <label class="toggle-row" for="repeatToggle">
-          <AppToggle bind:checked={repeats} inputId="repeatToggle" />
-          <h2 class="section-heading">{t("event.repeatHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.repeatExplainer")}</p>
-
+    <AdvancedFold>
+      <FormSection
+        heading={t("event.repeatHeading")}
+        bind:enabled={repeats}
+        explainer={t("event.repeatExplainer")}
+        anchor="form.fold.first"
+      >
         {#if repeats}
           <div class="repeat-row">
             <span class="muted">{t("event.repeat.everyLead")}</span>
@@ -738,16 +728,15 @@ async function submit(): Promise<void> {
             <p class="muted section-explainer">{t("event.span.openEndedHelp")}</p>
           {/if}
         {/if}
-      </section>
+      </FormSection>
 
       <!-- What people can offer comes before where they heard about it:
            one is about the event itself, the other is about us. -->
-      <section class="form-section">
-        <label class="toggle-row" for="helpToggle">
-          <AppToggle bind:checked={helpEnabled} inputId="helpToggle" />
-          <h2 class="section-heading">{t("event.helpHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.helpExplainer")}</p>
+      <FormSection
+        heading={t("event.helpHeading")}
+        bind:enabled={helpEnabled}
+        explainer={t("event.helpExplainer")}
+      >
         {#if helpEnabled}
           <EditableList
             items={helpOptions}
@@ -777,14 +766,13 @@ async function submit(): Promise<void> {
             {/snippet}
           </EditableList>
         {/if}
-      </section>
+      </FormSection>
 
-      <section class="form-section">
-        <label class="toggle-row" for="sourcesToggle">
-          <AppToggle bind:checked={sourceEnabled} inputId="sourcesToggle" />
-          <h2 class="section-heading">{t("event.sourcesHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.sourcesExplainer")}</p>
+      <FormSection
+        heading={t("event.sourcesHeading")}
+        bind:enabled={sourceEnabled}
+        explainer={t("event.sourcesExplainer")}
+      >
         {#if sourceEnabled}
           <EditableList
             items={sources}
@@ -814,56 +802,46 @@ async function submit(): Promise<void> {
             {/snippet}
           </EditableList>
         {/if}
-      </section>
+      </FormSection>
 
       <!-- Mailing the people who sign up is the paid plan
            (docs/design-paywall.md). Hidden, not disabled: a switch
            somebody cannot use is an advertisement on every form they
            fill in. -->
       {#if auth.participantMail}
-        <section class="form-section">
-          <label class="toggle-row" for="reminderToggle">
-            <AppToggle bind:checked={reminderEnabled} inputId="reminderToggle" />
-            <h2 class="section-heading">{t("event.reminderToggle")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("event.reminderHelp")}</p>
-        </section>
+        <FormSection
+          heading={t("event.reminderToggle")}
+          bind:enabled={reminderEnabled}
+          explainer={t("event.reminderHelp")}
+        />
 
-        <section class="form-section">
-          <label class="toggle-row" for="questionnaireToggle">
-            <AppToggle bind:checked={feedbackEnabled} inputId="questionnaireToggle" />
-            <h2 class="section-heading">{t("event.questionnaireToggle")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("event.questionnaireHelp")}</p>
-        </section>
+        <FormSection
+          heading={t("event.questionnaireToggle")}
+          bind:enabled={feedbackEnabled}
+          explainer={t("event.questionnaireHelp")}
+        />
       {/if}
 
       <!-- Off by default: a name real or not is what the contract
            offers, so an empty box is an answer. On when the sign-ups
            are only useful attached to somebody. -->
-      <section class="form-section">
-        <label class="toggle-row" for="nameRequiredToggle">
-          <AppToggle bind:checked={nameRequired} inputId="nameRequiredToggle" />
-          <h2 class="section-heading">{t("common.nameRequired")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("common.nameRequiredExplainer")}</p>
-      </section>
+      <FormSection
+        heading={t("common.nameRequired")}
+        bind:enabled={nameRequired}
+        explainer={t("common.nameRequiredExplainer")}
+      />
 
       <!-- A sign-up nobody can correct becomes a sign-up nobody cancels
            either, so this starts on. Off when the headcount is being
            acted on and has to stop moving. -->
-      <section class="form-section">
-        <label class="toggle-row" for="editableToggle">
-          <AppToggle bind:checked={answersEditable} inputId="editableToggle" />
-          <h2 class="section-heading">{t("form.edit.editableHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("form.edit.editableExplainer")}</p>
-      </section>
-    </details>
+      <FormSection
+        heading={t("form.edit.editableHeading")}
+        bind:enabled={answersEditable}
+        explainer={t("form.edit.editableExplainer")}
+      />
+    </AdvancedFold>
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("event.localeHeading")}</h2>
-      <p class="muted section-explainer">{t("event.localeExplainer")}</p>
+    <FormSection heading={t("event.localeHeading")} explainer={t("event.localeExplainer")}>
       <SelectField
         bind:value={eventLocale}
         options={[
@@ -874,7 +852,7 @@ async function submit(): Promise<void> {
         optionValue="value"
         fluid
       />
-    </section>
+    </FormSection>
   </FormPageShell>
 {/if}
 

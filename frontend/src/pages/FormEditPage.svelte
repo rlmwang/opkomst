@@ -5,7 +5,8 @@ import AppButton from "@/components/AppButton.svelte";
 import AppCard from "@/components/AppCard.svelte";
 import AppHeader from "@/components/AppHeader.svelte";
 import AppInput from "@/components/AppInput.svelte";
-import AppToggle from "@/components/AppToggle.svelte";
+import AdvancedFold from "@/components/AdvancedFold.svelte";
+import FormSection from "@/components/FormSection.svelte";
 import CompassAxesEditor from "@/components/CompassAxesEditor.svelte";
 import FormPageShell from "@/components/FormPageShell.svelte";
 import ImageField from "@/components/ImageField.svelte";
@@ -108,7 +109,6 @@ let answersEditable = $state(true);
 let nameRequired = $state(false);
 /* The switches sit behind one fold, the same one every other edit page
  * ends with, and it starts closed every time. */
-let advancedOpen = $state(false);
 
 /* A kompas's two axes and their four sides. Empty until the organiser
  * names them, which the save refuses by name the moment there is a
@@ -515,7 +515,7 @@ async function submit(): Promise<void> {
     onsubmit={submit}
     oncancel={cancel}
   >
-    <section class="form-section">
+    <FormSection anchor="form.section.first">
       {#if start.active}<StartAccountField bind:value={start.email} />{/if}
       <AppInput
         bind:value={title.value}
@@ -538,7 +538,7 @@ async function submit(): Promise<void> {
           fluid
         />
       {/if}
-    </section>
+    </FormSection>
 
     <!-- Uploading writes to the row it belongs to, which takes a
          session the visitor does not have yet. -->
@@ -556,19 +556,16 @@ async function submit(): Promise<void> {
          these: the words chosen here are the words every direction
          select below then offers. -->
     {#if isCompass}
-      <section class="form-section">
-        <h2 class="section-heading">{t("compass.edit.axesHeading")}</h2>
-        <!-- No explainer: the placeholders carry what to type and the
-             example to type it like, and the arrows say where each side
-             lands. A paragraph would repeat the boxes under it. -->
-        <CompassAxesEditor bind:value={axes} />
-      </section>
+      <FormSection heading={t("compass.edit.axesHeading")}>
+<CompassAxesEditor bind:value={axes} />
+      </FormSection>
     {/if}
 
-    <section class="form-section">
-      <h2 class="section-heading">{L("edit.questionsHeading")}</h2>
-      <p class="muted section-explainer">{L("edit.questionsExplainer")}</p>
-
+    <FormSection
+      heading={L("edit.questionsHeading")}
+      explainer={L("edit.questionsExplainer")}
+      anchor="form.section.own"
+    >
       {#if questionList.items.length === 0}
         <div class="empty muted">{L("edit.noQuestionsYet")}</div>
       {/if}
@@ -596,52 +593,39 @@ async function submit(): Promise<void> {
         severity="secondary"
         onclick={addQuestion}
       />
-    </section>
+    </FormSection>
 
     <!-- Every switch, folded away: the thing itself above it, the page
          language below. One fold on all six products. -->
-    <details
-      class="advanced"
-      open={advancedOpen}
-      ontoggle={(e) => (advancedOpen = (e.target as HTMLDetailsElement).open)}
-    >
-      <summary>{advancedOpen ? t("common.advancedHide") : t("common.advancedShow")}</summary>
-
+    <AdvancedFold>
       <!-- Off by default: a name real or not is what the contract
            offers, so an empty box is an answer. On when the answers are
            only useful attached to somebody. -->
-      <section class="form-section">
-        <label class="toggle-row" for="nameRequiredToggle">
-          <AppToggle bind:checked={nameRequired} inputId="nameRequiredToggle" />
-          <h2 class="section-heading">{t("common.nameRequired")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("common.nameRequiredExplainer")}</p>
-      </section>
+      <FormSection
+        heading={t("common.nameRequired")}
+        bind:enabled={nameRequired}
+        explainer={t("common.nameRequiredExplainer")}
+        anchor="form.fold.first"
+      />
 
       <!-- What happens after the questions are answered. A quiz has no
            edit at all, so it gets the reveal switch instead. -->
       {#if !isQuiz}
-        <section class="form-section">
-          <label class="toggle-row" for="editableToggle">
-            <AppToggle bind:checked={answersEditable} inputId="editableToggle" />
-            <h2 class="section-heading">{t("form.edit.editableHeading")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("form.edit.editableExplainer")}</p>
-        </section>
+        <FormSection
+          heading={t("form.edit.editableHeading")}
+          bind:enabled={answersEditable}
+          explainer={t("form.edit.editableExplainer")}
+        />
       {:else}
-        <section class="form-section">
-          <label class="toggle-row" for="revealToggle">
-            <AppToggle bind:checked={revealAnswers} inputId="revealToggle" />
-            <h2 class="section-heading">{t("quiz.edit.revealHeading")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("quiz.edit.revealExplainer")}</p>
-        </section>
+        <FormSection
+          heading={t("quiz.edit.revealHeading")}
+          bind:enabled={revealAnswers}
+          explainer={t("quiz.edit.revealExplainer")}
+        />
       {/if}
-    </details>
+    </AdvancedFold>
 
-    <section class="form-section">
-      <h2 class="section-heading">{L("edit.localeHeading")}</h2>
-      <p class="muted section-explainer">{L("edit.localeExplainer")}</p>
+    <FormSection heading={L("edit.localeHeading")} explainer={L("edit.localeExplainer")}>
       <SelectField
         bind:value={formLocale}
         options={[
@@ -652,7 +636,7 @@ async function submit(): Promise<void> {
         optionValue="value"
         fluid
       />
-    </section>
+    </FormSection>
   </FormPageShell>
 {/if}
 

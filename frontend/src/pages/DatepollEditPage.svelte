@@ -4,7 +4,8 @@ import { untrack } from "svelte";
 import AppCard from "@/components/AppCard.svelte";
 import AppHeader from "@/components/AppHeader.svelte";
 import AppInput from "@/components/AppInput.svelte";
-import AppToggle from "@/components/AppToggle.svelte";
+import AdvancedFold from "@/components/AdvancedFold.svelte";
+import FormSection from "@/components/FormSection.svelte";
 import DatePicker from "@/components/DatePicker.svelte";
 import FormPageShell from "@/components/FormPageShell.svelte";
 import ImageField from "@/components/ImageField.svelte";
@@ -103,7 +104,6 @@ let nameRequired = $state(false);
 let answersEditable = $state(true);
 /* The switches sit behind one fold, the same one every other edit page
  * ends with, and it starts closed every time. */
-let advancedOpen = $state(false);
 let submitting = $state(false);
 
 interface TimeSlot {
@@ -509,7 +509,7 @@ async function submit(): Promise<void> {
     onsubmit={submit}
     oncancel={cancel}
   >
-    <section class="form-section">
+    <FormSection anchor="form.section.first">
       {#if start.active}<StartAccountField bind:value={start.email} />{/if}
       <AppInput
         bind:value={title.value}
@@ -540,7 +540,7 @@ async function submit(): Promise<void> {
         biasLon={place.bias.lon}
         oncoords={(coords) => place.setCoords(coords)}
       />
-    </section>
+    </FormSection>
 
     <!-- Uploading writes to the row it belongs to, which takes a
          session the visitor does not have yet. -->
@@ -554,10 +554,11 @@ async function submit(): Promise<void> {
       />
     {/if}
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("datepoll.edit.datesHeading")}</h2>
-      <p class="muted section-explainer">{t("datepoll.edit.datesExplainer")}</p>
-
+    <FormSection
+      heading={t("datepoll.edit.datesHeading")}
+      explainer={t("datepoll.edit.datesExplainer")}
+      anchor="form.section.own"
+    >
       <div class="dates-stack">
         <div class="picker-row">
           <DatePicker
@@ -646,40 +647,32 @@ async function submit(): Promise<void> {
           </ul>
         {/if}
       </div>
-    </section>
+    </FormSection>
 
     <!-- Every switch, folded away: the thing itself above it, the page
          language below. One fold on all six products. -->
-    <details
-      class="advanced"
-      open={advancedOpen}
-      ontoggle={(e) => (advancedOpen = (e.target as HTMLDetailsElement).open)}
-    >
-      <summary>{advancedOpen ? t("common.advancedHide") : t("common.advancedShow")}</summary>
-
+    <AdvancedFold>
       <!-- Off by default: a name real or not is what the contract
            offers, so an empty box is an answer. On when the answers are
            only useful attached to somebody. -->
-      <section class="form-section">
-        <label class="toggle-row" for="nameRequiredToggle">
-          <AppToggle bind:checked={nameRequired} inputId="nameRequiredToggle" />
-          <h2 class="section-heading">{t("common.nameRequired")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("common.nameRequiredExplainer")}</p>
-      </section>
+      <FormSection
+        heading={t("common.nameRequired")}
+        bind:enabled={nameRequired}
+        explainer={t("common.nameRequiredExplainer")}
+        anchor="form.fold.first"
+      />
 
-      <section class="form-section">
-        <label class="toggle-row" for="editableToggle">
-          <AppToggle bind:checked={answersEditable} inputId="editableToggle" />
-          <h2 class="section-heading">{t("form.edit.editableHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("form.edit.editableExplainer")}</p>
-      </section>
-    </details>
+      <FormSection
+        heading={t("form.edit.editableHeading")}
+        bind:enabled={answersEditable}
+        explainer={t("form.edit.editableExplainer")}
+      />
+    </AdvancedFold>
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("datepoll.edit.localeHeading")}</h2>
-      <p class="muted section-explainer">{t("datepoll.edit.localeExplainer")}</p>
+    <FormSection
+      heading={t("datepoll.edit.localeHeading")}
+      explainer={t("datepoll.edit.localeExplainer")}
+    >
       <SelectField
         bind:value={pollLocale}
         options={[
@@ -690,7 +683,7 @@ async function submit(): Promise<void> {
         optionValue="value"
         fluid
       />
-    </section>
+    </FormSection>
   </FormPageShell>
 {/if}
 
