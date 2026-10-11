@@ -18,7 +18,17 @@ from backend.services import event_recurrence
 from backend.services.events import now_wallclock
 
 
-def _rule(starts_on, cycle_slots, *, period_weeks=1, span_weeks=None, horizon_days=90):
+def _rule(
+    starts_on,
+    cycle_slots,
+    *,
+    period_weeks=1,
+    span_weeks=None,
+    span_sessions=None,
+    span_until=None,
+    picked_dates=(),
+    horizon_days=90,
+):
     """A DB-free stand-in carrying just the rule attributes the pure
     enumeration reads."""
     return SimpleNamespace(
@@ -26,6 +36,9 @@ def _rule(starts_on, cycle_slots, *, period_weeks=1, span_weeks=None, horizon_da
         cycle_slots=cycle_slots,
         period_weeks=period_weeks,
         span_weeks=span_weeks,
+        span_sessions=span_sessions,
+        span_until=span_until,
+        picked_dates=list(picked_dates),
         horizon_days=horizon_days,
         start_time=time(19, 0),
         end_time=time(21, 0),
@@ -72,6 +85,35 @@ def test_cycle_week_one_is_the_week_the_event_starts():
     assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 8, 1, 9, 0))) == [
         thu + timedelta(weeks=2 * i) for i in range(5)
     ]
+
+
+def test_session_count_ends_after_that_many_times():
+    # "Every other Thursday, five times" needs no arithmetic in weeks.
+    thu = date(2026, 8, 27)
+    e = _rule(thu, cycle_slots=[thu.weekday()], period_weeks=2, span_sessions=5)
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 8, 1, 9, 0))) == [
+        thu + timedelta(weeks=2 * i) for i in range(5)
+    ]
+
+
+def test_end_date_is_the_last_day_it_may_fall_on():
+    thu = date(2026, 8, 27)
+    e = _rule(thu, cycle_slots=[thu.weekday()], period_weeks=2, span_until=thu + timedelta(weeks=8))
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 8, 1, 9, 0))) == [
+        thu + timedelta(weeks=2 * i) for i in range(5)
+    ]
+    assert event_recurrence.is_finite(e)
+
+
+def test_picked_dates_are_the_sessions():
+    e = _rule(date(2026, 9, 3), cycle_slots=[], picked_dates=["2026-10-01", "2026-09-03", "2026-09-17"])
+    assert _dates(event_recurrence.specs_to_materialise(e, datetime(2026, 8, 1, 9, 0))) == [
+        date(2026, 9, 3),
+        date(2026, 9, 17),
+        date(2026, 10, 1),
+    ]
+    assert event_recurrence.is_recurring(e)
+    assert event_recurrence.is_finite(e)
 
 
 # --- materialise ----------------------------------------------------------

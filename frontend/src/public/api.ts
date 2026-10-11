@@ -1,8 +1,9 @@
 /**
  * Bare-fetch API for the public sign-up mini-app. No Vue Query, no axios.
  *
- * The page loads by OCCURRENCE slug. Server injects the event content +
- * the occurrence context as ``window.__OPKOMST_EVENT__`` (PublicEvent);
+ * The page loads by the event's slug, one link for the whole series, and
+ * lands on its next session. Server injects the event content + that
+ * occurrence context as ``window.__OPKOMST_EVENT__`` (PublicEvent);
  * the sign-up form can book several occurrences at once. A booking is
  * managed afterwards by its own edit-link token (``?s=…``), which lists
  * the occurrences the person is on, each individually withdrawable.
@@ -13,7 +14,6 @@ import { inlinedSubmission } from "@/public_shared/submission";
  *  ``is_current`` marks the one whose page the visitor landed on. */
 export interface PublicOccurrence {
   id: string;
-  slug: string;
   index: number;
   starts_at: string;
   ends_at: string;
@@ -83,7 +83,6 @@ export interface SignupAck {
  *  ``is_past`` sessions are frozen history: shown locked, never editable. */
 export interface BookingOccurrence {
   occurrence_id: string;
-  slug: string;
   index: number;
   starts_at: string;
   ends_at: string;

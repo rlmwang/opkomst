@@ -33,7 +33,7 @@ const { event }: { event: EventListOut } = $props();
     >{event.location}</a>
     &middot;
   {/if}
-  {recurrenceHint(t, event)}
+  {recurrenceHint(t, event, locale())}
   {#if event.next_starts_at}
     &middot; {formatDateTime(event.next_starts_at, locale())}
   {:else}

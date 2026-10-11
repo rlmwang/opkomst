@@ -8,11 +8,15 @@ into ``Occurrence`` rows.
 
 The rule:
 
-- ``cycle_slots`` empty  -> a one-off: exactly one occurrence on
-  ``starts_on`` at ``start_time``.
+- ``cycle_slots`` and ``picked_dates`` empty -> a one-off: exactly one
+  occurrence on ``starts_on`` at ``start_time``.
+- ``picked_dates`` non-empty -> recurring on exactly those dates, which
+  the organiser chose one by one; ``starts_on`` is the first of them.
 - ``cycle_slots`` non-empty -> recurring: every date ``d >= starts_on``
-  where ``recurrence.occurs_on(d, ...)`` holds, bounded by the span
-  (``span_weeks`` weeks from ``starts_on``; ``None`` = open-ended).
+  where ``recurrence.occurs_on(d, ...)`` holds, ending by at most one of
+  ``span_weeks`` (that many weeks from ``starts_on``), ``span_sessions``
+  (that many dates) and ``span_until`` (no date after it); none of the
+  three = open-ended.
 
 Each occurrence's concrete datetimes are the pattern date combined with the
 event's shared ``start_time`` / ``end_time``. The "sessie i van N" ordinal
@@ -30,48 +34,64 @@ from sqlalchemy.orm import Session
 from ..models import EmailDispatch, Occurrence, Signup
 from . import tenancy
 from .recurrence import occurs_on
-from .slug import new_slug
 
 
 @dataclass(frozen=True, slots=True)
 class OccurrenceSpec:
     """One dated instance the rule produces, as materialised wall-clock
-    datetimes. Pure — no row, no slug, no ordinal (that is a row's rank)."""
+    datetimes. Pure — no row, no ordinal (that is a row's rank)."""
 
     starts_at: datetime
     ends_at: datetime
 
 
 def _span_end(event) -> date | None:
-    """The last calendar date the pattern may fall on, or ``None`` for an
-    open-ended event. ``span_weeks`` weeks from ``starts_on`` inclusive."""
-    if event.span_weeks is None:
-        return None
-    return event.starts_on + timedelta(days=event.span_weeks * 7 - 1)
+    """The last calendar date the pattern may fall on by date, or ``None``
+    when only a session count (or nothing) bounds it. ``span_weeks`` weeks
+    from ``starts_on`` inclusive, or ``span_until`` itself."""
+    if event.span_weeks is not None:
+        return event.starts_on + timedelta(days=event.span_weeks * 7 - 1)
+    return event.span_until
+
+
+def is_recurring(event) -> bool:
+    """More than a one-off: a weekly pattern or a set of picked dates."""
+    return bool(event.cycle_slots) or bool(event.picked_dates)
 
 
 def is_finite(event) -> bool:
-    """Whether the event has a bounded, known session list. A one-off
-    (``cycle_slots == []``) and any recurring event with a set ``span_weeks``
-    are finite; only an open-ended recurring event (``span_weeks is None``)
-    is not. A finite event materialises every session up front, ignoring the
-    horizon, so "6 sessies" always resolves to six findable rows."""
-    return not event.cycle_slots or event.span_weeks is not None
+    """Whether the event has a bounded, known session list. A one-off, a
+    set of picked dates and any pattern with an end are finite; only an
+    open-ended pattern is not. A finite event materialises
+    every session up front, ignoring the horizon, so "6 sessies" always
+    resolves to six findable rows."""
+    return (
+        not event.cycle_slots
+        or event.span_weeks is not None
+        or event.span_sessions is not None
+        or event.span_until is not None
+    )
 
 
 def _iter_dates(event) -> Iterator[date]:
     """Every date the rule produces, in ascending order. A one-off yields a
     single date (``starts_on``); a recurring event yields the cycle's dates,
-    finite when ``span_weeks`` is set and an unbounded generator otherwise
-    (callers break by date or count)."""
+    finite when it has an end and an unbounded generator otherwise (callers
+    break by date or count)."""
+    if event.picked_dates:
+        yield from sorted(date.fromisoformat(d) for d in event.picked_dates)
+        return
     if not event.cycle_slots:
         yield event.starts_on
         return
     span_end = _span_end(event)
+    left = event.span_sessions
     d = event.starts_on
-    while span_end is None or d <= span_end:
+    while (span_end is None or d <= span_end) and (left is None or left > 0):
         if occurs_on(d, cycle_slots=event.cycle_slots, period_weeks=event.period_weeks, starts_on=event.starts_on):
             yield d
+            if left is not None:
+                left -= 1
         d += timedelta(days=1)
 
 
@@ -107,9 +127,7 @@ def session_count(event) -> int:
 def total_sessions(event) -> int | None:
     """The "van N" total: the event's session count, or ``None`` for an
     open-ended recurring event, whose list never closes. A one-off is 1."""
-    if event.cycle_slots and event.span_weeks is None:
-        return None
-    return session_count(event)
+    return session_count(event) if is_finite(event) else None
 
 
 def _horizon_date(event, now: datetime) -> date:
@@ -174,7 +192,7 @@ def materialise(db: Session, event, now: datetime, *, include_past: bool = False
     itself and its single date is created wherever it sits, past or future.
     ``include_past=True`` overrides the skip so the seed can back-fill a
     running course's past sessions for the local demo."""
-    keep_past = include_past or not event.cycle_slots  # one-off: the single date is created anywhere
+    keep_past = include_past or not is_recurring(event)  # one-off: the single date is created anywhere
     existing = _existing_dates(db, event.id)
     created: list[Occurrence] = []
     for spec in specs_to_materialise(event, now):
@@ -184,7 +202,6 @@ def materialise(db: Session, event, now: datetime, *, include_past: bool = False
             continue
         occ = Occurrence(
             event_id=event.id,
-            slug=new_slug(),
             starts_at=spec.starts_at,
             ends_at=spec.ends_at,
         )
@@ -246,7 +263,7 @@ def reconcile(db: Session, event, now: datetime) -> None:
     migrated to the nearest new session in the gap between their surviving
     neighbours (or lost if there is none). No occurrence ever survives
     off-pattern. Does not commit."""
-    if not event.cycle_slots:
+    if not is_recurring(event):
         _reconcile_one_off(db, event, now)
         return
 

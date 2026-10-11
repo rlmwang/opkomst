@@ -84,7 +84,7 @@ def create_signup(
     data: SignupCreate,
     db: Session = Depends(get_db),
 ) -> SignupAck:
-    occurrence = events_svc.get_public_occurrence_by_slug(db, slug)
+    occurrence = events_svc.get_public_landing_occurrence(db, slug)
     if not occurrence:
         raise HTTPException(status_code=404, detail="Event not found")
     event = occurrence.event
@@ -215,7 +215,6 @@ def _booking_out(db: Session, registration: Registration) -> BookingOut:
         occurrences=[
             BookingOccurrenceOut(
                 occurrence_id=occ.id,
-                slug=occ.slug,
                 index=event_recurrence.session_index(event, occ),
                 starts_at=occ.starts_at,
                 ends_at=occ.ends_at,

@@ -3177,8 +3177,6 @@ export interface components {
             is_past: boolean;
             /** Occurrence Id */
             occurrence_id: string;
-            /** Slug */
-            slug: string;
             /**
              * Starts At
              * Format: date-time
@@ -4104,9 +4102,11 @@ export interface components {
          * EventCreate
          * @description Create/edit payload for an event definition. Carries the shared
          *     content and the recurrence rule (the roster's k-week cycle) — never a
-         *     single concrete date. A one-off is ``cycle_slots = []``; a recurring
-         *     event picks weekday slots on a ``period_weeks`` cycle, running for
-         *     ``span_weeks`` weeks (``None`` = open-ended). Concrete dates are
+         *     single concrete date. A one-off has neither ``cycle_slots`` nor
+         *     ``picked_dates``. A recurring event either lists its ``picked_dates``
+         *     or picks weekday slots on a ``period_weeks`` cycle, ending after
+         *     ``span_weeks`` weeks, ``span_sessions`` sessions or on ``span_until``
+         *     (none of the three = open-ended). Concrete dates are
          *     ``Occurrence`` rows the tick materialises.
          */
         EventCreate: {
@@ -4174,6 +4174,8 @@ export interface components {
              * @default 1
              */
             period_weeks: number;
+            /** Picked Dates */
+            picked_dates?: string[];
             /**
              * Reminder Enabled
              * @default false
@@ -4186,6 +4188,10 @@ export interface components {
             source_enabled: boolean;
             /** Source Options */
             source_options?: components["schemas"]["EventOptionIn"][];
+            /** Span Sessions */
+            span_sessions?: number | null;
+            /** Span Until */
+            span_until?: string | null;
             /** Span Weeks */
             span_weeks?: number | null;
             /**
@@ -4239,12 +4245,18 @@ export interface components {
             name_en: string | null;
             /** Name Nl */
             name_nl: string | null;
-            /** Next Slug */
-            next_slug: string | null;
             /** Next Starts At */
             next_starts_at: string | null;
             /** Period Weeks */
             period_weeks: number;
+            /** Picked Dates */
+            picked_dates: string[];
+            /** Slug */
+            slug: string;
+            /** Span Sessions */
+            span_sessions: number | null;
+            /** Span Until */
+            span_until: string | null;
             /** Span Weeks */
             span_weeks: number | null;
             /**
@@ -4338,12 +4350,12 @@ export interface components {
             name_nl: string | null;
             /** Name Required */
             name_required: boolean;
-            /** Next Slug */
-            next_slug: string | null;
             /** Next Starts At */
             next_starts_at: string | null;
             /** Period Weeks */
             period_weeks: number;
+            /** Picked Dates */
+            picked_dates: string[];
             /** Reminder Enabled */
             reminder_enabled: boolean;
             /** Slug */
@@ -4352,6 +4364,10 @@ export interface components {
             source_enabled: boolean;
             /** Source Options */
             source_options: components["schemas"]["EventOptionOut"][];
+            /** Span Sessions */
+            span_sessions: number | null;
+            /** Span Until */
+            span_until: string | null;
             /** Span Weeks */
             span_weeks: number | null;
             /**
@@ -4488,6 +4504,8 @@ export interface components {
              * @default 1
              */
             period_weeks: number;
+            /** Picked Dates */
+            picked_dates?: string[];
             /**
              * Reminder Enabled
              * @default false
@@ -4500,6 +4518,10 @@ export interface components {
             source_enabled: boolean;
             /** Source Options */
             source_options?: components["schemas"]["EventOptionIn"][];
+            /** Span Sessions */
+            span_sessions?: number | null;
+            /** Span Until */
+            span_until?: string | null;
             /** Span Weeks */
             span_weeks?: number | null;
             /**
@@ -5227,8 +5249,6 @@ export interface components {
             index: number;
             /** Signup Count */
             signup_count: number;
-            /** Slug */
-            slug: string;
             /**
              * Starts At
              * Format: date-time
@@ -5439,7 +5459,7 @@ export interface components {
         };
         /**
          * PublicEventOut
-         * @description The JSON the public per-occurrence sign-up page reads: the event
+         * @description The JSON the public sign-up page reads: the event
          *     content (read through the parent), the landing occurrence, the
          *     upcoming occurrences the visitor can also book, and the projected
          *     future dates shown as not-yet-open.
@@ -5552,8 +5572,6 @@ export interface components {
             index: number;
             /** Is Current */
             is_current: boolean;
-            /** Slug */
-            slug: string;
             /**
              * Starts At
              * Format: date-time

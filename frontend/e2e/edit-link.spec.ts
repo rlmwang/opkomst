@@ -41,15 +41,9 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   expect(eventRes.ok()).toBeTruthy();
   const event = await eventRes.json();
 
-  // Public page is per occurrence; use the first occurrence's slug.
-  const occRes = await request.get(`/api/v1/event/${event.id}/page`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const occSlug = (await occRes.json()).occurrences.occurrences[0].slug as string;
-
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(`/e/${occSlug}`);
+  await v.goto(`/e/${event.slug}`);
 
   await v.locator("input").first().fill("Anna Anoniem");
   const sourceTrigger = v.locator("button[aria-haspopup='listbox']");
@@ -67,7 +61,7 @@ test("visitor edits a signup via the magic link on the confirmation page", async
   // we wait out the render (the row mounts a beat after the "Bedankt!"
   // heading); a bare getAttribute reads once and loses that race.
   const editLink = v.locator(".link-row .link");
-  await expect(editLink).toHaveAttribute("href", new RegExp(`/e/${occSlug}\\?s=`));
+  await expect(editLink).toHaveAttribute("href", new RegExp(`/e/${event.slug}\\?s=`));
   const editUrl = (await editLink.getAttribute("href")) ?? "";
 
   // --- reopen the link: prior answer pre-filled, editable ---

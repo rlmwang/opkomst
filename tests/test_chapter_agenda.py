@@ -144,7 +144,7 @@ def test_unlisted_excluded_but_signup_still_resolves(db, client):
     _, j = _agenda(client, ch.slug)
     assert "Hidden" not in [x["name_nl"] for x in j["upcoming"]]
     # The direct sign-up API still resolves the event (per-occurrence slug).
-    assert client.get(f"/api/v1/event/by-slug/{first_occurrence(e).slug}").status_code == 200
+    assert client.get(f"/api/v1/event/by-slug/{e.slug}").status_code == 200
 
 
 def test_archived_excluded(db, client):

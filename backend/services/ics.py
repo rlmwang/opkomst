@@ -82,14 +82,14 @@ def _fmt_utc(dt: datetime) -> str:
 
 
 def build_occurrence_ics(occurrence: Occurrence, event: Event, *, public_base_url: str) -> str:
-    """Render a single-occurrence ``text/calendar`` payload. The public
-    page is per occurrence, so ``UID`` is the occurrence's stable id and
-    the DTSTART/DTEND are its concrete dates; the content (name, topic,
-    location, geo) is read through the event."""
+    """Render a single-occurrence ``text/calendar`` payload. ``UID`` is the
+    occurrence's stable id and the DTSTART/DTEND are its concrete dates;
+    the content (name, topic, location, geo) is read through the event,
+    and the link is the event's public page."""
     from ..config import settings
 
     domain = settings.message_id_domain
-    public_url = f"{public_base_url.rstrip('/')}/e/{occurrence.slug}"
+    public_url = f"{public_base_url.rstrip('/')}/e/{event.slug}"
     now = datetime.now(UTC)
 
     # DESCRIPTION combines the topic (if any) with the public URL,

@@ -30,9 +30,11 @@ class EventOptionOut(BaseModel):
 class EventCreate(BilingualTitleMixin):
     """Create/edit payload for an event definition. Carries the shared
     content and the recurrence rule (the roster's k-week cycle) — never a
-    single concrete date. A one-off is ``cycle_slots = []``; a recurring
-    event picks weekday slots on a ``period_weeks`` cycle, running for
-    ``span_weeks`` weeks (``None`` = open-ended). Concrete dates are
+    single concrete date. A one-off has neither ``cycle_slots`` nor
+    ``picked_dates``. A recurring event either lists its ``picked_dates``
+    or picks weekday slots on a ``period_weeks`` cycle, ending after
+    ``span_weeks`` weeks, ``span_sessions`` sessions or on ``span_until``
+    (none of the three = open-ended). Concrete dates are
     ``Occurrence`` rows the tick materialises."""
 
     # Chapter that owns the event. Validated in the router against the
@@ -55,13 +57,20 @@ class EventCreate(BilingualTitleMixin):
     # ``start_time`` / ``end_time`` are the shared wall-clock time of day.
     # ``period_weeks`` is the cycle length k. ``cycle_slots`` are the selected
     # weekday offsets (``week*7 + weekday``, Mon=0); ``[]`` is a one-off.
-    # ``span_weeks`` runs the pattern that many weeks; ``None`` = open-ended.
+    # How it ends is at most one of ``span_weeks`` (that many weeks),
+    # ``span_sessions`` (that many times) and ``span_until`` (the last
+    # date it may fall on); none of them = open-ended.
     starts_on: date
     start_time: time
     end_time: time
     period_weeks: int = Field(default=1, ge=1, le=8)
     cycle_slots: list[int] = Field(default_factory=list, max_length=64)
+    # Instead of a pattern, the dates themselves. ``starts_on`` becomes
+    # the first of them.
+    picked_dates: list[date] = Field(default_factory=list, max_length=104)
     span_weeks: int | None = Field(default=None, ge=1, le=520)
+    span_sessions: int | None = Field(default=None, ge=1, le=520)
+    span_until: date | None = None
     # How far ahead the tick materialises concrete occurrences + pages.
     horizon_days: int = Field(default=90, ge=1, le=730)
 
@@ -108,6 +117,26 @@ class EventCreate(BilingualTitleMixin):
     def _end_after_start(self) -> "EventCreate":
         if self.end_time <= self.start_time:
             raise ValueError("end_time must be after start_time")
+        return self
+
+    @model_validator(mode="after")
+    def _pattern_or_picked(self) -> "EventCreate":
+        if self.picked_dates and self.cycle_slots:
+            raise ValueError("Pick a pattern or dates, not both")
+        if self.picked_dates:
+            self.picked_dates = sorted(set(self.picked_dates))
+            self.starts_on = self.picked_dates[0]
+        return self
+
+    @model_validator(mode="after")
+    def _one_end(self) -> "EventCreate":
+        ends = [e for e in (self.span_weeks, self.span_sessions, self.span_until) if e is not None]
+        if len(ends) > 1:
+            raise ValueError("Pick one of span_weeks, span_sessions and span_until")
+        if ends and not self.cycle_slots:
+            raise ValueError("Only a pattern has an end; a one-off or picked dates end on their last date")
+        if self.span_until is not None and self.span_until < self.starts_on:
+            raise ValueError("span_until must not be before starts_on")
         return self
 
     @model_validator(mode="after")
@@ -172,6 +201,9 @@ class EventListOut(BaseModel):
     split the other five products already make."""
 
     id: str
+    # The public page is ``/e/{slug}``, one link for the whole series: the
+    # link and QR target on the dashboard card and the detail header.
+    slug: str
     name_nl: str | None
     name_en: str | None
     locale: Locale
@@ -186,19 +218,18 @@ class EventListOut(BaseModel):
     # the day the series began.
     starts_on: date
     start_time: time
-    # The recurrence, in the three numbers the "weekly, 6 weeks" hint
-    # reads. An empty ``cycle_slots`` is a one-off.
+    # The recurrence the "weekly, 6 weeks" hint reads. Neither
+    # ``cycle_slots`` nor ``picked_dates`` is a one-off.
     period_weeks: int
     cycle_slots: list[int]
+    picked_dates: list[date]
     span_weeks: int | None
+    span_sessions: int | None
+    span_until: date | None
     # Start of the soonest occurrence that hasn't ended yet — drives the
     # dashboard's "next: …" line and ordering. Null when every occurrence
     # is in the past (a finished course).
     next_starts_at: datetime | None
-    # Public slug of that first-upcoming occurrence (falls back to the most
-    # recent past one) — the link + QR target on the dashboard card and the
-    # detail header. Null only for an event with no occurrences at all.
-    next_slug: str | None
     # ``SUM(party_size)`` over the event's bookings (registrations) — how
     # many people have signed up for the course, each booking counted once
     # regardless of how many sessions it covers.
@@ -210,7 +241,6 @@ class EventOut(EventListOut):
     """Organiser-side event DTO: everything a row carries, plus the
     definition of the sign-up form itself."""
 
-    slug: str
     topic_nl: str | None
     topic_en: str | None
     end_time: time
@@ -232,7 +262,6 @@ class OccurrenceOut(BaseModel):
     """One materialised occurrence in the organiser's read-only list."""
 
     id: str
-    slug: str
     index: int
     starts_at: datetime
     ends_at: datetime
@@ -320,7 +349,6 @@ class PublicOccurrenceOut(BaseModel):
     landed on (pre-selected)."""
 
     id: str
-    slug: str
     index: int
     starts_at: datetime
     ends_at: datetime
@@ -328,7 +356,7 @@ class PublicOccurrenceOut(BaseModel):
 
 
 class PublicEventOut(BaseModel):
-    """The JSON the public per-occurrence sign-up page reads: the event
+    """The JSON the public sign-up page reads: the event
     content (read through the parent), the landing occurrence, the
     upcoming occurrences the visitor can also book, and the projected
     future dates shown as not-yet-open."""
@@ -434,7 +462,6 @@ class BookingOccurrenceOut(BaseModel):
     history (attended), rendered locked and never editable."""
 
     occurrence_id: str
-    slug: str
     index: int
     starts_at: datetime
     ends_at: datetime

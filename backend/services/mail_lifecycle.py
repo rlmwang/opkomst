@@ -178,13 +178,13 @@ def _osm_url(event: Event) -> str | None:
 
 
 def build_reminder_context(occurrence: Occurrence, event: Event, locale: str) -> dict[str, Any]:
-    """Reminder template context for one occurrence: its date/time and its
-    own public page, the content read through the event in the recipient's
+    """Reminder template context for one occurrence: its date/time and the
+    event's public page, the content read through the event in the recipient's
     ``locale`` (falling back to the other language). Public so the per-
     occurrence email preview can render without a real send path."""
     return {
         "event_name": pick_localized(event.name_nl, event.name_en, locale),
-        "event_url": build_url(f"e/{occurrence.slug}"),
+        "event_url": build_url(f"e/{event.slug}"),
         "topic": html_to_text(pick_localized(event.topic_nl, event.topic_en, locale)),
         "starts_at": occurrence.starts_at,
         "ends_at": occurrence.ends_at,
@@ -344,7 +344,7 @@ def _process_one(
             )
         )
         db.commit()
-        template_context["feedback_url"] = build_url(f"e/{occurrence.slug}/feedback", t=feedback_token)
+        template_context["feedback_url"] = build_url(f"e/{event.slug}/feedback", t=feedback_token)
 
     sent = send_with_retry(
         to=plaintext,

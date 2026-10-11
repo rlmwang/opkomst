@@ -53,13 +53,14 @@ def test_signup_list_only_exposes_name_and_size(client, organiser_headers):
         },
     )
     eid = r.json()["id"]
+    slug = r.json()["slug"]
     occ = client.get(f"/api/v1/event/{eid}/page", headers=organiser_headers).json()["occurrences"]["occurrences"][0]
     client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={
             "display_name": "Alice",
             "party_size": 2,
-            **public_option_ids(client, occ["slug"], source="F"),
+            **public_option_ids(client, slug, source="F"),
             "email": "alice@local.dev",
             "occurrence_ids": [occ["id"]],
         },

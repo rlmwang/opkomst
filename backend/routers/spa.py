@@ -167,8 +167,8 @@ def _og_head(
 
 
 def _build_head_meta(occurrence: Occurrence | None, slug: str, brand_slug: str) -> str:
-    """Per-occurrence link-preview ``<head>`` (the public page is per
-    occurrence). For unknown slugs (occurrence is None) only the bare site
+    """Link-preview ``<head>`` for an event's public page, dated by the
+    occurrence it lands on. For unknown slugs (occurrence is None) only the bare site
     title is emitted; sharing a 404 link is rare enough that elaborate
     fallback metadata isn't worth the bytes."""
     if occurrence is None:
@@ -529,7 +529,7 @@ def _app_head_meta(path: str, brand_slug: str) -> str:
 # turns its slug back into the entity that owns it. ``brand_slug_for``
 # is the one question a caller outside this module asks of it.
 _PUBLIC_RESOLVERS: dict[str, Callable[[Session, str], Any]] = {
-    "e": events_svc.get_occurrence_by_slug_any,
+    "e": events_svc.get_landing_occurrence_any,
     "f": partial(forms_svc.get_form_by_slug_any, mode="survey"),
     "q": partial(forms_svc.get_form_by_slug_any, mode="quiz"),
     # ``k`` for kompas, which is what the page calls itself: ``c`` is
@@ -581,7 +581,7 @@ def _serve_public_event(slug: str, db: Session, request: Request) -> HTMLRespons
     traffic.record("public_event")
     # Events render archived events with a banner, so inline the
     # archived event's payload (allow_archived) rather than null.
-    occurrence = _resolve_public(db, slug, events_svc.get_occurrence_by_slug_any)
+    occurrence = _resolve_public(db, slug, events_svc.get_landing_occurrence_any)
     payload = (
         json.loads(events_svc.build_public_event(db, occurrence).model_dump_json()) if occurrence is not None else None
     )

@@ -24,6 +24,7 @@ import { locale, t } from "@/i18n.svelte";
 import { downloadFile } from "@/lib/download";
 import { eventQrUrl, publicEventUrl } from "@/lib/event-urls";
 import { barWidth, formatAverage, formatDate, formatTimeRange } from "@/lib/format";
+import { isRecurring } from "@/lib/recurrence";
 import { tip } from "@/lib/tooltip";
 import { useToasts } from "@/lib/toasts";
 import { auth } from "@/stores/auth.svelte";
@@ -56,8 +57,8 @@ const occurrenceList = $derived(page?.occurrences ?? null);
 const occurrences = $derived(occurrenceList?.occurrences ?? []);
 const projected = $derived(occurrenceList?.projected ?? []);
 
-/** The session the header's public page and QR point at: the soonest
- *  one that has not ended, else the last one that ran. */
+/** The session the page opens on: the soonest one that has not ended,
+ *  else the last one that ran. The public link lands on the same one. */
 const primary = $derived(
   occurrences.find((o) => o.id === page?.primary_occurrence_id) ?? null,
 );
@@ -272,11 +273,11 @@ async function exportCsv(): Promise<void> {
       imageArtist={event.image_artist_instagram}
       imageHref={event.image_url}
       descriptionHtml={lt(event.topic_nl, event.topic_en)}
-      qrSrc={eventQrUrl(primary?.slug ?? "")}
-      publicUrl={primary ? publicEventUrl(primary.slug) : ""}
+      qrSrc={eventQrUrl(event.slug)}
+      publicUrl={publicEventUrl(event.slug)}
       editTo={`/event/${event.id}/edit`}
-      oncopyQr={() => primary && void share.copyQr(primary.slug)}
-      oncopyLink={() => primary && void share.copyLink(primary.slug)}
+      oncopyQr={() => void share.copyQr(event.slug)}
+      oncopyLink={() => void share.copyLink(event.slug)}
     >
       {#snippet meta()}
         <EventMetaLines {event} />
@@ -305,7 +306,7 @@ async function exportCsv(): Promise<void> {
               label={t("event.totalAttendees")}
               loadRows={recoverRows}
               recoverPath={(id) => `/api/v1/event/${eventId}/registrations/${id}/edit-link`}
-              publicUrl={(tok) => `${publicEventUrl(occ.slug)}?s=${tok}`}
+              publicUrl={(tok) => `${publicEventUrl(event.slug)}?s=${tok}`}
             />
           {/if}
         </div>
@@ -321,7 +322,7 @@ async function exportCsv(): Promise<void> {
         <!-- A recurring event gets a calendar of its sessions. Clicking
              a highlighted day switches which day's sign-ups and
              breakdowns show below, in the same shape a one-off uses. -->
-        {#if event.cycle_slots.length > 0 && occurrences.length > 0}
+        {#if isRecurring(event) && occurrences.length > 0}
           <MonthGrid
             bind:month={shownMonth.value}
             locale={locale()}
@@ -335,7 +336,7 @@ async function exportCsv(): Promise<void> {
         {/if}
 
         {#if selectedOccurrence}
-          {#if event.cycle_slots.length > 0}
+          {#if isRecurring(event)}
             <p class="day-caption">
               <span class="day-date">{formatDate(selectedOccurrence.starts_at, locale())}</span>
               <span class="muted">
@@ -458,17 +459,15 @@ async function exportCsv(): Promise<void> {
               disabled={!summary || summary.submission_count === 0}
               onclick={exportCsv}
             />
-            {#if primary}
-              <a href={`/e/${primary.slug}/feedback?t=preview`} target="_blank" rel="noopener">
-                <AppButton
-                  label={t("feedback.preview.open")}
-                  size="small"
-                  severity="secondary"
-                  text
-                  icon="eye"
-                />
-              </a>
-            {/if}
+            <a href={`/e/${event.slug}/feedback?t=preview`} target="_blank" rel="noopener">
+              <AppButton
+                label={t("feedback.preview.open")}
+                size="small"
+                severity="secondary"
+                text
+                icon="eye"
+              />
+            </a>
           </div>
         </div>
         {#if !summary || summary.submission_count === 0}

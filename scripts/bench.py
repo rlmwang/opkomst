@@ -260,7 +260,6 @@ def _fill_events(db, tenant, chapter_id, user_id, *, events: int, per_event: int
                 Occurrence(
                     id=occ_id,
                     event_id=event_id,
-                    slug=f"b{n:05d}{k}",
                     starts_at=datetime.combine(occ_date, time(19, 0)),
                     ends_at=datetime.combine(occ_date, time(21, 0)),
                     tenant_id=tenant.id,

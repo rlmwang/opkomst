@@ -27,7 +27,7 @@ from backend.database import Base, engine
 from backend.models import Chapter, Event, Tenant, User
 from backend.services import tenancy
 from tests._helpers.db_reset import TEST_TENANT_ID as _TEST_TENANT_ID
-from tests._helpers.events import page_occurrences, public_option_ids
+from tests._helpers.events import public_option_ids
 
 # ``tenants`` is the root: it doesn't point at itself.
 _ROOT_TABLE = "tenants"
@@ -93,14 +93,13 @@ def test_child_rows_never_disagree_with_their_parent(client, organiser_headers, 
         },
     )
     assert r.status_code == 201, r.text
-    event_id = r.json()["id"]
-    occ = page_occurrences(client, organiser_headers, event_id)[0]
+    slug = r.json()["slug"]
     ack = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{slug}/signups",
         json={
             "display_name": "Sam",
             "party_size": 2,
-            **public_option_ids(client, occ["slug"], source="Flyer"),
+            **public_option_ids(client, slug, source="Flyer"),
             "help_choices": [],
             "email": None,
             "all_upcoming": True,

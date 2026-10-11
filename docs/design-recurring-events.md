@@ -10,8 +10,14 @@ The same k-week cycle the chore rosters use, from
 inside it, where a slot is `week * 7 + weekday`. A one-off event is the
 degenerate case with no slots.
 
-`span_weeks` bounds a finite series ("eight weeks of this"). Without it
-the series is open-ended.
+A finite series ends one of three ways: after a number of weeks
+(`span_weeks`), after a number of sessions (`span_sessions`, "five
+times, every other week"), or on a last date (`span_until`). With none
+of them the series is open-ended.
+
+Instead of a pattern, the organiser can pick the dates themselves on the
+date planner's calendar (`picked_dates`). The first of them is the
+start, each is a session, and there is no end to choose.
 
 ## Materialisation
 
@@ -19,8 +25,8 @@ A finite series is materialised in full at save time. An open-ended one
 is materialised to a rolling horizon (`horizon_days`, default 90) and
 extended by `python -m backend.cli event-tick`.
 
-Occurrences are rows because they carry state: their own public slug,
-their own sign-ups, their own dispatch rows. A date computed on the fly
+Occurrences are rows because they carry state: their own sign-ups and
+their own dispatch rows. A date computed on the fly
 could not hold any of that.
 
 ## Editing
@@ -35,8 +41,10 @@ name, its description and its image through its parent.
 
 ## Signing up
 
-Each occurrence has its own public page at `/e/{occurrence-slug}`. A
-visitor can book several sessions in one go, and one booking holds one
+An event has one public page at `/e/{slug}`, for the whole series. It
+lands on the next session that has not ended, or the last one once they
+all have, so a link shared for last week's meeting still signs people
+up for the next one. A visitor can book several sessions in one go, and one booking holds one
 line item per session. "Every upcoming session" is resolved on the
 server, so a stale page cannot book a session that has already started.
 

@@ -96,7 +96,12 @@ function recoverFromStaleChunk(path: string, error: unknown): boolean {
     );
   if (!stale) return false;
   const key = `chunk-reload:${path}`;
-  if (sessionStorage.getItem(key)) return true; // already tried, avoid a loop
+  // Already reloaded once and still failing: not stale, a real fault,
+  // which the caller puts on screen instead of leaving the old page up.
+  if (sessionStorage.getItem(key)) {
+    sessionStorage.removeItem(key);
+    return false;
+  }
   sessionStorage.setItem(key, "1");
   window.location.assign(withBase(path));
   return true;

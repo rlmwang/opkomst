@@ -739,14 +739,23 @@
       "everyLead": "Repeats every",
       "everyTrail": "weeks",
       "everyWeeks": "Weeks in the pattern",
-      "gridExplainer": "Pick which days the event runs on."
+      "byPattern": "On a fixed pattern",
+      "byPicked": "On dates you pick",
+      "fillDates": "Pick at least one date"
     },
     "span": {
       "openEnded": "Ongoing, no end date",
       "openEndedHelp": "New sessions are scheduled automatically for as long as the event runs.",
-      "forLead": "For",
       "weeksTrail": "weeks",
-      "weeks": "Number of weeks"
+      "weeks": "Number of weeks",
+      "byWeeks": "Ends after a number of weeks",
+      "bySessions": "Ends after a number of times",
+      "byDate": "Ends on a date",
+      "sessions": "Number of times",
+      "sessionsTrail": "times",
+      "until": "Last date",
+      "fillUntil": "Pick the last date",
+      "untilAfterStart": "The last date is before the first"
     },
     "fillCycleSlots": "Pick at least one day in the grid",
     "recurrence": {
@@ -756,7 +765,9 @@
       "everyWeeks": "Every {n} weeks",
       "openEnded": "ongoing",
       "sessions": "{n} sessions",
-      "weeks": "{n} weeks"
+      "weeks": "{n} weeks",
+      "until": "until {date}",
+      "dates": "{n} dates"
     },
     "signupsHeading": "Sign-ups",
     "capUsage": "{n} of {cap} places",

@@ -739,14 +739,23 @@
       "everyLead": "Herhaalt elke",
       "everyTrail": "weken",
       "everyWeeks": "Aantal weken in het patroon",
-      "gridExplainer": "Kies op welke dagen het evenement plaatsvindt."
+      "byPattern": "Volgens een vast patroon",
+      "byPicked": "Op datums die je zelf kiest",
+      "fillDates": "Kies minstens één datum"
     },
     "span": {
       "openEnded": "Doorlopend, zonder einddatum",
       "openEndedHelp": "Nieuwe sessies worden automatisch ingepland zolang het evenement loopt.",
-      "forLead": "Gedurende",
       "weeksTrail": "weken",
-      "weeks": "Aantal weken"
+      "weeks": "Aantal weken",
+      "byWeeks": "Stopt na een aantal weken",
+      "bySessions": "Stopt na een aantal keer",
+      "byDate": "Stopt op een datum",
+      "sessions": "Aantal keer",
+      "sessionsTrail": "keer",
+      "until": "Laatste datum",
+      "fillUntil": "Kies de laatste datum",
+      "untilAfterStart": "De laatste datum ligt voor de eerste"
     },
     "fillCycleSlots": "Kies minstens één dag in het rooster",
     "recurrence": {
@@ -756,7 +765,9 @@
       "everyWeeks": "Elke {n} weken",
       "openEnded": "doorlopend",
       "sessions": "{n} sessies",
-      "weeks": "{n} weken"
+      "weeks": "{n} weken",
+      "until": "tot {date}",
+      "dates": "{n} datums"
     },
     "signupsHeading": "Aanmeldingen",
     "capUsage": "{n} van de {cap} plekken",

@@ -34,7 +34,7 @@ const query = events.archived({
     <p class="muted">
       {#if e.location}{e.location} · {/if}
       {formatDateTime(e.next_starts_at ?? `${e.starts_on}T${e.start_time}`, locale())} ·
-      {recurrenceHint(t, e)}
+      {recurrenceHint(t, e, locale())}
     </p>
   {/snippet}
 </ArchivedListPage>

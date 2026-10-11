@@ -44,7 +44,7 @@ def _create(client: Any, headers: dict[str, str], **overrides: Any):
 
 def _public(client: Any, event: dict[str, Any]) -> dict[str, Any]:
     """What the public sign-up page is handed for this event."""
-    r = client.get(f"/api/v1/event/by-slug/{event['next_slug']}")
+    r = client.get(f"/api/v1/event/by-slug/{event['slug']}")
     assert r.status_code == 200, r.text
     return r.json()
 
@@ -132,7 +132,7 @@ def test_an_answer_to_a_switched_off_question_is_refused(client, organiser_heade
         help_options=["Opbouwen"],
         help_enabled=False,
     ).json()
-    slug = created["next_slug"]
+    slug = created["slug"]
 
     refused_source = client.post(
         f"/api/v1/event/by-slug/{slug}/signups",

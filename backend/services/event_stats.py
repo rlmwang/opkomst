@@ -102,40 +102,17 @@ def occurrence_signup_counts(db: Session, occurrence_ids: list[str]) -> dict[str
     }
 
 
-def _next_occurrence(db: Session, event_ids: list[str], now: datetime) -> dict[str, tuple[datetime | None, str]]:
-    """``event_id -> (next_starts_at, link_slug)``. ``next_starts_at`` is the
-    soonest occurrence that hasn't ended (``None`` when every session is
-    past). ``link_slug`` is that same first-upcoming occurrence's public
-    slug, falling back to the most recent past occurrence's slug so the
-    dashboard card + detail header always have a working link/QR target."""
+def _next_starts_at(db: Session, event_ids: list[str], now: datetime) -> dict[str, datetime]:
+    """``event_id -> starts_at`` of the soonest occurrence that hasn't
+    ended. An event whose sessions are all past is absent."""
     if not event_ids:
         return {}
-    rows = (
-        db.query(Occurrence.event_id, Occurrence.starts_at, Occurrence.ends_at, Occurrence.slug)
-        .filter(Occurrence.event_id.in_(event_ids))
-        .all()
-    )
-    by_event: dict[str, list[tuple[datetime, datetime, str]]] = {}
-    for eid, starts, ends, slug in rows:
-        by_event.setdefault(eid, []).append((starts, ends, slug))
-    out: dict[str, tuple[datetime | None, str]] = {}
-    for eid, occs in by_event.items():
-        occs.sort(key=lambda t: t[0])
-        upcoming = [(s, slug) for s, e, slug in occs if e > now]
-        if upcoming:
-            out[eid] = (upcoming[0][0], upcoming[0][1])
-        else:
-            out[eid] = (None, occs[-1][2])  # all past: link to the most recent one
-    return out
-
-
-def link_slug(db: Session, event_id: str) -> str:
-    """The occurrence one event's share link points at, the same slug the
-    dashboard card and the detail header use. ``/e/{slug}`` is per
-    occurrence; an event's own slug is organiser-internal and is never a
-    public URL. Creating an event materialises at least its first
-    session, so there is always one to point at."""
-    return _next_occurrence(db, [event_id], now_wallclock())[event_id][1]
+    rows = db.execute(
+        select(Occurrence.event_id, func.min(Occurrence.starts_at))
+        .where(Occurrence.event_id.in_(event_ids), Occurrence.ends_at > now)
+        .group_by(Occurrence.event_id)
+    ).all()
+    return {eid: starts for eid, starts in rows}
 
 
 def _chapter_names(db: Session, chapter_ids: set[str]) -> dict[str, str]:
@@ -169,12 +146,12 @@ def _option_lists(db: Session, event_ids: list[str]) -> tuple[dict[str, list[Any
 
 def _derived(db: Session, events: Sequence[Any]) -> tuple[dict[str, str], dict[str, int], dict]:
     """The three batched lookups both enrichers need: chapter names,
-    booking headcount, and the next occurrence."""
+    booking headcount, and when the next occurrence starts."""
     event_ids = [e.id for e in events]
     return (
         _chapter_names(db, {e.chapter_id for e in events if e.chapter_id}),
         registration_totals(db, event_ids),
-        _next_occurrence(db, event_ids, now_wallclock()),
+        _next_starts_at(db, event_ids, now_wallclock()),
     )
 
 
@@ -184,6 +161,7 @@ def _derived(db: Session, events: Sequence[Any]) -> tuple[dict[str, str], dict[s
 # the response after a PUT cannot drift from the response to a GET.
 LIST_COLUMNS = (
     Event.id,
+    Event.slug,
     Event.name_nl,
     Event.name_en,
     Event.locale,
@@ -196,11 +174,13 @@ LIST_COLUMNS = (
     Event.start_time,
     Event.period_weeks,
     Event.cycle_slots,
+    Event.picked_dates,
     Event.span_weeks,
+    Event.span_sessions,
+    Event.span_until,
 )
 FULL_COLUMNS = (
     *LIST_COLUMNS,
-    Event.slug,
     Event.topic_nl,
     Event.topic_en,
     Event.end_time,
@@ -221,14 +201,14 @@ def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging)
     """The dashboard list, in one statement, one page at a time.
 
     Every card needs four things about its event: the row itself, its
-    chapter's name, how many people booked, and which session the share
-    link points at. Asked separately that is four round trips and three
+    chapter's name, how many people booked, and when its next session
+    starts. Asked separately that is four round trips and three
     dictionaries to stitch them back together in Python; asked together
     it is one, and the gap widens with the size of the list (measured
     2.2x at 800 events).
 
     **Nothing here joins a one-to-many directly.** The headcount is a
-    scalar subquery and each occurrence lookup is a ``LATERAL`` with
+    scalar subquery and the next-session lookup is a ``LATERAL`` with
     ``LIMIT 1``, so one event is one row. Joining ``registrations`` and
     ``occurrences` as plain joins would return a row per combination of
     the two, which reads as duplicate cards and, worse, an inflated
@@ -247,23 +227,13 @@ def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging)
         .scalar_subquery()
     )
     now = now_wallclock()
-    # The soonest session that has not ended: what the card counts down
-    # to, and the slug its share link and QR point at.
+    # The soonest session that has not ended: what the card counts down to.
     upcoming = (
-        select(Occurrence.starts_at, Occurrence.slug)
+        select(Occurrence.starts_at)
         .where(Occurrence.event_id == Event.id, Occurrence.ends_at > now)
         .order_by(Occurrence.starts_at.asc())
         .limit(1)
         .lateral("upcoming")
-    )
-    # Every session is past: there is no date to show, but the link still
-    # has to go somewhere, so it goes to the most recent one.
-    latest = (
-        select(Occurrence.slug.label("slug"))
-        .where(Occurrence.event_id == Event.id)
-        .order_by(Occurrence.starts_at.desc())
-        .limit(1)
-        .lateral("latest")
     )
     where = (
         access.list_filter(db, user, Event, chapter_id),
@@ -276,13 +246,10 @@ def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging)
             Chapter.name.label("chapter_name"),
             headcount.label("attendee_count"),
             upcoming.c.starts_at.label("next_starts_at"),
-            upcoming.c.slug.label("next_slug"),
-            latest.c.slug.label("latest_slug"),
         )
         .select_from(Event)
         .outerjoin(Chapter, and_(Chapter.id == Event.chapter_id, Chapter.deleted_at.is_(None)))
         .outerjoin(upcoming, true())
-        .outerjoin(latest, true())
         .where(*where)
         .order_by(upcoming.c.starts_at.asc().nulls_last(), Event.starts_on.desc())
         .limit(page.per_page)
@@ -307,9 +274,12 @@ def list_for_user(db: Session, user: User, chapter_id: str | None, page: Paging)
                 start_time=r.start_time,
                 period_weeks=r.period_weeks,
                 cycle_slots=r.cycle_slots,
+                picked_dates=r.picked_dates,
                 span_weeks=r.span_weeks,
+                span_sessions=r.span_sessions,
+                span_until=r.span_until,
+                slug=r.slug,
                 next_starts_at=r.next_starts_at,
-                next_slug=r.next_slug if r.next_slug is not None else r.latest_slug,
                 attendee_count=int(r.attendee_count or 0),
             )
             for r in rows
@@ -322,10 +292,11 @@ def list_enrich(db: Session, events: Sequence[Any]) -> list[EventListOut]:
     ``enrich``, minus every field only the event's own page reads."""
     if not events:
         return []
-    names, totals, next_occ = _derived(db, events)
+    names, totals, next_starts = _derived(db, events)
     return [
         EventListOut(
             id=e.id,
+            slug=e.slug,
             name_nl=e.name_nl,
             name_en=e.name_en,
             locale=e.locale,
@@ -339,9 +310,11 @@ def list_enrich(db: Session, events: Sequence[Any]) -> list[EventListOut]:
             start_time=e.start_time,
             period_weeks=e.period_weeks,
             cycle_slots=e.cycle_slots,
+            picked_dates=e.picked_dates,
             span_weeks=e.span_weeks,
-            next_starts_at=next_occ.get(e.id, (None, None))[0],
-            next_slug=next_occ.get(e.id, (None, None))[1],
+            span_sessions=e.span_sessions,
+            span_until=e.span_until,
+            next_starts_at=next_starts.get(e.id),
             attendee_count=int(totals.get(e.id, 0)),
         )
         for e in events
@@ -354,7 +327,7 @@ def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
     result."""
     if not events:
         return []
-    chapter_names, totals, next_occ = _derived(db, events)
+    chapter_names, totals, next_starts = _derived(db, events)
     sources, helps = _option_lists(db, [e.id for e in events])
 
     return [
@@ -373,7 +346,10 @@ def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
             end_time=e.end_time,
             period_weeks=e.period_weeks,
             cycle_slots=e.cycle_slots,
+            picked_dates=e.picked_dates,
             span_weeks=e.span_weeks,
+            span_sessions=e.span_sessions,
+            span_until=e.span_until,
             horizon_days=e.horizon_days,
             source_options=sources.get(e.id, []),
             source_enabled=e.source_enabled,
@@ -389,8 +365,7 @@ def enrich(db: Session, events: Sequence[Any]) -> list[EventOut]:
             chapter_name=chapter_names.get(e.chapter_id) if e.chapter_id else None,
             image_url=image_svc.public_url(e.image_path),
             image_artist_instagram=e.image_artist_instagram,
-            next_starts_at=next_occ.get(e.id, (None, None))[0],
-            next_slug=next_occ.get(e.id, (None, None))[1],
+            next_starts_at=next_starts.get(e.id),
             attendee_count=int(totals.get(e.id, 0)),
             archived=e.archived_at is not None,
         )
@@ -421,6 +396,7 @@ def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[EventLis
                 key: r[key]
                 for key in (
                     "id",
+                    "slug",
                     "name_nl",
                     "name_en",
                     "locale",
@@ -432,12 +408,14 @@ def archived_enrich(db: Session, rows: list[Mapping[str, Any]]) -> list[EventLis
                     "start_time",
                     "period_weeks",
                     "cycle_slots",
+                    "picked_dates",
                     "span_weeks",
+                    "span_sessions",
+                    "span_until",
                 )
             },
             chapter_name=names.get(r["chapter_id"]) if r["chapter_id"] else None,
             next_starts_at=None,
-            next_slug=None,
             attendee_count=totals.get(r["id"], 0),
             archived=True,
         )
@@ -552,7 +530,6 @@ def occurrence_signups_summary(db: Session, occurrence: Occurrence) -> list[Sign
 _OCCURRENCES_SQL = text(
     """
 SELECT id,
-       slug,
        starts_at,
        ends_at,
        first_value(id) OVER (
@@ -582,11 +559,10 @@ def occurrence_list(db: Session, event: Any) -> tuple[OccurrenceListOut, str | N
     # ``event_recurrence`` would reach back through ``event.occurrences``
     # and fetch the same rows a second time to number them.
     out = OccurrenceListOut(
-        total_sessions=None if (event.cycle_slots and event.span_weeks is None) else len(occs),
+        total_sessions=len(occs) if event_recurrence.is_finite(event) else None,
         occurrences=[
             OccurrenceOut(
                 id=o.id,
-                slug=o.slug,
                 index=i,
                 starts_at=o.starts_at,
                 ends_at=o.ends_at,

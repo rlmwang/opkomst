@@ -40,16 +40,16 @@ PUBLIC_BASE_URL = str(settings.public_base_url).rstrip("/")
 
 
 def _resolve_occurrence(db: Session, slug: str, *, allow_archived: bool = False) -> Occurrence:
-    """Resolve a slug to an occurrence (the public page is per occurrence),
-    its event eager-loaded. ``allow_archived=True`` for the public
+    """Resolve an event's slug to the occurrence its public page lands on,
+    the event eager-loaded. ``allow_archived=True`` for the public
     ``GET /by-slug`` so the page can render a soft "this event has been
     archived" state. Share surfaces (ICS, QR, previews) keep
     ``allow_archived=False`` — no point handing out a calendar invite for
     an archived event."""
     occurrence = (
-        events_svc.get_occurrence_by_slug_any(db, slug)
+        events_svc.get_landing_occurrence_any(db, slug)
         if allow_archived
-        else events_svc.get_public_occurrence_by_slug(db, slug)
+        else events_svc.get_public_landing_occurrence(db, slug)
     )
     if not occurrence:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -95,7 +95,7 @@ def get_event_ics(slug: str, db: Session = Depends(get_db)) -> Response:
         content=ics,
         media_type="text/calendar; charset=utf-8; method=PUBLISH",
         headers={
-            "Content-Disposition": f'attachment; filename="event-{occurrence.slug}.ics"',
+            "Content-Disposition": f'attachment; filename="event-{occurrence.event.slug}.ics"',
             "Cache-Control": "public, max-age=300",
         },
     )
@@ -105,7 +105,7 @@ def get_event_ics(slug: str, db: Session = Depends(get_db)) -> Response:
 def get_event_qr(slug: str, db: Session = Depends(get_db)) -> Response:
     occurrence = _resolve_occurrence(db, slug)
     return Response(
-        content=render_qr(f"{PUBLIC_BASE_URL}/e/{occurrence.slug}"),
+        content=render_qr(f"{PUBLIC_BASE_URL}/e/{occurrence.event.slug}"),
         media_type="image/svg+xml",
         # Browser-side cache complements the in-process LRU: 24h
         # turns repeat dashboard visits into 304 Not Modified.
@@ -123,7 +123,7 @@ def feedback_form_preview(slug: str, db: Session = Depends(get_db)) -> FeedbackF
 
     return FeedbackFormOut(
         event_name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
-        event_slug=occurrence.slug,
+        event_slug=event.slug,
         event_locale=event.locale,
         questions=[
             FeedbackQuestionOut(key=q.key, ordinal=q.ordinal, kind=q.kind, required=q.required) for q in QUESTIONS
@@ -144,7 +144,7 @@ def email_preview(slug: str, channel: str, db: Session = Depends(get_db)) -> Res
     cdef = mail_lifecycle.CHANNELS[ch]
     context = dict(cdef.context(occurrence, event, event.locale))
     if ch == EmailChannel.FEEDBACK:
-        context["feedback_url"] = build_url(f"e/{occurrence.slug}/feedback", t="preview")
+        context["feedback_url"] = build_url(f"e/{event.slug}/feedback", t="preview")
 
     _, html_body = render(cdef.template, context, locale=event.locale)
     return Response(content=html_body, media_type="text/html; charset=utf-8")
