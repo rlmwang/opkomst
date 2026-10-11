@@ -16,7 +16,7 @@ dependencies = [
     # JWT signing/verifying. ``pyjwt`` is the canonical library
     # and is actively maintained; ``python-jose`` has had security
     # advisories and lower commit cadence. Smaller wheel too.
-    "pyjwt>=2.10",
+    "pyjwt>=2.14",
     "structlog>=24",
     "cryptography>=44",
     # The QR endpoint serves SVG via ``qrcode.image.svg`` which is

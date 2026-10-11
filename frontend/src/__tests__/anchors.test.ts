@@ -3,7 +3,7 @@
  * it is rendered, the first in document order wins, and every name a
  * tour may use is one some component actually renders.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -61,11 +61,11 @@ describe("the anchor registry", () => {
 /** Every ``.svelte`` file under ``src``, read once. */
 function svelteSources(dir: string): string[] {
   const out: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const path = join(dir, entry);
-    if (statSync(path).isDirectory()) {
-      if (entry !== "node_modules") out.push(...svelteSources(path));
-    } else if (entry.endsWith(".svelte")) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "node_modules") out.push(...svelteSources(path));
+    } else if (entry.name.endsWith(".svelte")) {
       out.push(readFileSync(path, "utf8"));
     }
   }

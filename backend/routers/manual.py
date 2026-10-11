@@ -192,9 +192,7 @@ for _word in _WORDS:
 def picture(language: str, name: str) -> FileResponse:
     """A committed picture, cached the way the built assets are: it
     changes only with a deploy."""
-    if language not in manual.LANGUAGES or "/" in name or ".." in name:
-        raise HTTPException(status_code=404, detail="Not found")
-    path = manual.picture_path(language, name)
-    if not path.is_file():
+    path = manual.PICTURES.get((language, name))
+    if path is None:
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})

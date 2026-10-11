@@ -107,8 +107,12 @@ def picture_url(language: str, name: str) -> str:
     return f"/manual-pictures/{language}/{name}.png"
 
 
-def picture_path(language: str, name: str) -> pathlib.Path:
-    return MANUAL_DIR / language / "pictures" / f"{name}.png"
+# Every committed picture, by language and name, read once. A request
+# names a picture by looking it up here, so no path is ever built from
+# what the URL says.
+PICTURES: dict[tuple[str, str], pathlib.Path] = {
+    (language, path.stem): path for language in LANGUAGES for path in (MANUAL_DIR / language / "pictures").glob("*.png")
+}
 
 
 def _parse(language: str, path: pathlib.Path) -> Chapter:

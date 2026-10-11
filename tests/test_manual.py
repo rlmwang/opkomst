@@ -10,7 +10,7 @@ import textwrap
 import pytest
 
 from backend.services import manual
-from backend.services.manual import Chapter, picture_path
+from backend.services.manual import PICTURES, Chapter
 from backend.services.slug import RESERVED_SLUGS
 
 
@@ -93,7 +93,7 @@ def test_an_ordinary_link_is_not_a_picture() -> None:
 def test_every_picture_a_chapter_names_is_on_disk(language: str) -> None:
     for chapter in manual.CHAPTERS[language]:
         for name in chapter.pictures:
-            assert picture_path(language, name).is_file(), f"{language}/{chapter.slug} names {name}"
+            assert (language, name) in PICTURES, f"{language}/{chapter.slug} names {name}"
 
 
 def test_by_slug_finds_a_chapter_and_nothing_else() -> None:

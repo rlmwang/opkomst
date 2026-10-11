@@ -85,7 +85,9 @@ class _DiskFetcher(URLFetcher):  # type: ignore[misc]
     def fetch(self, url: str, headers: dict[str, str] | None = None) -> Any:
         if url.startswith("file:///manual-pictures/"):
             language, name = url[len("file:///manual-pictures/") :].split("/", 1)
-            path = manual.picture_path(language, name.removesuffix(".png"))
+            path = manual.PICTURES.get((language, name.removesuffix(".png")))
+            if path is None:
+                raise FileNotFoundError(url)
         elif url.startswith("file:///brand/"):
             path = brand_svc.BRANDS_DIR / url[len("file:///brand/") :]
         else:
