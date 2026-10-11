@@ -27,6 +27,7 @@ import { post } from "@/api/client";
 import { formatDate } from "@/lib/format";
 import { tip } from "@/lib/tooltip";
 import { useToasts } from "@/lib/toasts";
+import { anchor } from "@/tours/anchors.svelte";
 
 const {
   count,
@@ -94,7 +95,13 @@ async function confirmCopy() {
 }
 </script>
 
-<button type="button" class="count-pill rlp-pill" aria-label={t("recoverLink.open")} onclick={toggle}>
+<button
+  type="button"
+  class="count-pill rlp-pill"
+  aria-label={t("recoverLink.open")}
+  use:anchor={"details.recover"}
+  onclick={toggle}
+>
   <span class="count">{cap == null ? count : `${count} / ${cap}`}</span>
   <span class="label">{label}</span>
 </button>

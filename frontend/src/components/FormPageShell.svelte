@@ -6,6 +6,7 @@ import AppCard from "@/components/AppCard.svelte";
 import AppHeader from "@/components/AppHeader.svelte";
 import SupportButtons from "@/public_shared/SupportButtons.svelte";
 import { t } from "@/i18n.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 
 /**
  * Shared shell for "managed resource" edit pages — EventFormPage
@@ -52,12 +53,13 @@ const {
   <AppCard
     tag="form"
     novalidate
+    anchor="form.card"
     onsubmit={(e: SubmitEvent) => {
       e.preventDefault();
       onsubmit();
     }}
   >
-    <h1>{title}</h1>
+    <h1 use:anchor={"form.title"}>{title}</h1>
     {@render children()}
     <div class="form-footer">
       <!-- An aside, opposite the primary action: it asks, it does not
@@ -70,7 +72,7 @@ const {
         type="button"
         onclick={oncancel}
       />
-      <AppButton type="submit" label={submitLabel} loading={submitting} />
+      <AppButton type="submit" label={submitLabel} loading={submitting} anchor="form.submit" />
     </div>
   </AppCard>
 </div>

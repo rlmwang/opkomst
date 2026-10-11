@@ -1,5 +1,6 @@
 <script lang="ts">
 import AppButton from "@/components/AppButton.svelte";
+import { anchor } from "@/tours/anchors.svelte";
 import { tip } from "@/lib/tooltip";
 
 /**
@@ -48,7 +49,7 @@ const {
   {#if publicUrl}
     <div class="link-row">
       <a href={publicUrl} target="_blank" rel="noopener">{publicUrl}</a>
-      <span use:tip={copyLinkLabel}>
+      <span use:tip={copyLinkLabel} use:anchor={"share.link"}>
         <AppButton icon="copy" size="small" severity="secondary" text onclick={oncopyLink} />
       </span>
     </div>
@@ -58,6 +59,7 @@ const {
       type="button"
       class="qr-button"
       use:tip={copyQrLabel}
+      use:anchor={"share.qr"}
       aria-label={copyQrLabel}
       onclick={oncopyQr}
     >

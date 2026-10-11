@@ -1,0 +1,220 @@
+{#- The manual (``routers/manual.py``): the whole book on one page, in
+    the brand it is served under. The contents column on the left jumps
+    to a chapter's anchor; the PDF link sits at the top.
+
+    Its own template rather than a block in ``content.html``: it wears
+    the brand of the base it is served under, which the written pages
+    never do, and it has a contents column the written pages have no
+    use for. The footer is the same colophon.
+
+    The print rules are here too, so a person printing the page from
+    the browser gets the same page breaks and captions the PDF has,
+    minus the cover and the numbered contents. -#}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }} · {{ brand.app_name }}</title>
+  <meta name="description" content="{{ page_description }}">
+  <link rel="canonical" href="{{ canonical_url }}">
+  {% if noindex %}<meta name="robots" content="noindex, follow">{% endif %}
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ page_description }}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  <meta property="og:site_name" content="{{ brand.app_name }}">
+  {% if brand.favicon_absolute_url %}<meta property="og:image" content="{{ brand.favicon_absolute_url }}">{% endif %}
+  <meta name="twitter:card" content="summary">
+  <link rel="alternate" hreflang="{{ 'en' if language == 'nl' else 'nl' }}" href="{{ twin_path }}">
+  <style>{{ palette_css | safe }}</style>
+  {% if brand.favicon_url %}<link rel="icon" type="image/png" sizes="192x192" href="{{ brand.favicon_url }}">{% endif %}
+  <style>
+    html { scroll-behavior: auto; scroll-padding-top: 1rem; }
+    body {
+      margin: 0;
+      background: var(--brand-bg);
+      color: var(--brand-text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.55;
+    }
+    .wrap { max-width: 1024px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    .site-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2rem; }
+    .site-header img { width: 48px; height: 48px; display: block; border-radius: 10px; }
+    .site-header a { color: var(--brand-text); text-decoration: none; font-weight: 600; font-size: 1.125rem; }
+    .site-header .tagline { color: var(--brand-text-muted); font-size: 0.875rem; display: block; font-weight: 400; }
+    /* The language twin, at the top right where the switch sits on
+     * every other surface. */
+    .twin { margin-left: auto; font-size: 0.875rem; }
+    .twin a { color: var(--brand-text-muted); font-weight: 400; text-decoration: underline; }
+    /* The contents in a column on the left on a wide screen, kept in
+     * view while the chapters scroll past; above the text on a phone. */
+    .book { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: start; }
+    @media (min-width: 720px) {
+      .book { grid-template-columns: 16rem minmax(0, 1fr); }
+      .contents { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow-y: auto; }
+    }
+    .contents { font-size: 0.875rem; }
+    .contents h2 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--brand-text-muted); margin: 0 0 0.5rem; }
+    .contents ol { list-style: none; padding: 0; margin: 0; }
+    .contents li { margin: 0 0 0.375rem; }
+    .contents a { color: var(--brand-text); text-decoration: none; }
+    .contents a:hover { text-decoration: underline; }
+    .contents .number { color: var(--brand-text-muted); margin-right: 0.375rem; }
+    /* The title row: the book's name, and the PDF beside it. */
+    .title-row { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
+    .title-row h1 { margin: 0; }
+    .download { color: var(--brand-red); font-size: 0.875rem; }
+    h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 1rem; }
+    /* A chapter: its own heading with air above it, so a jump lands on
+     * a fresh start rather than on the tail of the chapter before. */
+    .chapter { padding-top: 2.5rem; margin-top: 2.5rem; border-top: 1px solid var(--brand-border); }
+    .chapter:first-of-type { padding-top: 1rem; margin-top: 1rem; }
+    .chapter h2 { font-size: 1.375rem; line-height: 1.25; margin: 0 0 0.75rem; }
+    .chapter h3 { font-size: 1.125rem; line-height: 1.3; margin: 2rem 0 0.5rem; }
+    .chapter h4 { font-size: 1rem; margin: 1.5rem 0 0.5rem; }
+    p, li { max-width: 42rem; }
+    ul, ol { padding-left: 1.25rem; }
+    li { margin: 0 0 0.375rem; }
+    a { color: var(--brand-red); }
+    .chapter h2 + p { font-size: 1.0625rem; color: var(--brand-text-muted); }
+    .muted { color: var(--brand-text-muted); font-size: 0.875rem; }
+    .note {
+      border: 1px solid var(--brand-border);
+      background: var(--brand-surface);
+      border-radius: 8px;
+      padding: 0.875rem 1rem;
+    }
+    /* A whole screen with one thing lit, at the column's width, its
+     * caption under it because a reader on paper cannot hover. */
+    figure { margin: 0.75rem 0 1.25rem; max-width: 42rem; }
+    figure img { display: block; width: 100%; height: auto; border: 1px solid var(--brand-border); border-radius: 6px; }
+    figcaption { font-size: 0.8125rem; color: var(--brand-text-muted); margin-top: 0.375rem; }
+    table { border-collapse: collapse; margin: 1rem 0; }
+    th, td { text-align: left; padding: 0.375rem 1rem 0.375rem 0; vertical-align: top; }
+    th { font-weight: 600; }
+    tr + tr td, tr + tr th { border-top: 1px solid var(--brand-border); }
+    .site-footer { margin-top: 3.5rem; color: var(--brand-text-muted); font-size: 0.8125rem; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 0.375rem 1.25rem; padding-top: 1rem; border-top: 1px solid var(--brand-border); }
+    .footer-links a { color: var(--brand-text-muted); text-decoration: none; }
+    .footer-links a:hover { text-decoration: underline; }
+    /* The advertising slot, the shape ``content.html`` has. */
+    .ad-rail { position: fixed; top: 50%; transform: translateY(-50%); width: 178px; }
+    .ad-rail-left { left: 16px; }
+    .ad-rail-right { right: 16px; }
+    .ad-banner { width: 338px; max-width: 100%; margin: 2.5rem auto 0; }
+    .ad-label { display: block; margin-bottom: 0.25rem; color: var(--brand-text-muted); font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: lowercase; opacity: 0.7; }
+    .ad-box { border: 1px dashed var(--brand-border); border-radius: 6px; padding: 8px; overflow: hidden; box-sizing: content-box; }
+    .rail-box { width: 160px; height: 600px; }
+    .banner-box { width: 320px; height: 50px; }
+    @media print {
+      .site-header, .contents, .site-footer, .twin, .download, .ad-rail, .ad-banner { display: none; }
+      .book { display: block; }
+      .chapter { break-before: page; border-top: none; padding-top: 0; }
+      figure { break-inside: avoid; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.8125rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="site-header">
+    {% if brand.logo_url %}<a href="{{ base or '/' }}"><img src="{{ brand.logo_url }}" alt=""></a>{% endif %}
+    <a href="{{ base or '/' }}">{{ brand.wordmark }}
+      {% if house and brand.tagline_nl %}<span class="tagline">{{ brand.tagline_nl if language == 'nl' else brand.tagline_en }}</span>{% endif %}
+    </a>
+    <span class="twin"><a href="{{ twin_path }}" hreflang="{{ 'en' if language == 'nl' else 'nl' }}">{{ labels.twin }}</a></span>
+  </header>
+
+  <div class="book">
+    <nav class="contents" aria-label="{{ labels.contents }}">
+      <h2>{{ labels.contents }}</h2>
+      <ol>
+        {% for c, _ in chapters %}
+        <li><a href="#{{ c.slug }}"><span class="number">{{ loop.index }}</span>{{ c.title }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+
+    <main>
+      <div class="title-row">
+        <h1>{{ labels.manual }}</h1>
+        <a class="download" href="{{ pdf_path }}">{{ labels.download }}</a>
+      </div>
+      <p>{{ page_description }}</p>
+      {% for c, body in chapters %}
+      <article class="chapter" id="{{ c.slug }}">
+        <h2>{{ loop.index }}. {{ c.title }}</h2>
+        {{ body | safe }}
+      </article>
+      {% endfor %}
+    </main>
+  </div>
+
+  {%- if ads %}
+  <div id="ad-slot"
+       data-client="{{ ads.client_id }}"
+       data-rail="{{ ads.rail_slot or '' }}"
+       data-banner="{{ ads.banner_slot or '' }}"></div>
+  <script nonce="{{ csp_nonce }}">
+    (function () {
+      var el = document.getElementById("ad-slot");
+      var client = el.getAttribute("data-client");
+      var wide = window.matchMedia("(min-width: 1236px)").matches;
+      var unit = wide ? el.getAttribute("data-rail") : el.getAttribute("data-banner");
+      if (!unit) { loadTag(); return; }
+      function fill(parent, size) {
+        var label = document.createElement("span");
+        label.className = "ad-label";
+        label.textContent = "Advertentie";
+        var box = document.createElement("div");
+        box.className = "ad-box " + size;
+        var ins = document.createElement("ins");
+        ins.className = "adsbygoogle";
+        ins.style.display = "block";
+        ins.style.width = "100%";
+        ins.style.height = "100%";
+        ins.setAttribute("data-ad-client", client);
+        ins.setAttribute("data-ad-slot", unit);
+        box.appendChild(ins);
+        parent.appendChild(label);
+        parent.appendChild(box);
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      }
+      if (wide) {
+        ["left", "right"].forEach(function (side) {
+          var rail = document.createElement("aside");
+          rail.className = "ad-rail ad-rail-" + side;
+          document.body.appendChild(rail);
+          fill(rail, "rail-box");
+        });
+      } else {
+        el.className = "ad-banner";
+        fill(el, "banner-box");
+      }
+      loadTag();
+      function loadTag() {
+        var tag = document.createElement("script");
+        tag.async = true;
+        tag.crossOrigin = "anonymous";
+        tag.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=" + encodeURIComponent(client);
+        document.head.appendChild(tag);
+      }
+    })();
+  </script>
+  {%- endif %}
+
+  <footer class="site-footer">
+    <nav class="footer-links" aria-label="{{ labels.footer_label }}">
+      <a href="/privacy">Privacy</a>
+      <a href="/voorwaarden">{{ 'Voorwaarden' if language == 'nl' else 'Terms' }}</a>
+      <a href="https://github.com/rlmwang/opkomst">{{ 'Broncode' if language == 'nl' else 'Source' }}</a>
+      <a href="https://github.com/rlmwang/opkomst/issues/new">Feedback</a>
+      {% if house %}<a href="/blog">Blog</a>{% endif %}
+      <a href="{{ path }}">{{ labels.manual }}</a>
+    </nav>
+    <p class="muted">{{ brand.app_name }}{% if house and brand.tagline_nl %} · {{ brand.tagline_nl if language == 'nl' else brand.tagline_en }}{% endif %}</p>
+  </footer>
+</div>
+</body>
+</html>

@@ -41,7 +41,7 @@ const link = useEditLink("e", () => slug);
 const editToken = link.editToken;
 const editing = editToken !== null;
 
-// Server-side-injected event payload (per-occurrence). Synchronous, no
+// Server-side-injected event payload. Synchronous, no
 // round-trip on first paint. ``null`` = unknown slug (render not-found);
 // ``undefined`` = dev mode without the SPA handler → fall back to fetch.
 const initial = window.__OPKOMST_EVENT__;
@@ -344,9 +344,9 @@ const calLinks = $derived.by(() => {
   const enc = encodeURIComponent;
   const utc = (iso: string) =>
     new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const publicUrl = `${window.location.origin}/e/${e.current.slug}`;
+  const publicUrl = `${window.location.origin}/e/${e.event_slug}`;
   const desc = [stripHtml(eventTopic ?? ""), publicUrl].filter(Boolean).join("\n\n");
-  const ics = `/api/v1/event/by-slug/${e.current.slug}/event.ics`;
+  const ics = `/api/v1/event/by-slug/${e.event_slug}/event.ics`;
   const google =
     `https://calendar.google.com/calendar/render?action=TEMPLATE` +
     `&text=${enc(eventTitle ?? "")}` +
@@ -409,7 +409,7 @@ async function submit() {
   }
   submitting = true;
   try {
-    const ack = await postSignup(event.current.slug, {
+    const ack = await postSignup(event.event_slug, {
       display_name: trimmedName || null,
       party_size: partySize,
       // Only answers to questions this page is actually asking. A

@@ -1,4 +1,6 @@
 <script module lang="ts">
+import type { AnchorName } from "@/tours/anchors.svelte";
+
 export interface Tile {
   key: string;
   to: string;
@@ -7,6 +9,8 @@ export interface Tile {
   /** Spans the row. For the one tile that acts on the organisation
    *  rather than on its programme. */
   wide?: boolean;
+  /** The name a tour lights this tile by. */
+  anchor?: AnchorName;
 }
 </script>
 
@@ -31,7 +35,7 @@ const { tiles, gap = "1rem" }: { tiles: Tile[]; gap?: string } = $props();
 
 <div class="tile-grid" style:gap>
   {#each tiles as tile (tile.key)}
-    <RouterLink to={tile.to} class={tile.wide ? "tile tile-wide" : "tile"}>
+    <RouterLink to={tile.to} anchor={tile.anchor} class={tile.wide ? "tile tile-wide" : "tile"}>
       <span class="tile-label">{tile.label}</span>
       <span class="tile-hint muted">{tile.hint}</span>
     </RouterLink>

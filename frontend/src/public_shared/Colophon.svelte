@@ -15,7 +15,7 @@
  * policy, the source and the way to report something belong on every
  * page, while our essays are not part of their identity.
  */
-import { isPersonalApp } from "@/lib/branding";
+import { brand, isPersonalApp } from "@/lib/branding";
 import { type Locale, GITHUB_ISSUE_URL, GITHUB_URL, chromeStrings } from "./strings";
 
 const {
@@ -31,8 +31,10 @@ const {
 
 const c = $derived(chromeStrings(locale));
 
-/** The written pages are ours, so they show on our own brand only. */
+/** The written pages are ours, so they show on our own brand only. The
+ *  manual is everybody's, under the base and in the language on screen. */
 const house = isPersonalApp();
+const manualHref = $derived(`${brand().app_base.replace(/\/$/, "")}/${locale === "nl" ? "handleiding" : "manual"}`);
 </script>
 
 <footer class="site-footer">
@@ -45,6 +47,7 @@ const house = isPersonalApp();
       {#if house}
         <a href="/blog">{c.footerBlog}</a>
       {/if}
+      <a href={manualHref}>{c.footerManual}</a>
     </nav>
   </div>
 </footer>

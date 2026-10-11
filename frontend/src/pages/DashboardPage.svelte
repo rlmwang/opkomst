@@ -77,11 +77,11 @@ async function submitOnboardingChapters(): Promise<void> {
   newPath="/event/new"
   newLabel={copy("newEvent")}
   detailsPath={(e) => `/event/${e.id}/details`}
-  publicUrl={(e) => (e.next_slug ? publicEventUrl(e.next_slug) : undefined)}
-  qrSrc={(e) => (e.next_slug ? eventQrUrl(e.next_slug) : undefined)}
+  publicUrl={(e) => publicEventUrl(e.slug)}
+  qrSrc={(e) => eventQrUrl(e.slug)}
   sharePrefix="event.share"
-  copyLink={(e) => e.next_slug && void share.copyLink(e.next_slug)}
-  copyQr={(e) => e.next_slug && void share.copyQr(e.next_slug)}
+  copyLink={(e) => void share.copyLink(e.slug)}
+  copyQr={(e) => void share.copyQr(e.slug)}
   prefetch={(id) => {
     // What the details page reads on mount, which is one request now,
     // so the click lands on a painted page.

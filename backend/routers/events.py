@@ -222,7 +222,10 @@ def update_event(
     event.end_time = data.end_time
     event.period_weeks = data.period_weeks
     event.cycle_slots = data.cycle_slots
+    event.picked_dates = [d.isoformat() for d in data.picked_dates]
     event.span_weeks = data.span_weeks
+    event.span_sessions = data.span_sessions
+    event.span_until = data.span_until
     event.horizon_days = data.horizon_days
     if not data.confirm_destructive:
         doomed = events_svc.count_destroyed_answers(db, event, data.source_options, data.help_options)
@@ -383,7 +386,10 @@ def _page_event(db: Session, event_id: str, user: User) -> Any:
         user,
         Event.id,
         Event.cycle_slots,
+        Event.picked_dates,
         Event.span_weeks,
+        Event.span_sessions,
+        Event.span_until,
         Event.period_weeks,
         Event.starts_on,
         Event.start_time,

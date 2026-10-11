@@ -58,7 +58,6 @@ def _seed_minimal_event_and_signup() -> str:
         occ = Occurrence(
             id="occ-tok",
             event_id="evt-tok",
-            slug="occslug-tok",
             starts_at=datetime(2026, 4, 28, 18, 0),
             ends_at=datetime(2026, 4, 28, 20, 0),
         )

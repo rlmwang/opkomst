@@ -245,7 +245,7 @@ def test_dropping_to_free_clears_the_toggles_and_the_queue(free, client, db) -> 
         json=_event_payload(reminder_enabled=True, feedback_enabled=True),
         headers=headers,
     ).json()
-    slug = first_occurrence(db.query(Event).filter(Event.id == created["id"]).one()).slug
+    slug = created["slug"]
     r = client.post(
         f"/api/v1/event/by-slug/{slug}/signups",
         json={"display_name": "Alice", "party_size": 1, "email": "alice@example.org", "all_upcoming": True},

@@ -22,10 +22,11 @@ A certified consent banner, because a publisher serving the EEA needs
 one. A visitor who refuses still sees an ad, served on page content
 rather than on a profile, priced lower.
 
-Ads sit in two rails beside the content column, on viewports wide
-enough to hold them, and nowhere else. Below that width nothing renders
-and no script loads. Never inside the reading column, never between a
-question and its answer.
+Ads sit in two rails beside the content column on a viewport wide
+enough to hold them, and in one banner at the foot of the page below
+that width. Never inside the reading column, never between a question
+and its answer. Without a client id nothing renders and no script
+loads at any width.
 
 ## When they load
 

@@ -56,7 +56,7 @@ const BASE = brand().app_base.replace(/\/$/, "");
 
 /** A path pattern to a matcher. ``:name`` captures one segment;
  *  ``*`` at the end catches everything left. */
-function compile(pattern: string): { re: RegExp; keys: string[] } {
+export function compile(pattern: string): { re: RegExp; keys: string[] } {
   const keys: string[] = [];
   const source = pattern
     .split("/")

@@ -155,9 +155,9 @@ def _create_event(client: Any, headers: Any, **overrides: Any) -> dict[str, Any]
 
 
 def _first_occurrence(client: Any, headers: Any, event: dict[str, Any]) -> dict[str, Any]:
-    """The event's first materialised occurrence — its public slug is the
-    per-occurrence sign-up target, its id the withdraw/target key."""
-    return page_occurrences(client, headers, event['id'])[0]
+    """The event's first materialised occurrence: its id is the
+    withdraw/target key."""
+    return page_occurrences(client, headers, event["id"])[0]
 
 
 def _occurrence_signups(client: Any, headers: Any, event: dict[str, Any]) -> list[dict[str, Any]]:
@@ -179,10 +179,9 @@ def _dispatch_count(event_id: str) -> int:
 
 def test_event_edit_roundtrip(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
-    picked = public_option_ids(client, occ["slug"], help_labels=("opbouwen",))
+    picked = public_option_ids(client, event["slug"], help_labels=("opbouwen",))
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 2, **picked, "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -205,14 +204,13 @@ def test_event_edit_changes_help_choices(client, organiser_headers):
     sign-up: the ticks are one set per booking, so a change rewrites the
     copy every line item carries and the organiser reads the new answer."""
     event = _create_event(client, organiser_headers, help_options=[{"label": "opbouwen"}, {"label": "afbreken"}])
-    occ = _first_occurrence(client, organiser_headers, event)
-    picked = public_option_ids(client, occ["slug"], help_labels=("opbouwen",))
+    picked = public_option_ids(client, event["slug"], help_labels=("opbouwen",))
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, **picked, "all_upcoming": True},
     ).json()["edit_token"]
 
-    both = public_option_ids(client, occ["slug"], help_labels=("opbouwen", "afbreken"))
+    both = public_option_ids(client, event["slug"], help_labels=("opbouwen", "afbreken"))
     r = client.put(
         f"/api/v1/event/by-token/{token}",
         json={"display_name": "Sam", "party_size": 1, **both},
@@ -235,9 +233,8 @@ def test_event_edit_changes_help_choices(client, organiser_headers):
 
 def test_event_edit_rejects_help_choice_the_event_does_not_have(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -250,9 +247,8 @@ def test_event_edit_rejects_help_choice_the_event_does_not_have(client, organise
 
 def test_event_edit_leaves_email_dispatches_untouched(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -340,14 +336,14 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
     finally:
         db.close()
     now = now_wallclock()
-    occs = page_occurrences(client, organiser_headers, event['id'])
+    occs = page_occurrences(client, organiser_headers, event["id"])
     past = [o for o in occs if datetime.fromisoformat(o["starts_at"]) <= now]
     future = [o for o in occs if datetime.fromisoformat(o["starts_at"]) > now]
     assert len(past) >= 2 and len(future) >= 3
 
     # Public sign-up for the first future session; grab the raw edit token.
     token = client.post(
-        f"/api/v1/event/by-slug/{future[0]['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "occurrence_ids": [future[0]["id"]]},
     ).json()["edit_token"]
 
@@ -390,9 +386,8 @@ def test_manage_recurring_booking_calendar(client, organiser_headers):
 
 def test_event_withdraw_deletes_signup(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -402,9 +397,8 @@ def test_event_withdraw_deletes_signup(client, organiser_headers):
 
 def test_event_withdraw_leaves_email_dispatches_intact(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     token = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "email": "sam@local.dev", "all_upcoming": True},
     ).json()["edit_token"]
 
@@ -441,9 +435,8 @@ def _recover(client: Any, headers: Any, path: str) -> str:
 
 def test_event_recovery_rotates_and_stamps(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     old = client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 2, "help_choices": [], "all_upcoming": True},
     ).json()["edit_token"]
     rows = _occurrence_signups(client, organiser_headers, event)
@@ -460,9 +453,8 @@ def test_event_recovery_rotates_and_stamps(client, organiser_headers):
 
 def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
     rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]
@@ -485,9 +477,8 @@ def test_event_recovery_stamp_survives_edits_and_updates_on_recopy(client, organ
 
 def test_event_recovery_requires_auth_and_scope(client, organiser_headers):
     event = _create_event(client, organiser_headers)
-    occ = _first_occurrence(client, organiser_headers, event)
     client.post(
-        f"/api/v1/event/by-slug/{occ['slug']}/signups",
+        f"/api/v1/event/by-slug/{event['slug']}/signups",
         json={"display_name": "Sam", "party_size": 1, "help_choices": [], "all_upcoming": True},
     )
     rid = _occurrence_signups(client, organiser_headers, event)[0]["registration_id"]

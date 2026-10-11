@@ -7,10 +7,12 @@ keeps out of an index.
 ## Indexed, and not
 
 Every public page an organiser hands out is a link somebody was given,
-not a page a search engine should list: `robots.txt` keeps
-`/e/`, `/f/`, `/d/`, `/c/`, `/k/` and `/q/` out, and the sitemap
-contains only the written pages, the root and the organisation front
-pages.
+not a page a search engine should list. Each of those pages carries a
+`noindex` meta tag, so a crawler that follows a shared link still
+leaves it out of the index. `robots.txt` keeps the API, the sign-in
+paths and the admin pages out of the crawl budget, and the sitemap
+lists only the root, the blog, the written pages, the policy and the
+root manual.
 
 The reason is not SEO hygiene. A sign-up page names an address, a date
 and often a chapter, and none of that is ours to publish.

@@ -71,6 +71,7 @@ def _user_out(db: Session, user: User) -> UserOut:
         tenant_kind=user.tenant.kind,
         participant_cap=limits.participant_cap(user.tenant),
         participant_mail=limits.can_send_participant_mail(user.tenant),
+        tour_offered=user.tour_offered_at is not None,
         chapters=[ChapterRef(id=c.id, name=c.name) for c in live_chapters],
         created_at=user.created_at,
     )
@@ -365,4 +366,20 @@ def login(request: Request, data: LoginRequest, db: Session = Depends(get_db)) -
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
+    return _user_out(db, user)
+
+
+@router.post("/tour-offer", response_model=UserOut)
+@limiter.limit(Limits.ORG_WRITE)
+def answer_tour_offer(
+    request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> UserOut:
+    """The landing page's one offer of a guided tour was answered, either
+    way. Sets the timestamp once; a second call leaves it. Nothing else
+    about the tour is ever recorded."""
+    if user.tour_offered_at is None:
+        user.tour_offered_at = datetime.now(UTC)
+        db.commit()
+        db.refresh(user)
+    logger.info("tour_offer_answered", user_id=user.id)
     return _user_out(db, user)

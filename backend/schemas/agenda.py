@@ -12,7 +12,7 @@ class OccurrenceCardOut(BaseModel):
     ``index`` + ``total_sessions`` drive the "sessie i van N" badge
     (``total_sessions`` null = open-ended series)."""
 
-    slug: str  # the occurrence's public slug (/e/{slug})
+    slug: str  # the event's public slug (/e/{slug})
     name_nl: str | None
     name_en: str | None
     topic_nl: str | None

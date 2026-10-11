@@ -9,6 +9,11 @@ import { APP_NAME } from "@/lib/branding";
 import { pendingCountQuery } from "@/composables/useAdmin.svelte";
 import { auth, logout } from "@/stores/auth.svelte";
 import { go, route } from "@/router/navigation.svelte";
+import { anchor } from "@/tours/anchors.svelte";
+import { manualChapterFor, tourFor } from "@/tours";
+import { brand } from "@/lib/branding";
+import { locale } from "@/i18n.svelte";
+import { start as startTour } from "@/stores/tour.svelte";
 
 // Pending-approval indicator — fired only when the actor is an
 // admin (organisers don't get the badge and shouldn't pay the
@@ -111,6 +116,27 @@ const triggerLabel = $derived(activeItem?.label ?? t("header.menu"));
 
 let navMenu = $state<AppPopover>();
 let navMenuOpen = $state(false);
+let menuTrigger = $state<HTMLButtonElement>();
+
+// Group three: help. The tour for the kind of page the person is on,
+// which the route says. Not offered to a member with no chapters: the
+// list shell they see renders none of the list's controls, so every
+// step would be dropped and the tour would end at once.
+const tourOffer = $derived(auth.isApproved && !auth.needsChapters ? tourFor(route.path) : null);
+// The manual's chapter for this page, in the brand and language on
+// screen. A server page, so a real link and not a route.
+const manualHref = $derived.by(() => {
+  const word = locale() === "nl" ? "handleiding" : "manual";
+  const base = `${brand().app_base.replace(/\/$/, "")}/${word}`;
+  const number = manualChapterFor(route.path);
+  const slug = number === null ? null : t(`manual.chapters.${number}`);
+  return slug ? `${base}#${slug}` : base;
+});
+function openTour() {
+  if (!tourOffer) return;
+  navMenu?.hide();
+  startTour(tourOffer.id, route.path, tourOffer.product, menuTrigger);
+}
 function toggleNavMenu(event: Event) {
   navMenu?.toggle(event);
 }
@@ -188,9 +214,9 @@ const hasSubtabs = $derived(subtabs.length > 0);
          so on phones it drops to a full-width row of its own instead of
          competing with the brand and the menu. -->
     {#if hasSubtabs}
-      <nav class="subtabs" aria-label={t("header.subnavLabel")}>
+      <nav class="subtabs" aria-label={t("header.subnavLabel")} use:anchor={"header.subtabs"}>
         {#each subtabs as s (s.to)}
-          <RouterLink to={s.to} class="subtab">
+          <RouterLink to={s.to} class="subtab" anchor={s.to.endsWith("/archived") ? "list.archived" : undefined}>
             {s.label}
             {#if s.badge}
               <span class="pending-badge" aria-label={t("header.pendingBadgeLabel", { n: s.badge })}>
@@ -213,6 +239,8 @@ const hasSubtabs = $derived(subtabs.length > 0);
         <button
           type="button"
           class="menu-trigger"
+          bind:this={menuTrigger}
+          use:anchor={"header.menu"}
           class:open={navMenuOpen}
           aria-haspopup="true"
           aria-expanded={navMenuOpen}
@@ -262,6 +290,13 @@ const hasSubtabs = $derived(subtabs.length > 0);
                 {/if}
               </button>
             {/each}
+            {#if auth.isApproved}
+              <span class="menu-rule" aria-hidden="true"></span>
+              {#if tourOffer}
+                <button type="button" class="menu-item" onclick={openTour}>{t("header.tour")}</button>
+              {/if}
+              <a class="menu-item" href={manualHref}>{t("header.manual")}</a>
+            {/if}
             <span class="menu-rule" aria-hidden="true"></span>
             <button type="button" class="menu-item menu-item-logout" onclick={signOut}>
               <AppIcon name="sign-out" />
@@ -433,9 +468,9 @@ const hasSubtabs = $derived(subtabs.length > 0);
 .menu-item-logout {
   color: var(--brand-text-muted);
 }
-/* Horizontal rule between the menu's three groups — workspaces,
- * organisation admin, session. Grouping is what keeps a
- * six-entry dropdown scannable. */
+/* Horizontal rule between the menu's groups: workspaces, organisation
+ * admin, help, session. Grouping is what keeps a long dropdown
+ * scannable. */
 .menu-rule {
   height: 1px;
   margin: 0.375rem 0.25rem;

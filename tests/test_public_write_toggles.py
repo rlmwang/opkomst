@@ -44,8 +44,6 @@ def _event(client: Any, headers: Any, **over: Any) -> dict[str, Any]:
     r = client.post("/api/v1/event", headers=headers, json=body)
     assert r.status_code == 201, r.text
     made = r.json()
-    listed = client.get(f"/api/v1/event/{made['id']}/page", headers=headers).json()["occurrences"]
-    made["_occurrence_slug"] = listed["occurrences"][0]["slug"]
     return made
 
 
@@ -103,11 +101,8 @@ def _roster(client: Any, headers: Any, **over: Any) -> dict[str, Any]:
 
 
 def _event_submit(client: Any, made: dict[str, Any], name: str | None) -> Any:
-    # A sign-up is per occurrence, and an occurrence has its own public
-    # slug; the organiser's occurrence list is where a test gets one.
-    slug = made["_occurrence_slug"]
     return client.post(
-        f"/api/v1/event/by-slug/{slug}/signups",
+        f"/api/v1/event/by-slug/{made['slug']}/signups",
         json={"display_name": name, "party_size": 1, "all_upcoming": True},
     )
 

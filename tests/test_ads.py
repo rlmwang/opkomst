@@ -36,11 +36,7 @@ def _script_hosts(html: str) -> set[str]:
     by searching for a domain: a page naming
     ``pagead2.googlesyndication.com.evil.test`` contains the string and
     loads nothing from Google."""
-    return {
-        host
-        for url in re.findall(r'["\'](https?://[^"\'\s]+)["\']', html)
-        if (host := urlparse(url).hostname)
-    }
+    return {host for url in re.findall(r'["\'](https?://[^"\'\s]+)["\']', html) if (host := urlparse(url).hostname)}
 
 
 def _csp_sources(csp: str) -> set[str]:
@@ -85,7 +81,9 @@ def configured(monkeypatch: pytest.MonkeyPatch):
             "adsense_slot_banner": "2222222222",
         }
     )
-    monkeypatch.setattr("backend.services.brand.settings", fake)
+    # ``services.brand`` reads ``config.settings`` when asked, not at
+    # import, so its half of the switch is the module attribute itself.
+    monkeypatch.setattr("backend.config.settings", fake)
     monkeypatch.setattr("backend.routers.spa.settings", fake)
     monkeypatch.setattr("backend.routers.root_files.settings", fake)
     monkeypatch.setattr("backend.routers.privacy.settings", fake)
@@ -285,3 +283,19 @@ def test_the_written_pages_and_the_component_agree_on_the_slot() -> None:
     for token in ('class="adsbygoogle"', "data-ad-client", "data-ad-slot"):
         assert token in unit, token
         assert token.replace('class="adsbygoogle"', '"adsbygoogle"') in page, token
+
+
+def test_the_root_manual_carries_the_slot(client, configured) -> None:
+    """The manual follows the written pages: one page of prose with
+    pictures (``docs/design-manual.md`` chapter 7)."""
+    page = client.get("/handleiding")
+    assert _script_hosts(page.text).issuperset({"pagead2.googlesyndication.com"})
+    assert _csp_sources(page.headers["content-security-policy"]).issuperset({"https://pagead2.googlesyndication.com"})
+
+
+def test_an_organisations_manual_carries_no_advertising(client, configured) -> None:
+    for path in ("/rsp/handleiding", "/rsp/manual"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert "googlesyndication" not in response.text
+        assert "googlesyndication" not in response.headers["content-security-policy"]

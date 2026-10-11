@@ -96,6 +96,9 @@ export interface ChromeStrings {
   footerFeedback: string;
   /** The link to ``/blog``, which lists the written pages. */
   footerBlog: string;
+  /** The link to the manual, in the language on screen. Every brand
+   *  gets it: the manual is the organisation's to read, unlike the blog. */
+  footerManual: string;
 }
 
 const chrome: Record<Locale, ChromeStrings> = {
@@ -141,6 +144,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     footerSource: "Broncode",
     footerFeedback: "Feedback",
     footerBlog: "Blog",
+    footerManual: "Handleiding",
   },
   en: {
     loading: "Loading…",
@@ -183,6 +187,7 @@ const chrome: Record<Locale, ChromeStrings> = {
     footerSource: "Source",
     footerFeedback: "Feedback",
     footerBlog: "Blog",
+    footerManual: "Manual",
   },
 };
 

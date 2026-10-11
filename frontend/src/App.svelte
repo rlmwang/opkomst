@@ -5,6 +5,8 @@ import SiteFooter from "@/components/SiteFooter.svelte";
 import AdSlot from "@/public_shared/AdSlot.svelte";
 import { locale } from "@/i18n.svelte";
 import { route } from "@/router/navigation.svelte";
+import * as tourStore from "@/stores/tour.svelte";
+import { tour } from "@/stores/tour.svelte";
 
 /**
  * The organiser app's shell: the page the router chose, with the toast
@@ -32,10 +34,27 @@ $effect(() => {
 });
 
 const Page = $derived(route.component);
+
+// The manual's shooting script (``frontend/e2e/shoot-manual.ts``) drives
+// the tour one step at a time through the store. Dev only: the build
+// strips it, and nothing else reads it.
+if (import.meta.env.DEV) {
+  (window as Window & { __opkomstTour?: typeof tourStore }).__opkomstTour = tourStore;
+}
 </script>
 
 <AppToast />
 <AppConfirmDialog />
+
+<!-- The guided tour's overlay, loaded only while a tour is running, so
+     the bundle does not grow for people who never take one. The store
+     is read at boot, so a tour mid-navigation resumes from here too. -->
+{#if tour.active}
+  {#await import("@/components/TourOverlay.svelte") then overlay}
+    {@const TourOverlay = overlay.default}
+    <TourOverlay />
+  {/await}
+{/if}
 
 <!-- The shell is a column as tall as the viewport and this is the part
      of it that grows, so the colophon lands on the bottom edge of the

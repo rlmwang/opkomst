@@ -36,6 +36,11 @@ class User(UUIDMixin, TimestampMixin, TenantMixin, Base):
     role: Mapped[str] = mapped_column(Text, nullable=False, default="organiser")
     is_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    # When the landing page's one offer of a guided tour was answered,
+    # either way (``docs/design-tour.md`` chapter 9). A fact about the
+    # person, so it lives on their row and is right on every device.
+    # The only thing the tour records.
+    tour_offered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     chapters: Mapped[list["Chapter"]] = relationship(  # noqa: F821
         secondary="user_chapters",

@@ -23,6 +23,7 @@
  */
 import type { Snippet } from "svelte";
 
+import { type AnchorName, anchor } from "@/tours/anchors.svelte";
 import AppIcon, { type IconName } from "./AppIcon.svelte";
 
 const {
@@ -35,6 +36,7 @@ const {
   loading,
   type = "button",
   ariaLabel,
+  anchor: anchorName,
   class: className,
   onclick,
   children,
@@ -53,6 +55,8 @@ const {
   /** What an icon-only button is called, for anything not looking at
    *  it. A labelled one names itself. */
   ariaLabel?: string;
+  /** The name a tour lights this button by (``tours/anchors``). */
+  anchor?: AnchorName;
   class?: string;
   onclick?: (event: MouseEvent) => void;
   children?: Snippet;
@@ -67,6 +71,7 @@ const {
   class:app-btn-icon-only={!label && !children}
   disabled={disabled || loading}
   aria-label={ariaLabel}
+  use:anchor={anchorName}
   {onclick}
 >
   {#if loading}

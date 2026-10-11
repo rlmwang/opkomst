@@ -2,9 +2,10 @@
 #
 # Multi-stage build:
 #   1. ``frontend-builder``  builds the front end into ``frontend/dist``.
-#   2. ``backend-runtime``   installs Python deps with ``uv``, copies the
-#                            backend source and the built SPA, and runs
-#                            uvicorn with multiple workers.
+#   2. ``manual-builder``    renders the manual's PDFs with WeasyPrint.
+#   3. ``backend-runtime``   installs Python deps with ``uv``, copies the
+#                            backend source, the built SPA and the PDFs,
+#                            and runs uvicorn with multiple workers.
 #
 # Build:
 #   docker build -t opkomst:latest .
@@ -37,7 +38,35 @@ COPY frontend/ ./
 RUN npm run build-only
 
 # ---------------------------------------------------------------------------
-# Stage 2 — Python runtime
+# Stage 2 — the manual's PDFs
+# ---------------------------------------------------------------------------
+# One file per brand and language, rendered by WeasyPrint from the same
+# chapters the web pages serve (``backend/manual_pdf.py``,
+# ``docs/design-manual.md`` chapter 8). Its own stage, so Pango, the
+# font and WeasyPrint never enter the runtime image: a render takes
+# seconds and none of it belongs in the request path. The entry point
+# reads the chapters, the pictures and ``brands/`` and nothing else, so
+# it needs no environment and no database.
+FROM python:3.13-slim AS manual-builder
+COPY --from=ghcr.io/astral-sh/uv:0.5.4 /uv /uvx /usr/local/bin/
+ENV UV_LINK_MODE=copy
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libharfbuzz-subset0 \
+        fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev --group manual
+COPY backend/ ./backend/
+COPY brands/ ./brands/
+RUN uv run --no-dev --group manual python -m backend.manual_pdf /app/pdf
+
+# ---------------------------------------------------------------------------
+# Stage 3 — Python runtime
 # ---------------------------------------------------------------------------
 # python:3.13-slim (Debian-based). Tried alpine — the image saves
 # ~100 MB but Coolify's first build with a new base downloaded
@@ -96,6 +125,10 @@ COPY scripts/ ./scripts/
 
 # SPA bundle into the location FastAPI's StaticFiles mount expects.
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+
+# The manual's PDFs, beside the bundle, where ``routers/manual.py``
+# serves them from.
+COPY --from=manual-builder /app/pdf ./frontend/dist/manual
 
 # Tenant brands — palette, logo, icons and manifest, served at
 # ``/brand/{tenant}/…`` and read by the head injection + email render.

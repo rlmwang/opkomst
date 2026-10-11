@@ -447,7 +447,7 @@ def _event(client: Any, headers: Any) -> Any:
 
 
 def _sign_up(client: Any, event: dict[str, Any], source: str, help_labels: tuple[str, ...]) -> None:
-    slug = event["next_slug"]
+    slug = event["slug"]
     r = client.post(
         f"/api/v1/event/by-slug/{slug}/signups",
         json={
@@ -461,7 +461,7 @@ def _sign_up(client: Any, event: dict[str, Any], source: str, help_labels: tuple
 
 
 def _breakdowns(client: Any, headers: Any, event: dict[str, Any]) -> tuple[dict[str, int], dict[str, int]]:
-    occ = page_occurrences(client, headers, event['id'])[0]
+    occ = page_occurrences(client, headers, event["id"])[0]
     stats = client.get(f"/api/v1/event/{event['id']}/occurrences/{occ['id']}/stats", headers=headers).json()
     return stats["by_source"], stats["by_help"]
 
@@ -519,7 +519,7 @@ def test_deleting_a_source_option_leaves_the_signup_standing(client, organiser_h
     sign-up along with the option would be worse than losing the answer."""
     event = _event(client, organiser_headers)
     _sign_up(client, event, "Flyer", ())
-    occ = page_occurrences(client, organiser_headers, event['id'])[0]
+    occ = page_occurrences(client, organiser_headers, event["id"])[0]
 
     def drop(full):
         full["source_options"] = [o for o in full["source_options"] if o["label"] != "Flyer"]

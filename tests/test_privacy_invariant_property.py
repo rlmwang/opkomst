@@ -99,7 +99,6 @@ def _seed(starts_at: datetime, ends_at: datetime) -> str:
         occ = Occurrence(
             id="occ-1",
             event_id="evt-1",
-            slug="occslug1",
             starts_at=starts_at.replace(tzinfo=None),
             ends_at=ends_at.replace(tzinfo=None),
         )

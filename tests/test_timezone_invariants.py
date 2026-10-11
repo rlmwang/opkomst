@@ -95,7 +95,6 @@ def _seed_event_and_signup(
         occ = Occurrence(
             id="occ-1",
             event_id="evt-1",
-            slug="occslug1",
             starts_at=starts_at,
             ends_at=ends,
         )

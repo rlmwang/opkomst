@@ -246,6 +246,7 @@ async function submit(): Promise<void> {
                 <AppButton
                   label={t("admin.approve")}
                   size="small"
+                  anchor="admin.approve"
                   disabled={!can(auth.user, "approve_user")}
                   onclick={() => openApprove(u)}
                 />

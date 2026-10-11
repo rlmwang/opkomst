@@ -32,7 +32,7 @@ from sqlalchemy.sql import Subquery
 from ..models import Chapter, Event, Occurrence, Tenant
 from ..schemas.agenda import ChapterAgendaOut, OccurrenceCardOut
 from ..schemas.chapters import ChapterPublicOut
-from . import event_stats
+from . import event_recurrence, event_stats
 from . import image as image_svc
 from .events import now_wallclock
 
@@ -55,7 +55,7 @@ def _listed_occurrences(chapter: Chapter) -> Subquery:
     ranked = (
         select(
             Occurrence.id,
-            Occurrence.slug,
+            Event.slug,
             Occurrence.starts_at,
             Occurrence.ends_at,
             Event.name_nl,
@@ -66,7 +66,10 @@ def _listed_occurrences(chapter: Chapter) -> Subquery:
             Event.image_path,
             Event.image_artist_instagram,
             Event.cycle_slots,
+            Event.picked_dates,
             Event.span_weeks,
+            Event.span_sessions,
+            Event.span_until,
             (func.row_number().over(partition_by=Occurrence.event_id, order_by=Occurrence.starts_at) - 1).label(
                 "session_index"
             ),
@@ -104,7 +107,7 @@ def _card(row, totals: dict[str, int]) -> OccurrenceCardOut:
         index=row.session_index,
         # An open-ended recurring event's list never closes, so it has no
         # "van N" (``event_recurrence.total_sessions``, same rule).
-        total_sessions=None if (row.cycle_slots and row.span_weeks is None) else row.session_count,
+        total_sessions=row.session_count if event_recurrence.is_finite(row) else None,
     )
 
 

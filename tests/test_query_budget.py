@@ -215,13 +215,13 @@ def _build_fixtures(client: Any, headers: Any) -> dict[str, str]:
     occurrences = page["occurrences"]["occurrences"]
     assert occurrences, "event fixture materialised no occurrence to measure against"
     ids["occurrence_id"] = occurrences[0]["id"]
-    ids["event_slug"] = occurrences[0]["slug"]
+    ids["event_slug"] = event["slug"]
     # Two sign-ups, so the headcount aggregates read more than one row.
     for name in ("Ada", "Bo"):
         client.post(
-            f"/api/v1/signups/{occurrences[0]['slug']}",
-            json={"name": name, "party_size": 2, "source": "Flyer", "help_choices": []},
-        )
+            f"/api/v1/event/by-slug/{event['slug']}/signups",
+            json={"display_name": name, "party_size": 2, "all_upcoming": True},
+        ).raise_for_status()
 
     for product, extra in (
         ("form", {}),

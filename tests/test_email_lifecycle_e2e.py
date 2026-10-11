@@ -9,7 +9,7 @@ clock fixture together. Verifies the privacy invariant
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from _helpers.events import first_occurrence, make_event
+from _helpers.events import make_event
 from _helpers.signups import get_dispatch, has_any_ciphertext
 
 from backend.database import SessionLocal
@@ -22,7 +22,7 @@ from backend.services import mail_lifecycle
 def _public_signup(client: Any, event: Any, *, email: str | None) -> Any:
     """Sign up on the event's first (public) occurrence, booking every
     upcoming session so the fixture stays a single-line-item booking."""
-    public = client.get(f"/api/v1/event/by-slug/{first_occurrence(event).slug}").json()
+    public = client.get(f"/api/v1/event/by-slug/{event.slug}").json()
     payload: dict[str, object] = {
         "display_name": "Alice",
         "party_size": 1,
@@ -31,7 +31,7 @@ def _public_signup(client: Any, event: Any, *, email: str | None) -> Any:
     }
     if email is not None:
         payload["email"] = email
-    return client.post(f"/api/v1/event/by-slug/{first_occurrence(event).slug}/signups", json=payload)
+    return client.post(f"/api/v1/event/by-slug/{event.slug}/signups", json=payload)
 
 
 def _signup_for_event(session: Any, event_id: str) -> Signup | None:

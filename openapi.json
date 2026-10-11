@@ -206,10 +206,6 @@
             "title": "Occurrence Id",
             "type": "string"
           },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -218,7 +214,6 @@
         },
         "required": [
           "occurrence_id",
-          "slug",
           "index",
           "starts_at",
           "ends_at",
@@ -2556,7 +2551,7 @@
         "type": "object"
       },
       "EventCreate": {
-        "description": "Create/edit payload for an event definition. Carries the shared\ncontent and the recurrence rule (the roster's k-week cycle) \u2014 never a\nsingle concrete date. A one-off is ``cycle_slots = []``; a recurring\nevent picks weekday slots on a ``period_weeks`` cycle, running for\n``span_weeks`` weeks (``None`` = open-ended). Concrete dates are\n``Occurrence`` rows the tick materialises.",
+        "description": "Create/edit payload for an event definition. Carries the shared\ncontent and the recurrence rule (the roster's k-week cycle) \u2014 never a\nsingle concrete date. A one-off has neither ``cycle_slots`` nor\n``picked_dates``. A recurring event either lists its ``picked_dates``\nor picks weekday slots on a ``period_weeks`` cycle, ending after\n``span_weeks`` weeks, ``span_sessions`` sessions or on ``span_until``\n(none of the three = open-ended). Concrete dates are\n``Occurrence`` rows the tick materialises.",
         "properties": {
           "answers_editable": {
             "default": true,
@@ -2711,6 +2706,15 @@
             "title": "Period Weeks",
             "type": "integer"
           },
+          "picked_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "maxItems": 104,
+            "title": "Picked Dates",
+            "type": "array"
+          },
           "reminder_enabled": {
             "default": false,
             "title": "Reminder Enabled",
@@ -2727,6 +2731,31 @@
             },
             "title": "Source Options",
             "type": "array"
+          },
+          "span_sessions": {
+            "anyOf": [
+              {
+                "maximum": 520.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Sessions"
+          },
+          "span_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Until"
           },
           "span_weeks": {
             "anyOf": [
@@ -2891,17 +2920,6 @@
             ],
             "title": "Name Nl"
           },
-          "next_slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Slug"
-          },
           "next_starts_at": {
             "anyOf": [
               {
@@ -2917,6 +2935,41 @@
           "period_weeks": {
             "title": "Period Weeks",
             "type": "integer"
+          },
+          "picked_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Picked Dates",
+            "type": "array"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "span_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Sessions"
+          },
+          "span_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Until"
           },
           "span_weeks": {
             "anyOf": [
@@ -2942,6 +2995,7 @@
         },
         "required": [
           "id",
+          "slug",
           "name_nl",
           "name_en",
           "locale",
@@ -2955,9 +3009,11 @@
           "start_time",
           "period_weeks",
           "cycle_slots",
+          "picked_dates",
           "span_weeks",
+          "span_sessions",
+          "span_until",
           "next_starts_at",
-          "next_slug",
           "attendee_count"
         ],
         "title": "EventListOut",
@@ -3174,17 +3230,6 @@
             "title": "Name Required",
             "type": "boolean"
           },
-          "next_slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next Slug"
-          },
           "next_starts_at": {
             "anyOf": [
               {
@@ -3200,6 +3245,14 @@
           "period_weeks": {
             "title": "Period Weeks",
             "type": "integer"
+          },
+          "picked_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Picked Dates",
+            "type": "array"
           },
           "reminder_enabled": {
             "title": "Reminder Enabled",
@@ -3219,6 +3272,29 @@
             },
             "title": "Source Options",
             "type": "array"
+          },
+          "span_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Sessions"
+          },
+          "span_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Until"
           },
           "span_weeks": {
             "anyOf": [
@@ -3266,6 +3342,7 @@
         },
         "required": [
           "id",
+          "slug",
           "name_nl",
           "name_en",
           "locale",
@@ -3279,11 +3356,12 @@
           "start_time",
           "period_weeks",
           "cycle_slots",
+          "picked_dates",
           "span_weeks",
+          "span_sessions",
+          "span_until",
           "next_starts_at",
-          "next_slug",
           "attendee_count",
-          "slug",
           "topic_nl",
           "topic_en",
           "end_time",
@@ -3544,6 +3622,15 @@
             "title": "Period Weeks",
             "type": "integer"
           },
+          "picked_dates": {
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "maxItems": 104,
+            "title": "Picked Dates",
+            "type": "array"
+          },
           "reminder_enabled": {
             "default": false,
             "title": "Reminder Enabled",
@@ -3560,6 +3647,31 @@
             },
             "title": "Source Options",
             "type": "array"
+          },
+          "span_sessions": {
+            "anyOf": [
+              {
+                "maximum": 520.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Sessions"
+          },
+          "span_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Until"
           },
           "span_weeks": {
             "anyOf": [
@@ -5470,10 +5582,6 @@
             "title": "Signup Count",
             "type": "integer"
           },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -5482,7 +5590,6 @@
         },
         "required": [
           "id",
-          "slug",
           "index",
           "starts_at",
           "ends_at",
@@ -5987,7 +6094,7 @@
         "type": "object"
       },
       "PublicEventOut": {
-        "description": "The JSON the public per-occurrence sign-up page reads: the event\ncontent (read through the parent), the landing occurrence, the\nupcoming occurrences the visitor can also book, and the projected\nfuture dates shown as not-yet-open.",
+        "description": "The JSON the public sign-up page reads: the event\ncontent (read through the parent), the landing occurrence, the\nupcoming occurrences the visitor can also book, and the projected\nfuture dates shown as not-yet-open.",
         "properties": {
           "answers_editable": {
             "title": "Answers Editable",
@@ -6341,10 +6448,6 @@
             "title": "Is Current",
             "type": "boolean"
           },
-          "slug": {
-            "title": "Slug",
-            "type": "string"
-          },
           "starts_at": {
             "format": "date-time",
             "title": "Starts At",
@@ -6353,7 +6456,6 @@
         },
         "required": [
           "id",
-          "slug",
           "index",
           "starts_at",
           "ends_at",
@@ -8073,6 +8175,10 @@
           "tenant_kind": {
             "title": "Tenant Kind",
             "type": "string"
+          },
+          "tour_offered": {
+            "title": "Tour Offered",
+            "type": "boolean"
           }
         },
         "required": [
@@ -8084,6 +8190,7 @@
           "tenant_kind",
           "participant_cap",
           "participant_mail",
+          "tour_offered",
           "chapters",
           "created_at"
         ],
@@ -8879,6 +8986,56 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/tour-offer": {
+      "post": {
+        "description": "The landing page's one offer of a guided tour was answered, either\nway. Sets the timestamp once; a second call leaves it. Nothing else\nabout the tour is ever recorded.",
+        "operationId": "answer_tour_offer_api_v1_auth_tour_offer_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Answer Tour Offer",
         "tags": [
           "auth"
         ]

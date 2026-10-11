@@ -11,7 +11,7 @@ Chapter-scoped lookups live in ``services.access``
 
 from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
@@ -462,12 +462,16 @@ def _roster_shift_facts(db: Session, roster_id: str) -> tuple[dict[str, int], se
     table's rows about one roster is a round trip spent on nothing."""
     loads: dict[str, int] = {}
     held: set[str] = set()
-    for volunteer_id, status in (
+    # ``volunteer_id IS NOT NULL`` is in the statement; the row type
+    # cannot carry that.
+    rows = cast(
+        list[tuple[str, str]],
         db.query(Shift.volunteer_id, Shift.status)
         .join(Chore, Chore.id == Shift.chore_id)
         .filter(Chore.roster_id == roster_id, Shift.volunteer_id.is_not(None))
-        .all()
-    ):
+        .all(),
+    )
+    for volunteer_id, status in rows:
         held.add(volunteer_id)
         if status in ("scheduled", "done"):
             loads[volunteer_id] = loads.get(volunteer_id, 0) + 1

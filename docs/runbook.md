@@ -233,6 +233,20 @@ dropped, check the migration history. One row that flipped
 `pending → sent → pending` would mean the conditional UPDATE
 stopped working, file a bug.
 
+## "A manual picture shows an old screen"
+
+Every picture in the manual is a screenshot of a tour step
+(`docs/design-manual.md` chapter 6), committed under
+`backend/manual/{nl,en}/pictures/`. A commit that changes a string or a
+layout a picture shows makes that picture wrong until it is reshot.
+
+Reshoot the whole set: with the dev database seeded and nothing on
+ports 8000 and 5173, run `make shoot-manual`. It signs in as the seeded
+accounts, makes one of everything in a throwaway personal account,
+drives each tour one step at a time, writes about 95 pictures per
+language, and deletes what it made. Four minutes. Commit the pictures
+with the change that made them stale.
+
 ## Backups
 
 Daily ``scripts/backup.sh`` runs from cron at 04:00 UTC. It pipes

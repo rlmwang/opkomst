@@ -90,7 +90,7 @@ if (initial === undefined) {
           <p class="muted">{t.emptyUpcoming}</p>
         {:else if upcoming.length}
           <div class="agenda-grid">
-            {#each upcoming as e (e.slug)}
+            {#each upcoming as e (`${e.slug}:${e.starts_at}`)}
               <EventCard event={e} {locale} />
             {/each}
           </div>
@@ -101,7 +101,7 @@ if (initial === undefined) {
         <section class="agenda-section">
           <h2 class="section-heading">{t.pastHeading}</h2>
           <div class="agenda-grid past-grid">
-            {#each past as e (e.slug)}
+            {#each past as e (`${e.slug}:${e.starts_at}`)}
               <EventCard event={e} {locale} past />
             {/each}
           </div>

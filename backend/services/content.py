@@ -30,6 +30,8 @@ from functools import cached_property
 
 import markdown
 
+from .frontmatter import parse
+
 CONTENT_DIR = pathlib.Path(__file__).resolve().parent.parent / "content"
 
 # ``tables`` for the two-column question tables, ``attr_list`` for the
@@ -67,22 +69,9 @@ class Page:
 
 
 def _parse(path: pathlib.Path) -> Page:
-    """One file into one page. The front matter is ``key: value`` lines
-    between two ``---`` fences: enough for five strings, and no YAML
-    parser to keep current."""
-    raw = path.read_text(encoding="utf-8")
-    if not raw.startswith("---\n"):
-        raise ValueError(f"{path.name}: no front matter")
-    front, _, body = raw[4:].partition("\n---\n")
-    meta: dict[str, str] = {}
-    for line in front.splitlines():
-        key, sep, value = line.partition(":")
-        if not sep:
-            raise ValueError(f"{path.name}: front-matter line without a colon: {line!r}")
-        meta[key.strip()] = value.strip()
-    missing = [key for key in _REQUIRED if key not in meta]
-    if missing:
-        raise ValueError(f"{path.name}: front matter is missing {', '.join(missing)}")
+    """One file into one page. The front matter parser is shared with
+    the manual (``services/frontmatter.py``)."""
+    meta, body = parse(path, _REQUIRED)
     return Page(
         slug=path.stem,
         title=meta["title"],
@@ -90,7 +79,7 @@ def _parse(path: pathlib.Path) -> Page:
         cta_path=meta["cta_path"],
         cta_label=meta["cta_label"],
         order=int(meta["order"]),
-        body=body.strip(),
+        body=body,
     )
 
 

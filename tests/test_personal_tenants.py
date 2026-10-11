@@ -190,7 +190,7 @@ def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch
     monkeypatch.setattr(limits, "MAX_PARTICIPANTS", 5)
     _, _, headers = personal
     created = client.post("/api/v1/event", json=_event_payload(), headers=headers)
-    slug = created.json()["next_slug"]
+    slug = created.json()["slug"]
 
     signup = {
         "display_name": "Aisha",
@@ -209,7 +209,7 @@ def test_a_party_counts_for_everyone_it_brings(client, personal, db, monkeypatch
 def test_an_organisations_event_has_no_participant_ceiling(client, organiser_headers, chapter_id, monkeypatch) -> None:
     monkeypatch.setattr(limits, "MAX_PARTICIPANTS", 1)
     created = client.post("/api/v1/event", json=_event_payload(chapter_id=chapter_id), headers=organiser_headers)
-    slug = created.json()["next_slug"]
+    slug = created.json()["slug"]
     signup = {
         "display_name": "Bo",
         "party_size": 3,

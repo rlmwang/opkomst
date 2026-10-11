@@ -59,13 +59,6 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   const event = await eventRes.json();
   expect(event.slug).toBeTruthy();
 
-  // The public page is per OCCURRENCE now; fetch the event's first
-  // materialised occurrence and use its slug for /e/{slug}.
-  const occRes = await request.get(`/api/v1/event/${event.id}/page`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const occSlug = (await occRes.json()).occurrences.occurrences[0].slug as string;
-
   // --- act: visitor opens the public link, fills + submits the form ---
   // The page now lives in its own mini-app
   // (``frontend/public-event.html`` + ``src/public/``) using
@@ -74,7 +67,7 @@ test("public visitor signs up for an event and sees the thanks state", async ({
   // popup). Selectors below match that shape.
   const visitor = await browser.newContext();
   const v = await visitor.newPage();
-  await v.goto(`/e/${occSlug}`);
+  await v.goto(`/e/${event.slug}`);
 
   // Display name input is the first field on the form. The form
   // is form-first-rendered: this input is interactive even before

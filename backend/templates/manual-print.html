@@ -1,0 +1,82 @@
+{#- The manual on paper (``backend/manual_pdf.py``): a cover, a table of
+    contents with page numbers the renderer computes, and the chapters
+    each on a fresh page, with a running footer. A4, 20mm margins, an
+    11pt body on a measure of about 65 characters, ragged right. -#}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <title>{{ labels.manual }} · {{ app_name }}</title>
+  <style>{{ palette_css | safe }}</style>
+  <style>
+    @page {
+      size: A4;
+      margin: 20mm;
+      @bottom-left { content: string(chapter); font-size: 9pt; color: #6b6259; }
+      @bottom-right { content: counter(page); font-size: 9pt; color: #6b6259; }
+    }
+    @page cover { @bottom-left { content: none; } @bottom-right { content: none; } }
+    body {
+      font-family: "DejaVu Sans", sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: var(--brand-text, #241f1c);
+      text-align: left;
+      hyphens: manual;
+    }
+    p, li, figcaption, td, th { max-width: 65ch; }
+    h1 { font-size: 20pt; line-height: 1.2; margin: 0 0 8pt; string-set: chapter content(); }
+    h2 { font-size: 14pt; line-height: 1.25; margin: 18pt 0 6pt; }
+    h3 { font-size: 12pt; margin: 14pt 0 4pt; }
+    a { color: var(--brand-red, #b3261e); text-decoration: none; }
+    /* Paper has no cursor: an outside link prints its address. */
+    a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 9pt; color: #6b6259; }
+    .note { border: 1px solid #e8dfd0; border-radius: 6pt; padding: 8pt 10pt; }
+    ol, ul { padding-left: 16pt; }
+    figure { margin: 8pt 0 12pt; break-inside: avoid; }
+    figure img { width: 100%; height: auto; border: 1px solid #e8dfd0; border-radius: 4pt; }
+    figcaption { font-size: 9pt; color: #6b6259; margin-top: 3pt; }
+    table { border-collapse: collapse; margin: 8pt 0; }
+    th, td { text-align: left; padding: 3pt 10pt 3pt 0; vertical-align: top; }
+    tr + tr td, tr + tr th { border-top: 1px solid #e8dfd0; }
+    .cover { page: cover; break-after: page; padding-top: 60mm; }
+    .cover img { width: 28mm; height: 28mm; display: block; margin-bottom: 12pt; }
+    .cover .wordmark { font-size: 16pt; font-weight: 600; margin: 0; }
+    .cover h1 { font-size: 32pt; margin: 24pt 0 6pt; string-set: none; }
+    .cover .built { color: #6b6259; }
+    .toc { break-after: page; }
+    .toc h1 { string-set: chapter content(); }
+    .toc ol { list-style: none; padding: 0; }
+    .toc li { display: flex; gap: 6pt; margin: 0 0 4pt; }
+    .toc .number { color: #6b6259; min-width: 16pt; }
+    .toc .title { flex: 1; }
+    .toc a::after { content: target-counter(attr(href), page); color: #6b6259; }
+    .chapter { break-before: page; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    {% if logo_url %}<img src="{{ logo_url }}" alt="">{% endif %}
+    <p class="wordmark">{{ wordmark }}</p>
+    <h1>{{ labels.manual }}</h1>
+    <p>{{ app_name }}</p>
+    <p class="built">{{ labels.built }} {{ built }}</p>
+  </section>
+
+  <section class="toc">
+    <h1>{{ labels.contents }}</h1>
+    <ol>
+      {% for chapter, _ in chapters %}
+      <li><span class="number">{{ loop.index }}</span><span class="title">{{ chapter.title }}</span><a href="#chapter-{{ chapter.number }}"></a></li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% for chapter, body in chapters %}
+  <article class="chapter" id="chapter-{{ chapter.number }}">
+    <h1>{{ loop.index }}. {{ chapter.title }}</h1>
+    {{ body | safe }}
+  </article>
+  {% endfor %}
+</body>
+</html>

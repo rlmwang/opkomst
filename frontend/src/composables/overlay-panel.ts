@@ -13,6 +13,10 @@ export interface PlacementOptions {
   matchAnchorWidth?: boolean;
   /** The gap between the anchor and the panel. Only the popover asks. */
   gutter?: number;
+  /** Which edge of the anchor the panel lines up with. A menu hangs
+   *  from the button's left edge; a callout under a wide card sits on
+   *  its middle. */
+  align?: "start" | "center";
 }
 
 export interface Placement {
@@ -40,14 +44,15 @@ export interface Placement {
 export function placePanel(
   anchor: HTMLElement,
   panel: HTMLElement,
-  { matchAnchorWidth = true, gutter = 0 }: PlacementOptions = {},
+  { matchAnchorWidth = true, gutter = 0, align = "start" }: PlacementOptions = {},
 ): Placement {
   const rect = anchor.getBoundingClientRect();
   const height = panel.offsetHeight;
   const width = panel.offsetWidth;
   const below = window.innerHeight - rect.bottom;
   const flipped = below < height + gutter + 8 && rect.top > height + gutter + 8;
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const wanted = align === "center" ? rect.left + rect.width / 2 - width / 2 : rect.left;
+  const left = Math.max(8, Math.min(wanted, window.innerWidth - width - 8));
   return {
     flipped,
     style: {

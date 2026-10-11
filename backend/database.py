@@ -114,7 +114,7 @@ def warmup() -> None:
             # Compile the slug-lookup query shape (the exact same
             # call ``_serve_public_event`` makes — this is the
             # one that was costing 4 s of handler time cold).
-            events_svc.get_occurrence_by_slug_any(db, "__warmup__")
+            events_svc.get_landing_occurrence_any(db, "__warmup__")
             # Other query shapes used by the dashboard / details
             # page on first navigation after login.
             db.query(Signup.occurrence_id).filter(Signup.occurrence_id == "_warmup_").limit(0).all()
@@ -147,7 +147,10 @@ def warmup() -> None:
             end_time="20:00:00",  # type: ignore[arg-type]
             period_weeks=1,
             cycle_slots=[],
+            picked_dates=[],
             span_weeks=None,
+            span_sessions=None,
+            span_until=None,
             horizon_days=90,
             source_options=[],
             help_options=[],
@@ -160,7 +163,6 @@ def warmup() -> None:
             image_url=None,
             image_artist_instagram=None,
             next_starts_at=None,
-            next_slug="__warmup__",
             attendee_count=0,
             archived=False,
         ).model_dump_json()

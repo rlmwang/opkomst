@@ -74,7 +74,13 @@ const {
     {#if descriptionHtml}<div class="richtext">{@html descriptionHtml}</div>{/if}
     <div class="edit-row">
       <RouterLink to={editTo}>
-        <AppButton label={t("common.edit")} icon="pencil" size="small" severity="secondary" />
+        <AppButton
+          label={t("common.edit")}
+          icon="pencil"
+          size="small"
+          severity="secondary"
+          anchor="details.edit"
+        />
       </RouterLink>
     </div>
   </div>

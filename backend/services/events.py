@@ -1,14 +1,16 @@
 """Event business logic shared across routers.
 
-The public sign-up page is per **occurrence** (``Occurrence.slug``), so
-public lookups resolve a slug to an occurrence and read the event content
-through it. Two flavours, mirroring the old event lookups:
+The public sign-up page is the **event's** (``/e/{Event.slug}``), one
+link for the whole series, and it lands on one occurrence: the next one
+that hasn't ended, or the last one once they all have. Public lookups
+resolve a slug to that landing occurrence and read the event content
+through it. Two flavours:
 
-* ``get_public_occurrence_by_slug`` — live-only (event not archived). The
+* ``get_public_landing_occurrence`` — live-only (event not archived). The
   signup POST gates on this so an archived event can't accept sign-ups.
-* ``get_occurrence_by_slug_any`` — returns occurrences of archived events
-  too, so the public page can render a soft "this event has been
-  archived" message instead of a generic 404.
+* ``get_landing_occurrence_any`` — archived events too, so the public
+  page can render a soft "this event has been archived" message instead
+  of a generic 404.
 """
 
 from collections.abc import Sequence
@@ -16,10 +18,10 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Occurrence, Signup, SignupHelpChoice
+from ..models import Event, Occurrence, Signup, SignupHelpChoice
 from ..schemas.events import EventOptionOut, ProjectedOccurrenceOut, PublicEventOut, PublicOccurrenceOut
 from . import event_recurrence, tenancy
 from . import image as image_svc
@@ -87,31 +89,43 @@ def now_wallclock() -> datetime:
     return datetime.now(_AMS).replace(tzinfo=None)
 
 
-def get_occurrence_by_slug_any(db: Session, slug: str) -> Occurrence | None:
-    """Any occurrence by slug, its event archived or not, with the event
-    eager-loaded. Public surfaces that want to render a soft "this event
-    is archived" message use this and check ``event.archived_at``.
+def get_landing_occurrence_any(db: Session, slug: str) -> Occurrence | None:
+    """The occurrence the event's public link lands on, its event archived
+    or not, with the event eager-loaded: the soonest session that hasn't
+    ended, else the most recent one. ``None`` when the slug names no event
+    or the event has no session. Public surfaces that want to render a
+    soft "this event is archived" message use this and check
+    ``event.archived_at``.
 
-    Binds the owning tenant: the public URL carries none, so the
-    occurrence behind the slug is what decides whose organisation this
-    request is in (branding included)."""
-    occ = db.query(Occurrence).options(joinedload(Occurrence.event)).filter(Occurrence.slug == slug).first()
+    Binds the owning tenant: the public URL carries none, so the event
+    behind the slug is what decides whose organisation this request is in
+    (branding included)."""
+    ended = Occurrence.ends_at <= now_wallclock()
+    occ = (
+        db.query(Occurrence)
+        .join(Event, Event.id == Occurrence.event_id)
+        .options(joinedload(Occurrence.event))
+        .filter(Event.slug == slug)
+        .order_by(ended, case((ended, None), else_=Occurrence.starts_at).asc(), Occurrence.starts_at.desc())
+        .first()
+    )
     if occ is not None:
         tenancy.bind(occ.tenant_id, occ.tenant.brand_slug)
     return occ
 
 
-def get_public_occurrence_by_slug(db: Session, slug: str) -> Occurrence | None:
-    """Live occurrence by slug (event not archived), event eager-loaded.
-    Returns None when the slug is unknown OR the event is archived."""
-    occ = get_occurrence_by_slug_any(db, slug)
+def get_public_landing_occurrence(db: Session, slug: str) -> Occurrence | None:
+    """The landing occurrence of a live event (not archived), event
+    eager-loaded. Returns None when the slug is unknown OR the event is
+    archived."""
+    occ = get_landing_occurrence_any(db, slug)
     if occ is None or occ.event.archived_at is not None:
         return None
     return occ
 
 
 def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
-    """The public per-occurrence sign-up DTO: the event content read
+    """The public sign-up DTO: the event content read
     through the parent, the landing occurrence, the other upcoming
     occurrences the visitor can also book (materialised, not yet ended),
     and the projected beyond-horizon dates shown as not-yet-open."""
@@ -146,11 +160,10 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         feedback_enabled=event.feedback_enabled,
         name_required=event.name_required,
         answers_editable=event.answers_editable,
-        is_recurring=bool(event.cycle_slots),
+        is_recurring=event_recurrence.is_recurring(event),
         total_sessions=event_recurrence.total_sessions(event),
         current=PublicOccurrenceOut(
             id=current.id,
-            slug=current.slug,
             index=event_recurrence.session_index(event, current),
             starts_at=current.starts_at,
             ends_at=current.ends_at,
@@ -159,7 +172,6 @@ def build_public_event(db: Session, current: Occurrence) -> PublicEventOut:
         upcoming=[
             PublicOccurrenceOut(
                 id=o.id,
-                slug=o.slug,
                 index=event_recurrence.session_index(event, o),
                 starts_at=o.starts_at,
                 ends_at=o.ends_at,

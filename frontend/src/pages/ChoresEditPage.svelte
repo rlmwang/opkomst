@@ -3,7 +3,8 @@ import AppButton from "@/components/AppButton.svelte";
 import AppCard from "@/components/AppCard.svelte";
 import AppHeader from "@/components/AppHeader.svelte";
 import AppInput from "@/components/AppInput.svelte";
-import AppToggle from "@/components/AppToggle.svelte";
+import AdvancedFold from "@/components/AdvancedFold.svelte";
+import FormSection from "@/components/FormSection.svelte";
 import ChoreEditor, { type ChoreDraft } from "@/components/ChoreEditor.svelte";
 import DatePicker from "@/components/DatePicker.svelte";
 import { DEFAULT_CHORE_EMOJI, firstUnusedEmoji } from "@/components/EmojiPicker.svelte";
@@ -82,7 +83,6 @@ let rosterLocale = $state<"nl" | "en">(locale() === "en" ? "en" : "nl");
 let nameRequired = $state(false);
 /** The switches sit behind one fold, the same one every other edit page
  *  ends with, and it starts closed every time. */
-let advancedOpen = $state(false);
 let periodWeeks = $state(1);
 let startsOn = $state<Date | null>(null);
 let endsOn = $state<Date | null>(null);
@@ -393,7 +393,7 @@ async function submit(): Promise<void> {
     onsubmit={submit}
     oncancel={cancel}
   >
-    <section class="form-section">
+    <FormSection anchor="form.section.first">
       {#if start.active}<StartAccountField bind:value={start.email} />{/if}
       <AppInput
         bind:value={title.value}
@@ -416,7 +416,7 @@ async function submit(): Promise<void> {
           fluid
         />
       {/if}
-    </section>
+    </FormSection>
 
     <!-- Uploading writes to the row it belongs to, which takes a
          session the visitor does not have yet. -->
@@ -430,10 +430,10 @@ async function submit(): Promise<void> {
       />
     {/if}
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("chore.edit.recurrenceHeading")}</h2>
-      <p class="muted section-explainer">{t("chore.edit.recurrenceExplainer")}</p>
-
+    <FormSection
+      heading={t("chore.edit.recurrenceHeading")}
+      explainer={t("chore.edit.recurrenceExplainer")}
+    >
       <div class="stepper-row">
         <NumberStepper
           bind:value={periodWeeks}
@@ -464,12 +464,13 @@ async function submit(): Promise<void> {
           />
         </div>
       </div>
-    </section>
+    </FormSection>
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("chore.edit.choresHeading")}</h2>
-      <p class="muted section-explainer">{t("chore.edit.choresExplainer")}</p>
-
+    <FormSection
+      heading={t("chore.edit.choresHeading")}
+      explainer={t("chore.edit.choresExplainer")}
+      anchor="form.section.own"
+    >
       {#if choreList.items.length === 0}
         <div class="empty muted">{t("chore.edit.noChoresYet")}</div>
       {/if}
@@ -496,40 +497,31 @@ async function submit(): Promise<void> {
         severity="secondary"
         onclick={addChore}
       />
-    </section>
+    </FormSection>
 
     <!-- Every switch, folded away: the thing itself above it, the page
          language below. One fold on all six products. -->
-    <details
-      class="advanced"
-      open={advancedOpen}
-      ontoggle={(e) => (advancedOpen = (e.target as HTMLDetailsElement).open)}
-    >
-      <summary>{advancedOpen ? t("common.advancedHide") : t("common.advancedShow")}</summary>
-
+    <AdvancedFold>
       <!-- Off by default: a name real or not is what the contract
            offers, so an empty box is an answer. A roster is the one
            place a nameless sign-up is hard to use, which makes this the
            switch an organiser is likeliest to reach for. -->
-      <section class="form-section">
-        <label class="toggle-row" for="nameRequiredToggle">
-          <AppToggle bind:checked={nameRequired} inputId="nameRequiredToggle" />
-          <h2 class="section-heading">{t("common.nameRequired")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("common.nameRequiredExplainer")}</p>
-      </section>
+      <FormSection
+        heading={t("common.nameRequired")}
+        bind:enabled={nameRequired}
+        explainer={t("common.nameRequiredExplainer")}
+        anchor="form.fold.first"
+      />
 
       <!-- Mailing volunteers is the paid plan
            (docs/design-paywall.md). A free roster keeps its page and its
            calendar, so the section is not here at all. -->
       {#if auth.participantMail}
-        <section class="form-section">
-          <label class="toggle-row" for="reminderToggle">
-            <AppToggle bind:checked={reminderEnabled} inputId="reminderToggle" />
-            <h2 class="section-heading">{t("chore.edit.reminderEnabled")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("chore.edit.remindersExplainer")}</p>
-
+        <FormSection
+          heading={t("chore.edit.reminderEnabled")}
+          bind:enabled={reminderEnabled}
+          explainer={t("chore.edit.remindersExplainer")}
+        >
           {#if reminderEnabled}
             <div class="field">
               <span class="field-label">{t("chore.edit.reminderDaysBefore")}</span>
@@ -541,26 +533,28 @@ async function submit(): Promise<void> {
               />
             </div>
           {/if}
-        </section>
+        </FormSection>
       {/if}
 
       <!-- How far ahead the schedule is pinned. A setting rather than
            part of the roster, so it belongs with the switches. -->
-      <section class="form-section">
-        <h2 class="section-heading">{t("chore.edit.commitHorizonDays")}</h2>
-        <p class="muted section-explainer">{t("chore.edit.commitHorizonHint")}</p>
+      <FormSection
+        heading={t("chore.edit.commitHorizonDays")}
+        explainer={t("chore.edit.commitHorizonHint")}
+      >
         <NumberStepper
           bind:value={commitHorizonDays}
           min={reminderEnabled ? reminderDaysBefore : 1}
           max={365}
           ariaLabel={t("chore.edit.commitHorizonDays")}
         />
-      </section>
-    </details>
+      </FormSection>
+    </AdvancedFold>
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("chore.edit.languageHeading")}</h2>
-      <p class="muted section-explainer">{t("chore.edit.languageExplainer")}</p>
+    <FormSection
+      heading={t("chore.edit.languageHeading")}
+      explainer={t("chore.edit.languageExplainer")}
+    >
       <SelectField
         bind:value={rosterLocale}
         options={localeOptions}
@@ -568,7 +562,7 @@ async function submit(): Promise<void> {
         optionValue="value"
         fluid
       />
-    </section>
+    </FormSection>
   </FormPageShell>
 {/if}
 

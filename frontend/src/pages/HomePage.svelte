@@ -8,7 +8,9 @@ import TenantIndexPage from "@/pages/TenantIndexPage.svelte";
 import { chaptersQuery, sortedChapters } from "@/composables/useChapters.svelte";
 import { t } from "@/i18n.svelte";
 import { brand, isPersonalApp } from "@/lib/branding";
-import { auth } from "@/stores/auth.svelte";
+import AppButton from "@/components/AppButton.svelte";
+import { answerTourOffer, auth } from "@/stores/auth.svelte";
+import { start as startTour } from "@/stores/tour.svelte";
 
 /**
  * The landing page has two faces, decided by whether the visitor has a
@@ -50,13 +52,27 @@ const chapters = $derived(sortedChapters(query.data));
 // Same order as the signed-out face and the workspace menu: settle a
 // date, put the event up, share out the work, ask people something,
 // and last the one that is for the evening itself.
+// The one push the tour keeps (docs/design-tour.md chapter 9): a card
+// above the tiles, once, that either button closes for good. A card in
+// the page rather than a modal, so a person who came to do something
+// can ignore it and do that. The answer is recorded before the tour
+// starts, so declining and starting are the same write.
+async function answerOffer(startIt: boolean, opener: HTMLElement): Promise<void> {
+  try {
+    await answerTourOffer();
+  } catch {
+    return;
+  }
+  if (startIt) startTour("welkom", "/", "event", opener);
+}
+
 const tiles = $derived<Tile[]>([
-  { key: "events", to: "/event", label: t("home.eventsTile"), hint: t("home.eventsHint") },
-  { key: "datepolls", to: "/datepoll", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
-  { key: "chores", to: "/chore", label: t("home.choresTile"), hint: t("home.choresHint") },
-  { key: "forms", to: "/form", label: t("home.formsTile"), hint: t("home.formsHint") },
-  { key: "quizzes", to: "/quiz", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
-  { key: "compasses", to: "/compass", label: t("home.compassesTile"), hint: t("home.compassesHint") },
+  { key: "events", anchor: "home.events", to: "/event", label: t("home.eventsTile"), hint: t("home.eventsHint") },
+  { key: "datepolls", anchor: "home.datepolls", to: "/datepoll", label: t("home.datepollsTile"), hint: t("home.datepollsHint") },
+  { key: "chores", anchor: "home.chores", to: "/chore", label: t("home.choresTile"), hint: t("home.choresHint") },
+  { key: "forms", anchor: "home.forms", to: "/form", label: t("home.formsTile"), hint: t("home.formsHint") },
+  { key: "quizzes", anchor: "home.quizzes", to: "/quiz", label: t("home.quizzesTile"), hint: t("home.quizzesHint") },
+  { key: "compasses", anchor: "home.compasses", to: "/compass", label: t("home.compassesTile"), hint: t("home.compassesHint") },
   // Nobody to manage and no chapters to sort them into: a personal
   // account is one person.
   ...(auth.isPersonal
@@ -80,6 +96,25 @@ const tiles = $derived<Tile[]>([
 {:else}
   <AppHeader />
   <main class="container-wide stack">
+    {#if !auth.tourOffered}
+      <AppCard class="tour-offer">
+        <h2>{t("home.tourOfferTitle")}</h2>
+        <p class="muted">{t("home.tourOfferBody")}</p>
+        <div class="tour-offer-actions">
+          <AppButton
+            label={t("home.tourOfferStart")}
+            onclick={(e) => void answerOffer(true, e.currentTarget as HTMLElement)}
+          />
+          <AppButton
+            label={t("home.tourOfferDecline")}
+            severity="secondary"
+            text
+            onclick={(e) => void answerOffer(false, e.currentTarget as HTMLElement)}
+          />
+        </div>
+      </AppCard>
+    {/if}
+
     <!-- No title or lede: the header already says whose app this is,
          and the tiles say what it does. -->
     <TileGrid {tiles} gap="0.75rem" />
@@ -101,6 +136,14 @@ const tiles = $derived<Tile[]>([
  * rather than stretching the full width of the column. */
 main :global(.pending-card) {
   max-width: 42rem;
+}
+/* The offer: a card the width of the column, its two buttons in one
+ * row, the decline as a text button so the card asks rather than
+ * pushes. */
+.tour-offer-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 /* The chapters are a different kind of destination from the tiles: a

@@ -146,7 +146,7 @@ def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackForm
             raise HTTPException(status_code=410, detail="This feedback link is no longer valid.")
         return FeedbackFormOut(
             event_name=pick_localized(event["name_nl"], event["name_en"], event["locale"]) or "",
-            event_slug=occurrence["slug"],
+            event_slug=event["slug"],
             event_locale=event["locale"],
             questions=_question_dtos(),
         )
@@ -156,7 +156,7 @@ def get_feedback_form(token: str, db: Session = Depends(get_db)) -> FeedbackForm
     event = occurrence.event
     return FeedbackFormOut(
         event_name=pick_localized(event.name_nl, event.name_en, event.locale) or "",
-        event_slug=occurrence.slug,
+        event_slug=event.slug,
         event_locale=event.locale,
         questions=_question_dtos(),
     )

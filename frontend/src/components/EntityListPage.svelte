@@ -118,7 +118,7 @@ function openNew(): void {
     skeletonRows={2}
   >
     {#snippet actionsLeading()}
-      <AppButton label={newLabel} icon="plus" onclick={openNew} />
+      <AppButton label={newLabel} icon="plus" anchor="list.new" onclick={openNew} />
     {/snippet}
 
     {#snippet row({ item })}
@@ -136,6 +136,7 @@ function openNew(): void {
           icon="info-circle"
           size="small"
           severity="secondary"
+          anchor="row.details"
           onclick={() => void go(detailsPath(item))}
         />
         <AppButton
@@ -144,6 +145,7 @@ function openNew(): void {
           size="small"
           severity="secondary"
           text
+          anchor="row.archive"
           onclick={() => list.askArchive(item)}
         />
       {/snippet}

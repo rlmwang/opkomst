@@ -26,7 +26,6 @@ from backend.models import (
     Registration,
     Signup,
 )
-from tests._helpers.events import page_occurrences
 
 # The five fixed feedback questions are Python constants
 # (``backend.services.feedback_questions``); no seed required.
@@ -121,10 +120,7 @@ def test_feedback_form_happy_path(client, organiser_headers):
     assert r.status_code == 200
     body = r.json()
     assert body["event_name"] == event["name_nl"]
-    # The feedback form is per occurrence, so ``event_slug`` is the
-    # occurrence's public slug, not the event's internal slug.
-    occ = page_occurrences(client, organiser_headers, event['id'])[0]
-    assert body["event_slug"] == occ["slug"]
+    assert body["event_slug"] == event["slug"]
     assert body["event_locale"] == "nl"
     assert len(body["questions"]) == 5
 

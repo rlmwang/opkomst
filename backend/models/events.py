@@ -24,8 +24,10 @@ from ..mixins import EditTokenMixin, OrgEntityMixin, TenantMixin, TimestampMixin
 class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     """The definition of an event — recurring or one-off. It holds the shared
     content and the recurrence rule; concrete dates are ``Occurrence`` rows,
-    materialised over time by the tick. A one-off is ``cycle_slots == []``,
-    with its single occurrence (on ``starts_on``) created at once.
+    materialised over time by the tick. A one-off has neither
+    ``cycle_slots`` nor ``picked_dates``, with its single occurrence (on
+    ``starts_on``) created at once. ``picked_dates`` is the other way to
+    recur: the dates themselves, chosen one by one.
 
     The recurrence rule is the chores roster's k-week cycle, reused: a
     ``period_weeks`` cycle length, a ``starts_on`` anchor, and ``cycle_slots``
@@ -33,16 +35,16 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     ``services/recurrence.py``. Events add a shared wall-clock time of day
     (``start_time`` / ``end_time``) over the all-day roster.
 
-    The public sign-up page is per occurrence (``Occurrence.slug``); the event
-    row has no public page of its own. ``archived_at`` archives the whole
-    event (all its occurrences); edits overwrite in place."""
+    The public sign-up page is the event's (``/e/{slug}``), one link for the
+    whole series. It lands on the next session that hasn't ended, or the
+    last one once they all have. ``archived_at`` archives the whole event
+    (all its occurrences); edits overwrite in place."""
 
     __tablename__ = "events"
 
     # Spine (slug, name_nl/name_en, image_url, image_artist_instagram,
     # locale, created_by, chapter_id, archived_at) comes from
-    # OrgEntityMixin. The slug here is organiser-internal — the public slug
-    # lives on Occurrence. ``topic`` is the bilingual richtext details body.
+    # OrgEntityMixin. ``topic`` is the bilingual richtext details body.
     topic_nl: Mapped[str | None] = mapped_column(Text, nullable=True)
     topic_en: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Optional location (free text) + resolved coordinates, the same
@@ -101,15 +103,23 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
     # ``period_weeks`` is the cycle length k (1 = weekly). ``cycle_slots`` are
     # the selected weekday offsets (``week*7 + weekday``, Mon=0, 0..7k-1);
     # ``[]`` means a one-off (a single occurrence on ``starts_on``).
-    # ``span_weeks`` runs the pattern that many weeks from ``starts_on``;
-    # NULL = open-ended (rolling). ``horizon_days`` bounds how far ahead the
+    # How a recurring event ends, at most one of three: ``span_weeks`` runs
+    # the pattern that many weeks from ``starts_on``, ``span_sessions``
+    # stops after that many sessions, ``span_until`` stops after that date.
+    # All NULL = open-ended (rolling). ``horizon_days`` bounds how far ahead the
     # tick materialises concrete occurrences.
     starts_on: Mapped[date] = mapped_column(Date, nullable=False)
     start_time: Mapped[time] = mapped_column(Time, nullable=False)
     end_time: Mapped[time] = mapped_column(Time, nullable=False)
     period_weeks: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default=text("1"))
     cycle_slots: Mapped[list[int]] = mapped_column(JSON, nullable=False, default=list)
+    # Instead of a pattern, the dates themselves, picked one by one: ISO
+    # ``YYYY-MM-DD`` strings, sorted, the first of them ``starts_on``.
+    # Never alongside ``cycle_slots`` or an end.
+    picked_dates: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list, server_default=text("'[]'"))
     span_weeks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    span_sessions: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    span_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     horizon_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90, server_default=text("90"))
 
     __table_args__ = (
@@ -120,6 +130,7 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
         Index("ix_events_tenant_chapter_created", "tenant_id", "chapter_id", "created_at"),
         Index("ix_events_archived_chapter", "archived_at", "chapter_id"),
         CheckConstraint("num_nonnulls(name_nl, name_en) >= 1", name="ck_events_name_present"),
+        CheckConstraint("num_nonnulls(span_weeks, span_sessions, span_until) <= 1", name="ck_events_one_end"),
     )
 
     occurrences: Mapped[list["Occurrence"]] = relationship(
@@ -132,7 +143,7 @@ class Event(UUIDMixin, TimestampMixin, OrgEntityMixin, TenantMixin, Base):
 class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
     """One materialised, dated instance of an ``Event``. It carries only what
     is genuinely its own: its concrete wall-clock datetimes (the pattern date
-    + the event's time of day) and its own public sign-up slug. All content
+    + the event's time of day). All content
     (name, location, questions, ...) is read through ``event_id`` — nothing is
     copied, so editing the event updates every occurrence at once. Its
     "sessie i van N" ordinal is not stored; it is the row's rank among the
@@ -146,8 +157,6 @@ class Occurrence(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # column, so a single-column index would be a second copy of the same
     # information, updated on every write.
     event_id: Mapped[str] = mapped_column(Text, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
-    # 8-char nanoid, the public URL (/e/{slug}). Unique across the table.
-    slug: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     # Naive wall-clock = on_date + event.start_time / end_time.
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), nullable=False)

@@ -24,7 +24,8 @@ import { untrack } from "svelte";
 
 import AppButton from "@/components/AppButton.svelte";
 import AppInput from "@/components/AppInput.svelte";
-import AppToggle from "@/components/AppToggle.svelte";
+import AdvancedFold from "@/components/AdvancedFold.svelte";
+import FormSection from "@/components/FormSection.svelte";
 import CycleGridPicker from "@/components/CycleGridPicker.svelte";
 import DatePicker from "@/components/DatePicker.svelte";
 import EditableList from "@/components/EditableList.svelte";
@@ -125,15 +126,24 @@ let endTime = $state<Date | null>(timeAt(22));
 // --- How often it comes round ----------------------------------------
 //
 // The date and time above fix the first session and the time of day.
-// ``repeats`` reveals the rest: a cycle of ``periodWeeks``, the weekday
-// grid inside it, and how long it runs for, unless it is open ended. A
-// one-off is ``repeats === false``, which is an empty weekday grid. The
-// 90-day materialisation window has no control; it is fixed at save.
+// ``repeats`` reveals the rest, in one of two kinds. A pattern is a
+// cycle of ``periodWeeks``, the weekday grid inside it, and how it ends:
+// after a number of weeks, after a number of times, on a date, or not at
+// all. Picked dates are the dates themselves, chosen on the date
+// planner's calendar, and the first of them is the start. A one-off is
+// ``repeats === false``. The 90-day materialisation window has no
+// control; it is fixed at save.
 let repeats = $state(false);
+type RepeatKind = "pattern" | "picked";
+let repeatKind = $state<RepeatKind>("pattern");
+let pickedDates = $state<Date[]>([]);
 let periodWeeks = $state(1);
 let cycleSlots = $state<number[]>([]);
+type EndKind = "weeks" | "sessions" | "date" | "open";
+let endKind = $state<EndKind>("weeks");
 let spanWeeks = $state(6);
-let openEnded = $state(false);
+let spanSessions = $state(6);
+let spanUntil = $state<Date | null>(null);
 
 // A shorter cycle cannot hold the later weekday offsets, so they go,
 // and the payload never carries a slot the cycle has no room for.
@@ -147,11 +157,23 @@ $effect(() => {
   cycleSlots = cycleSlots.filter((s) => s < hi);
 });
 
-const wirePeriodWeeks = $derived(repeats ? Math.max(1, Math.floor(periodWeeks || 1)) : 1);
-const wireCycleSlots = $derived(repeats ? cycleSlots : []);
+/** Switching to picked dates starts the calendar on the date above. */
+function setRepeatKind(next: RepeatKind): void {
+  repeatKind = next;
+  if (next === "picked" && pickedDates.length === 0 && eventDate) pickedDates = [eventDate];
+}
+
+const byPattern = $derived(repeats && repeatKind === "pattern");
+const byPicked = $derived(repeats && repeatKind === "picked");
+const wirePeriodWeeks = $derived(byPattern ? Math.max(1, Math.floor(periodWeeks || 1)) : 1);
+const wireCycleSlots = $derived(byPattern ? cycleSlots : []);
 const wireSpanWeeks = $derived<number | null>(
-  !repeats || openEnded ? null : Math.max(1, Math.floor(spanWeeks || 1)),
+  byPattern && endKind === "weeks" ? Math.max(1, Math.floor(spanWeeks || 1)) : null,
 );
+const wireSpanSessions = $derived<number | null>(
+  byPattern && endKind === "sessions" ? Math.max(1, Math.floor(spanSessions || 1)) : null,
+);
+const sortedPicked = $derived([...pickedDates].sort((a, b) => a.getTime() - b.getTime()));
 
 // Both catalogues, because the defaults are seeded in the event's own
 // language and the organiser may be reading the other one. Only the one
@@ -228,7 +250,6 @@ let answersEditable = $state(true);
  * Closed on arrival, always: an organiser opens it when they are
  * looking for a setting, and a form that decides for itself when to
  * unfold is a form whose length changes for reasons nobody asked for. */
-let advancedOpen = $state(false);
 let eventLocale = $state<"nl" | "en">(startLocale);
 let submitting = $state(false);
 // Armed by a 409 and spent on the next Save. Removing an option people
@@ -262,6 +283,11 @@ $effect(() => {
 // organiser types 18:00, 18:00 goes up, and the email says 18:00. No
 // zone, ever. ``sv-SE`` is the locale that formats as YYYY-MM-DD and
 // HH:MM:SS.
+function dateFromString(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 function timeFromString(hms: string): Date {
   const [h, m] = hms.split(":").map(Number);
   const d = new Date();
@@ -292,10 +318,14 @@ interface EventFormDraft {
   startTime: string | null;
   endTime: string | null;
   repeats: boolean;
+  repeatKind: RepeatKind;
+  pickedDates: string[];
   periodWeeks: number;
   cycleSlots: number[];
+  endKind: EndKind;
   spanWeeks: number;
-  openEnded: boolean;
+  spanSessions: number;
+  spanUntil: string | null;
   sources: EventOption[];
   newSource: string;
   sourceEnabled: boolean;
@@ -323,10 +353,14 @@ function snapshot(): EventFormDraft {
     startTime: startTime?.toISOString() ?? null,
     endTime: endTime?.toISOString() ?? null,
     repeats,
+    repeatKind,
+    pickedDates: pickedDates.map((d) => d.toISOString()),
     periodWeeks,
     cycleSlots: [...cycleSlots],
+    endKind,
     spanWeeks,
-    openEnded,
+    spanSessions,
+    spanUntil: spanUntil?.toISOString() ?? null,
     sources: sources.map((o) => ({ ...o })),
     newSource,
     sourceEnabled,
@@ -352,10 +386,14 @@ function applyDraft(d: EventFormDraft): void {
   startTime = d.startTime ? new Date(d.startTime) : null;
   endTime = d.endTime ? new Date(d.endTime) : null;
   repeats = d.repeats ?? false;
+  repeatKind = d.repeatKind ?? "pattern";
+  pickedDates = (d.pickedDates ?? []).map((iso) => new Date(iso));
   periodWeeks = d.periodWeeks ?? 1;
   cycleSlots = [...(d.cycleSlots ?? [])];
+  endKind = d.endKind ?? "weeks";
   spanWeeks = d.spanWeeks ?? 6;
-  openEnded = d.openEnded ?? false;
+  spanSessions = d.spanSessions ?? 6;
+  spanUntil = d.spanUntil ? new Date(d.spanUntil) : null;
   sources = (d.sources ?? []).map((o) => ({ ...o }));
   newSource = d.newSource;
   sourceEnabled = d.sourceEnabled ?? false;
@@ -396,17 +434,27 @@ $effect(() => {
   topicNl = existing.topic_nl ?? "";
   topicEn = existing.topic_en ?? "";
   place.set(existing.location, existing.latitude, existing.longitude);
-  const [y, m, d] = existing.starts_on.split("-").map(Number);
-  eventDate = new Date(y, m - 1, d);
+  eventDate = dateFromString(existing.starts_on);
   startTime = timeFromString(existing.start_time);
   endTime = timeFromString(existing.end_time);
   // The recurrence rule, read back onto the controls.
-  repeats = existing.cycle_slots.length > 0;
+  repeats = existing.cycle_slots.length > 0 || existing.picked_dates.length > 0;
+  repeatKind = existing.picked_dates.length > 0 ? "picked" : "pattern";
+  pickedDates = existing.picked_dates.map(dateFromString);
   periodWeeks = existing.period_weeks;
   lastPeriod = existing.period_weeks;
   cycleSlots = [...existing.cycle_slots];
-  openEnded = existing.span_weeks === null;
+  endKind =
+    existing.span_weeks !== null
+      ? "weeks"
+      : existing.span_sessions !== null
+        ? "sessions"
+        : existing.span_until !== null
+          ? "date"
+          : "open";
   spanWeeks = existing.span_weeks ?? 6;
+  spanSessions = existing.span_sessions ?? 6;
+  spanUntil = existing.span_until ? dateFromString(existing.span_until) : null;
   sources = existing.source_options.map((o) => ({ ...o }));
   sourceEnabled = existing.source_enabled;
   helpOptions = existing.help_options.map((o) => ({ ...o }));
@@ -477,7 +525,13 @@ async function submit(): Promise<void> {
     toasts.warn(t("event.fillName"));
     return;
   }
-  if (!eventDate) {
+  if (byPicked && pickedDates.length === 0) {
+    toasts.warn(t("event.repeat.fillDates"));
+    return;
+  }
+  // Picked dates carry their own first date; the field above only seeds them.
+  const firstDate = byPicked ? sortedPicked[0] : eventDate;
+  if (!firstDate) {
     toasts.warn(t("event.fillDate"));
     return;
   }
@@ -505,15 +559,25 @@ async function submit(): Promise<void> {
   }
   if (start.active && !start.validate()) return;
 
-  const startsAt = combine(eventDate, startTime);
-  const endsAt = combine(eventDate, endTime);
+  const startsAt = combine(firstDate, startTime);
+  const endsAt = combine(firstDate, endTime);
   if (endsAt <= startsAt) {
     toasts.warn(t("event.endAfterStart"));
     return;
   }
-  if (repeats && wireCycleSlots.length === 0) {
+  if (byPattern && wireCycleSlots.length === 0) {
     toasts.warn(t("event.fillCycleSlots"));
     return;
+  }
+  if (byPattern && endKind === "date") {
+    if (!spanUntil) {
+      toasts.warn(t("event.span.fillUntil"));
+      return;
+    }
+    if (naiveDate(spanUntil) < naiveDate(firstDate)) {
+      toasts.warn(t("event.span.untilAfterStart"));
+      return;
+    }
   }
 
   submitting = true;
@@ -527,12 +591,15 @@ async function submit(): Promise<void> {
       location: place.location.trim() || null,
       latitude: place.latitude,
       longitude: place.longitude,
-      starts_on: naiveDate(eventDate),
+      starts_on: naiveDate(firstDate),
       start_time: naiveTime(startTime),
       end_time: naiveTime(endTime),
       period_weeks: wirePeriodWeeks,
       cycle_slots: wireCycleSlots,
+      picked_dates: byPicked ? sortedPicked.map(naiveDate) : [],
       span_weeks: wireSpanWeeks,
+      span_sessions: wireSpanSessions,
+      span_until: byPattern && endKind === "date" && spanUntil ? naiveDate(spanUntil) : null,
       horizon_days: 90,
       source_options: sources,
       source_enabled: sourceEnabled,
@@ -601,7 +668,7 @@ async function submit(): Promise<void> {
     onsubmit={submit}
     oncancel={cancel}
   >
-    <section class="form-section">
+    <FormSection anchor="form.section.first">
       {#if start.active}<StartAccountField bind:value={start.email} />{/if}
       <AppInput bind:value={title.value} placeholder={title.fallback || t("event.name")} fluid />
       <RichTextField
@@ -655,7 +722,7 @@ async function submit(): Promise<void> {
           fluid
         />
       </div>
-    </section>
+    </FormSection>
 
     <!-- Uploading a picture writes to the row it belongs to, which
          takes a session; a visitor starting from the root does not have
@@ -675,79 +742,111 @@ async function submit(): Promise<void> {
          chapters has no agenda to be on, so there is no choice to
          offer. -->
     {#if start.hasChapters}
-      <section class="form-section">
-        <label class="toggle-row" for="listedToggle">
-          <AppToggle bind:checked={listed} inputId="listedToggle" />
-          <h2 class="section-heading">{t("event.listedToggle")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.listedHelp")}</p>
-      </section>
+      <FormSection
+        heading={t("event.listedToggle")}
+        bind:enabled={listed}
+        explainer={t("event.listedHelp")}
+      />
     {/if}
 
     <!-- Everything else with a switch on it lives in here. A
          ``details`` and not a button plus a branch: it is a disclosure,
          the browser already knows how to open and close one, and it
          tells a screen reader so without any aria of ours. -->
-    <details
-      class="advanced"
-      open={advancedOpen}
-      ontoggle={(e) => (advancedOpen = (e.target as HTMLDetailsElement).open)}
-    >
-      <summary>{advancedOpen ? t("common.advancedHide") : t("common.advancedShow")}</summary>
-
-      <section class="form-section">
-        <!-- The switch turns the whole block on, so it sits in front of
-             the heading rather than on a line of its own under it. -->
-        <label class="toggle-row" for="repeatToggle">
-          <AppToggle bind:checked={repeats} inputId="repeatToggle" />
-          <h2 class="section-heading">{t("event.repeatHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.repeatExplainer")}</p>
-
+    <AdvancedFold>
+      <FormSection
+        heading={t("event.repeatHeading")}
+        bind:enabled={repeats}
+        explainer={t("event.repeatExplainer")}
+        anchor="form.fold.first"
+      >
         {#if repeats}
-          <div class="repeat-row">
-            <span class="muted">{t("event.repeat.everyLead")}</span>
-            <NumberStepper
-              bind:value={periodWeeks}
-              min={1}
-              max={8}
-              ariaLabel={t("event.repeat.everyWeeks")}
+          <SelectField
+            bind:value={() => repeatKind, setRepeatKind}
+            options={[
+              { value: "pattern", label: t("event.repeat.byPattern") },
+              { value: "picked", label: t("event.repeat.byPicked") },
+            ]}
+            optionLabel="label"
+            optionValue="value"
+            fluid
+          />
+          {#if repeatKind === "picked"}
+            <DatePicker
+              bind:modelValue={pickedDates}
+              locale={locale()}
+              selectionMode="multiple"
+              inline
+              manualInput={false}
             />
-            <span class="muted">{t("event.repeat.everyTrail")}</span>
-          </div>
-
-          <p class="muted section-explainer">{t("event.repeat.gridExplainer")}</p>
-          <CycleGridPicker bind:value={cycleSlots} {periodWeeks} />
-
-          <label class="toggle-row">
-            <AppToggle bind:checked={openEnded} />
-            <span class="toggle-label">{t("event.span.openEnded")}</span>
-          </label>
-          {#if !openEnded}
-            <div class="repeat-row">
-              <span class="muted">{t("event.span.forLead")}</span>
-              <NumberStepper
-                bind:value={spanWeeks}
-                min={1}
-                max={104}
-                ariaLabel={t("event.span.weeks")}
-              />
-              <span class="muted">{t("event.span.weeksTrail")}</span>
-            </div>
           {:else}
-            <p class="muted section-explainer">{t("event.span.openEndedHelp")}</p>
+            <div class="repeat-row">
+              <span class="muted">{t("event.repeat.everyLead")}</span>
+              <NumberStepper
+                bind:value={periodWeeks}
+                min={1}
+                max={8}
+                ariaLabel={t("event.repeat.everyWeeks")}
+              />
+              <span class="muted">{t("event.repeat.everyTrail")}</span>
+            </div>
+
+            <CycleGridPicker bind:value={cycleSlots} {periodWeeks} />
+
+            <SelectField
+              bind:value={endKind}
+              options={[
+                { value: "weeks", label: t("event.span.byWeeks") },
+                { value: "sessions", label: t("event.span.bySessions") },
+                { value: "date", label: t("event.span.byDate") },
+                { value: "open", label: t("event.span.openEnded") },
+              ]}
+              optionLabel="label"
+              optionValue="value"
+              fluid
+            />
+            {#if endKind === "weeks"}
+              <div class="repeat-row">
+                <NumberStepper
+                  bind:value={spanWeeks}
+                  min={1}
+                  max={104}
+                  ariaLabel={t("event.span.weeks")}
+                />
+                <span class="muted">{t("event.span.weeksTrail")}</span>
+              </div>
+            {:else if endKind === "sessions"}
+              <div class="repeat-row">
+                <NumberStepper
+                  bind:value={spanSessions}
+                  min={1}
+                  max={104}
+                  ariaLabel={t("event.span.sessions")}
+                />
+                <span class="muted">{t("event.span.sessionsTrail")}</span>
+              </div>
+            {:else if endKind === "date"}
+              <DatePicker
+                bind:modelValue={spanUntil}
+                locale={locale()}
+                dateFormat="dd-mm-yy"
+                placeholder={t("event.span.until")}
+                fluid
+              />
+            {:else}
+              <p class="muted section-explainer">{t("event.span.openEndedHelp")}</p>
+            {/if}
           {/if}
         {/if}
-      </section>
+      </FormSection>
 
       <!-- What people can offer comes before where they heard about it:
            one is about the event itself, the other is about us. -->
-      <section class="form-section">
-        <label class="toggle-row" for="helpToggle">
-          <AppToggle bind:checked={helpEnabled} inputId="helpToggle" />
-          <h2 class="section-heading">{t("event.helpHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.helpExplainer")}</p>
+      <FormSection
+        heading={t("event.helpHeading")}
+        bind:enabled={helpEnabled}
+        explainer={t("event.helpExplainer")}
+      >
         {#if helpEnabled}
           <EditableList
             items={helpOptions}
@@ -777,14 +876,13 @@ async function submit(): Promise<void> {
             {/snippet}
           </EditableList>
         {/if}
-      </section>
+      </FormSection>
 
-      <section class="form-section">
-        <label class="toggle-row" for="sourcesToggle">
-          <AppToggle bind:checked={sourceEnabled} inputId="sourcesToggle" />
-          <h2 class="section-heading">{t("event.sourcesHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("event.sourcesExplainer")}</p>
+      <FormSection
+        heading={t("event.sourcesHeading")}
+        bind:enabled={sourceEnabled}
+        explainer={t("event.sourcesExplainer")}
+      >
         {#if sourceEnabled}
           <EditableList
             items={sources}
@@ -814,56 +912,46 @@ async function submit(): Promise<void> {
             {/snippet}
           </EditableList>
         {/if}
-      </section>
+      </FormSection>
 
       <!-- Mailing the people who sign up is the paid plan
            (docs/design-paywall.md). Hidden, not disabled: a switch
            somebody cannot use is an advertisement on every form they
            fill in. -->
       {#if auth.participantMail}
-        <section class="form-section">
-          <label class="toggle-row" for="reminderToggle">
-            <AppToggle bind:checked={reminderEnabled} inputId="reminderToggle" />
-            <h2 class="section-heading">{t("event.reminderToggle")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("event.reminderHelp")}</p>
-        </section>
+        <FormSection
+          heading={t("event.reminderToggle")}
+          bind:enabled={reminderEnabled}
+          explainer={t("event.reminderHelp")}
+        />
 
-        <section class="form-section">
-          <label class="toggle-row" for="questionnaireToggle">
-            <AppToggle bind:checked={feedbackEnabled} inputId="questionnaireToggle" />
-            <h2 class="section-heading">{t("event.questionnaireToggle")}</h2>
-          </label>
-          <p class="muted section-explainer">{t("event.questionnaireHelp")}</p>
-        </section>
+        <FormSection
+          heading={t("event.questionnaireToggle")}
+          bind:enabled={feedbackEnabled}
+          explainer={t("event.questionnaireHelp")}
+        />
       {/if}
 
       <!-- Off by default: a name real or not is what the contract
            offers, so an empty box is an answer. On when the sign-ups
            are only useful attached to somebody. -->
-      <section class="form-section">
-        <label class="toggle-row" for="nameRequiredToggle">
-          <AppToggle bind:checked={nameRequired} inputId="nameRequiredToggle" />
-          <h2 class="section-heading">{t("common.nameRequired")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("common.nameRequiredExplainer")}</p>
-      </section>
+      <FormSection
+        heading={t("common.nameRequired")}
+        bind:enabled={nameRequired}
+        explainer={t("common.nameRequiredExplainer")}
+      />
 
       <!-- A sign-up nobody can correct becomes a sign-up nobody cancels
            either, so this starts on. Off when the headcount is being
            acted on and has to stop moving. -->
-      <section class="form-section">
-        <label class="toggle-row" for="editableToggle">
-          <AppToggle bind:checked={answersEditable} inputId="editableToggle" />
-          <h2 class="section-heading">{t("form.edit.editableHeading")}</h2>
-        </label>
-        <p class="muted section-explainer">{t("form.edit.editableExplainer")}</p>
-      </section>
-    </details>
+      <FormSection
+        heading={t("form.edit.editableHeading")}
+        bind:enabled={answersEditable}
+        explainer={t("form.edit.editableExplainer")}
+      />
+    </AdvancedFold>
 
-    <section class="form-section">
-      <h2 class="section-heading">{t("event.localeHeading")}</h2>
-      <p class="muted section-explainer">{t("event.localeExplainer")}</p>
+    <FormSection heading={t("event.localeHeading")} explainer={t("event.localeExplainer")}>
       <SelectField
         bind:value={eventLocale}
         options={[
@@ -874,7 +962,7 @@ async function submit(): Promise<void> {
         optionValue="value"
         fluid
       />
-    </section>
+    </FormSection>
   </FormPageShell>
 {/if}
 

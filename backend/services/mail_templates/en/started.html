@@ -13,5 +13,6 @@
 <p><a href="{{ public_url }}">{{ public_url }}</a></p>
 <a href="{{ login_url }}" class="cta">Open your account</a>
 <p class="muted">This sign-in link works once and expires in 30 minutes. After that, ask for a new one at {{ public_base_url }} with this address. Didn't do this yourself? Then someone entered your address; you don't need to do anything, and the button above shows you what's in your account.</p>
+<p class="muted">The manual explains the rest: <a href="{{ public_base_url }}/manual">{{ public_base_url }}/manual</a>.</p>
 {% endblock %}
 {% block footer %}{{ account }} · {{ app_name }}{% endblock %}
