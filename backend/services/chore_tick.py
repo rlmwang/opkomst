@@ -22,7 +22,7 @@ resolving eligibility and the favour ledger (``ledger_weights``).
 
 from collections.abc import Sequence
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
@@ -77,7 +77,9 @@ def _day_assignments(
     )
     if exclude_shift_id is not None:
         q = q.filter(Shift.id != exclude_shift_id)
-    return [(vid, cid) for vid, cid in q.all()]
+    # ``volunteer_id IS NOT NULL`` is in the statement; the row type
+    # cannot carry that.
+    return cast(list[tuple[str, str]], [(vid, cid) for vid, cid in q.all()])
 
 
 def reassign_shift(db: Session, shift: Shift, *, exclude: set[str] | None = None, kind: str = "assigned") -> str | None:

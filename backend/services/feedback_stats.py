@@ -8,7 +8,7 @@ without a router fixture.
 """
 
 from collections.abc import Iterator, Sequence
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import distinct, func, text
 from sqlalchemy.orm import Session
@@ -114,7 +114,8 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
             .group_by(FeedbackResponse.question_key, FeedbackResponse.answer_int)
             .all()
         ):
-            counts.setdefault(key, []).append((value, n))
+            # ``answer_int IS NOT NULL`` is in the statement.
+            counts.setdefault(key, []).append((cast(int, value), n))
 
     texts: dict[str, list[str]] = {}
     if text_keys:
@@ -128,7 +129,8 @@ def question_aggregates(db: Session, event_id: str) -> list[FeedbackQuestionSumm
             .order_by(FeedbackResponse.created_at.desc())
             .all()
         ):
-            texts.setdefault(key, []).append(text)
+            # ``answer_text IS NOT NULL`` is in the statement.
+            texts.setdefault(key, []).append(cast(str, text))
 
     summaries: list[FeedbackQuestionSummary] = []
     for q in QUESTIONS:

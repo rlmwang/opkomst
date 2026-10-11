@@ -273,7 +273,7 @@ def _process_one(
     occurrence: Occurrence,
     event: Event,
     dispatch_id: str,
-    ciphertext: bytes,
+    ciphertext: bytes | None,
     dispatch_locale: str,
 ) -> None:
     """One dispatch through its lifecycle: atomic-claim,
@@ -633,7 +633,7 @@ def run_chore_reminders() -> int:
                 logger.info("mail_budget_reached", tenant_id=roster.tenant_id, channel="chore_reminder")
                 continue
             try:
-                plaintext = encryption.decrypt(volunteer.encrypted_email)
+                plaintext = encryption.decrypt(volunteer.encrypted_email or b"")
             except Exception:
                 logger.warning("chore_reminder_decrypt_failed", shift_id=shift.id)
                 continue

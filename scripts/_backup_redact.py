@@ -33,9 +33,7 @@ import re
 import sys
 
 # ``COPY public.email_dispatches (col1, col2, ...) FROM stdin;``
-_COPY_RE = re.compile(
-    r"^COPY public\.email_dispatches \(([^)]+)\) FROM stdin;$"
-)
+_COPY_RE = re.compile(r"^COPY public\.email_dispatches \(([^)]+)\) FROM stdin;$")
 
 
 def main() -> int:
@@ -56,10 +54,7 @@ def main() -> int:
                     # decide whether to abort.
                     out.write(line)
                     continue
-                out.write(
-                    "-- opkomst-redacted: email_dispatches "
-                    "(encrypted_email NULL'd)\n"
-                )
+                out.write("-- opkomst-redacted: email_dispatches (encrypted_email NULL'd)\n")
                 out.write(line)
                 in_target_copy = True
                 continue
