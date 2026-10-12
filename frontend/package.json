@@ -15,7 +15,7 @@
     "check": "svelte-check --threshold error"
   },
   "dependencies": {
-    "@sentry/browser": "^10.72.0",
+    "@sentry/browser": "^11.6.0",
     "@tanstack/svelte-query": "^6.3.1"
   },
   "devDependencies": {
